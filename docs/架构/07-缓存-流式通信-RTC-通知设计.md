@@ -1,107 +1,154 @@
 # 缓存、流式通信、RTC 与通知设计
 
-## 1. 缓存设计原则
+## 1. 文档目标
+
+本文档用于统一描述 `craw-chat` 在缓存、流式通信、RTC 信令和通知侧的设计口径，确保：
+
+- 流是真正的一等能力
+- 缓存不侵入真相源
+- RTC 只做信令
+- 通知和自动化不阻塞主提交链路
+- AI 流输出与 IoT 设备流能够落在同一套实时模型下
+
+## 2. 缓存设计原则
 
 - 缓存不是业务真相源
-- 缓存只做加速与热点缓冲
+- 缓存只做加速、热点承接和恢复提示
 - 缓存失效不能破坏提交语义
-- 缓存必须 tenant-aware
+- 所有缓存都必须 tenant-aware
+- 缓存键空间必须与 route、presence、quota、resume 等责任域分离
 
-## 2. 缓存用途
+## 3. 缓存职责边界
 
-### 2.1 可缓存内容
+### 3.1 可缓存内容
 
 - route snapshot
 - session resume hint
+- reconnect hint
 - device online hint
 - presence snapshot
 - rate limit counters
 - hot conversation summary
-- device sync cursor
+- unread hot cache
 - device registration snapshot
 
-### 2.2 不可缓存为真相的内容
+### 3.2 不可缓存为真相的内容
 
-- 消息历史
+- 消息历史本体
 - 会话顺序号
-- durable 事件
+- durable event 本体
 - 角色权限真相
-- 文件资源权威元数据
-- 设备补偿流事件本体
+- 媒体资源权威元数据
+- stream durable checkpoint 真相
 
-### 2.3 Device Sync Feed 与缓存边界
+### 3.3 推荐键空间
 
-- `device registration snapshot` 只缓存“某主体当前有哪些已知设备”，真相可来自元数据存储或注册事件重放。
-- `device sync cursor` 只缓存设备最近消费到的 `sync_seq`，真相仍由补偿流分区内的有序记录决定。
-- `session resume hint` 可以缓存最近一次活跃 `device_id + sync_seq`，用于网关快速判定是否需要补拉 `sync-feed`。
-- `device online hint` 和 `presence snapshot` 不参与补偿流正确性，只参与路由优化和是否优先走实时下行。
+- `tenant:{tenant}:route:*`
+- `tenant:{tenant}:presence:*`
+- `tenant:{tenant}:resume:*`
+- `tenant:{tenant}:quota:*`
+- `tenant:{tenant}:summary:*`
 
-### 2.4 Session Resume Hint 与 Presence Snapshot 标准
+## 4. Resume 与 Presence 设计
 
-- `session resume hint` 推荐键：
-  - `tenant:{tenant_id}:principal:{principal_id}:device:{device_id}:resume_hint`
-- 推荐值：
-  - `latest_sync_seq`
-  - `last_seen_sync_seq`
-  - `last_resume_at`
-  - `session_id`
-- `presence snapshot` 推荐键：
-  - `tenant:{tenant_id}:principal:{principal_id}:presence`
-- 推荐值：
-  - `current_device_id`
-  - `devices[]`
-  - 每设备 `status / session_id / last_sync_seq / last_resume_at / last_seen_at`
+### 4.1 Session Resume Hint
 
-缓存使用原则：
+推荐缓存键：
 
-- `session resume hint` 命中失败时，接入层必须退化为查询设备补偿流最新水位，不能因为缓存丢失导致恢复判定错误。
-- `presence snapshot` 命中失败时，允许退化为“所有已注册设备默认为离线，当前设备按本次 resume 标记为在线”。
-- `device online hint` 与 `presence snapshot` 允许短 TTL 和最终一致，不参与消息可靠性承诺。
-- `presence.heartbeat` 可以只刷新缓存和接入层内存态，不要求写入 durable event。
-- `session.disconnect` 必须优先刷新 `presence snapshot`，即便后续没有额外 durable 流程也不能继续显示为在线。
-- `message.edited` 与 `message.recalled` 不要求额外缓存真相；若需要加速 timeline 展示，只能缓存最终投影视图，不能绕开事件重放语义。
+- `tenant:{tenant_id}:principal:{principal_id}:device:{device_id}:resume_hint`
 
-## 3. 流式通信设计
+推荐值：
 
-## 3.1 流等级
+- `latest_sync_seq`
+- `last_seen_sync_seq`
+- `last_resume_at`
+- `session_id`
+- `resume_token`
+
+### 4.2 Presence Snapshot
+
+推荐缓存键：
+
+- `tenant:{tenant_id}:principal:{principal_id}:presence`
+
+推荐值：
+
+- `current_device_id`
+- `devices[]`
+- 每设备 `status / session_id / last_sync_seq / last_resume_at / last_seen_at`
+
+### 4.3 恢复原则
+
+- `resume hint` 命中失败时，系统必须回退到权威存储和补偿流，而不能直接判定无需恢复。
+- `presence snapshot` 命中失败时，允许回退为“全离线 + 当前会话在线”的保守视图。
+- `presence.heartbeat` 可以只刷新缓存和接入层内存态，不要求进入 durable truth。
+
+## 5. 流式通信设计
+
+## 5.1 流的定位
+
+流不是普通消息的补丁，而是与消息并列的一等语义，统一承载：
+
+- LLM token streaming
+- Agent tool call 渐进输出
+- 长任务进度
+- JSON patch
+- 实时语音转写
+- 设备 telemetry
+- command response stream
+
+## 5.2 Stream 生命周期
+
+统一生命周期建议为：
+
+- `stream.open`
+- `stream.delta`
+- `stream.patch`
+- `stream.checkpoint`
+- `stream.finalize`
+- `stream.abort`
+
+## 5.3 流等级
 
 - `Transient`
 - `Durable Session`
 - `Event Log`
 
-## 3.2 StreamSession
+说明：
 
-生命周期：
+- `Transient` 适合弱持久化或实时展示
+- `Durable Session` 适合需要恢复和补偿的交互流
+- `Event Log` 适合要求完整回放和审计的流
 
-- `created`
-- `opened`
-- `active`
-- `checkpointed`
-- `completed`
-- `aborted`
-- `expired`
+## 5.4 持久化策略
 
-## 3.3 持久化策略
+- `Transient` 可不全量 durable
+- `Durable Session` 必须落 session、checkpoint 和关键帧
+- `Event Log` 需要完整 durable append
 
-- `Transient` 默认不落 durable commit
-- `Durable Session` 落关键事件
-- `Event Log` 事件全量 durable
+## 5.5 Materialization 策略
 
-## 3.4 用户自定义数据流
+流结束后可根据策略物化为：
 
-平台支持通过 `schema_ref + stream_type + policy` 定义用户自定义数据流：
+- 普通消息
+- 卡片
+- 文件
+- 任务状态
+- 知识片段
 
-- 状态同步
-- 长任务输出
-- 增量渲染
-- 通知流水
-- 结构化事件流
+## 5.6 自定义流
 
-平台不内置垂直业务语义，但提供统一标准。
+系统支持通过 `schema_ref + stream_type + policy` 承载用户自定义流，平台只提供统一壳层，不硬编码垂直业务语义。
 
-## 4. RTC 信令设计
+## 6. RTC 设计
 
-### 4.1 信令类型
+### 6.1 RTC 定位
+
+- RTC 只统一信令层
+- 媒体面独立部署
+- 信令可绑定会话，但不能污染消息内核的有序主链
+
+### 6.2 RTC 信令类型
 
 - `rtc.offer`
 - `rtc.answer`
@@ -112,64 +159,85 @@
 - `rtc.end`
 - `rtc.member_state`
 
-### 4.2 持久化边界
+### 6.3 Durable 边界
 
 默认 durable：
-
-- call started
-- invite sent
-- accept/reject
-- call ended
-- artifact attached
-
-当前最小实现已落地：
 
 - `rtc.invite`
 - `rtc.accept`
 - `rtc.reject`
 - `rtc.end`
-
-这些状态变化在 `conversationId` 存在时会映射为消息 `SignalPart`，并通过统一消息链进入 timeline / conversation summary。
+- artifact / recording / transcript attachment
 
 默认 transient：
 
-- ice candidate
-- volume level
-- weak participant state
+- `rtc.ice_candidate`
+- `volume level`
+- `weak participant state`
 
-## 5. 通知设计
+### 6.4 与消息体系的关系
 
-### 5.1 通知源
+当 RTC 会话绑定 `conversationId` 时：
+
+- 关键生命周期可物化为 `SignalPart` 消息
+- timeline、summary 和通知视图可以引用 RTC 事件结果
+- 媒体传输本身仍独立于 IM 内核
+
+## 7. 通知设计
+
+### 7.1 通知源
 
 - 新消息
-- 提及
+- @提及
 - 会话变更
+- Agent 结果
 - 自动化结果
 - 系统公告
 - RTC 呼叫事件
+- 设备告警
 
-### 5.2 通知通道
+### 7.2 通知通道
 
-- 站内
+- 站内通知
 - WebSocket 实时下发
 - Push 请求
 - Webhook 回调
+- 未来预留短信、邮件和企业连接器
 
-### 5.3 通知任务模型
+### 7.3 通知事件模型
 
 - `notification.requested`
 - `notification.dispatched`
 - `notification.failed`
+- `notification.acknowledged`
 
-### 5.4 当前最小实现
+### 7.4 设计原则
 
-- `local-minimal-node` 在 `message.posted` 提交成功后会触发一条 `inapp` 通知任务
-- 通知任务当前走 `requested -> dispatched` 同步最小流水
-- 自动化执行完成后会额外生成 `automation.result` 类通知
+- 通知通过 side-effect pipeline 异步触发
+- 通知失败不得影响消息提交成功语义
+- 大规模广播或推送必须支持租户级限流与降级
 
-## 6. 读写分离策略
+## 8. 与 AI / IoT 的关系
+
+### 8.1 AI
+
+- Agent 输出优先走流，再按策略物化成消息或卡片
+- tool call 过程可走结构化流
+- AI summary 可作为投影或附属消息写回
+
+### 8.2 IoT
+
+- 设备上行 telemetry 直接进入统一流模型
+- 设备控制命令可作为消息、信令或 command stream 表达
+- 设备回执和异常通知统一走通知与事件链
+
+## 9. 读写分离策略
 
 - 会话命令成功后先提交 event
-- 通知通过 side-effect pipeline 异步触发
-- RTC 信令事件与消息事件共用 envelope，但走不同消费链
-- 当前最小实现中，通知与自动化 side-effect 在 `local-minimal-node` 编排层串联，保持主服务边界清晰，后续可替换为独立异步 worker
+- 流 durable 部分按 `StreamStore` 规则写入
+- 通知和自动化通过 side-effect pipeline 异步触发
+- RTC 信令与消息事件可共用 envelope，但消费链独立
+
+## 10. 结论
+
+`craw-chat` 在实时层的核心策略是：缓存只做辅助、流是真正一等能力、RTC 只做信令、通知永远不阻塞提交主链。这样才能同时兼容 IM、AI、IoT 和后续协作能力的统一演进。
