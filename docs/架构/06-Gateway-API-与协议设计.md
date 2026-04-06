@@ -1,11 +1,26 @@
 # Gateway API 与协议设计
 
+## 0. 协议基线引用
+
+本文件的网关与协议设计，从本轮开始统一受以下协议基线约束：
+
+- `143-统一协议总纲与分层设计-2026-04-06`
+- `144-CCP传输绑定与握手协商设计-2026-04-06`
+- `145-CCP数据协议与版本兼容安全设计-2026-04-06`
+
+其中：
+
+- `HTTP / WebSocket / SSE / MQTT` 是标准传输
+- `CCP = Craw Chat Protocol` 是统一应用协议族
+- `JSON / CBOR` 是物理编码，不是协议本身
+
 ## 1. API 总体原则
 
-- 外部采用 HTTP + WebSocket
-- 内部采用 gRPC
-- 所有外部请求必须 tenant-aware
-- 统一 envelope 与错误码
+- 外部采用 `HTTP + WebSocket + SSE + MQTT`，统一承载 `CCP`
+- 内部 RPC 可使用 `gRPC` 或其他服务间协议，但不属于客户端协议族的一部分
+- 所有外部请求的 `tenant / actor / sender` 都从认证上下文推导
+- 统一 `CCP envelope` 与错误模型
+- 协议版本与 schema 版本双轨治理
 - 支持离散消息与流式消息
 
 ## 2. Gateway 分层
@@ -366,22 +381,32 @@ Content-Type: application/json
 }
 ```
 
-## 4. WebSocket 协议
+## 4. CCP 实时绑定协议
 
 ### 4.1 连接初始化
 
-客户端连接后发送：
+长连接初始化必须遵循统一握手顺序：
 
-- `auth.bind`
-- `session.resume`
-- `subscriptions.sync`
+1. `hello`
+2. `hello_ack`
+3. `auth_bind`
+4. `auth_ok`
+5. `session_resume`
+6. `session_resumed`
 
 说明：
 
-- `session.resume` 是连接建立后第一批上行命令之一，用于告知接入层当前设备是否需要从 `sync-feed` 继续补拉。
+- `subscriptions.sync` 属于业务阶段命令，必须在会话进入 `Active` 后发送，而不是替代握手。
+- `session.resume` 是长连接标准能力，不允许继续用业务接口模拟恢复语义。
 - `presence.heartbeat` 可以按固定间隔上送，用于刷新 `lastSeenAt`。
 - `session.disconnect` 用于显式断开时把 presence 快照切回 `offline`。
 - `presence.event` 协议名预留不变；一期可以只提供 `GET /api/v1/presence/me` 查询快照，不强制要求做广播下行。
+
+绑定说明：
+
+- `ccp/ws/1` 是主双向实时链路。
+- `ccp/sse/1` 负责单向服务端推送，客户端上行通过 `ccp/http/1` 提交。
+- `ccp/mqtt/1` 面向设备与边缘节点，payload 同样遵循 CCP envelope。
 
 ### 4.2 下行事件
 
@@ -404,35 +429,72 @@ Content-Type: application/json
 
 ```json
 {
-  "command_id": "cmd_xxx",
-  "tenant_id": "t_xxx",
-  "command_type": "message.post",
-  "target_aggregate_type": "conversation",
-  "target_aggregate_id": "c_xxx",
-  "idempotency_key": "ik_xxx",
-  "issued_at": "2026-04-05T10:00:00Z",
-  "payload": {}
+  "protocol": "ccp/1.0",
+  "kind": "cmd",
+  "type": "message.send",
+  "id": "fr_cmd_xxx",
+  "traceId": "tr_xxx",
+  "requestId": "req_xxx",
+  "ts": "2026-04-05T10:00:00Z",
+  "schema": "cc.message.send.v1",
+  "scope": {
+    "kind": "conversation",
+    "id": "c_xxx"
+  },
+  "route": {
+    "sessionId": "s_xxx",
+    "deviceId": "d_xxx",
+    "routeEpoch": 12
+  },
+  "flags": [
+    "idempotent"
+  ],
+  "payload": {
+    "parts": []
+  }
 }
 ```
 
-说明：`tenant_id` 由 gateway 根据认证上下文写入，不由客户端在业务请求体中提交。
+说明：
+
+- `tenantId` 不出现在业务请求体中，必须由 gateway 根据认证上下文推导。
+- `sender` 也不是客户端权威字段，统一由服务端从认证、成员和设备上下文补齐。
+- `routeEpoch` 由路由层维护，客户端不得伪造。
 
 ## 6. Event Envelope
 
 ```json
 {
-  "event_id": "evt_xxx",
-  "tenant_id": "t_xxx",
-  "event_type": "message.posted",
-  "event_version": 1,
-  "aggregate_type": "conversation",
-  "aggregate_id": "c_xxx",
-  "scope_type": "conversation",
-  "scope_id": "c_xxx",
-  "ordering_seq": 123,
-  "occurred_at": "2026-04-05T10:00:01Z",
-  "committed_at": "2026-04-05T10:00:01Z",
-  "payload": {}
+  "protocol": "ccp/1.0",
+  "kind": "evt",
+  "type": "message.posted",
+  "id": "fr_evt_xxx",
+  "traceId": "tr_xxx",
+  "requestId": "req_xxx",
+  "ts": "2026-04-05T10:00:01Z",
+  "schema": "cc.message.posted.v1",
+  "scope": {
+    "kind": "conversation",
+    "id": "c_xxx"
+  },
+  "route": {
+    "sessionId": "s_xxx",
+    "deviceId": "d_xxx",
+    "routeEpoch": 12
+  },
+  "flags": [],
+  "payload": {
+    "messageId": "msg_xxx",
+    "messageSeq": 123,
+    "sender": {
+      "id": "u_xxx",
+      "kind": "user",
+      "memberId": "cm_xxx",
+      "deviceId": "d_xxx",
+      "sessionId": "s_xxx",
+      "metadata": {}
+    }
+  }
 }
 ```
 
@@ -466,11 +528,32 @@ Content-Type: application/json
 
 ```json
 {
-  "stream_id": "st_xxx",
-  "frame_seq": 10,
-  "frame_type": "data",
-  "schema_ref": "custom.delta.text.v1",
-  "payload": {}
+  "protocol": "ccp/1.0",
+  "kind": "stream",
+  "type": "stream.delta",
+  "id": "fr_stream_xxx",
+  "traceId": "tr_stream_xxx",
+  "requestId": "req_stream_xxx",
+  "ts": "2026-04-05T10:00:02Z",
+  "schema": "cc.stream.delta.v1",
+  "scope": {
+    "kind": "stream",
+    "id": "st_xxx"
+  },
+  "route": {
+    "sessionId": "s_xxx",
+    "deviceId": "d_xxx",
+    "routeEpoch": 12
+  },
+  "flags": [
+    "replayable"
+  ],
+  "payload": {
+    "streamId": "st_xxx",
+    "frameSeq": 10,
+    "frameType": "data",
+    "delta": "hello"
+  }
 }
 ```
 
@@ -484,10 +567,17 @@ Content-Type: application/json
 - lease 过期
 - 幂等冲突
 - 事件版本不兼容
+- 协议版本不兼容
+- codec 不兼容
+- capability 未协商
+- routeEpoch 过期
 
 ## 9. API 演进原则
 
 - 路径稳定
 - envelope 稳定
+- 协议版本与 schema 版本双轨治理
 - 类型新增优先于字段破坏式修改
 - 所有 schema 显式版本化
+- 客户端必须忽略未知可选字段
+- 服务端必须容忍旧客户端缺少新增的可选字段

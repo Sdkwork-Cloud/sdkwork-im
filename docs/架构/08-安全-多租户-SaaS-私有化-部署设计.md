@@ -16,6 +16,7 @@
 - 默认最小权限
 - 默认 tenant-aware 鉴权与审计
 - 高风险写操作必须具备幂等和回放保护
+- `CCP` 权威字段边界必须前置到接入层
 - 安全和多租户校验要尽量靠前进入接入层，而不是拖到业务末端
 
 ## 3. 身份与认证模型
@@ -42,8 +43,17 @@
 
 - `tenantId` 必须来自已校验的 JWT、session 或 trusted identity context
 - `actorId / actorKind / sessionId / deviceId` 必须来自认证上下文或可信绑定关系
+- `sender / routeEpoch / serverTs` 必须来自服务端推导与路由状态
 - 业务请求体不得覆盖这些权威字段
 - gateway 负责把权威上下文转换为内部命令上下文与审计字段
+
+### 3.4 协议安全边界
+
+- 长连接握手必须遵循 `hello -> auth_bind -> session_resume` 的统一协议顺序
+- 未完成认证绑定前，不允许进入普通业务帧阶段
+- 客户端不得伪造 `tenantId`、`actorId`、`sender`、`routeEpoch`
+- 恢复链路必须校验 `resume token`、`sessionId`、`deviceId` 与 `routeEpoch`
+- 设备侧在高信任场景可追加 `device signature`，但不替代 `TLS`
 
 ## 4. 双轨安全模型
 
