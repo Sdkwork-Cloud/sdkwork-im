@@ -1,0 +1,464 @@
+use std::collections::BTreeSet;
+
+use axum::http::header::AUTHORIZATION;
+use axum::http::{HeaderMap, HeaderValue};
+use hmac::{Hmac, Mac};
+use serde_json::Value;
+use sha2::Sha256;
+
+pub const PUBLIC_BEARER_HS256_SECRET_ENV: &str = "CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET";
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AuthContext {
+    pub tenant_id: String,
+    pub actor_id: String,
+    pub actor_kind: String,
+    pub session_id: Option<String>,
+    pub device_id: Option<String>,
+    pub permissions: BTreeSet<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AuthContextError {
+    code: &'static str,
+    message: String,
+}
+
+impl AuthContextError {
+    pub fn code(&self) -> &'static str {
+        self.code
+    }
+
+    pub fn message(&self) -> &str {
+        self.message.as_str()
+    }
+
+    fn missing(message: impl Into<String>) -> Self {
+        Self {
+            code: "auth_context_missing",
+            message: message.into(),
+        }
+    }
+
+    fn invalid(code: &'static str, message: impl Into<String>) -> Self {
+        Self {
+            code,
+            message: message.into(),
+        }
+    }
+}
+
+impl std::fmt::Display for AuthContextError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.message)
+    }
+}
+
+impl std::error::Error for AuthContextError {}
+
+impl AuthContext {
+    pub fn has_permission(&self, permission: &str) -> bool {
+        if permission.trim().is_empty() {
+            return false;
+        }
+
+        if self.permissions.contains("*")
+            || self.permissions.contains("tenant.admin")
+            || self.permissions.contains(permission)
+        {
+            return true;
+        }
+
+        let segments: Vec<&str> = permission.split('.').collect();
+        for index in 1..segments.len() {
+            let wildcard = format!("{}.*", segments[..index].join("."));
+            if self.permissions.contains(wildcard.as_str()) {
+                return true;
+            }
+        }
+
+        false
+    }
+}
+
+pub fn resolve_auth_context(headers: &HeaderMap) -> Result<AuthContext, AuthContextError> {
+    if let Some(value) = headers.get(AUTHORIZATION) {
+        return resolve_bearer_header(value);
+    }
+
+    resolve_trusted_headers(headers)
+}
+
+pub fn resolve_bearer_auth_context(headers: &HeaderMap) -> Result<AuthContext, AuthContextError> {
+    let value = headers
+        .get(AUTHORIZATION)
+        .ok_or_else(|| AuthContextError::missing("authorization bearer token is required"))?;
+
+    resolve_bearer_header(value)
+}
+
+pub fn resolve_public_bearer_auth_context(
+    headers: &HeaderMap,
+) -> Result<AuthContext, AuthContextError> {
+    let value = headers
+        .get(AUTHORIZATION)
+        .ok_or_else(|| AuthContextError::missing("authorization bearer token is required"))?;
+    let secret = std::env::var(PUBLIC_BEARER_HS256_SECRET_ENV)
+        .ok()
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| {
+            AuthContextError::invalid(
+                "public_bearer_secret_missing",
+                format!(
+                    "public bearer verifier secret is missing: {}",
+                    PUBLIC_BEARER_HS256_SECRET_ENV
+                ),
+            )
+        })?;
+
+    resolve_signed_bearer_header(value, secret.as_bytes())
+}
+
+pub fn encode_hs256_bearer_token(claims: &Value, secret: &str) -> Result<String, AuthContextError> {
+    let header = serde_json::json!({
+        "alg": "HS256",
+        "typ": "JWT"
+    });
+    let header_segment = encode_base64url(
+        serde_json::to_vec(&header)
+            .map_err(|_| {
+                AuthContextError::invalid("jwt_header_invalid", "jwt header is not valid json")
+            })?
+            .as_slice(),
+    );
+    let payload_segment = encode_base64url(
+        serde_json::to_vec(claims)
+            .map_err(|_| {
+                AuthContextError::invalid(
+                    "jwt_claims_invalid",
+                    "jwt claims payload is not valid json",
+                )
+            })?
+            .as_slice(),
+    );
+    let signing_input = format!("{header_segment}.{payload_segment}");
+    let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).map_err(|_| {
+        AuthContextError::invalid(
+            "public_bearer_secret_invalid",
+            "public bearer verifier secret is invalid",
+        )
+    })?;
+    mac.update(signing_input.as_bytes());
+    let signature = mac.finalize().into_bytes();
+    let signature_segment = encode_base64url(signature.as_slice());
+
+    Ok(format!(
+        "{header_segment}.{payload_segment}.{signature_segment}"
+    ))
+}
+
+pub fn resolve_trusted_headers(headers: &HeaderMap) -> Result<AuthContext, AuthContextError> {
+    let tenant_id = resolve_header(headers, &["x-tenant-id"])?;
+    let actor_id = resolve_header(headers, &["x-actor-id", "x-user-id"])?;
+    let actor_kind =
+        resolve_optional_header(headers, &["x-actor-kind"]).unwrap_or_else(|| "user".into());
+    let session_id = resolve_optional_header(headers, &["x-session-id"]);
+    let device_id = resolve_optional_header(headers, &["x-device-id"]);
+    let permissions = resolve_permissions_from_headers(headers);
+
+    Ok(AuthContext {
+        tenant_id,
+        actor_id,
+        actor_kind,
+        session_id,
+        device_id,
+        permissions,
+    })
+}
+
+fn resolve_bearer_header(value: &HeaderValue) -> Result<AuthContext, AuthContextError> {
+    let raw = value.to_str().map_err(|_| {
+        AuthContextError::invalid(
+            "authorization_invalid",
+            "authorization header is not valid utf-8",
+        )
+    })?;
+    let token = raw
+        .strip_prefix("Bearer ")
+        .or_else(|| raw.strip_prefix("bearer "))
+        .ok_or_else(|| {
+            AuthContextError::invalid(
+                "authorization_scheme_invalid",
+                "authorization scheme must be Bearer",
+            )
+        })?;
+
+    resolve_bearer_token(token)
+}
+
+fn resolve_signed_bearer_header(
+    value: &HeaderValue,
+    secret: &[u8],
+) -> Result<AuthContext, AuthContextError> {
+    let raw = value.to_str().map_err(|_| {
+        AuthContextError::invalid(
+            "authorization_invalid",
+            "authorization header is not valid utf-8",
+        )
+    })?;
+    let token = raw
+        .strip_prefix("Bearer ")
+        .or_else(|| raw.strip_prefix("bearer "))
+        .ok_or_else(|| {
+            AuthContextError::invalid(
+                "authorization_scheme_invalid",
+                "authorization scheme must be Bearer",
+            )
+        })?;
+
+    resolve_hs256_bearer_token(token, secret)
+}
+
+fn resolve_bearer_token(token: &str) -> Result<AuthContext, AuthContextError> {
+    let parts: Vec<&str> = token.split('.').collect();
+    if parts.len() < 2 {
+        return Err(AuthContextError::invalid(
+            "jwt_shape_invalid",
+            "bearer token must be a jwt-like token",
+        ));
+    }
+
+    let payload = decode_base64url(parts[1])?;
+    let claims: Value = serde_json::from_slice(&payload).map_err(|_| {
+        AuthContextError::invalid("jwt_claims_invalid", "jwt claims payload is not valid json")
+    })?;
+
+    let tenant_id = resolve_claim(
+        &claims,
+        &["tenant_id", "tenantId"],
+        "jwt tenant claim is missing",
+    )?;
+    let actor_id = resolve_claim(
+        &claims,
+        &["sub", "actor_id", "actorId", "user_id", "userId"],
+        "jwt actor claim is missing",
+    )?;
+    let actor_kind = find_claim(
+        &claims,
+        &["actor_kind", "actorKind", "principal_type", "principalType"],
+    )
+    .unwrap_or_else(|| "user".into());
+    let session_id = find_claim(&claims, &["sid", "session_id", "sessionId"]);
+    let device_id = find_claim(&claims, &["did", "device_id", "deviceId"]);
+    let permissions = resolve_permissions_from_claims(&claims);
+
+    Ok(AuthContext {
+        tenant_id,
+        actor_id,
+        actor_kind,
+        session_id,
+        device_id,
+        permissions,
+    })
+}
+
+fn resolve_hs256_bearer_token(token: &str, secret: &[u8]) -> Result<AuthContext, AuthContextError> {
+    let parts: Vec<&str> = token.split('.').collect();
+    if parts.len() != 3 {
+        return Err(AuthContextError::invalid(
+            "jwt_shape_invalid",
+            "public bearer token must contain header, payload, and signature",
+        ));
+    }
+
+    let header_bytes = decode_base64url(parts[0])?;
+    let header: Value = serde_json::from_slice(&header_bytes).map_err(|_| {
+        AuthContextError::invalid("jwt_header_invalid", "jwt header is not valid json")
+    })?;
+    let algorithm = header
+        .get("alg")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| {
+            AuthContextError::invalid(
+                "jwt_algorithm_invalid",
+                "public bearer token algorithm must be HS256",
+            )
+        })?;
+    if algorithm != "HS256" {
+        return Err(AuthContextError::invalid(
+            "jwt_algorithm_invalid",
+            "public bearer token algorithm must be HS256",
+        ));
+    }
+
+    let signature = decode_base64url(parts[2])?;
+    let mut mac = Hmac::<Sha256>::new_from_slice(secret).map_err(|_| {
+        AuthContextError::invalid(
+            "public_bearer_secret_invalid",
+            "public bearer verifier secret is invalid",
+        )
+    })?;
+    mac.update(format!("{}.{}", parts[0], parts[1]).as_bytes());
+    mac.verify_slice(signature.as_slice()).map_err(|_| {
+        AuthContextError::invalid(
+            "authorization_signature_invalid",
+            "public bearer token signature is invalid",
+        )
+    })?;
+
+    resolve_bearer_token(token)
+}
+
+fn resolve_header(headers: &HeaderMap, names: &[&str]) -> Result<String, AuthContextError> {
+    resolve_optional_header(headers, names).ok_or_else(|| {
+        AuthContextError::missing(format!("missing trusted auth header: {}", names[0]))
+    })
+}
+
+fn resolve_optional_header(headers: &HeaderMap, names: &[&str]) -> Option<String> {
+    names.iter().find_map(|name| {
+        headers
+            .get(*name)
+            .and_then(|value| value.to_str().ok())
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(ToOwned::to_owned)
+    })
+}
+
+fn resolve_claim(
+    claims: &Value,
+    names: &[&str],
+    missing_message: &'static str,
+) -> Result<String, AuthContextError> {
+    find_claim(claims, names).ok_or_else(|| AuthContextError::missing(missing_message))
+}
+
+fn find_claim(claims: &Value, names: &[&str]) -> Option<String> {
+    names.iter().find_map(|name| {
+        claims
+            .get(*name)
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(ToOwned::to_owned)
+    })
+}
+
+fn resolve_permissions_from_headers(headers: &HeaderMap) -> BTreeSet<String> {
+    let mut permissions = BTreeSet::new();
+
+    for name in ["x-permissions", "x-scope", "x-scopes"] {
+        if let Some(value) = headers.get(name).and_then(|value| value.to_str().ok()) {
+            append_permission_str(&mut permissions, value);
+        }
+    }
+
+    permissions
+}
+
+fn resolve_permissions_from_claims(claims: &Value) -> BTreeSet<String> {
+    let mut permissions = BTreeSet::new();
+
+    for name in ["permissions", "perms", "scope", "scp"] {
+        if let Some(value) = claims.get(name) {
+            append_permission_value(&mut permissions, value);
+        }
+    }
+
+    permissions
+}
+
+fn append_permission_value(permissions: &mut BTreeSet<String>, value: &Value) {
+    match value {
+        Value::String(text) => append_permission_str(permissions, text),
+        Value::Array(items) => {
+            for item in items {
+                if let Some(text) = item.as_str() {
+                    append_permission_str(permissions, text);
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+fn append_permission_str(permissions: &mut BTreeSet<String>, raw: &str) {
+    for token in raw.split(|ch: char| ch.is_whitespace() || ch == ',') {
+        let permission = token.trim();
+        if !permission.is_empty() {
+            permissions.insert(permission.to_owned());
+        }
+    }
+}
+
+fn decode_base64url(input: &str) -> Result<Vec<u8>, AuthContextError> {
+    let mut output = Vec::with_capacity((input.len() * 3) / 4 + 3);
+    let mut buffer = 0u32;
+    let mut bits = 0u8;
+
+    for byte in input.bytes() {
+        let value = match byte {
+            b'A'..=b'Z' => byte - b'A',
+            b'a'..=b'z' => byte - b'a' + 26,
+            b'0'..=b'9' => byte - b'0' + 52,
+            b'-' => 62,
+            b'_' => 63,
+            b'=' => continue,
+            _ => {
+                return Err(AuthContextError::invalid(
+                    "jwt_encoding_invalid",
+                    "jwt payload segment is not valid base64url",
+                ));
+            }
+        } as u32;
+
+        buffer = (buffer << 6) | value;
+        bits += 6;
+
+        while bits >= 8 {
+            bits -= 8;
+            output.push(((buffer >> bits) & 0xff) as u8);
+        }
+    }
+
+    if bits > 0 && (buffer & ((1 << bits) - 1)) != 0 {
+        return Err(AuthContextError::invalid(
+            "jwt_encoding_invalid",
+            "jwt payload segment has invalid trailing bits",
+        ));
+    }
+
+    Ok(output)
+}
+
+fn encode_base64url(input: &[u8]) -> String {
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+
+    let mut output = String::with_capacity((input.len() * 4).div_ceil(3));
+    let mut chunks = input.chunks_exact(3);
+    for chunk in &mut chunks {
+        let value = ((chunk[0] as u32) << 16) | ((chunk[1] as u32) << 8) | chunk[2] as u32;
+        output.push(ALPHABET[((value >> 18) & 0x3f) as usize] as char);
+        output.push(ALPHABET[((value >> 12) & 0x3f) as usize] as char);
+        output.push(ALPHABET[((value >> 6) & 0x3f) as usize] as char);
+        output.push(ALPHABET[(value & 0x3f) as usize] as char);
+    }
+
+    let remainder = chunks.remainder();
+    if !remainder.is_empty() {
+        let first = remainder[0] as u32;
+        let second = remainder.get(1).copied().unwrap_or_default() as u32;
+        let value = (first << 16) | (second << 8);
+        output.push(ALPHABET[((value >> 18) & 0x3f) as usize] as char);
+        output.push(ALPHABET[((value >> 12) & 0x3f) as usize] as char);
+        if remainder.len() == 2 {
+            output.push(ALPHABET[((value >> 6) & 0x3f) as usize] as char);
+        }
+    }
+
+    output
+}

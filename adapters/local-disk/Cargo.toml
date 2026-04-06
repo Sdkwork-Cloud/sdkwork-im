@@ -1,0 +1,11 @@
+[package]
+name = "im-adapters-local-disk"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+im-domain-core = { path = "../../crates/im-domain-core" }
+im-platform-contracts = { path = "../../crates/im-platform-contracts" }
+serde.workspace = true
+serde_json.workspace = true

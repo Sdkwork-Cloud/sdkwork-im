@@ -1,0 +1,21 @@
+[package]
+name = "craw-chat-cli"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+bytes = "1.11.1"
+futures-util.workspace = true
+hyper = { version = "1.9.0", features = ["client", "http1"] }
+hyper-util = { version = "0.1.20", features = ["client", "client-legacy", "http1", "tokio"] }
+http-body-util.workspace = true
+im-auth-context = { path = "../../crates/im-auth-context" }
+serde.workspace = true
+serde_json.workspace = true
+tokio = { workspace = true, features = ["io-std", "io-util"] }
+tokio-tungstenite = "0.28.0"
+
+[dev-dependencies]
+axum.workspace = true
+local-minimal-node = { path = "../../services/local-minimal-node" }

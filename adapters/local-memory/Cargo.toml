@@ -1,0 +1,10 @@
+[package]
+name = "im-adapters-local-memory"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+im-domain-events = { path = "../../crates/im-domain-events" }
+im-platform-contracts = { path = "../../crates/im-platform-contracts" }
+

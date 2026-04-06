@@ -1,0 +1,17 @@
+[package]
+name = "audit-service"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+axum.workspace = true
+im-auth-context = { path = "../../crates/im-auth-context" }
+im-time = { path = "../../crates/im-time" }
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+
+[dev-dependencies]
+http-body-util.workspace = true
+tower.workspace = true

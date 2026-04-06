@@ -1,0 +1,34 @@
+use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
+
+#[test]
+fn test_commit_envelope_builds_stable_ordering_key() {
+    let envelope = CommitEnvelope {
+        event_id: "evt_demo".into(),
+        tenant_id: "t_demo".into(),
+        event_type: "message.posted".into(),
+        event_version: 1,
+        aggregate_type: AggregateType::Conversation,
+        aggregate_id: "c_demo".into(),
+        scope_type: "conversation".into(),
+        scope_id: "c_demo".into(),
+        ordering_key: CommitEnvelope::ordering_key("t_demo", "c_demo"),
+        ordering_seq: 1,
+        causation_id: Some("cmd_demo".into()),
+        correlation_id: Some("corr_demo".into()),
+        idempotency_key: Some("ik_demo".into()),
+        actor: EventActor {
+            actor_id: "u_demo".into(),
+            actor_kind: "user".into(),
+            actor_session_id: Some("s_demo".into()),
+        },
+        occurred_at: "2026-04-05T10:00:00Z".into(),
+        committed_at: "2026-04-05T10:00:01Z".into(),
+        payload_schema: Some("message.posted.v1".into()),
+        payload: "{}".into(),
+        retention_class: "standard".into(),
+        audit_class: "default".into(),
+    };
+
+    assert_eq!(envelope.aggregate_type.as_wire_value(), "conversation");
+    assert_eq!(envelope.ordering_key, "t_demo:c_demo");
+}

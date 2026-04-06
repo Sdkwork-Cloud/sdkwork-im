@@ -1,0 +1,16 @@
+services:
+  local-minimal-node:
+    build:
+      context: ../..
+      dockerfile: deployments/docker/local-minimal.Dockerfile
+    container_name: craw-chat-local-minimal
+    environment:
+      CRAW_CHAT_BIND_ADDR: 0.0.0.0:18090
+    ports:
+      - "18090:18090"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:18090/healthz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 5s

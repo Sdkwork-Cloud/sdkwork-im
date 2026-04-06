@@ -1,0 +1,1858 @@
+use axum::body::Body;
+use axum::http::{Request, StatusCode};
+use http_body_util::BodyExt;
+use tower::ServiceExt;
+
+#[tokio::test]
+async fn test_create_conversation_and_post_message_over_http() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_http",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation request should succeed");
+
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let post_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_http/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_http",
+                        "summary":"hello",
+                        "text":"hello"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("post message request should succeed");
+
+    assert_eq!(post_response.status(), StatusCode::OK);
+    let body = post_response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+
+    assert_eq!(value["messageSeq"], 1);
+    assert_eq!(value["messageId"], "msg_c_http_1");
+}
+
+#[tokio::test]
+async fn test_create_conversation_rejects_unknown_type_over_http() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_invalid_type_http",
+                        "conversationType":"workspace"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create invalid conversation should return response");
+
+    assert_eq!(create_response.status(), StatusCode::BAD_REQUEST);
+    let body = create_response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["code"], "conversation_type_invalid");
+}
+
+#[tokio::test]
+async fn test_generic_create_rejects_reserved_special_types_over_http() {
+    let app = conversation_runtime::build_default_app();
+
+    for (conversation_id, conversation_type) in [
+        ("c_agent_dialog_http", "agent_dialog"),
+        ("c_agent_handoff_http", "agent_handoff"),
+        ("c_system_channel_http", "system_channel"),
+    ] {
+        let create_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/conversations")
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "svc_ops")
+                    .header("x-actor-kind", "system")
+                    .header("content-type", "application/json")
+                    .body(Body::from(format!(
+                        r#"{{
+                            "conversationId":"{conversation_id}",
+                            "conversationType":"{conversation_type}"
+                        }}"#
+                    )))
+                    .unwrap(),
+            )
+            .await
+            .expect("reserved special create should return response");
+
+        assert_eq!(
+            create_response.status(),
+            StatusCode::BAD_REQUEST,
+            "reserved type should be rejected: {conversation_type}"
+        );
+        let body = create_response
+            .into_body()
+            .collect()
+            .await
+            .expect("body should collect")
+            .to_bytes();
+        let value: serde_json::Value =
+            serde_json::from_slice(&body).expect("response should be valid json");
+        assert_eq!(value["code"], "conversation_type_invalid");
+    }
+}
+
+#[tokio::test]
+async fn test_group_create_preserves_actor_kind_over_http() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "svc_ops")
+                .header("x-actor-kind", "system")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_group_actor_http",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create group request should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let list_members = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/conversations/c_group_actor_http/members")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "svc_ops")
+                .header("x-actor-kind", "system")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("list members request should succeed");
+    assert_eq!(list_members.status(), StatusCode::OK);
+    let body = list_members
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["items"][0]["principalId"], "svc_ops");
+    assert_eq!(value["items"][0]["principalKind"], "system");
+}
+
+#[tokio::test]
+async fn test_create_agent_dialog_over_http() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/agent-dialogs")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_agent_dialog_http",
+                        "agentId":"ag_demo"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create agent dialog request should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let list_members = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/conversations/c_agent_dialog_http/members")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("list members request should succeed");
+    assert_eq!(list_members.status(), StatusCode::OK);
+    let body = list_members
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["items"].as_array().unwrap().len(), 2);
+    assert!(
+        value["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|item| item["principalId"] == "u_demo" && item["principalKind"] == "user")
+    );
+    assert!(
+        value["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|item| item["principalId"] == "ag_demo" && item["principalKind"] == "agent")
+    );
+}
+
+#[tokio::test]
+async fn test_create_agent_dialog_rejects_non_user_actor_over_http() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/agent-dialogs")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "svc_ops")
+                .header("x-actor-kind", "system")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_agent_dialog_system_http",
+                        "agentId":"ag_demo"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create invalid agent dialog should return response");
+
+    assert_eq!(create_response.status(), StatusCode::FORBIDDEN);
+    let body = create_response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["code"], "conversation_permission_denied");
+}
+
+#[tokio::test]
+async fn test_create_agent_handoff_over_http() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/agent-handoffs")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "ag_source")
+                .header("x-actor-kind", "agent")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_agent_handoff_http",
+                        "targetId":"u_demo",
+                        "targetKind":"user",
+                        "handoffSessionId":"hs_http",
+                        "handoffReason":"manual_escalation"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create agent handoff request should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let list_members = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/conversations/c_agent_handoff_http/members")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "ag_source")
+                .header("x-actor-kind", "agent")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("list members request should succeed");
+    assert_eq!(list_members.status(), StatusCode::OK);
+    let body = list_members
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["items"].as_array().unwrap().len(), 2);
+    assert!(
+        value["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|item| item["principalId"] == "ag_source" && item["principalKind"] == "agent")
+    );
+    assert!(
+        value["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|item| item["principalId"] == "u_demo" && item["principalKind"] == "user")
+    );
+}
+
+#[tokio::test]
+async fn test_create_agent_handoff_rejects_non_agent_actor_over_http() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/agent-handoffs")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_agent_handoff_invalid_http",
+                        "targetId":"u_owner",
+                        "targetKind":"user",
+                        "handoffSessionId":"hs_invalid_http",
+                        "handoffReason":"manual_escalation"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create invalid agent handoff should return response");
+
+    assert_eq!(create_response.status(), StatusCode::FORBIDDEN);
+    let body = create_response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["code"], "conversation_permission_denied");
+}
+
+#[tokio::test]
+async fn test_agent_handoff_target_can_post_over_http() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/agent-handoffs")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "ag_source")
+                .header("x-actor-kind", "agent")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_agent_handoff_post_http",
+                        "targetId":"u_demo",
+                        "targetKind":"user",
+                        "handoffSessionId":"hs_post_http",
+                        "handoffReason":"manual_escalation"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create agent handoff request should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let post_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_agent_handoff_post_http/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_handoff_target_post",
+                        "text":"accepted"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("target post request should return response");
+
+    assert_eq!(post_response.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn test_agent_handoff_accept_resolve_close_over_http() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/agent-handoffs")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "ag_source")
+                .header("x-actor-kind", "agent")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_agent_handoff_lifecycle_http",
+                        "targetId":"u_demo",
+                        "targetKind":"user",
+                        "handoffSessionId":"hs_http",
+                        "handoffReason":"manual_escalation"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create agent handoff request should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let get_open = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/conversations/c_agent_handoff_lifecycle_http/agent-handoff")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "ag_source")
+                .header("x-actor-kind", "agent")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("get handoff state request should succeed");
+    assert_eq!(get_open.status(), StatusCode::OK);
+    let get_open_body = get_open
+        .into_body()
+        .collect()
+        .await
+        .expect("open state body should collect")
+        .to_bytes();
+    let get_open_json: serde_json::Value =
+        serde_json::from_slice(&get_open_body).expect("open state should be valid json");
+    assert_eq!(get_open_json["status"], "open");
+
+    let accept_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_agent_handoff_lifecycle_http/agent-handoff/accept")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("accept request should succeed");
+    assert_eq!(accept_response.status(), StatusCode::OK);
+    let accept_body = accept_response
+        .into_body()
+        .collect()
+        .await
+        .expect("accept body should collect")
+        .to_bytes();
+    let accept_json: serde_json::Value =
+        serde_json::from_slice(&accept_body).expect("accept response should be valid json");
+    assert_eq!(accept_json["status"], "accepted");
+    assert_eq!(accept_json["acceptedBy"]["id"], "u_demo");
+
+    let resolve_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_agent_handoff_lifecycle_http/agent-handoff/resolve")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("resolve request should succeed");
+    assert_eq!(resolve_response.status(), StatusCode::OK);
+    let resolve_body = resolve_response
+        .into_body()
+        .collect()
+        .await
+        .expect("resolve body should collect")
+        .to_bytes();
+    let resolve_json: serde_json::Value =
+        serde_json::from_slice(&resolve_body).expect("resolve response should be valid json");
+    assert_eq!(resolve_json["status"], "resolved");
+
+    let close_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_agent_handoff_lifecycle_http/agent-handoff/close")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "ag_source")
+                .header("x-actor-kind", "agent")
+                .header("content-type", "application/json")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("close request should succeed");
+    assert_eq!(close_response.status(), StatusCode::OK);
+    let close_body = close_response
+        .into_body()
+        .collect()
+        .await
+        .expect("close body should collect")
+        .to_bytes();
+    let close_json: serde_json::Value =
+        serde_json::from_slice(&close_body).expect("close response should be valid json");
+    assert_eq!(close_json["status"], "closed");
+
+    let post_after_close = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_agent_handoff_lifecycle_http/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_handoff_closed_http",
+                        "summary":"should fail",
+                        "text":"should fail"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("closed post request should return response");
+    assert_eq!(post_after_close.status(), StatusCode::CONFLICT);
+    let post_after_close_body = post_after_close
+        .into_body()
+        .collect()
+        .await
+        .expect("closed post body should collect")
+        .to_bytes();
+    let post_after_close_json: serde_json::Value = serde_json::from_slice(&post_after_close_body)
+        .expect("closed post response should be valid json");
+    assert_eq!(post_after_close_json["code"], "conversation_conflict");
+}
+
+#[tokio::test]
+async fn test_agent_handoff_accept_rejects_non_target_actor_over_http() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/agent-handoffs")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "ag_source")
+                .header("x-actor-kind", "agent")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_agent_handoff_accept_invalid_http",
+                        "targetId":"u_demo",
+                        "targetKind":"user",
+                        "handoffSessionId":"hs_invalid_http",
+                        "handoffReason":"manual_escalation"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create agent handoff request should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let accept_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_agent_handoff_accept_invalid_http/agent-handoff/accept")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "ag_source")
+                .header("x-actor-kind", "agent")
+                .header("content-type", "application/json")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("invalid accept request should return response");
+    assert_eq!(accept_response.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn test_create_system_channel_over_http() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/system-channels")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "svc_ops")
+                .header("x-actor-kind", "system")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_system_channel_http",
+                        "subscriberId":"u_demo"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create system channel request should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let list_members = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/conversations/c_system_channel_http/members")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "svc_ops")
+                .header("x-actor-kind", "system")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("list members request should succeed");
+    assert_eq!(list_members.status(), StatusCode::OK);
+    let body = list_members
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["items"].as_array().unwrap().len(), 2);
+    assert!(
+        value["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|item| item["principalId"] == "svc_ops" && item["principalKind"] == "system")
+    );
+    assert!(
+        value["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|item| item["principalId"] == "u_demo" && item["principalKind"] == "user")
+    );
+}
+
+#[tokio::test]
+async fn test_create_system_channel_rejects_non_system_actor_over_http() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/system-channels")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_system_channel_invalid_http",
+                        "subscriberId":"u_subscriber"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create invalid system channel should return response");
+
+    assert_eq!(create_response.status(), StatusCode::FORBIDDEN);
+    let body = create_response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["code"], "conversation_permission_denied");
+}
+
+#[tokio::test]
+async fn test_system_channel_subscriber_cannot_post_over_http() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/system-channels")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "svc_ops")
+                .header("x-actor-kind", "system")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_system_channel_post_http",
+                        "subscriberId":"u_demo"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create system channel request should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let post_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_system_channel_post_http/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_subscriber_post",
+                        "text":"should fail"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("subscriber post request should return response");
+
+    assert_eq!(post_response.status(), StatusCode::FORBIDDEN);
+    let body = post_response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["code"], "conversation_permission_denied");
+}
+
+#[tokio::test]
+async fn test_system_channel_publisher_must_use_dedicated_publish_route_over_http() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/system-channels")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "svc_ops")
+                .header("x-actor-kind", "system")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_system_channel_publish_http",
+                        "subscriberId":"u_demo"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create system channel request should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let post_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_system_channel_publish_http/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "svc_ops")
+                .header("x-actor-kind", "system")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_system_channel_generic_post",
+                        "text":"must use dedicated route"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("generic publish request should return response");
+
+    assert_eq!(post_response.status(), StatusCode::FORBIDDEN);
+    let body = post_response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["code"], "conversation_permission_denied");
+}
+
+#[tokio::test]
+async fn test_system_channel_dedicated_publish_over_http() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/system-channels")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "svc_ops")
+                .header("x-actor-kind", "system")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_system_channel_publish_http_dedicated",
+                        "subscriberId":"u_demo"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create system channel request should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let publish_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_system_channel_publish_http_dedicated/system-channel/publish")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "svc_ops")
+                .header("x-actor-kind", "system")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_system_channel_dedicated_publish",
+                        "text":"system notice"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("dedicated publish request should return response");
+
+    assert_eq!(publish_response.status(), StatusCode::OK);
+    let body = publish_response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["messageSeq"], 1);
+
+    let subscriber_publish = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_system_channel_publish_http_dedicated/system-channel/publish")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_system_channel_subscriber_publish",
+                        "text":"should fail"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("subscriber dedicated publish request should return response");
+
+    assert_eq!(subscriber_publish.status(), StatusCode::FORBIDDEN);
+    let subscriber_body = subscriber_publish
+        .into_body()
+        .collect()
+        .await
+        .expect("subscriber body should collect")
+        .to_bytes();
+    let subscriber_value: serde_json::Value =
+        serde_json::from_slice(&subscriber_body).expect("response should be valid json");
+    assert_eq!(subscriber_value["code"], "conversation_permission_denied");
+}
+
+#[tokio::test]
+async fn test_post_message_accepts_structured_parts_over_http() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_media_http",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation request should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let post_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_media_http/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_media_http",
+                        "summary":"media message",
+                        "parts":[
+                            {
+                                "kind":"text",
+                                "text":"caption"
+                            },
+                            {
+                                "kind":"media",
+                                "mediaAssetId":"ma_demo",
+                                "resource":{
+                                    "uuid":"res_demo",
+                                    "type":"image",
+                                    "mimeType":"image/png",
+                                    "size":42,
+                                    "name":"demo.png",
+                                    "extension":"png"
+                                }
+                            }
+                        ]
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("post media message request should succeed");
+
+    assert_eq!(post_response.status(), StatusCode::OK);
+    let body = post_response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+
+    assert_eq!(value["messageSeq"], 1);
+    assert_eq!(value["messageId"], "msg_c_media_http_1");
+}
+
+#[tokio::test]
+async fn test_conversation_member_endpoints_manage_roster_over_http() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_members_http",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation request should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let list_initial_members = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/conversations/c_members_http/members")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("list members request should succeed");
+    assert_eq!(list_initial_members.status(), StatusCode::OK);
+    let initial_body = list_initial_members
+        .into_body()
+        .collect()
+        .await
+        .expect("initial body should collect")
+        .to_bytes();
+    let initial_json: serde_json::Value =
+        serde_json::from_slice(&initial_body).expect("initial members should be valid json");
+    assert_eq!(initial_json["items"][0]["principalId"], "u_owner");
+    assert_eq!(initial_json["items"][0]["role"], "owner");
+
+    let add_member_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_members_http/members/add")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "principalId":"u_member",
+                        "principalKind":"user",
+                        "role":"member"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("add member request should succeed");
+    assert_eq!(add_member_response.status(), StatusCode::OK);
+    let add_member_body = add_member_response
+        .into_body()
+        .collect()
+        .await
+        .expect("add member body should collect")
+        .to_bytes();
+    let add_member_json: serde_json::Value =
+        serde_json::from_slice(&add_member_body).expect("add member response should be valid json");
+    assert_eq!(add_member_json["memberId"], "cm_c_members_http_u_member");
+    assert_eq!(add_member_json["state"], "joined");
+
+    let list_after_add = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/conversations/c_members_http/members")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("list members after add should succeed");
+    assert_eq!(list_after_add.status(), StatusCode::OK);
+    let list_after_add_body = list_after_add
+        .into_body()
+        .collect()
+        .await
+        .expect("list after add body should collect")
+        .to_bytes();
+    let list_after_add_json: serde_json::Value = serde_json::from_slice(&list_after_add_body)
+        .expect("list after add response should be valid json");
+    assert_eq!(list_after_add_json["items"].as_array().unwrap().len(), 2);
+
+    let remove_member_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_members_http/members/remove")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "memberId":"cm_c_members_http_u_member"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("remove member request should succeed");
+    assert_eq!(remove_member_response.status(), StatusCode::OK);
+    let remove_member_body = remove_member_response
+        .into_body()
+        .collect()
+        .await
+        .expect("remove member body should collect")
+        .to_bytes();
+    let remove_member_json: serde_json::Value = serde_json::from_slice(&remove_member_body)
+        .expect("remove member response should be valid json");
+    assert_eq!(remove_member_json["state"], "removed");
+
+    let list_after_remove = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/conversations/c_members_http/members")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("list members after remove should succeed");
+    assert_eq!(list_after_remove.status(), StatusCode::OK);
+    let list_after_remove_body = list_after_remove
+        .into_body()
+        .collect()
+        .await
+        .expect("list after remove body should collect")
+        .to_bytes();
+    let list_after_remove_json: serde_json::Value = serde_json::from_slice(&list_after_remove_body)
+        .expect("list after remove should be valid json");
+    assert_eq!(list_after_remove_json["items"].as_array().unwrap().len(), 1);
+    assert_eq!(list_after_remove_json["items"][0]["principalId"], "u_owner");
+}
+
+#[tokio::test]
+async fn test_group_member_governance_over_http_rejects_actor_kind_mismatch() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_members_actor_kind_http",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation request should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let add_member_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_members_actor_kind_http/members/add")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "agent")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "principalId":"u_member",
+                        "principalKind":"user",
+                        "role":"member"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("add member request should return response");
+    assert_eq!(add_member_response.status(), StatusCode::FORBIDDEN);
+    let add_member_body = add_member_response
+        .into_body()
+        .collect()
+        .await
+        .expect("add member body should collect")
+        .to_bytes();
+    let add_member_json: serde_json::Value =
+        serde_json::from_slice(&add_member_body).expect("add member response should be valid json");
+    assert_eq!(add_member_json["code"], "conversation_permission_denied");
+}
+
+#[tokio::test]
+async fn test_group_member_can_leave_roster_over_http() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_members_leave_http",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation request should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let add_member_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_members_leave_http/members/add")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "principalId":"u_member",
+                        "principalKind":"user",
+                        "role":"member"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("add member request should succeed");
+    assert_eq!(add_member_response.status(), StatusCode::OK);
+
+    let leave_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_members_leave_http/members/leave")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_member")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("leave request should return response");
+    assert_eq!(leave_response.status(), StatusCode::OK);
+    let leave_body = leave_response
+        .into_body()
+        .collect()
+        .await
+        .expect("leave body should collect")
+        .to_bytes();
+    let leave_json: serde_json::Value =
+        serde_json::from_slice(&leave_body).expect("leave response should be valid json");
+    assert_eq!(leave_json["state"], "left");
+
+    let list_after_leave = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/conversations/c_members_leave_http/members")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("list after leave request should succeed");
+    assert_eq!(list_after_leave.status(), StatusCode::OK);
+    let list_after_leave_body = list_after_leave
+        .into_body()
+        .collect()
+        .await
+        .expect("list after leave body should collect")
+        .to_bytes();
+    let list_after_leave_json: serde_json::Value = serde_json::from_slice(&list_after_leave_body)
+        .expect("list after leave should be valid json");
+    assert_eq!(list_after_leave_json["items"].as_array().unwrap().len(), 1);
+    assert_eq!(list_after_leave_json["items"][0]["principalId"], "u_owner");
+}
+
+#[tokio::test]
+async fn test_group_owner_transfer_over_http() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_members_transfer_http",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation request should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let add_member_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_members_transfer_http/members/add")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "principalId":"u_member",
+                        "principalKind":"user",
+                        "role":"member"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("add member request should succeed");
+    assert_eq!(add_member_response.status(), StatusCode::OK);
+
+    let transfer_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_members_transfer_http/members/transfer-owner")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "memberId":"cm_c_members_transfer_http_u_member"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("transfer request should return response");
+    assert_eq!(transfer_response.status(), StatusCode::OK);
+    let transfer_body = transfer_response
+        .into_body()
+        .collect()
+        .await
+        .expect("transfer body should collect")
+        .to_bytes();
+    let transfer_json: serde_json::Value =
+        serde_json::from_slice(&transfer_body).expect("transfer response should be valid json");
+    assert_eq!(transfer_json["previousOwner"]["role"], "admin");
+    assert_eq!(transfer_json["newOwner"]["role"], "owner");
+
+    let leave_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_members_transfer_http/members/leave")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("leave after transfer should return response");
+    assert_eq!(leave_response.status(), StatusCode::OK);
+
+    let list_response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/conversations/c_members_transfer_http/members")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_member")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("new owner list members should succeed");
+    assert_eq!(list_response.status(), StatusCode::OK);
+    let list_body = list_response
+        .into_body()
+        .collect()
+        .await
+        .expect("list body should collect")
+        .to_bytes();
+    let list_json: serde_json::Value =
+        serde_json::from_slice(&list_body).expect("list response should be valid json");
+    assert_eq!(list_json["items"].as_array().unwrap().len(), 1);
+    assert_eq!(list_json["items"][0]["principalId"], "u_member");
+    assert_eq!(list_json["items"][0]["role"], "owner");
+}
+
+#[tokio::test]
+async fn test_change_member_role_over_http() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_members_role_http",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation request should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let add_member_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_members_role_http/members/add")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "principalId":"u_member",
+                        "principalKind":"user",
+                        "role":"member"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("add member request should succeed");
+    assert_eq!(add_member_response.status(), StatusCode::OK);
+
+    let change_role_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_members_role_http/members/change-role")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "memberId":"cm_c_members_role_http_u_member",
+                        "role":"admin"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("change role request should return response");
+    assert_eq!(change_role_response.status(), StatusCode::OK);
+    let change_role_body = change_role_response
+        .into_body()
+        .collect()
+        .await
+        .expect("change role body should collect")
+        .to_bytes();
+    let change_role_json: serde_json::Value = serde_json::from_slice(&change_role_body)
+        .expect("change role response should be valid json");
+    assert_eq!(change_role_json["previousMember"]["role"], "member");
+    assert_eq!(change_role_json["updatedMember"]["role"], "admin");
+
+    let list_response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/conversations/c_members_role_http/members")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("list members request should succeed");
+    assert_eq!(list_response.status(), StatusCode::OK);
+    let list_body = list_response
+        .into_body()
+        .collect()
+        .await
+        .expect("list body should collect")
+        .to_bytes();
+    let list_json: serde_json::Value =
+        serde_json::from_slice(&list_body).expect("list response should be valid json");
+    let member = list_json["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["principalId"] == "u_member")
+        .expect("member should exist");
+    assert_eq!(member["role"], "admin");
+}
+
+#[tokio::test]
+async fn test_read_cursor_endpoints_expose_unread_progress_over_http() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_cursor_http",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation request should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    for (client_msg_id, summary) in [("client_1", "one"), ("client_2", "two")] {
+        let post_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/conversations/c_cursor_http/messages")
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "u_owner")
+                    .header("content-type", "application/json")
+                    .body(Body::from(format!(
+                        r#"{{
+                            "clientMsgId":"{client_msg_id}",
+                            "summary":"{summary}",
+                            "text":"{summary}"
+                        }}"#,
+                    )))
+                    .unwrap(),
+            )
+            .await
+            .expect("post message request should succeed");
+        assert_eq!(post_response.status(), StatusCode::OK);
+    }
+
+    let initial_cursor_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/conversations/c_cursor_http/read-cursor")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("get read cursor request should succeed");
+    assert_eq!(initial_cursor_response.status(), StatusCode::OK);
+    let initial_cursor_body = initial_cursor_response
+        .into_body()
+        .collect()
+        .await
+        .expect("initial cursor body should collect")
+        .to_bytes();
+    let initial_cursor_json: serde_json::Value =
+        serde_json::from_slice(&initial_cursor_body).expect("initial cursor should be valid json");
+    assert_eq!(initial_cursor_json["readSeq"], 0);
+    assert_eq!(initial_cursor_json["unreadCount"], 2);
+
+    let update_cursor_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_cursor_http/read-cursor")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "readSeq": 1,
+                        "lastReadMessageId":"msg_c_cursor_http_1"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("update read cursor request should succeed");
+    assert_eq!(update_cursor_response.status(), StatusCode::OK);
+    let update_cursor_body = update_cursor_response
+        .into_body()
+        .collect()
+        .await
+        .expect("update cursor body should collect")
+        .to_bytes();
+    let update_cursor_json: serde_json::Value =
+        serde_json::from_slice(&update_cursor_body).expect("updated cursor should be valid json");
+    assert_eq!(update_cursor_json["readSeq"], 1);
+    assert_eq!(update_cursor_json["unreadCount"], 1);
+}
+
+#[tokio::test]
+async fn test_read_cursor_over_http_rejects_actor_kind_mismatch() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_cursor_actor_kind_http",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation request should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let post_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_cursor_actor_kind_http/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_cursor_actor_kind_http",
+                        "summary":"one",
+                        "text":"one"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("post message request should succeed");
+    assert_eq!(post_response.status(), StatusCode::OK);
+
+    let update_cursor_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_cursor_actor_kind_http/read-cursor")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "agent")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "readSeq": 1,
+                        "lastReadMessageId":"msg_c_cursor_actor_kind_http_1"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("update read cursor request should return response");
+    assert_eq!(update_cursor_response.status(), StatusCode::FORBIDDEN);
+    let update_cursor_body = update_cursor_response
+        .into_body()
+        .collect()
+        .await
+        .expect("update cursor body should collect")
+        .to_bytes();
+    let update_cursor_json: serde_json::Value =
+        serde_json::from_slice(&update_cursor_body).expect("updated cursor should be valid json");
+    assert_eq!(update_cursor_json["code"], "conversation_permission_denied");
+}
+
+#[tokio::test]
+async fn test_edit_and_recall_message_over_http() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_edit_http",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation request should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let post_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_edit_http/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_edit_http",
+                        "summary":"hello",
+                        "text":"hello"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("post message request should succeed");
+    assert_eq!(post_response.status(), StatusCode::OK);
+
+    let edit_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/messages/msg_c_edit_http_1/edit")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "summary":"edited",
+                        "text":"edited"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("edit message request should succeed");
+    assert_eq!(edit_response.status(), StatusCode::OK);
+    let edit_body = edit_response
+        .into_body()
+        .collect()
+        .await
+        .expect("edit body should collect")
+        .to_bytes();
+    let edit_json: serde_json::Value =
+        serde_json::from_slice(&edit_body).expect("edit response should be valid json");
+    assert_eq!(edit_json["messageId"], "msg_c_edit_http_1");
+    assert_eq!(edit_json["messageSeq"], 1);
+
+    let recall_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/messages/msg_c_edit_http_1/recall")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{}"#))
+                .unwrap(),
+        )
+        .await
+        .expect("recall message request should succeed");
+    assert_eq!(recall_response.status(), StatusCode::OK);
+    let recall_body = recall_response
+        .into_body()
+        .collect()
+        .await
+        .expect("recall body should collect")
+        .to_bytes();
+    let recall_json: serde_json::Value =
+        serde_json::from_slice(&recall_body).expect("recall response should be valid json");
+    assert_eq!(recall_json["messageId"], "msg_c_edit_http_1");
+    assert_eq!(recall_json["messageSeq"], 1);
+}

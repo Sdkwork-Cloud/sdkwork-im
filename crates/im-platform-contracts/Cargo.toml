@@ -1,0 +1,10 @@
+[package]
+name = "im-platform-contracts"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+im-domain-core = { path = "../im-domain-core" }
+im-domain-events = { path = "../im-domain-events" }
+serde.workspace = true

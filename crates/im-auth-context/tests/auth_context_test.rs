@@ -1,0 +1,107 @@
+use std::sync::{Mutex, MutexGuard, OnceLock};
+
+use axum::http::header::AUTHORIZATION;
+use axum::http::{HeaderMap, HeaderValue};
+use im_auth_context::{
+    PUBLIC_BEARER_HS256_SECRET_ENV, resolve_auth_context, resolve_bearer_auth_context,
+    resolve_public_bearer_auth_context,
+};
+
+const TEST_PUBLIC_SECRET: &str = "public-test-secret";
+
+fn public_auth_guard() -> MutexGuard<'static, ()> {
+    static GUARD: OnceLock<Mutex<()>> = OnceLock::new();
+    GUARD
+        .get_or_init(|| Mutex::new(()))
+        .lock()
+        .expect("public auth guard should lock")
+}
+
+fn configure_public_bearer_secret() -> MutexGuard<'static, ()> {
+    let guard = public_auth_guard();
+    unsafe {
+        std::env::set_var(PUBLIC_BEARER_HS256_SECRET_ENV, TEST_PUBLIC_SECRET);
+    }
+    guard
+}
+
+#[test]
+fn test_resolve_trusted_headers_supports_device_id() {
+    let mut headers = HeaderMap::new();
+    headers.insert("x-tenant-id", HeaderValue::from_static("t_demo"));
+    headers.insert("x-user-id", HeaderValue::from_static("u_demo"));
+    headers.insert("x-session-id", HeaderValue::from_static("s_demo"));
+    headers.insert("x-device-id", HeaderValue::from_static("d_demo"));
+
+    let auth = resolve_auth_context(&headers).expect("trusted headers should resolve");
+
+    assert_eq!(auth.tenant_id, "t_demo");
+    assert_eq!(auth.actor_id, "u_demo");
+    assert_eq!(auth.session_id.as_deref(), Some("s_demo"));
+    assert_eq!(auth.device_id.as_deref(), Some("d_demo"));
+}
+
+#[test]
+fn test_resolve_bearer_token_supports_device_claim() {
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        AUTHORIZATION,
+        HeaderValue::from_static(
+            "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X2RlbW8iLCJzaWQiOiJzX2RlbW8iLCJkaWQiOiJkX2RlbW8ifQ.",
+        ),
+    );
+
+    let auth = resolve_auth_context(&headers).expect("bearer token should resolve");
+
+    assert_eq!(auth.tenant_id, "t_demo");
+    assert_eq!(auth.actor_id, "u_demo");
+    assert_eq!(auth.session_id.as_deref(), Some("s_demo"));
+    assert_eq!(auth.device_id.as_deref(), Some("d_demo"));
+}
+
+#[test]
+fn test_resolve_bearer_token_supports_permissions_claims() {
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        AUTHORIZATION,
+        HeaderValue::from_static(
+            "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X2RlbW8iLCJwZXJtaXNzaW9ucyI6WyJvcHMucmVhZCIsImF1ZGl0LnJlYWQiXSwic2NvcGUiOiJtZWRpYS53cml0ZSJ9.",
+        ),
+    );
+
+    let auth = resolve_auth_context(&headers).expect("bearer token should resolve");
+
+    assert!(auth.has_permission("ops.read"));
+    assert!(auth.has_permission("audit.read"));
+    assert!(auth.has_permission("media.write"));
+    assert!(!auth.has_permission("ops.write"));
+}
+
+#[test]
+fn test_resolve_bearer_auth_context_rejects_trusted_headers_without_authorization() {
+    let mut headers = HeaderMap::new();
+    headers.insert("x-tenant-id", HeaderValue::from_static("t_demo"));
+    headers.insert("x-user-id", HeaderValue::from_static("u_demo"));
+
+    let error = resolve_bearer_auth_context(&headers)
+        .expect_err("bearer-only auth context should reject trusted headers fallback");
+
+    assert_eq!(error.code(), "auth_context_missing");
+}
+
+#[test]
+fn test_resolve_public_bearer_auth_context_rejects_unsigned_tokens_when_secret_is_configured() {
+    let _guard = configure_public_bearer_secret();
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        AUTHORIZATION,
+        HeaderValue::from_static(
+            "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X2RlbW8ifQ.",
+        ),
+    );
+
+    let error = resolve_public_bearer_auth_context(&headers)
+        .expect_err("public bearer auth should reject unsigned tokens");
+
+    assert_eq!(error.code(), "jwt_algorithm_invalid");
+}

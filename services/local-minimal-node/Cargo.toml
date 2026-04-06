@@ -1,0 +1,34 @@
+[package]
+name = "local-minimal-node"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+audit-service = { path = "../audit-service" }
+automation-service = { path = "../automation-service" }
+axum.workspace = true
+conversation-runtime = { path = "../conversation-runtime" }
+futures-util.workspace = true
+im-adapters-local-disk = { path = "../../adapters/local-disk" }
+im-adapters-local-memory = { path = "../../adapters/local-memory" }
+im-auth-context = { path = "../../crates/im-auth-context" }
+im-domain-core = { path = "../../crates/im-domain-core" }
+im-domain-events = { path = "../../crates/im-domain-events" }
+im-platform-contracts = { path = "../../crates/im-platform-contracts" }
+media-service = { path = "../media-service" }
+notification-service = { path = "../notification-service" }
+ops-service = { path = "../ops-service" }
+projection-service = { path = "../projection-service" }
+rtc-signaling-service = { path = "../rtc-signaling-service" }
+session-gateway = { path = "../session-gateway" }
+serde.workspace = true
+serde_json.workspace = true
+streaming-service = { path = "../streaming-service" }
+tokio.workspace = true
+
+[dev-dependencies]
+control-plane-api = { path = "../control-plane-api" }
+http-body-util.workspace = true
+tokio-tungstenite = "0.28.0"
+tower.workspace = true

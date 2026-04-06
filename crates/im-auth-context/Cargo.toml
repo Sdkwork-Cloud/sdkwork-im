@@ -1,0 +1,11 @@
+[package]
+name = "im-auth-context"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+axum.workspace = true
+hmac = "0.12.1"
+serde_json.workspace = true
+sha2 = "0.10.9"
