@@ -142,9 +142,13 @@ impl SharedChannelSyncStaleReclaimSchedulerConfig {
     }
 }
 
+struct SharedChannelSyncDispatchTask {
+    request: SharedChannelLinkedMemberSyncRequest,
+    response_tx: std::sync::mpsc::Sender<Result<(), String>>,
+}
+
 struct PublicSharedChannelLinkedMemberSyncTrigger {
-    base_url: String,
-    public_bearer_secret: String,
+    dispatch_tx: std::sync::mpsc::Sender<SharedChannelSyncDispatchTask>,
 }
 
 impl PublicSharedChannelLinkedMemberSyncTrigger {
@@ -159,13 +163,40 @@ impl PublicSharedChannelLinkedMemberSyncTrigger {
             return Err("shared-channel sync public bearer secret cannot be empty".into());
         }
 
-        Ok(Self {
-            base_url,
-            public_bearer_secret,
-        })
+        let (dispatch_tx, dispatch_rx) =
+            std::sync::mpsc::channel::<SharedChannelSyncDispatchTask>();
+        std::thread::Builder::new()
+            .name("shared-sync-dispatch-worker".to_owned())
+            .spawn(move || {
+                let runtime = match tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                {
+                    Ok(runtime) => runtime,
+                    Err(error) => {
+                        while let Ok(task) = dispatch_rx.recv() {
+                            let _ = task.response_tx.send(Err(format!(
+                                "failed to build shared-channel sync worker runtime: {error}"
+                            )));
+                        }
+                        return;
+                    }
+                };
+                while let Ok(task) = dispatch_rx.recv() {
+                    let result = runtime.block_on(Self::dispatch_request(
+                        base_url.as_str(),
+                        public_bearer_secret.as_str(),
+                        task.request,
+                    ));
+                    let _ = task.response_tx.send(result);
+                }
+            })
+            .map_err(|error| format!("failed to spawn shared-channel sync worker: {error}"))?;
+
+        Ok(Self { dispatch_tx })
     }
 
-    fn authorization_header(&self, tenant_id: &str) -> Result<String, String> {
+    fn authorization_header(public_bearer_secret: &str, tenant_id: &str) -> Result<String, String> {
         let now = current_unix_epoch_seconds();
         let mut claims = serde_json::json!({
             "tenant_id": tenant_id,
@@ -183,20 +214,18 @@ impl PublicSharedChannelLinkedMemberSyncTrigger {
         if let Some(required_audience) = resolve_public_bearer_required_audience() {
             claims["aud"] = serde_json::json!(required_audience);
         }
-        let token = encode_hs256_bearer_token(&claims, self.public_bearer_secret.as_str())
-            .map_err(|error| {
-                format!("failed to encode public bearer token for shared-channel sync: {error}")
-            })?;
+        let token = encode_hs256_bearer_token(&claims, public_bearer_secret).map_err(|error| {
+            format!("failed to encode public bearer token for shared-channel sync: {error}")
+        })?;
 
         Ok(format!("Bearer {token}"))
     }
 
     async fn dispatch_request(
-        base_url: String,
-        public_bearer_secret: String,
+        base_url: &str,
+        public_bearer_secret: &str,
         request: SharedChannelLinkedMemberSyncRequest,
     ) -> Result<(), String> {
-        let trigger = Self::new(base_url.as_str(), public_bearer_secret.as_str())?;
         let timeout = resolve_shared_channel_sync_http_timeout();
         let payload = serde_json::to_vec(&serde_json::json!({
             "conversationId": request.conversation_id,
@@ -208,8 +237,9 @@ impl PublicSharedChannelLinkedMemberSyncTrigger {
         }))
         .map(Bytes::from)
         .map_err(|error| format!("failed to encode shared-channel sync payload: {error}"))?;
-        let authorization = trigger.authorization_header(request.tenant_id.as_str())?;
-        let target = format!("{}{}", trigger.base_url, PUBLIC_SHARED_CHANNEL_SYNC_ROUTE);
+        let authorization =
+            Self::authorization_header(public_bearer_secret, request.tenant_id.as_str())?;
+        let target = format!("{}{}", base_url, PUBLIC_SHARED_CHANNEL_SYNC_ROUTE);
         let request = HyperRequest::builder()
             .method(Method::POST)
             .uri(target.as_str())
@@ -381,23 +411,16 @@ async fn read_shared_channel_sync_response_body_with_limit(
 
 impl SharedChannelLinkedMemberSyncTrigger for PublicSharedChannelLinkedMemberSyncTrigger {
     fn trigger(&self, request: SharedChannelLinkedMemberSyncRequest) -> Result<(), String> {
-        let base_url = self.base_url.clone();
-        let public_bearer_secret = self.public_bearer_secret.clone();
-        std::thread::spawn(move || {
-            let runtime = tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .map_err(|error| {
-                    format!("failed to build shared-channel sync worker runtime: {error}")
-                })?;
-            runtime.block_on(Self::dispatch_request(
-                base_url,
-                public_bearer_secret,
+        let (response_tx, response_rx) = std::sync::mpsc::channel::<Result<(), String>>();
+        self.dispatch_tx
+            .send(SharedChannelSyncDispatchTask {
                 request,
-            ))
-        })
-        .join()
-        .map_err(|_| "shared-channel sync worker panicked".to_owned())?
+                response_tx,
+            })
+            .map_err(|_| "shared-channel sync worker is unavailable".to_owned())?;
+        response_rx
+            .recv()
+            .map_err(|_| "shared-channel sync worker dropped dispatch response".to_owned())?
     }
 }
 
