@@ -20,6 +20,7 @@ use craw_chat_ccp_registry::{
     ReleaseChannel, RolloutPolicy, SchemaDescriptor,
 };
 use http_body_util::{BodyExt, Full};
+use hyper::body::Incoming;
 use hyper::header::{AUTHORIZATION, CONTENT_TYPE};
 use hyper::{Method, Request as HyperRequest};
 use hyper_util::client::legacy::Client;
@@ -110,6 +111,7 @@ pub const SHARED_CHANNEL_SYNC_TARGET_BASE_URL_ENV: &str =
 pub const SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MILLIS_ENV: &str =
     "CRAW_CHAT_SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MILLIS";
 const SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_DEFAULT_MILLIS: u64 = 5_000;
+const SHARED_CHANNEL_SYNC_RESPONSE_BODY_MAX_BYTES: usize = 16 * 1024;
 
 struct PublicSharedChannelLinkedMemberSyncTrigger {
     base_url: String,
@@ -200,18 +202,12 @@ impl PublicSharedChannelLinkedMemberSyncTrigger {
             })?
             .map_err(|error| format!("shared-channel sync request to {target} failed: {error}"))?;
         let status = response.status();
-        let body = tokio::time::timeout(timeout, response.into_body().collect())
-            .await
-            .map_err(|_| {
-                format!(
-                    "shared-channel sync response from {target} timed out after {}ms",
-                    timeout.as_millis()
-                )
-            })?
-            .map_err(|error| {
-                format!("failed to read shared-channel sync response from {target}: {error}")
-            })?
-            .to_bytes();
+        let body = read_shared_channel_sync_response_body_with_limit(
+            response.into_body(),
+            target.as_str(),
+            timeout,
+        )
+        .await?;
         if status.is_success() {
             return Ok(());
         }
@@ -297,6 +293,39 @@ fn resolve_shared_channel_sync_http_timeout() -> Duration {
         .filter(|value| *value > 0)
         .unwrap_or(SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_DEFAULT_MILLIS);
     Duration::from_millis(timeout_millis)
+}
+
+async fn read_shared_channel_sync_response_body_with_limit(
+    mut body: Incoming,
+    target: &str,
+    timeout: Duration,
+) -> Result<Bytes, String> {
+    let mut output = Vec::new();
+    while let Some(frame_result) =
+        tokio::time::timeout(timeout, body.frame())
+            .await
+            .map_err(|_| {
+                format!(
+                    "shared-channel sync response from {target} timed out after {}ms",
+                    timeout.as_millis()
+                )
+            })?
+    {
+        let frame = frame_result.map_err(|error| {
+            format!("failed to read shared-channel sync response from {target}: {error}")
+        })?;
+        let Ok(data) = frame.into_data() else {
+            continue;
+        };
+        if output.len().saturating_add(data.len()) > SHARED_CHANNEL_SYNC_RESPONSE_BODY_MAX_BYTES {
+            return Err(format!(
+                "shared-channel sync response from {target} exceeds maximum body size {} bytes",
+                SHARED_CHANNEL_SYNC_RESPONSE_BODY_MAX_BYTES
+            ));
+        }
+        output.extend_from_slice(data.as_ref());
+    }
+    Ok(Bytes::from(output))
 }
 
 impl SharedChannelLinkedMemberSyncTrigger for PublicSharedChannelLinkedMemberSyncTrigger {

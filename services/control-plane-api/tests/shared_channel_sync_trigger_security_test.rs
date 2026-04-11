@@ -90,6 +90,21 @@ async fn capture_sync_call_with_delay(
     (StatusCode::OK, Json(json!({ "status": "ok" })))
 }
 
+async fn capture_sync_call_with_large_error_body(
+    State(captured): State<CapturedSyncRequest>,
+    headers: HeaderMap,
+) -> (StatusCode, String) {
+    let authorization = headers
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_owned);
+    *captured
+        .authorization
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner()) = authorization;
+    (StatusCode::BAD_GATEWAY, "x".repeat(20_000))
+}
+
 fn insecure_http_guard() -> MutexGuard<'static, ()> {
     static GUARD: OnceLock<Mutex<()>> = OnceLock::new();
     GUARD
@@ -380,4 +395,52 @@ async fn test_public_shared_channel_sync_trigger_fails_fast_when_http_timeout_is
     server.abort();
     let _ = server.await;
     clear_shared_channel_sync_timeout_override();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_public_shared_channel_sync_trigger_rejects_oversized_response_body() {
+    let _guard = insecure_http_guard();
+    clear_shared_channel_sync_timeout_override();
+    let listener = TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("shared-channel sync oversized body test listener should bind");
+    let local_addr = listener
+        .local_addr()
+        .expect("shared-channel sync oversized body test listener should expose local addr");
+    let captured = CapturedSyncRequest::default();
+    let app = Router::new()
+        .route(
+            "/api/v1/conversations/shared-channel-links/sync",
+            post(capture_sync_call_with_large_error_body),
+        )
+        .with_state(captured);
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app)
+            .await
+            .expect("shared-channel sync oversized body test server should run");
+    });
+
+    let trigger = control_plane_api::build_public_shared_channel_sync_trigger(
+        format!("http://{local_addr}"),
+        "test-shared-channel-secret",
+    )
+    .expect("shared-channel sync trigger should build against local http target");
+    let error = trigger
+        .trigger(SharedChannelLinkedMemberSyncRequest {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_shared_sync_body_limit_guard".into(),
+            shared_channel_policy_id: "scp_body_limit_guard".into(),
+            external_connection_id: "ec_body_limit_guard".into(),
+            local_actor_id: "u_local_actor".into(),
+            local_actor_kind: "user".into(),
+            external_member_id: "partner::body-limit-guard".into(),
+        })
+        .expect_err("shared-channel sync trigger should fail when response body exceeds limit");
+    assert!(
+        error.contains("exceeds maximum body size"),
+        "oversized response failure should mention body size guard, got: {error}"
+    );
+
+    server.abort();
+    let _ = server.await;
 }
