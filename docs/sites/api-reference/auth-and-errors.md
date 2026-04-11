@@ -31,6 +31,20 @@ Supported claim aliases:
 | Device ID | `did`, `device_id`, `deviceId` |
 | Permissions | `permissions`, `perms`, `scope`, `scp` |
 
+#### Temporal claim validation
+
+Public bearer verification also validates temporal claims with a `60s` clock-skew allowance.
+
+- `nbf` must not be in the future (beyond skew).
+- `exp` must not be expired.
+- `iat` must not be in the future (beyond skew).
+- When `CRAW_CHAT_PUBLIC_BEARER_REQUIRE_EXP` is enabled, `exp` is required.
+- When `CRAW_CHAT_PUBLIC_BEARER_MAX_TTL_SECONDS` is set to a positive value, token TTL cannot
+  exceed that maximum.
+
+These controls harden public HTTP surfaces against replay windows that are too large for
+commercial traffic.
+
 ### `TrustedHeaders`
 
 Trusted headers are intended for internal service-to-service wiring, tests, and explicitly trusted
@@ -63,6 +77,18 @@ networks. They are not the public SDK contract.
 | `ops.read` | Read operator health, cluster, lag, and diagnostics endpoints |
 | `device.telemetry.read` | Read device telemetry streams |
 | `device.command.send` | Send device protocol downlinks or commands |
+| `conversation.shared_channel.sync` | Execute shared-channel linked-member sync. Reserved for system actor `control-plane-sync`. |
+
+## Security-Specific Error Codes
+
+| HTTP | `code` | When it appears |
+| --- | --- | --- |
+| `401` | `jwt_exp_required` | `exp` is missing while `CRAW_CHAT_PUBLIC_BEARER_REQUIRE_EXP` or `CRAW_CHAT_PUBLIC_BEARER_MAX_TTL_SECONDS` requires it. |
+| `401` | `jwt_ttl_exceeded` | Public bearer lifetime exceeds `CRAW_CHAT_PUBLIC_BEARER_MAX_TTL_SECONDS`. |
+| `401` | `jwt_not_yet_valid`, `jwt_expired`, `jwt_issued_at_invalid`, `jwt_temporal_claim_invalid` | Temporal claims are invalid for current wall-clock time. |
+| `403` | `shared_channel_sync_permission_denied` | Missing permission `conversation.shared_channel.sync` for shared-channel sync endpoint. |
+| `403` | `shared_channel_sync_actor_invalid` | Caller actor is not the system actor `control-plane-sync`. |
+| `429` | `shared_channel_sync_rate_limited` | Shared-channel sync exceeded per-tenant rate limit window. |
 
 ## Error Envelope
 

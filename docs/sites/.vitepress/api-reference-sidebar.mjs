@@ -160,7 +160,10 @@ export const pageOperationGroups = {
   ],
   "/api-reference/platform/audit": [
     { text: "Write", anchors: ["record-audit-anchor"] },
-    { text: "Read and Export", anchors: ["list-audit-records", "export-audit-bundle"] },
+    {
+      text: "Read, Export, and Verify",
+      anchors: ["list-audit-records", "export-audit-bundle", "verify-audit-chain"],
+    },
   ],
   "/api-reference/platform/ops": [
     { text: "Health and Topology", anchors: ["get-ops-health", "get-ops-cluster", "get-ops-lag", "get-ops-replay-status"] },

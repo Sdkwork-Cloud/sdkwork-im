@@ -54,6 +54,8 @@ const auditRecordFields: ApiSchemaField[] = [
   field("actorSessionId", "string | null", "Actor session identifier."),
   field("payload", "string | null", "Additional audit payload."),
   field("recordedAt", "date-time string", "Record timestamp.", { required: true }),
+  field("chainPrevHash", "string | null", "Hash pointer to the previous audit record in tenant order."),
+  field("chainHash", "string", "Current record chain hash (SHA-256 canonical digest).", { required: true }),
 ];
 
 export const platformBusinessSchemas: ApiSchemaDefinitionMap = {
@@ -121,6 +123,21 @@ export const platformBusinessSchemas: ApiSchemaDefinitionMap = {
       arrayField("items", "AuditRecord", "Exported audit records.", auditRecordFields, {
         required: true,
         summary: "View nested fields for items",
+      }),
+      field("chainHeadHash", "string | null", "Latest chain hash at export time."),
+      field("chainValid", "boolean", "Whether export records pass hash-chain integrity verification.", {
+        required: true,
+      }),
+    ],
+  },
+  AuditChainVerification: {
+    fields: [
+      field("tenantId", "string", "Tenant identifier.", { required: true }),
+      field("verifiedAt", "date-time string", "Verification timestamp.", { required: true }),
+      field("total", "uint64", "Number of records included in verification.", { required: true }),
+      field("chainHeadHash", "string | null", "Latest chain hash at verification time."),
+      field("chainValid", "boolean", "Whether the tenant audit chain is currently valid.", {
+        required: true,
       }),
     ],
   },

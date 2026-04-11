@@ -234,6 +234,11 @@ fn test_deployment_profiles_and_templates_document_local_minimal_and_local_defau
         .join("deployments")
         .join("templates")
         .join("local-default.env.example");
+    let site_profiles_env_doc_path = root
+        .join("docs")
+        .join("sites")
+        .join("deployment")
+        .join("profiles-and-env.md");
     let readme_path = root.join("README.md");
 
     let local_default_compose =
@@ -265,6 +270,8 @@ fn test_deployment_profiles_and_templates_document_local_minimal_and_local_defau
                 local_default_template_path.display()
             )
         });
+    let site_profiles_env_doc = fs::read_to_string(&site_profiles_env_doc_path)
+        .unwrap_or_else(|_| panic!("missing site doc: {}", site_profiles_env_doc_path.display()));
     let readme = fs::read_to_string(&readme_path)
         .unwrap_or_else(|_| panic!("missing README: {}", readme_path.display()));
 
@@ -288,6 +295,25 @@ fn test_deployment_profiles_and_templates_document_local_minimal_and_local_defau
         assert!(template_content.contains("CRAW_CHAT_BIND_ADDR="));
         assert!(template_content.contains("CRAW_CHAT_RUNTIME_DIR="));
         assert!(template_content.contains("CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET="));
+        assert!(template_content.contains("CRAW_CHAT_PUBLIC_BEARER_REQUIRE_EXP="));
+        assert!(template_content.contains("CRAW_CHAT_PUBLIC_BEARER_MAX_TTL_SECONDS="));
+        assert!(template_content.contains("CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS="));
+        assert!(
+            template_content.contains("CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS=")
+        );
+    }
+
+    for env_name in [
+        "CRAW_CHAT_PUBLIC_BEARER_REQUIRE_EXP",
+        "CRAW_CHAT_PUBLIC_BEARER_MAX_TTL_SECONDS",
+        "CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS",
+        "CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS",
+        "CRAW_CHAT_ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP",
+    ] {
+        assert!(
+            site_profiles_env_doc.contains(env_name),
+            "docs/sites/deployment/profiles-and-env.md must document {env_name}"
+        );
     }
 
     assert!(
@@ -298,6 +324,86 @@ fn test_deployment_profiles_and_templates_document_local_minimal_and_local_defau
         readme.contains("local-default"),
         "README.md must surface local-default as part of the current deployment profile matrix"
     );
+}
+
+#[test]
+fn test_security_and_audit_api_docs_cover_public_bearer_shared_sync_and_chain_verification_contracts(
+) {
+    let root = workspace_root();
+    let auth_and_errors_doc_path = root
+        .join("docs")
+        .join("sites")
+        .join("api-reference")
+        .join("auth-and-errors.md");
+    let audit_doc_path = root
+        .join("docs")
+        .join("sites")
+        .join("api-reference")
+        .join("platform")
+        .join("audit.md");
+    let platform_schema_path = root
+        .join("docs")
+        .join("sites")
+        .join(".vitepress")
+        .join("theme")
+        .join("api-schemas")
+        .join("platform-business.ts");
+
+    let auth_and_errors_doc = fs::read_to_string(&auth_and_errors_doc_path).unwrap_or_else(|_| {
+        panic!(
+            "missing auth and errors api doc: {}",
+            auth_and_errors_doc_path.display()
+        )
+    });
+    let audit_doc = fs::read_to_string(&audit_doc_path)
+        .unwrap_or_else(|_| panic!("missing audit api doc: {}", audit_doc_path.display()));
+    let platform_schema = fs::read_to_string(&platform_schema_path).unwrap_or_else(|_| {
+        panic!(
+            "missing platform schema: {}",
+            platform_schema_path.display()
+        )
+    });
+
+    for token in [
+        "CRAW_CHAT_PUBLIC_BEARER_REQUIRE_EXP",
+        "CRAW_CHAT_PUBLIC_BEARER_MAX_TTL_SECONDS",
+        "jwt_exp_required",
+        "jwt_ttl_exceeded",
+        "shared_channel_sync_permission_denied",
+        "shared_channel_sync_actor_invalid",
+        "shared_channel_sync_rate_limited",
+        "conversation.shared_channel.sync",
+    ] {
+        assert!(
+            auth_and_errors_doc.contains(token),
+            "docs/sites/api-reference/auth-and-errors.md must document {token}"
+        );
+    }
+
+    for token in [
+        "/api/v1/audit/verify",
+        "AuditChainVerification",
+        "chainHeadHash",
+        "chainValid",
+    ] {
+        assert!(
+            audit_doc.contains(token),
+            "docs/sites/api-reference/platform/audit.md must document {token}"
+        );
+    }
+
+    for token in [
+        "AuditChainVerification",
+        "chainPrevHash",
+        "chainHash",
+        "chainHeadHash",
+        "chainValid",
+    ] {
+        assert!(
+            platform_schema.contains(token),
+            "docs/sites/.vitepress/theme/api-schemas/platform-business.ts must include {token}"
+        );
+    }
 }
 
 #[test]
@@ -3277,9 +3383,7 @@ fn test_local_minimal_deployment_assets_exist_and_reference_expected_entrypoints
         "#!/usr/bin/env bash"
     );
     assert!(bin_repair_runtime_cmd.contains("_cmd-forward-powershell.cmd"));
-    assert!(
-        !bin_repair_runtime_cmd.contains("powershell -NoProfile -ExecutionPolicy Bypass -File")
-    );
+    assert!(!bin_repair_runtime_cmd.contains("powershell -NoProfile -ExecutionPolicy Bypass -File"));
 
     assert!(bin_restore_runtime_ps1.contains("restore-runtime-dir"));
     assert!(bin_restore_runtime_ps1.contains("ExpectedPreviewFingerprint"));
@@ -3320,10 +3424,8 @@ fn test_local_minimal_deployment_assets_exist_and_reference_expected_entrypoints
         "#!/usr/bin/env bash"
     );
     assert!(bin_preview_restore_runtime_cmd.contains("_cmd-forward-powershell.cmd"));
-    assert!(
-        !bin_preview_restore_runtime_cmd
-            .contains("powershell -NoProfile -ExecutionPolicy Bypass -File")
-    );
+    assert!(!bin_preview_restore_runtime_cmd
+        .contains("powershell -NoProfile -ExecutionPolicy Bypass -File"));
 
     assert!(bin_list_runtime_backups_ps1.contains("list-runtime-backups"));
     assert!(bin_list_runtime_backups_ps1.contains("CRAW_CHAT_RUNTIME_DIR"));
@@ -3342,10 +3444,8 @@ fn test_local_minimal_deployment_assets_exist_and_reference_expected_entrypoints
         "#!/usr/bin/env bash"
     );
     assert!(bin_list_runtime_backups_cmd.contains("_cmd-forward-powershell.cmd"));
-    assert!(
-        !bin_list_runtime_backups_cmd
-            .contains("powershell -NoProfile -ExecutionPolicy Bypass -File")
-    );
+    assert!(!bin_list_runtime_backups_cmd
+        .contains("powershell -NoProfile -ExecutionPolicy Bypass -File"));
 
     assert!(bin_init_config_ps1.contains("CRAW_CHAT_BIND_ADDR"));
     assert!(bin_init_config_ps1.contains("CRAW_CHAT_RUNTIME_DIR"));
@@ -3704,8 +3804,8 @@ fn test_repair_runtime_local_sh_uses_local_default_profile_config_when_requested
 }
 
 #[test]
-fn test_repair_runtime_local_sh_invokes_social_repair_after_generic_repair_when_social_journal_exists()
- {
+fn test_repair_runtime_local_sh_invokes_social_repair_after_generic_repair_when_social_journal_exists(
+) {
     let root = workspace_root();
     let temp_root = unique_temp_root("repair_runtime_sh_social_repair");
     let bin_dir = temp_root.join("bin");
@@ -5209,8 +5309,8 @@ fn main() {
 }
 
 #[test]
-fn test_start_local_sh_force_kills_background_process_and_clears_pid_file_when_health_check_times_out()
- {
+fn test_start_local_sh_force_kills_background_process_and_clears_pid_file_when_health_check_times_out(
+) {
     let root = workspace_root();
     let temp_root = unique_temp_root("start_sh_force_kill_cleanup");
     let bin_dir = temp_root.join("bin");
