@@ -1,5 +1,5 @@
 use std::collections::{BTreeSet, HashMap};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use im_auth_context::AuthContext;
 
@@ -20,15 +20,11 @@ pub(crate) struct SessionSyncState {
 
 impl SessionSyncState {
     pub(crate) fn register_device(&self, tenant_id: &str, principal_id: &str, device_id: &str) {
-        self.registered_devices
-            .lock()
-            .expect("registered device store should lock")
+        lock_session_sync_mutex(&self.registered_devices, "registered device store")
             .entry(principal_scope_key(tenant_id, principal_id))
             .or_default()
             .insert(device_id.into());
-        self.latest_sync_sequences
-            .lock()
-            .expect("latest sync sequence store should lock")
+        lock_session_sync_mutex(&self.latest_sync_sequences, "latest sync sequence store")
             .entry(device_scope_key(tenant_id, principal_id, device_id))
             .or_insert(0);
     }
@@ -39,9 +35,7 @@ impl SessionSyncState {
         principal_id: &str,
         device_id: &str,
     ) -> bool {
-        self.registered_devices
-            .lock()
-            .expect("registered device store should lock")
+        lock_session_sync_mutex(&self.registered_devices, "registered device store")
             .get(principal_scope_key(tenant_id, principal_id).as_str())
             .is_some_and(|items| items.contains(device_id))
     }
@@ -79,20 +73,51 @@ impl SessionSyncState {
     }
 
     fn registered_devices(&self, tenant_id: &str, principal_id: &str) -> Vec<String> {
-        self.registered_devices
-            .lock()
-            .expect("registered device store should lock")
+        lock_session_sync_mutex(&self.registered_devices, "registered device store")
             .get(principal_scope_key(tenant_id, principal_id).as_str())
             .map(|items| items.iter().cloned().collect())
             .unwrap_or_default()
     }
 
     fn latest_device_sync_seq(&self, tenant_id: &str, principal_id: &str, device_id: &str) -> u64 {
-        self.latest_sync_sequences
-            .lock()
-            .expect("latest sync sequence store should lock")
+        lock_session_sync_mutex(&self.latest_sync_sequences, "latest sync sequence store")
             .get(device_scope_key(tenant_id, principal_id, device_id).as_str())
             .copied()
             .unwrap_or_default()
+    }
+}
+
+fn lock_session_sync_mutex<'a, T>(
+    mutex: &'a Mutex<T>,
+    lock_name: &'static str,
+) -> MutexGuard<'a, T> {
+    match mutex.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            eprintln!("warn: recovered poisoned session-sync mutex lock={lock_name}");
+            poisoned.into_inner()
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_register_device_recovers_from_poisoned_registered_device_lock() {
+        let state = SessionSyncState::default();
+        let _ = std::panic::catch_unwind({
+            let registered_devices = state.registered_devices.clone();
+            move || {
+                let _guard = registered_devices
+                    .lock()
+                    .expect("registered device store should lock");
+                panic!("poison registered device store lock");
+            }
+        });
+
+        state.register_device("t_demo", "u_demo", "d_poison");
+        assert!(state.has_registered_device("t_demo", "u_demo", "d_poison"));
     }
 }

@@ -2,7 +2,7 @@ use craw_chat_contract_control::{PresenceStateRecord, PresenceStateStore};
 use craw_chat_contract_core::ContractError;
 use craw_chat_runtime_link::decide_resume;
 use std::collections::{BTreeSet, HashMap, HashSet};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use im_auth_context::AuthContext;
 use im_domain_core::session::{
@@ -35,26 +35,20 @@ impl PresenceStateStore for RuntimeMemoryPresenceStateStore {
         principal_id: &str,
         device_id: &str,
     ) -> Result<Option<PresenceStateRecord>, ContractError> {
-        Ok(self
-            .states
-            .lock()
-            .expect("presence state store should lock")
+        Ok(lock_presence_mutex(&self.states, "presence state store")
             .get(device_scope_key(tenant_id, principal_id, device_id).as_str())
             .cloned())
     }
 
     fn save_state(&self, record: PresenceStateRecord) -> Result<(), ContractError> {
-        self.states
-            .lock()
-            .expect("presence state store should lock")
-            .insert(
-                device_scope_key(
-                    record.tenant_id.as_str(),
-                    record.principal_id.as_str(),
-                    record.device_id.as_str(),
-                ),
-                record,
-            );
+        lock_presence_mutex(&self.states, "presence state store").insert(
+            device_scope_key(
+                record.tenant_id.as_str(),
+                record.principal_id.as_str(),
+                record.device_id.as_str(),
+            ),
+            record,
+        );
         Ok(())
     }
 
@@ -63,10 +57,7 @@ impl PresenceStateStore for RuntimeMemoryPresenceStateStore {
         tenant_id: &str,
         principal_id: &str,
     ) -> Result<Vec<PresenceStateRecord>, ContractError> {
-        Ok(self
-            .states
-            .lock()
-            .expect("presence state store should lock")
+        Ok(lock_presence_mutex(&self.states, "presence state store")
             .values()
             .filter(|record| record.tenant_id == tenant_id && record.principal_id == principal_id)
             .cloned()
@@ -165,7 +156,7 @@ impl SessionPresenceRuntime {
         let resumed_at = session_timestamp();
         let updated_entry = {
             let scope = principal_scope_key(auth.tenant_id.as_str(), auth.actor_id.as_str());
-            let mut entries = self.entries.lock().expect("presence store should lock");
+            let mut entries = lock_presence_mutex(&self.entries, "presence store");
             let scope_entries = entries.entry(scope).or_default();
             let entry =
                 scope_entries
@@ -215,10 +206,7 @@ impl SessionPresenceRuntime {
     ) -> Result<PresenceSnapshotView, PresenceRuntimeError> {
         self.ensure_principal_state(tenant_id, principal_id)?;
         let scope = principal_scope_key(tenant_id, principal_id);
-        let stored_devices = self
-            .entries
-            .lock()
-            .expect("presence store should lock")
+        let stored_devices = lock_presence_mutex(&self.entries, "presence store")
             .get(scope.as_str())
             .cloned()
             .unwrap_or_default();
@@ -310,10 +298,7 @@ impl SessionPresenceRuntime {
             auth.actor_id.as_str(),
             device_id.as_str(),
         )?;
-        let latest_sync_seq = self
-            .entries
-            .lock()
-            .expect("presence store should lock")
+        let latest_sync_seq = lock_presence_mutex(&self.entries, "presence store")
             .get(principal_scope_key(auth.tenant_id.as_str(), auth.actor_id.as_str()).as_str())
             .and_then(|scope_entries| scope_entries.get(device_id.as_str()))
             .map(|entry| entry.view.last_sync_seq)
@@ -342,10 +327,7 @@ impl SessionPresenceRuntime {
         principal_id: &str,
     ) -> Result<(), PresenceRuntimeError> {
         let scope_key = principal_scope_key(tenant_id, principal_id);
-        if self
-            .restored_principals
-            .lock()
-            .expect("presence runtime should lock")
+        if lock_presence_mutex(&self.restored_principals, "presence runtime")
             .contains(scope_key.as_str())
         {
             return Ok(());
@@ -371,16 +353,13 @@ impl SessionPresenceRuntime {
                 .map_err(PresenceRuntimeError::presence_store)?;
         }
 
-        let mut entries = self.entries.lock().expect("presence runtime should lock");
+        let mut entries = lock_presence_mutex(&self.entries, "presence runtime");
         let scope_entries = entries.entry(scope_key.clone()).or_default();
         for (device_id, entry) in runtime_entries {
             scope_entries.entry(device_id).or_insert(entry);
         }
         drop(entries);
-        self.restored_principals
-            .lock()
-            .expect("presence runtime should lock")
-            .insert(scope_key);
+        lock_presence_mutex(&self.restored_principals, "presence runtime").insert(scope_key);
 
         Ok(())
     }
@@ -393,10 +372,7 @@ impl SessionPresenceRuntime {
     ) -> Result<PresenceRuntimeEntry, PresenceRuntimeError> {
         self.ensure_principal_state(tenant_id, principal_id)?;
 
-        if let Some(entry) = self
-            .entries
-            .lock()
-            .expect("presence store should lock")
+        if let Some(entry) = lock_presence_mutex(&self.entries, "presence store")
             .get(principal_scope_key(tenant_id, principal_id).as_str())
             .and_then(|scope_entries| scope_entries.get(device_id))
             .cloned()
@@ -409,7 +385,7 @@ impl SessionPresenceRuntime {
             resume_required: false,
         };
         let scope = principal_scope_key(tenant_id, principal_id);
-        let mut entries = self.entries.lock().expect("presence store should lock");
+        let mut entries = lock_presence_mutex(&self.entries, "presence store");
         entries
             .entry(scope)
             .or_default()
@@ -440,7 +416,7 @@ impl SessionPresenceRuntime {
             device_id.as_str(),
         )?;
         let scope = principal_scope_key(auth.tenant_id.as_str(), auth.actor_id.as_str());
-        let mut entries = self.entries.lock().expect("presence store should lock");
+        let mut entries = lock_presence_mutex(&self.entries, "presence store");
         let scope_entries = entries.entry(scope).or_default();
         let entry =
             scope_entries
@@ -557,4 +533,36 @@ fn normalize_presence_record(
 
 fn session_timestamp() -> String {
     utc_now_rfc3339_millis()
+}
+
+fn lock_presence_mutex<'a, T>(mutex: &'a Mutex<T>, lock_name: &'static str) -> MutexGuard<'a, T> {
+    match mutex.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            eprintln!("warn: recovered poisoned presence mutex lock={lock_name}");
+            poisoned.into_inner()
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_presence_state_store_load_recovers_from_poisoned_lock() {
+        let store = RuntimeMemoryPresenceStateStore::default();
+        let _ = std::panic::catch_unwind({
+            let states = store.states.clone();
+            move || {
+                let _guard = states.lock().expect("presence state store should lock");
+                panic!("poison presence state store lock");
+            }
+        });
+
+        let restored = store
+            .load_state("t_demo", "u_demo", "d_poison")
+            .expect("poisoned lock should be recovered");
+        assert!(restored.is_none());
+    }
 }
