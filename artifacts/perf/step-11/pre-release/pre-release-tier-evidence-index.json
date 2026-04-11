@@ -122,7 +122,7 @@
       "artifactPath": "artifacts/perf/step-11/pre-release/connection/metrics.json",
       "suggestedRelativePath": "connection/metrics.json",
       "collectedAt": "2026-04-08",
-      "sizeBytes": 1004,
+      "sizeBytes": 1025,
       "checksumSha256": "sha256:e8cb11b09bd9a1fed6384cf741885be403e192d9e7d088f9bbb721fff840e52f"
     },
     {
@@ -141,7 +141,7 @@
       "artifactPath": "artifacts/perf/step-11/pre-release/message/metrics.json",
       "suggestedRelativePath": "message/metrics.json",
       "collectedAt": "2026-04-08",
-      "sizeBytes": 1133,
+      "sizeBytes": 1158,
       "checksumSha256": "sha256:6ea42e4f749644131e19430017a41f207d63809168686bc00e9c841c06f96751"
     },
     {
@@ -160,7 +160,7 @@
       "artifactPath": "artifacts/perf/step-11/pre-release/stream/metrics.json",
       "suggestedRelativePath": "stream/metrics.json",
       "collectedAt": "2026-04-08",
-      "sizeBytes": 1134,
+      "sizeBytes": 1158,
       "checksumSha256": "sha256:998dd4967d208b95a510976f539532fda4750ebd9fad6d0a8486f5aecc067a4c"
     },
     {
@@ -178,7 +178,7 @@
       "artifactPath": "artifacts/perf/step-11/pre-release/drain-rebalance/drill.json",
       "suggestedRelativePath": "drain-rebalance/drill.json",
       "collectedAt": "2026-04-08",
-      "sizeBytes": 1180,
+      "sizeBytes": 1204,
       "checksumSha256": "sha256:6e332b95bfc2f4bcc1964bbf5999ee7f2f8f353fe2213a1a7568e9bee6644692"
     },
     {
@@ -232,7 +232,7 @@
       "artifactPath": "artifacts/perf/step-11/pre-release/upgrade-rollback/drill.json",
       "suggestedRelativePath": "upgrade-rollback/drill.json",
       "collectedAt": "2026-04-08",
-      "sizeBytes": 1265,
+      "sizeBytes": 1291,
       "checksumSha256": "sha256:0e0edd888d63d85ef652cb986ad6a68f0367122ecfd0b28f72b079131a30b218"
     }
   ],
