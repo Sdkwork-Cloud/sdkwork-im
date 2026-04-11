@@ -49,6 +49,16 @@ pub struct AuditExportBundle {
     pub chain_valid: bool,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuditChainVerification {
+    pub tenant_id: String,
+    pub verified_at: String,
+    pub total: usize,
+    pub chain_head_hash: Option<String>,
+    pub chain_valid: bool,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RecordAuditAnchor {
@@ -178,6 +188,19 @@ impl AuditRuntime {
             chain_valid,
         }
     }
+
+    pub fn verify_chain(&self, auth: &AuthContext) -> AuditChainVerification {
+        let items = self.list_records(auth);
+        let chain_head_hash = items.last().map(|record| record.chain_hash.clone());
+        let chain_valid = verify_audit_records_chain(auth.tenant_id.as_str(), items.as_slice());
+        AuditChainVerification {
+            tenant_id: auth.tenant_id.clone(),
+            verified_at: utc_now_rfc3339_millis(),
+            total: items.len(),
+            chain_head_hash,
+            chain_valid,
+        }
+    }
 }
 
 pub fn verify_audit_export_bundle_integrity(bundle: &AuditExportBundle) -> bool {
@@ -287,6 +310,7 @@ pub fn build_app(runtime: Arc<AuditRuntime>) -> Router {
         .route("/api/v1/audit/records", post(record_anchor))
         .route("/api/v1/audit/records", get(list_records))
         .route("/api/v1/audit/export", get(export_bundle))
+        .route("/api/v1/audit/verify", get(verify_chain))
         .with_state(AppState { runtime })
 }
 
@@ -342,6 +366,15 @@ async fn export_bundle(
     let auth = resolve_auth_context(&headers)?;
     ensure_audit_read_access(&auth)?;
     Ok(Json(state.runtime.export_bundle(&auth)))
+}
+
+async fn verify_chain(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> Result<Json<AuditChainVerification>, AuditError> {
+    let auth = resolve_auth_context(&headers)?;
+    ensure_audit_read_access(&auth)?;
+    Ok(Json(state.runtime.verify_chain(&auth)))
 }
 
 fn ensure_audit_read_access(auth: &AuthContext) -> Result<(), AuditError> {
