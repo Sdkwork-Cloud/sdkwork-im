@@ -244,11 +244,12 @@ fn test_session_gateway_session_paths_use_device_sync_session_state_owner_seam()
 
 #[test]
 fn test_session_gateway_sync_state_owner_moves_out_of_lib_impl() {
-    let lib_source = include_str!("../src/lib.rs");
+    let lib_source = include_str!("../src/lib.rs").replace("\r\n", "\n");
     let owner_source = std::fs::read_to_string(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/session_state.rs"),
     )
-    .expect("services/session-gateway/src/session_state.rs should exist");
+    .expect("services/session-gateway/src/session_state.rs should exist")
+    .replace("\r\n", "\n");
 
     for forbidden_symbol in [
         "registered_devices: Arc<Mutex<HashMap<String, BTreeSet<String>>>>",
@@ -289,11 +290,12 @@ fn test_session_gateway_sync_state_owner_moves_out_of_lib_impl() {
 
 #[test]
 fn test_session_gateway_device_registration_owner_moves_out_of_lib_impl() {
-    let lib_source = include_str!("../src/lib.rs");
+    let lib_source = include_str!("../src/lib.rs").replace("\r\n", "\n");
     let owner_source = std::fs::read_to_string(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/device_registration.rs"),
     )
-    .expect("services/session-gateway/src/device_registration.rs should exist");
+    .expect("services/session-gateway/src/device_registration.rs should exist")
+    .replace("\r\n", "\n");
 
     for forbidden_symbol in [
         "self.presence_runtime\n            .register_device(",

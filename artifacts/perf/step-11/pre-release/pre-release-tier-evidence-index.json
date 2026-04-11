@@ -196,7 +196,7 @@
       "artifactPath": "artifacts/perf/step-11/pre-release/restore-recovery/drill.json",
       "suggestedRelativePath": "restore-recovery/drill.json",
       "collectedAt": "2026-04-08",
-      "sizeBytes": 1132,
+      "sizeBytes": 1156,
       "checksumSha256": "sha256:a4365426fefa96c83ea01de396f8d47b9ef898f1e320223e466e0e63e6557e51"
     },
     {
@@ -214,7 +214,7 @@
       "artifactPath": "artifacts/perf/step-11/pre-release/failover/drill.json",
       "suggestedRelativePath": "failover/drill.json",
       "collectedAt": "2026-04-08",
-      "sizeBytes": 975,
+      "sizeBytes": 997,
       "checksumSha256": "sha256:82c217bb21d7dac3e1a54713eec8dfc047bd782468fae6541c11b3212b35a0f9"
     },
     {

@@ -79,7 +79,7 @@ fn test_runtime_state_uses_domain_message_locator_for_cross_conversation_lookup(
 
 #[test]
 fn test_message_mutation_commands_offer_auth_context_constructors() {
-    let runtime_source = include_str!("../src/runtime.rs");
+    let runtime_source = include_str!("../src/runtime.rs").replace("\r\n", "\n");
 
     assert!(
         runtime_source.contains("fn sender_from_auth_context(auth: &AuthContext) -> Sender {"),
@@ -123,7 +123,7 @@ fn test_http_message_surface_uses_auth_context_command_constructors() {
 
 #[test]
 fn test_non_message_commands_offer_auth_context_constructors() {
-    let runtime_source = include_str!("../src/runtime.rs");
+    let runtime_source = include_str!("../src/runtime.rs").replace("\r\n", "\n");
 
     for required_symbol in [
         "impl CreateConversationCommand {\n    pub fn from_auth_context(",
