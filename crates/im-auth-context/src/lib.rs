@@ -10,6 +10,7 @@ use sha2::Sha256;
 
 pub const PUBLIC_BEARER_HS256_SECRET_ENV: &str = "CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET";
 pub const PUBLIC_BEARER_REQUIRE_EXP_ENV: &str = "CRAW_CHAT_PUBLIC_BEARER_REQUIRE_EXP";
+pub const PUBLIC_BEARER_MAX_TTL_SECONDS_ENV: &str = "CRAW_CHAT_PUBLIC_BEARER_MAX_TTL_SECONDS";
 const TEMPORAL_CLAIM_CLOCK_SKEW_SECONDS: u64 = 60;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -375,6 +376,30 @@ fn validate_temporal_claims(claims: &Value) -> Result<(), AuthContextError> {
         ));
     }
 
+    if let Some(max_ttl_seconds) = resolve_public_bearer_max_ttl_seconds() {
+        let expires_at = expires_at.ok_or_else(|| {
+            AuthContextError::invalid(
+                "jwt_exp_required",
+                format!(
+                    "public bearer token must include exp claim when {} is enabled",
+                    PUBLIC_BEARER_MAX_TTL_SECONDS_ENV
+                ),
+            )
+        })?;
+        let issued_reference = issued_at.unwrap_or(now);
+        if expires_at.saturating_sub(issued_reference)
+            > max_ttl_seconds.saturating_add(TEMPORAL_CLAIM_CLOCK_SKEW_SECONDS)
+        {
+            return Err(AuthContextError::invalid(
+                "jwt_ttl_exceeded",
+                format!(
+                    "public bearer token ttl exceeds maximum allowed by {}",
+                    PUBLIC_BEARER_MAX_TTL_SECONDS_ENV
+                ),
+            ));
+        }
+    }
+
     Ok(())
 }
 
@@ -425,6 +450,13 @@ fn require_public_bearer_exp_claim() -> bool {
                 "1" | "true" | "yes" | "on"
             )
         })
+}
+
+fn resolve_public_bearer_max_ttl_seconds() -> Option<u64> {
+    std::env::var(PUBLIC_BEARER_MAX_TTL_SECONDS_ENV)
+        .ok()
+        .and_then(|value| value.trim().parse::<u64>().ok())
+        .filter(|value| *value > 0)
 }
 
 fn resolve_header(headers: &HeaderMap, names: &[&str]) -> Result<String, AuthContextError> {
