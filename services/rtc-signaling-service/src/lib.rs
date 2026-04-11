@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, HashMap};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use axum::extract::{Path, State};
 use axum::http::HeaderMap;
@@ -35,6 +35,16 @@ use im_time::utc_now_rfc3339_millis;
 use serde::{Deserialize, Serialize};
 
 const DEFAULT_RTC_RECORDING_PLAYBACK_URL_TTL_SECONDS: u32 = 3600;
+
+fn lock_rtc_mutex<'a, T>(mutex: &'a Mutex<T>, label: &'static str) -> MutexGuard<'a, T> {
+    match mutex.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            eprintln!("warning: recovering poisoned mutex in rtc-signaling-service: {label}");
+            poisoned.into_inner()
+        }
+    }
+}
 
 #[derive(Clone)]
 struct AppState {
@@ -159,15 +169,10 @@ impl RtcRuntime {
 
     fn ensure_session_state(&self, tenant_id: &str, rtc_session_id: &str) -> Result<(), RtcError> {
         let scope_key = rtc_scope_key(tenant_id, rtc_session_id);
-        let needs_restore = !self
-            .sessions
-            .lock()
-            .expect("rtc runtime should lock")
-            .contains_key(scope_key.as_str());
+        let needs_restore =
+            !lock_rtc_mutex(&self.sessions, "sessions").contains_key(scope_key.as_str());
         if !needs_restore {
-            self.signals
-                .lock()
-                .expect("rtc runtime should lock")
+            lock_rtc_mutex(&self.signals, "signals")
                 .entry(scope_key)
                 .or_default();
             return Ok(());
@@ -178,14 +183,8 @@ impl RtcRuntime {
             .load_state(tenant_id, rtc_session_id)
             .map_err(RtcError::rtc_store)?;
         if let Some(record) = restored {
-            self.sessions
-                .lock()
-                .expect("rtc runtime should lock")
-                .insert(scope_key.clone(), record.session);
-            self.signals
-                .lock()
-                .expect("rtc runtime should lock")
-                .insert(scope_key, record.signals);
+            lock_rtc_mutex(&self.sessions, "sessions").insert(scope_key.clone(), record.session);
+            lock_rtc_mutex(&self.signals, "signals").insert(scope_key, record.signals);
         }
 
         Ok(())
@@ -197,9 +196,7 @@ impl RtcRuntime {
         rtc_session_id: &str,
     ) -> Result<RtcSession, RtcError> {
         self.ensure_session_state(auth.tenant_id.as_str(), rtc_session_id)?;
-        self.sessions
-            .lock()
-            .expect("rtc runtime should lock")
+        lock_rtc_mutex(&self.sessions, "sessions")
             .get(rtc_scope_key(auth.tenant_id.as_str(), rtc_session_id).as_str())
             .cloned()
             .ok_or_else(|| RtcError {
@@ -216,7 +213,7 @@ impl RtcRuntime {
     ) -> Result<RtcSession, RtcError> {
         let scope_key = rtc_scope_key(auth.tenant_id.as_str(), request.rtc_session_id.as_str());
         self.ensure_session_state(auth.tenant_id.as_str(), request.rtc_session_id.as_str())?;
-        let mut sessions = self.sessions.lock().expect("rtc runtime should lock");
+        let mut sessions = lock_rtc_mutex(&self.sessions, "sessions");
         if let Some(existing) = sessions.get(scope_key.as_str()).cloned() {
             if rtc_session_matches_create_request(&existing, auth, &request) {
                 return Ok(existing);
@@ -256,9 +253,7 @@ impl RtcRuntime {
 
         sessions.insert(scope_key, session.clone());
         drop(sessions);
-        self.signals
-            .lock()
-            .expect("rtc runtime should lock")
+        lock_rtc_mutex(&self.signals, "signals")
             .entry(rtc_scope_key(
                 auth.tenant_id.as_str(),
                 request.rtc_session_id.as_str(),
@@ -363,7 +358,7 @@ impl RtcRuntime {
         request: InviteRtcSessionRequest,
     ) -> Result<RtcSessionMutationOutcome, RtcError> {
         self.ensure_session_state(auth.tenant_id.as_str(), rtc_session_id)?;
-        let mut sessions = self.sessions.lock().expect("rtc runtime should lock");
+        let mut sessions = lock_rtc_mutex(&self.sessions, "sessions");
         let session = sessions
             .get_mut(rtc_scope_key(auth.tenant_id.as_str(), rtc_session_id).as_str())
             .ok_or_else(|| RtcError {
@@ -434,7 +429,7 @@ impl RtcRuntime {
         request: UpdateRtcSessionRequest,
     ) -> Result<RtcSessionMutationOutcome, RtcError> {
         self.ensure_session_state(auth.tenant_id.as_str(), rtc_session_id)?;
-        let mut sessions = self.sessions.lock().expect("rtc runtime should lock");
+        let mut sessions = lock_rtc_mutex(&self.sessions, "sessions");
         let session = sessions
             .get_mut(rtc_scope_key(auth.tenant_id.as_str(), rtc_session_id).as_str())
             .ok_or_else(|| RtcError {
@@ -487,7 +482,7 @@ impl RtcRuntime {
         request: UpdateRtcSessionRequest,
     ) -> Result<RtcSessionMutationOutcome, RtcError> {
         self.ensure_session_state(auth.tenant_id.as_str(), rtc_session_id)?;
-        let mut sessions = self.sessions.lock().expect("rtc runtime should lock");
+        let mut sessions = lock_rtc_mutex(&self.sessions, "sessions");
         let session = sessions
             .get_mut(rtc_scope_key(auth.tenant_id.as_str(), rtc_session_id).as_str())
             .ok_or_else(|| RtcError {
@@ -548,7 +543,7 @@ impl RtcRuntime {
         request: UpdateRtcSessionRequest,
     ) -> Result<RtcSessionMutationOutcome, RtcError> {
         self.ensure_session_state(auth.tenant_id.as_str(), rtc_session_id)?;
-        let mut sessions = self.sessions.lock().expect("rtc runtime should lock");
+        let mut sessions = lock_rtc_mutex(&self.sessions, "sessions");
         let session = sessions
             .get_mut(rtc_scope_key(auth.tenant_id.as_str(), rtc_session_id).as_str())
             .ok_or_else(|| RtcError {
@@ -598,7 +593,7 @@ impl RtcRuntime {
         request: PostRtcSignalRequest,
     ) -> Result<RtcSignalEvent, RtcError> {
         self.ensure_session_state(auth.tenant_id.as_str(), rtc_session_id)?;
-        let mut sessions = self.sessions.lock().expect("rtc runtime should lock");
+        let mut sessions = lock_rtc_mutex(&self.sessions, "sessions");
         let session = sessions
             .get_mut(rtc_scope_key(auth.tenant_id.as_str(), rtc_session_id).as_str())
             .ok_or_else(|| RtcError {
@@ -645,9 +640,7 @@ impl RtcRuntime {
 
         drop(sessions);
 
-        self.signals
-            .lock()
-            .expect("rtc signal store should lock")
+        lock_rtc_mutex(&self.signals, "signals")
             .entry(rtc_scope_key(auth.tenant_id.as_str(), rtc_session_id))
             .or_default()
             .push(signal.clone());
@@ -657,35 +650,38 @@ impl RtcRuntime {
     }
 
     fn persist_state(&self, tenant_id: &str, rtc_session_id: &str) -> Result<(), RtcError> {
+        let record = self.state_record(tenant_id, rtc_session_id)?;
         self.state_store
-            .save_state(self.state_record(tenant_id, rtc_session_id))
+            .save_state(record)
             .map_err(RtcError::rtc_store)
     }
 
-    fn state_record(&self, tenant_id: &str, rtc_session_id: &str) -> RtcStateRecord {
+    fn state_record(
+        &self,
+        tenant_id: &str,
+        rtc_session_id: &str,
+    ) -> Result<RtcStateRecord, RtcError> {
         let scope_key = rtc_scope_key(tenant_id, rtc_session_id);
-        let session = self
-            .sessions
-            .lock()
-            .expect("rtc runtime should lock")
+        let session = lock_rtc_mutex(&self.sessions, "sessions")
             .get(scope_key.as_str())
             .cloned()
-            .expect("rtc session should exist before persistence");
-        let signals = self
-            .signals
-            .lock()
-            .expect("rtc runtime should lock")
+            .ok_or_else(|| RtcError {
+                status: axum::http::StatusCode::NOT_FOUND,
+                code: "rtc_session_not_found",
+                message: format!("rtc session not found: {rtc_session_id}"),
+            })?;
+        let signals = lock_rtc_mutex(&self.signals, "signals")
             .get(scope_key.as_str())
             .cloned()
             .unwrap_or_default();
 
-        RtcStateRecord {
+        Ok(RtcStateRecord {
             tenant_id: tenant_id.into(),
             rtc_session_id: rtc_session_id.into(),
             session,
             signals,
             updated_at: utc_now_rfc3339_millis(),
-        }
+        })
     }
 
     fn selected_provider_plugin_id(
@@ -732,10 +728,7 @@ impl RtcRuntime {
     ) -> Result<Arc<dyn RtcProviderPort>, RtcError> {
         self.ensure_session_state(tenant_id, rtc_session_id)?;
         let scope_key = rtc_scope_key(tenant_id, rtc_session_id);
-        if let Some(session) = self
-            .sessions
-            .lock()
-            .expect("rtc runtime should lock")
+        if let Some(session) = lock_rtc_mutex(&self.sessions, "sessions")
             .get(scope_key.as_str())
             .cloned()
         {
@@ -937,30 +930,21 @@ impl RtcStateStore for RuntimeMemoryRtcStateStore {
         tenant_id: &str,
         rtc_session_id: &str,
     ) -> Result<Option<RtcStateRecord>, ContractError> {
-        Ok(self
-            .states
-            .lock()
-            .expect("rtc state store should lock")
+        Ok(lock_rtc_mutex(&self.states, "state_store")
             .get(rtc_scope_key(tenant_id, rtc_session_id).as_str())
             .cloned())
     }
 
     fn save_state(&self, record: RtcStateRecord) -> Result<(), ContractError> {
-        self.states
-            .lock()
-            .expect("rtc state store should lock")
-            .insert(
-                rtc_scope_key(record.tenant_id.as_str(), record.rtc_session_id.as_str()),
-                record,
-            );
+        lock_rtc_mutex(&self.states, "state_store").insert(
+            rtc_scope_key(record.tenant_id.as_str(), record.rtc_session_id.as_str()),
+            record,
+        );
         Ok(())
     }
 
     fn clear_state(&self, tenant_id: &str, rtc_session_id: &str) -> Result<bool, ContractError> {
-        Ok(self
-            .states
-            .lock()
-            .expect("rtc state store should lock")
+        Ok(lock_rtc_mutex(&self.states, "state_store")
             .remove(rtc_scope_key(tenant_id, rtc_session_id).as_str())
             .is_some())
     }
@@ -1292,4 +1276,134 @@ fn rtc_session_matches_update_request(
     request: &UpdateRtcSessionRequest,
 ) -> bool {
     session.artifact_message_id.as_ref() == request.artifact_message_id.as_ref()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::panic::{self, AssertUnwindSafe};
+
+    fn demo_auth_context() -> AuthContext {
+        AuthContext {
+            tenant_id: "t_demo".into(),
+            actor_id: "u_demo".into(),
+            actor_kind: "user".into(),
+            session_id: Some("s_demo".into()),
+            device_id: Some("d_demo".into()),
+            permissions: Default::default(),
+        }
+    }
+
+    fn poison_mutex<T>(mutex: &Mutex<T>) {
+        let _ = panic::catch_unwind(AssertUnwindSafe(|| {
+            let _guard = mutex.lock().expect("test poison lock should succeed");
+            panic!("intentional poison for regression coverage");
+        }));
+    }
+
+    #[test]
+    fn test_session_lookup_recovers_from_poisoned_sessions_lock() {
+        let runtime = RtcRuntime::default();
+        let auth = demo_auth_context();
+        runtime
+            .create_session(
+                &auth,
+                CreateRtcSessionRequest {
+                    rtc_session_id: "rtc_poison_session_lookup".into(),
+                    conversation_id: None,
+                    rtc_mode: "voice".into(),
+                },
+            )
+            .expect("session should be created");
+
+        poison_mutex(&runtime.sessions);
+
+        let result = panic::catch_unwind(AssertUnwindSafe(|| {
+            runtime.session(&auth, "rtc_poison_session_lookup")
+        }));
+        assert!(
+            result.is_ok(),
+            "session lookup should not panic when sessions mutex is poisoned"
+        );
+        let session_result = result.expect("panic status should be captured");
+        assert!(
+            session_result.is_ok(),
+            "session lookup should still succeed after lock poison recovery"
+        );
+    }
+
+    #[test]
+    fn test_post_signal_recovers_from_poisoned_signals_lock() {
+        let runtime = RtcRuntime::default();
+        let auth = demo_auth_context();
+        runtime
+            .create_session(
+                &auth,
+                CreateRtcSessionRequest {
+                    rtc_session_id: "rtc_poison_post_signal".into(),
+                    conversation_id: None,
+                    rtc_mode: "voice".into(),
+                },
+            )
+            .expect("session should be created");
+
+        poison_mutex(&runtime.signals);
+
+        let result = panic::catch_unwind(AssertUnwindSafe(|| {
+            runtime.post_signal(
+                &auth,
+                "rtc_poison_post_signal",
+                PostRtcSignalRequest {
+                    signal_type: "rtc.offer".into(),
+                    schema_ref: Some("webrtc.offer.v1".into()),
+                    payload: "{}".into(),
+                    signaling_stream_id: Some("stream_poison".into()),
+                },
+            )
+        }));
+        assert!(
+            result.is_ok(),
+            "post signal should not panic when signals mutex is poisoned"
+        );
+        let post_result = result.expect("panic status should be captured");
+        assert!(
+            post_result.is_ok(),
+            "post signal should still succeed after lock poison recovery"
+        );
+    }
+
+    #[test]
+    fn test_runtime_memory_state_store_load_recovers_from_poisoned_lock() {
+        let store = RuntimeMemoryRtcStateStore::default();
+        poison_mutex(&store.states);
+
+        let result = panic::catch_unwind(AssertUnwindSafe(|| {
+            store.load_state("t_demo", "rtc_poison_store")
+        }));
+        assert!(
+            result.is_ok(),
+            "state-store load should not panic when internal mutex is poisoned"
+        );
+        let load_result = result.expect("panic status should be captured");
+        assert!(
+            load_result.is_ok(),
+            "state-store load should recover from poisoned lock"
+        );
+    }
+
+    #[test]
+    fn test_persist_state_returns_error_when_session_missing() {
+        let runtime = RtcRuntime::default();
+
+        let result = panic::catch_unwind(AssertUnwindSafe(|| {
+            runtime.persist_state("t_demo", "rtc_missing_for_persist")
+        }));
+        assert!(
+            result.is_ok(),
+            "persist_state should not panic when session is missing"
+        );
+        let persist_result = result.expect("panic status should be captured");
+        let error = persist_result.expect_err("missing session should return structured error");
+        assert_eq!(error.code(), "rtc_session_not_found");
+    }
 }
