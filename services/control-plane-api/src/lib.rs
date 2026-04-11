@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path as StdPath, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -112,6 +113,34 @@ pub const SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MILLIS_ENV: &str =
     "CRAW_CHAT_SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MILLIS";
 const SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_DEFAULT_MILLIS: u64 = 5_000;
 const SHARED_CHANNEL_SYNC_RESPONSE_BODY_MAX_BYTES: usize = 16 * 1024;
+pub const SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_ENABLED_ENV: &str =
+    "CRAW_CHAT_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_ENABLED";
+pub const SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_INTERVAL_MILLIS_ENV: &str =
+    "CRAW_CHAT_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_INTERVAL_MILLIS";
+const SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_DEFAULT_INTERVAL_MILLIS: u64 = 30_000;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SharedChannelSyncStaleReclaimSchedulerConfig {
+    pub enabled: bool,
+    pub interval_millis: u64,
+}
+
+impl SharedChannelSyncStaleReclaimSchedulerConfig {
+    fn with_normalized_interval(self) -> Self {
+        Self {
+            enabled: self.enabled,
+            interval_millis: if self.interval_millis == 0 {
+                SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_DEFAULT_INTERVAL_MILLIS
+            } else {
+                self.interval_millis
+            },
+        }
+    }
+
+    fn interval(self) -> Duration {
+        Duration::from_millis(self.with_normalized_interval().interval_millis)
+    }
+}
 
 struct PublicSharedChannelLinkedMemberSyncTrigger {
     base_url: String,
@@ -295,6 +324,28 @@ fn resolve_shared_channel_sync_http_timeout() -> Duration {
     Duration::from_millis(timeout_millis)
 }
 
+fn resolve_shared_channel_sync_stale_reclaim_scheduler_config_from_env()
+-> SharedChannelSyncStaleReclaimSchedulerConfig {
+    let enabled = std::env::var(SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_ENABLED_ENV)
+        .ok()
+        .is_some_and(|value| {
+            matches!(
+                value.trim().to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes" | "on"
+            )
+        });
+    let interval_millis =
+        std::env::var(SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_INTERVAL_MILLIS_ENV)
+            .ok()
+            .and_then(|value| value.trim().parse::<u64>().ok())
+            .filter(|value| *value > 0)
+            .unwrap_or(SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_DEFAULT_INTERVAL_MILLIS);
+    SharedChannelSyncStaleReclaimSchedulerConfig {
+        enabled,
+        interval_millis,
+    }
+}
+
 async fn read_shared_channel_sync_response_body_with_limit(
     mut body: Incoming,
     target: &str,
@@ -380,6 +431,7 @@ struct SocialControlRuntime {
     journal_path: Option<Arc<PathBuf>>,
     tx_marker_path: Option<Arc<PathBuf>>,
     snapshot_failpoint_path: Option<Arc<PathBuf>>,
+    shared_channel_sync_stale_reclaim_scheduler_started: AtomicBool,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -2630,6 +2682,7 @@ impl SocialControlRuntime {
             journal_path: None,
             tx_marker_path: None,
             snapshot_failpoint_path: snapshot_failpoint_path.map(Arc::new),
+            shared_channel_sync_stale_reclaim_scheduler_started: AtomicBool::new(false),
         }
     }
 
@@ -2654,6 +2707,7 @@ impl SocialControlRuntime {
             journal_path: Some(Arc::new(journal_path)),
             tx_marker_path: Some(Arc::new(tx_marker_path)),
             snapshot_failpoint_path: Some(Arc::new(state_dir.join("social-failpoints.json"))),
+            shared_channel_sync_stale_reclaim_scheduler_started: AtomicBool::new(false),
         }
     }
 
@@ -2694,6 +2748,51 @@ impl SocialControlRuntime {
         state_store
             .load()
             .unwrap_or_else(|error| panic!("failed to load control-plane social state: {error}"))
+    }
+
+    fn start_shared_channel_sync_stale_reclaim_scheduler(
+        self: &Arc<Self>,
+        config: SharedChannelSyncStaleReclaimSchedulerConfig,
+    ) {
+        let config = config.with_normalized_interval();
+        if !config.enabled {
+            return;
+        }
+        if self
+            .shared_channel_sync_stale_reclaim_scheduler_started
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .is_err()
+        {
+            return;
+        }
+
+        let runtime = Arc::clone(self);
+        let interval = config.interval();
+        match std::thread::Builder::new()
+            .name("shared-sync-stale-reclaim".to_owned())
+            .spawn(move || {
+                loop {
+                    std::thread::sleep(interval);
+                    if let Err(error) = runtime
+                        .reclaim_stale_pending_shared_channel_sync_claims_if_any(
+                            "failed to persist stale pending shared-channel sync reclaim from scheduler",
+                        )
+                    {
+                        eprintln!(
+                            "shared-channel sync stale reclaim scheduler tick failed: {error:?}"
+                        );
+                    }
+                }
+            }) {
+            Ok(_) => {}
+            Err(error) => {
+                self.shared_channel_sync_stale_reclaim_scheduler_started
+                    .store(false, Ordering::Release);
+                eprintln!(
+                    "failed to start shared-channel sync stale reclaim scheduler thread: {error}"
+                );
+            }
+        }
     }
 
     fn consume_fail_next_snapshot_save(&self) -> Result<bool, String> {
@@ -5452,6 +5551,31 @@ pub fn build_app_with_cluster_and_governance_sinks_and_runtime_dir(
     })
 }
 
+pub fn build_app_with_cluster_and_governance_sinks_and_runtime_dir_with_shared_channel_sync_stale_reclaim_scheduler_config(
+    realtime_cluster: Arc<RealtimeClusterBridge>,
+    ops_runtime: Arc<OpsRuntime>,
+    audit_runtime: Arc<AuditRuntime>,
+    runtime_dir: impl AsRef<StdPath>,
+    scheduler_config: SharedChannelSyncStaleReclaimSchedulerConfig,
+) -> Router {
+    let provider_registry = Arc::new(RuntimeProviderRegistry::platform_default());
+    build_app_with_state_and_scheduler_config(
+        AppState {
+            realtime_cluster,
+            protocol_registry: Arc::new(CcpRegistry::control_plane_v1()),
+            provider_registry: provider_registry.clone(),
+            provider_registry_runtime: Some(provider_registry),
+            governance_loop: Some(GovernanceLoop {
+                ops_runtime,
+                audit_runtime,
+            }),
+            social_runtime: Arc::new(SocialControlRuntime::from_runtime_dir(runtime_dir)),
+            shared_channel_sync_trigger: None,
+        },
+        scheduler_config,
+    )
+}
+
 pub fn build_control_surface_with_cluster_and_governance_sinks_and_runtime_dir_and_shared_channel_sync_trigger(
     realtime_cluster: Arc<RealtimeClusterBridge>,
     ops_runtime: Arc<OpsRuntime>,
@@ -5515,12 +5639,35 @@ pub fn build_app_with_cluster_runtime_provider_registry_and_governance_sinks(
 }
 
 fn build_app_with_state(state: AppState) -> Router {
-    Router::new()
-        .route("/healthz", get(healthz))
-        .merge(build_control_surface_with_state(state))
+    build_app_with_state_and_scheduler_config(
+        state,
+        resolve_shared_channel_sync_stale_reclaim_scheduler_config_from_env(),
+    )
+}
+
+fn build_app_with_state_and_scheduler_config(
+    state: AppState,
+    scheduler_config: SharedChannelSyncStaleReclaimSchedulerConfig,
+) -> Router {
+    Router::new().route("/healthz", get(healthz)).merge(
+        build_control_surface_with_state_and_scheduler_config(state, scheduler_config),
+    )
 }
 
 fn build_control_surface_with_state(state: AppState) -> Router {
+    build_control_surface_with_state_and_scheduler_config(
+        state,
+        resolve_shared_channel_sync_stale_reclaim_scheduler_config_from_env(),
+    )
+}
+
+fn build_control_surface_with_state_and_scheduler_config(
+    state: AppState,
+    scheduler_config: SharedChannelSyncStaleReclaimSchedulerConfig,
+) -> Router {
+    state
+        .social_runtime
+        .start_shared_channel_sync_stale_reclaim_scheduler(scheduler_config);
     Router::new()
         .route(
             "/api/v1/control/protocol-registry",

@@ -3,7 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use audit_service::AuditRuntime;
 use axum::body::Body;
@@ -70,6 +70,36 @@ fn write_social_state_json(runtime_dir: &Path, state: &serde_json::Value) {
         .expect("social state json should serialize back to disk");
     fs::write(state_file(runtime_dir, "social-state.json"), body)
         .expect("social state file should be writable");
+}
+
+async fn wait_for_pending_shared_channel_sync_reclaim(
+    runtime_dir: &Path,
+    request_key: &str,
+    timeout: Duration,
+) -> serde_json::Value {
+    let deadline = Instant::now() + timeout;
+    loop {
+        let state = read_social_state_json(runtime_dir);
+        let Some(pending) = state["pending_shared_channel_sync_requests"]
+            .as_object()
+            .and_then(|items| items.get(request_key))
+        else {
+            panic!("pending shared-channel sync request {request_key} should exist");
+        };
+        if pending["ownerActorId"].is_null()
+            && pending["ownerActorKind"].is_null()
+            && pending["claimedAt"].is_null()
+            && pending["leaseExpiresAt"].is_null()
+        {
+            return state;
+        }
+        if Instant::now() >= deadline {
+            panic!(
+                "pending shared-channel sync request {request_key} was not reclaimed before timeout"
+            );
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
 }
 
 async fn public_auth_guard() -> MutexGuard<'static, ()> {
@@ -6446,6 +6476,248 @@ async fn test_control_plane_social_shared_channel_repair_reclaims_stale_claim_wh
     assert_eq!(reclaimed_inventory_item["leaseStatus"], "unclaimed");
     assert_eq!(reclaimed_inventory_item["takeoverEligible"], false);
     assert_eq!(reclaimed_inventory_item["legacyTakeoverRequired"], false);
+
+    runtime_handle.abort();
+    let _ = runtime_handle.await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_control_plane_social_shared_channel_stale_claim_scheduler_reclaims_without_manual_repair()
+ {
+    let _guard = configure_public_bearer_secret().await;
+    let runtime_dir =
+        TestRuntimeDir::new("control_plane_shared_channel_stale_claim_scheduler_reclaim");
+    let (runtime_base_url, runtime_handle) = spawn_public_runtime_server().await;
+
+    let owner_bearer = bearer_token("t_demo", "owner_alice", "user", &[]);
+    let (create_status, create_json) = http_json_request(
+        runtime_base_url.as_str(),
+        Method::POST,
+        "/api/v1/conversations",
+        owner_bearer.as_str(),
+        Some(serde_json::json!({
+            "conversationId":"c_partner_ops_stale_claim_scheduler_reclaim",
+            "conversationType":"group",
+            "historyVisibility":"shared"
+        })),
+    )
+    .await;
+    assert_eq!(create_status, StatusCode::OK);
+    assert_eq!(
+        create_json["conversationId"],
+        "c_partner_ops_stale_claim_scheduler_reclaim"
+    );
+
+    let (post_status, post_json) = http_json_request(
+        runtime_base_url.as_str(),
+        Method::POST,
+        "/api/v1/conversations/c_partner_ops_stale_claim_scheduler_reclaim/messages",
+        owner_bearer.as_str(),
+        Some(serde_json::json!({
+            "clientMsgId":"client_shared_stale_claim_scheduler_reclaim_001",
+            "summary":"hello stale claim scheduler reclaim",
+            "text":"hello stale claim scheduler reclaim"
+        })),
+    )
+    .await;
+    assert_eq!(post_status, StatusCode::OK);
+    assert_eq!(
+        post_json["messageId"],
+        "msg_c_partner_ops_stale_claim_scheduler_reclaim_1"
+    );
+
+    let cluster = Arc::new(RealtimeClusterBridge::default());
+    let ops_runtime = Arc::new(OpsRuntime::new(
+        "node_a",
+        "local-minimal",
+        "127.0.0.1:18090",
+        vec!["session-gateway".into(), "control-plane-api".into()],
+        vec![],
+    ));
+    let audit_runtime = Arc::new(AuditRuntime::default());
+    let seed_app = control_plane_api::build_app_with_cluster_and_governance_sinks_and_runtime_dir(
+        cluster.clone(),
+        ops_runtime.clone(),
+        audit_runtime.clone(),
+        runtime_dir.path(),
+    );
+
+    let establish_response = seed_app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/control/social/external-connections")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "connectionId":"ec_stale_claim_scheduler_reclaim_001",
+                        "eventId":"evt_ec_stale_claim_scheduler_reclaim_001",
+                        "externalTenantId":"t_partner",
+                        "connectionKind":"shared_channel",
+                        "establishedAt":"2026-04-12T00:01:00Z"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("external connection write should return response");
+    assert_eq!(establish_response.status(), StatusCode::OK);
+
+    let policy_response = seed_app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/control/social/shared-channel-policies")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "policyId":"scp_stale_claim_scheduler_reclaim_001",
+                        "eventId":"evt_scp_stale_claim_scheduler_reclaim_001",
+                        "connectionId":"ec_stale_claim_scheduler_reclaim_001",
+                        "channelId":"ch_partner_ops",
+                        "conversationId":"c_partner_ops_stale_claim_scheduler_reclaim",
+                        "policyVersion":1,
+                        "historyVisibility":"shared",
+                        "appliedAt":"2026-04-12T00:02:00Z"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("shared channel policy write should return response");
+    assert_eq!(policy_response.status(), StatusCode::OK);
+
+    let link_response = seed_app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/control/social/external-member-links")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "linkId":"eml_stale_claim_scheduler_reclaim_001",
+                        "eventId":"evt_eml_stale_claim_scheduler_reclaim_001",
+                        "connectionId":"ec_stale_claim_scheduler_reclaim_001",
+                        "localActorId":"actor_alice",
+                        "localActorKind":"user",
+                        "externalMemberId":"partner::alice",
+                        "linkedAt":"2026-04-12T00:03:00Z"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("external member link write should return response");
+    assert_eq!(link_response.status(), StatusCode::OK);
+
+    let pending_state = read_social_state_json(runtime_dir.path());
+    let pending_items = pending_state["pending_shared_channel_sync_requests"]
+        .as_object()
+        .expect("pending shared-channel sync backlog should be serialized as an object");
+    assert_eq!(pending_items.len(), 1);
+    let request_key = pending_items
+        .keys()
+        .next()
+        .expect("pending shared-channel sync request key should exist")
+        .to_owned();
+
+    let claim_response = seed_app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/control/social/runtime/claim-pending-shared-channel-sync-targeted")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_operator_a")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::to_vec(&serde_json::json!({
+                        "requestKeys":[request_key]
+                    }))
+                    .expect("stale claim scheduler reclaim targeted claim request should encode"),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("stale claim scheduler reclaim targeted claim should return response");
+    assert_eq!(claim_response.status(), StatusCode::OK);
+
+    let mut stale_state = read_social_state_json(runtime_dir.path());
+    stale_state["pending_shared_channel_sync_requests"][request_key.as_str()]["leaseExpiresAt"] =
+        serde_json::Value::String("1970-01-01T00:00:00.000Z".into());
+    write_social_state_json(runtime_dir.path(), &stale_state);
+
+    let scheduler_app =
+        control_plane_api::build_app_with_cluster_and_governance_sinks_and_runtime_dir_with_shared_channel_sync_stale_reclaim_scheduler_config(
+            cluster,
+            ops_runtime,
+            audit_runtime,
+            runtime_dir.path(),
+            control_plane_api::SharedChannelSyncStaleReclaimSchedulerConfig {
+                enabled: true,
+                interval_millis: 20,
+            },
+        );
+
+    let reclaimed_state = wait_for_pending_shared_channel_sync_reclaim(
+        runtime_dir.path(),
+        request_key.as_str(),
+        Duration::from_secs(2),
+    )
+    .await;
+    let reclaimed_pending = reclaimed_state["pending_shared_channel_sync_requests"]
+        .as_object()
+        .expect("pending shared-channel sync backlog should stay serialized as an object")
+        .get(request_key.as_str())
+        .expect("reclaimed pending shared-channel sync request should still exist");
+    assert!(reclaimed_pending["ownerActorId"].is_null());
+    assert!(reclaimed_pending["ownerActorKind"].is_null());
+    assert!(reclaimed_pending["claimedAt"].is_null());
+    assert!(reclaimed_pending["leaseExpiresAt"].is_null());
+
+    let inventory_response = scheduler_app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/control/social/runtime/pending-shared-channel-sync")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.write")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("scheduler reclaim inventory should return response");
+    assert_eq!(inventory_response.status(), StatusCode::OK);
+    let inventory_body = inventory_response
+        .into_body()
+        .collect()
+        .await
+        .expect("scheduler reclaim inventory body should collect")
+        .to_bytes();
+    let inventory_json: serde_json::Value = serde_json::from_slice(&inventory_body)
+        .expect("scheduler reclaim inventory body should be valid json");
+    let inventory_item = inventory_json["items"]
+        .as_array()
+        .expect("scheduler reclaim inventory should serialize items as an array")
+        .first()
+        .expect("scheduler reclaim inventory item should exist");
+    assert_eq!(inventory_item["requestKey"], request_key);
+    assert_eq!(inventory_item["leaseStatus"], "unclaimed");
 
     runtime_handle.abort();
     let _ = runtime_handle.await;
