@@ -123,6 +123,10 @@ fn test_control_plane_repair_social_runtime_dir_cli_replays_journal_into_snapsho
     assert_eq!(report["snapshotUpdated"], true);
     assert_eq!(report["transactionMarkerCleared"], false);
     assert_eq!(report["aggregateCounts"]["directChats"], 1);
+    assert_eq!(
+        report["aggregateCounts"]["recentSharedChannelSyncDeliveries"],
+        0
+    );
 
     let snapshot_body = fs::read_to_string(state_file(runtime_dir.as_path(), "social-state.json"))
         .expect("social state snapshot should be materialized by cli repair");
@@ -175,6 +179,10 @@ fn test_control_plane_repair_social_runtime_dir_cli_reports_transaction_marker_c
     assert_eq!(report["snapshotUpdated"], true);
     assert_eq!(report["transactionMarkerCleared"], true);
     assert_eq!(report["aggregateCounts"]["directChats"], 1);
+    assert_eq!(
+        report["aggregateCounts"]["recentSharedChannelSyncDeliveries"],
+        0
+    );
     assert!(
         !social_tx_marker_file(runtime_dir.as_path()).exists(),
         "pending social tx marker should be cleared by cli repair"

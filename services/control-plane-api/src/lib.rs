@@ -969,6 +969,7 @@ impl SocialControlState {
             dead_letter_shared_channel_sync_requests: self
                 .dead_letter_shared_channel_sync_requests
                 .len(),
+            recent_shared_channel_sync_deliveries: self.recent_shared_channel_sync_deliveries.len(),
         }
     }
 
@@ -2317,6 +2318,7 @@ pub struct SocialAggregateCountsResponse {
     pub shared_channel_policies: usize,
     pub pending_shared_channel_sync_requests: usize,
     pub dead_letter_shared_channel_sync_requests: usize,
+    pub recent_shared_channel_sync_deliveries: usize,
 }
 
 #[derive(Debug, Serialize)]
@@ -5540,7 +5542,7 @@ pub fn format_social_runtime_dir_repair(report: &SocialRuntimeRepairResponse) ->
         report.transaction_marker_cleared
     ));
     lines.push(format!(
-        "aggregate-counts: friendRequests={} friendships={} userBlocks={} directChats={} externalConnections={} externalMemberLinks={} sharedChannelPolicies={} pendingSharedChannelSyncRequests={} deadLetterSharedChannelSyncRequests={}",
+        "aggregate-counts: friendRequests={} friendships={} userBlocks={} directChats={} externalConnections={} externalMemberLinks={} sharedChannelPolicies={} pendingSharedChannelSyncRequests={} deadLetterSharedChannelSyncRequests={} recentSharedChannelSyncDeliveries={}",
         report.aggregate_counts.friend_requests,
         report.aggregate_counts.friendships,
         report.aggregate_counts.user_blocks,
@@ -5549,7 +5551,8 @@ pub fn format_social_runtime_dir_repair(report: &SocialRuntimeRepairResponse) ->
         report.aggregate_counts.external_member_links,
         report.aggregate_counts.shared_channel_policies,
         report.aggregate_counts.pending_shared_channel_sync_requests,
-        report.aggregate_counts.dead_letter_shared_channel_sync_requests
+        report.aggregate_counts.dead_letter_shared_channel_sync_requests,
+        report.aggregate_counts.recent_shared_channel_sync_deliveries
     ));
     lines.join("\n")
 }
