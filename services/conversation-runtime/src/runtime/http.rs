@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use axum::extract::{Path, State};
 use axum::http::{HeaderMap, Request};
@@ -22,10 +23,107 @@ use super::*;
 #[derive(Clone)]
 struct AppState {
     runtime: Arc<ConversationRuntime<InMemoryJournal>>,
+    shared_channel_sync_rate_limiter: SharedChannelSyncRateLimiter,
 }
 
 const SHARED_CHANNEL_SYNC_PERMISSION: &str = "conversation.shared_channel.sync";
 const SHARED_CHANNEL_SYNC_ACTOR_ID: &str = "control-plane-sync";
+const SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS_ENV: &str =
+    "CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS";
+const SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS_ENV: &str =
+    "CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS";
+const SHARED_CHANNEL_SYNC_RATE_LIMIT_DEFAULT_MAX_REQUESTS: u32 = 120;
+const SHARED_CHANNEL_SYNC_RATE_LIMIT_DEFAULT_WINDOW_SECONDS: u64 = 60;
+const SHARED_CHANNEL_SYNC_RATE_LIMIT_SWEEP_THRESHOLD: usize = 1024;
+
+#[derive(Clone)]
+struct SharedChannelSyncRateLimiter {
+    max_requests: u32,
+    window_millis: u128,
+    buckets: Arc<Mutex<BTreeMap<String, SharedChannelSyncRateLimitBucket>>>,
+}
+
+#[derive(Clone, Debug)]
+struct SharedChannelSyncRateLimitBucket {
+    window_started_at_millis: u128,
+    request_count: u32,
+}
+
+impl SharedChannelSyncRateLimiter {
+    fn from_env() -> Self {
+        let max_requests = resolve_positive_env_u32(
+            SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS_ENV,
+            SHARED_CHANNEL_SYNC_RATE_LIMIT_DEFAULT_MAX_REQUESTS,
+        );
+        let window_seconds = resolve_positive_env_u64(
+            SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS_ENV,
+            SHARED_CHANNEL_SYNC_RATE_LIMIT_DEFAULT_WINDOW_SECONDS,
+        );
+        Self {
+            max_requests,
+            window_millis: (window_seconds as u128) * 1000,
+            buckets: Arc::new(Mutex::new(BTreeMap::new())),
+        }
+    }
+
+    fn try_acquire(&self, tenant_id: &str) -> bool {
+        let now = current_unix_epoch_millis();
+        let mut buckets = self
+            .buckets
+            .lock()
+            .expect("shared-channel sync rate limiter lock should not be poisoned");
+
+        if buckets.len() > SHARED_CHANNEL_SYNC_RATE_LIMIT_SWEEP_THRESHOLD {
+            let window_millis = self.window_millis;
+            buckets.retain(|_, bucket| {
+                now.saturating_sub(bucket.window_started_at_millis) < window_millis
+            });
+        }
+
+        let bucket =
+            buckets
+                .entry(tenant_id.to_owned())
+                .or_insert(SharedChannelSyncRateLimitBucket {
+                    window_started_at_millis: now,
+                    request_count: 0,
+                });
+
+        if now.saturating_sub(bucket.window_started_at_millis) >= self.window_millis {
+            bucket.window_started_at_millis = now;
+            bucket.request_count = 0;
+        }
+
+        if bucket.request_count >= self.max_requests {
+            return false;
+        }
+
+        bucket.request_count = bucket.request_count.saturating_add(1);
+        true
+    }
+}
+
+fn resolve_positive_env_u32(name: &str, default: u32) -> u32 {
+    std::env::var(name)
+        .ok()
+        .and_then(|value| value.trim().parse::<u32>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(default)
+}
+
+fn resolve_positive_env_u64(name: &str, default: u64) -> u64 {
+    std::env::var(name)
+        .ok()
+        .and_then(|value| value.trim().parse::<u64>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(default)
+}
+
+fn current_unix_epoch_millis() -> u128 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("system clock should be after unix epoch")
+        .as_millis()
+}
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -232,6 +330,14 @@ impl ApiError {
             message: message.into(),
         }
     }
+
+    fn too_many_requests(code: &'static str, message: impl Into<String>) -> Self {
+        Self {
+            status: axum::http::StatusCode::TOO_MANY_REQUESTS,
+            code,
+            message: message.into(),
+        }
+    }
 }
 
 impl From<AuthContextError> for ApiError {
@@ -319,6 +425,7 @@ impl IntoResponse for ApiError {
 pub fn build_default_app() -> Router {
     let state = AppState {
         runtime: Arc::new(ConversationRuntime::new(InMemoryJournal::default())),
+        shared_channel_sync_rate_limiter: SharedChannelSyncRateLimiter::from_env(),
     };
     build_app(state)
 }
@@ -575,6 +682,15 @@ async fn sync_shared_channel_linked_member(
                 "shared channel linked-member sync requires actor {}",
                 SHARED_CHANNEL_SYNC_ACTOR_ID
             ),
+        ));
+    }
+    if !state
+        .shared_channel_sync_rate_limiter
+        .try_acquire(auth.tenant_id.as_str())
+    {
+        return Err(ApiError::too_many_requests(
+            "shared_channel_sync_rate_limited",
+            "shared channel linked-member sync exceeded per-tenant rate limit",
         ));
     }
     Ok(Json(
