@@ -1,4 +1,5 @@
 use std::collections::BTreeSet;
+use std::sync::{Mutex, MutexGuard};
 
 use im_domain_core::conversation::DeviceSyncFeedEntry;
 use im_domain_core::conversation::{ConversationMember, ConversationReadCursor};
@@ -57,6 +58,16 @@ struct ContactOwnerCatalogEntry {
     owner_user_id: String,
 }
 
+trait ProjectionMutexExt<T> {
+    fn lock_projection(&self, lock_name: &'static str) -> MutexGuard<'_, T>;
+}
+
+impl<T> ProjectionMutexExt<T> for Mutex<T> {
+    fn lock_projection(&self, lock_name: &'static str) -> MutexGuard<'_, T> {
+        super::lock_projection_mutex(self, lock_name)
+    }
+}
+
 impl TimelineProjectionService {
     pub fn persist_conversation_snapshot(
         &self,
@@ -72,30 +83,26 @@ impl TimelineProjectionService {
             };
             let conversation = self
                 .conversations
-                .lock()
-                .expect("conversation store should lock")
+                .lock_projection("conversation store")
                 .get(scope.as_str())
                 .cloned();
             let mut members = self
                 .members
-                .lock()
-                .expect("member store should lock")
+                .lock_projection("member store")
                 .get(scope.as_str())
                 .map(|scope_members| scope_members.values().cloned().collect::<Vec<_>>())
                 .unwrap_or_default();
             members.sort_by(|left, right| left.principal_id.cmp(&right.principal_id));
             let mut read_cursors = self
                 .read_cursors
-                .lock()
-                .expect("cursor store should lock")
+                .lock_projection("cursor store")
                 .get(scope.as_str())
                 .map(|scope_cursors| scope_cursors.values().cloned().collect::<Vec<_>>())
                 .unwrap_or_default();
             read_cursors.sort_by(|left, right| left.member_id.cmp(&right.member_id));
             let interaction_items = self
                 .message_interactions
-                .lock()
-                .expect("message interaction store should lock")
+                .lock_projection("message interaction store")
                 .get(scope.as_str())
                 .map(interaction_snapshot_items)
                 .unwrap_or_default();
@@ -228,38 +235,31 @@ impl TimelineProjectionService {
             .unwrap_or_default();
 
             self.summaries
-                .lock()
-                .expect("summary store should lock")
+                .lock_projection("summary store")
                 .insert(scope.clone(), summary);
             self.entries
-                .lock()
-                .expect("projection store should lock")
+                .lock_projection("projection store")
                 .insert(scope.clone(), timeline);
             match conversation {
                 Some(conversation) => {
                     self.conversations
-                        .lock()
-                        .expect("conversation store should lock")
+                        .lock_projection("conversation store")
                         .insert(scope.clone(), conversation);
                 }
                 None => {
                     self.conversations
-                        .lock()
-                        .expect("conversation store should lock")
+                        .lock_projection("conversation store")
                         .remove(scope.as_str());
                 }
             }
             self.members
-                .lock()
-                .expect("member store should lock")
+                .lock_projection("member store")
                 .insert(scope.clone(), members);
             self.read_cursors
-                .lock()
-                .expect("cursor store should lock")
+                .lock_projection("cursor store")
                 .insert(scope.clone(), read_cursors);
             self.message_interactions
-                .lock()
-                .expect("message interaction store should lock")
+                .lock_projection("message interaction store")
                 .insert(scope.clone(), interactions);
             self.restore_contact_snapshot(metadata_store)?;
             self.restore_device_sync_snapshot(metadata_store, timeline_store)?;
@@ -294,8 +294,7 @@ impl TimelineProjectionService {
         let result = (|| {
             let registered_device_snapshots = self
                 .registered_devices
-                .lock()
-                .expect("registered device store should lock")
+                .lock_projection("registered device store")
                 .iter()
                 .map(|(scope, devices)| {
                     let mut items = devices.values().cloned().collect::<Vec<_>>();
@@ -305,13 +304,11 @@ impl TimelineProjectionService {
                 .collect::<Vec<_>>();
             let device_sync_feeds = self
                 .device_sync_feeds
-                .lock()
-                .expect("device sync feed store should lock")
+                .lock_projection("device sync feed store")
                 .clone();
             let device_sync_sequences = self
                 .device_sync_sequences
-                .lock()
-                .expect("device sync sequence store should lock")
+                .lock_projection("device sync sequence store")
                 .clone();
             if registered_device_snapshots.is_empty()
                 && device_sync_feeds.is_empty()
@@ -462,15 +459,10 @@ impl TimelineProjectionService {
         metadata_store: &dyn MetadataStore,
     ) -> Result<bool, ProjectionError> {
         let result = (|| {
-            let contacts = self
-                .contacts
-                .lock()
-                .expect("contact store should lock")
-                .clone();
+            let contacts = self.contacts.lock_projection("contact store").clone();
             let direct_chat_bindings = self
                 .direct_chat_bindings
-                .lock()
-                .expect("contact direct chat binding store should lock")
+                .lock_projection("contact direct chat binding store")
                 .values()
                 .cloned()
                 .collect::<Vec<_>>();
@@ -552,21 +544,14 @@ impl TimelineProjectionService {
                     CONTACTS_KEY,
                 )?
                 .unwrap_or_default();
-                self.contacts
-                    .lock()
-                    .expect("contact store should lock")
-                    .insert(
-                        contact_runtime_scope(
-                            owner.tenant_id.as_str(),
-                            owner.owner_user_id.as_str(),
-                        ),
-                        contact_map_from_items(items),
-                    );
+                self.contacts.lock_projection("contact store").insert(
+                    contact_runtime_scope(owner.tenant_id.as_str(), owner.owner_user_id.as_str()),
+                    contact_map_from_items(items),
+                );
             }
 
             self.direct_chat_bindings
-                .lock()
-                .expect("contact direct chat binding store should lock")
+                .lock_projection("contact direct chat binding store")
                 .extend(
                     direct_chat_bindings
                         .into_iter()
@@ -629,8 +614,7 @@ impl TimelineProjectionService {
                     })
                     .collect();
                 self.registered_devices
-                    .lock()
-                    .expect("registered device store should lock")
+                    .lock_projection("registered device store")
                     .insert(runtime_scope, device_map);
             }
 
@@ -670,12 +654,10 @@ impl TimelineProjectionService {
                 });
                 let runtime_scope = device_runtime_scope(&tenant_id, &principal_id, &device_id);
                 self.device_sync_sequences
-                    .lock()
-                    .expect("device sync sequence store should lock")
+                    .lock_projection("device sync sequence store")
                     .insert(runtime_scope.clone(), restored_latest_sync_seq);
                 self.device_sync_feeds
-                    .lock()
-                    .expect("device sync feed store should lock")
+                    .lock_projection("device sync feed store")
                     .insert(runtime_scope, feed_entries);
             }
 
@@ -749,4 +731,203 @@ fn load_metadata_snapshot<T: DeserializeOwned>(
         .map_err(ProjectionError::StoreFailure)?
         .map(|payload| serde_json::from_str(&payload).map_err(ProjectionError::InvalidSnapshot))
         .transpose()
+}
+
+#[cfg(test)]
+mod tests {
+    use std::panic::{self, AssertUnwindSafe};
+    use std::sync::Mutex;
+
+    use im_adapters_local_memory::{MemoryMetadataStore, MemoryTimelineProjectionStore};
+
+    use super::*;
+
+    fn poison_mutex<T>(mutex: &Mutex<T>) {
+        let _ = panic::catch_unwind(AssertUnwindSafe(|| {
+            let _guard = mutex.lock().expect("test poison lock should succeed");
+            panic!("intentional poison for regression coverage");
+        }));
+    }
+
+    fn demo_summary(tenant_id: &str, conversation_id: &str) -> ConversationSummaryView {
+        ConversationSummaryView {
+            tenant_id: tenant_id.into(),
+            conversation_id: conversation_id.into(),
+            message_count: 0,
+            last_message_id: None,
+            last_message_seq: 0,
+            last_sender_id: None,
+            last_sender_kind: None,
+            last_sender: None,
+            last_summary: None,
+            last_message_at: None,
+            agent_handoff: None,
+        }
+    }
+
+    #[test]
+    fn test_persist_contact_snapshot_recovers_from_poisoned_contact_store_lock() {
+        let projection = TimelineProjectionService::default();
+        let metadata_store = MemoryMetadataStore::default();
+        poison_mutex(&projection.contacts);
+
+        let result = panic::catch_unwind(AssertUnwindSafe(|| {
+            projection.persist_contact_snapshot(&metadata_store)
+        }));
+        assert!(
+            result.is_ok(),
+            "persist_contact_snapshot should not panic when contact store lock is poisoned"
+        );
+        let persist_result = result.expect("panic status should be captured");
+        assert!(
+            persist_result.is_ok(),
+            "persist_contact_snapshot should recover from poisoned lock"
+        );
+    }
+
+    #[test]
+    fn test_restore_conversation_snapshot_recovers_from_poisoned_summary_store_lock() {
+        let projection = TimelineProjectionService::default();
+        let metadata_store = MemoryMetadataStore::default();
+        let timeline_store = MemoryTimelineProjectionStore::default();
+        let snapshot_scope = conversation_snapshot_scope("t_demo", "c_demo");
+        persist_metadata_snapshot(
+            &metadata_store,
+            snapshot_scope.as_str(),
+            CONVERSATION_SUMMARY_KEY,
+            &demo_summary("t_demo", "c_demo"),
+        )
+        .expect("summary snapshot should persist");
+
+        poison_mutex(&projection.summaries);
+
+        let result = panic::catch_unwind(AssertUnwindSafe(|| {
+            projection.restore_conversation_snapshot(
+                "t_demo",
+                "c_demo",
+                &metadata_store,
+                &timeline_store,
+            )
+        }));
+        assert!(
+            result.is_ok(),
+            "restore_conversation_snapshot should not panic when summary store lock is poisoned"
+        );
+        let restore_result = result.expect("panic status should be captured");
+        assert!(
+            restore_result.is_ok(),
+            "restore_conversation_snapshot should recover from poisoned lock"
+        );
+    }
+
+    #[test]
+    fn test_persist_device_sync_snapshot_recovers_from_poisoned_registered_device_store_lock() {
+        let projection = TimelineProjectionService::default();
+        let metadata_store = MemoryMetadataStore::default();
+        let timeline_store = MemoryTimelineProjectionStore::default();
+        poison_mutex(&projection.registered_devices);
+
+        let result = panic::catch_unwind(AssertUnwindSafe(|| {
+            projection.persist_device_sync_snapshot(&metadata_store, &timeline_store)
+        }));
+        assert!(
+            result.is_ok(),
+            "persist_device_sync_snapshot should not panic when registered-device lock is poisoned"
+        );
+        let persist_result = result.expect("panic status should be captured");
+        assert!(
+            persist_result.is_ok(),
+            "persist_device_sync_snapshot should recover from poisoned lock"
+        );
+    }
+
+    #[test]
+    fn test_restore_contact_snapshot_recovers_from_poisoned_binding_store_lock() {
+        let projection = TimelineProjectionService::default();
+        let metadata_store = MemoryMetadataStore::default();
+        persist_metadata_snapshot(
+            &metadata_store,
+            CONTACT_CATALOG_SCOPE,
+            CONTACT_OWNERS_KEY,
+            &Vec::<ContactOwnerCatalogEntry>::new(),
+        )
+        .expect("contact owner catalog should persist");
+        persist_metadata_snapshot(
+            &metadata_store,
+            CONTACT_CATALOG_SCOPE,
+            CONTACT_DIRECT_CHAT_BINDINGS_KEY,
+            &vec![crate::model::ContactDirectChatBindingView {
+                direct_chat_id: "dc_demo".into(),
+                conversation_id: "c_demo".into(),
+                bound_at: "2026-04-01T00:00:00.000Z".into(),
+            }],
+        )
+        .expect("contact direct-chat binding snapshot should persist");
+        poison_mutex(&projection.direct_chat_bindings);
+
+        let result = panic::catch_unwind(AssertUnwindSafe(|| {
+            projection.restore_contact_snapshot(&metadata_store)
+        }));
+        assert!(
+            result.is_ok(),
+            "restore_contact_snapshot should not panic when direct-chat-binding lock is poisoned"
+        );
+        let restore_result = result.expect("panic status should be captured");
+        assert!(
+            restore_result.is_ok(),
+            "restore_contact_snapshot should recover from poisoned lock"
+        );
+    }
+
+    #[test]
+    fn test_restore_device_sync_snapshot_recovers_from_poisoned_sequence_store_lock() {
+        let projection = TimelineProjectionService::default();
+        let metadata_store = MemoryMetadataStore::default();
+        let timeline_store = MemoryTimelineProjectionStore::default();
+        let device_scope = DeviceSyncScopeCatalogEntry {
+            tenant_id: "t_demo".into(),
+            principal_id: "u_demo".into(),
+            device_id: "d_demo".into(),
+        };
+        persist_metadata_snapshot(
+            &metadata_store,
+            DEVICE_SYNC_CATALOG_SCOPE,
+            REGISTERED_DEVICE_PRINCIPALS_KEY,
+            &Vec::<PrincipalSnapshotCatalogEntry>::new(),
+        )
+        .expect("device-sync principal catalog should persist");
+        persist_metadata_snapshot(
+            &metadata_store,
+            DEVICE_SYNC_CATALOG_SCOPE,
+            DEVICE_SYNC_SCOPE_CATALOG_KEY,
+            &vec![device_scope.clone()],
+        )
+        .expect("device-sync scope catalog should persist");
+        persist_metadata_snapshot(
+            &metadata_store,
+            device_sync_snapshot_scope(
+                device_scope.tenant_id.as_str(),
+                device_scope.principal_id.as_str(),
+                device_scope.device_id.as_str(),
+            )
+            .as_str(),
+            DEVICE_SYNC_SEQUENCE_KEY,
+            &42_u64,
+        )
+        .expect("device-sync sequence snapshot should persist");
+        poison_mutex(&projection.device_sync_sequences);
+
+        let result = panic::catch_unwind(AssertUnwindSafe(|| {
+            projection.restore_device_sync_snapshot(&metadata_store, &timeline_store)
+        }));
+        assert!(
+            result.is_ok(),
+            "restore_device_sync_snapshot should not panic when sequence lock is poisoned"
+        );
+        let restore_result = result.expect("panic status should be captured");
+        assert!(
+            restore_result.is_ok(),
+            "restore_device_sync_snapshot should recover from poisoned lock"
+        );
+    }
 }
