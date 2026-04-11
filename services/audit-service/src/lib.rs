@@ -14,6 +14,7 @@ use im_auth_context::{
 };
 use im_time::utc_now_rfc3339_millis;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 #[derive(Clone)]
 struct AppState {
@@ -33,6 +34,8 @@ pub struct AuditRecord {
     pub actor_session_id: Option<String>,
     pub payload: Option<String>,
     pub recorded_at: String,
+    pub chain_prev_hash: Option<String>,
+    pub chain_hash: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -42,6 +45,8 @@ pub struct AuditExportBundle {
     pub exported_at: String,
     pub total: usize,
     pub items: Vec<AuditRecord>,
+    pub chain_head_hash: Option<String>,
+    pub chain_valid: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -114,6 +119,25 @@ impl axum::response::IntoResponse for AuditError {
 
 impl AuditRuntime {
     pub fn record_anchor(&self, auth: &AuthContext, request: RecordAuditAnchor) -> AuditRecord {
+        let recorded_at = utc_now_rfc3339_millis();
+        let mut records = self.records.lock().expect("audit runtime should lock");
+        let tenant_records = records.entry(auth.tenant_id.clone()).or_default();
+        let chain_prev_hash = tenant_records
+            .last()
+            .map(|record| record.chain_hash.clone());
+        let chain_hash = compute_audit_record_chain_hash(
+            auth.tenant_id.as_str(),
+            request.record_id.as_str(),
+            request.aggregate_type.as_str(),
+            request.aggregate_id.as_str(),
+            request.action.as_str(),
+            auth.actor_id.as_str(),
+            auth.actor_kind.as_str(),
+            auth.session_id.as_deref(),
+            request.payload.as_deref(),
+            recorded_at.as_str(),
+            chain_prev_hash.as_deref(),
+        );
         let record = AuditRecord {
             tenant_id: auth.tenant_id.clone(),
             record_id: request.record_id,
@@ -124,14 +148,11 @@ impl AuditRuntime {
             actor_kind: auth.actor_kind.clone(),
             actor_session_id: auth.session_id.clone(),
             payload: request.payload,
-            recorded_at: utc_now_rfc3339_millis(),
+            recorded_at,
+            chain_prev_hash,
+            chain_hash,
         };
-        self.records
-            .lock()
-            .expect("audit runtime should lock")
-            .entry(auth.tenant_id.clone())
-            .or_default()
-            .push(record.clone());
+        tenant_records.push(record.clone());
         record
     }
 
@@ -146,13 +167,109 @@ impl AuditRuntime {
 
     pub fn export_bundle(&self, auth: &AuthContext) -> AuditExportBundle {
         let items = self.list_records(auth);
+        let chain_head_hash = items.last().map(|record| record.chain_hash.clone());
+        let chain_valid = verify_audit_records_chain(auth.tenant_id.as_str(), items.as_slice());
         AuditExportBundle {
             tenant_id: auth.tenant_id.clone(),
             exported_at: utc_now_rfc3339_millis(),
             total: items.len(),
             items,
+            chain_head_hash,
+            chain_valid,
         }
     }
+}
+
+pub fn verify_audit_export_bundle_integrity(bundle: &AuditExportBundle) -> bool {
+    if bundle.total != bundle.items.len() {
+        return false;
+    }
+
+    let actual_chain_valid = verify_audit_records_chain(bundle.tenant_id.as_str(), &bundle.items);
+    if bundle.chain_valid != actual_chain_valid {
+        return false;
+    }
+
+    let actual_chain_head_hash = bundle.items.last().map(|record| record.chain_hash.clone());
+    if bundle.chain_head_hash != actual_chain_head_hash {
+        return false;
+    }
+
+    actual_chain_valid
+}
+
+fn verify_audit_records_chain(tenant_id: &str, items: &[AuditRecord]) -> bool {
+    let mut previous_hash: Option<&str> = None;
+
+    for item in items {
+        if item.tenant_id != tenant_id {
+            return false;
+        }
+        if item.chain_prev_hash.as_deref() != previous_hash {
+            return false;
+        }
+
+        let expected_hash = compute_audit_record_chain_hash(
+            item.tenant_id.as_str(),
+            item.record_id.as_str(),
+            item.aggregate_type.as_str(),
+            item.aggregate_id.as_str(),
+            item.action.as_str(),
+            item.actor_id.as_str(),
+            item.actor_kind.as_str(),
+            item.actor_session_id.as_deref(),
+            item.payload.as_deref(),
+            item.recorded_at.as_str(),
+            previous_hash,
+        );
+        if item.chain_hash != expected_hash {
+            return false;
+        }
+
+        previous_hash = Some(item.chain_hash.as_str());
+    }
+
+    true
+}
+
+fn compute_audit_record_chain_hash(
+    tenant_id: &str,
+    record_id: &str,
+    aggregate_type: &str,
+    aggregate_id: &str,
+    action: &str,
+    actor_id: &str,
+    actor_kind: &str,
+    actor_session_id: Option<&str>,
+    payload: Option<&str>,
+    recorded_at: &str,
+    chain_prev_hash: Option<&str>,
+) -> String {
+    let canonical = serde_json::json!([
+        tenant_id,
+        record_id,
+        aggregate_type,
+        aggregate_id,
+        action,
+        actor_id,
+        actor_kind,
+        actor_session_id.unwrap_or(""),
+        payload.unwrap_or(""),
+        recorded_at,
+        chain_prev_hash.unwrap_or(""),
+    ]);
+    let canonical_bytes = serde_json::to_vec(&canonical).expect("canonical audit hash payload");
+    let digest = Sha256::digest(canonical_bytes.as_slice());
+    digest_to_hex(digest.as_slice())
+}
+
+fn digest_to_hex(bytes: &[u8]) -> String {
+    let mut output = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        use std::fmt::Write;
+        let _ = write!(&mut output, "{byte:02x}");
+    }
+    output
 }
 
 pub fn build_default_app() -> Router {

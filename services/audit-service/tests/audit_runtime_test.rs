@@ -78,3 +78,60 @@ fn test_recorded_at_advances_between_distinct_records() {
         "distinct audit records must not reuse a fixed recorded_at timestamp"
     );
 }
+
+#[test]
+fn test_export_bundle_includes_verifiable_chain_and_detects_tampering() {
+    let runtime = audit_service::AuditRuntime::default();
+    let auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_demo".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_demo".into()),
+        device_id: None,
+        permissions: BTreeSet::new(),
+    };
+
+    runtime.record_anchor(
+        &auth,
+        audit_service::RecordAuditAnchor {
+            record_id: "audit_chain_first".into(),
+            aggregate_type: "notification".into(),
+            aggregate_id: "ntf_chain_first".into(),
+            action: "notification.requested".into(),
+            payload: Some(r#"{"step":"first"}"#.into()),
+        },
+    );
+    runtime.record_anchor(
+        &auth,
+        audit_service::RecordAuditAnchor {
+            record_id: "audit_chain_second".into(),
+            aggregate_type: "notification".into(),
+            aggregate_id: "ntf_chain_second".into(),
+            action: "notification.dispatched".into(),
+            payload: Some(r#"{"step":"second"}"#.into()),
+        },
+    );
+
+    let export = runtime.export_bundle(&auth);
+    assert_eq!(export.total, 2);
+    assert!(
+        export.chain_valid,
+        "freshly exported bundle should report chain_valid=true"
+    );
+    assert!(
+        export.chain_head_hash.is_some(),
+        "freshly exported bundle should expose non-empty chain head hash"
+    );
+    assert!(
+        audit_service::verify_audit_export_bundle_integrity(&export),
+        "freshly exported bundle should pass integrity verification"
+    );
+
+    let mut tampered = export.clone();
+    tampered.items[1].action = "notification.tampered".into();
+    tampered.chain_valid = true;
+    assert!(
+        !audit_service::verify_audit_export_bundle_integrity(&tampered),
+        "tampered bundle should fail integrity verification"
+    );
+}
