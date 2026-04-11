@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use std::collections::BTreeMap;
 
@@ -179,15 +179,10 @@ impl StreamingRuntime {
 
     fn ensure_stream_state(&self, tenant_id: &str, stream_id: &str) -> Result<(), StreamingError> {
         let scope_key = stream_scope_key(tenant_id, stream_id);
-        let needs_restore = !self
-            .sessions
-            .lock()
-            .expect("stream runtime should lock")
-            .contains_key(scope_key.as_str());
+        let needs_restore =
+            !lock_stream_mutex(&self.sessions, "stream runtime").contains_key(scope_key.as_str());
         if !needs_restore {
-            self.frames
-                .lock()
-                .expect("stream runtime should lock")
+            lock_stream_mutex(&self.frames, "stream runtime")
                 .entry(scope_key)
                 .or_default();
             return Ok(());
@@ -198,14 +193,9 @@ impl StreamingRuntime {
             .load_state(tenant_id, stream_id)
             .map_err(StreamingError::stream_store)?;
         if let Some(record) = restored {
-            self.sessions
-                .lock()
-                .expect("stream runtime should lock")
+            lock_stream_mutex(&self.sessions, "stream runtime")
                 .insert(scope_key.clone(), record.session);
-            self.frames
-                .lock()
-                .expect("stream runtime should lock")
-                .insert(scope_key, record.frames);
+            lock_stream_mutex(&self.frames, "stream runtime").insert(scope_key, record.frames);
         }
 
         Ok(())
@@ -217,9 +207,7 @@ impl StreamingRuntime {
         stream_id: &str,
     ) -> Result<StreamSession, StreamingError> {
         self.ensure_stream_state(auth.tenant_id.as_str(), stream_id)?;
-        self.sessions
-            .lock()
-            .expect("stream runtime should lock")
+        lock_stream_mutex(&self.sessions, "stream runtime")
             .get(stream_scope_key(auth.tenant_id.as_str(), stream_id).as_str())
             .cloned()
             .ok_or_else(|| StreamingError {
@@ -249,13 +237,11 @@ impl StreamingRuntime {
 
         let scope_key = stream_scope_key(auth.tenant_id.as_str(), request.stream_id.as_str());
         self.ensure_stream_state(auth.tenant_id.as_str(), request.stream_id.as_str())?;
-        let mut sessions = self.sessions.lock().expect("stream runtime should lock");
+        let mut sessions = lock_stream_mutex(&self.sessions, "stream runtime");
         if let Some(existing) = sessions.get(scope_key.as_str()).cloned() {
             if stream_session_matches_open_request(&existing, &request, &durability_class) {
                 drop(sessions);
-                self.frames
-                    .lock()
-                    .expect("stream runtime should lock")
+                lock_stream_mutex(&self.frames, "stream runtime")
                     .entry(scope_key)
                     .or_default();
                 return Ok(existing);
@@ -285,9 +271,7 @@ impl StreamingRuntime {
 
         sessions.insert(scope_key.clone(), session.clone());
         drop(sessions);
-        self.frames
-            .lock()
-            .expect("stream runtime should lock")
+        lock_stream_mutex(&self.frames, "stream runtime")
             .entry(scope_key)
             .or_default();
         self.persist_state(auth.tenant_id.as_str(), request.stream_id.as_str())?;
@@ -311,7 +295,7 @@ impl StreamingRuntime {
 
         let scope_key = stream_scope_key(auth.tenant_id.as_str(), stream_id);
         self.ensure_stream_state(auth.tenant_id.as_str(), stream_id)?;
-        let mut sessions = self.sessions.lock().expect("stream runtime should lock");
+        let mut sessions = lock_stream_mutex(&self.sessions, "stream runtime");
         let session = sessions
             .get_mut(scope_key.as_str())
             .ok_or_else(|| StreamingError {
@@ -333,7 +317,7 @@ impl StreamingRuntime {
 
         let sender = resolve_stream_frame_sender(auth, session);
 
-        let mut frames = self.frames.lock().expect("stream runtime should lock");
+        let mut frames = lock_stream_mutex(&self.frames, "stream runtime");
         let stream_frames = frames.entry(scope_key).or_default();
 
         if let Some(existing) = stream_frames
@@ -402,7 +386,7 @@ impl StreamingRuntime {
         request: CheckpointStreamRequest,
     ) -> Result<StreamSession, StreamingError> {
         self.ensure_stream_state(auth.tenant_id.as_str(), stream_id)?;
-        let mut sessions = self.sessions.lock().expect("stream runtime should lock");
+        let mut sessions = lock_stream_mutex(&self.sessions, "stream runtime");
         let session = sessions
             .get_mut(stream_scope_key(auth.tenant_id.as_str(), stream_id).as_str())
             .ok_or_else(|| StreamingError {
@@ -439,7 +423,7 @@ impl StreamingRuntime {
         request: CompleteStreamRequest,
     ) -> Result<StreamSession, StreamingError> {
         self.ensure_stream_state(auth.tenant_id.as_str(), stream_id)?;
-        let mut sessions = self.sessions.lock().expect("stream runtime should lock");
+        let mut sessions = lock_stream_mutex(&self.sessions, "stream runtime");
         let session = sessions
             .get_mut(stream_scope_key(auth.tenant_id.as_str(), stream_id).as_str())
             .ok_or_else(|| StreamingError {
@@ -478,7 +462,7 @@ impl StreamingRuntime {
         request: AbortStreamRequest,
     ) -> Result<StreamSession, StreamingError> {
         self.ensure_stream_state(auth.tenant_id.as_str(), stream_id)?;
-        let mut sessions = self.sessions.lock().expect("stream runtime should lock");
+        let mut sessions = lock_stream_mutex(&self.sessions, "stream runtime");
         let session = sessions
             .get_mut(stream_scope_key(auth.tenant_id.as_str(), stream_id).as_str())
             .ok_or_else(|| StreamingError {
@@ -530,12 +514,7 @@ impl StreamingRuntime {
         }
 
         let scope_key = stream_scope_key(auth.tenant_id.as_str(), stream_id);
-        if !self
-            .sessions
-            .lock()
-            .expect("stream runtime should lock")
-            .contains_key(scope_key.as_str())
-        {
+        if !lock_stream_mutex(&self.sessions, "stream runtime").contains_key(scope_key.as_str()) {
             return Err(StreamingError {
                 status: axum::http::StatusCode::NOT_FOUND,
                 code: "stream_not_found",
@@ -543,7 +522,7 @@ impl StreamingRuntime {
             });
         }
 
-        let frames = self.frames.lock().expect("stream runtime should lock");
+        let frames = lock_stream_mutex(&self.frames, "stream runtime");
         let items: Vec<StreamFrame> = frames
             .get(scope_key.as_str())
             .into_iter()
@@ -574,34 +553,38 @@ impl StreamingRuntime {
 
     fn persist_state(&self, tenant_id: &str, stream_id: &str) -> Result<(), StreamingError> {
         self.state_store
-            .save_state(self.state_record(tenant_id, stream_id))
+            .save_state(self.state_record(tenant_id, stream_id)?)
             .map_err(StreamingError::stream_store)
     }
 
-    fn state_record(&self, tenant_id: &str, stream_id: &str) -> StreamStateRecord {
+    fn state_record(
+        &self,
+        tenant_id: &str,
+        stream_id: &str,
+    ) -> Result<StreamStateRecord, StreamingError> {
         let scope_key = stream_scope_key(tenant_id, stream_id);
-        let session = self
-            .sessions
-            .lock()
-            .expect("stream runtime should lock")
+        let session = lock_stream_mutex(&self.sessions, "stream runtime")
             .get(scope_key.as_str())
             .cloned()
-            .expect("stream session should exist before persistence");
-        let frames = self
-            .frames
-            .lock()
-            .expect("stream runtime should lock")
+            .ok_or_else(|| StreamingError {
+                status: axum::http::StatusCode::CONFLICT,
+                code: "stream_state_inconsistent",
+                message: format!(
+                    "stream session missing while persisting state for stream id: {stream_id}"
+                ),
+            })?;
+        let frames = lock_stream_mutex(&self.frames, "stream runtime")
             .get(scope_key.as_str())
             .cloned()
             .unwrap_or_default();
 
-        StreamStateRecord {
+        Ok(StreamStateRecord {
             tenant_id: tenant_id.into(),
             stream_id: stream_id.into(),
             session,
             frames,
             updated_at: utc_now_rfc3339_millis(),
-        }
+        })
     }
 }
 
@@ -616,30 +599,21 @@ impl StreamStateStore for RuntimeMemoryStreamStateStore {
         tenant_id: &str,
         stream_id: &str,
     ) -> Result<Option<StreamStateRecord>, ContractError> {
-        Ok(self
-            .states
-            .lock()
-            .expect("stream state store should lock")
+        Ok(lock_stream_mutex(&self.states, "stream state store")
             .get(stream_scope_key(tenant_id, stream_id).as_str())
             .cloned())
     }
 
     fn save_state(&self, record: StreamStateRecord) -> Result<(), ContractError> {
-        self.states
-            .lock()
-            .expect("stream state store should lock")
-            .insert(
-                stream_scope_key(record.tenant_id.as_str(), record.stream_id.as_str()),
-                record,
-            );
+        lock_stream_mutex(&self.states, "stream state store").insert(
+            stream_scope_key(record.tenant_id.as_str(), record.stream_id.as_str()),
+            record,
+        );
         Ok(())
     }
 
     fn clear_state(&self, tenant_id: &str, stream_id: &str) -> Result<bool, ContractError> {
-        Ok(self
-            .states
-            .lock()
-            .expect("stream state store should lock")
+        Ok(lock_stream_mutex(&self.states, "stream state store")
             .remove(stream_scope_key(tenant_id, stream_id).as_str())
             .is_some())
     }
@@ -799,6 +773,16 @@ async fn abort_stream(
     )?))
 }
 
+fn lock_stream_mutex<'a, T>(mutex: &'a Mutex<T>, lock_name: &'static str) -> MutexGuard<'a, T> {
+    match mutex.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            eprintln!("warn: recovered poisoned stream mutex lock={lock_name}");
+            poisoned.into_inner()
+        }
+    }
+}
+
 fn stream_scope_key(tenant_id: &str, stream_id: &str) -> String {
     format!("{tenant_id}:{stream_id}")
 }
@@ -882,5 +866,37 @@ fn resolve_stream_frame_sender(auth: &AuthContext, session: &StreamSession) -> S
         device_id: auth.device_id.clone(),
         session_id: auth.session_id.clone(),
         metadata: BTreeMap::new(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_ensure_stream_state_recovers_from_poisoned_sessions_lock() {
+        let runtime = StreamingRuntime::default();
+        let _ = std::panic::catch_unwind(|| {
+            let _guard = runtime.sessions.lock().expect("stream runtime should lock");
+            panic!("poison stream runtime sessions lock");
+        });
+
+        runtime
+            .ensure_stream_state("t_demo", "st_poison")
+            .expect("poisoned sessions lock should be recovered");
+    }
+
+    #[test]
+    fn test_runtime_memory_state_store_load_recovers_from_poisoned_lock() {
+        let store = RuntimeMemoryStreamStateStore::default();
+        let _ = std::panic::catch_unwind(|| {
+            let _guard = store.states.lock().expect("stream state store should lock");
+            panic!("poison stream state store lock");
+        });
+
+        let restored = store
+            .load_state("t_demo", "st_poison")
+            .expect("poisoned state store lock should be recovered");
+        assert!(restored.is_none());
     }
 }
