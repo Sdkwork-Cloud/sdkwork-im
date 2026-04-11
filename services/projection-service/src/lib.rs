@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::{Mutex, MutexGuard};
 
 use im_domain_core::conversation::{
     ConversationInboxEntry, ConversationMember, ConversationReadCursor, ConversationReadCursorView,
@@ -72,9 +72,7 @@ impl TimelineProjectionService {
         conversation_id: &str,
         principal_id: &str,
     ) -> bool {
-        self.members
-            .lock()
-            .expect("member store should lock")
+        lock_projection_mutex(&self.members, "member store")
             .get(scope_key(tenant_id, conversation_id).as_str())
             .and_then(|scope_members| scope_members.get(principal_id))
             .is_some_and(ConversationMember::is_active)
@@ -130,20 +128,14 @@ impl TimelineProjectionService {
             registered_at: registered_device_at(),
         };
         let scope = principal_scope_key(tenant_id, principal_id);
-        self.registered_devices
-            .lock()
-            .expect("registered device store should lock")
+        lock_projection_mutex(&self.registered_devices, "registered device store")
             .entry(scope)
             .or_default()
             .insert(device_id.into(), device.clone());
-        self.device_sync_feeds
-            .lock()
-            .expect("device sync feed store should lock")
+        lock_projection_mutex(&self.device_sync_feeds, "device sync feed store")
             .entry(device_feed_scope_key(tenant_id, principal_id, device_id))
             .or_default();
-        self.device_sync_sequences
-            .lock()
-            .expect("device sync sequence store should lock")
+        lock_projection_mutex(&self.device_sync_sequences, "device sync sequence store")
             .entry(device_feed_scope_key(tenant_id, principal_id, device_id))
             .or_insert(0);
         device
@@ -157,9 +149,7 @@ impl TimelineProjectionService {
         after_seq: Option<u64>,
     ) -> Vec<DeviceSyncFeedEntry> {
         let min_seq = after_seq.unwrap_or_default();
-        self.device_sync_feeds
-            .lock()
-            .expect("device sync feed store should lock")
+        lock_projection_mutex(&self.device_sync_feeds, "device sync feed store")
             .get(device_feed_scope_key(tenant_id, principal_id, device_id).as_str())
             .cloned()
             .unwrap_or_default()
@@ -173,13 +163,11 @@ impl TimelineProjectionService {
         tenant_id: &str,
         principal_id: &str,
     ) -> Vec<RegisteredDeviceView> {
-        let mut devices = self
-            .registered_devices
-            .lock()
-            .expect("registered device store should lock")
-            .get(principal_scope_key(tenant_id, principal_id).as_str())
-            .map(|items| items.values().cloned().collect::<Vec<_>>())
-            .unwrap_or_default();
+        let mut devices =
+            lock_projection_mutex(&self.registered_devices, "registered device store")
+                .get(principal_scope_key(tenant_id, principal_id).as_str())
+                .map(|items| items.values().cloned().collect::<Vec<_>>())
+                .unwrap_or_default();
         devices.sort_by(|left, right| left.device_id.cmp(&right.device_id));
         devices
     }
@@ -232,9 +220,7 @@ impl TimelineProjectionService {
         principal_id: &str,
         device_id: &str,
     ) -> u64 {
-        self.device_sync_sequences
-            .lock()
-            .expect("device sync sequence store should lock")
+        lock_projection_mutex(&self.device_sync_sequences, "device sync sequence store")
             .get(device_feed_scope_key(tenant_id, principal_id, device_id).as_str())
             .copied()
             .unwrap_or_default()
@@ -245,19 +231,16 @@ impl TimelineProjectionService {
             serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
         let handoff_view = handoff_view_from_created_payload(&payload)?;
         let key = scope_key(event.tenant_id.as_str(), event.aggregate_id.as_str());
-        self.conversations
-            .lock()
-            .expect("conversation store should lock")
-            .insert(
-                key.clone(),
-                ConversationCatalogEntry {
-                    conversation_type: payload.conversation_type,
-                    created_at: event.committed_at.clone(),
-                },
-            );
+        lock_projection_mutex(&self.conversations, "conversation store").insert(
+            key.clone(),
+            ConversationCatalogEntry {
+                conversation_type: payload.conversation_type,
+                created_at: event.committed_at.clone(),
+            },
+        );
         let conversation_id = event.aggregate_id.clone();
         let tenant_id = event.tenant_id.clone();
-        let mut summaries = self.summaries.lock().expect("summary store should lock");
+        let mut summaries = lock_projection_mutex(&self.summaries, "summary store");
         let summary = summaries
             .entry(key)
             .or_insert_with(|| ConversationSummaryView {
@@ -290,7 +273,7 @@ impl TimelineProjectionService {
             event.tenant_id.as_str(),
             payload.state.conversation_id.as_str(),
         );
-        let mut summaries = self.summaries.lock().expect("summary store should lock");
+        let mut summaries = lock_projection_mutex(&self.summaries, "summary store");
         let summary = summaries
             .entry(key)
             .or_insert_with(|| ConversationSummaryView {
@@ -335,11 +318,11 @@ impl TimelineProjectionService {
             summary: summary.clone(),
         };
 
-        let mut entries = self.entries.lock().expect("projection store should lock");
+        let mut entries = lock_projection_mutex(&self.entries, "projection store");
         entries.entry(key).or_default().push(entry);
         drop(entries);
 
-        let mut summaries = self.summaries.lock().expect("summary store should lock");
+        let mut summaries = lock_projection_mutex(&self.summaries, "summary store");
         let existing_handoff = summaries
             .get(scope_key(tenant_id.as_str(), conversation_id.as_str()).as_str())
             .and_then(|view| view.agent_handoff.clone());
@@ -449,14 +432,14 @@ impl TimelineProjectionService {
         let member: ConversationMember =
             serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
         let key = scope_key(member.tenant_id.as_str(), member.conversation_id.as_str());
-        let mut members = self.members.lock().expect("member store should lock");
+        let mut members = lock_projection_mutex(&self.members, "member store");
         members
             .entry(key.clone())
             .or_default()
             .insert(member.principal_id.clone(), member.clone());
         drop(members);
 
-        let mut cursors = self.read_cursors.lock().expect("cursor store should lock");
+        let mut cursors = lock_projection_mutex(&self.read_cursors, "cursor store");
         cursors
             .entry(key)
             .or_default()
@@ -489,7 +472,7 @@ impl TimelineProjectionService {
             serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
         let member = payload.updated_member;
         let key = scope_key(member.tenant_id.as_str(), member.conversation_id.as_str());
-        let mut members = self.members.lock().expect("member store should lock");
+        let mut members = lock_projection_mutex(&self.members, "member store");
         members
             .entry(key)
             .or_default()
@@ -512,7 +495,7 @@ impl TimelineProjectionService {
         let member: ConversationMember =
             serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
         let key = scope_key(member.tenant_id.as_str(), member.conversation_id.as_str());
-        let mut members = self.members.lock().expect("member store should lock");
+        let mut members = lock_projection_mutex(&self.members, "member store");
         if let Some(scope_members) = members.get_mut(key.as_str()) {
             scope_members.remove(member.principal_id.as_str());
         }
@@ -537,7 +520,7 @@ impl TimelineProjectionService {
         let member: ConversationMember =
             serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
         let key = scope_key(member.tenant_id.as_str(), member.conversation_id.as_str());
-        let mut members = self.members.lock().expect("member store should lock");
+        let mut members = lock_projection_mutex(&self.members, "member store");
         if let Some(scope_members) = members.get_mut(key.as_str()) {
             scope_members.remove(member.principal_id.as_str());
         }
@@ -562,7 +545,7 @@ impl TimelineProjectionService {
         let cursor: ConversationReadCursor =
             serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
         let key = scope_key(cursor.tenant_id.as_str(), cursor.conversation_id.as_str());
-        let mut cursors = self.read_cursors.lock().expect("cursor store should lock");
+        let mut cursors = lock_projection_mutex(&self.read_cursors, "cursor store");
         cursors
             .entry(key)
             .or_default()
@@ -574,9 +557,7 @@ impl TimelineProjectionService {
     }
 
     pub fn timeline(&self, tenant_id: &str, conversation_id: &str) -> Vec<TimelineViewEntry> {
-        self.entries
-            .lock()
-            .expect("projection store should lock")
+        lock_projection_mutex(&self.entries, "projection store")
             .get(scope_key(tenant_id, conversation_id).as_str())
             .cloned()
             .unwrap_or_default()
@@ -587,9 +568,7 @@ impl TimelineProjectionService {
         tenant_id: &str,
         conversation_id: &str,
     ) -> Option<ConversationSummaryView> {
-        self.summaries
-            .lock()
-            .expect("summary store should lock")
+        lock_projection_mutex(&self.summaries, "summary store")
             .get(scope_key(tenant_id, conversation_id).as_str())
             .cloned()
     }
@@ -601,18 +580,12 @@ impl TimelineProjectionService {
         principal_id: &str,
     ) -> Option<ConversationReadCursorView> {
         let key = scope_key(tenant_id, conversation_id);
-        let member_id = self
-            .members
-            .lock()
-            .expect("member store should lock")
+        let member_id = lock_projection_mutex(&self.members, "member store")
             .get(key.as_str())
             .and_then(|scope_members| scope_members.get(principal_id))
             .map(|member| member.member_id.clone())?;
 
-        let cursor = self
-            .read_cursors
-            .lock()
-            .expect("cursor store should lock")
+        let cursor = lock_projection_mutex(&self.read_cursors, "cursor store")
             .get(key.as_str())
             .and_then(|scope_cursors| scope_cursors.get(member_id.as_str()))
             .cloned()?;
@@ -634,22 +607,17 @@ impl TimelineProjectionService {
         conversation_id: &str,
         principal_id: &str,
     ) -> Option<ConversationMember> {
-        self.members
-            .lock()
-            .expect("member store should lock")
+        lock_projection_mutex(&self.members, "member store")
             .get(scope_key(tenant_id, conversation_id).as_str())
             .and_then(|scope_members| scope_members.get(principal_id))
             .cloned()
     }
 
     pub fn inbox(&self, tenant_id: &str, principal_id: &str) -> Vec<ConversationInboxEntry> {
-        let members = self.members.lock().expect("member store should lock");
-        let summaries = self.summaries.lock().expect("summary store should lock");
-        let cursors = self.read_cursors.lock().expect("cursor store should lock");
-        let conversations = self
-            .conversations
-            .lock()
-            .expect("conversation store should lock");
+        let members = lock_projection_mutex(&self.members, "member store");
+        let summaries = lock_projection_mutex(&self.summaries, "summary store");
+        let cursors = lock_projection_mutex(&self.read_cursors, "cursor store");
+        let conversations = lock_projection_mutex(&self.conversations, "conversation store");
 
         let mut items = Vec::new();
 
@@ -896,10 +864,7 @@ impl TimelineProjectionService {
         conversation_id: &str,
     ) -> Vec<String> {
         let scope = scope_key(tenant_id, conversation_id);
-        let mut principal_ids = self
-            .members
-            .lock()
-            .expect("member store should lock")
+        let mut principal_ids = lock_projection_mutex(&self.members, "member store")
             .get(scope.as_str())
             .map(|scope_members| {
                 scope_members
@@ -925,18 +890,14 @@ impl TimelineProjectionService {
     {
         let scope = device_feed_scope_key(tenant_id, principal_id, device_id);
         let sync_seq = {
-            let mut sequences = self
-                .device_sync_sequences
-                .lock()
-                .expect("device sync sequence store should lock");
+            let mut sequences =
+                lock_projection_mutex(&self.device_sync_sequences, "device sync sequence store");
             let entry = sequences.entry(scope.clone()).or_insert(0);
             *entry += 1;
             *entry
         };
 
-        self.device_sync_feeds
-            .lock()
-            .expect("device sync feed store should lock")
+        lock_projection_mutex(&self.device_sync_feeds, "device sync feed store")
             .entry(scope)
             .or_default()
             .push(build(sync_seq));
@@ -963,11 +924,8 @@ impl TimelineProjectionService {
         summary: Option<String>,
     ) {
         let key = scope_key(tenant_id, conversation_id);
-        if let Some(entries) = self
-            .entries
-            .lock()
-            .expect("projection store should lock")
-            .get_mut(key.as_str())
+        if let Some(entries) =
+            lock_projection_mutex(&self.entries, "projection store").get_mut(key.as_str())
             && let Some(entry) = entries
                 .iter_mut()
                 .find(|item| item.message_id.as_str() == message_id)
@@ -984,15 +942,39 @@ impl TimelineProjectionService {
         summary: Option<String>,
         occurred_at: String,
     ) {
-        if let Some(view) = self
-            .summaries
-            .lock()
-            .expect("summary store should lock")
+        if let Some(view) = lock_projection_mutex(&self.summaries, "summary store")
             .get_mut(scope_key(tenant_id, conversation_id).as_str())
             && view.last_message_id.as_deref() == Some(message_id)
         {
             view.last_summary = summary;
             view.last_message_at = Some(occurred_at);
         }
+    }
+}
+
+fn lock_projection_mutex<'a, T>(mutex: &'a Mutex<T>, lock_name: &'static str) -> MutexGuard<'a, T> {
+    match mutex.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            eprintln!("warn: recovered poisoned projection mutex lock={lock_name}");
+            poisoned.into_inner()
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_active_member_recovers_from_poisoned_member_store_lock() {
+        let projection = TimelineProjectionService::default();
+        let _ = std::panic::catch_unwind(|| {
+            let _guard = projection.members.lock().expect("member store should lock");
+            panic!("poison member store lock");
+        });
+
+        let is_active = projection.is_active_member("t_demo", "c_demo", "u_demo");
+        assert!(!is_active);
     }
 }
