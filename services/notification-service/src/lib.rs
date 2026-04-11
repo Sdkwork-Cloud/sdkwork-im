@@ -1,5 +1,5 @@
 use std::collections::{BTreeSet, HashMap, HashSet};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use axum::extract::{Path, State};
 use axum::http::{HeaderMap, Request};
@@ -275,8 +275,7 @@ impl NotificationRuntime {
         let scope_key = notification_scope_key(tenant_id, notification_id);
         if self
             .tasks
-            .lock()
-            .expect("notification runtime should lock")
+            .lock_notification()
             .contains_key(scope_key.as_str())
         {
             return Ok(());
@@ -288,8 +287,7 @@ impl NotificationRuntime {
             .map_err(NotificationError::notification_store)?;
         if let Some(record) = restored {
             self.tasks
-                .lock()
-                .expect("notification runtime should lock")
+                .lock_notification()
                 .insert(scope_key, record.task);
         }
 
@@ -304,8 +302,7 @@ impl NotificationRuntime {
         let recipient_key = recipient_scope_key(tenant_id, recipient_id);
         if self
             .restored_recipients
-            .lock()
-            .expect("notification runtime should lock")
+            .lock_notification()
             .contains(recipient_key.as_str())
         {
             return Ok(());
@@ -315,7 +312,7 @@ impl NotificationRuntime {
             .task_store
             .list_tasks_for_recipient(tenant_id, recipient_id)
             .map_err(NotificationError::notification_store)?;
-        let mut tasks = self.tasks.lock().expect("notification runtime should lock");
+        let mut tasks = self.tasks.lock_notification();
         for record in restored {
             tasks.insert(
                 notification_scope_key(record.tenant_id.as_str(), record.notification_id.as_str()),
@@ -324,8 +321,7 @@ impl NotificationRuntime {
         }
         drop(tasks);
         self.restored_recipients
-            .lock()
-            .expect("notification runtime should lock")
+            .lock_notification()
             .insert(recipient_key);
 
         Ok(())
@@ -347,7 +343,7 @@ impl NotificationRuntime {
         self.ensure_notification_task(auth.tenant_id.as_str(), request.notification_id.as_str())?;
         let notification_key =
             notification_scope_key(auth.tenant_id.as_str(), request.notification_id.as_str());
-        let mut tasks = self.tasks.lock().expect("notification runtime should lock");
+        let mut tasks = self.tasks.lock_notification();
 
         if let Some(existing) = tasks.get(notification_key.as_str()).cloned() {
             if notification_matches_request(&existing, &request) {
@@ -529,8 +525,7 @@ impl NotificationRuntime {
         let prefix = format!("{}:", auth.tenant_id);
         let mut items: Vec<_> = self
             .tasks
-            .lock()
-            .expect("notification runtime should lock")
+            .lock_notification()
             .iter()
             .filter(|(key, task)| {
                 key.starts_with(prefix.as_str()) && task.recipient_id == auth.actor_id
@@ -552,8 +547,7 @@ impl NotificationRuntime {
     ) -> Result<NotificationTask, NotificationError> {
         self.ensure_notification_task(auth.tenant_id.as_str(), notification_id)?;
         self.tasks
-            .lock()
-            .expect("notification runtime should lock")
+            .lock_notification()
             .get(notification_scope_key(auth.tenant_id.as_str(), notification_id).as_str())
             .filter(|task| task.recipient_id == auth.actor_id)
             .cloned()
@@ -609,8 +603,13 @@ impl NotificationRuntime {
             occurred_at: task.requested_at.clone(),
             committed_at,
             payload_schema: Some("notification.task.v1".into()),
-            payload: serde_json::to_string(task)
-                .expect("notification task should serialize into commit envelope"),
+            payload: serde_json::to_string(task).map_err(|error| NotificationError {
+                status: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                code: "notification_payload_invalid",
+                message: format!(
+                    "failed to serialize notification task into commit envelope: {error}"
+                ),
+            })?,
             retention_class: "standard".into(),
             audit_class: "default".into(),
         };
@@ -632,20 +631,16 @@ impl NotificationTaskStore for RuntimeMemoryNotificationTaskStore {
     ) -> Result<Option<NotificationTaskRecord>, ContractError> {
         Ok(self
             .tasks
-            .lock()
-            .expect("notification task store should lock")
+            .lock_notification()
             .get(notification_scope_key(tenant_id, notification_id).as_str())
             .cloned())
     }
 
     fn save_task(&self, record: NotificationTaskRecord) -> Result<(), ContractError> {
-        self.tasks
-            .lock()
-            .expect("notification task store should lock")
-            .insert(
-                notification_scope_key(record.tenant_id.as_str(), record.notification_id.as_str()),
-                record,
-            );
+        self.tasks.lock_notification().insert(
+            notification_scope_key(record.tenant_id.as_str(), record.notification_id.as_str()),
+            record,
+        );
         Ok(())
     }
 
@@ -656,8 +651,7 @@ impl NotificationTaskStore for RuntimeMemoryNotificationTaskStore {
     ) -> Result<Vec<NotificationTaskRecord>, ContractError> {
         Ok(self
             .tasks
-            .lock()
-            .expect("notification task store should lock")
+            .lock_notification()
             .values()
             .filter(|record| {
                 record.tenant_id == tenant_id && record.task.recipient_id == recipient_id
@@ -795,4 +789,119 @@ fn ensure_notification_request_access(
         "permission_denied",
         "missing required permission to request notifications for other recipients: notification.write",
     ))
+}
+
+trait NotificationMutexExt<T> {
+    fn lock_notification(&self) -> MutexGuard<'_, T>;
+}
+
+impl<T> NotificationMutexExt<T> for Mutex<T> {
+    fn lock_notification(&self) -> MutexGuard<'_, T> {
+        match self.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                eprintln!("warning: recovering poisoned mutex in notification-service");
+                poisoned.into_inner()
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::panic::{self, AssertUnwindSafe};
+
+    fn demo_auth_context() -> AuthContext {
+        AuthContext {
+            tenant_id: "t_demo".into(),
+            actor_id: "u_demo".into(),
+            actor_kind: "user".into(),
+            session_id: Some("s_demo".into()),
+            device_id: Some("d_demo".into()),
+            permissions: Default::default(),
+        }
+    }
+
+    fn poison_mutex<T>(mutex: &Mutex<T>) {
+        let _ = panic::catch_unwind(AssertUnwindSafe(|| {
+            let _guard = mutex.lock().expect("test poison lock should succeed");
+            panic!("intentional poison for regression coverage");
+        }));
+    }
+
+    #[test]
+    fn test_list_notifications_recovers_from_poisoned_tasks_lock() {
+        let runtime = NotificationRuntime::default();
+        let auth = demo_auth_context();
+        poison_mutex(&runtime.tasks);
+
+        let result = panic::catch_unwind(AssertUnwindSafe(|| runtime.list_notifications(&auth)));
+        assert!(
+            result.is_ok(),
+            "list_notifications should not panic when tasks lock is poisoned"
+        );
+        let list_result = result.expect("panic status should be captured");
+        assert!(
+            list_result.is_ok(),
+            "list_notifications should recover from poisoned tasks lock"
+        );
+    }
+
+    #[test]
+    fn test_get_notification_recovers_from_poisoned_tasks_lock() {
+        let runtime = NotificationRuntime::default();
+        let auth = demo_auth_context();
+        poison_mutex(&runtime.tasks);
+
+        let result = panic::catch_unwind(AssertUnwindSafe(|| {
+            runtime.get_notification(&auth, "ntf_missing")
+        }));
+        assert!(
+            result.is_ok(),
+            "get_notification should not panic when tasks lock is poisoned"
+        );
+        let get_result = result.expect("panic status should be captured");
+        assert!(
+            get_result.is_err(),
+            "get_notification should return controlled error after lock recovery"
+        );
+    }
+
+    #[test]
+    fn test_list_notifications_recovers_from_poisoned_restored_recipients_lock() {
+        let runtime = NotificationRuntime::default();
+        let auth = demo_auth_context();
+        poison_mutex(&runtime.restored_recipients);
+
+        let result = panic::catch_unwind(AssertUnwindSafe(|| runtime.list_notifications(&auth)));
+        assert!(
+            result.is_ok(),
+            "list_notifications should not panic when restored-recipient lock is poisoned"
+        );
+        let list_result = result.expect("panic status should be captured");
+        assert!(
+            list_result.is_ok(),
+            "list_notifications should recover from poisoned restored-recipient lock"
+        );
+    }
+
+    #[test]
+    fn test_runtime_memory_task_store_load_recovers_from_poisoned_lock() {
+        let store = RuntimeMemoryNotificationTaskStore::default();
+        poison_mutex(&store.tasks);
+
+        let result = panic::catch_unwind(AssertUnwindSafe(|| {
+            store.load_task("t_demo", "ntf_poison_store")
+        }));
+        assert!(
+            result.is_ok(),
+            "notification task store load should not panic when lock is poisoned"
+        );
+        let load_result = result.expect("panic status should be captured");
+        assert!(
+            load_result.is_ok(),
+            "notification task store load should recover from poisoned lock"
+        );
+    }
 }
