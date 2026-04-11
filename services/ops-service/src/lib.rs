@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use axum::extract::State;
 use axum::http::{HeaderMap, Request};
@@ -391,14 +391,8 @@ impl OpsRuntime {
     }
 
     pub fn set_node_lifecycle(&self, drain_status: &str, rebalance_state: &str) {
-        *self
-            .drain_status
-            .lock()
-            .expect("ops drain status should lock") = drain_status.into();
-        *self
-            .rebalance_state
-            .lock()
-            .expect("ops rebalance state should lock") = rebalance_state.into();
+        *lock_ops_mutex(&self.drain_status, "ops drain status") = drain_status.into();
+        *lock_ops_mutex(&self.rebalance_state, "ops rebalance state") = rebalance_state.into();
     }
 
     pub fn update_route_ownership(&self, mut device_routes: Vec<RouteOwnershipView>) {
@@ -408,32 +402,21 @@ impl OpsRuntime {
                 .then_with(|| left.principal_id.cmp(&right.principal_id))
                 .then_with(|| left.device_id.cmp(&right.device_id))
         });
-        *self
-            .device_routes
-            .lock()
-            .expect("ops device routes should lock") = device_routes;
+        *lock_ops_mutex(&self.device_routes, "ops device routes") = device_routes;
     }
 
     pub fn update_runtime_dir_inspection(&self, inspection: RuntimeDirInspectionView) {
-        *self
-            .runtime_dir_inspection
-            .lock()
-            .expect("ops runtime-dir inspection should lock") = inspection;
+        *lock_ops_mutex(&self.runtime_dir_inspection, "ops runtime-dir inspection") = inspection;
     }
 
     pub fn update_provider_binding_snapshot(&self, snapshot: ProviderBindingSnapshotView) {
         let key = snapshot.tenant_id.clone().unwrap_or_default();
-        self.provider_bindings
-            .lock()
-            .expect("ops provider bindings should lock")
-            .insert(key, snapshot);
+        lock_ops_mutex(&self.provider_bindings, "ops provider bindings").insert(key, snapshot);
     }
 
     pub fn replace_provider_binding_snapshots(&self, snapshots: Vec<ProviderBindingSnapshotView>) {
-        let mut provider_bindings = self
-            .provider_bindings
-            .lock()
-            .expect("ops provider bindings should lock");
+        let mut provider_bindings =
+            lock_ops_mutex(&self.provider_bindings, "ops provider bindings");
         provider_bindings.clear();
         for snapshot in snapshots {
             let key = snapshot.tenant_id.clone().unwrap_or_default();
@@ -442,10 +425,7 @@ impl OpsRuntime {
     }
 
     pub fn update_projection_plane(&self, projection_plane: ProjectionPlaneDiagnosticsView) {
-        *self
-            .projection_plane
-            .lock()
-            .expect("ops projection-plane should lock") = projection_plane;
+        *lock_ops_mutex(&self.projection_plane, "ops projection-plane") = projection_plane;
     }
 
     pub fn update_projection_replay_lag(&self, mut projection_lag_items: Vec<LagItem>) {
@@ -455,7 +435,7 @@ impl OpsRuntime {
         }
         projection_lag_items.sort_by(|left, right| left.scope_id.cmp(&right.scope_id));
 
-        let mut lag_items = self.lag_items.lock().expect("ops lag items should lock");
+        let mut lag_items = lock_ops_mutex(&self.lag_items, "ops lag items");
         let mut merged = lag_items
             .iter()
             .filter(|item| item.component != "projection_replay")
@@ -469,7 +449,7 @@ impl OpsRuntime {
         projection_lag_items.retain(|item| item.component == "projection_live");
         projection_lag_items.sort_by(|left, right| left.scope_id.cmp(&right.scope_id));
 
-        let mut lag_items = self.lag_items.lock().expect("ops lag items should lock");
+        let mut lag_items = lock_ops_mutex(&self.lag_items, "ops lag items");
         let mut merged = lag_items
             .iter()
             .filter(|item| item.component != "projection_live")
@@ -484,11 +464,8 @@ impl OpsRuntime {
     }
 
     pub fn health_view(&self) -> OpsHealthResponse {
-        let projection_plane = self
-            .projection_plane
-            .lock()
-            .expect("ops projection-plane should lock")
-            .clone();
+        let projection_plane =
+            lock_ops_mutex(&self.projection_plane, "ops projection-plane").clone();
         OpsHealthResponse {
             items: self.services.clone(),
             projection_plane: projection_plane.into(),
@@ -496,21 +473,9 @@ impl OpsRuntime {
     }
 
     pub fn cluster_view(&self) -> ClusterView {
-        let drain_status = self
-            .drain_status
-            .lock()
-            .expect("ops drain status should lock")
-            .clone();
-        let rebalance_state = self
-            .rebalance_state
-            .lock()
-            .expect("ops rebalance state should lock")
-            .clone();
-        let device_route_count = self
-            .device_routes
-            .lock()
-            .expect("ops device routes should lock")
-            .len();
+        let drain_status = lock_ops_mutex(&self.drain_status, "ops drain status").clone();
+        let rebalance_state = lock_ops_mutex(&self.rebalance_state, "ops rebalance state").clone();
+        let device_route_count = lock_ops_mutex(&self.device_routes, "ops device routes").len();
         ClusterView {
             nodes: vec![ClusterNodeView {
                 node_id: self.node_id.clone(),
@@ -527,27 +492,17 @@ impl OpsRuntime {
 
     pub fn lag_view(&self) -> LagView {
         LagView {
-            items: self
-                .lag_items
-                .lock()
-                .expect("ops lag items should lock")
-                .clone(),
+            items: lock_ops_mutex(&self.lag_items, "ops lag items").clone(),
         }
     }
 
     pub fn runtime_dir_view(&self) -> RuntimeDirInspectionView {
-        self.runtime_dir_inspection
-            .lock()
-            .expect("ops runtime-dir inspection should lock")
-            .clone()
+        lock_ops_mutex(&self.runtime_dir_inspection, "ops runtime-dir inspection").clone()
     }
 
     pub fn provider_bindings_view(&self) -> ProviderBindingsView {
         ProviderBindingsView {
-            items: self
-                .provider_bindings
-                .lock()
-                .expect("ops provider bindings should lock")
+            items: lock_ops_mutex(&self.provider_bindings, "ops provider bindings")
                 .values()
                 .cloned()
                 .collect(),
@@ -555,10 +510,7 @@ impl OpsRuntime {
     }
 
     pub fn provider_binding_drift_view(&self) -> ProviderBindingDriftView {
-        let provider_bindings = self
-            .provider_bindings
-            .lock()
-            .expect("ops provider bindings should lock");
+        let provider_bindings = lock_ops_mutex(&self.provider_bindings, "ops provider bindings");
         let Some(global_snapshot) = provider_bindings.get("") else {
             return ProviderBindingDriftView::default();
         };
@@ -597,15 +549,9 @@ impl OpsRuntime {
     }
 
     pub fn replay_status_view(&self) -> ProjectionReplayStatusView {
-        let projection_plane = self
-            .projection_plane
-            .lock()
-            .expect("ops projection-plane should lock")
-            .clone();
-        let lag = self
-            .lag_items
-            .lock()
-            .expect("ops lag items should lock")
+        let projection_plane =
+            lock_ops_mutex(&self.projection_plane, "ops projection-plane").clone();
+        let lag = lock_ops_mutex(&self.lag_items, "ops lag items")
             .iter()
             .filter(|item| item.component == "projection_replay")
             .cloned()
@@ -622,39 +568,17 @@ impl OpsRuntime {
     }
 
     pub fn diagnostic_bundle(&self) -> DiagnosticBundle {
-        let drain_status = self
-            .drain_status
-            .lock()
-            .expect("ops drain status should lock")
-            .clone();
-        let rebalance_state = self
-            .rebalance_state
-            .lock()
-            .expect("ops rebalance state should lock")
-            .clone();
-        let device_routes = self
-            .device_routes
-            .lock()
-            .expect("ops device routes should lock")
-            .clone();
-        let provider_bindings = self
-            .provider_bindings
-            .lock()
-            .expect("ops provider bindings should lock")
+        let drain_status = lock_ops_mutex(&self.drain_status, "ops drain status").clone();
+        let rebalance_state = lock_ops_mutex(&self.rebalance_state, "ops rebalance state").clone();
+        let device_routes = lock_ops_mutex(&self.device_routes, "ops device routes").clone();
+        let provider_bindings = lock_ops_mutex(&self.provider_bindings, "ops provider bindings")
             .values()
             .cloned()
             .collect();
         let provider_binding_drift = self.provider_binding_drift_view();
-        let projection_plane = self
-            .projection_plane
-            .lock()
-            .expect("ops projection-plane should lock")
-            .clone();
-        let lag = self
-            .lag_items
-            .lock()
-            .expect("ops lag items should lock")
-            .clone();
+        let projection_plane =
+            lock_ops_mutex(&self.projection_plane, "ops projection-plane").clone();
+        let lag = lock_ops_mutex(&self.lag_items, "ops lag items").clone();
         DiagnosticBundle {
             generated_at: utc_now_rfc3339_millis(),
             profile: self.profile.clone(),
@@ -669,6 +593,16 @@ impl OpsRuntime {
             provider_bindings,
             provider_binding_drift,
             projection_plane,
+        }
+    }
+}
+
+fn lock_ops_mutex<'a, T>(mutex: &'a Mutex<T>, lock_name: &'static str) -> MutexGuard<'a, T> {
+    match mutex.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            eprintln!("warn: recovered poisoned ops mutex lock={lock_name}");
+            poisoned.into_inner()
         }
     }
 }
@@ -909,4 +843,24 @@ fn provider_binding_drift_item(
         selection_source: binding.selection_source.clone(),
         drift_kind: drift_kind.into(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_health_view_recovers_from_poisoned_projection_plane_lock() {
+        let runtime = OpsRuntime::default();
+        let _ = std::panic::catch_unwind(|| {
+            let _guard = runtime
+                .projection_plane
+                .lock()
+                .expect("ops projection-plane should lock");
+            panic!("poison ops projection-plane lock");
+        });
+
+        let health = runtime.health_view();
+        assert_eq!(health.projection_plane.status, "idle");
+    }
 }
