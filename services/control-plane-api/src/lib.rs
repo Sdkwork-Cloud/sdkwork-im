@@ -337,8 +337,14 @@ fn validate_shared_channel_sync_target_base_url(base_url: &str) -> Result<String
     match scheme {
         "https" => Ok(base_url),
         "http" => {
-            if is_local_shared_channel_sync_host(host) || allow_insecure_shared_channel_sync_http()
-            {
+            if is_local_shared_channel_sync_host(host) {
+                return Ok(base_url);
+            }
+            if allow_insecure_shared_channel_sync_http() {
+                eprintln!(
+                    "warning: allowing insecure shared-channel sync target over remote http because {} is enabled",
+                    ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP_ENV
+                );
                 return Ok(base_url);
             }
 
