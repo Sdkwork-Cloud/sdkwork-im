@@ -2749,9 +2749,10 @@ impl SocialControlRuntime {
         commit_journal: Arc<dyn CommitJournal + Send + Sync>,
         snapshot_failpoint_path: Option<PathBuf>,
     ) -> Self {
-        let state = state_store
-            .load()
-            .unwrap_or_else(|error| panic!("failed to load control-plane social state: {error}"));
+        let state = Self::load_social_state_or_default(
+            &state_store,
+            "failed to load control-plane social state during runtime bootstrap",
+        );
         Self {
             state_store,
             commit_journal,
@@ -2796,35 +2797,59 @@ impl SocialControlRuntime {
         Ok(replayed_state)
     }
 
+    fn load_social_state_or_default(
+        state_store: &SocialStateStore,
+        context: &str,
+    ) -> SocialControlState {
+        state_store.load().unwrap_or_else(|error| {
+            eprintln!("{context}: {error}. starting with empty social state");
+            SocialControlState::default()
+        })
+    }
+
     fn load_state_with_journal_replay(
         state_store: &SocialStateStore,
         journal_path: &StdPath,
         tx_marker_path: Option<&StdPath>,
     ) -> SocialControlState {
         if journal_path.exists() {
-            let snapshot_state = state_store.load().unwrap_or_default();
-            let mut replayed_state = Self::replay_state_from_commit_journal(journal_path)
-                .unwrap_or_else(|error| {
-                    panic!("failed to replay control-plane social commit journal: {error}")
-                });
+            let snapshot_state = Self::load_social_state_or_default(
+                state_store,
+                "failed to load control-plane social snapshot during journal replay bootstrap",
+            );
+            let mut replayed_state = match Self::replay_state_from_commit_journal(journal_path) {
+                Ok(state) => state,
+                Err(error) => {
+                    eprintln!(
+                        "failed to replay control-plane social commit journal {}: {error}. falling back to snapshot/default state",
+                        journal_path.display()
+                    );
+                    return snapshot_state;
+                }
+            };
             replayed_state.merge_pending_shared_channel_sync_requests_from(&snapshot_state);
             replayed_state.merge_dead_letter_shared_channel_sync_requests_from(&snapshot_state);
-            state_store.save(&replayed_state).unwrap_or_else(|error| {
-                panic!("failed to persist replayed control-plane social state: {error}")
-            });
+            if let Err(error) = state_store.save(&replayed_state) {
+                eprintln!(
+                    "failed to persist replayed control-plane social state {}: {error}. continuing with in-memory replayed state",
+                    journal_path.display()
+                );
+            }
             if let Some(marker_path) = tx_marker_path {
-                clear_social_transaction_marker(marker_path).unwrap_or_else(|error| {
-                    panic!(
-                        "failed to clear social transaction marker after journal replay: {error}"
-                    )
-                });
+                if let Err(error) = clear_social_transaction_marker(marker_path) {
+                    eprintln!(
+                        "failed to clear social transaction marker after journal replay {}: {error}",
+                        marker_path.display()
+                    );
+                }
             }
             return replayed_state;
         }
 
-        state_store
-            .load()
-            .unwrap_or_else(|error| panic!("failed to load control-plane social state: {error}"))
+        Self::load_social_state_or_default(
+            state_store,
+            "failed to load control-plane social state without commit journal",
+        )
     }
 
     fn start_shared_channel_sync_stale_reclaim_scheduler(

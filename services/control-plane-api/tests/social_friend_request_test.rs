@@ -1074,6 +1074,149 @@ async fn test_control_plane_social_file_runtime_replays_friend_request_when_snap
 }
 
 #[tokio::test]
+async fn test_control_plane_social_file_runtime_falls_back_to_snapshot_when_journal_replay_fails() {
+    let runtime_dir = unique_runtime_dir();
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+
+    let cluster = Arc::new(RealtimeClusterBridge::default());
+    let ops_runtime = Arc::new(OpsRuntime::new(
+        "node_a",
+        "local-minimal",
+        "127.0.0.1:18090",
+        vec!["session-gateway".into(), "control-plane-api".into()],
+        vec![],
+    ));
+    let app_before = control_plane_api::build_app_with_cluster_and_governance_sinks_and_runtime_dir(
+        cluster.clone(),
+        ops_runtime.clone(),
+        Arc::new(AuditRuntime::default()),
+        runtime_dir.as_path(),
+    );
+
+    let submit_response = app_before
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/control/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "requestId":"fr_corrupt_journal_001",
+                        "eventId":"evt_corrupt_journal_001",
+                        "requesterUserId":"u_alice",
+                        "targetUserId":"u_bob",
+                        "requestedAt":"2026-04-10T14:05:00Z"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("friend request write before journal corruption should return response");
+    assert_eq!(submit_response.status(), StatusCode::OK);
+
+    fs::write(
+        state_file(runtime_dir.as_path(), "social-commit-journal.json"),
+        "{invalid-journal",
+    )
+    .expect("corrupted social journal should be writable");
+
+    let app_after = control_plane_api::build_app_with_cluster_and_governance_sinks_and_runtime_dir(
+        cluster,
+        ops_runtime,
+        Arc::new(AuditRuntime::default()),
+        runtime_dir.as_path(),
+    );
+
+    let snapshot_response = app_after
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/control/social/friend-requests/fr_corrupt_journal_001")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("friend request snapshot after journal corruption should return response");
+    assert_eq!(snapshot_response.status(), StatusCode::OK);
+
+    let snapshot_body = snapshot_response
+        .into_body()
+        .collect()
+        .await
+        .expect("friend request snapshot after journal corruption should collect")
+        .to_bytes();
+    let snapshot_json: serde_json::Value = serde_json::from_slice(&snapshot_body)
+        .expect("friend request snapshot after journal corruption should be json");
+    assert_eq!(
+        snapshot_json["friendRequest"]["requestId"],
+        "fr_corrupt_journal_001"
+    );
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
+async fn test_control_plane_social_file_runtime_starts_with_default_when_snapshot_is_invalid_and_journal_missing()
+ {
+    let runtime_dir = unique_runtime_dir();
+    fs::create_dir_all(runtime_dir.join("state")).expect("runtime state dir should be created");
+    fs::write(
+        state_file(runtime_dir.as_path(), "social-state.json"),
+        "{invalid-snapshot",
+    )
+    .expect("invalid social snapshot fixture should be writable");
+
+    let cluster = Arc::new(RealtimeClusterBridge::default());
+    let ops_runtime = Arc::new(OpsRuntime::new(
+        "node_a",
+        "local-minimal",
+        "127.0.0.1:18090",
+        vec!["session-gateway".into(), "control-plane-api".into()],
+        vec![],
+    ));
+    let app = control_plane_api::build_app_with_cluster_and_governance_sinks_and_runtime_dir(
+        cluster,
+        ops_runtime,
+        Arc::new(AuditRuntime::default()),
+        runtime_dir.as_path(),
+    );
+
+    let snapshot_response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/control/social/friend-requests/fr_missing_invalid_snapshot")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("snapshot read on invalid startup snapshot should return response");
+    assert_eq!(snapshot_response.status(), StatusCode::NOT_FOUND);
+
+    let snapshot_body = snapshot_response
+        .into_body()
+        .collect()
+        .await
+        .expect("snapshot read on invalid startup snapshot should collect")
+        .to_bytes();
+    let snapshot_json: serde_json::Value = serde_json::from_slice(&snapshot_body)
+        .expect("snapshot read on invalid startup snapshot should be json");
+    assert_eq!(snapshot_json["code"], "friend_request_not_found");
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
 async fn test_control_plane_social_file_runtime_replays_direct_chat_pair_guard_when_snapshot_is_missing()
  {
     let runtime_dir = unique_runtime_dir();
