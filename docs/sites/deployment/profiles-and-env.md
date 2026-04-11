@@ -40,6 +40,7 @@ For public or commercial deployments, keep these enabled and explicit:
 | `CRAW_CHAT_PUBLIC_BEARER_REQUIRED_AUD` | Optional strict audience match. When set, public bearer `aud` must include this value. |
 | `CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS` | Per-tenant request ceiling for `/api/v1/conversations/shared-channel-links/sync` inside each process. |
 | `CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS` | Sliding window used by the shared-channel sync per-tenant limiter. |
+| `CRAW_CHAT_SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MILLIS` | Outbound HTTP timeout (milliseconds) for control-plane shared-channel sync trigger dispatch. |
 | `CRAW_CHAT_ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP` | Emergency local-test override for non-HTTPS shared-channel sync targets. Keep `false` in non-local environments. |
 
 ### Shared-channel sync target variables
@@ -47,6 +48,7 @@ For public or commercial deployments, keep these enabled and explicit:
 | Variable | Purpose |
 | --- | --- |
 | `CRAW_CHAT_SHARED_CHANNEL_SYNC_TARGET_BASE_URL` | Enables standalone control-plane sync dispatch to conversation-runtime public HTTP route. |
+| `CRAW_CHAT_SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MILLIS` | Caps outbound shared-channel sync request/response wait time to fail fast on transport stalls. |
 | `CRAW_CHAT_ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP` | Allows `http://` target only for controlled local testing; production should use HTTPS. |
 
 ## Optional Provider-related Variables
@@ -76,6 +78,7 @@ CRAW_CHAT_PUBLIC_BEARER_REQUIRED_ISS=
 CRAW_CHAT_PUBLIC_BEARER_REQUIRED_AUD=
 CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS=120
 CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS=60
+CRAW_CHAT_SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MILLIS=5000
 CRAW_CHAT_ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP=false
 ```
 
@@ -91,6 +94,7 @@ CRAW_CHAT_PUBLIC_BEARER_REQUIRED_ISS=
 CRAW_CHAT_PUBLIC_BEARER_REQUIRED_AUD=
 CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS=120
 CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS=60
+CRAW_CHAT_SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MILLIS=5000
 CRAW_CHAT_ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP=false
 ```
 

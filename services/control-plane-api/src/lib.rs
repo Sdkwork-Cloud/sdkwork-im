@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path as StdPath, PathBuf};
 use std::sync::{Arc, Mutex, RwLock};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use audit_service::{AuditRuntime, RecordAuditAnchor};
 use axum::extract::{Path, Query, State};
@@ -107,6 +107,9 @@ pub const ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP_ENV: &str =
     "CRAW_CHAT_ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP";
 pub const SHARED_CHANNEL_SYNC_TARGET_BASE_URL_ENV: &str =
     "CRAW_CHAT_SHARED_CHANNEL_SYNC_TARGET_BASE_URL";
+pub const SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MILLIS_ENV: &str =
+    "CRAW_CHAT_SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MILLIS";
+const SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_DEFAULT_MILLIS: u64 = 5_000;
 
 struct PublicSharedChannelLinkedMemberSyncTrigger {
     base_url: String,
@@ -163,6 +166,7 @@ impl PublicSharedChannelLinkedMemberSyncTrigger {
         request: SharedChannelLinkedMemberSyncRequest,
     ) -> Result<(), String> {
         let trigger = Self::new(base_url.as_str(), public_bearer_secret.as_str())?;
+        let timeout = resolve_shared_channel_sync_http_timeout();
         let payload = serde_json::to_vec(&serde_json::json!({
             "conversationId": request.conversation_id,
             "sharedChannelPolicyId": request.shared_channel_policy_id,
@@ -186,15 +190,24 @@ impl PublicSharedChannelLinkedMemberSyncTrigger {
             })?;
         let client: Client<HttpConnector, Full<Bytes>> =
             Client::builder(TokioExecutor::new()).build(HttpConnector::new());
-        let response = client
-            .request(request)
+        let response = tokio::time::timeout(timeout, client.request(request))
             .await
+            .map_err(|_| {
+                format!(
+                    "shared-channel sync request to {target} timed out after {}ms",
+                    timeout.as_millis()
+                )
+            })?
             .map_err(|error| format!("shared-channel sync request to {target} failed: {error}"))?;
         let status = response.status();
-        let body = response
-            .into_body()
-            .collect()
+        let body = tokio::time::timeout(timeout, response.into_body().collect())
             .await
+            .map_err(|_| {
+                format!(
+                    "shared-channel sync response from {target} timed out after {}ms",
+                    timeout.as_millis()
+                )
+            })?
             .map_err(|error| {
                 format!("failed to read shared-channel sync response from {target}: {error}")
             })?
@@ -275,6 +288,15 @@ fn current_unix_epoch_seconds() -> u64 {
         .duration_since(UNIX_EPOCH)
         .expect("system clock should be after unix epoch")
         .as_secs()
+}
+
+fn resolve_shared_channel_sync_http_timeout() -> Duration {
+    let timeout_millis = std::env::var(SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MILLIS_ENV)
+        .ok()
+        .and_then(|value| value.trim().parse::<u64>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_DEFAULT_MILLIS);
+    Duration::from_millis(timeout_millis)
 }
 
 impl SharedChannelLinkedMemberSyncTrigger for PublicSharedChannelLinkedMemberSyncTrigger {

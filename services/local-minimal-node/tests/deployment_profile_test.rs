@@ -305,6 +305,7 @@ fn test_deployment_profiles_and_templates_document_local_minimal_and_local_defau
         assert!(
             template_content.contains("CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS=")
         );
+        assert!(template_content.contains("CRAW_CHAT_SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MILLIS="));
     }
 
     for env_name in [
@@ -314,6 +315,7 @@ fn test_deployment_profiles_and_templates_document_local_minimal_and_local_defau
         "CRAW_CHAT_PUBLIC_BEARER_REQUIRED_AUD",
         "CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS",
         "CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS",
+        "CRAW_CHAT_SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MILLIS",
         "CRAW_CHAT_ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP",
     ] {
         assert!(

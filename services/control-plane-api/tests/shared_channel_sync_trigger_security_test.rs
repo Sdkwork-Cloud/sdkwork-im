@@ -1,4 +1,5 @@
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
+use std::time::Duration;
 
 use axum::extract::State;
 use axum::http::{HeaderMap, StatusCode};
@@ -73,6 +74,22 @@ async fn capture_sync_call(
     (StatusCode::OK, Json(json!({ "status": "ok" })))
 }
 
+async fn capture_sync_call_with_delay(
+    State(captured): State<CapturedSyncRequest>,
+    headers: HeaderMap,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let authorization = headers
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_owned);
+    *captured
+        .authorization
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner()) = authorization;
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    (StatusCode::OK, Json(json!({ "status": "ok" })))
+}
+
 fn insecure_http_guard() -> MutexGuard<'static, ()> {
     static GUARD: OnceLock<Mutex<()>> = OnceLock::new();
     GUARD
@@ -122,6 +139,12 @@ impl Drop for ScopedEnvVar {
 fn clear_insecure_http_override() {
     unsafe {
         std::env::remove_var(control_plane_api::ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP_ENV);
+    }
+}
+
+fn clear_shared_channel_sync_timeout_override() {
+    unsafe {
+        std::env::remove_var(control_plane_api::SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MILLIS_ENV);
     }
 }
 
@@ -304,4 +327,57 @@ async fn test_public_shared_channel_sync_trigger_includes_required_issuer_and_au
 
     server.abort();
     let _ = server.await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_public_shared_channel_sync_trigger_fails_fast_when_http_timeout_is_exceeded() {
+    let _guard = insecure_http_guard();
+    clear_shared_channel_sync_timeout_override();
+    let _timeout_override = ScopedEnvVar::set(
+        control_plane_api::SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MILLIS_ENV,
+        "20",
+    );
+    let listener = TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("shared-channel sync timeout test listener should bind");
+    let local_addr = listener
+        .local_addr()
+        .expect("shared-channel sync timeout test listener should expose local addr");
+    let captured = CapturedSyncRequest::default();
+    let app = Router::new()
+        .route(
+            "/api/v1/conversations/shared-channel-links/sync",
+            post(capture_sync_call_with_delay),
+        )
+        .with_state(captured);
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app)
+            .await
+            .expect("shared-channel sync timeout test server should run");
+    });
+
+    let trigger = control_plane_api::build_public_shared_channel_sync_trigger(
+        format!("http://{local_addr}"),
+        "test-shared-channel-secret",
+    )
+    .expect("shared-channel sync trigger should build against local http target");
+    let error = trigger
+        .trigger(SharedChannelLinkedMemberSyncRequest {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_shared_sync_timeout_guard".into(),
+            shared_channel_policy_id: "scp_timeout_guard".into(),
+            external_connection_id: "ec_timeout_guard".into(),
+            local_actor_id: "u_local_actor".into(),
+            local_actor_kind: "user".into(),
+            external_member_id: "partner::timeout-guard".into(),
+        })
+        .expect_err("shared-channel sync trigger should fail when response exceeds timeout");
+    assert!(
+        error.contains("timed out"),
+        "timeout failure should mention timed out, got: {error}"
+    );
+
+    server.abort();
+    let _ = server.await;
+    clear_shared_channel_sync_timeout_override();
 }
