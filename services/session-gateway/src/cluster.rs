@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::fmt;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use craw_chat_contract_control::RealtimeDisconnectFenceStore;
 use craw_chat_runtime_route::{
@@ -17,6 +17,16 @@ use crate::{
 mod disconnect;
 
 use disconnect::{ClusterMemoryDisconnectFenceStore, RealtimeDisconnectFence};
+
+fn lock_cluster_mutex<'a, T>(mutex: &'a Mutex<T>, label: &'static str) -> MutexGuard<'a, T> {
+    match mutex.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            eprintln!("warning: recovering poisoned mutex in session-gateway/cluster: {label}");
+            poisoned.into_inner()
+        }
+    }
+}
 
 pub type RealtimeDeviceRoute = RouteBinding;
 
@@ -74,10 +84,7 @@ impl RealtimeClusterBridge {
     }
 
     pub fn bind_node_runtime(&self, node_id: &str, runtime: Arc<RealtimeDeliveryRuntime>) {
-        self.node_runtimes
-            .lock()
-            .expect("realtime cluster runtime registry should lock")
-            .insert(node_id.into(), runtime);
+        lock_cluster_mutex(&self.node_runtimes, "node_runtimes").insert(node_id.into(), runtime);
         self.route_directory.register_node(node_id);
     }
 
@@ -363,10 +370,7 @@ impl RealtimeClusterBridge {
         payload: String,
     ) -> RealtimeRouteDeliveryResult {
         let route = self.resolve_device_route(tenant_id, principal_id, device_id);
-        let runtimes = self
-            .node_runtimes
-            .lock()
-            .expect("realtime cluster runtime registry should lock");
+        let runtimes = lock_cluster_mutex(&self.node_runtimes, "node_runtimes");
         let (target_node_id, route_state, runtime) = match route {
             Some(route) => {
                 let target_node_id = route.owner_node_id;
@@ -431,9 +435,7 @@ impl RealtimeClusterBridge {
         &self,
         node_id: &str,
     ) -> Result<Arc<RealtimeDeliveryRuntime>, RealtimeClusterError> {
-        self.node_runtimes
-            .lock()
-            .expect("realtime cluster runtime registry should lock")
+        lock_cluster_mutex(&self.node_runtimes, "node_runtimes")
             .get(node_id)
             .cloned()
             .ok_or_else(|| {
@@ -495,7 +497,8 @@ fn cluster_timestamp() -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use std::panic::{self, AssertUnwindSafe};
+    use std::sync::{Arc, Mutex};
 
     use im_adapters_local_memory::MemoryRealtimeDisconnectFenceStore;
     use im_platform_contracts::{
@@ -507,6 +510,100 @@ mod tests {
 
     fn expect_ok<T>(result: Result<T, crate::realtime::RealtimeRuntimeError>) -> T {
         result.expect("realtime runtime operation should succeed")
+    }
+
+    fn poison_mutex<T>(mutex: &Mutex<T>) {
+        let _ = panic::catch_unwind(AssertUnwindSafe(|| {
+            let _guard = mutex.lock().expect("test poison lock should succeed");
+            panic!("intentional poison for regression coverage");
+        }));
+    }
+
+    #[test]
+    fn test_bind_node_runtime_recovers_from_poisoned_runtime_registry_lock() {
+        let cluster = RealtimeClusterBridge::default();
+        poison_mutex(&cluster.node_runtimes);
+
+        let result = panic::catch_unwind(AssertUnwindSafe(|| {
+            cluster.bind_node_runtime("node_a", Arc::new(RealtimeDeliveryRuntime::default()));
+        }));
+        assert!(
+            result.is_ok(),
+            "bind_node_runtime should not panic when runtime registry mutex is poisoned"
+        );
+        assert!(cluster.node_lifecycle("node_a").is_some());
+    }
+
+    #[test]
+    fn test_route_rebind_recovers_from_poisoned_runtime_registry_lock() {
+        let cluster = RealtimeClusterBridge::default();
+        cluster.bind_node_runtime("node_a", Arc::new(RealtimeDeliveryRuntime::default()));
+        cluster.bind_node_runtime("node_b", Arc::new(RealtimeDeliveryRuntime::default()));
+        cluster
+            .bind_device_route(
+                "t_demo",
+                "u_demo",
+                "d_pad",
+                "node_a",
+                Some("s_old"),
+                "websocket",
+            )
+            .expect("initial route bind should succeed");
+
+        poison_mutex(&cluster.node_runtimes);
+
+        let result = panic::catch_unwind(AssertUnwindSafe(|| {
+            cluster.bind_device_route("t_demo", "u_demo", "d_pad", "node_b", Some("s_new"), "http")
+        }));
+        assert!(
+            result.is_ok(),
+            "route rebind should not panic when runtime registry mutex is poisoned"
+        );
+        let bind_result = result.expect("panic status should be captured");
+        assert!(
+            bind_result.is_ok(),
+            "route rebind should recover from poisoned runtime registry lock"
+        );
+    }
+
+    #[test]
+    fn test_publish_recovers_from_poisoned_runtime_registry_lock() {
+        let cluster = RealtimeClusterBridge::default();
+        let runtime_a = Arc::new(RealtimeDeliveryRuntime::default());
+        cluster.bind_node_runtime("node_a", runtime_a.clone());
+        expect_ok(runtime_a.sync_subscriptions(
+            "t_demo",
+            "u_demo",
+            "d_pad",
+            vec![RealtimeSubscriptionItemInput {
+                scope_type: "conversation".into(),
+                scope_id: "c_demo".into(),
+                event_types: vec!["message.posted".into()],
+            }],
+        ));
+
+        poison_mutex(&cluster.node_runtimes);
+
+        let result = panic::catch_unwind(AssertUnwindSafe(|| {
+            cluster.publish_device_event(
+                "node_a",
+                "t_demo",
+                "u_demo",
+                "d_pad",
+                "conversation",
+                "c_demo",
+                "message.posted",
+                r#"{"messageId":"msg_poison"}"#.into(),
+            )
+        }));
+        assert!(
+            result.is_ok(),
+            "publish should not panic when runtime registry mutex is poisoned"
+        );
+        let publish_result = result.expect("panic status should be captured");
+        assert_eq!(publish_result.target_node_id, "node_a");
+        assert_eq!(publish_result.route_state, "local_fallback");
+        assert_eq!(publish_result.delivered, 1);
     }
 
     #[test]
