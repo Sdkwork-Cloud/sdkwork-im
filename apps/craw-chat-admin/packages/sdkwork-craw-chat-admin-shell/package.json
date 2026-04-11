@@ -1,0 +1,36 @@
+{
+  "name": "sdkwork-craw-chat-admin-shell",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    }
+  },
+  "dependencies": {
+    "@sdkwork/ui-pc-react": "file:../../../../../sdkwork-ui/sdkwork-ui-pc-react",
+    "@tauri-apps/api": "2.10.1",
+    "lucide-react": "1.7.0",
+    "motion": "12.38.0",
+    "react": "19.2.4",
+    "react-router-dom": "7.14.0",
+    "sdkwork-craw-chat-admin-conversations": "workspace:*",
+    "sdkwork-craw-chat-admin-auth": "workspace:*",
+    "sdkwork-craw-chat-admin-groups": "workspace:*",
+    "sdkwork-craw-chat-admin-announcements": "workspace:*",
+    "sdkwork-craw-chat-admin-automation": "workspace:*",
+    "sdkwork-craw-chat-admin-core": "workspace:*",
+    "sdkwork-craw-chat-admin-moderation": "workspace:*",
+    "sdkwork-craw-chat-admin-realtime": "workspace:*",
+    "sdkwork-craw-chat-admin-system": "workspace:*",
+    "sdkwork-craw-chat-admin-overview": "workspace:*",
+    "sdkwork-craw-chat-admin-settings": "workspace:*",
+    "sdkwork-craw-chat-admin-tenants": "workspace:*",
+    "sdkwork-craw-chat-admin-messages": "workspace:*",
+    "sdkwork-craw-chat-admin-users": "workspace:*"
+  }
+}

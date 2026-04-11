@@ -102,10 +102,12 @@ fn test_complete_upload_appends_media_asset_created_event() {
     assert_eq!(payload["principalId"], "u_demo");
     assert_eq!(payload["principalKind"], "user");
     assert_eq!(payload["processingState"], "ready");
-    assert_eq!(
-        payload["resource"]["url"],
-        "https://cdn.example.com/ma_demo/demo.png"
-    );
+    assert_eq!(payload["storageProvider"], "object-storage-volcengine");
+    let download_url = payload["resource"]["url"]
+        .as_str()
+        .expect("event payload should contain provider download url");
+    assert!(download_url.contains("object-storage-volcengine"));
+    assert!(download_url.contains("expires=3600"));
 }
 
 #[test]

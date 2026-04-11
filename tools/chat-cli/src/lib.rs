@@ -1,5 +1,6 @@
-use std::fmt::{Display, Formatter};
-use std::path::{Path, PathBuf};
+mod command;
+mod realtime;
+
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use bytes::Bytes;
@@ -13,573 +14,15 @@ use hyper_util::rt::TokioExecutor;
 use im_auth_context::encode_hs256_bearer_token;
 use serde_json::{Value, json};
 use tokio::io::{self, AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader};
-use tokio::net::TcpStream;
 use tokio::time::timeout;
-use tokio_tungstenite::MaybeTlsStream;
-use tokio_tungstenite::WebSocketStream;
-use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message;
-use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 
-const DEFAULT_BASE_URL: &str = "http://127.0.0.1:18090";
-const DEFAULT_TENANT_ID: &str = "t_demo";
-const DEFAULT_USER_ID: &str = "u_demo";
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CliError {
-    message: String,
-    exit_code: i32,
-}
-
-impl CliError {
-    fn help(message: impl Into<String>) -> Self {
-        Self {
-            message: message.into(),
-            exit_code: 0,
-        }
-    }
-
-    fn usage(message: impl Into<String>) -> Self {
-        Self {
-            message: message.into(),
-            exit_code: 1,
-        }
-    }
-
-    fn runtime(message: impl Into<String>) -> Self {
-        Self {
-            message: message.into(),
-            exit_code: 1,
-        }
-    }
-
-    pub fn exit_code(&self) -> i32 {
-        self.exit_code
-    }
-
-    pub fn message(&self) -> &str {
-        self.message.as_str()
-    }
-}
-
-impl Display for CliError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.message)
-    }
-}
-
-impl std::error::Error for CliError {}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum CommandOutput {
-    Json(Value),
-    Frames(Vec<Value>),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CliCommand {
-    context: CommandContext,
-    operation: CommandOperation,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct CommandContext {
-    base_url: String,
-    auth: AuthInput,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct AuthInput {
-    tenant_id: String,
-    user_id: String,
-    actor_kind: String,
-    session_id: String,
-    device_id: String,
-    permissions: Vec<String>,
-    bearer_token: Option<String>,
-    public_bearer_secret: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum CommandOperation {
-    Health,
-    Token {
-        authorization_header: bool,
-    },
-    CreateConversation {
-        conversation_id: String,
-        conversation_type: String,
-    },
-    AddMember {
-        conversation_id: String,
-        principal_id: String,
-        principal_kind: String,
-        role: String,
-    },
-    Members {
-        conversation_id: String,
-    },
-    SendMessage {
-        conversation_id: String,
-        summary: Option<String>,
-        text: Option<String>,
-        client_msg_id: Option<String>,
-    },
-    Timeline {
-        conversation_id: String,
-    },
-    Watch {
-        conversation_id: String,
-        event_types: Vec<String>,
-        exit_after_events: Option<usize>,
-        idle_timeout: Option<Duration>,
-    },
-    ChatSession {
-        conversation_id: String,
-        label: Option<String>,
-        message_prefix: Option<String>,
-        event_types: Vec<String>,
-        idle_timeout: Option<Duration>,
-    },
-}
-
-#[derive(Debug, Default, Clone)]
-struct GlobalOptions {
-    base_url: Option<String>,
-    tenant_id: Option<String>,
-    user_id: Option<String>,
-    actor_kind: Option<String>,
-    session_id: Option<String>,
-    device_id: Option<String>,
-    permissions: Option<Vec<String>>,
-    bearer_token: Option<String>,
-    public_bearer_secret: Option<String>,
-}
-
-pub fn parse_cli_args<I, S>(args: I) -> Result<CliCommand, CliError>
-where
-    I: IntoIterator<Item = S>,
-    S: Into<String>,
-{
-    let values = args.into_iter().map(Into::into).collect::<Vec<_>>();
-    if values.is_empty() {
-        return Err(CliError::help(cli_usage()));
-    }
-
-    let mut cursor = ArgCursor::new(values.into_iter().skip(1).collect::<Vec<_>>());
-    if cursor.is_empty() {
-        return Err(CliError::help(cli_usage()));
-    }
-
-    let mut global = GlobalOptions::default();
-
-    while let Some(next) = cursor.peek() {
-        if is_command_name(next) {
-            break;
-        }
-
-        match next {
-            "-h" | "--help" => return Err(CliError::help(cli_usage())),
-            "--base-url" => {
-                cursor.next();
-                global.base_url = Some(cursor.required_value("--base-url")?);
-            }
-            "--tenant-id" => {
-                cursor.next();
-                global.tenant_id = Some(cursor.required_value("--tenant-id")?);
-            }
-            "--user-id" => {
-                cursor.next();
-                global.user_id = Some(cursor.required_value("--user-id")?);
-            }
-            "--actor-kind" => {
-                cursor.next();
-                global.actor_kind = Some(cursor.required_value("--actor-kind")?);
-            }
-            "--session-id" => {
-                cursor.next();
-                global.session_id = Some(cursor.required_value("--session-id")?);
-            }
-            "--device-id" => {
-                cursor.next();
-                global.device_id = Some(cursor.required_value("--device-id")?);
-            }
-            "--permissions" => {
-                cursor.next();
-                global.permissions =
-                    Some(parse_permissions(cursor.required_value("--permissions")?));
-            }
-            "--bearer-token" => {
-                cursor.next();
-                global.bearer_token = Some(cursor.required_value("--bearer-token")?);
-            }
-            "--public-bearer-secret" => {
-                cursor.next();
-                global.public_bearer_secret =
-                    Some(cursor.required_value("--public-bearer-secret")?);
-            }
-            other if other.starts_with('-') => {
-                return Err(CliError::usage(format!(
-                    "unknown global flag: {other}\n\n{}",
-                    cli_usage()
-                )));
-            }
-            other => {
-                return Err(CliError::usage(format!(
-                    "unknown command: {other}\n\n{}",
-                    cli_usage()
-                )));
-            }
-        }
-    }
-
-    let Some(command_name) = cursor.next() else {
-        return Err(CliError::help(cli_usage()));
-    };
-
-    let context = build_command_context(global);
-    let operation = parse_command_operation(command_name.as_str(), &mut cursor)?;
-
-    if !cursor.is_empty() {
-        return Err(CliError::usage(format!(
-            "unexpected trailing arguments: {}\n\n{}",
-            cursor.remaining().join(" "),
-            cli_usage()
-        )));
-    }
-
-    Ok(CliCommand { context, operation })
-}
-
-fn parse_command_operation(
-    command_name: &str,
-    cursor: &mut ArgCursor,
-) -> Result<CommandOperation, CliError> {
-    match command_name {
-        "health" => Ok(CommandOperation::Health),
-        "token" => {
-            let mut authorization_header = true;
-            while let Some(next) = cursor.peek() {
-                match next {
-                    "-h" | "--help" => return Err(CliError::help(token_usage())),
-                    "--token-only" => {
-                        cursor.next();
-                        authorization_header = false;
-                    }
-                    other if other.starts_with('-') => {
-                        return Err(CliError::usage(format!(
-                            "unknown token flag: {other}\n\n{}",
-                            token_usage()
-                        )));
-                    }
-                    _ => break,
-                }
-            }
-            Ok(CommandOperation::Token {
-                authorization_header,
-            })
-        }
-        "create-conversation" => {
-            let mut conversation_id = None;
-            let mut conversation_type = Some("group".to_owned());
-            while let Some(next) = cursor.peek() {
-                match next {
-                    "-h" | "--help" => return Err(CliError::help(create_conversation_usage())),
-                    "--conversation-id" => {
-                        cursor.next();
-                        conversation_id = Some(cursor.required_value("--conversation-id")?);
-                    }
-                    "--conversation-type" => {
-                        cursor.next();
-                        conversation_type = Some(cursor.required_value("--conversation-type")?);
-                    }
-                    other if other.starts_with('-') => {
-                        return Err(CliError::usage(format!(
-                            "unknown create-conversation flag: {other}\n\n{}",
-                            create_conversation_usage()
-                        )));
-                    }
-                    _ => break,
-                }
-            }
-            Ok(CommandOperation::CreateConversation {
-                conversation_id: required_field(
-                    conversation_id,
-                    "--conversation-id is required for create-conversation",
-                )?,
-                conversation_type: conversation_type.unwrap_or_else(|| "group".to_owned()),
-            })
-        }
-        "add-member" => {
-            let mut conversation_id = None;
-            let mut principal_id = None;
-            let mut principal_kind = Some("user".to_owned());
-            let mut role = Some("member".to_owned());
-            while let Some(next) = cursor.peek() {
-                match next {
-                    "-h" | "--help" => return Err(CliError::help(add_member_usage())),
-                    "--conversation-id" => {
-                        cursor.next();
-                        conversation_id = Some(cursor.required_value("--conversation-id")?);
-                    }
-                    "--principal-id" => {
-                        cursor.next();
-                        principal_id = Some(cursor.required_value("--principal-id")?);
-                    }
-                    "--principal-kind" => {
-                        cursor.next();
-                        principal_kind = Some(cursor.required_value("--principal-kind")?);
-                    }
-                    "--role" => {
-                        cursor.next();
-                        role = Some(cursor.required_value("--role")?);
-                    }
-                    other if other.starts_with('-') => {
-                        return Err(CliError::usage(format!(
-                            "unknown add-member flag: {other}\n\n{}",
-                            add_member_usage()
-                        )));
-                    }
-                    _ => break,
-                }
-            }
-            Ok(CommandOperation::AddMember {
-                conversation_id: required_field(
-                    conversation_id,
-                    "--conversation-id is required for add-member",
-                )?,
-                principal_id: required_field(
-                    principal_id,
-                    "--principal-id is required for add-member",
-                )?,
-                principal_kind: principal_kind.unwrap_or_else(|| "user".to_owned()),
-                role: role.unwrap_or_else(|| "member".to_owned()),
-            })
-        }
-        "members" => {
-            let mut conversation_id = None;
-            while let Some(next) = cursor.peek() {
-                match next {
-                    "-h" | "--help" => return Err(CliError::help(members_usage())),
-                    "--conversation-id" => {
-                        cursor.next();
-                        conversation_id = Some(cursor.required_value("--conversation-id")?);
-                    }
-                    other if other.starts_with('-') => {
-                        return Err(CliError::usage(format!(
-                            "unknown members flag: {other}\n\n{}",
-                            members_usage()
-                        )));
-                    }
-                    _ => break,
-                }
-            }
-            Ok(CommandOperation::Members {
-                conversation_id: required_field(
-                    conversation_id,
-                    "--conversation-id is required for members",
-                )?,
-            })
-        }
-        "send-message" => {
-            let mut conversation_id = None;
-            let mut summary = None;
-            let mut text = None;
-            let mut client_msg_id = None;
-            while let Some(next) = cursor.peek() {
-                match next {
-                    "-h" | "--help" => return Err(CliError::help(send_message_usage())),
-                    "--conversation-id" => {
-                        cursor.next();
-                        conversation_id = Some(cursor.required_value("--conversation-id")?);
-                    }
-                    "--summary" => {
-                        cursor.next();
-                        summary = Some(cursor.required_value("--summary")?);
-                    }
-                    "--text" => {
-                        cursor.next();
-                        text = Some(cursor.required_value("--text")?);
-                    }
-                    "--client-msg-id" => {
-                        cursor.next();
-                        client_msg_id = Some(cursor.required_value("--client-msg-id")?);
-                    }
-                    other if other.starts_with('-') => {
-                        return Err(CliError::usage(format!(
-                            "unknown send-message flag: {other}\n\n{}",
-                            send_message_usage()
-                        )));
-                    }
-                    _ => break,
-                }
-            }
-
-            if summary.is_none() && text.is_none() {
-                return Err(CliError::usage(format!(
-                    "send-message requires --summary, --text, or both\n\n{}",
-                    send_message_usage()
-                )));
-            }
-
-            Ok(CommandOperation::SendMessage {
-                conversation_id: required_field(
-                    conversation_id,
-                    "--conversation-id is required for send-message",
-                )?,
-                summary,
-                text,
-                client_msg_id,
-            })
-        }
-        "timeline" => {
-            let mut conversation_id = None;
-            while let Some(next) = cursor.peek() {
-                match next {
-                    "-h" | "--help" => return Err(CliError::help(timeline_usage())),
-                    "--conversation-id" => {
-                        cursor.next();
-                        conversation_id = Some(cursor.required_value("--conversation-id")?);
-                    }
-                    other if other.starts_with('-') => {
-                        return Err(CliError::usage(format!(
-                            "unknown timeline flag: {other}\n\n{}",
-                            timeline_usage()
-                        )));
-                    }
-                    _ => break,
-                }
-            }
-            Ok(CommandOperation::Timeline {
-                conversation_id: required_field(
-                    conversation_id,
-                    "--conversation-id is required for timeline",
-                )?,
-            })
-        }
-        "watch" => {
-            let mut conversation_id = None;
-            let mut event_types = Vec::new();
-            let mut exit_after_events = None;
-            let mut idle_timeout = None;
-            while let Some(next) = cursor.peek() {
-                match next {
-                    "-h" | "--help" => return Err(CliError::help(watch_usage())),
-                    "--conversation-id" => {
-                        cursor.next();
-                        conversation_id = Some(cursor.required_value("--conversation-id")?);
-                    }
-                    "--event-type" => {
-                        cursor.next();
-                        event_types.push(cursor.required_value("--event-type")?);
-                    }
-                    "--exit-after-events" => {
-                        cursor.next();
-                        exit_after_events = Some(parse_usize(
-                            cursor.required_value("--exit-after-events")?.as_str(),
-                            "--exit-after-events",
-                        )?);
-                    }
-                    "--idle-timeout-seconds" => {
-                        cursor.next();
-                        let seconds = parse_u64(
-                            cursor.required_value("--idle-timeout-seconds")?.as_str(),
-                            "--idle-timeout-seconds",
-                        )?;
-                        idle_timeout = Some(Duration::from_secs(seconds));
-                    }
-                    other if other.starts_with('-') => {
-                        return Err(CliError::usage(format!(
-                            "unknown watch flag: {other}\n\n{}",
-                            watch_usage()
-                        )));
-                    }
-                    _ => break,
-                }
-            }
-
-            if event_types.is_empty() {
-                event_types.push("message.posted".to_owned());
-            }
-
-            Ok(CommandOperation::Watch {
-                conversation_id: required_field(
-                    conversation_id,
-                    "--conversation-id is required for watch",
-                )?,
-                event_types,
-                exit_after_events,
-                idle_timeout,
-            })
-        }
-        "chat-session" => {
-            let mut conversation_id = None;
-            let mut label = None;
-            let mut message_prefix = None;
-            let mut event_types = Vec::new();
-            let mut idle_timeout = None;
-            while let Some(next) = cursor.peek() {
-                match next {
-                    "-h" | "--help" => return Err(CliError::help(chat_session_usage())),
-                    "--conversation-id" => {
-                        cursor.next();
-                        conversation_id = Some(cursor.required_value("--conversation-id")?);
-                    }
-                    "--label" => {
-                        cursor.next();
-                        label = Some(cursor.required_value("--label")?);
-                    }
-                    "--message-prefix" => {
-                        cursor.next();
-                        message_prefix = Some(cursor.required_value("--message-prefix")?);
-                    }
-                    "--event-type" => {
-                        cursor.next();
-                        event_types.push(cursor.required_value("--event-type")?);
-                    }
-                    "--idle-timeout-seconds" => {
-                        cursor.next();
-                        let seconds = parse_u64(
-                            cursor.required_value("--idle-timeout-seconds")?.as_str(),
-                            "--idle-timeout-seconds",
-                        )?;
-                        idle_timeout = Some(Duration::from_secs(seconds));
-                    }
-                    other if other.starts_with('-') => {
-                        return Err(CliError::usage(format!(
-                            "unknown chat-session flag: {other}\n\n{}",
-                            chat_session_usage()
-                        )));
-                    }
-                    _ => break,
-                }
-            }
-
-            if event_types.is_empty() {
-                event_types.push("message.posted".to_owned());
-            }
-
-            Ok(CommandOperation::ChatSession {
-                conversation_id: required_field(
-                    conversation_id,
-                    "--conversation-id is required for chat-session",
-                )?,
-                label,
-                message_prefix,
-                event_types,
-                idle_timeout,
-            })
-        }
-        other => Err(CliError::usage(format!(
-            "unknown command: {other}\n\n{}",
-            cli_usage()
-        ))),
-    }
-}
-
-pub fn is_interactive_command(command: &CliCommand) -> bool {
-    matches!(command.operation, CommandOperation::ChatSession { .. })
-}
+use command::{AuthInput, CommandContext, CommandOperation, sanitize_identifier};
+pub use command::{CliCommand, CliError, CommandOutput, is_interactive_command, parse_cli_args};
+use realtime::{
+    CcpSocketCodec, RealtimeSocket, RealtimeSocketMode, RealtimeSocketReader, RealtimeSocketWriter,
+    connect_realtime_socket,
+};
 
 pub async fn execute_command(command: CliCommand) -> Result<CommandOutput, CliError> {
     match command.operation {
@@ -591,15 +34,27 @@ pub async fn execute_command(command: CliCommand) -> Result<CommandOutput, CliEr
         CommandOperation::Token {
             authorization_header,
         } => {
-            let claims = auth_claims(&command.context.auth);
+            let uses_provided_bearer_token = command.context.auth.bearer_token.is_some();
+            let claims = if uses_provided_bearer_token {
+                Value::Null
+            } else {
+                auth_claims(&command.context.auth)
+            };
             let authorization = resolve_authorization_header(&command.context.auth)?;
-            let token = authorization
-                .strip_prefix("Bearer ")
+            let token = strip_bearer_prefix(authorization.as_str())
                 .unwrap_or(authorization.as_str())
                 .to_owned();
             Ok(CommandOutput::Json(json!({
-                "source": if command.context.auth.bearer_token.is_some() { "providedBearerToken" } else { "generatedBearerToken" },
-                "authorization": if authorization_header { authorization.clone() } else { format!("Bearer {token}") },
+                "source": if uses_provided_bearer_token {
+                    "providedBearerToken"
+                } else {
+                    "generatedBearerToken"
+                },
+                "authorization": if authorization_header {
+                    authorization.clone()
+                } else {
+                    token.clone()
+                },
                 "token": token,
                 "claims": claims
             })))
@@ -787,61 +242,6 @@ pub fn render_output(output: &CommandOutput) -> Result<String, CliError> {
     }
 }
 
-fn build_command_context(global: GlobalOptions) -> CommandContext {
-    let user_id = global
-        .user_id
-        .or_else(|| std::env::var("CRAW_CHAT_CLI_USER_ID").ok())
-        .unwrap_or_else(|| DEFAULT_USER_ID.to_owned());
-    let sanitized_user_id = sanitize_identifier(user_id.as_str());
-    let tenant_id = global
-        .tenant_id
-        .or_else(|| std::env::var("CRAW_CHAT_CLI_TENANT_ID").ok())
-        .unwrap_or_else(|| DEFAULT_TENANT_ID.to_owned());
-    let actor_kind = global
-        .actor_kind
-        .or_else(|| std::env::var("CRAW_CHAT_CLI_ACTOR_KIND").ok())
-        .unwrap_or_else(|| "user".to_owned());
-    let session_id = global
-        .session_id
-        .or_else(|| std::env::var("CRAW_CHAT_CLI_SESSION_ID").ok())
-        .unwrap_or_else(|| format!("s_{sanitized_user_id}"));
-    let device_id = global
-        .device_id
-        .or_else(|| std::env::var("CRAW_CHAT_CLI_DEVICE_ID").ok())
-        .unwrap_or_else(|| format!("d_{sanitized_user_id}"));
-    let permissions = global
-        .permissions
-        .or_else(|| {
-            std::env::var("CRAW_CHAT_CLI_PERMISSIONS")
-                .ok()
-                .map(parse_permissions)
-        })
-        .unwrap_or_default();
-    let public_bearer_secret = global
-        .public_bearer_secret
-        .or_else(|| std::env::var(im_auth_context::PUBLIC_BEARER_HS256_SECRET_ENV).ok())
-        .or_else(resolve_public_bearer_secret_from_config);
-    let base_url = global
-        .base_url
-        .or_else(|| std::env::var("CRAW_CHAT_BASE_URL").ok())
-        .or_else(resolve_base_url_from_config)
-        .unwrap_or_else(|| DEFAULT_BASE_URL.to_owned());
-
-    CommandContext {
-        base_url,
-        auth: AuthInput {
-            tenant_id,
-            user_id,
-            actor_kind,
-            session_id,
-            device_id,
-            permissions,
-            bearer_token: global.bearer_token,
-            public_bearer_secret,
-        },
-    }
-}
-
 async fn http_request_json(
     context: &CommandContext,
     method: Method,
@@ -913,38 +313,69 @@ async fn watch_realtime_conversation(
     let mut socket = connect_realtime_socket(context).await?;
 
     let mut frames = Vec::new();
-    frames.push(read_next_json_frame(&mut socket, idle_timeout).await?);
+    frames.push(
+        read_next_json_frame(&mut socket, idle_timeout)
+            .await
+            .map_err(|error| {
+                CliError::runtime(format!(
+                    "failed while waiting for realtime.connected: {error}"
+                ))
+            })?,
+    );
 
     send_subscription_sync(&mut socket, conversation_id, event_types, "chat_cli_sync_1").await?;
 
-    frames.push(read_next_json_frame(&mut socket, idle_timeout).await?);
+    frames.push(
+        read_next_json_frame(&mut socket, idle_timeout)
+            .await
+            .map_err(|error| {
+                CliError::runtime(format!(
+                    "failed while waiting for subscriptions.synced: {error}"
+                ))
+            })?,
+    );
 
     let mut observed_event_windows = 0usize;
     loop {
-        let frame = read_next_json_frame(&mut socket, idle_timeout).await?;
+        let frame = read_next_json_frame(&mut socket, idle_timeout)
+            .await
+            .map_err(|error| {
+                CliError::runtime(format!(
+                    "failed while waiting for event.window or events.acked: {error}"
+                ))
+            })?;
         let acked_seq = acked_seq_for_window(&frame);
         let is_event_window = frame["type"] == "event.window";
         frames.push(frame);
 
         if let Some(acked_seq) = acked_seq {
             send_events_ack(&mut socket, acked_seq).await?;
-            frames.push(read_next_json_frame(&mut socket, idle_timeout).await?);
+            frames.push(
+                read_next_json_frame(&mut socket, idle_timeout)
+                    .await
+                    .map_err(|error| {
+                        CliError::runtime(format!("failed while waiting for events.acked: {error}"))
+                    })?,
+            );
         }
 
         if is_event_window {
             observed_event_windows += 1;
-            if let Some(limit) = exit_after_events {
-                if observed_event_windows >= limit {
-                    break;
-                }
+            if let Some(limit) = exit_after_events
+                && observed_event_windows >= limit
+            {
+                break;
             }
         }
     }
 
-    let _ = socket.close(None).await;
+    socket.close().await;
     Ok(frames)
 }
 
+// This helper wires parsed CLI options and explicit IO handles into one chat
+// session so tests and non-interactive entrypoints can reuse the same flow.
+#[allow(clippy::too_many_arguments)]
 async fn run_chat_session<R, W>(
     context: &CommandContext,
     conversation_id: &str,
@@ -1021,12 +452,7 @@ where
                 )
                 .await?;
                 pending_outgoing.push(sent_summary);
-                write_chat_message_line(
-                    &mut output,
-                    prompt_label.as_str(),
-                    trimmed,
-                )
-                .await?;
+                write_chat_message_line(&mut output, prompt_label.as_str(), trimmed).await?;
                 write_chat_prompt(&mut output, prompt_label.as_str()).await?;
             }
             frame = &mut websocket_frame => {
@@ -1052,7 +478,7 @@ where
         }
     }
 
-    let _ = ws_write.send(Message::Close(None)).await;
+    ws_write.close().await;
     Ok(())
 }
 
@@ -1114,111 +540,127 @@ fn resolve_authorization_header(auth: &AuthInput) -> Result<String, CliError> {
 }
 
 fn normalize_bearer_header(value: &str) -> String {
-    if value.starts_with("Bearer ") || value.starts_with("bearer ") {
-        value.to_owned()
+    if let Some(token) = strip_bearer_prefix(value) {
+        format!("Bearer {token}")
     } else {
         format!("Bearer {value}")
     }
 }
 
-async fn connect_realtime_socket(context: &CommandContext) -> Result<WsStream, CliError> {
-    let ws_url = build_websocket_url(context.base_url.as_str(), "/api/v1/realtime/ws")?;
-    let authorization = resolve_authorization_header(&context.auth)?;
-
-    let mut request = ws_url.into_client_request().map_err(|error| {
-        CliError::runtime(format!("failed to build websocket request: {error}"))
-    })?;
-    request.headers_mut().insert(
-        AUTHORIZATION,
-        authorization.parse().map_err(|error| {
-            CliError::runtime(format!("failed to encode authorization header: {error}"))
-        })?,
-    );
-
-    let (socket, _) = connect_async(request)
-        .await
-        .map_err(|error| CliError::runtime(format!("failed to connect websocket: {error}")))?;
-    Ok(socket)
+fn strip_bearer_prefix(value: &str) -> Option<&str> {
+    let prefix = value.get(..7)?;
+    if prefix.eq_ignore_ascii_case("Bearer ") {
+        value.get(7..)
+    } else {
+        None
+    }
 }
 
 async fn send_subscription_sync(
-    socket: &mut WsStream,
+    socket: &mut RealtimeSocket,
     conversation_id: &str,
     event_types: &[String],
     request_id: &str,
 ) -> Result<(), CliError> {
+    let payload = json!({
+        "type": "subscriptions.sync",
+        "requestId": request_id,
+        "items": [
+            {
+                "scopeType": "conversation",
+                "scopeId": conversation_id,
+                "eventTypes": event_types,
+            }
+        ]
+    });
+    let message = match socket.mode {
+        RealtimeSocketMode::LegacyJson => Message::Text(payload.to_string().into()),
+        RealtimeSocketMode::CcpJson => socket.ccp.encode_business_frame(
+            "cc.realtime.subscriptions.sync.v1",
+            "cmd",
+            &payload,
+        )?,
+    };
     socket
-        .send(Message::Text(
-            json!({
-                "type": "subscriptions.sync",
-                "requestId": request_id,
-                "items": [
-                    {
-                        "scopeType": "conversation",
-                        "scopeId": conversation_id,
-                        "eventTypes": event_types,
-                    }
-                ]
-            })
-            .to_string()
-            .into(),
-        ))
+        .inner
+        .send(message)
         .await
         .map_err(|error| CliError::runtime(format!("failed to send subscription sync: {error}")))
 }
 
-async fn send_events_ack(socket: &mut WsStream, acked_seq: u64) -> Result<(), CliError> {
+async fn send_events_ack(socket: &mut RealtimeSocket, acked_seq: u64) -> Result<(), CliError> {
+    let payload = json!({
+        "type": "events.ack",
+        "requestId": format!("chat_cli_ack_{acked_seq}"),
+        "ackedSeq": acked_seq,
+    });
+    let message = match socket.mode {
+        RealtimeSocketMode::LegacyJson => Message::Text(payload.to_string().into()),
+        RealtimeSocketMode::CcpJson => {
+            socket
+                .ccp
+                .encode_business_frame("cc.realtime.events.ack.v1", "ack", &payload)?
+        }
+    };
     socket
-        .send(Message::Text(
-            json!({
-                "type": "events.ack",
-                "requestId": format!("chat_cli_ack_{acked_seq}"),
-                "ackedSeq": acked_seq,
-            })
-            .to_string()
-            .into(),
-        ))
+        .inner
+        .send(message)
         .await
         .map_err(|error| CliError::runtime(format!("failed to send events ack: {error}")))
 }
 
 async fn send_subscription_sync_write(
-    writer: &mut WsWrite,
+    writer: &mut RealtimeSocketWriter,
     conversation_id: &str,
     event_types: &[String],
     request_id: &str,
 ) -> Result<(), CliError> {
+    let payload = json!({
+        "type": "subscriptions.sync",
+        "requestId": request_id,
+        "items": [
+            {
+                "scopeType": "conversation",
+                "scopeId": conversation_id,
+                "eventTypes": event_types,
+            }
+        ]
+    });
+    let message = match writer.mode {
+        RealtimeSocketMode::LegacyJson => Message::Text(payload.to_string().into()),
+        RealtimeSocketMode::CcpJson => writer.ccp.encode_business_frame(
+            "cc.realtime.subscriptions.sync.v1",
+            "cmd",
+            &payload,
+        )?,
+    };
     writer
-        .send(Message::Text(
-            json!({
-                "type": "subscriptions.sync",
-                "requestId": request_id,
-                "items": [
-                    {
-                        "scopeType": "conversation",
-                        "scopeId": conversation_id,
-                        "eventTypes": event_types,
-                    }
-                ]
-            })
-            .to_string()
-            .into(),
-        ))
+        .inner
+        .send(message)
         .await
         .map_err(|error| CliError::runtime(format!("failed to send subscription sync: {error}")))
 }
 
-async fn send_events_ack_write(writer: &mut WsWrite, acked_seq: u64) -> Result<(), CliError> {
+async fn send_events_ack_write(
+    writer: &mut RealtimeSocketWriter,
+    acked_seq: u64,
+) -> Result<(), CliError> {
+    let payload = json!({
+        "type": "events.ack",
+        "requestId": format!("chat_cli_ack_{acked_seq}"),
+        "ackedSeq": acked_seq,
+    });
+    let message = match writer.mode {
+        RealtimeSocketMode::LegacyJson => Message::Text(payload.to_string().into()),
+        RealtimeSocketMode::CcpJson => {
+            writer
+                .ccp
+                .encode_business_frame("cc.realtime.events.ack.v1", "ack", &payload)?
+        }
+    };
     writer
-        .send(Message::Text(
-            json!({
-                "type": "events.ack",
-                "requestId": format!("chat_cli_ack_{acked_seq}"),
-                "ackedSeq": acked_seq,
-            })
-            .to_string()
-            .into(),
-        ))
+        .inner
+        .send(message)
         .await
         .map_err(|error| CliError::runtime(format!("failed to send events ack: {error}")))
 }
@@ -1245,16 +687,16 @@ async fn send_message_request(
 }
 
 async fn read_next_json_frame(
-    socket: &mut WsStream,
+    socket: &mut RealtimeSocket,
     idle_timeout: Option<Duration>,
 ) -> Result<Value, CliError> {
     loop {
         let next = if let Some(duration) = idle_timeout {
-            timeout(duration, socket.next())
+            timeout(duration, socket.inner.next())
                 .await
                 .map_err(|_| CliError::runtime("timed out waiting for realtime frame"))?
         } else {
-            socket.next().await
+            socket.inner.next().await
         };
 
         let message = next
@@ -1262,15 +704,17 @@ async fn read_next_json_frame(
             .map_err(|error| CliError::runtime(format!("websocket receive failed: {error}")))?;
 
         match message {
-            Message::Text(text) => {
-                return serde_json::from_str(text.as_str()).map_err(|error| {
-                    CliError::runtime(format!("websocket text frame was not valid json: {error}"))
-                });
+            Message::Text(_) | Message::Binary(_) => {
+                return decode_realtime_business_message(&socket.ccp, socket.mode, message);
             }
             Message::Ping(payload) => {
-                socket.send(Message::Pong(payload)).await.map_err(|error| {
-                    CliError::runtime(format!("failed to reply to websocket ping: {error}"))
-                })?;
+                socket
+                    .inner
+                    .send(Message::Pong(payload))
+                    .await
+                    .map_err(|error| {
+                        CliError::runtime(format!("failed to reply to websocket ping: {error}"))
+                    })?;
             }
             Message::Pong(_) => {}
             Message::Close(frame) => {
@@ -1281,27 +725,22 @@ async fn read_next_json_frame(
                     "websocket closed before expected frame arrived: {reason}"
                 )));
             }
-            Message::Binary(_) => {
-                return Err(CliError::runtime(
-                    "websocket returned unsupported binary frame",
-                ));
-            }
             Message::Frame(_) => {}
         }
     }
 }
 
 async fn read_next_json_frame_from_read(
-    reader: &mut WsRead,
+    reader: &mut RealtimeSocketReader,
     idle_timeout: Option<Duration>,
 ) -> Result<Value, CliError> {
     loop {
         let next = if let Some(duration) = idle_timeout {
-            timeout(duration, reader.next())
+            timeout(duration, reader.inner.next())
                 .await
                 .map_err(|_| CliError::runtime("timed out waiting for realtime frame"))?
         } else {
-            reader.next().await
+            reader.inner.next().await
         };
 
         let message = next
@@ -1309,10 +748,8 @@ async fn read_next_json_frame_from_read(
             .map_err(|error| CliError::runtime(format!("websocket receive failed: {error}")))?;
 
         match message {
-            Message::Text(text) => {
-                return serde_json::from_str(text.as_str()).map_err(|error| {
-                    CliError::runtime(format!("websocket text frame was not valid json: {error}"))
-                });
+            Message::Text(_) | Message::Binary(_) => {
+                return decode_realtime_business_message(&reader.ccp, reader.mode, message);
             }
             Message::Ping(_) | Message::Pong(_) => {}
             Message::Close(frame) => {
@@ -1323,13 +760,29 @@ async fn read_next_json_frame_from_read(
                     "websocket closed before expected frame arrived: {reason}"
                 )));
             }
-            Message::Binary(_) => {
-                return Err(CliError::runtime(
-                    "websocket returned unsupported binary frame",
-                ));
-            }
             Message::Frame(_) => {}
         }
+    }
+}
+
+fn decode_realtime_business_message(
+    ccp: &CcpSocketCodec,
+    mode: RealtimeSocketMode,
+    message: Message,
+) -> Result<Value, CliError> {
+    match mode {
+        RealtimeSocketMode::LegacyJson => match message {
+            Message::Text(text) => serde_json::from_str(text.as_str()).map_err(|error| {
+                CliError::runtime(format!("websocket text frame was not valid json: {error}"))
+            }),
+            Message::Binary(_) => Err(CliError::runtime(
+                "websocket returned unsupported binary frame",
+            )),
+            other => Err(CliError::runtime(format!(
+                "unexpected websocket message while waiting for business frame: {other:?}"
+            ))),
+        },
+        RealtimeSocketMode::CcpJson => ccp.decode_business_json(message),
     }
 }
 
@@ -1452,250 +905,3 @@ where
 {
     write_chat_status_line(output, format!("[{prompt_label}] {message}").as_str()).await
 }
-
-fn resolve_public_bearer_secret_from_config() -> Option<String> {
-    let config_path = find_local_env_file()?;
-    read_env_file_value(
-        config_path.as_path(),
-        im_auth_context::PUBLIC_BEARER_HS256_SECRET_ENV,
-    )
-}
-
-fn resolve_base_url_from_config() -> Option<String> {
-    let config_path = find_local_env_file()?;
-    let bind_address = read_env_file_value(config_path.as_path(), "CRAW_CHAT_BIND_ADDR")?;
-    Some(bind_address_to_base_url(bind_address.as_str()))
-}
-
-fn find_local_env_file() -> Option<PathBuf> {
-    for candidate in env_file_candidates() {
-        if candidate.is_file() {
-            return Some(candidate);
-        }
-    }
-    None
-}
-
-fn env_file_candidates() -> Vec<PathBuf> {
-    let mut candidates = Vec::new();
-
-    if let Ok(current_dir) = std::env::current_dir() {
-        for ancestor in current_dir.ancestors() {
-            candidates.push(
-                ancestor
-                    .join(".runtime")
-                    .join("local-minimal")
-                    .join("config")
-                    .join("local-minimal.env"),
-            );
-        }
-    }
-
-    let manifest_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    if let Some(repo_root) = manifest_root.ancestors().nth(2) {
-        candidates.push(
-            repo_root
-                .join(".runtime")
-                .join("local-minimal")
-                .join("config")
-                .join("local-minimal.env"),
-        );
-    }
-
-    candidates.sort();
-    candidates.dedup();
-    candidates
-}
-
-fn read_env_file_value(path: &Path, key: &str) -> Option<String> {
-    let content = std::fs::read_to_string(path).ok()?;
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() || trimmed.starts_with('#') {
-            continue;
-        }
-        let (current_key, current_value) = trimmed.split_once('=')?;
-        if current_key.trim() == key {
-            let value = current_value.trim();
-            if !value.is_empty() {
-                return Some(value.to_owned());
-            }
-        }
-    }
-    None
-}
-
-fn sanitize_identifier(raw: &str) -> String {
-    let mut sanitized = String::new();
-    for ch in raw.chars() {
-        if ch.is_ascii_alphanumeric() || ch == '_' || ch == '-' {
-            sanitized.push(ch);
-        } else {
-            sanitized.push('_');
-        }
-    }
-    if sanitized.is_empty() {
-        "user".to_owned()
-    } else {
-        sanitized
-    }
-}
-
-fn bind_address_to_base_url(bind_address: &str) -> String {
-    let mut parts = bind_address.rsplitn(2, ':');
-    let port = parts.next().unwrap_or("18090").trim();
-    let host = parts.next().unwrap_or("127.0.0.1").trim();
-    let normalized_host = match host {
-        "" | "0.0.0.0" | "::" | "[::]" => "127.0.0.1",
-        other => other,
-    };
-    format!("http://{normalized_host}:{port}")
-}
-
-fn parse_permissions(raw: String) -> Vec<String> {
-    raw.split(|ch: char| ch == ',' || ch.is_whitespace())
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(ToOwned::to_owned)
-        .collect::<Vec<_>>()
-}
-
-fn parse_usize(raw: &str, flag: &str) -> Result<usize, CliError> {
-    raw.parse::<usize>()
-        .map_err(|_| CliError::usage(format!("{flag} must be a positive integer")))
-}
-
-fn parse_u64(raw: &str, flag: &str) -> Result<u64, CliError> {
-    raw.parse::<u64>()
-        .map_err(|_| CliError::usage(format!("{flag} must be a positive integer")))
-}
-
-fn required_field<T>(value: Option<T>, message: &str) -> Result<T, CliError> {
-    value.ok_or_else(|| CliError::usage(message))
-}
-
-fn is_command_name(value: &str) -> bool {
-    matches!(
-        value,
-        "health"
-            | "token"
-            | "create-conversation"
-            | "add-member"
-            | "members"
-            | "send-message"
-            | "timeline"
-            | "watch"
-            | "chat-session"
-    )
-}
-
-fn cli_usage() -> String {
-    format!(
-        concat!(
-            "Usage: craw-chat-cli [global options] <command> [command options]\n\n",
-            "Global options:\n",
-            "  --base-url <url>                 Service base url. Default: {base}\n",
-            "  --tenant-id <id>                 Tenant id. Default: {tenant}\n",
-            "  --user-id <id>                   User id. Default: {user}\n",
-            "  --actor-kind <kind>              Actor kind. Default: user\n",
-            "  --session-id <id>                Session id. Default: s_<user-id>\n",
-            "  --device-id <id>                 Device id. Default: d_<user-id>\n",
-            "  --permissions <csv>              Optional permissions claims\n",
-            "  --bearer-token <token>           Use an existing bearer token\n",
-            "  --public-bearer-secret <secret>  Generate a signed local bearer token\n",
-            "  -h, --help                       Show help\n\n",
-            "Commands:\n",
-            "  health\n",
-            "  token [--token-only]\n",
-            "  create-conversation --conversation-id <id> [--conversation-type <type>]\n",
-            "  add-member --conversation-id <id> --principal-id <id> [--principal-kind user] [--role member]\n",
-            "  members --conversation-id <id>\n",
-            "  send-message --conversation-id <id> [--summary <text>] [--text <text>] [--client-msg-id <id>]\n",
-            "  timeline --conversation-id <id>\n",
-            "  watch --conversation-id <id> [--event-type <type>]... [--exit-after-events <n>] [--idle-timeout-seconds <n>]\n\n",
-            "  chat-session --conversation-id <id> [--label <name>] [--message-prefix <prefix>] [--event-type <type>]... [--idle-timeout-seconds <n>]\n\n",
-            "Example:\n",
-            "  craw-chat-cli --user-id u_owner --device-id d_owner --session-id s_owner create-conversation --conversation-id c_demo --conversation-type group\n"
-        ),
-        base = DEFAULT_BASE_URL,
-        tenant = DEFAULT_TENANT_ID,
-        user = DEFAULT_USER_ID
-    )
-}
-
-fn token_usage() -> String {
-    "Usage: craw-chat-cli [global options] token [--token-only]".to_owned()
-}
-
-fn create_conversation_usage() -> String {
-    "Usage: craw-chat-cli [global options] create-conversation --conversation-id <id> [--conversation-type <type>]".to_owned()
-}
-
-fn add_member_usage() -> String {
-    "Usage: craw-chat-cli [global options] add-member --conversation-id <id> --principal-id <id> [--principal-kind <kind>] [--role <role>]".to_owned()
-}
-
-fn members_usage() -> String {
-    "Usage: craw-chat-cli [global options] members --conversation-id <id>".to_owned()
-}
-
-fn send_message_usage() -> String {
-    "Usage: craw-chat-cli [global options] send-message --conversation-id <id> [--summary <text>] [--text <text>] [--client-msg-id <id>]".to_owned()
-}
-
-fn timeline_usage() -> String {
-    "Usage: craw-chat-cli [global options] timeline --conversation-id <id>".to_owned()
-}
-
-fn watch_usage() -> String {
-    "Usage: craw-chat-cli [global options] watch --conversation-id <id> [--event-type <type>]... [--exit-after-events <n>] [--idle-timeout-seconds <n>]".to_owned()
-}
-
-fn chat_session_usage() -> String {
-    "Usage: craw-chat-cli [global options] chat-session --conversation-id <id> [--label <name>] [--message-prefix <prefix>] [--event-type <type>]... [--idle-timeout-seconds <n>]".to_owned()
-}
-
-#[derive(Debug, Clone)]
-struct ArgCursor {
-    items: Vec<String>,
-    index: usize,
-}
-
-impl ArgCursor {
-    fn new(items: Vec<String>) -> Self {
-        Self { items, index: 0 }
-    }
-
-    fn is_empty(&self) -> bool {
-        self.index >= self.items.len()
-    }
-
-    fn peek(&self) -> Option<&str> {
-        self.items.get(self.index).map(String::as_str)
-    }
-
-    fn next(&mut self) -> Option<String> {
-        if self.index >= self.items.len() {
-            None
-        } else {
-            let value = self.items[self.index].clone();
-            self.index += 1;
-            Some(value)
-        }
-    }
-
-    fn required_value(&mut self, flag: &str) -> Result<String, CliError> {
-        match self.next() {
-            Some(value) => Ok(value),
-            None => Err(CliError::usage(format!("{flag} requires a value"))),
-        }
-    }
-
-    fn remaining(&self) -> &[String] {
-        &self.items[self.index..]
-    }
-}
-
-type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
-type WsRead = futures_util::stream::SplitStream<WsStream>;
-type WsWrite = futures_util::stream::SplitSink<WsStream, Message>;

@@ -183,6 +183,13 @@
 - timeline、summary 和通知视图可以引用 RTC 事件结果
 - 媒体传输本身仍独立于 IM 内核
 
+### 6.5 RTC provider 插件边界
+
+- RTC 信令仍由平台统一实现，provider 插件只承接房间、凭证、回调、录制和媒体相关差异。
+- 当前冻结的 RTC provider 为 `火山引擎 / 阿里云 / 腾讯云`，全局默认 provider 为 `火山引擎`。
+- provider 选择必须来自控制面和 deployment profile，不能在消息或 signaling 路径内联判断厂商。
+- 录制、转写、回放等 RTC 产物必须统一回流到 `BlobStore`，不允许长期锁死在 provider 私有文件体系。
+
 ## 7. 通知设计
 
 ### 7.1 通知源
@@ -231,6 +238,12 @@
 - 设备控制命令可作为消息、信令或 command stream 表达
 - 设备回执和异常通知统一走通知与事件链
 
+### 8.3 IoT 协议插件与设备管理
+
+- IoT 接入必须同时具备设备管理与接入体系：`device registry / credential / session / presence / twin / telemetry / command`。
+- 当前冻结的协议插件为 `MQTT` 与开源 `小智协议`，两者都必须映射到统一 `device.telemetry`、`device.command` 和 `device twin` 模型。
+- 协议差异只能停留在 `IotProtocolAdapter`，不得把 topic、QoS、协议帧细节扩散到消息、流和通知主链。
+
 ## 9. 读写分离策略
 
 - 会话命令成功后先提交 event
@@ -240,4 +253,4 @@
 
 ## 10. 结论
 
-`craw-chat` 在实时层的核心策略是：缓存只做辅助、流是真正一等能力、RTC 只做信令、通知永远不阻塞提交主链。这样才能同时兼容 IM、AI、IoT 和后续协作能力的统一演进。
+`craw-chat` 在实时层的核心策略是：缓存只做辅助、流是真正一等能力、RTC 只做信令、RTC/object-storage/IoT 通过插件体系接入、通知永远不阻塞提交主链。这样才能同时兼容 IM、AI、IoT 和后续协作能力的统一演进。

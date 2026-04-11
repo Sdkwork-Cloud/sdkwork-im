@@ -1,4 +1,6 @@
 param(
+    [ValidateSet("local-minimal", "local-default")]
+    [string]$ProfileName = "local-minimal",
     [string]$BindAddress = "127.0.0.1:18090",
     [switch]$Force,
     [switch]$Help
@@ -7,18 +9,11 @@ param(
 $ErrorActionPreference = 'Stop'
 
 if ($Help) {
-    Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/init-config-local.ps1 [-BindAddress <host:port>] [-Force]"
-    Write-Host "Create or update the local-minimal runtime config file."
+    Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/init-config-local.ps1 [-ProfileName <local-minimal|local-default>] [-BindAddress <host:port>] [-Force]"
+    Write-Host "Usage: cmd /c .\bin\init-config-local.cmd [--profile <local-minimal|local-default>] [--bind-addr <host:port>] [--force]"
+    Write-Host "Create or update the selected local runtime config file."
     exit 0
 }
-
-$root = Split-Path -Parent $PSScriptRoot
-$runtimeDir = Join-Path $root ".runtime\local-minimal"
-$configDir = Join-Path $runtimeDir "config"
-$logsDir = Join-Path $runtimeDir "logs"
-$pidsDir = Join-Path $runtimeDir "pids"
-$stateDir = Join-Path $runtimeDir "state"
-$configFile = Join-Path $configDir "local-minimal.env"
 
 function Read-ConfigValue {
     param(
@@ -60,9 +55,78 @@ function New-PublicBearerSecret {
     return ([Convert]::ToBase64String($bytes)).TrimEnd('=').Replace('+', '-').Replace('/', '_')
 }
 
-foreach ($path in @($runtimeDir, $configDir, $logsDir, $pidsDir, $stateDir)) {
+$root = Split-Path -Parent $PSScriptRoot
+$runtimeProfileHelper = Join-Path $PSScriptRoot "_runtime-profile-common.ps1"
+if (Test-Path $runtimeProfileHelper) {
+    . $runtimeProfileHelper
+}
+else {
+    function Resolve-RuntimeProfileConfigFiles {
+        param(
+            [Parameter(Mandatory = $true)]
+            [string]$Root,
+            [Parameter(Mandatory = $true)]
+            [ValidateSet("local-minimal", "local-default")]
+            [string]$ProfileName
+        )
+
+        switch ($ProfileName) {
+            "local-default" {
+                return @(
+                    (Join-Path $Root ".runtime\local-default\config\local-default.env"),
+                    (Join-Path $Root ".runtime\local-minimal\config\local-minimal.env")
+                )
+            }
+            default {
+                return @(
+                    (Join-Path $Root ".runtime\local-minimal\config\local-minimal.env")
+                )
+            }
+        }
+    }
+
+    function Resolve-RuntimeDirFromProfile {
+        param(
+            [Parameter(Mandatory = $true)]
+            [string]$Root,
+            [Parameter(Mandatory = $true)]
+            [ValidateSet("local-minimal", "local-default")]
+            [string]$ProfileName
+        )
+
+        foreach ($configFile in Resolve-RuntimeProfileConfigFiles -Root $Root -ProfileName $ProfileName) {
+            $configRuntimeDir = Read-ConfigValue -ConfigFile $configFile -Key "CRAW_CHAT_RUNTIME_DIR"
+            if (-not [string]::IsNullOrWhiteSpace($configRuntimeDir)) {
+                return $configRuntimeDir
+            }
+        }
+
+        return Join-Path $Root ".runtime\local-minimal"
+    }
+}
+
+function Resolve-PrimaryConfigFileFromProfile {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Root,
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("local-minimal", "local-default")]
+        [string]$ProfileName
+    )
+
+    return @(Resolve-RuntimeProfileConfigFiles -Root $Root -ProfileName $ProfileName)[0]
+}
+
+$configFile = Resolve-PrimaryConfigFileFromProfile -Root $root -ProfileName $ProfileName
+$configDir = Split-Path -Parent $configFile
+$runtimeDir = Resolve-RuntimeDirFromProfile -Root $root -ProfileName $ProfileName
+$logsDir = Join-Path $runtimeDir "logs"
+$pidsDir = Join-Path $runtimeDir "pids"
+$stateDir = Join-Path $runtimeDir "state"
+
+foreach ($path in @($configDir, $runtimeDir, $logsDir, $pidsDir, $stateDir)) {
     if (-not (Test-Path $path)) {
-        New-Item -ItemType Directory -Path $path | Out-Null
+        New-Item -ItemType Directory -Path $path -Force | Out-Null
     }
 }
 
@@ -77,7 +141,7 @@ if ([string]::IsNullOrWhiteSpace($publicBearerSecret)) {
 }
 
 $content = @(
-    "# local-minimal runtime config"
+    "# $ProfileName runtime config"
     "CRAW_CHAT_BIND_ADDR=$BindAddress"
     "CRAW_CHAT_RUNTIME_DIR=$runtimeDir"
     "CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET=$publicBearerSecret"

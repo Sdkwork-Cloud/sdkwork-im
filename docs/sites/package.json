@@ -1,0 +1,15 @@
+{
+  "name": "craw-chat-docs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "docs:generate": "node ./scripts/generate-operation-pages.mjs",
+    "docs:dev": "npm run docs:generate && vitepress dev .",
+    "docs:build": "npm run docs:generate && vitepress build .",
+    "docs:preview": "vitepress preview .",
+    "docs:verify": "npm run docs:generate && node ./scripts/verify-api-docs.mjs"
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.4"
+  }
+}

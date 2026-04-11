@@ -33,11 +33,11 @@ fn test_repair_runtime_dir_recreates_missing_files_with_backup_first_flow() {
 
     assert_eq!(report.status, "repaired");
     assert_eq!(report.before.status, "degraded");
-    assert_eq!(report.before.missing_file_count, 9);
+    assert_eq!(report.before.missing_file_count, 12);
     assert_eq!(report.after.status, "ok");
     assert_eq!(report.after.missing_file_count, 0);
     assert_eq!(report.after.corrupt_file_count, 0);
-    assert_eq!(report.repaired_file_count, 9);
+    assert_eq!(report.repaired_file_count, 12);
     assert_eq!(report.skipped_file_count, 0);
 
     let backup_dir = PathBuf::from(
@@ -60,6 +60,24 @@ fn test_repair_runtime_dir_recreates_missing_files_with_backup_first_flow() {
             .trim(),
         "{}"
     );
+    assert_eq!(
+        fs::read_to_string(state_file(
+            runtime_dir.as_path(),
+            "projection-metadata.json"
+        ))
+        .expect("projection metadata should be recreated")
+        .trim(),
+        "{}"
+    );
+    assert_eq!(
+        fs::read_to_string(state_file(
+            runtime_dir.as_path(),
+            "projection-timeline.json"
+        ))
+        .expect("projection timeline should be recreated")
+        .trim(),
+        "{}"
+    );
 
     let _ = fs::remove_dir_all(runtime_dir);
 }
@@ -73,12 +91,12 @@ fn test_repair_runtime_dir_leaves_corrupt_files_untouched_while_fixing_missing_f
     let report = local_minimal_node::repair_runtime_dir(runtime_dir.as_path());
 
     assert_eq!(report.status, "partial");
-    assert_eq!(report.before.missing_file_count, 8);
+    assert_eq!(report.before.missing_file_count, 11);
     assert_eq!(report.before.corrupt_file_count, 1);
     assert_eq!(report.after.status, "degraded");
     assert_eq!(report.after.missing_file_count, 0);
     assert_eq!(report.after.corrupt_file_count, 1);
-    assert_eq!(report.repaired_file_count, 8);
+    assert_eq!(report.repaired_file_count, 11);
     assert_eq!(report.skipped_file_count, 1);
     assert_eq!(
         fs::read_to_string(state_file(runtime_dir.as_path(), "rtc-state.json"))
@@ -89,6 +107,15 @@ fn test_repair_runtime_dir_leaves_corrupt_files_untouched_while_fixing_missing_f
         fs::read_to_string(state_file(runtime_dir.as_path(), "presence-state.json"))
             .expect("missing presence file should be recreated")
             .trim(),
+        "{}"
+    );
+    assert_eq!(
+        fs::read_to_string(state_file(
+            runtime_dir.as_path(),
+            "projection-metadata.json"
+        ))
+        .expect("missing projection metadata file should be recreated")
+        .trim(),
         "{}"
     );
 

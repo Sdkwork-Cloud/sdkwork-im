@@ -24,6 +24,10 @@ impl MetadataStore for NullMetadata {
     fn put_snapshot(&self, _scope: &str, _key: &str, _value: &str) -> Result<(), ContractError> {
         Ok(())
     }
+
+    fn load_snapshot(&self, _scope: &str, _key: &str) -> Result<Option<String>, ContractError> {
+        Ok(None)
+    }
 }
 
 impl TimelineProjectionStore for NullProjection {
@@ -34,6 +38,10 @@ impl TimelineProjectionStore for NullProjection {
         _payload: &str,
     ) -> Result<(), ContractError> {
         Ok(())
+    }
+
+    fn load_timeline(&self, _conversation_id: &str) -> Result<Vec<(u64, String)>, ContractError> {
+        Ok(Vec::new())
     }
 }
 
@@ -105,9 +113,15 @@ fn test_contract_types_are_usable_without_binding_to_a_vendor() {
     metadata
         .put_snapshot("tenant", "demo", "value")
         .expect("metadata snapshot should succeed");
+    metadata
+        .load_snapshot("tenant", "demo")
+        .expect("metadata load should succeed");
     projection
         .upsert_timeline_entry("c_demo", 1, "{}")
         .expect("projection upsert should succeed");
+    projection
+        .load_timeline("c_demo")
+        .expect("projection load should succeed");
     disconnect_fence_store
         .save_fence(RealtimeDisconnectFenceRecord {
             tenant_id: "t_demo".into(),

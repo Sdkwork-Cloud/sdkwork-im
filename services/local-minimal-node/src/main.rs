@@ -265,6 +265,141 @@ async fn main() {
             return;
         }
 
+        if command == "archive-runtime-backup" {
+            let mut runtime_dir = None;
+            let mut backup_dir = None;
+            let mut retention_days = None;
+            let mut legal_hold = false;
+            let mut json_output = false;
+
+            while let Some(argument) = args.next() {
+                match argument.as_str() {
+                    "--runtime-dir" => {
+                        let value = args.next().expect("--runtime-dir requires a value");
+                        runtime_dir = Some(std::path::PathBuf::from(value));
+                    }
+                    "--backup-dir" => {
+                        let value = args.next().expect("--backup-dir requires a value");
+                        backup_dir = Some(std::path::PathBuf::from(value));
+                    }
+                    "--retention-days" => {
+                        let value = args.next().expect("--retention-days requires a value");
+                        retention_days = Some(value.parse::<u64>().unwrap_or_else(|error| {
+                            panic!("--retention-days expects an integer number of days: {error}")
+                        }));
+                    }
+                    "--legal-hold" => {
+                        legal_hold = true;
+                    }
+                    "--json" => {
+                        json_output = true;
+                    }
+                    "-h" | "--help" => {
+                        eprintln!(
+                            "Usage: local-minimal-node archive-runtime-backup --backup-dir <path> [--runtime-dir <path>] [--retention-days <days>] [--legal-hold] [--json]"
+                        );
+                        return;
+                    }
+                    _ => {
+                        eprintln!("Unknown argument for archive-runtime-backup: {argument}");
+                        std::process::exit(1);
+                    }
+                }
+            }
+
+            let runtime_dir = runtime_dir.unwrap_or_else(local_minimal_node::resolve_runtime_dir);
+            let Some(backup_dir) = backup_dir else {
+                eprintln!("--backup-dir is required for archive-runtime-backup");
+                std::process::exit(1);
+            };
+
+            let archive = if retention_days.is_none() && !legal_hold {
+                local_minimal_node::archive_runtime_backup(runtime_dir, backup_dir)
+            } else {
+                local_minimal_node::archive_runtime_backup_with_policy(
+                    runtime_dir,
+                    backup_dir,
+                    retention_days.unwrap_or(30),
+                    legal_hold,
+                )
+            };
+
+            match archive {
+                Ok(report) => {
+                    if json_output {
+                        println!(
+                            "{}",
+                            serde_json::to_string_pretty(&report)
+                                .expect("runtime-dir archive report should serialize")
+                        );
+                    } else {
+                        println!(
+                            "{}",
+                            local_minimal_node::format_runtime_dir_archive(&report)
+                        );
+                    }
+                }
+                Err(error) => {
+                    eprintln!("{error}");
+                    std::process::exit(1);
+                }
+            }
+            return;
+        }
+
+        if command == "prune-archived-runtime-backups" {
+            let mut runtime_dir = None;
+            let mut json_output = false;
+
+            while let Some(argument) = args.next() {
+                match argument.as_str() {
+                    "--runtime-dir" => {
+                        let value = args.next().expect("--runtime-dir requires a value");
+                        runtime_dir = Some(std::path::PathBuf::from(value));
+                    }
+                    "--json" => {
+                        json_output = true;
+                    }
+                    "-h" | "--help" => {
+                        eprintln!(
+                            "Usage: local-minimal-node prune-archived-runtime-backups [--runtime-dir <path>] [--json]"
+                        );
+                        return;
+                    }
+                    _ => {
+                        eprintln!(
+                            "Unknown argument for prune-archived-runtime-backups: {argument}"
+                        );
+                        std::process::exit(1);
+                    }
+                }
+            }
+
+            match local_minimal_node::prune_archived_runtime_backups(
+                runtime_dir.unwrap_or_else(local_minimal_node::resolve_runtime_dir),
+            ) {
+                Ok(report) => {
+                    if json_output {
+                        println!(
+                            "{}",
+                            serde_json::to_string_pretty(&report)
+                                .expect("runtime-dir archive prune report should serialize")
+                        );
+                    } else {
+                        println!(
+                            "{}",
+                            local_minimal_node::format_runtime_dir_archive_prune(&report)
+                        );
+                    }
+                }
+                Err(error) => {
+                    eprintln!("{error}");
+                    std::process::exit(1);
+                }
+            }
+            return;
+        }
+
         eprintln!("Unknown command: {command}");
         std::process::exit(1);
     }

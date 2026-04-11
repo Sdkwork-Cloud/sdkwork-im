@@ -1,0 +1,472 @@
+use std::collections::{BTreeMap, BTreeSet, HashMap};
+
+use im_domain_core::message::{
+    MessagePinned, MessageReactionAdded, MessageReactionRemoved, MessageUnpinned,
+};
+use im_domain_events::CommitEnvelope;
+use serde::{Deserialize, Serialize};
+
+use crate::device_sync::DeviceSyncEntryDraft;
+use crate::model::{InteractionActorView, MessagePinView};
+use crate::scope::scope_key;
+use crate::{
+    MessageInteractionSummaryView, MessageReactionCountView, RealtimeFanoutTarget,
+    TimelineProjectionService,
+};
+
+use super::projection::ProjectionError;
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct StoredMessagePinSummary {
+    pub(super) pinned_by: InteractionActorView,
+    pub(super) pinned_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct StoredMessageInteractionSummary {
+    pub(super) tenant_id: String,
+    pub(super) conversation_id: String,
+    pub(super) message_id: String,
+    pub(super) message_seq: u64,
+    pub(super) reactions: BTreeMap<String, BTreeSet<String>>,
+    pub(super) pin: Option<StoredMessagePinSummary>,
+}
+
+impl TimelineProjectionService {
+    pub fn message_interaction_summary(
+        &self,
+        tenant_id: &str,
+        conversation_id: &str,
+        message_id: &str,
+    ) -> Option<MessageInteractionSummaryView> {
+        let scope = scope_key(tenant_id, conversation_id);
+        if let Some(view) = self
+            .message_interactions
+            .lock()
+            .expect("message interaction store should lock")
+            .get(scope.as_str())
+            .and_then(|scope_items| scope_items.get(message_id))
+            .map(stored_interaction_to_view)
+        {
+            return Some(view);
+        }
+
+        let message_seq = self.timeline_message_seq(tenant_id, conversation_id, message_id)?;
+        Some(MessageInteractionSummaryView {
+            tenant_id: tenant_id.into(),
+            conversation_id: conversation_id.into(),
+            message_id: message_id.into(),
+            message_seq,
+            total_reaction_count: 0,
+            reaction_counts: Vec::new(),
+            pin: None,
+        })
+    }
+
+    pub fn pinned_messages(
+        &self,
+        tenant_id: &str,
+        conversation_id: &str,
+    ) -> Vec<MessageInteractionSummaryView> {
+        let scope = scope_key(tenant_id, conversation_id);
+        let mut items = self
+            .message_interactions
+            .lock()
+            .expect("message interaction store should lock")
+            .get(scope.as_str())
+            .map(|scope_items| {
+                scope_items
+                    .values()
+                    .filter(|item| item.pin.is_some())
+                    .map(stored_interaction_to_view)
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        items.sort_by(|left, right| {
+            right
+                .pin
+                .as_ref()
+                .map(|pin| pin.pinned_at.as_str())
+                .cmp(&left.pin.as_ref().map(|pin| pin.pinned_at.as_str()))
+                .then_with(|| right.message_seq.cmp(&left.message_seq))
+                .then_with(|| left.message_id.cmp(&right.message_id))
+        });
+        items
+    }
+
+    pub(super) fn apply_message_reaction_added(
+        &self,
+        event: &CommitEnvelope,
+    ) -> Result<(), ProjectionError> {
+        let reaction: MessageReactionAdded =
+            serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
+        let changed = self.upsert_message_interaction(
+            reaction.tenant_id.as_str(),
+            reaction.conversation_id.as_str(),
+            reaction.message_id.as_str(),
+            reaction.message_seq,
+            |stored| {
+                stored
+                    .reactions
+                    .entry(reaction.reaction_key.clone())
+                    .or_default()
+                    .insert(reaction.reacted_by.id.clone())
+            },
+        );
+        if !changed {
+            return Ok(());
+        }
+
+        self.fan_out_message_interaction_to_device_sync_feeds(
+            event,
+            reaction.tenant_id.as_str(),
+            reaction.conversation_id.as_str(),
+            reaction.message_id.as_str(),
+            reaction.message_seq,
+            RealtimeFanoutTarget {
+                principal_id: reaction.reacted_by.id.clone(),
+                device_id: reaction.reacted_by.device_id.clone().unwrap_or_default(),
+            },
+            Some(format!("reacted with {}", reaction.reaction_key)),
+            reaction.reacted_at.as_str(),
+        );
+        self.record_projection_update_delay_for_scope(
+            "message.reaction_added",
+            scope_key(
+                reaction.tenant_id.as_str(),
+                reaction.conversation_id.as_str(),
+            )
+            .as_str(),
+            reaction.reacted_at.as_str(),
+        );
+        Ok(())
+    }
+
+    pub(super) fn apply_message_reaction_removed(
+        &self,
+        event: &CommitEnvelope,
+    ) -> Result<(), ProjectionError> {
+        let reaction: MessageReactionRemoved =
+            serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
+        let changed = self.mutate_existing_message_interaction(
+            reaction.tenant_id.as_str(),
+            reaction.conversation_id.as_str(),
+            reaction.message_id.as_str(),
+            |stored| {
+                let Some(actor_ids) = stored.reactions.get_mut(reaction.reaction_key.as_str())
+                else {
+                    return false;
+                };
+                let changed = actor_ids.remove(reaction.removed_by.id.as_str());
+                if actor_ids.is_empty() {
+                    stored.reactions.remove(reaction.reaction_key.as_str());
+                }
+                changed
+            },
+        );
+        if !changed {
+            return Ok(());
+        }
+
+        self.fan_out_message_interaction_to_device_sync_feeds(
+            event,
+            reaction.tenant_id.as_str(),
+            reaction.conversation_id.as_str(),
+            reaction.message_id.as_str(),
+            reaction.message_seq,
+            RealtimeFanoutTarget {
+                principal_id: reaction.removed_by.id.clone(),
+                device_id: reaction.removed_by.device_id.clone().unwrap_or_default(),
+            },
+            Some(format!("removed reaction {}", reaction.reaction_key)),
+            reaction.removed_at.as_str(),
+        );
+        self.record_projection_update_delay_for_scope(
+            "message.reaction_removed",
+            scope_key(
+                reaction.tenant_id.as_str(),
+                reaction.conversation_id.as_str(),
+            )
+            .as_str(),
+            reaction.removed_at.as_str(),
+        );
+        Ok(())
+    }
+
+    pub(super) fn apply_message_pinned(
+        &self,
+        event: &CommitEnvelope,
+    ) -> Result<(), ProjectionError> {
+        let pin: MessagePinned =
+            serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
+        let changed = self.upsert_message_interaction(
+            pin.tenant_id.as_str(),
+            pin.conversation_id.as_str(),
+            pin.message_id.as_str(),
+            pin.message_seq,
+            |stored| {
+                if stored.pin.is_some() {
+                    return false;
+                }
+                stored.pin = Some(StoredMessagePinSummary {
+                    pinned_by: InteractionActorView {
+                        id: pin.pinned_by.id.clone(),
+                        kind: pin.pinned_by.kind.clone(),
+                    },
+                    pinned_at: pin.pinned_at.clone(),
+                });
+                true
+            },
+        );
+        if !changed {
+            return Ok(());
+        }
+
+        self.fan_out_message_interaction_to_device_sync_feeds(
+            event,
+            pin.tenant_id.as_str(),
+            pin.conversation_id.as_str(),
+            pin.message_id.as_str(),
+            pin.message_seq,
+            RealtimeFanoutTarget {
+                principal_id: pin.pinned_by.id.clone(),
+                device_id: pin.pinned_by.device_id.clone().unwrap_or_default(),
+            },
+            Some("pinned message".into()),
+            pin.pinned_at.as_str(),
+        );
+        self.record_projection_update_delay_for_scope(
+            "message.pin_added",
+            scope_key(pin.tenant_id.as_str(), pin.conversation_id.as_str()).as_str(),
+            pin.pinned_at.as_str(),
+        );
+        Ok(())
+    }
+
+    pub(super) fn apply_message_unpinned(
+        &self,
+        event: &CommitEnvelope,
+    ) -> Result<(), ProjectionError> {
+        let pin: MessageUnpinned =
+            serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
+        let changed = self.mutate_existing_message_interaction(
+            pin.tenant_id.as_str(),
+            pin.conversation_id.as_str(),
+            pin.message_id.as_str(),
+            |stored| stored.pin.take().is_some(),
+        );
+        if !changed {
+            return Ok(());
+        }
+
+        self.fan_out_message_interaction_to_device_sync_feeds(
+            event,
+            pin.tenant_id.as_str(),
+            pin.conversation_id.as_str(),
+            pin.message_id.as_str(),
+            pin.message_seq,
+            RealtimeFanoutTarget {
+                principal_id: pin.unpinned_by.id.clone(),
+                device_id: pin.unpinned_by.device_id.clone().unwrap_or_default(),
+            },
+            Some("unpinned message".into()),
+            pin.unpinned_at.as_str(),
+        );
+        self.record_projection_update_delay_for_scope(
+            "message.pin_removed",
+            scope_key(pin.tenant_id.as_str(), pin.conversation_id.as_str()).as_str(),
+            pin.unpinned_at.as_str(),
+        );
+        Ok(())
+    }
+
+    fn timeline_message_seq(
+        &self,
+        tenant_id: &str,
+        conversation_id: &str,
+        message_id: &str,
+    ) -> Option<u64> {
+        self.entries
+            .lock()
+            .expect("projection store should lock")
+            .get(scope_key(tenant_id, conversation_id).as_str())
+            .and_then(|entries| {
+                entries
+                    .iter()
+                    .find(|entry| entry.message_id == message_id)
+                    .map(|entry| entry.message_seq)
+            })
+    }
+
+    fn upsert_message_interaction<F>(
+        &self,
+        tenant_id: &str,
+        conversation_id: &str,
+        message_id: &str,
+        message_seq: u64,
+        mutate: F,
+    ) -> bool
+    where
+        F: FnOnce(&mut StoredMessageInteractionSummary) -> bool,
+    {
+        let scope = scope_key(tenant_id, conversation_id);
+        let mut store = self
+            .message_interactions
+            .lock()
+            .expect("message interaction store should lock");
+        let changed = mutate(
+            store
+                .entry(scope)
+                .or_default()
+                .entry(message_id.into())
+                .or_insert_with(|| StoredMessageInteractionSummary {
+                    tenant_id: tenant_id.into(),
+                    conversation_id: conversation_id.into(),
+                    message_id: message_id.into(),
+                    message_seq,
+                    reactions: BTreeMap::new(),
+                    pin: None,
+                }),
+        );
+        drop(store);
+        self.prune_message_interaction(tenant_id, conversation_id, message_id);
+        changed
+    }
+
+    fn mutate_existing_message_interaction<F>(
+        &self,
+        tenant_id: &str,
+        conversation_id: &str,
+        message_id: &str,
+        mutate: F,
+    ) -> bool
+    where
+        F: FnOnce(&mut StoredMessageInteractionSummary) -> bool,
+    {
+        let scope = scope_key(tenant_id, conversation_id);
+        let mut store = self
+            .message_interactions
+            .lock()
+            .expect("message interaction store should lock");
+        let changed = store
+            .get_mut(scope.as_str())
+            .and_then(|scope_items| scope_items.get_mut(message_id))
+            .is_some_and(mutate);
+        drop(store);
+        self.prune_message_interaction(tenant_id, conversation_id, message_id);
+        changed
+    }
+
+    fn prune_message_interaction(&self, tenant_id: &str, conversation_id: &str, message_id: &str) {
+        let scope = scope_key(tenant_id, conversation_id);
+        let mut store = self
+            .message_interactions
+            .lock()
+            .expect("message interaction store should lock");
+        let remove_scope = if let Some(scope_items) = store.get_mut(scope.as_str()) {
+            let remove_item = scope_items
+                .get(message_id)
+                .is_some_and(|item| item.reactions.is_empty() && item.pin.is_none());
+            if remove_item {
+                scope_items.remove(message_id);
+            }
+            scope_items.is_empty()
+        } else {
+            false
+        };
+        if remove_scope {
+            store.remove(scope.as_str());
+        }
+    }
+
+    fn fan_out_message_interaction_to_device_sync_feeds(
+        &self,
+        event: &CommitEnvelope,
+        tenant_id: &str,
+        conversation_id: &str,
+        message_id: &str,
+        message_seq: u64,
+        actor: RealtimeFanoutTarget,
+        summary: Option<String>,
+        occurred_at: &str,
+    ) {
+        let draft = DeviceSyncEntryDraft {
+            tenant_id: tenant_id.into(),
+            origin_event_id: event.event_id.clone(),
+            origin_event_type: event.event_type.clone(),
+            conversation_id: Some(conversation_id.into()),
+            message_id: Some(message_id.into()),
+            message_seq: Some(message_seq),
+            member_id: None,
+            read_seq: None,
+            last_read_message_id: None,
+            actor_id: Some(actor.principal_id.clone()),
+            actor_kind: Some(event.actor.actor_kind.clone()),
+            actor_device_id: if actor.device_id.is_empty() {
+                None
+            } else {
+                Some(actor.device_id.clone())
+            },
+            summary,
+            payload_schema: event.payload_schema.clone(),
+            payload: Some(event.payload.clone()),
+            occurred_at: occurred_at.into(),
+        };
+
+        for target in self.device_sync_fanout_targets_for_conversation(
+            tenant_id,
+            conversation_id,
+            vec![actor.principal_id],
+        ) {
+            self.append_device_sync_draft(&target, &draft);
+        }
+    }
+}
+
+pub(super) fn interaction_snapshot_items(
+    scope_items: &HashMap<String, StoredMessageInteractionSummary>,
+) -> Vec<StoredMessageInteractionSummary> {
+    let mut items = scope_items.values().cloned().collect::<Vec<_>>();
+    items.sort_by(|left, right| {
+        left.message_seq
+            .cmp(&right.message_seq)
+            .then_with(|| left.message_id.cmp(&right.message_id))
+    });
+    items
+}
+
+pub(super) fn interaction_map_from_items(
+    items: Vec<StoredMessageInteractionSummary>,
+) -> HashMap<String, StoredMessageInteractionSummary> {
+    items
+        .into_iter()
+        .map(|item| (item.message_id.clone(), item))
+        .collect()
+}
+
+fn stored_interaction_to_view(
+    stored: &StoredMessageInteractionSummary,
+) -> MessageInteractionSummaryView {
+    let reaction_counts = stored
+        .reactions
+        .iter()
+        .map(|(reaction_key, actor_ids)| MessageReactionCountView {
+            reaction_key: reaction_key.clone(),
+            count: actor_ids.len() as u64,
+        })
+        .collect::<Vec<_>>();
+    MessageInteractionSummaryView {
+        tenant_id: stored.tenant_id.clone(),
+        conversation_id: stored.conversation_id.clone(),
+        message_id: stored.message_id.clone(),
+        message_seq: stored.message_seq,
+        total_reaction_count: reaction_counts.iter().map(|item| item.count).sum(),
+        reaction_counts,
+        pin: stored.pin.as_ref().map(|pin| MessagePinView {
+            pinned_by: pin.pinned_by.clone(),
+            pinned_at: pin.pinned_at.clone(),
+        }),
+    }
+}

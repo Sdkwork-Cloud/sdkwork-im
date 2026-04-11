@@ -1,0 +1,11 @@
+{
+  "name": "craw-chat-portal",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/preview.mjs --root . --port 4176",
+    "build": "node scripts/build.mjs",
+    "preview": "node scripts/preview.mjs --root dist --port 4176",
+    "test": "node --test --experimental-test-isolation=none tests/*.test.mjs"
+  }
+}

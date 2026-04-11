@@ -1,24 +1,22 @@
-use std::sync::{Mutex, MutexGuard, OnceLock};
+use std::sync::OnceLock;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
 use im_auth_context::{PUBLIC_BEARER_HS256_SECRET_ENV, encode_hs256_bearer_token};
 use serde_json::json;
+use tokio::sync::{Mutex, MutexGuard};
 use tower::ServiceExt;
 
 const TEST_PUBLIC_SECRET: &str = "public-test-secret";
 
-fn public_auth_guard() -> MutexGuard<'static, ()> {
+async fn public_auth_guard() -> MutexGuard<'static, ()> {
     static GUARD: OnceLock<Mutex<()>> = OnceLock::new();
-    GUARD
-        .get_or_init(|| Mutex::new(()))
-        .lock()
-        .expect("public auth guard should lock")
+    GUARD.get_or_init(|| Mutex::new(())).lock().await
 }
 
-fn configure_public_bearer_secret() -> MutexGuard<'static, ()> {
-    let guard = public_auth_guard();
+async fn configure_public_bearer_secret() -> MutexGuard<'static, ()> {
+    let guard = public_auth_guard().await;
     unsafe {
         std::env::set_var(PUBLIC_BEARER_HS256_SECRET_ENV, TEST_PUBLIC_SECRET);
     }
@@ -79,7 +77,7 @@ fn other_automation_bearer() -> String {
 
 #[tokio::test]
 async fn test_public_app_rejects_trusted_headers_for_execution_request() {
-    let _guard = configure_public_bearer_secret();
+    let _guard = configure_public_bearer_secret().await;
     let app = automation_service::build_public_app();
 
     let response = app
@@ -117,7 +115,7 @@ async fn test_public_app_rejects_trusted_headers_for_execution_request() {
 
 #[tokio::test]
 async fn test_public_app_rejects_unprivileged_bearer_for_execution_request() {
-    let _guard = configure_public_bearer_secret();
+    let _guard = configure_public_bearer_secret().await;
     let app = automation_service::build_public_app();
 
     let response = app
@@ -154,7 +152,7 @@ async fn test_public_app_rejects_unprivileged_bearer_for_execution_request() {
 
 #[tokio::test]
 async fn test_public_app_accepts_bearer_with_execute_permission_for_execution_request() {
-    let _guard = configure_public_bearer_secret();
+    let _guard = configure_public_bearer_secret().await;
     let app = automation_service::build_public_app();
 
     let response = app
@@ -183,7 +181,7 @@ async fn test_public_app_accepts_bearer_with_execute_permission_for_execution_re
 
 #[tokio::test]
 async fn test_public_app_rejects_execution_lookup_without_read_permission() {
-    let _guard = configure_public_bearer_secret();
+    let _guard = configure_public_bearer_secret().await;
     let app = automation_service::build_public_app();
 
     let create = app
@@ -233,7 +231,7 @@ async fn test_public_app_rejects_execution_lookup_without_read_permission() {
 
 #[tokio::test]
 async fn test_public_app_hides_cross_principal_execution_lookup() {
-    let _guard = configure_public_bearer_secret();
+    let _guard = configure_public_bearer_secret().await;
     let app = automation_service::build_public_app();
 
     let create = app

@@ -4,11 +4,11 @@ use std::sync::{Arc, Mutex};
 use im_domain_events::CommitEnvelope;
 use im_platform_contracts::{
     AutomationExecutionRecord, AutomationExecutionStore, CommitJournal, CommitPosition,
-    ContractError, MetadataStore, NotificationTaskRecord, NotificationTaskStore,
-    PresenceStateRecord, PresenceStateStore, RealtimeCheckpointRecord, RealtimeCheckpointStore,
-    RealtimeDisconnectFenceRecord, RealtimeDisconnectFenceStore, RealtimeSubscriptionRecord,
-    RealtimeSubscriptionStore, RtcStateRecord, RtcStateStore, StreamStateRecord, StreamStateStore,
-    TimelineProjectionStore,
+    ContractError, DeviceTwinRecord, DeviceTwinStore, MetadataStore, NotificationTaskRecord,
+    NotificationTaskStore, PresenceStateRecord, PresenceStateStore, RealtimeCheckpointRecord,
+    RealtimeCheckpointStore, RealtimeDisconnectFenceRecord, RealtimeDisconnectFenceStore,
+    RealtimeSubscriptionRecord, RealtimeSubscriptionStore, RtcStateRecord, RtcStateStore,
+    StreamStateRecord, StreamStateStore, TimelineProjectionStore,
 };
 
 #[derive(Clone)]
@@ -70,6 +70,10 @@ impl MetadataStore for MemoryMetadataStore {
             .insert(snapshot_key(scope, key), value.to_string());
         Ok(())
     }
+
+    fn load_snapshot(&self, scope: &str, key: &str) -> Result<Option<String>, ContractError> {
+        Ok(self.snapshot(scope, key))
+    }
 }
 
 #[derive(Clone, Default)]
@@ -112,6 +116,42 @@ impl RealtimeCheckpointStore for MemoryRealtimeCheckpointStore {
                     record.principal_id.as_str(),
                     record.device_id.as_str(),
                 ),
+                record,
+            );
+        Ok(())
+    }
+}
+
+#[derive(Clone, Default)]
+pub struct MemoryDeviceTwinStore {
+    twins: Arc<Mutex<HashMap<String, DeviceTwinRecord>>>,
+}
+
+impl MemoryDeviceTwinStore {
+    pub fn twin(&self, tenant_id: &str, device_id: &str) -> Option<DeviceTwinRecord> {
+        self.twins
+            .lock()
+            .expect("device twin store should lock")
+            .get(device_twin_scope_key(tenant_id, device_id).as_str())
+            .cloned()
+    }
+}
+
+impl DeviceTwinStore for MemoryDeviceTwinStore {
+    fn load_twin(
+        &self,
+        tenant_id: &str,
+        device_id: &str,
+    ) -> Result<Option<DeviceTwinRecord>, ContractError> {
+        Ok(self.twin(tenant_id, device_id))
+    }
+
+    fn save_twin(&self, record: DeviceTwinRecord) -> Result<(), ContractError> {
+        self.twins
+            .lock()
+            .expect("device twin store should lock")
+            .insert(
+                device_twin_scope_key(record.tenant_id.as_str(), record.device_id.as_str()),
                 record,
             );
         Ok(())
@@ -524,10 +564,18 @@ impl TimelineProjectionStore for MemoryTimelineProjectionStore {
             .insert(message_seq, payload.to_string());
         Ok(())
     }
+
+    fn load_timeline(&self, conversation_id: &str) -> Result<Vec<(u64, String)>, ContractError> {
+        Ok(self.entries(conversation_id))
+    }
 }
 
 fn snapshot_key(scope: &str, key: &str) -> String {
     format!("{scope}:{key}")
+}
+
+fn device_twin_scope_key(tenant_id: &str, device_id: &str) -> String {
+    format!("{tenant_id}:{device_id}")
 }
 
 fn device_scope_key(tenant_id: &str, principal_id: &str, device_id: &str) -> String {

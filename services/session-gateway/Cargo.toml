@@ -6,7 +6,17 @@ version.workspace = true
 
 [dependencies]
 axum.workspace = true
+craw-chat-ccp-binding-ws = { path = "../../crates/craw-chat-ccp-binding-ws" }
+craw-chat-ccp-codec = { path = "../../crates/craw-chat-ccp-codec" }
+craw-chat-ccp-codec-json = { path = "../../crates/craw-chat-ccp-codec-json" }
+craw-chat-ccp-control = { path = "../../crates/craw-chat-ccp-control" }
+craw-chat-ccp-core = { path = "../../crates/craw-chat-ccp-core" }
+craw-chat-contract-control = { path = "../../crates/craw-chat-contract-control" }
+craw-chat-contract-core = { path = "../../crates/craw-chat-contract-core" }
+craw-chat-runtime-link = { path = "../../crates/craw-chat-runtime-link" }
+craw-chat-runtime-route = { path = "../../crates/craw-chat-runtime-route" }
 futures-util.workspace = true
+im-adapter-iot-access-local = { path = "../../adapters/iot-access-local" }
 im-auth-context = { path = "../../crates/im-auth-context" }
 im-domain-core = { path = "../../crates/im-domain-core" }
 im-platform-contracts = { path = "../../crates/im-platform-contracts" }

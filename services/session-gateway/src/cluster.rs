@@ -2,28 +2,23 @@ use std::collections::HashMap;
 use std::fmt;
 use std::sync::{Arc, Mutex};
 
-use im_platform_contracts::{
-    ContractError, RealtimeDisconnectFenceRecord, RealtimeDisconnectFenceStore,
+use craw_chat_contract_control::RealtimeDisconnectFenceStore;
+use craw_chat_runtime_route::{
+    RouteBinding, RouteBindingRequest, RouteDirectory, RouteMigrationResult, RouteNodeLifecycle,
+    RouteRuntimeError,
 };
 use im_time::utc_now_rfc3339_millis;
-use serde::{Deserialize, Serialize};
 
 use crate::{
     RealtimeDeliveryRuntime,
     realtime::{RealtimeDeviceStateSnapshot, RealtimeRuntimeError},
 };
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RealtimeDeviceRoute {
-    pub tenant_id: String,
-    pub principal_id: String,
-    pub device_id: String,
-    pub owner_node_id: String,
-    pub session_id: Option<String>,
-    pub connection_kind: String,
-    pub bound_at: String,
-}
+mod disconnect;
+
+use disconnect::{ClusterMemoryDisconnectFenceStore, RealtimeDisconnectFence};
+
+pub type RealtimeDeviceRoute = RouteBinding;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RealtimeRouteDeliveryResult {
@@ -32,26 +27,8 @@ pub struct RealtimeRouteDeliveryResult {
     pub delivered: usize,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RealtimeNodeLifecycleView {
-    pub node_id: String,
-    pub drain_status: String,
-    pub rebalance_state: String,
-    pub owned_route_count: usize,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RealtimeRouteMigrationResult {
-    pub source_node_id: String,
-    pub target_node_id: String,
-    pub migrated_route_count: usize,
-    pub source_drain_status: String,
-    pub source_rebalance_state: String,
-    pub target_drain_status: String,
-    pub target_rebalance_state: String,
-}
+pub type RealtimeNodeLifecycleView = RouteNodeLifecycle;
+pub type RealtimeRouteMigrationResult = RouteMigrationResult;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RealtimeClusterError {
@@ -62,79 +39,12 @@ pub struct RealtimeClusterError {
     pub rebalance_state: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-struct RealtimeNodeLifecycleRecord {
-    drain_status: String,
-    rebalance_state: String,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-struct RealtimeDisconnectFence {
-    tenant_id: String,
-    principal_id: String,
-    device_id: String,
-    session_id: Option<String>,
-    owner_node_id: String,
-    disconnected_at: String,
-}
-
 #[derive(Clone)]
 pub struct RealtimeClusterBridge {
     node_runtimes: Arc<Mutex<HashMap<String, Arc<RealtimeDeliveryRuntime>>>>,
-    device_routes: Arc<Mutex<HashMap<String, RealtimeDeviceRoute>>>,
+    route_directory: RouteDirectory,
     disconnect_fences: Arc<Mutex<HashMap<String, RealtimeDisconnectFence>>>,
-    node_lifecycles: Arc<Mutex<HashMap<String, RealtimeNodeLifecycleRecord>>>,
     disconnect_fence_store: Arc<dyn RealtimeDisconnectFenceStore>,
-}
-
-#[derive(Clone, Default)]
-struct ClusterMemoryDisconnectFenceStore {
-    fences: Arc<Mutex<HashMap<String, RealtimeDisconnectFenceRecord>>>,
-}
-
-impl RealtimeDisconnectFenceStore for ClusterMemoryDisconnectFenceStore {
-    fn load_fence(
-        &self,
-        tenant_id: &str,
-        principal_id: &str,
-        device_id: &str,
-    ) -> Result<Option<RealtimeDisconnectFenceRecord>, ContractError> {
-        Ok(self
-            .fences
-            .lock()
-            .expect("cluster disconnect fence store should lock")
-            .get(device_scope_key(tenant_id, principal_id, device_id).as_str())
-            .cloned())
-    }
-
-    fn save_fence(&self, record: RealtimeDisconnectFenceRecord) -> Result<(), ContractError> {
-        self.fences
-            .lock()
-            .expect("cluster disconnect fence store should lock")
-            .insert(
-                device_scope_key(
-                    record.tenant_id.as_str(),
-                    record.principal_id.as_str(),
-                    record.device_id.as_str(),
-                ),
-                record,
-            );
-        Ok(())
-    }
-
-    fn clear_fence(
-        &self,
-        tenant_id: &str,
-        principal_id: &str,
-        device_id: &str,
-    ) -> Result<bool, ContractError> {
-        Ok(self
-            .fences
-            .lock()
-            .expect("cluster disconnect fence store should lock")
-            .remove(device_scope_key(tenant_id, principal_id, device_id).as_str())
-            .is_some())
-    }
 }
 
 impl Default for RealtimeClusterBridge {
@@ -157,9 +67,8 @@ impl RealtimeClusterBridge {
     ) -> Self {
         Self {
             node_runtimes: Arc::new(Mutex::new(HashMap::new())),
-            device_routes: Arc::new(Mutex::new(HashMap::new())),
+            route_directory: RouteDirectory::default(),
             disconnect_fences: Arc::new(Mutex::new(HashMap::new())),
-            node_lifecycles: Arc::new(Mutex::new(HashMap::new())),
             disconnect_fence_store,
         }
     }
@@ -169,7 +78,7 @@ impl RealtimeClusterBridge {
             .lock()
             .expect("realtime cluster runtime registry should lock")
             .insert(node_id.into(), runtime);
-        self.ensure_node_lifecycle(node_id);
+        self.route_directory.register_node(node_id);
     }
 
     pub fn bind_device_route(
@@ -182,96 +91,59 @@ impl RealtimeClusterBridge {
         connection_kind: &str,
     ) -> Result<RealtimeDeviceRoute, RealtimeClusterError> {
         self.require_known_node(owner_node_id)?;
-        let node_state = self.node_lifecycle(owner_node_id).ok_or_else(|| {
-            self.node_error(
-                "node_not_found",
-                owner_node_id,
-                format!("node not found: {owner_node_id}"),
-            )
-        })?;
-        if node_state.drain_status != "active" {
-            return Err(self.node_error(
-                "node_draining",
-                owner_node_id,
-                format!(
-                    "node {owner_node_id} is not accepting new route binds while {}",
-                    node_state.drain_status
-                ),
-            ));
-        }
-
-        let scope_key = device_scope_key(tenant_id, principal_id, device_id);
-        let previous_route = self
-            .device_routes
-            .lock()
-            .expect("realtime cluster route directory should lock")
-            .get(scope_key.as_str())
-            .cloned();
-        if let Some(previous_route) = previous_route.as_ref() {
-            if previous_route.owner_node_id != owner_node_id {
-                let target_runtime = self.require_runtime(owner_node_id)?;
-                match self.require_runtime(previous_route.owner_node_id.as_str()) {
-                    Ok(source_runtime) => {
-                        let snapshot: RealtimeDeviceStateSnapshot = source_runtime
-                            .take_device_state(tenant_id, principal_id, device_id)
-                            .map_err(|error| {
-                                self.runtime_store_error(
-                                    "take device state for route rebind",
-                                    previous_route.owner_node_id.as_str(),
-                                    error,
-                                )
-                            })?;
-                        target_runtime
-                            .restore_device_state(snapshot)
-                            .map_err(|error| {
-                                self.runtime_store_error(
-                                    "restore device state for route rebind",
-                                    owner_node_id,
-                                    error,
-                                )
-                            })?;
-                    }
-                    Err(error) if error.code == "node_runtime_missing" => {
-                        // The previous owner runtime is already gone, so in-memory state
-                        // cannot be handed off. Keep availability by moving ownership to the
-                        // new active node and let the target restore any durable checkpoint
-                        // state it knows about.
-                        target_runtime
-                            .ensure_device_state(tenant_id, principal_id, device_id)
-                            .map_err(|error| {
-                                self.runtime_store_error(
-                                    "restore durable checkpoint during route rebind",
-                                    owner_node_id,
-                                    error,
-                                )
-                            })?;
-                    }
-                    Err(error) => return Err(error),
+        let previous_route = self.resolve_device_route(tenant_id, principal_id, device_id);
+        if let Some(previous_route) = previous_route.as_ref()
+            && previous_route.owner_node_id != owner_node_id
+        {
+            let target_runtime = self.require_runtime(owner_node_id)?;
+            match self.require_runtime(previous_route.owner_node_id.as_str()) {
+                Ok(source_runtime) => {
+                    let snapshot: RealtimeDeviceStateSnapshot = source_runtime
+                        .take_device_state(tenant_id, principal_id, device_id)
+                        .map_err(|error| {
+                            self.runtime_store_error(
+                                "take device state for route rebind",
+                                previous_route.owner_node_id.as_str(),
+                                error,
+                            )
+                        })?;
+                    target_runtime
+                        .restore_device_state(snapshot)
+                        .map_err(|error| {
+                            self.runtime_store_error(
+                                "restore device state for route rebind",
+                                owner_node_id,
+                                error,
+                            )
+                        })?;
                 }
+                Err(error) if error.code == "node_runtime_missing" => {
+                    // The previous owner runtime is already gone, so in-memory state
+                    // cannot be handed off. Keep availability by moving ownership to the
+                    // new active node and let the target restore any durable checkpoint
+                    // state it knows about.
+                    target_runtime
+                        .ensure_device_state(tenant_id, principal_id, device_id)
+                        .map_err(|error| {
+                            self.runtime_store_error(
+                                "restore durable checkpoint during route rebind",
+                                owner_node_id,
+                                error,
+                            )
+                        })?;
+                }
+                Err(error) => return Err(error),
             }
         }
 
-        let route = RealtimeDeviceRoute {
-            tenant_id: tenant_id.into(),
-            principal_id: principal_id.into(),
-            device_id: device_id.into(),
-            owner_node_id: owner_node_id.into(),
-            session_id: session_id.map(str::to_owned),
-            connection_kind: connection_kind.into(),
-            bound_at: cluster_timestamp(),
-        };
-        self.device_routes
-            .lock()
-            .expect("realtime cluster route directory should lock")
-            .insert(scope_key, route.clone());
-        if let Some(previous_route) = previous_route.as_ref() {
-            if previous_route.owner_node_id != owner_node_id {
-                self.reconcile_source_lifecycle_after_route_departure(
-                    previous_route.owner_node_id.as_str(),
-                );
-            }
-        }
-        Ok(route)
+        self.route_directory
+            .bind(
+                RouteBindingRequest::new(tenant_id, principal_id, device_id, owner_node_id)
+                    .with_session_id(session_id)
+                    .with_connection_kind(connection_kind)
+                    .with_bound_at(cluster_timestamp()),
+            )
+            .map_err(|error| self.route_error(error))
     }
 
     pub fn ensure_route_session_current(
@@ -311,17 +183,52 @@ impl RealtimeClusterBridge {
         ))
     }
 
+    pub fn ensure_device_route_local(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        device_id: &str,
+        local_node_id: &str,
+    ) -> Result<(), RealtimeClusterError> {
+        let Some(route) = self.resolve_device_route(tenant_id, principal_id, device_id) else {
+            return Ok(());
+        };
+        if route.owner_node_id == local_node_id {
+            return Ok(());
+        }
+
+        if self
+            .node_lifecycle(local_node_id)
+            .is_some_and(|node| node.drain_status != "active")
+        {
+            return Err(self.node_error(
+                "node_draining",
+                local_node_id,
+                format!(
+                    "node {local_node_id} cannot rebind a device route currently owned by node {} while draining",
+                    route.owner_node_id
+                ),
+            ));
+        }
+
+        Err(self.node_error(
+            "route_owned_by_other_node",
+            route.owner_node_id.as_str(),
+            format!(
+                "device route is currently owned by node {}",
+                route.owner_node_id
+            ),
+        ))
+    }
+
     pub fn resolve_device_route(
         &self,
         tenant_id: &str,
         principal_id: &str,
         device_id: &str,
     ) -> Option<RealtimeDeviceRoute> {
-        self.device_routes
-            .lock()
-            .expect("realtime cluster route directory should lock")
-            .get(device_scope_key(tenant_id, principal_id, device_id).as_str())
-            .cloned()
+        self.route_directory
+            .lookup(tenant_id, principal_id, device_id)
     }
 
     pub fn release_device_route(
@@ -331,173 +238,34 @@ impl RealtimeClusterBridge {
         device_id: &str,
         owner_node_id: &str,
     ) -> Option<RealtimeDeviceRoute> {
-        let scope_key = device_scope_key(tenant_id, principal_id, device_id);
-        let removed = {
-            let mut directory = self
-                .device_routes
-                .lock()
-                .expect("realtime cluster route directory should lock");
-            match directory.get(scope_key.as_str()) {
-                Some(route) if route.owner_node_id == owner_node_id => {
-                    directory.remove(scope_key.as_str())
-                }
-                _ => None,
-            }
-        };
-        if let Some(route) = removed.as_ref() {
-            self.reconcile_source_lifecycle_after_route_departure(route.owner_node_id.as_str());
-        }
-        removed
-    }
-
-    pub fn mark_device_disconnected(
-        &self,
-        tenant_id: &str,
-        principal_id: &str,
-        device_id: &str,
-        session_id: Option<&str>,
-        owner_node_id: &str,
-    ) -> Result<(), RealtimeClusterError> {
-        let scope_key = device_scope_key(tenant_id, principal_id, device_id);
-        let fence = RealtimeDisconnectFence {
-            tenant_id: tenant_id.into(),
-            principal_id: principal_id.into(),
-            device_id: device_id.into(),
-            session_id: session_id.map(str::to_owned),
-            owner_node_id: owner_node_id.into(),
-            disconnected_at: cluster_timestamp(),
-        };
-        self.disconnect_fence_store
-            .save_fence(fence.to_record())
-            .map_err(|error| {
-                self.disconnect_fence_store_error("persist disconnect fence", owner_node_id, error)
-            })?;
-        self.disconnect_fences
-            .lock()
-            .expect("realtime cluster disconnect fence store should lock")
-            .insert(scope_key, fence);
-        Ok(())
-    }
-
-    pub fn clear_device_disconnect_fence(
-        &self,
-        tenant_id: &str,
-        principal_id: &str,
-        device_id: &str,
-    ) -> Result<bool, RealtimeClusterError> {
-        let persisted_removed = self
-            .disconnect_fence_store
-            .clear_fence(tenant_id, principal_id, device_id)
-            .map_err(|error| {
-                self.disconnect_fence_store_error("clear disconnect fence", "storage", error)
-            })?;
-        let removed = self
-            .disconnect_fences
-            .lock()
-            .expect("realtime cluster disconnect fence store should lock")
-            .remove(device_scope_key(tenant_id, principal_id, device_id).as_str())
-            .is_some();
-        Ok(removed || persisted_removed)
-    }
-
-    pub fn ensure_device_resume_not_required(
-        &self,
-        tenant_id: &str,
-        principal_id: &str,
-        device_id: &str,
-    ) -> Result<(), RealtimeClusterError> {
-        let Some(fence) = self.load_disconnect_fence(tenant_id, principal_id, device_id)? else {
-            return Ok(());
-        };
-        Err(self.node_error(
-            "reconnect_required",
-            fence.owner_node_id.as_str(),
-            format!(
-                "device must resume a fresh session before continuing after disconnect on node {}",
-                fence.owner_node_id
-            ),
-        ))
-    }
-
-    pub fn disconnect_fence_matches_session(
-        &self,
-        tenant_id: &str,
-        principal_id: &str,
-        device_id: &str,
-        session_id: Option<&str>,
-    ) -> Result<bool, RealtimeClusterError> {
-        Ok(self
-            .load_disconnect_fence(tenant_id, principal_id, device_id)?
-            .as_ref()
-            .map(|fence| fence.session_id.as_deref() == session_id)
-            .unwrap_or(false))
+        self.route_directory
+            .release(tenant_id, principal_id, device_id, owner_node_id)
     }
 
     pub fn routes_for_node(&self, owner_node_id: &str) -> Vec<RealtimeDeviceRoute> {
-        let mut items = self
-            .device_routes
-            .lock()
-            .expect("realtime cluster route directory should lock")
-            .values()
-            .filter(|route| route.owner_node_id == owner_node_id)
-            .cloned()
-            .collect::<Vec<_>>();
-        items.sort_by(|left, right| {
-            left.tenant_id
-                .cmp(&right.tenant_id)
-                .then_with(|| left.principal_id.cmp(&right.principal_id))
-                .then_with(|| left.device_id.cmp(&right.device_id))
-        });
-        items
+        self.route_directory.routes_for_node(owner_node_id)
     }
 
     pub fn node_lifecycle(&self, node_id: &str) -> Option<RealtimeNodeLifecycleView> {
-        self.node_lifecycles
-            .lock()
-            .expect("realtime cluster lifecycle store should lock")
-            .get(node_id)
-            .cloned()
-            .map(|record| RealtimeNodeLifecycleView {
-                node_id: node_id.into(),
-                drain_status: record.drain_status,
-                rebalance_state: record.rebalance_state,
-                owned_route_count: self.route_count_for_node(node_id),
-            })
+        self.route_directory.node_lifecycle(node_id)
     }
 
     pub fn mark_node_draining(
         &self,
         node_id: &str,
     ) -> Result<RealtimeNodeLifecycleView, RealtimeClusterError> {
-        self.require_known_node(node_id)?;
-        let owned_route_count = self.route_count_for_node(node_id);
-        if owned_route_count == 0 {
-            self.set_node_lifecycle(node_id, "drained", "stable");
-        } else {
-            self.set_node_lifecycle(node_id, "draining", "moving_routes");
-        }
-        self.node_lifecycle(node_id).ok_or_else(|| {
-            self.node_error(
-                "node_not_found",
-                node_id,
-                format!("node lifecycle not found: {node_id}"),
-            )
-        })
+        self.route_directory
+            .mark_node_draining(node_id)
+            .map_err(|error| self.route_error(error))
     }
 
     pub fn activate_node(
         &self,
         node_id: &str,
     ) -> Result<RealtimeNodeLifecycleView, RealtimeClusterError> {
-        self.require_known_node(node_id)?;
-        self.set_node_lifecycle(node_id, "active", "stable");
-        self.node_lifecycle(node_id).ok_or_else(|| {
-            self.node_error(
-                "node_not_found",
-                node_id,
-                format!("node lifecycle not found: {node_id}"),
-            )
-        })
+        self.route_directory
+            .activate_node(node_id)
+            .map_err(|error| self.route_error(error))
     }
 
     pub fn migrate_node_routes(
@@ -545,7 +313,6 @@ impl RealtimeClusterBridge {
 
         let routes = self.routes_for_node(source_node_id);
         if !routes.is_empty() {
-            self.set_node_lifecycle(source_node_id, "draining", "moving_routes");
             let source_runtime = self.require_runtime(source_node_id)?;
             let target_runtime = self.require_runtime(target_node_id)?;
 
@@ -573,64 +340,17 @@ impl RealtimeClusterBridge {
                         )
                     })?;
             }
-
-            let mut directory = self
-                .device_routes
-                .lock()
-                .expect("realtime cluster route directory should lock");
-            for route in &routes {
-                directory.insert(
-                    device_scope_key(
-                        route.tenant_id.as_str(),
-                        route.principal_id.as_str(),
-                        route.device_id.as_str(),
-                    ),
-                    RealtimeDeviceRoute {
-                        tenant_id: route.tenant_id.clone(),
-                        principal_id: route.principal_id.clone(),
-                        device_id: route.device_id.clone(),
-                        owner_node_id: target_node_id.into(),
-                        session_id: route.session_id.clone(),
-                        connection_kind: route.connection_kind.clone(),
-                        bound_at: cluster_timestamp(),
-                    },
-                );
-            }
         }
 
-        self.set_node_lifecycle(target_node_id, "active", "stable");
-        if self.route_count_for_node(source_node_id) == 0 {
-            self.set_node_lifecycle(source_node_id, "drained", "stable");
-        } else {
-            self.set_node_lifecycle(source_node_id, "draining", "moving_routes");
-        }
-
-        let source_after = self.node_lifecycle(source_node_id).ok_or_else(|| {
-            self.node_error(
-                "node_not_found",
-                source_node_id,
-                format!("source node not found after migration: {source_node_id}"),
-            )
-        })?;
-        let target_after = self.node_lifecycle(target_node_id).ok_or_else(|| {
-            self.node_error(
-                "target_node_not_found",
-                target_node_id,
-                format!("target node not found after migration: {target_node_id}"),
-            )
-        })?;
-
-        Ok(RealtimeRouteMigrationResult {
-            source_node_id: source_node_id.into(),
-            target_node_id: target_node_id.into(),
-            migrated_route_count: routes.len(),
-            source_drain_status: source_after.drain_status,
-            source_rebalance_state: source_after.rebalance_state,
-            target_drain_status: target_after.drain_status,
-            target_rebalance_state: target_after.rebalance_state,
-        })
+        self.route_directory
+            .migrate_routes_at(source_node_id, target_node_id, cluster_timestamp().as_str())
+            .map_err(|error| self.route_error(error))
     }
 
+    // The route publish entrypoint intentionally keeps the delivery identity
+    // fields explicit so callers cannot accidentally reorder device targeting
+    // and event metadata during cross-node fanout.
+    #[allow(clippy::too_many_arguments)]
     pub fn publish_device_event(
         &self,
         origin_node_id: &str,
@@ -695,41 +415,8 @@ impl RealtimeClusterBridge {
         }
     }
 
-    fn ensure_node_lifecycle(&self, node_id: &str) {
-        self.node_lifecycles
-            .lock()
-            .expect("realtime cluster lifecycle store should lock")
-            .entry(node_id.into())
-            .or_insert_with(|| RealtimeNodeLifecycleRecord {
-                drain_status: "active".into(),
-                rebalance_state: "stable".into(),
-            });
-    }
-
-    fn set_node_lifecycle(&self, node_id: &str, drain_status: &str, rebalance_state: &str) {
-        self.node_lifecycles
-            .lock()
-            .expect("realtime cluster lifecycle store should lock")
-            .insert(
-                node_id.into(),
-                RealtimeNodeLifecycleRecord {
-                    drain_status: drain_status.into(),
-                    rebalance_state: rebalance_state.into(),
-                },
-            );
-    }
-
-    fn route_count_for_node(&self, owner_node_id: &str) -> usize {
-        self.device_routes
-            .lock()
-            .expect("realtime cluster route directory should lock")
-            .values()
-            .filter(|route| route.owner_node_id == owner_node_id)
-            .count()
-    }
-
     fn require_known_node(&self, node_id: &str) -> Result<(), RealtimeClusterError> {
-        if self.node_lifecycle(node_id).is_some() {
+        if self.route_directory.node_lifecycle(node_id).is_some() {
             return Ok(());
         }
 
@@ -780,67 +467,6 @@ impl RealtimeClusterBridge {
         }
     }
 
-    fn reconcile_source_lifecycle_after_route_departure(&self, node_id: &str) {
-        let Some(lifecycle) = self.node_lifecycle(node_id) else {
-            return;
-        };
-        if lifecycle.drain_status != "draining" {
-            return;
-        }
-
-        if self.route_count_for_node(node_id) == 0 {
-            self.set_node_lifecycle(node_id, "drained", "stable");
-        } else {
-            self.set_node_lifecycle(node_id, "draining", "moving_routes");
-        }
-    }
-
-    fn load_disconnect_fence(
-        &self,
-        tenant_id: &str,
-        principal_id: &str,
-        device_id: &str,
-    ) -> Result<Option<RealtimeDisconnectFence>, RealtimeClusterError> {
-        let scope_key = device_scope_key(tenant_id, principal_id, device_id);
-        if let Some(fence) = self
-            .disconnect_fences
-            .lock()
-            .expect("realtime cluster disconnect fence store should lock")
-            .get(scope_key.as_str())
-            .cloned()
-        {
-            return Ok(Some(fence));
-        }
-
-        let restored = self
-            .disconnect_fence_store
-            .load_fence(tenant_id, principal_id, device_id)
-            .map_err(|error| {
-                self.disconnect_fence_store_error("load disconnect fence", "storage", error)
-            })?
-            .map(RealtimeDisconnectFence::from_record);
-        if let Some(fence) = restored.as_ref() {
-            self.disconnect_fences
-                .lock()
-                .expect("realtime cluster disconnect fence store should lock")
-                .insert(scope_key, fence.clone());
-        }
-        Ok(restored)
-    }
-
-    fn disconnect_fence_store_error(
-        &self,
-        action: &str,
-        node_id: &str,
-        error: ContractError,
-    ) -> RealtimeClusterError {
-        self.node_error(
-            "disconnect_fence_store_unavailable",
-            node_id,
-            format!("{action} failed: {error:?}"),
-        )
-    }
-
     fn runtime_store_error(
         &self,
         action: &str,
@@ -853,29 +479,9 @@ impl RealtimeClusterBridge {
             format!("{action} failed: {}", error.message),
         )
     }
-}
 
-impl RealtimeDisconnectFence {
-    fn to_record(&self) -> RealtimeDisconnectFenceRecord {
-        RealtimeDisconnectFenceRecord {
-            tenant_id: self.tenant_id.clone(),
-            principal_id: self.principal_id.clone(),
-            device_id: self.device_id.clone(),
-            session_id: self.session_id.clone(),
-            owner_node_id: self.owner_node_id.clone(),
-            disconnected_at: self.disconnected_at.clone(),
-        }
-    }
-
-    fn from_record(record: RealtimeDisconnectFenceRecord) -> Self {
-        Self {
-            tenant_id: record.tenant_id,
-            principal_id: record.principal_id,
-            device_id: record.device_id,
-            session_id: record.session_id,
-            owner_node_id: record.owner_node_id,
-            disconnected_at: record.disconnected_at,
-        }
+    fn route_error(&self, error: RouteRuntimeError) -> RealtimeClusterError {
+        self.node_error(error.code, error.node_id.as_str(), error.message)
     }
 }
 
@@ -883,11 +489,18 @@ fn device_scope_key(tenant_id: &str, principal_id: &str, device_id: &str) -> Str
     format!("{tenant_id}:{principal_id}:{device_id}")
 }
 
+fn cluster_timestamp() -> String {
+    utc_now_rfc3339_millis()
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
 
     use im_adapters_local_memory::MemoryRealtimeDisconnectFenceStore;
+    use im_platform_contracts::{
+        ContractError, RealtimeDisconnectFenceRecord, RealtimeDisconnectFenceStore,
+    };
 
     use super::*;
     use crate::RealtimeSubscriptionItemInput;
@@ -1199,8 +812,4 @@ mod tests {
             .expect_err("clear failure should not panic");
         assert_eq!(clear_error.code, "disconnect_fence_store_unavailable");
     }
-}
-
-fn cluster_timestamp() -> String {
-    utc_now_rfc3339_millis()
 }

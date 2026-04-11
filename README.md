@@ -46,6 +46,15 @@ craw-chat/
 
 其中 `local-minimal-node` 是当前默认的本地最小可运行集成形态，用于单机验证完整主链路。
 
+当前部署 profile 现状：
+
+- `local-minimal`
+  - 当前唯一完整闭环 profile
+  - 覆盖本地脚本、Docker Compose、smoke 与 runtime 运维入口
+- `local-default`
+  - 当前已冻结名称与 compose/template 入口
+  - 现阶段仍复用 `local-minimal` 服务合同，作为后续默认本地开发拓扑的扩展位
+
 ## 快速开始
 
 ### 1. 安装依赖
@@ -64,6 +73,8 @@ PowerShell:
 ```powershell
 ./bin/install-local.ps1
 ./bin/init-config-local.ps1
+./bin/install-local.ps1 -ProfileName local-default
+./bin/init-config-local.ps1 -ProfileName local-default
 ```
 
 Bash:
@@ -71,6 +82,8 @@ Bash:
 ```bash
 ./bin/install-local.sh
 ./bin/init-config-local.sh
+./bin/install-local.sh --profile local-default
+./bin/init-config-local.sh --profile local-default
 ```
 
 Windows CMD:
@@ -78,6 +91,8 @@ Windows CMD:
 ```cmd
 bin\install-local.cmd
 bin\init-config-local.cmd
+bin\install-local.cmd --profile local-default
+bin\init-config-local.cmd --profile local-default
 ```
 
 ### 3. 启动服务
@@ -86,18 +101,21 @@ PowerShell:
 
 ```powershell
 ./bin/start-local.ps1
+./bin/start-local.ps1 -ProfileName local-default
 ```
 
 Bash:
 
 ```bash
 ./bin/start-local.sh
+./bin/start-local.sh --profile local-default
 ```
 
 Windows CMD:
 
 ```cmd
 bin\start-local.cmd
+bin\start-local.cmd --profile local-default
 ```
 
 默认监听地址：
@@ -116,17 +134,33 @@ PowerShell:
 
 ```powershell
 ./bin/status-local.ps1
+./bin/status-local.ps1 -ProfileName local-default
 ./bin/restart-local.ps1
+./bin/restart-local.ps1 -ProfileName local-default
 ./bin/stop-local.ps1
+./bin/stop-local.ps1 -ProfileName local-default
 ```
 
 Bash:
 
 ```bash
 ./bin/status-local.sh
+./bin/status-local.sh --profile local-default
 ./bin/restart-local.sh
+./bin/restart-local.sh --profile local-default
 ./bin/stop-local.sh
+./bin/stop-local.sh --profile local-default
 ```
+
+Windows CMD:
+
+```cmd
+bin\status-local.cmd --profile local-default
+bin\restart-local.cmd --profile local-default
+bin\stop-local.cmd --profile local-default
+```
+
+`local-default` 当前会优先写入 `.runtime/local-default/config/local-default.env`，但仍复用 `.runtime/local-minimal` 运行目录合同。
 
 ## 聊天验证
 
@@ -176,6 +210,20 @@ PowerShell:
 powershell -ExecutionPolicy Bypass -File deployments\scripts\bootstrap-local.ps1
 ```
 
+统一 `bin/` 入口：
+
+```powershell
+./bin/deploy-local.ps1 -ProfileName local-minimal
+./bin/deploy-local.ps1 -ProfileName local-default -SmokeBaseUrl http://127.0.0.1:28090
+```
+
+```bash
+bash bin/deploy-local.sh --profile local-default --smoke-base-url http://127.0.0.1:28090
+```
+
+当前阶段 `local-default` 已是受支持的部署 profile 名称，但仍复用 `local-minimal` 的 compose 服务合同与 smoke 链路。
+Docker smoke 现在会使用 `CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET` 生成 HS256 bearer；`local-minimal` compose 默认注入 `local-minimal-public-dev-secret` 以支持重复执行。
+
 Docker Compose:
 
 ```bash
@@ -186,8 +234,66 @@ docker compose -f deployments/docker-compose/local-minimal.yml up -d --build
 
 - 架构总览：[docs/架构/README.md](./docs/架构/README.md)
 - 部署说明：[docs/部署/README.md](./docs/部署/README.md)
+- CLI 聊天验证与兼容矩阵：[docs/部署/CLI聊天验证与兼容矩阵.md](./docs/部署/CLI聊天验证与兼容矩阵.md)
+- 兼容矩阵与 SDK/CLI/operator 验证索引：[docs/部署/兼容矩阵与SDK-CLI-operator验证索引.md](./docs/部署/兼容矩阵与SDK-CLI-operator验证索引.md)
+- SDK 总览：[sdks/README.md](./sdks/README.md)
+- Release bundle 归档约定：[artifacts/releases/README.md](./artifacts/releases/README.md)
+- 多环境 profile 与模板：[docs/部署/多环境Profile与配置模板.md](./docs/部署/多环境Profile与配置模板.md)
 - 本地最小安装与运行：[docs/部署/本地最小安装与运行.md](./docs/部署/本地最小安装与运行.md)
-- Review 输出目录：[docs/review](./docs/review)
+- 性能与灾备演练场景与高阶门禁模板：[docs/部署/性能与灾备演练场景.md](./docs/部署/性能与灾备演练场景.md)
+  - 包含 `tools/perf/step-11-pre-release-tier-gate.json` 与 `tools/perf/step-11-capacity-tier-gate.json`
+  - Step 11 catalog 入口为 `tools/perf/step-11-scenario-catalog.json`，未来高阶 `artifactRoot` 归档根目录为 `artifacts/perf/step-11/pre-release` 与 `artifacts/perf/step-11/capacity`，当前仍仅用于模板化归档定位
+  - 对应 schema 为 `tools/perf/schemas/step-11-scenario-catalog.schema.json` 与 `tools/perf/schemas/step-11-tier-gate.schema.json`
+  - 高阶 gate 还冻结 `collectionSummary`、`evidenceSlots`、`pending_collection`、`checksumSha256` 等 evidence-slot 契约字段，当前仍待真实采集回填
+  - `collectionSummary` 公开 `totalSlots`、`requiredSlots`、`optionalSlots`、`collectedSlots`、`pendingSlots`、`skippedOptionalSlots` 六个统计字段
+  - 当前冻结值为 `totalSlots = 7`、`requiredSlots = 7`、`optionalSlots = 0`、`collectedSlots = 0`、`pendingSlots = 7`、`skippedOptionalSlots = 0`
+  - evidence slot 元数据还包含 `artifactPath`、`suggestedRelativePath`、`collectedAt`、`sizeBytes` 等回填字段，用于后续真实证据采集
+  - evidence slot 语义字段还包含 `scenarioFamily`、`required`、`reportId`，用于区分场景槽位与报告槽位
+  - 最小示例值统一冻结为 `scenarioFamily = connection` / `scenarioFamily = failover`、`required = true`、`reportId = capacity_report` / `reportId = recovery_report`
+  - `reportId` 与 `artifactKind` 的对应关系包括 `capacity_report -> report_markdown`、`recovery_report -> report_markdown`
+  - `reportId` 与建议路径的对应关系包括 `capacity_report -> reports/capacity-report.md`、`recovery_report -> reports/recovery-report.md`
+  - `reportId` 与 `requiredSections` 的对应关系包括 `capacity_report -> input_scale / throughput_summary / tail_latency_summary`、`recovery_report -> recovery_window / rto_rpo_summary / operator_follow_up`
+  - `suggestedRelativePath` 示例包括 `connection/metrics.json`、`failover/drill.json`、`reports/capacity-report.md`、`reports/recovery-report.md`
+  - Capacity Tier 额外示例路径包括 `connection/capacity.json`、`restore-recovery/recovery.json`、`failover/recovery.json`
+  - Capacity Tier 剩余 capacity 路径示例包括 `message/capacity.json`、`stream/capacity.json`
+  - evidence slot 还冻结主键 `id`，代表值包括 `connection_metrics`、`connection_capacity`、`failover_recovery`
+  - Capacity Tier 其余代表性 slot id 还包括 `message_capacity`、`stream_capacity`、`restore_recovery_recovery`
+  - Pre-Release Tier collected slot examples now include `message_metrics` and `stream_metrics`
+  - Pre-Release Tier collected path examples now include `message/metrics.json` and `stream/metrics.json`
+  - Pre-Release Tier current state is now `evidence_collected_gate_blocked`
+  - Capacity Tier current state remains `template_only_pending_execution`
+  - Only Capacity Tier still waits for real collection; Pre-Release Tier already carries all seven truthful local artifacts.
+  - evidence slot 还公开 `artifactKind`，代表值包括 `metrics_json`、`drill_json`、`capacity_json`、`recovery_json`、`report_markdown`
+  - 机器契约还冻结 `requiredFields` / `requiredSections`，示例值包括 `runId`、`connectP95Ms`、`input_scale`、`operator_follow_up`
+  - 额外字段示例包括 `messageTps`、`frameP95Ms`、`recovery_window`、`rto_rpo_summary`
+  - report section 代表值还包括 `throughput_summary`、`tail_latency_summary`、`recovery_window`、`operator_follow_up`
+  - 更细一级字段示例还包括 `fanoutP95Ms`、`streamFramesPerSecond`、`previewDiffAccuracy`、`rollbackActivationSeconds`
+  - drill / rollback 字段示例还包括 `drainCompletionSeconds`、`restoreRtoSeconds`、`compatibilityMatrixPassRate`、`postRollbackProtocolErrorRate`
+  - `artifactKind` 与代表字段/section 的对应关系包括 `metrics_json -> connectP95Ms / messageTps / frameP95Ms`、`drill_json -> drainCompletionSeconds / rollbackActivationSeconds`、`capacity_json -> fanoutP95Ms / streamFramesPerSecond`、`recovery_json -> restoreRtoSeconds / previewDiffAccuracy`、`report_markdown -> throughput_summary / rto_rpo_summary`
+  - `artifactKind` 与建议路径的对应关系包括 `metrics_json -> connection/metrics.json / message/metrics.json`、`drill_json -> failover/drill.json / restore-recovery/drill.json`、`capacity_json -> connection/capacity.json / message/capacity.json`、`recovery_json -> failover/recovery.json / restore-recovery/recovery.json`、`report_markdown -> reports/capacity-report.md / reports/recovery-report.md`
+  - `artifactKind` 与代表性 `slot id` 的对应关系包括 `metrics_json -> connection_metrics / message_metrics`、`drill_json -> failover_drill / restore_recovery_drill`、`capacity_json -> connection_capacity / message_capacity`、`recovery_json -> failover_recovery / restore_recovery_recovery`、`report_markdown -> capacity_report / recovery_report`
+  - `artifactKind` 与 `requiredFields / requiredSections` 的对应关系包括 `metrics_json -> runId / connectionCount / successCount`、`drill_json -> runId / drainCompletionSeconds / takeoverDurationMs`、`capacity_json -> runId / peakActiveConnections / messageTps`、`recovery_json -> runId / restoreRtoSeconds / staleSessionRejectionRate`、`report_markdown -> input_scale / throughput_summary / operator_follow_up`
+  - `requiredScenarioFamilies = connection / message / stream / drain-rebalance / restore-recovery / failover / upgrade-rollback`
+  - `requiredScenarioFamilies = connection / message / stream / restore-recovery / failover`
+  - `requiredReports = capacity_report / recovery_report`
+  - `requiredOutputs` 以 `scenarioFamily -> artifactKind -> requiredFields` tuple 冻结最小输出契约，代表项包括 `connection -> metrics_json -> runId / connectionCount / successCount`、`restore-recovery -> recovery_json -> runId / restoreRtoSeconds / dataLossRpoEvents / previewDiffAccuracy`
+  - `operatorDocPath = docs/部署/性能与灾备演练场景.md`，`scenarioCatalogPath = tools/perf/step-11-scenario-catalog.json`
+  - `profile = local-default / capacity-dedicated`
+  - `reviewBackwrite = docs/step/continuous-optimization-pre-release-capacity-tier-gates-2026-04-09.md / docs/review/continuous-optimization-pre-release-capacity-tier-gates-2026-04-09.md / docs/架构/09AR-pre-release-capacity-tier-gates-implementation-plan-2026-04-09.md / docs/架构/150AR-pre-release-capacity-tier-gates-design-2026-04-09.md`
+  - `scenarioFamily` 与 `artifactKind` 的对应关系包括 `connection -> metrics_json / capacity_json`、`failover -> drill_json / recovery_json`、`restore-recovery -> drill_json / recovery_json`
+  - `scenarioFamily` 与 `requiredFields / requiredSections` 的对应关系包括 `connection -> runId / connectP95Ms`、`failover -> runId / takeoverDurationMs`、`restore-recovery -> runId / restoreRtoSeconds / previewDiffAccuracy`
+  - `scenarioFamily` 与 slot id 的对应关系包括 `connection -> connection_metrics / connection_capacity`、`failover -> failover_drill / failover_recovery`、`restore-recovery -> restore_recovery_drill / restore_recovery_recovery`
+  - 代表性 `slot id` 与 `artifactKind` 的对应关系包括 `connection_metrics -> metrics_json`、`failover_drill -> drill_json`、`restore_recovery_recovery -> recovery_json`
+  - 代表性 `slot id` 与 `requiredFields / requiredSections` 的对应关系包括 `connection_metrics -> runId / connectP95Ms`、`failover_drill -> runId / takeoverDurationMs`、`capacity_report -> input_scale / throughput_summary / tail_latency_summary`
+  - `scenarioFamily` 与建议路径的对应关系包括 `connection -> connection/metrics.json / connection/capacity.json`、`failover -> failover/drill.json / failover/recovery.json`、`restore-recovery -> restore-recovery/drill.json / restore-recovery/recovery.json`
+  - 代表性 `slot id` 与建议路径的对应关系包括 `connection_metrics -> connection/metrics.json`、`failover_drill -> failover/drill.json`、`restore_recovery_recovery -> restore-recovery/recovery.json`
+  - 默认命名关系为 `artifactPath = artifactRoot + "/" + suggestedRelativePath`
+  - 在真实采集前，`artifactPath`、`collectedAt`、`sizeBytes`、`checksumSha256` 继续保持 `null`
+  - 当前状态为 `template_only_pending_execution`，默认预发布 profile 为 `local-default`，目标容量环境为 `capacity-dedicated`
+- local-default发布后验证样本：[docs/部署/local-default发布后验证样本.md](./docs/部署/local-default发布后验证样本.md)
+- local-default发布后验证执行记录模板：[docs/部署/local-default发布后验证执行记录模板.md](./docs/部署/local-default发布后验证执行记录模板.md)
+- Step 执行索引：[docs/step/README.md](./docs/step/README.md)
+- Review 输出索引：[docs/review/README.md](./docs/review/README.md)
 
 ## 构建与测试
 

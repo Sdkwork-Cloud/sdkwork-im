@@ -1,0 +1,4 @@
+# Step 11 Capacity Tier checksum manifest placeholder
+# state: template_only_pending_execution
+# No real evidence has been collected yet.
+# Future lines use: sha256:<digest>  <suggestedRelativePath>

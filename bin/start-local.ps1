@@ -1,4 +1,6 @@
 param(
+    [ValidateSet("local-minimal", "local-default")]
+    [string]$ProfileName = "local-minimal",
     [switch]$Release,
     [switch]$Foreground,
     [string]$BindAddress,
@@ -8,7 +10,8 @@ param(
 $ErrorActionPreference = 'Stop'
 
 if ($Help) {
-    Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/start-local.ps1 [-Release] [-Foreground] [-BindAddress <host:port>]"
+    Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/start-local.ps1 [-ProfileName <local-minimal|local-default>] [-Release] [-Foreground] [-BindAddress <host:port>]"
+    Write-Host "Usage: cmd /c .\bin\start-local.cmd [--profile <local-minimal|local-default>] [--release] [--foreground] [--bind-addr <host:port>]"
     Write-Host "Build and start local-minimal-node with config, pid/log management, and health wait."
     exit 0
 }
@@ -120,20 +123,105 @@ function Get-HealthUrl {
 }
 
 $root = Split-Path -Parent $PSScriptRoot
+$runtimeProfileHelper = Join-Path $PSScriptRoot "_runtime-profile-common.ps1"
+if (Test-Path $runtimeProfileHelper) {
+    . $runtimeProfileHelper
+}
+else {
+    function Resolve-RuntimeProfileConfigFiles {
+        param(
+            [Parameter(Mandatory = $true)]
+            [string]$Root,
+            [Parameter(Mandatory = $true)]
+            [ValidateSet("local-minimal", "local-default")]
+            [string]$ProfileName
+        )
+
+        switch ($ProfileName) {
+            "local-default" {
+                return @(
+                    (Join-Path $Root ".runtime\local-default\config\local-default.env"),
+                    (Join-Path $Root ".runtime\local-minimal\config\local-minimal.env")
+                )
+            }
+            default {
+                return @(
+                    (Join-Path $Root ".runtime\local-minimal\config\local-minimal.env")
+                )
+            }
+        }
+    }
+
+    function Resolve-RuntimeDirFromProfile {
+        param(
+            [Parameter(Mandatory = $true)]
+            [string]$Root,
+            [Parameter(Mandatory = $true)]
+            [ValidateSet("local-minimal", "local-default")]
+            [string]$ProfileName
+        )
+
+        foreach ($configFile in Resolve-RuntimeProfileConfigFiles -Root $Root -ProfileName $ProfileName) {
+            $configRuntimeDir = Read-ConfigValue -ConfigFile $configFile -Key "CRAW_CHAT_RUNTIME_DIR"
+            if (-not [string]::IsNullOrWhiteSpace($configRuntimeDir)) {
+                return $configRuntimeDir
+            }
+        }
+
+        return Join-Path $Root ".runtime\local-minimal"
+    }
+}
+
+function Resolve-ConfigFileFromProfile {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Root,
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("local-minimal", "local-default")]
+        [string]$ProfileName
+    )
+
+    $configFiles = @(Resolve-RuntimeProfileConfigFiles -Root $Root -ProfileName $ProfileName)
+    foreach ($configFile in $configFiles) {
+        if (Test-Path $configFile) {
+            return $configFile
+        }
+    }
+
+    return $configFiles[0]
+}
+
+function Resolve-ConfigValueFromProfile {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Root,
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("local-minimal", "local-default")]
+        [string]$ProfileName,
+        [Parameter(Mandatory = $true)]
+        [string]$Key
+    )
+
+    foreach ($configFile in Resolve-RuntimeProfileConfigFiles -Root $Root -ProfileName $ProfileName) {
+        $value = Read-ConfigValue -ConfigFile $configFile -Key $Key
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            return $value
+        }
+    }
+
+    return $null
+}
+
 Set-Location $root
 
-$configFile = Join-Path $root ".runtime\local-minimal\config\local-minimal.env"
 $installScript = Join-Path $PSScriptRoot "install-local.ps1"
 $bindAddressProvided = $PSBoundParameters.ContainsKey('BindAddress')
-$installArgs = @()
-if ($Release) {
-    $installArgs += "-Release"
-}
 if ($bindAddressProvided) {
-    $installArgs += "-BindAddress"
-    $installArgs += $BindAddress
+    & $installScript -ProfileName $ProfileName -Release:$Release -BindAddress $BindAddress
 }
-& $installScript @installArgs
+else {
+    & $installScript -ProfileName $ProfileName -Release:$Release
+}
 
 $profileDir = if ($Release) { "release" } else { "debug" }
 $exeName = "local-minimal-node.exe"
@@ -143,7 +231,8 @@ if (-not (Test-Path $exePath)) {
     throw "Binary not found: $exePath"
 }
 
-$runtimeDir = Join-Path $root ".runtime\local-minimal"
+$configFile = Resolve-ConfigFileFromProfile -Root $root -ProfileName $ProfileName
+$runtimeDir = Resolve-RuntimeDirFromProfile -Root $root -ProfileName $ProfileName
 $logsDir = Join-Path $runtimeDir "logs"
 $pidsDir = Join-Path $runtimeDir "pids"
 $pidFile = Join-Path $pidsDir "local-minimal-node.pid"
@@ -152,7 +241,7 @@ $stderrLog = Join-Path $logsDir "local-minimal-node.err.log"
 
 foreach ($logPath in @($stdoutLog, $stderrLog)) {
     if (-not (Test-Path $logPath)) {
-        New-Item -ItemType File -Path $logPath | Out-Null
+        New-Item -ItemType File -Path $logPath -Force | Out-Null
     }
 }
 
@@ -161,19 +250,13 @@ if ($null -ne $runningProcess) {
     throw "local-minimal-node is already running with PID $($runningProcess.Id). Stop it before starting a new instance."
 }
 
-$configBindAddress = Read-ConfigValue -ConfigFile $configFile -Key "CRAW_CHAT_BIND_ADDR"
+$configBindAddress = Resolve-ConfigValueFromProfile -Root $root -ProfileName $ProfileName -Key "CRAW_CHAT_BIND_ADDR"
 $resolvedBindAddress = if ([string]::IsNullOrWhiteSpace($BindAddress)) { $configBindAddress } else { $BindAddress }
 if ([string]::IsNullOrWhiteSpace($resolvedBindAddress)) {
     $resolvedBindAddress = "127.0.0.1:18090"
 }
-$configRuntimeDir = Read-ConfigValue -ConfigFile $configFile -Key "CRAW_CHAT_RUNTIME_DIR"
-$resolvedRuntimeDir = if ([string]::IsNullOrWhiteSpace($configRuntimeDir)) {
-    $runtimeDir
-}
-else {
-    $configRuntimeDir
-}
-$configPublicBearerSecret = Read-ConfigValue -ConfigFile $configFile -Key "CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET"
+$resolvedRuntimeDir = $runtimeDir
+$configPublicBearerSecret = Resolve-ConfigValueFromProfile -Root $root -ProfileName $ProfileName -Key "CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET"
 $resolvedPublicBearerSecret = if ([string]::IsNullOrWhiteSpace($configPublicBearerSecret)) {
     $env:CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET
 }
@@ -242,6 +325,7 @@ try {
         Write-Host "stderr log: $stderrLog"
         Write-Host "pid file: $pidFile"
         Write-Host "health: $healthUrl"
+        Write-Host "config: $configFile"
     }
     catch {
         Stop-ManagedProcessAndRemovePidFile -ProcessId $process.Id -PidFile $pidFile

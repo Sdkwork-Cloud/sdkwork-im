@@ -5,14 +5,29 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
+audit-service = { path = "../audit-service" }
 axum.workspace = true
+bytes = "1.11.1"
+craw-chat-ccp-registry = { path = "../../crates/craw-chat-ccp-registry" }
+http-body-util.workspace = true
+hyper = { version = "1.9.0", features = ["client", "http1"] }
+hyper-util = { version = "0.1.20", features = ["client", "client-legacy", "http1", "tokio"] }
+im-adapters-local-disk = { path = "../../adapters/local-disk" }
+im-adapters-local-memory = { path = "../../adapters/local-memory" }
 im-auth-context = { path = "../../crates/im-auth-context" }
+im-domain-core = { path = "../../crates/im-domain-core" }
+im-domain-events = { path = "../../crates/im-domain-events" }
+im-platform-contracts = { path = "../../crates/im-platform-contracts" }
+im-time = { path = "../../crates/im-time" }
+ops-service = { path = "../ops-service" }
 serde.workspace = true
 serde_json.workspace = true
 session-gateway = { path = "../session-gateway" }
 tokio.workspace = true
 
 [dev-dependencies]
-http-body-util.workspace = true
+audit-service = { path = "../audit-service" }
+conversation-runtime = { path = "../conversation-runtime" }
+ops-service = { path = "../ops-service" }
 session-gateway = { path = "../session-gateway" }
 tower.workspace = true

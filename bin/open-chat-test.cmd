@@ -1,4 +1,4 @@
 @echo off
 setlocal
-call "%~dp0_cmd-forward-powershell.cmd" "%~dp0open-chat-test.ps1" %*
+call powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0open-chat-test.ps1" %*
 exit /b %ERRORLEVEL%

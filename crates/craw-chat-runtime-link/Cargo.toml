@@ -1,0 +1,11 @@
+[package]
+name = "craw-chat-runtime-link"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+craw-chat-ccp-registry = { path = "../craw-chat-ccp-registry" }
+craw-chat-ccp-binding-ws = { path = "../craw-chat-ccp-binding-ws" }
+craw-chat-ccp-control = { path = "../craw-chat-ccp-control" }
+craw-chat-ccp-core = { path = "../craw-chat-ccp-core" }

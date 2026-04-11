@@ -8,14 +8,18 @@ version.workspace = true
 audit-service = { path = "../audit-service" }
 automation-service = { path = "../automation-service" }
 axum.workspace = true
+control-plane-api = { path = "../control-plane-api" }
 conversation-runtime = { path = "../conversation-runtime" }
 futures-util.workspace = true
+im-adapter-iot-access-local = { path = "../../adapters/iot-access-local" }
+im-adapter-iot-mqtt = { path = "../../adapters/iot-mqtt" }
 im-adapters-local-disk = { path = "../../adapters/local-disk" }
 im-adapters-local-memory = { path = "../../adapters/local-memory" }
 im-auth-context = { path = "../../crates/im-auth-context" }
 im-domain-core = { path = "../../crates/im-domain-core" }
 im-domain-events = { path = "../../crates/im-domain-events" }
 im-platform-contracts = { path = "../../crates/im-platform-contracts" }
+im-time = { path = "../../crates/im-time" }
 media-service = { path = "../media-service" }
 notification-service = { path = "../notification-service" }
 ops-service = { path = "../ops-service" }
@@ -28,7 +32,10 @@ streaming-service = { path = "../streaming-service" }
 tokio.workspace = true
 
 [dev-dependencies]
-control-plane-api = { path = "../control-plane-api" }
+craw-chat-ccp-control = { path = "../../crates/craw-chat-ccp-control" }
+craw-chat-ccp-core = { path = "../../crates/craw-chat-ccp-core" }
+craw-chat-ccp-registry = { path = "../../crates/craw-chat-ccp-registry" }
+craw-chat-runtime-link = { path = "../../crates/craw-chat-runtime-link" }
 http-body-util.workspace = true
 tokio-tungstenite = "0.28.0"
 tower.workspace = true

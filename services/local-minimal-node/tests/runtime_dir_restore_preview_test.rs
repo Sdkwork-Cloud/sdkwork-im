@@ -7,6 +7,27 @@ use serde_json::json;
 
 static NEXT_RUNTIME_DIR_ID: AtomicU64 = AtomicU64::new(0);
 
+type DisconnectFenceSnapshotWithOptionsEntry<'a> = (
+    &'a str,
+    &'a str,
+    &'a str,
+    &'a str,
+    Option<&'a str>,
+    &'a str,
+    &'a str,
+);
+type RealtimeCheckpointSnapshotEntry<'a> =
+    (&'a str, &'a str, &'a str, &'a str, u64, u64, u64, &'a str);
+type RealtimeSubscriptionItemSnapshotEntry<'a> = (&'a str, &'a str, &'a [&'a str], &'a str);
+type RealtimeSubscriptionSnapshotEntry<'a> = (
+    &'a str,
+    &'a str,
+    &'a str,
+    &'a str,
+    &'a str,
+    &'a [RealtimeSubscriptionItemSnapshotEntry<'a>],
+);
+
 fn unique_path(prefix: &str) -> PathBuf {
     let unique = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -32,10 +53,13 @@ fn write_full_backup_snapshot(root: &Path, owner_node_id: &str) {
         "realtime-checkpoints.json",
         "realtime-subscriptions.json",
         "presence-state.json",
+        "device-twin-state.json",
         "stream-state.json",
         "rtc-state.json",
         "notification-tasks.json",
         "automation-executions.json",
+        "projection-metadata.json",
+        "projection-timeline.json",
     ] {
         write_state_file(root, file_name, "{}\n");
     }
@@ -77,7 +101,7 @@ fn disconnect_fence_snapshot(entries: &[(&str, &str, &str, &str, &str, &str)]) -
 }
 
 fn disconnect_fence_snapshot_with_options(
-    entries: &[(&str, &str, &str, &str, Option<&str>, &str, &str)],
+    entries: &[DisconnectFenceSnapshotWithOptionsEntry<'_>],
 ) -> String {
     let mut snapshot = serde_json::Map::new();
     for (key, tenant_id, principal_id, device_id, session_id, owner_node_id, disconnected_at) in
@@ -100,7 +124,7 @@ fn disconnect_fence_snapshot_with_options(
 }
 
 fn realtime_checkpoint_snapshot_with_options(
-    entries: &[(&str, &str, &str, &str, u64, u64, u64, &str)],
+    entries: &[RealtimeCheckpointSnapshotEntry<'_>],
 ) -> String {
     let mut snapshot = serde_json::Map::new();
     for (
@@ -132,7 +156,7 @@ fn realtime_checkpoint_snapshot_with_options(
 }
 
 fn realtime_subscription_snapshot_with_options(
-    entries: &[(&str, &str, &str, &str, &str, &[(&str, &str, &[&str], &str)])],
+    entries: &[RealtimeSubscriptionSnapshotEntry<'_>],
 ) -> String {
     let mut snapshot = serde_json::Map::new();
     for (key, tenant_id, principal_id, device_id, synced_at, items) in entries {
@@ -142,7 +166,7 @@ fn realtime_subscription_snapshot_with_options(
                 json!({
                     "scopeType": scope_type,
                     "scopeId": scope_id,
-                    "eventTypes": event_types.iter().copied().collect::<Vec<_>>(),
+                    "eventTypes": event_types.to_vec(),
                     "subscribedAt": subscribed_at
                 })
             })
@@ -193,16 +217,16 @@ struct StreamFrameFixture<'a> {
     occurred_at: &'a str,
 }
 
-fn stream_state_snapshot_with_options(
-    entries: &[(
-        &str,
-        &str,
-        &str,
-        StreamSessionFixture<'_>,
-        &'_ [StreamFrameFixture<'_>],
-        &str,
-    )],
-) -> String {
+type StreamStateSnapshotEntry<'a> = (
+    &'a str,
+    &'a str,
+    &'a str,
+    StreamSessionFixture<'a>,
+    &'a [StreamFrameFixture<'a>],
+    &'a str,
+);
+
+fn stream_state_snapshot_with_options(entries: &[StreamStateSnapshotEntry<'_>]) -> String {
     let mut snapshot = serde_json::Map::new();
     for (key, tenant_id, stream_id, session, frames, updated_at) in entries {
         let serialized_frames = frames
@@ -289,16 +313,16 @@ struct RtcSignalFixture<'a> {
     occurred_at: &'a str,
 }
 
-fn rtc_state_snapshot_with_options(
-    entries: &[(
-        &str,
-        &str,
-        &str,
-        RtcSessionFixture<'_>,
-        &'_ [RtcSignalFixture<'_>],
-        &str,
-    )],
-) -> String {
+type RtcStateSnapshotEntry<'a> = (
+    &'a str,
+    &'a str,
+    &'a str,
+    RtcSessionFixture<'a>,
+    &'a [RtcSignalFixture<'a>],
+    &'a str,
+);
+
+fn rtc_state_snapshot_with_options(entries: &[RtcStateSnapshotEntry<'_>]) -> String {
     let mut snapshot = serde_json::Map::new();
     for (key, tenant_id, rtc_session_id, session, signals, updated_at) in entries {
         let serialized_signals = signals
@@ -386,10 +410,10 @@ fn test_preview_restore_runtime_dir_reports_ready_without_mutation_for_full_snap
 
     assert_eq!(preview.status, "ready");
     assert_eq!(preview.source_snapshot_quality, "full_snapshot");
-    assert_eq!(preview.source_managed_file_count, 9);
+    assert_eq!(preview.source_managed_file_count, 12);
     assert_eq!(preview.source_missing_file_count, 0);
     assert_eq!(preview.would_restore_file_count, 1);
-    assert_eq!(preview.unchanged_file_count, 8);
+    assert_eq!(preview.unchanged_file_count, 11);
     assert_eq!(preview.skipped_file_count, 0);
     assert_eq!(preview.before.status, "ok");
     assert_eq!(preview.source_report_type, None);
@@ -468,10 +492,10 @@ fn test_preview_restore_runtime_dir_reports_partial_for_sparse_snapshot() {
     assert_eq!(preview.status, "partial");
     assert_eq!(preview.source_snapshot_quality, "partial_snapshot");
     assert_eq!(preview.source_managed_file_count, 2);
-    assert_eq!(preview.source_missing_file_count, 7);
+    assert_eq!(preview.source_missing_file_count, 10);
     assert_eq!(preview.would_restore_file_count, 1);
     assert_eq!(preview.unchanged_file_count, 1);
-    assert_eq!(preview.skipped_file_count, 7);
+    assert_eq!(preview.skipped_file_count, 10);
     assert_eq!(preview.before.status, "degraded");
     assert_eq!(preview.source_report_type.as_deref(), Some("restore"));
     assert_eq!(preview.source_report_status.as_deref(), Some("partial"));
@@ -495,6 +519,109 @@ fn test_preview_restore_runtime_dir_reports_partial_for_sparse_snapshot() {
     assert!(
         !state_file(runtime_dir.as_path(), "notification-tasks.json").exists(),
         "preview must not recreate missing runtime files"
+    );
+
+    let _ = fs::remove_dir_all(runtime_dir);
+    let _ = fs::remove_dir_all(backup_dir);
+}
+
+#[test]
+fn test_preview_restore_runtime_dir_tracks_projection_snapshot_files() {
+    let runtime_dir = unique_path("runtime_dir_preview_restore_projection_snapshot");
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+    let _ = local_minimal_node::repair_runtime_dir(runtime_dir.as_path());
+
+    write_state_file(
+        runtime_dir.as_path(),
+        "realtime-disconnect-fences.json",
+        serde_json::to_string_pretty(&json!({
+            "t_demo:u_demo:d_demo": {
+                "tenant_id": "t_demo",
+                "principal_id": "u_demo",
+                "device_id": "d_demo",
+                "session_id": "s_demo",
+                "owner_node_id": "node_backup",
+                "disconnected_at": "2026-04-06T00:00:00.000Z"
+            }
+        }))
+        .expect("current fence snapshot should serialize")
+        .as_str(),
+    );
+    write_state_file(
+        runtime_dir.as_path(),
+        "projection-metadata.json",
+        "{\"t_demo:c_demo:conversation-summary\":\"current\"}\n",
+    );
+    fs::remove_file(state_file(
+        runtime_dir.as_path(),
+        "projection-timeline.json",
+    ))
+    .expect("projection timeline file should be removed");
+
+    let backup_dir = unique_path("runtime_dir_preview_restore_projection_snapshot_backup");
+    write_full_backup_snapshot(backup_dir.as_path(), "node_backup");
+    write_state_file(
+        backup_dir.as_path(),
+        "projection-metadata.json",
+        "{\"t_demo:c_demo:conversation-summary\":\"backup\"}\n",
+    );
+    write_state_file(
+        backup_dir.as_path(),
+        "projection-timeline.json",
+        "{\"t_demo:c_demo\":{\"1\":\"payload_backup\"}}\n",
+    );
+
+    let preview = local_minimal_node::preview_restore_runtime_dir(
+        runtime_dir.as_path(),
+        backup_dir.as_path(),
+    )
+    .expect("restore preview should succeed");
+
+    assert_eq!(preview.status, "ready");
+    assert_eq!(preview.source_managed_file_count, 12);
+    assert_eq!(preview.source_missing_file_count, 0);
+    assert_eq!(preview.would_restore_file_count, 2);
+    assert_eq!(preview.unchanged_file_count, 10);
+    assert_eq!(preview.skipped_file_count, 0);
+
+    let metadata_action = preview
+        .actions
+        .iter()
+        .find(|action| action.file_name == "projection-metadata.json")
+        .expect("projection metadata action should exist");
+    assert_eq!(metadata_action.action, "would_restore");
+    assert_eq!(metadata_action.detail, "content_differs");
+    let metadata_change_summary = metadata_action
+        .change_summary
+        .as_ref()
+        .expect("projection metadata change summary should exist");
+    assert_eq!(metadata_change_summary.summary_kind, "json_object_keys");
+    assert_eq!(
+        metadata_change_summary.modified_keys,
+        vec!["t_demo:c_demo:conversation-summary".to_string()]
+    );
+
+    let timeline_action = preview
+        .actions
+        .iter()
+        .find(|action| action.file_name == "projection-timeline.json")
+        .expect("projection timeline action should exist");
+    assert_eq!(timeline_action.action, "would_restore");
+    assert_eq!(timeline_action.detail, "target_missing");
+    assert!(timeline_action.change_summary.is_none());
+    assert!(timeline_action.domain_summary.is_none());
+
+    assert_eq!(
+        fs::read_to_string(state_file(
+            runtime_dir.as_path(),
+            "projection-metadata.json"
+        ))
+        .expect("preview must not mutate projection metadata state"),
+        "{\"t_demo:c_demo:conversation-summary\":\"current\"}\n"
+    );
+    assert!(
+        !state_file(runtime_dir.as_path(), "projection-timeline.json").exists(),
+        "preview must not recreate missing projection timeline state"
     );
 
     let _ = fs::remove_dir_all(runtime_dir);

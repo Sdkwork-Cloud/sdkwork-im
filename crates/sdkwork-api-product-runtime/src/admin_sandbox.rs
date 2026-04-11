@@ -1,0 +1,2043 @@
+use axum::{
+    body::Body,
+    http::{HeaderMap, Method, StatusCode, Uri, header},
+    response::{IntoResponse, Response},
+    Json,
+};
+use bytes::Bytes;
+use serde::Deserialize;
+use serde_json::{Value, json};
+use std::sync::{Arc, Mutex};
+
+const ADMIN_SANDBOX_SEED_JSON: &str =
+    include_str!("../../../apps/craw-chat-admin/dev/admin-sandbox-seed.json");
+
+#[derive(Clone)]
+pub struct SharedAdminSandboxState {
+    inner: Arc<Mutex<AdminSandboxState>>,
+}
+
+#[derive(Clone)]
+struct AdminSandboxState {
+    store: Value,
+    clock_ms: u64,
+    sequence: u64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AdminSandboxSeed {
+    clock_ms: u64,
+    #[allow(dead_code)]
+    sandbox_password: String,
+    #[serde(flatten)]
+    store: std::collections::BTreeMap<String, Value>,
+}
+
+impl SharedAdminSandboxState {
+    pub fn seeded() -> Self {
+        Self {
+            inner: Arc::new(Mutex::new(AdminSandboxState::seeded())),
+        }
+    }
+}
+
+impl AdminSandboxState {
+    fn seeded() -> Self {
+        let seed: AdminSandboxSeed =
+            serde_json::from_str(ADMIN_SANDBOX_SEED_JSON).expect("admin sandbox seed should parse");
+        let mut store = Value::Object(seed.store.into_iter().collect());
+        store["sandboxPassword"] = Value::String(seed.sandbox_password);
+        sync_provider_credential_readiness(&mut store);
+
+        Self {
+            store,
+            clock_ms: seed.clock_ms,
+            sequence: 0,
+        }
+    }
+
+    fn next_timestamp(&mut self) -> u64 {
+        self.clock_ms += 60_000;
+        self.clock_ms
+    }
+
+    fn next_sequence(&mut self) -> String {
+        self.sequence += 1;
+        format!("{:04}", self.sequence)
+    }
+
+    fn next_id(&mut self, prefix: &str) -> String {
+        format!("{prefix}_{}", self.next_sequence())
+    }
+}
+
+fn json_response(status: StatusCode, payload: Value) -> Response {
+    (status, Json(payload)).into_response()
+}
+
+fn json_error_response(status: StatusCode, message: &str) -> Response {
+    json_response(
+        status,
+        json!({
+            "error": {
+                "message": message,
+            },
+            "status": status.as_u16(),
+        }),
+    )
+}
+
+fn empty_response(status: StatusCode) -> Response {
+    Response::builder()
+        .status(status)
+        .body(Body::empty())
+        .expect("empty sandbox response should build")
+}
+
+fn admin_api_segments(uri: &Uri) -> Vec<String> {
+    uri.path()
+        .trim_start_matches("/api/admin")
+        .trim_matches('/')
+        .split('/')
+        .filter(|segment| !segment.is_empty())
+        .map(|segment| segment.to_owned())
+        .collect()
+}
+
+fn parse_body(body: &Bytes) -> Result<Value, Response> {
+    if body.is_empty() {
+        return Ok(json!({}));
+    }
+
+    serde_json::from_slice(body).map_err(|_| {
+        json_error_response(StatusCode::BAD_REQUEST, "Admin sandbox request body must be valid JSON.")
+    })
+}
+
+fn store_value<'a>(store: &'a Value, key: &str) -> &'a Value {
+    store.get(key).unwrap_or(&Value::Null)
+}
+
+fn array_ref<'a>(store: &'a Value, key: &str) -> &'a Vec<Value> {
+    store_value(store, key)
+        .as_array()
+        .expect("sandbox array should exist")
+}
+
+fn array_mut<'a>(store: &'a mut Value, key: &str) -> &'a mut Vec<Value> {
+    store.get_mut(key)
+        .and_then(Value::as_array_mut)
+        .expect("sandbox mutable array should exist")
+}
+
+fn string_field<'a>(value: &'a Value, key: &str) -> Option<&'a str> {
+    value.get(key).and_then(Value::as_str)
+}
+
+fn bool_field(value: &Value, key: &str) -> Option<bool> {
+    value.get(key).and_then(Value::as_bool)
+}
+
+fn auth_token(store: &Value) -> Option<&str> {
+    store.pointer("/authSession/token").and_then(Value::as_str)
+}
+
+fn auth_user(store: &Value) -> Value {
+    store.pointer("/authSession/user").cloned().unwrap_or(Value::Null)
+}
+
+fn sandbox_password(store: &Value) -> Option<&str> {
+    store.get("sandboxPassword").and_then(Value::as_str)
+}
+
+fn require_session(store: &Value, headers: &HeaderMap) -> Result<Value, Response> {
+    let header_value = headers
+        .get(header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default();
+    let Some(expected_token) = auth_token(store) else {
+        return Err(json_error_response(
+            StatusCode::UNAUTHORIZED,
+            "Admin sandbox session token not found.",
+        ));
+    };
+
+    let Some(token) = header_value.strip_prefix("Bearer ").map(str::trim) else {
+        return Err(json_error_response(
+            StatusCode::UNAUTHORIZED,
+            "Admin sandbox session token not found.",
+        ));
+    };
+
+    if token != expected_token {
+        return Err(json_error_response(
+            StatusCode::UNAUTHORIZED,
+            "Admin sandbox session token is invalid.",
+        ));
+    }
+
+    Ok(auth_user(store))
+}
+
+fn find_index_by(records: &[Value], key: &str, needle: &str) -> Option<usize> {
+    records
+        .iter()
+        .position(|record| string_field(record, key) == Some(needle))
+}
+
+fn remove_by(records: &mut Vec<Value>, key: &str, needle: &str) {
+    records.retain(|record| string_field(record, key) != Some(needle));
+}
+
+fn sync_provider_credential_readiness(store: &mut Value) {
+    let ready_provider_ids = array_ref(store, "credentials")
+        .iter()
+        .filter_map(|credential| string_field(credential, "provider_id"))
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
+
+    for provider in array_mut(store, "providers") {
+        if let Some(provider_id) = string_field(provider, "id").map(str::to_owned) {
+            provider["credential_readiness"] = json!({
+                "ready": ready_provider_ids.iter().any(|candidate| candidate == &provider_id),
+                "state": if ready_provider_ids.iter().any(|candidate| candidate == &provider_id) {
+                    "ready"
+                } else {
+                    "missing"
+                }
+            });
+        }
+    }
+}
+
+fn object_response(value: Value) -> Response {
+    json_response(StatusCode::OK, value)
+}
+
+fn update_auth_session_for_user(state: &mut AdminSandboxState, user: Value) -> Value {
+    let issued_at_ms = state.next_timestamp();
+    let issued_at_seconds = (issued_at_ms / 1000) as i64;
+    let user_id = string_field(&user, "id").unwrap_or("sandbox-operator");
+    let session = json!({
+        "token": format!("sandbox-admin-session-{user_id}"),
+        "claims": {
+            "sub": user_id,
+            "iss": "sdkwork-admin-sandbox",
+            "aud": "sdkwork-craw-chat-admin",
+            "exp": issued_at_seconds + 7 * 24 * 60 * 60,
+            "iat": issued_at_seconds,
+        },
+        "user": user,
+    });
+    state.store["authSession"] = session.clone();
+    session
+}
+
+fn login_user(state: &mut AdminSandboxState, input: &Value) -> Response {
+    let email = string_field(input, "email").unwrap_or_default();
+    let password = string_field(input, "password").unwrap_or_default();
+
+    if sandbox_password(&state.store) != Some(password) {
+        return json_error_response(
+            StatusCode::UNAUTHORIZED,
+            "Operator email or password is incorrect.",
+        );
+    }
+
+    let user = array_ref(&state.store, "operatorUsers")
+        .iter()
+        .find(|user| string_field(user, "email") == Some(email))
+        .cloned()
+        .or_else(|| {
+            let current_user = auth_user(&state.store);
+            (string_field(&current_user, "email") == Some(email)).then_some(current_user)
+        });
+
+    match user {
+        Some(user) => object_response(update_auth_session_for_user(state, user)),
+        None => json_error_response(
+            StatusCode::UNAUTHORIZED,
+            "Operator email or password is incorrect.",
+        ),
+    }
+}
+
+fn list_response(store: &Value, key: &str) -> Response {
+    json_response(StatusCode::OK, store_value(store, key).clone())
+}
+
+fn upsert_record<F>(records: &mut Vec<Value>, mut predicate: F, next_record: Value) -> Value
+where
+    F: FnMut(&Value) -> bool,
+{
+    if let Some(index) = records.iter().position(|record| predicate(record)) {
+        records[index] = next_record.clone();
+        return records[index].clone();
+    }
+
+    records.push(next_record.clone());
+    next_record
+}
+
+fn remove_where<F>(records: &mut Vec<Value>, mut predicate: F)
+where
+    F: FnMut(&Value) -> bool,
+{
+    records.retain(|record| !predicate(record));
+}
+
+fn value_or_null(value: &Value, key: &str) -> Value {
+    value.get(key).cloned().unwrap_or(Value::Null)
+}
+
+fn trimmed_string_field(value: &Value, key: &str) -> Option<String> {
+    string_field(value, key)
+        .map(str::trim)
+        .filter(|candidate| !candidate.is_empty())
+        .map(str::to_owned)
+}
+
+fn string_or_null(value: &Value, key: &str) -> Value {
+    trimmed_string_field(value, key)
+        .map(Value::String)
+        .unwrap_or(Value::Null)
+}
+
+fn bool_or_default(value: &Value, key: &str, default: bool) -> bool {
+    bool_field(value, key).unwrap_or(default)
+}
+
+fn slugify(value: &str) -> String {
+    let mut slug = String::new();
+    let mut last_was_dash = true;
+
+    for ch in value.chars() {
+        if ch.is_ascii_alphanumeric() {
+            slug.push(ch.to_ascii_lowercase());
+            last_was_dash = false;
+        } else if !last_was_dash {
+            slug.push('-');
+            last_was_dash = true;
+        }
+    }
+
+    while slug.ends_with('-') {
+        slug.pop();
+    }
+
+    if slug.is_empty() {
+        "sandbox".to_owned()
+    } else {
+        slug
+    }
+}
+
+fn merge_objects(base: &Value, overlay: &Value) -> Value {
+    match (base.as_object(), overlay.as_object()) {
+        (Some(base_object), Some(overlay_object)) => {
+            let mut merged = base_object.clone();
+            for (key, value) in overlay_object {
+                merged.insert(key.clone(), value.clone());
+            }
+            Value::Object(merged)
+        }
+        _ => overlay.clone(),
+    }
+}
+
+fn existing_record_by_key(store: &Value, store_key: &str, field: &str, needle: &str) -> Option<Value> {
+    array_ref(store, store_key)
+        .iter()
+        .find(|record| string_field(record, field) == Some(needle))
+        .cloned()
+}
+
+fn save_operator_user(state: &mut AdminSandboxState, input: &Value) -> Value {
+    let requested_id = trimmed_string_field(input, "id");
+    let existing = requested_id
+        .as_deref()
+        .and_then(|user_id| existing_record_by_key(&state.store, "operatorUsers", "id", user_id));
+    let operator_id = requested_id.unwrap_or_else(|| state.next_id("operator"));
+    let created_at_ms = existing
+        .as_ref()
+        .and_then(|record| record.get("created_at_ms").cloned())
+        .unwrap_or_else(|| json!(state.next_timestamp()));
+    let record = json!({
+        "id": operator_id,
+        "email": string_field(input, "email").unwrap_or_default(),
+        "display_name": string_field(input, "display_name").unwrap_or_default(),
+        "active": bool_or_default(input, "active", true),
+        "created_at_ms": created_at_ms,
+    });
+    let operator_id = string_field(&record, "id")
+        .expect("operator record should include an id")
+        .to_owned();
+    let saved = {
+        let records = array_mut(&mut state.store, "operatorUsers");
+        upsert_record(records, |user| string_field(user, "id") == Some(operator_id.as_str()), record)
+    };
+
+    let current_user_id = string_field(&auth_user(&state.store), "id").map(str::to_owned);
+    if current_user_id.as_deref() == Some(operator_id.as_str()) {
+        return update_auth_session_for_user(state, saved.clone())
+            .get("user")
+            .cloned()
+            .unwrap_or(saved);
+    }
+
+    saved
+}
+
+fn save_portal_user(state: &mut AdminSandboxState, input: &Value) -> Value {
+    let requested_id = trimmed_string_field(input, "id");
+    let existing = requested_id
+        .as_deref()
+        .and_then(|user_id| existing_record_by_key(&state.store, "portalUsers", "id", user_id));
+    let portal_id = requested_id.unwrap_or_else(|| state.next_id("portal"));
+    let created_at_ms = existing
+        .as_ref()
+        .and_then(|record| record.get("created_at_ms").cloned())
+        .unwrap_or_else(|| json!(state.next_timestamp()));
+    let record = json!({
+        "id": portal_id,
+        "email": string_field(input, "email").unwrap_or_default(),
+        "display_name": string_field(input, "display_name").unwrap_or_default(),
+        "workspace_tenant_id": string_field(input, "workspace_tenant_id").unwrap_or_default(),
+        "workspace_project_id": string_field(input, "workspace_project_id").unwrap_or_default(),
+        "active": bool_or_default(input, "active", true),
+        "created_at_ms": created_at_ms,
+    });
+    let portal_id = string_field(&record, "id")
+        .expect("portal record should include an id")
+        .to_owned();
+    let records = array_mut(&mut state.store, "portalUsers");
+    upsert_record(records, |user| string_field(user, "id") == Some(portal_id.as_str()), record)
+}
+
+fn save_marketing_campaign(state: &mut AdminSandboxState, input: &Value) -> Value {
+    let campaign_id = string_field(input, "marketing_campaign_id")
+        .unwrap_or_default()
+        .to_owned();
+    let existing =
+        existing_record_by_key(&state.store, "marketingCampaigns", "marketing_campaign_id", &campaign_id);
+    let created_at_ms = existing
+        .as_ref()
+        .and_then(|record| record.get("created_at_ms").cloned())
+        .unwrap_or_else(|| json!(state.next_timestamp()));
+    let record = json!({
+        "marketing_campaign_id": campaign_id,
+        "display_name": string_field(input, "display_name").unwrap_or_default(),
+        "status": string_field(input, "status").unwrap_or_default(),
+        "start_at_ms": value_or_null(input, "start_at_ms"),
+        "end_at_ms": value_or_null(input, "end_at_ms"),
+        "created_at_ms": created_at_ms,
+        "updated_at_ms": json!(state.next_timestamp()),
+    });
+    let campaign_id = string_field(&record, "marketing_campaign_id")
+        .expect("marketing campaign should include an id")
+        .to_owned();
+    let records = array_mut(&mut state.store, "marketingCampaigns");
+    upsert_record(
+        records,
+        |campaign| string_field(campaign, "marketing_campaign_id") == Some(campaign_id.as_str()),
+        record,
+    )
+}
+
+fn save_tenant(state: &mut AdminSandboxState, input: &Value) -> Value {
+    let tenant_id = string_field(input, "id").unwrap_or_default().to_owned();
+    let record = json!({
+        "id": tenant_id,
+        "name": string_field(input, "name").unwrap_or_default(),
+    });
+    let records = array_mut(&mut state.store, "tenants");
+    upsert_record(records, |tenant| string_field(tenant, "id") == Some(tenant_id.as_str()), record)
+}
+
+fn save_project(state: &mut AdminSandboxState, input: &Value) -> Value {
+    let project_id = string_field(input, "id").unwrap_or_default().to_owned();
+    let record = json!({
+        "tenant_id": string_field(input, "tenant_id").unwrap_or_default(),
+        "id": project_id,
+        "name": string_field(input, "name").unwrap_or_default(),
+    });
+    let records = array_mut(&mut state.store, "projects");
+    upsert_record(
+        records,
+        |project| string_field(project, "id") == Some(project_id.as_str()),
+        record,
+    )
+}
+
+fn save_api_key_group(
+    state: &mut AdminSandboxState,
+    input: &Value,
+    group_id_override: Option<&str>,
+) -> Value {
+    let group_id = group_id_override
+        .map(str::to_owned)
+        .or_else(|| trimmed_string_field(input, "group_id"))
+        .unwrap_or_else(|| state.next_id("group"));
+    let existing = existing_record_by_key(&state.store, "apiKeyGroups", "group_id", &group_id);
+    let name = string_field(input, "name").unwrap_or_default();
+    let slug = trimmed_string_field(input, "slug").unwrap_or_else(|| slugify(name));
+    let created_at_ms = existing
+        .as_ref()
+        .and_then(|record| record.get("created_at_ms").cloned())
+        .unwrap_or_else(|| json!(state.next_timestamp()));
+    let active = bool_field(input, "active")
+        .or_else(|| existing.as_ref().and_then(|record| bool_field(record, "active")))
+        .unwrap_or(true);
+    let record = json!({
+        "group_id": group_id,
+        "tenant_id": string_field(input, "tenant_id").unwrap_or_default(),
+        "project_id": string_field(input, "project_id").unwrap_or_default(),
+        "environment": string_field(input, "environment").unwrap_or_default(),
+        "name": name,
+        "slug": slug,
+        "description": string_or_null(input, "description"),
+        "color": string_or_null(input, "color"),
+        "default_capability_scope": string_or_null(input, "default_capability_scope"),
+        "default_accounting_mode": string_or_null(input, "default_accounting_mode"),
+        "default_routing_profile_id": string_or_null(input, "default_routing_profile_id"),
+        "active": active,
+        "created_at_ms": created_at_ms,
+        "updated_at_ms": json!(state.next_timestamp()),
+    });
+    let group_id = string_field(&record, "group_id")
+        .expect("api key group should include an id")
+        .to_owned();
+    let records = array_mut(&mut state.store, "apiKeyGroups");
+    upsert_record(
+        records,
+        |group| string_field(group, "group_id") == Some(group_id.as_str()),
+        record,
+    )
+}
+
+fn save_routing_profile(state: &mut AdminSandboxState, input: &Value) -> Value {
+    let profile_id =
+        trimmed_string_field(input, "profile_id").unwrap_or_else(|| state.next_id("routing"));
+    let existing = existing_record_by_key(&state.store, "routingProfiles", "profile_id", &profile_id);
+    let name = string_field(input, "name").unwrap_or_default();
+    let slug = trimmed_string_field(input, "slug").unwrap_or_else(|| slugify(name));
+    let created_at_ms = existing
+        .as_ref()
+        .and_then(|record| record.get("created_at_ms").cloned())
+        .unwrap_or_else(|| json!(state.next_timestamp()));
+    let active = bool_field(input, "active")
+        .or_else(|| existing.as_ref().and_then(|record| bool_field(record, "active")))
+        .unwrap_or(true);
+    let require_healthy = bool_field(input, "require_healthy")
+        .or_else(|| existing.as_ref().and_then(|record| bool_field(record, "require_healthy")))
+        .unwrap_or(true);
+    let record = json!({
+        "profile_id": profile_id,
+        "tenant_id": string_field(input, "tenant_id").unwrap_or_default(),
+        "project_id": string_field(input, "project_id").unwrap_or_default(),
+        "name": name,
+        "slug": slug,
+        "description": string_or_null(input, "description"),
+        "active": active,
+        "strategy": trimmed_string_field(input, "strategy").unwrap_or_else(|| "priority".to_owned()),
+        "ordered_provider_ids": input.get("ordered_provider_ids").cloned().unwrap_or_else(|| json!([])),
+        "default_provider_id": string_or_null(input, "default_provider_id"),
+        "max_cost": value_or_null(input, "max_cost"),
+        "max_latency_ms": value_or_null(input, "max_latency_ms"),
+        "require_healthy": require_healthy,
+        "preferred_region": string_or_null(input, "preferred_region"),
+        "created_at_ms": created_at_ms,
+        "updated_at_ms": json!(state.next_timestamp()),
+    });
+    let profile_id = string_field(&record, "profile_id")
+        .expect("routing profile should include an id")
+        .to_owned();
+    let records = array_mut(&mut state.store, "routingProfiles");
+    upsert_record(
+        records,
+        |profile| string_field(profile, "profile_id") == Some(profile_id.as_str()),
+        record,
+    )
+}
+
+fn create_api_key_record(state: &mut AdminSandboxState, input: &Value) -> Value {
+    let sequence = state.next_sequence();
+    let hashed_key = format!("sandbox_hash_{sequence}");
+    let plaintext = trimmed_string_field(input, "plaintext_key")
+        .unwrap_or_else(|| format!("sandbox_sk_{sequence}"));
+    let created_at_ms = state.next_timestamp();
+    let label =
+        trimmed_string_field(input, "label").unwrap_or_else(|| format!("Sandbox key {sequence}"));
+    let notes = trimmed_string_field(input, "notes")
+        .map(Value::String)
+        .unwrap_or(Value::Null);
+    let record = json!({
+        "tenant_id": string_field(input, "tenant_id").unwrap_or_default(),
+        "project_id": string_field(input, "project_id").unwrap_or_default(),
+        "environment": string_field(input, "environment").unwrap_or_default(),
+        "hashed_key": hashed_key,
+        "api_key_group_id": string_or_null(input, "api_key_group_id"),
+        "label": label,
+        "notes": notes,
+        "created_at_ms": created_at_ms,
+        "last_used_at_ms": Value::Null,
+        "expires_at_ms": value_or_null(input, "expires_at_ms"),
+        "active": true,
+    });
+    array_mut(&mut state.store, "apiKeys").push(record.clone());
+
+    json!({
+        "plaintext": plaintext,
+        "hashed": string_field(&record, "hashed_key").unwrap_or_default(),
+        "tenant_id": string_field(&record, "tenant_id").unwrap_or_default(),
+        "project_id": string_field(&record, "project_id").unwrap_or_default(),
+        "environment": string_field(&record, "environment").unwrap_or_default(),
+        "api_key_group_id": value_or_null(&record, "api_key_group_id"),
+        "label": string_field(&record, "label").unwrap_or_default(),
+        "notes": value_or_null(&record, "notes"),
+        "created_at_ms": created_at_ms,
+        "expires_at_ms": value_or_null(&record, "expires_at_ms"),
+    })
+}
+
+fn save_api_key_update(state: &mut AdminSandboxState, hashed_key: &str, input: &Value) -> Value {
+    let existing = existing_record_by_key(&state.store, "apiKeys", "hashed_key", hashed_key);
+    let created_at_ms = existing
+        .as_ref()
+        .and_then(|record| record.get("created_at_ms").cloned())
+        .unwrap_or_else(|| json!(state.next_timestamp()));
+    let last_used_at_ms = existing
+        .as_ref()
+        .and_then(|record| record.get("last_used_at_ms").cloned())
+        .unwrap_or(Value::Null);
+    let active = existing
+        .as_ref()
+        .and_then(|record| bool_field(record, "active"))
+        .unwrap_or(true);
+    let record = json!({
+        "hashed_key": hashed_key,
+        "tenant_id": string_field(input, "tenant_id").unwrap_or_default(),
+        "project_id": string_field(input, "project_id").unwrap_or_default(),
+        "environment": string_field(input, "environment").unwrap_or_default(),
+        "label": string_field(input, "label").unwrap_or_default(),
+        "notes": string_or_null(input, "notes"),
+        "expires_at_ms": value_or_null(input, "expires_at_ms"),
+        "api_key_group_id": string_or_null(input, "api_key_group_id"),
+        "active": active,
+        "created_at_ms": created_at_ms,
+        "last_used_at_ms": last_used_at_ms,
+    });
+    let records = array_mut(&mut state.store, "apiKeys");
+    upsert_record(
+        records,
+        |api_key| string_field(api_key, "hashed_key") == Some(hashed_key),
+        record,
+    )
+}
+
+fn save_channel(state: &mut AdminSandboxState, input: &Value) -> Value {
+    let channel_id = string_field(input, "id").unwrap_or_default().to_owned();
+    let record = json!({
+        "id": channel_id,
+        "name": string_field(input, "name").unwrap_or_default(),
+    });
+    let records = array_mut(&mut state.store, "channels");
+    upsert_record(
+        records,
+        |channel| string_field(channel, "id") == Some(channel_id.as_str()),
+        record,
+    )
+}
+
+fn build_provider_catalog_record(existing: Option<&Value>, input: &Value) -> Value {
+    let provider_id = string_field(input, "id").unwrap_or_default();
+    let extension_id = trimmed_string_field(input, "extension_id")
+        .or_else(|| existing.and_then(|record| string_field(record, "extension_id").map(str::to_owned)));
+    let protocol_kind = trimmed_string_field(input, "protocol_kind")
+        .or_else(|| existing.and_then(|record| string_field(record, "protocol_kind").map(str::to_owned)))
+        .unwrap_or_else(|| "openai".to_owned());
+    let adapter_kind = trimmed_string_field(input, "adapter_kind")
+        .or_else(|| existing.and_then(|record| string_field(record, "adapter_kind").map(str::to_owned)))
+        .unwrap_or_else(|| "openai-compatible".to_owned());
+    let channel_bindings = input
+        .get("channel_bindings")
+        .cloned()
+        .or_else(|| existing.and_then(|record| record.get("channel_bindings").cloned()))
+        .unwrap_or_else(|| {
+            json!([{
+                "channel_id": string_field(input, "channel_id").unwrap_or_default(),
+                "is_primary": true,
+            }])
+        });
+    let integration = existing
+        .and_then(|record| record.get("integration").cloned())
+        .unwrap_or_else(|| {
+            json!({
+                "mode": "standard_passthrough",
+                "default_plugin_family": protocol_kind.clone(),
+            })
+        });
+    let execution = existing
+        .and_then(|record| record.get("execution").cloned())
+        .unwrap_or_else(|| {
+            json!({
+                "binding_kind": "provider",
+                "runtime": "sandbox-runtime",
+                "runtime_key": extension_id.clone().unwrap_or_else(|| provider_id.to_owned()),
+                "passthrough_protocol": protocol_kind.clone(),
+                "supports_provider_adapter": true,
+                "supports_raw_plugin": true,
+                "fail_closed": true,
+                "route_readiness": {
+                    "openai": {
+                        "executable": true,
+                        "supported": true,
+                    },
+                    "anthropic": {
+                        "executable": false,
+                        "supported": false,
+                    },
+                    "gemini": {
+                        "executable": false,
+                        "supported": false,
+                    },
+                },
+            })
+        });
+    let credential_readiness = existing
+        .and_then(|record| record.get("credential_readiness").cloned())
+        .unwrap_or_else(|| {
+            json!({
+                "ready": false,
+                "state": "missing",
+            })
+        });
+
+    json!({
+        "id": provider_id,
+        "channel_id": string_field(input, "channel_id").unwrap_or_default(),
+        "extension_id": extension_id.map(Value::String).unwrap_or(Value::Null),
+        "adapter_kind": adapter_kind,
+        "protocol_kind": protocol_kind,
+        "base_url": trimmed_string_field(input, "base_url")
+            .map(Value::String)
+            .or_else(|| existing.and_then(|record| record.get("base_url").cloned()))
+            .unwrap_or(Value::Null),
+        "display_name": string_field(input, "display_name").unwrap_or_default(),
+        "channel_bindings": channel_bindings,
+        "integration": integration,
+        "execution": execution,
+        "credential_readiness": credential_readiness,
+    })
+}
+
+fn save_provider(state: &mut AdminSandboxState, input: &Value) -> Value {
+    let provider_id = string_field(input, "id").unwrap_or_default().to_owned();
+    let existing = existing_record_by_key(&state.store, "providers", "id", &provider_id);
+    let record = build_provider_catalog_record(existing.as_ref(), input);
+    {
+        let records = array_mut(&mut state.store, "providers");
+        upsert_record(
+            records,
+            |provider| string_field(provider, "id") == Some(provider_id.as_str()),
+            record,
+        );
+    }
+    sync_provider_credential_readiness(&mut state.store);
+    existing_record_by_key(&state.store, "providers", "id", &provider_id)
+        .expect("saved provider should be present in the store")
+}
+
+fn build_credential_record(input: &Value) -> Value {
+    json!({
+        "tenant_id": string_field(input, "tenant_id").unwrap_or_default(),
+        "provider_id": string_field(input, "provider_id").unwrap_or_default(),
+        "key_reference": string_field(input, "key_reference").unwrap_or_default(),
+        "secret_backend": "sandbox-inmemory",
+        "secret_local_file": Value::Null,
+        "secret_keyring_service": Value::Null,
+        "secret_master_key_id": Value::Null,
+    })
+}
+
+fn save_credential(state: &mut AdminSandboxState, input: &Value) -> Value {
+    let record = build_credential_record(input);
+    let tenant_id = string_field(&record, "tenant_id").unwrap_or_default().to_owned();
+    let provider_id = string_field(&record, "provider_id").unwrap_or_default().to_owned();
+    let key_reference = string_field(&record, "key_reference").unwrap_or_default().to_owned();
+    {
+        let records = array_mut(&mut state.store, "credentials");
+        upsert_record(
+            records,
+            |credential| {
+                string_field(credential, "tenant_id") == Some(tenant_id.as_str())
+                    && string_field(credential, "provider_id") == Some(provider_id.as_str())
+                    && string_field(credential, "key_reference") == Some(key_reference.as_str())
+            },
+            record.clone(),
+        );
+    }
+    sync_provider_credential_readiness(&mut state.store);
+    record
+}
+
+fn save_model(state: &mut AdminSandboxState, input: &Value) -> Value {
+    let external_name = string_field(input, "external_name").unwrap_or_default().to_owned();
+    let provider_id = string_field(input, "provider_id").unwrap_or_default().to_owned();
+    let record = json!({
+        "external_name": external_name,
+        "provider_id": provider_id,
+        "capabilities": input.get("capabilities").cloned().unwrap_or_else(|| json!([])),
+        "streaming": bool_or_default(input, "streaming", false),
+        "context_window": value_or_null(input, "context_window"),
+    });
+    let records = array_mut(&mut state.store, "models");
+    upsert_record(
+        records,
+        |model| {
+            string_field(model, "external_name") == Some(external_name.as_str())
+                && string_field(model, "provider_id") == Some(provider_id.as_str())
+        },
+        record,
+    )
+}
+
+fn save_channel_model(state: &mut AdminSandboxState, input: &Value) -> Value {
+    let channel_id = string_field(input, "channel_id").unwrap_or_default().to_owned();
+    let model_id = string_field(input, "model_id").unwrap_or_default().to_owned();
+    let record = json!({
+        "channel_id": channel_id,
+        "model_id": model_id,
+        "model_display_name": string_field(input, "model_display_name").unwrap_or_default(),
+        "capabilities": input.get("capabilities").cloned().unwrap_or_else(|| json!([])),
+        "streaming": bool_or_default(input, "streaming", false),
+        "context_window": value_or_null(input, "context_window"),
+        "description": string_or_null(input, "description"),
+    });
+    let records = array_mut(&mut state.store, "channelModels");
+    upsert_record(
+        records,
+        |channel_model| {
+            string_field(channel_model, "channel_id") == Some(channel_id.as_str())
+                && string_field(channel_model, "model_id") == Some(model_id.as_str())
+        },
+        record,
+    )
+}
+
+fn save_model_price(state: &mut AdminSandboxState, input: &Value) -> Value {
+    let channel_id = string_field(input, "channel_id").unwrap_or_default().to_owned();
+    let model_id = string_field(input, "model_id").unwrap_or_default().to_owned();
+    let proxy_provider_id = string_field(input, "proxy_provider_id")
+        .unwrap_or_default()
+        .to_owned();
+    let record = json!({
+        "channel_id": channel_id,
+        "model_id": model_id,
+        "proxy_provider_id": proxy_provider_id,
+        "currency_code": string_field(input, "currency_code").unwrap_or_default(),
+        "price_unit": string_field(input, "price_unit").unwrap_or_default(),
+        "input_price": value_or_null(input, "input_price"),
+        "output_price": value_or_null(input, "output_price"),
+        "cache_read_price": value_or_null(input, "cache_read_price"),
+        "cache_write_price": value_or_null(input, "cache_write_price"),
+        "request_price": value_or_null(input, "request_price"),
+        "is_active": bool_or_default(input, "is_active", true),
+    });
+    let records = array_mut(&mut state.store, "modelPrices");
+    upsert_record(
+        records,
+        |price| {
+            string_field(price, "channel_id") == Some(channel_id.as_str())
+                && string_field(price, "model_id") == Some(model_id.as_str())
+                && string_field(price, "proxy_provider_id") == Some(proxy_provider_id.as_str())
+        },
+        record,
+    )
+}
+
+fn build_rate_limit_window(state: &mut AdminSandboxState, policy: &Value) -> Value {
+    let window_seconds = policy
+        .get("window_seconds")
+        .and_then(Value::as_u64)
+        .unwrap_or(60);
+    let window_start_ms = state.next_timestamp();
+
+    json!({
+        "policy_id": string_field(policy, "policy_id").unwrap_or_default(),
+        "project_id": string_or_null(policy, "project_id"),
+        "api_key_hash": string_or_null(policy, "api_key_hash"),
+        "route_key": string_or_null(policy, "route_key"),
+        "model_name": string_or_null(policy, "model_name"),
+        "requests_per_window": policy.get("requests_per_window").cloned().unwrap_or_else(|| json!(0)),
+        "window_seconds": window_seconds,
+        "burst_requests": policy.get("burst_requests").cloned().unwrap_or_else(|| json!(0)),
+        "limit_requests": policy.get("limit_requests").cloned().unwrap_or_else(|| json!(0)),
+        "request_count": 0,
+        "remaining_requests": policy.get("limit_requests").cloned().unwrap_or_else(|| json!(0)),
+        "window_start_ms": window_start_ms,
+        "window_end_ms": window_start_ms + window_seconds * 1000,
+        "updated_at_ms": window_start_ms,
+        "enabled": policy.get("enabled").cloned().unwrap_or_else(|| json!(true)),
+        "exceeded": false,
+    })
+}
+
+fn save_rate_limit_policy(state: &mut AdminSandboxState, input: &Value) -> Value {
+    let policy_id = string_field(input, "policy_id").unwrap_or_default().to_owned();
+    let existing = existing_record_by_key(&state.store, "rateLimitPolicies", "policy_id", &policy_id);
+    let created_at_ms = existing
+        .as_ref()
+        .and_then(|record| record.get("created_at_ms").cloned())
+        .unwrap_or_else(|| json!(state.next_timestamp()));
+    let record = json!({
+        "policy_id": policy_id,
+        "project_id": string_field(input, "project_id").unwrap_or_default(),
+        "api_key_hash": string_or_null(input, "api_key_hash"),
+        "route_key": string_or_null(input, "route_key"),
+        "model_name": string_or_null(input, "model_name"),
+        "requests_per_window": value_or_null(input, "requests_per_window"),
+        "window_seconds": input.get("window_seconds").cloned().unwrap_or_else(|| json!(60)),
+        "burst_requests": value_or_null(input, "burst_requests"),
+        "limit_requests": input.get("requests_per_window").cloned().unwrap_or_else(|| json!(0)),
+        "enabled": input.get("enabled").cloned().unwrap_or_else(|| json!(true)),
+        "notes": string_or_null(input, "notes"),
+        "created_at_ms": created_at_ms,
+        "updated_at_ms": json!(state.next_timestamp()),
+    });
+    let saved = {
+        let records = array_mut(&mut state.store, "rateLimitPolicies");
+        upsert_record(
+            records,
+            |policy| string_field(policy, "policy_id") == Some(policy_id.as_str()),
+            record,
+        )
+    };
+    let window = build_rate_limit_window(state, &saved);
+    {
+        let windows = array_mut(&mut state.store, "rateLimitWindows");
+        upsert_record(
+            windows,
+            |policy_window| string_field(policy_window, "policy_id") == Some(policy_id.as_str()),
+            window,
+        );
+    }
+    saved
+}
+
+fn save_runtime_reload(state: &mut AdminSandboxState, input: &Value) -> Value {
+    let reloaded_at_ms = state.next_timestamp();
+    let (runtime_count, active_runtime_count, runtime_statuses) = {
+        let statuses = array_mut(&mut state.store, "runtimeStatuses");
+        for status in statuses.iter_mut() {
+            if bool_field(status, "healthy") == Some(true) {
+                status["message"] = json!(format!(
+                    "Sandbox reload completed at {reloaded_at_ms}."
+                ));
+            }
+        }
+        let runtime_count = statuses.len();
+        let active_runtime_count = statuses
+            .iter()
+            .filter(|status| bool_field(status, "running") == Some(true))
+            .count();
+        (runtime_count, active_runtime_count, statuses.clone())
+    };
+
+    json!({
+        "scope": if input.get("extension_id").is_some() || input.get("instance_id").is_some() {
+            "targeted"
+        } else {
+            "workspace"
+        },
+        "requested_extension_id": string_or_null(input, "extension_id"),
+        "requested_instance_id": string_or_null(input, "instance_id"),
+        "resolved_extension_id": string_or_null(input, "extension_id"),
+        "discovered_package_count": runtime_count,
+        "loadable_package_count": runtime_count,
+        "active_runtime_count": active_runtime_count,
+        "reloaded_at_ms": reloaded_at_ms,
+        "runtime_statuses": runtime_statuses,
+    })
+}
+
+fn update_operator_user_status(
+    state: &mut AdminSandboxState,
+    user_id: &str,
+    active: bool,
+) -> Response {
+    let updated_user = {
+        let records = array_mut(&mut state.store, "operatorUsers");
+        let Some(index) = find_index_by(records, "id", user_id) else {
+            return json_error_response(StatusCode::NOT_FOUND, "Operator user not found.");
+        };
+        records[index]["active"] = json!(active);
+        records[index].clone()
+    };
+    let current_user_id = string_field(&auth_user(&state.store), "id").map(str::to_owned);
+    if current_user_id.as_deref() == Some(user_id) {
+        return object_response(
+            update_auth_session_for_user(state, updated_user)
+                .get("user")
+                .cloned()
+                .unwrap_or_else(|| auth_user(&state.store)),
+        );
+    }
+
+    object_response(updated_user)
+}
+
+fn reset_operator_user_password(state: &AdminSandboxState, user_id: &str) -> Response {
+    match existing_record_by_key(&state.store, "operatorUsers", "id", user_id) {
+        Some(user) => object_response(user),
+        None => json_error_response(StatusCode::NOT_FOUND, "Operator user not found."),
+    }
+}
+
+fn update_portal_user_status(
+    state: &mut AdminSandboxState,
+    user_id: &str,
+    active: bool,
+) -> Response {
+    let updated_user = {
+        let records = array_mut(&mut state.store, "portalUsers");
+        let Some(index) = find_index_by(records, "id", user_id) else {
+            return json_error_response(StatusCode::NOT_FOUND, "Portal user not found.");
+        };
+        records[index]["active"] = json!(active);
+        records[index].clone()
+    };
+
+    object_response(updated_user)
+}
+
+fn reset_portal_user_password(state: &AdminSandboxState, user_id: &str) -> Response {
+    match existing_record_by_key(&state.store, "portalUsers", "id", user_id) {
+        Some(user) => object_response(user),
+        None => json_error_response(StatusCode::NOT_FOUND, "Portal user not found."),
+    }
+}
+
+fn update_marketing_campaign_status(
+    state: &mut AdminSandboxState,
+    campaign_id: &str,
+    status: &str,
+) -> Response {
+    let updated_campaign = {
+        let updated_at_ms = state.next_timestamp();
+        let records = array_mut(&mut state.store, "marketingCampaigns");
+        let Some(index) = find_index_by(records, "marketing_campaign_id", campaign_id) else {
+            return json_error_response(StatusCode::NOT_FOUND, "Marketing campaign not found.");
+        };
+        records[index]["status"] = json!(status);
+        records[index]["updated_at_ms"] = json!(updated_at_ms);
+        records[index].clone()
+    };
+
+    object_response(updated_campaign)
+}
+
+fn update_api_key_group_status(
+    state: &mut AdminSandboxState,
+    group_id: &str,
+    active: bool,
+) -> Response {
+    let updated_group = {
+        let updated_at_ms = state.next_timestamp();
+        let records = array_mut(&mut state.store, "apiKeyGroups");
+        let Some(index) = find_index_by(records, "group_id", group_id) else {
+            return json_error_response(StatusCode::NOT_FOUND, "API key group not found.");
+        };
+        records[index]["active"] = json!(active);
+        records[index]["updated_at_ms"] = json!(updated_at_ms);
+        records[index].clone()
+    };
+
+    object_response(updated_group)
+}
+
+fn update_api_key_status(state: &mut AdminSandboxState, hashed_key: &str, active: bool) -> Response {
+    let updated_api_key = {
+        let records = array_mut(&mut state.store, "apiKeys");
+        let Some(index) = find_index_by(records, "hashed_key", hashed_key) else {
+            return json_error_response(StatusCode::NOT_FOUND, "API key not found.");
+        };
+        records[index]["active"] = json!(active);
+        records[index].clone()
+    };
+
+    object_response(updated_api_key)
+}
+
+fn delete_operator_user(state: &mut AdminSandboxState, user_id: &str) {
+    let current_user_id = string_field(&auth_user(&state.store), "id").map(str::to_owned);
+    remove_by(array_mut(&mut state.store, "operatorUsers"), "id", user_id);
+
+    if current_user_id.as_deref() == Some(user_id) {
+        let replacement_user = array_ref(&state.store, "operatorUsers")
+            .first()
+            .cloned()
+            .unwrap_or_else(|| auth_user(&state.store));
+        let _ = update_auth_session_for_user(state, replacement_user);
+    }
+}
+
+fn cascade_delete_project(store: &mut Value, project_id: &str) {
+    remove_by(array_mut(store, "projects"), "id", project_id);
+    remove_where(array_mut(store, "portalUsers"), |user| {
+        string_field(user, "workspace_project_id") == Some(project_id)
+    });
+    remove_where(array_mut(store, "apiKeys"), |api_key| {
+        string_field(api_key, "project_id") == Some(project_id)
+    });
+    remove_where(array_mut(store, "apiKeyGroups"), |group| {
+        string_field(group, "project_id") == Some(project_id)
+    });
+    remove_where(array_mut(store, "routingProfiles"), |profile| {
+        string_field(profile, "project_id") == Some(project_id)
+    });
+    remove_where(array_mut(store, "compiledRoutingSnapshots"), |snapshot| {
+        string_field(snapshot, "project_id") == Some(project_id)
+    });
+    remove_where(array_mut(store, "rateLimitPolicies"), |policy| {
+        string_field(policy, "project_id") == Some(project_id)
+    });
+    remove_where(array_mut(store, "rateLimitWindows"), |window_record| {
+        string_field(window_record, "project_id") == Some(project_id)
+    });
+    remove_where(array_mut(store, "usageRecords"), |usage_record| {
+        string_field(usage_record, "project_id") == Some(project_id)
+    });
+    remove_where(array_mut(store, "billingEvents"), |billing_event| {
+        string_field(billing_event, "project_id") == Some(project_id)
+    });
+}
+
+fn cascade_delete_tenant(store: &mut Value, tenant_id: &str) {
+    let project_ids = array_ref(store, "projects")
+        .iter()
+        .filter(|project| string_field(project, "tenant_id") == Some(tenant_id))
+        .filter_map(|project| string_field(project, "id").map(str::to_owned))
+        .collect::<Vec<_>>();
+
+    remove_by(array_mut(store, "tenants"), "id", tenant_id);
+    for project_id in project_ids {
+        cascade_delete_project(store, &project_id);
+    }
+    remove_where(array_mut(store, "credentials"), |credential| {
+        string_field(credential, "tenant_id") == Some(tenant_id)
+    });
+    sync_provider_credential_readiness(store);
+}
+
+fn cascade_delete_provider(store: &mut Value, provider_id: &str) {
+    remove_by(array_mut(store, "providers"), "id", provider_id);
+    remove_where(array_mut(store, "credentials"), |credential| {
+        string_field(credential, "provider_id") == Some(provider_id)
+    });
+    remove_where(array_mut(store, "models"), |model| {
+        string_field(model, "provider_id") == Some(provider_id)
+    });
+    remove_where(array_mut(store, "modelPrices"), |price| {
+        string_field(price, "proxy_provider_id") == Some(provider_id)
+    });
+    remove_where(array_mut(store, "providerHealth"), |snapshot| {
+        string_field(snapshot, "provider_id") == Some(provider_id)
+    });
+    sync_provider_credential_readiness(store);
+}
+
+fn cascade_delete_model(store: &mut Value, external_name: &str, provider_id: &str) {
+    remove_where(array_mut(store, "models"), |model| {
+        string_field(model, "external_name") == Some(external_name)
+            && string_field(model, "provider_id") == Some(provider_id)
+    });
+    remove_where(array_mut(store, "channelModels"), |model| {
+        string_field(model, "model_id") == Some(external_name)
+    });
+    remove_where(array_mut(store, "modelPrices"), |price| {
+        string_field(price, "model_id") == Some(external_name)
+    });
+}
+
+pub async fn handle_admin_sandbox_request(
+    state: &SharedAdminSandboxState,
+    method: Method,
+    headers: HeaderMap,
+    uri: Uri,
+    body: Bytes,
+) -> Response {
+    let segments = admin_api_segments(&uri);
+    let segment_refs = segments.iter().map(String::as_str).collect::<Vec<_>>();
+
+    let mut guard = state.inner.lock().expect("sandbox state mutex should lock");
+
+    if method == Method::POST && segment_refs.as_slice() == ["auth", "login"] {
+        let Ok(input) = parse_body(&body) else {
+            return json_error_response(
+                StatusCode::BAD_REQUEST,
+                "Admin sandbox request body must be valid JSON.",
+            );
+        };
+        return login_user(&mut guard, &input);
+    }
+
+    if let Err(response) = require_session(&guard.store, &headers) {
+        return response;
+    }
+
+    if method == Method::GET {
+        match segment_refs.as_slice() {
+            ["auth", "me"] => return object_response(auth_user(&guard.store)),
+            ["users", "operators"] => return list_response(&guard.store, "operatorUsers"),
+            ["users", "portal"] => return list_response(&guard.store, "portalUsers"),
+            ["marketing", "campaigns"] => return list_response(&guard.store, "marketingCampaigns"),
+            ["tenants"] => return list_response(&guard.store, "tenants"),
+            ["projects"] => return list_response(&guard.store, "projects"),
+            ["api-keys"] => return list_response(&guard.store, "apiKeys"),
+            ["api-key-groups"] => return list_response(&guard.store, "apiKeyGroups"),
+            ["routing", "profiles"] => return list_response(&guard.store, "routingProfiles"),
+            ["routing", "snapshots"] => {
+                return list_response(&guard.store, "compiledRoutingSnapshots")
+            }
+            ["channels"] => return list_response(&guard.store, "channels"),
+            ["providers"] => return list_response(&guard.store, "providers"),
+            ["credentials"] => return list_response(&guard.store, "credentials"),
+            ["models"] => return list_response(&guard.store, "models"),
+            ["channel-models"] => return list_response(&guard.store, "channelModels"),
+            ["model-prices"] => return list_response(&guard.store, "modelPrices"),
+            ["usage", "records"] => return list_response(&guard.store, "usageRecords"),
+            ["usage", "summary"] => return object_response(store_value(&guard.store, "usageSummary").clone()),
+            ["billing", "summary"] => {
+                return object_response(store_value(&guard.store, "billingSummary").clone())
+            }
+            ["billing", "events"] => return list_response(&guard.store, "billingEvents"),
+            ["billing", "events", "summary"] => {
+                return object_response(store_value(&guard.store, "billingEventSummary").clone())
+            }
+            ["routing", "decision-logs"] => return list_response(&guard.store, "routingLogs"),
+            ["gateway", "rate-limit-policies"] => return list_response(&guard.store, "rateLimitPolicies"),
+            ["gateway", "rate-limit-windows"] => return list_response(&guard.store, "rateLimitWindows"),
+            ["routing", "health-snapshots"] => return list_response(&guard.store, "providerHealth"),
+            ["extensions", "runtime-statuses"] => return list_response(&guard.store, "runtimeStatuses"),
+            _ => {}
+        }
+    }
+
+    let Ok(input) = parse_body(&body) else {
+        return json_error_response(
+            StatusCode::BAD_REQUEST,
+            "Admin sandbox request body must be valid JSON.",
+        );
+    };
+
+    if method == Method::POST {
+        match segment_refs.as_slice() {
+            ["users", "operators"] => return object_response(save_operator_user(&mut guard, &input)),
+            ["users", "portal"] => return object_response(save_portal_user(&mut guard, &input)),
+            ["marketing", "campaigns"] => {
+                return object_response(save_marketing_campaign(&mut guard, &input))
+            }
+            ["tenants"] => return object_response(save_tenant(&mut guard, &input)),
+            ["projects"] => return object_response(save_project(&mut guard, &input)),
+            ["api-key-groups"] => return object_response(save_api_key_group(&mut guard, &input, None)),
+            ["routing", "profiles"] => return object_response(save_routing_profile(&mut guard, &input)),
+            ["api-keys"] => return object_response(create_api_key_record(&mut guard, &input)),
+            ["channels"] => return object_response(save_channel(&mut guard, &input)),
+            ["providers"] => return object_response(save_provider(&mut guard, &input)),
+            ["credentials"] => return object_response(save_credential(&mut guard, &input)),
+            ["models"] => return object_response(save_model(&mut guard, &input)),
+            ["channel-models"] => return object_response(save_channel_model(&mut guard, &input)),
+            ["model-prices"] => return object_response(save_model_price(&mut guard, &input)),
+            ["gateway", "rate-limit-policies"] => {
+                return object_response(save_rate_limit_policy(&mut guard, &input))
+            }
+            ["extensions", "runtime-reloads"] => {
+                return object_response(save_runtime_reload(&mut guard, &input))
+            }
+            _ => {}
+        }
+
+        match segment_refs.as_slice() {
+            ["users", "operators", user_id, "status"] => {
+                return update_operator_user_status(
+                    &mut guard,
+                    user_id,
+                    bool_or_default(&input, "active", false),
+                )
+            }
+            ["users", "operators", user_id, "password"] => {
+                return reset_operator_user_password(&guard, user_id)
+            }
+            ["users", "portal", user_id, "status"] => {
+                return update_portal_user_status(
+                    &mut guard,
+                    user_id,
+                    bool_or_default(&input, "active", false),
+                )
+            }
+            ["users", "portal", user_id, "password"] => {
+                return reset_portal_user_password(&guard, user_id)
+            }
+            ["marketing", "campaigns", campaign_id, "status"] => {
+                return update_marketing_campaign_status(
+                    &mut guard,
+                    campaign_id,
+                    string_field(&input, "status").unwrap_or_default(),
+                )
+            }
+            ["api-key-groups", group_id, "status"] => {
+                return update_api_key_group_status(
+                    &mut guard,
+                    group_id,
+                    bool_or_default(&input, "active", false),
+                )
+            }
+            ["api-keys", hashed_key, "status"] => {
+                return update_api_key_status(
+                    &mut guard,
+                    hashed_key,
+                    bool_or_default(&input, "active", false),
+                )
+            }
+            _ => {}
+        }
+    }
+
+    if method == Method::PATCH {
+        match segment_refs.as_slice() {
+            ["api-key-groups", group_id] => {
+                let Some(existing_group) =
+                    existing_record_by_key(&guard.store, "apiKeyGroups", "group_id", group_id)
+                else {
+                    return json_error_response(StatusCode::NOT_FOUND, "API key group not found.");
+                };
+                let merged_input = merge_objects(&existing_group, &input);
+                return object_response(save_api_key_group(
+                    &mut guard,
+                    &merged_input,
+                    Some(group_id),
+                ));
+            }
+            _ => {}
+        }
+    }
+
+    if method == Method::PUT {
+        match segment_refs.as_slice() {
+            ["api-keys", hashed_key] => {
+                return object_response(save_api_key_update(&mut guard, hashed_key, &input))
+            }
+            _ => {}
+        }
+    }
+
+    if method == Method::DELETE {
+        match segment_refs.as_slice() {
+            ["users", "operators", user_id] => {
+                delete_operator_user(&mut guard, user_id);
+                return empty_response(StatusCode::NO_CONTENT);
+            }
+            ["users", "portal", user_id] => {
+                remove_by(array_mut(&mut guard.store, "portalUsers"), "id", user_id);
+                return empty_response(StatusCode::NO_CONTENT);
+            }
+            ["tenants", tenant_id] => {
+                cascade_delete_tenant(&mut guard.store, tenant_id);
+                return empty_response(StatusCode::NO_CONTENT);
+            }
+            ["projects", project_id] => {
+                cascade_delete_project(&mut guard.store, project_id);
+                return empty_response(StatusCode::NO_CONTENT);
+            }
+            ["api-key-groups", group_id] => {
+                remove_by(array_mut(&mut guard.store, "apiKeyGroups"), "group_id", group_id);
+                return empty_response(StatusCode::NO_CONTENT);
+            }
+            ["api-keys", hashed_key] => {
+                remove_by(array_mut(&mut guard.store, "apiKeys"), "hashed_key", hashed_key);
+                return empty_response(StatusCode::NO_CONTENT);
+            }
+            ["channels", channel_id] => {
+                remove_by(array_mut(&mut guard.store, "channels"), "id", channel_id);
+                remove_where(array_mut(&mut guard.store, "channelModels"), |channel_model| {
+                    string_field(channel_model, "channel_id") == Some(channel_id)
+                });
+                remove_where(array_mut(&mut guard.store, "modelPrices"), |model_price| {
+                    string_field(model_price, "channel_id") == Some(channel_id)
+                });
+                return empty_response(StatusCode::NO_CONTENT);
+            }
+            ["providers", provider_id] => {
+                cascade_delete_provider(&mut guard.store, provider_id);
+                return empty_response(StatusCode::NO_CONTENT);
+            }
+            ["credentials", tenant_id, "providers", provider_id, "keys", key_reference] => {
+                remove_where(array_mut(&mut guard.store, "credentials"), |credential| {
+                    string_field(credential, "tenant_id") == Some(tenant_id)
+                        && string_field(credential, "provider_id") == Some(provider_id)
+                        && string_field(credential, "key_reference") == Some(key_reference)
+                });
+                sync_provider_credential_readiness(&mut guard.store);
+                return empty_response(StatusCode::NO_CONTENT);
+            }
+            ["models", external_name, "providers", provider_id] => {
+                cascade_delete_model(&mut guard.store, external_name, provider_id);
+                return empty_response(StatusCode::NO_CONTENT);
+            }
+            ["channel-models", channel_id, "models", model_id] => {
+                remove_where(array_mut(&mut guard.store, "channelModels"), |channel_model| {
+                    string_field(channel_model, "channel_id") == Some(channel_id)
+                        && string_field(channel_model, "model_id") == Some(model_id)
+                });
+                return empty_response(StatusCode::NO_CONTENT);
+            }
+            ["model-prices", channel_id, "models", model_id, "providers", provider_id] => {
+                remove_where(array_mut(&mut guard.store, "modelPrices"), |model_price| {
+                    string_field(model_price, "channel_id") == Some(channel_id)
+                        && string_field(model_price, "model_id") == Some(model_id)
+                        && string_field(model_price, "proxy_provider_id") == Some(provider_id)
+                });
+                return empty_response(StatusCode::NO_CONTENT);
+            }
+            _ => {}
+        }
+    }
+
+    json_error_response(
+        StatusCode::NOT_FOUND,
+        &format!(
+            "Admin sandbox route not implemented for {} {}.",
+            method,
+            uri.path()
+        ),
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::to_bytes;
+    use serde_json::{Value, json};
+
+    fn authorization_headers(token: Option<&str>) -> HeaderMap {
+        let mut headers = HeaderMap::new();
+        if let Some(token) = token {
+            headers.insert(
+                header::AUTHORIZATION,
+                format!("Bearer {token}")
+                    .parse()
+                    .expect("authorization header should parse"),
+            );
+        }
+        headers
+    }
+
+    async fn send_request(
+        state: &SharedAdminSandboxState,
+        method: Method,
+        path: &str,
+        token: Option<&str>,
+        body: Option<Value>,
+    ) -> (StatusCode, Option<Value>) {
+        let response = handle_admin_sandbox_request(
+            state,
+            method,
+            authorization_headers(token),
+            Uri::from_maybe_shared(path.to_owned()).expect("sandbox request uri should parse"),
+            body.map_or_else(Bytes::new, |payload| Bytes::from(payload.to_string())),
+        )
+        .await;
+
+        let status = response.status();
+        let bytes = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("sandbox response body should be readable");
+        let payload = if bytes.is_empty() {
+            None
+        } else {
+            Some(
+                serde_json::from_slice::<Value>(&bytes)
+                    .expect("sandbox response should be valid json"),
+            )
+        };
+
+        (status, payload)
+    }
+
+    async fn login(state: &SharedAdminSandboxState) -> String {
+        let (status, payload) = send_request(
+            state,
+            Method::POST,
+            "/api/admin/auth/login",
+            None,
+            Some(json!({
+                "email": "admin@sdkwork.local",
+                "password": "ChangeMe123!",
+            })),
+        )
+        .await;
+
+        assert_eq!(status, StatusCode::OK);
+        payload
+            .and_then(|value| value.get("token").and_then(Value::as_str).map(str::to_owned))
+            .expect("sandbox login should return a token")
+    }
+
+    #[tokio::test]
+    async fn sandbox_login_exposes_authenticated_me_profile() {
+        let state = SharedAdminSandboxState::seeded();
+        let token = login(&state).await;
+
+        let (status, payload) = send_request(
+            &state,
+            Method::GET,
+            "/api/admin/auth/me",
+            Some(token.as_str()),
+            None,
+        )
+        .await;
+
+        assert_eq!(status, StatusCode::OK);
+        let me = payload.expect("auth me should return a payload");
+        assert_eq!(string_field(&me, "email"), Some("admin@sdkwork.local"));
+        assert_eq!(string_field(&me, "display_name"), Some("Operations Lead"));
+    }
+
+    #[tokio::test]
+    async fn sandbox_supports_workbench_write_contract() {
+        let state = SharedAdminSandboxState::seeded();
+        let token = login(&state).await;
+
+        let (status, operator_payload) = send_request(
+            &state,
+            Method::POST,
+            "/api/admin/users/operators",
+            Some(token.as_str()),
+            Some(json!({
+                "email": "operator-contract@sdkwork.local",
+                "display_name": "Contract Operator",
+                "active": true,
+            })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        let operator_id = operator_payload
+            .as_ref()
+            .and_then(|value| value.get("id"))
+            .and_then(Value::as_str)
+            .expect("operator save should return an id")
+            .to_owned();
+
+        let (status, _) = send_request(
+            &state,
+            Method::POST,
+            &format!("/api/admin/users/operators/{operator_id}/status"),
+            Some(token.as_str()),
+            Some(json!({ "active": false })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+
+        let (status, _) = send_request(
+            &state,
+            Method::POST,
+            &format!("/api/admin/users/operators/{operator_id}/password"),
+            Some(token.as_str()),
+            Some(json!({ "new_password": "ChangeAgain123!" })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+
+        let (status, portal_payload) = send_request(
+            &state,
+            Method::POST,
+            "/api/admin/users/portal",
+            Some(token.as_str()),
+            Some(json!({
+                "email": "portal-contract@sdkwork.local",
+                "display_name": "Portal Contract",
+                "workspace_tenant_id": "tenant_contract",
+                "workspace_project_id": "project_contract",
+                "active": true,
+            })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        let portal_id = portal_payload
+            .as_ref()
+            .and_then(|value| value.get("id"))
+            .and_then(Value::as_str)
+            .expect("portal save should return an id")
+            .to_owned();
+
+        let (status, _) = send_request(
+            &state,
+            Method::POST,
+            &format!("/api/admin/users/portal/{portal_id}/status"),
+            Some(token.as_str()),
+            Some(json!({ "active": false })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+
+        let (status, _) = send_request(
+            &state,
+            Method::POST,
+            &format!("/api/admin/users/portal/{portal_id}/password"),
+            Some(token.as_str()),
+            Some(json!({ "new_password": "ChangeAgain123!" })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+
+        let (status, campaign_payload) = send_request(
+            &state,
+            Method::POST,
+            "/api/admin/marketing/campaigns",
+            Some(token.as_str()),
+            Some(json!({
+                "marketing_campaign_id": "campaign_contract",
+                "display_name": "Contract Campaign",
+                "status": "draft",
+                "start_at_ms": 1762752000000u64,
+                "end_at_ms": 1762838400000u64,
+            })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        let campaign_id = campaign_payload
+            .as_ref()
+            .and_then(|value| value.get("marketing_campaign_id"))
+            .and_then(Value::as_str)
+            .expect("campaign save should return an id")
+            .to_owned();
+
+        let (status, _) = send_request(
+            &state,
+            Method::POST,
+            &format!("/api/admin/marketing/campaigns/{campaign_id}/status"),
+            Some(token.as_str()),
+            Some(json!({ "status": "active" })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+
+        let (status, _) = send_request(
+            &state,
+            Method::POST,
+            "/api/admin/tenants",
+            Some(token.as_str()),
+            Some(json!({
+                "id": "tenant_contract",
+                "name": "Contract Tenant",
+            })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+
+        let (status, _) = send_request(
+            &state,
+            Method::POST,
+            "/api/admin/projects",
+            Some(token.as_str()),
+            Some(json!({
+                "tenant_id": "tenant_contract",
+                "id": "project_contract",
+                "name": "Contract Project",
+            })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+
+        let (status, api_key_group_payload) = send_request(
+            &state,
+            Method::POST,
+            "/api/admin/api-key-groups",
+            Some(token.as_str()),
+            Some(json!({
+                "tenant_id": "tenant_contract",
+                "project_id": "project_contract",
+                "environment": "staging",
+                "name": "Contract Group",
+            })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        let api_key_group_id = api_key_group_payload
+            .as_ref()
+            .and_then(|value| value.get("group_id"))
+            .and_then(Value::as_str)
+            .expect("api key group should return an id")
+            .to_owned();
+
+        let (status, _) = send_request(
+            &state,
+            Method::PATCH,
+            &format!("/api/admin/api-key-groups/{api_key_group_id}"),
+            Some(token.as_str()),
+            Some(json!({
+                "description": "patched contract group",
+            })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+
+        let (status, _) = send_request(
+            &state,
+            Method::POST,
+            &format!("/api/admin/api-key-groups/{api_key_group_id}/status"),
+            Some(token.as_str()),
+            Some(json!({ "active": false })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+
+        let (status, _) = send_request(
+            &state,
+            Method::POST,
+            "/api/admin/routing/profiles",
+            Some(token.as_str()),
+            Some(json!({
+                "tenant_id": "tenant_contract",
+                "project_id": "project_contract",
+                "name": "Contract Routing",
+            })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+
+        let (status, api_key_payload) = send_request(
+            &state,
+            Method::POST,
+            "/api/admin/api-keys",
+            Some(token.as_str()),
+            Some(json!({
+                "tenant_id": "tenant_contract",
+                "project_id": "project_contract",
+                "environment": "staging",
+                "label": "Contract key",
+                "api_key_group_id": api_key_group_id.clone(),
+            })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        let hashed_key = api_key_payload
+            .as_ref()
+            .and_then(|value| value.get("hashed"))
+            .and_then(Value::as_str)
+            .expect("api key create should return the hashed key")
+            .to_owned();
+
+        let (status, _) = send_request(
+            &state,
+            Method::PUT,
+            &format!("/api/admin/api-keys/{hashed_key}"),
+            Some(token.as_str()),
+            Some(json!({
+                "tenant_id": "tenant_contract",
+                "project_id": "project_contract",
+                "environment": "staging",
+                "label": "Contract key updated",
+                "notes": "updated through rust sandbox",
+                "api_key_group_id": null,
+                "expires_at_ms": 1762924800000u64,
+            })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+
+        let (status, _) = send_request(
+            &state,
+            Method::POST,
+            &format!("/api/admin/api-keys/{hashed_key}/status"),
+            Some(token.as_str()),
+            Some(json!({ "active": false })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+
+        let (status, _) = send_request(
+            &state,
+            Method::POST,
+            "/api/admin/channels",
+            Some(token.as_str()),
+            Some(json!({
+                "id": "channel_contract",
+                "name": "Contract Channel",
+            })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+
+        let (status, _) = send_request(
+            &state,
+            Method::POST,
+            "/api/admin/providers",
+            Some(token.as_str()),
+            Some(json!({
+                "id": "provider_contract",
+                "channel_id": "channel_contract",
+                "extension_id": "runtime_contract",
+                "adapter_kind": "openai-compatible",
+                "protocol_kind": "openai",
+                "base_url": "https://sandbox.provider.contract",
+                "display_name": "Contract Provider",
+                "channel_bindings": [
+                    {
+                        "channel_id": "channel_contract",
+                        "is_primary": true,
+                    }
+                ],
+            })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+
+        let (status, providers_payload) = send_request(
+            &state,
+            Method::GET,
+            "/api/admin/providers",
+            Some(token.as_str()),
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        let providers = providers_payload
+            .as_ref()
+            .and_then(|value| value.as_array())
+            .cloned()
+            .expect("providers list should be an array");
+        let provider = providers
+            .iter()
+            .find(|record| string_field(record, "id") == Some("provider_contract"))
+            .expect("provider should be present after save");
+        assert_eq!(
+            provider
+                .get("credential_readiness")
+                .and_then(|value| value.get("ready"))
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+
+        let (status, _) = send_request(
+            &state,
+            Method::POST,
+            "/api/admin/credentials",
+            Some(token.as_str()),
+            Some(json!({
+                "tenant_id": "tenant_contract",
+                "provider_id": "provider_contract",
+                "key_reference": "contract-key-ref",
+                "secret_value": "super-secret",
+            })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+
+        let (status, providers_payload) = send_request(
+            &state,
+            Method::GET,
+            "/api/admin/providers",
+            Some(token.as_str()),
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        let providers = providers_payload
+            .as_ref()
+            .and_then(|value| value.as_array())
+            .cloned()
+            .expect("providers list should be an array");
+        let provider = providers
+            .iter()
+            .find(|record| string_field(record, "id") == Some("provider_contract"))
+            .expect("provider should stay present after credential save");
+        assert_eq!(
+            provider
+                .get("credential_readiness")
+                .and_then(|value| value.get("ready"))
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+
+        let (status, _) = send_request(
+            &state,
+            Method::POST,
+            "/api/admin/models",
+            Some(token.as_str()),
+            Some(json!({
+                "external_name": "model-contract",
+                "provider_id": "provider_contract",
+                "capabilities": ["chat.reply"],
+                "streaming": true,
+                "context_window": 16384,
+            })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+
+        let (status, _) = send_request(
+            &state,
+            Method::POST,
+            "/api/admin/channel-models",
+            Some(token.as_str()),
+            Some(json!({
+                "channel_id": "channel_contract",
+                "model_id": "model-contract",
+                "model_display_name": "Contract Model",
+                "capabilities": ["chat.reply"],
+                "streaming": true,
+                "context_window": 16384,
+            })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+
+        let (status, _) = send_request(
+            &state,
+            Method::POST,
+            "/api/admin/model-prices",
+            Some(token.as_str()),
+            Some(json!({
+                "channel_id": "channel_contract",
+                "model_id": "model-contract",
+                "proxy_provider_id": "provider_contract",
+                "currency_code": "USD",
+                "price_unit": "1k_tokens",
+                "input_price": 0.2,
+                "output_price": 0.4,
+                "cache_read_price": 0.05,
+                "cache_write_price": 0.1,
+                "request_price": 0.01,
+                "is_active": true,
+            })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+
+        let (status, _) = send_request(
+            &state,
+            Method::POST,
+            "/api/admin/gateway/rate-limit-policies",
+            Some(token.as_str()),
+            Some(json!({
+                "policy_id": "policy_contract",
+                "project_id": "project_contract",
+                "api_key_hash": hashed_key.clone(),
+                "route_key": "contract-route",
+                "model_name": "model-contract",
+                "requests_per_window": 600,
+                "window_seconds": 120,
+                "burst_requests": 60,
+                "enabled": true,
+                "notes": "contract policy",
+            })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+
+        let (status, windows_payload) = send_request(
+            &state,
+            Method::GET,
+            "/api/admin/gateway/rate-limit-windows",
+            Some(token.as_str()),
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        let windows = windows_payload
+            .as_ref()
+            .and_then(|value| value.as_array())
+            .cloned()
+            .expect("rate limit windows should be an array");
+        assert!(windows.iter().any(|record| {
+            string_field(record, "policy_id") == Some("policy_contract")
+                && record.get("window_seconds").and_then(Value::as_u64) == Some(120)
+        }));
+
+        let (status, reload_payload) = send_request(
+            &state,
+            Method::POST,
+            "/api/admin/extensions/runtime-reloads",
+            Some(token.as_str()),
+            Some(json!({
+                "extension_id": "runtime_contract",
+            })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(
+            reload_payload
+                .as_ref()
+                .and_then(|value| value.get("scope"))
+                .and_then(Value::as_str),
+            Some("targeted")
+        );
+
+        for (path, expected_status) in [
+            (
+                "/api/admin/channel-models/channel_contract/models/model-contract".to_owned(),
+                StatusCode::NO_CONTENT,
+            ),
+            (
+                "/api/admin/model-prices/channel_contract/models/model-contract/providers/provider_contract"
+                    .to_owned(),
+                StatusCode::NO_CONTENT,
+            ),
+            (
+                "/api/admin/credentials/tenant_contract/providers/provider_contract/keys/contract-key-ref"
+                    .to_owned(),
+                StatusCode::NO_CONTENT,
+            ),
+            (
+                "/api/admin/models/model-contract/providers/provider_contract".to_owned(),
+                StatusCode::NO_CONTENT,
+            ),
+            (
+                "/api/admin/providers/provider_contract".to_owned(),
+                StatusCode::NO_CONTENT,
+            ),
+            (
+                "/api/admin/channels/channel_contract".to_owned(),
+                StatusCode::NO_CONTENT,
+            ),
+            (
+                format!("/api/admin/api-keys/{hashed_key}"),
+                StatusCode::NO_CONTENT,
+            ),
+            (
+                format!("/api/admin/api-key-groups/{api_key_group_id}"),
+                StatusCode::NO_CONTENT,
+            ),
+            (
+                "/api/admin/projects/project_contract".to_owned(),
+                StatusCode::NO_CONTENT,
+            ),
+            (
+                "/api/admin/tenants/tenant_contract".to_owned(),
+                StatusCode::NO_CONTENT,
+            ),
+            (
+                format!("/api/admin/users/portal/{portal_id}"),
+                StatusCode::NO_CONTENT,
+            ),
+            (
+                format!("/api/admin/users/operators/{operator_id}"),
+                StatusCode::NO_CONTENT,
+            ),
+        ] {
+            let (status, payload) = send_request(
+                &state,
+                Method::DELETE,
+                &path,
+                Some(token.as_str()),
+                None,
+            )
+            .await;
+            assert_eq!(status, expected_status, "delete route should succeed for {path}");
+            assert!(payload.is_none(), "delete routes should not return a payload");
+        }
+    }
+}

@@ -6,11 +6,15 @@ version.workspace = true
 
 [dependencies]
 axum.workspace = true
+craw-chat-contract-core = { path = "../../crates/craw-chat-contract-core" }
+craw-chat-contract-message = { path = "../../crates/craw-chat-contract-message" }
+craw-chat-contract-notification = { path = "../../crates/craw-chat-contract-notification" }
 im-auth-context = { path = "../../crates/im-auth-context" }
 im-domain-core = { path = "../../crates/im-domain-core" }
 im-domain-events = { path = "../../crates/im-domain-events" }
 im-platform-contracts = { path = "../../crates/im-platform-contracts" }
 im-time = { path = "../../crates/im-time" }
+projection-service = { path = "../projection-service" }
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true

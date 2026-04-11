@@ -1856,3 +1856,1125 @@ async fn test_edit_and_recall_message_over_http() {
     assert_eq!(recall_json["messageId"], "msg_c_edit_http_1");
     assert_eq!(recall_json["messageSeq"], 1);
 }
+
+#[tokio::test]
+async fn test_reaction_and_pin_message_over_http() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_reaction_pin_http",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation request should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let post_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_reaction_pin_http/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_reaction_pin_http",
+                        "summary":"hello",
+                        "text":"hello"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("post message request should succeed");
+    assert_eq!(post_response.status(), StatusCode::OK);
+
+    let reaction_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/messages/msg_c_reaction_pin_http_1/reactions")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "reactionKey":"thumbs_up"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("add reaction request should succeed");
+    assert_eq!(reaction_response.status(), StatusCode::OK);
+    let reaction_body = reaction_response
+        .into_body()
+        .collect()
+        .await
+        .expect("reaction body should collect")
+        .to_bytes();
+    let reaction_json: serde_json::Value =
+        serde_json::from_slice(&reaction_body).expect("reaction response should be valid json");
+    assert_eq!(reaction_json["messageId"], "msg_c_reaction_pin_http_1");
+    assert_eq!(reaction_json["messageSeq"], 1);
+    assert_eq!(reaction_json["reactionKey"], "thumbs_up");
+    assert_eq!(reaction_json["changed"], true);
+
+    let pin_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/messages/msg_c_reaction_pin_http_1/pin")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{}"#))
+                .unwrap(),
+        )
+        .await
+        .expect("pin message request should succeed");
+    assert_eq!(pin_response.status(), StatusCode::OK);
+    let pin_body = pin_response
+        .into_body()
+        .collect()
+        .await
+        .expect("pin body should collect")
+        .to_bytes();
+    let pin_json: serde_json::Value =
+        serde_json::from_slice(&pin_body).expect("pin response should be valid json");
+    assert_eq!(pin_json["messageId"], "msg_c_reaction_pin_http_1");
+    assert_eq!(pin_json["messageSeq"], 1);
+    assert_eq!(pin_json["changed"], true);
+
+    let unpin_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/messages/msg_c_reaction_pin_http_1/unpin")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{}"#))
+                .unwrap(),
+        )
+        .await
+        .expect("unpin message request should succeed");
+    assert_eq!(unpin_response.status(), StatusCode::OK);
+
+    let remove_reaction_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/messages/msg_c_reaction_pin_http_1/reactions/remove")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "reactionKey":"thumbs_up"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("remove reaction request should succeed");
+    assert_eq!(remove_reaction_response.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn test_create_conversation_with_business_policy_disables_pin_over_http() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_policy_http",
+                        "conversationType":"group",
+                        "policyVersion":"group.policy.v1",
+                        "capabilityFlags":["message.reaction"],
+                        "historyVisibility":"joined",
+                        "retentionPolicyRef":"tenant.standard"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation request should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let post_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_policy_http/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_policy_http",
+                        "summary":"hello",
+                        "text":"hello"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("post message request should succeed");
+    assert_eq!(post_response.status(), StatusCode::OK);
+
+    let reaction_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/messages/msg_c_policy_http_1/reactions")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "reactionKey":"thumbs_up"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("add reaction request should succeed");
+    assert_eq!(reaction_response.status(), StatusCode::OK);
+
+    let pin_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/messages/msg_c_policy_http_1/pin")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{}"#))
+                .unwrap(),
+        )
+        .await
+        .expect("pin message request should return response");
+    assert_eq!(pin_response.status(), StatusCode::FORBIDDEN);
+    let pin_body = pin_response
+        .into_body()
+        .collect()
+        .await
+        .expect("pin body should collect")
+        .to_bytes();
+    let pin_json: serde_json::Value =
+        serde_json::from_slice(&pin_body).expect("pin response should be valid json");
+    assert_eq!(pin_json["code"], "conversation_permission_denied");
+}
+
+#[tokio::test]
+async fn test_joined_history_visibility_blocks_non_member_history_reads_over_http() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_history_joined_http",
+                        "conversationType":"group",
+                        "policyVersion":"group.policy.v1",
+                        "historyVisibility":"joined",
+                        "retentionPolicyRef":"tenant.standard"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation request should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let post_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_history_joined_http/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_history_joined_http",
+                        "summary":"hello",
+                        "text":"hello"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("post message request should succeed");
+    assert_eq!(post_response.status(), StatusCode::OK);
+
+    let history_response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/conversations/c_history_joined_http/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_outsider")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("history request should return response");
+    assert_eq!(history_response.status(), StatusCode::FORBIDDEN);
+    let history_body = history_response
+        .into_body()
+        .collect()
+        .await
+        .expect("history body should collect")
+        .to_bytes();
+    let history_json: serde_json::Value =
+        serde_json::from_slice(&history_body).expect("history response should be valid json");
+    assert_eq!(history_json["code"], "conversation_permission_denied");
+}
+
+#[tokio::test]
+async fn test_world_readable_history_visibility_allows_non_member_history_reads_over_http() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_history_world_http",
+                        "conversationType":"group",
+                        "policyVersion":"group.policy.v1",
+                        "historyVisibility":"world_readable",
+                        "retentionPolicyRef":"tenant.standard"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation request should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let post_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_history_world_http/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_history_world_http",
+                        "summary":"hello world",
+                        "text":"hello world"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("post message request should succeed");
+    assert_eq!(post_response.status(), StatusCode::OK);
+
+    let history_response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/conversations/c_history_world_http/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_outsider")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("history request should return response");
+    assert_eq!(history_response.status(), StatusCode::OK);
+    let history_body = history_response
+        .into_body()
+        .collect()
+        .await
+        .expect("history body should collect")
+        .to_bytes();
+    let history_json: serde_json::Value =
+        serde_json::from_slice(&history_body).expect("history response should be valid json");
+    assert_eq!(
+        history_json["items"][0]["message"]["messageId"],
+        "msg_c_history_world_http_1"
+    );
+    assert_eq!(
+        history_json["items"][0]["message"]["body"]["summary"],
+        "hello world"
+    );
+}
+
+#[tokio::test]
+async fn test_bind_direct_chat_conversation_over_http_and_query_binding() {
+    let app = conversation_runtime::build_default_app();
+
+    let bind_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/direct-chats/bindings")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "svc_control")
+                .header("x-actor-kind", "system")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_direct_binding_http",
+                        "directChatId":"dc_http",
+                        "leftActorId":"actor_a",
+                        "leftActorKind":"user",
+                        "rightActorId":"actor_b"
+                        ,"rightActorKind":"user"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("direct chat binding request should return response");
+    assert_eq!(bind_response.status(), StatusCode::OK);
+    let bind_body = bind_response
+        .into_body()
+        .collect()
+        .await
+        .expect("bind body should collect")
+        .to_bytes();
+    let bind_json: serde_json::Value =
+        serde_json::from_slice(&bind_body).expect("bind response should be valid json");
+    assert_eq!(bind_json["conversationId"], "c_direct_binding_http");
+
+    let binding_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/conversations/c_direct_binding_http/binding")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "svc_control")
+                .header("x-actor-kind", "system")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("binding query should return response");
+    assert_eq!(binding_response.status(), StatusCode::OK);
+    let binding_body = binding_response
+        .into_body()
+        .collect()
+        .await
+        .expect("binding body should collect")
+        .to_bytes();
+    let binding_json: serde_json::Value =
+        serde_json::from_slice(&binding_body).expect("binding response should be valid json");
+    assert_eq!(binding_json["conversationId"], "c_direct_binding_http");
+    assert_eq!(binding_json["businessType"], "direct_chat");
+    assert_eq!(binding_json["businessId"], "dc_http");
+
+    let members_response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/conversations/c_direct_binding_http/members")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "actor_a")
+                .header("x-actor-kind", "user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("list members request should return response");
+    assert_eq!(members_response.status(), StatusCode::OK);
+    let members_body = members_response
+        .into_body()
+        .collect()
+        .await
+        .expect("members body should collect")
+        .to_bytes();
+    let members_json: serde_json::Value =
+        serde_json::from_slice(&members_body).expect("members response should be valid json");
+    assert_eq!(members_json["items"].as_array().unwrap().len(), 2);
+}
+
+#[tokio::test]
+async fn test_create_thread_conversation_over_http_and_query_binding() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_parent_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_parent_thread_http",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create parent conversation request should return response");
+    assert_eq!(create_parent_response.status(), StatusCode::OK);
+
+    let post_root_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_parent_thread_http/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_thread_root_http",
+                        "summary":"root",
+                        "text":"root"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("post root message request should return response");
+    assert_eq!(post_root_response.status(), StatusCode::OK);
+    let post_root_body = post_root_response
+        .into_body()
+        .collect()
+        .await
+        .expect("post root body should collect")
+        .to_bytes();
+    let post_root_json: serde_json::Value =
+        serde_json::from_slice(&post_root_body).expect("post root response should be valid json");
+
+    let create_thread_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/threads")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(format!(
+                    r#"{{
+                        "conversationId":"c_thread_http",
+                        "parentConversationId":"c_parent_thread_http",
+                        "rootMessageId":"{}"
+                    }}"#,
+                    post_root_json["messageId"].as_str().unwrap()
+                )))
+                .unwrap(),
+        )
+        .await
+        .expect("create thread request should return response");
+    assert_eq!(create_thread_response.status(), StatusCode::OK);
+    let create_thread_body = create_thread_response
+        .into_body()
+        .collect()
+        .await
+        .expect("create thread body should collect")
+        .to_bytes();
+    let create_thread_json: serde_json::Value = serde_json::from_slice(&create_thread_body)
+        .expect("create thread response should be valid json");
+    assert_eq!(create_thread_json["conversationId"], "c_thread_http");
+
+    let binding_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/conversations/c_thread_http/binding")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("thread binding query should return response");
+    assert_eq!(binding_response.status(), StatusCode::OK);
+    let binding_body = binding_response
+        .into_body()
+        .collect()
+        .await
+        .expect("thread binding body should collect")
+        .to_bytes();
+    let binding_json: serde_json::Value =
+        serde_json::from_slice(&binding_body).expect("binding response should be valid json");
+    assert_eq!(binding_json["conversationId"], "c_thread_http");
+    assert_eq!(binding_json["businessType"], "thread");
+    assert_eq!(binding_json["businessId"], post_root_json["messageId"]);
+
+    let members_response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/conversations/c_thread_http/members")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("thread members query should return response");
+    assert_eq!(members_response.status(), StatusCode::OK);
+    let members_body = members_response
+        .into_body()
+        .collect()
+        .await
+        .expect("thread members body should collect")
+        .to_bytes();
+    let members_json: serde_json::Value = serde_json::from_slice(&members_body)
+        .expect("thread members response should be valid json");
+    assert_eq!(
+        members_json["items"][0]["attributes"]["parentConversationId"],
+        "c_parent_thread_http"
+    );
+    assert_eq!(
+        members_json["items"][0]["attributes"]["rootMessageId"],
+        post_root_json["messageId"]
+    );
+    assert_eq!(
+        members_json["items"][0]["attributes"]["threadRole"],
+        "owner"
+    );
+}
+
+#[tokio::test]
+async fn test_bind_direct_chat_conversation_rejects_non_system_actor_over_http() {
+    let app = conversation_runtime::build_default_app();
+
+    let bind_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/direct-chats/bindings")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_direct_binding_http_denied",
+                        "directChatId":"dc_http_denied",
+                        "leftActorId":"actor_a",
+                        "leftActorKind":"user",
+                        "rightActorId":"actor_b"
+                        ,"rightActorKind":"user"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("direct chat binding request should return response");
+
+    assert_eq!(bind_response.status(), StatusCode::FORBIDDEN);
+    let bind_body = bind_response
+        .into_body()
+        .collect()
+        .await
+        .expect("bind body should collect")
+        .to_bytes();
+    let bind_json: serde_json::Value =
+        serde_json::from_slice(&bind_body).expect("bind response should be valid json");
+    assert_eq!(bind_json["code"], "conversation_permission_denied");
+}
+
+#[tokio::test]
+async fn test_invited_history_visibility_allows_invited_member_history_reads_before_join_over_http()
+{
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_history_invited_http",
+                        "conversationType":"group",
+                        "policyVersion":"group.policy.v1",
+                        "historyVisibility":"invited",
+                        "retentionPolicyRef":"tenant.standard"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create invited-history conversation request should return response");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let post_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_history_invited_http/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_history_invited_http",
+                        "summary":"hello invited",
+                        "text":"hello invited"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("post invited-history message request should succeed");
+    assert_eq!(post_response.status(), StatusCode::OK);
+
+    let add_member_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_history_invited_http/members/add")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "principalId":"u_invited",
+                        "principalKind":"user",
+                        "role":"member"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("add invited member request should succeed");
+    assert_eq!(add_member_response.status(), StatusCode::OK);
+    let add_member_body = add_member_response
+        .into_body()
+        .collect()
+        .await
+        .expect("add invited member body should collect")
+        .to_bytes();
+    let add_member_json: serde_json::Value =
+        serde_json::from_slice(&add_member_body).expect("add invited member should be valid json");
+    assert_eq!(add_member_json["state"], "invited");
+
+    let invited_history_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/conversations/c_history_invited_http/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_invited")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("invited history request should return response");
+    assert_eq!(invited_history_response.status(), StatusCode::OK);
+    let invited_history_body = invited_history_response
+        .into_body()
+        .collect()
+        .await
+        .expect("invited history body should collect")
+        .to_bytes();
+    let invited_history_json: serde_json::Value = serde_json::from_slice(&invited_history_body)
+        .expect("invited history response should be valid json");
+    assert_eq!(
+        invited_history_json["items"][0]["message"]["messageId"],
+        "msg_c_history_invited_http_1"
+    );
+    assert_eq!(
+        invited_history_json["items"][0]["message"]["body"]["summary"],
+        "hello invited"
+    );
+
+    let outsider_history_response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/conversations/c_history_invited_http/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_outsider")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("outsider history request should return response");
+    assert_eq!(outsider_history_response.status(), StatusCode::FORBIDDEN);
+    let outsider_history_body = outsider_history_response
+        .into_body()
+        .collect()
+        .await
+        .expect("outsider history body should collect")
+        .to_bytes();
+    let outsider_history_json: serde_json::Value = serde_json::from_slice(&outsider_history_body)
+        .expect("outsider history should be valid json");
+    assert_eq!(
+        outsider_history_json["code"],
+        "conversation_permission_denied"
+    );
+}
+
+#[tokio::test]
+async fn test_shared_history_visibility_allows_external_linked_history_reads_but_not_writes_over_http()
+ {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_history_shared_http",
+                        "conversationType":"group",
+                        "policyVersion":"group.policy.v1",
+                        "historyVisibility":"shared",
+                        "retentionPolicyRef":"tenant.standard"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create shared-history conversation request should return response");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let post_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_history_shared_http/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_history_shared_http",
+                        "summary":"hello shared",
+                        "text":"hello shared"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("post shared-history message request should succeed");
+    assert_eq!(post_response.status(), StatusCode::OK);
+
+    let add_member_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_history_shared_http/members/add")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "principalId":"u_partner_external",
+                        "principalKind":"user",
+                        "role":"guest",
+                        "attributes":{
+                            "sharedChannelPolicyId":"scp_001",
+                            "externalConnectionId":"ec_003",
+                            "externalMemberId":"partner_user_42"
+                        }
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("add shared-linked member request should succeed");
+    assert_eq!(add_member_response.status(), StatusCode::OK);
+    let add_member_body = add_member_response
+        .into_body()
+        .collect()
+        .await
+        .expect("add shared-linked member body should collect")
+        .to_bytes();
+    let add_member_json: serde_json::Value = serde_json::from_slice(&add_member_body)
+        .expect("add shared-linked member body should be valid json");
+    assert_eq!(add_member_json["state"], "linked");
+    assert_eq!(
+        add_member_json["attributes"]["sharedChannelPolicyId"],
+        "scp_001"
+    );
+
+    let linked_history_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/conversations/c_history_shared_http/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_partner_external")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("shared linked history request should return response");
+    assert_eq!(linked_history_response.status(), StatusCode::OK);
+    let linked_history_body = linked_history_response
+        .into_body()
+        .collect()
+        .await
+        .expect("shared linked history body should collect")
+        .to_bytes();
+    let linked_history_json: serde_json::Value = serde_json::from_slice(&linked_history_body)
+        .expect("shared linked history should be valid json");
+    assert_eq!(
+        linked_history_json["items"][0]["message"]["messageId"],
+        "msg_c_history_shared_http_1"
+    );
+    assert_eq!(
+        linked_history_json["items"][0]["message"]["body"]["summary"],
+        "hello shared"
+    );
+
+    let linked_post_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_history_shared_http/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_partner_external")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_history_shared_http_external",
+                        "summary":"external write should fail",
+                        "text":"external write should fail"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("shared linked write request should return response");
+    assert_eq!(linked_post_response.status(), StatusCode::FORBIDDEN);
+    let linked_post_body = linked_post_response
+        .into_body()
+        .collect()
+        .await
+        .expect("shared linked write body should collect")
+        .to_bytes();
+    let linked_post_json: serde_json::Value = serde_json::from_slice(&linked_post_body)
+        .expect("shared linked write body should be valid json");
+    assert_eq!(linked_post_json["code"], "conversation_permission_denied");
+
+    let outsider_history_response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/conversations/c_history_shared_http/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_outsider")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("shared outsider history request should return response");
+    assert_eq!(outsider_history_response.status(), StatusCode::FORBIDDEN);
+    let outsider_history_body = outsider_history_response
+        .into_body()
+        .collect()
+        .await
+        .expect("shared outsider history body should collect")
+        .to_bytes();
+    let outsider_history_json: serde_json::Value = serde_json::from_slice(&outsider_history_body)
+        .expect("shared outsider history should be valid json");
+    assert_eq!(
+        outsider_history_json["code"],
+        "conversation_permission_denied"
+    );
+}
+
+#[tokio::test]
+async fn test_sync_shared_channel_linked_member_over_http_materializes_linked_history_reader() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_history_shared_sync_http",
+                        "conversationType":"group",
+                        "policyVersion":"group.policy.v1",
+                        "historyVisibility":"shared",
+                        "retentionPolicyRef":"tenant.standard"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create shared-history conversation request should return response");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let post_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_history_shared_sync_http/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_history_shared_sync_http",
+                        "summary":"hello sync",
+                        "text":"hello sync"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("post shared-history message request should succeed");
+    assert_eq!(post_response.status(), StatusCode::OK);
+
+    let sync_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/shared-channel-links/sync")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "svc_control")
+                .header("x-actor-kind", "system")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_history_shared_sync_http",
+                        "sharedChannelPolicyId":"scp_sync_http",
+                        "externalConnectionId":"ec_sync_http",
+                        "localActorId":"u_partner_external_sync",
+                        "localActorKind":"user",
+                        "externalMemberId":"partner::sync-user"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("shared channel linked-member sync request should return response");
+    assert_eq!(sync_response.status(), StatusCode::OK);
+    let sync_body = sync_response
+        .into_body()
+        .collect()
+        .await
+        .expect("sync body should collect")
+        .to_bytes();
+    let sync_json: serde_json::Value =
+        serde_json::from_slice(&sync_body).expect("sync body should be valid json");
+    assert_eq!(sync_json["principalId"], "u_partner_external_sync");
+    assert_eq!(sync_json["principalKind"], "user");
+    assert_eq!(sync_json["role"], "guest");
+    assert_eq!(sync_json["state"], "linked");
+    assert_eq!(
+        sync_json["attributes"]["sharedChannelPolicyId"],
+        "scp_sync_http"
+    );
+    assert_eq!(
+        sync_json["attributes"]["externalConnectionId"],
+        "ec_sync_http"
+    );
+    assert_eq!(
+        sync_json["attributes"]["externalMemberId"],
+        "partner::sync-user"
+    );
+
+    let linked_history_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/conversations/c_history_shared_sync_http/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_partner_external_sync")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("shared linked history request should return response");
+    assert_eq!(linked_history_response.status(), StatusCode::OK);
+    let linked_history_body = linked_history_response
+        .into_body()
+        .collect()
+        .await
+        .expect("shared linked history body should collect")
+        .to_bytes();
+    let linked_history_json: serde_json::Value = serde_json::from_slice(&linked_history_body)
+        .expect("shared linked history should be valid json");
+    assert_eq!(
+        linked_history_json["items"][0]["message"]["messageId"],
+        "msg_c_history_shared_sync_http_1"
+    );
+    assert_eq!(
+        linked_history_json["items"][0]["message"]["body"]["summary"],
+        "hello sync"
+    );
+}

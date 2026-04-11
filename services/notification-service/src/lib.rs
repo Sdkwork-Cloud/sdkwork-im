@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 
 use axum::extract::{Path, State};
@@ -9,15 +9,16 @@ use axum::{
     Json, Router,
     routing::{get, post},
 };
+use craw_chat_contract_core::ContractError;
+use craw_chat_contract_message::{CommitJournal, CommitPosition};
+use craw_chat_contract_notification::{NotificationTaskRecord, NotificationTaskStore};
 use im_auth_context::{
     AuthContext, AuthContextError, resolve_auth_context, resolve_public_bearer_auth_context,
 };
 pub use im_domain_core::notification::{NotificationStatus, NotificationTask};
 use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
-use im_platform_contracts::{
-    CommitJournal, CommitPosition, ContractError, NotificationTaskRecord, NotificationTaskStore,
-};
 use im_time::utc_now_rfc3339_millis;
+use projection_service::{ProjectionAccessError, TimelineProjectionService};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone)]
@@ -37,6 +38,36 @@ pub struct RequestNotification {
     pub title: Option<String>,
     pub body: Option<String>,
     pub payload: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RequestNotificationFanout {
+    pub notification_id_seed: String,
+    pub source_event_id: String,
+    pub source_event_type: String,
+    pub category: String,
+    pub channel: String,
+    pub recipient_ids: BTreeSet<String>,
+    pub title: Option<String>,
+    pub body: Option<String>,
+    pub payload: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RequestAutomationResultNotification {
+    pub execution_id: String,
+    pub target_ref: String,
+    pub output_payload: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RequestMessagePostedNotifications {
+    pub source_event_id: String,
+    pub conversation_id: String,
+    pub message_id: String,
+    pub message_seq: u64,
+    pub message_type: String,
+    pub summary: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -64,6 +95,7 @@ pub struct NotificationRuntime {
     restored_recipients: Mutex<HashSet<String>>,
     journal: Arc<dyn CommitJournal + Send + Sync>,
     task_store: Arc<dyn NotificationTaskStore>,
+    projection_service: Arc<TimelineProjectionService>,
 }
 
 #[derive(Default)]
@@ -156,6 +188,16 @@ impl From<ContractError> for NotificationError {
     }
 }
 
+impl From<ProjectionAccessError> for NotificationError {
+    fn from(value: ProjectionAccessError) -> Self {
+        Self {
+            status: value.status(),
+            code: value.code(),
+            message: value.message().to_owned(),
+        }
+    }
+}
+
 impl axum::response::IntoResponse for NotificationError {
     fn into_response(self) -> axum::response::Response {
         (
@@ -174,13 +216,44 @@ impl NotificationRuntime {
     where
         J: CommitJournal + Send + Sync + 'static,
     {
-        Self::with_journal_and_store(
+        Self::with_journal_and_store_and_projection(
             journal,
             Arc::new(RuntimeMemoryNotificationTaskStore::default()),
+            Arc::new(TimelineProjectionService::default()),
         )
     }
 
     pub fn with_journal_and_store<J, S>(journal: Arc<J>, task_store: Arc<S>) -> Self
+    where
+        J: CommitJournal + Send + Sync + 'static,
+        S: NotificationTaskStore + 'static,
+    {
+        Self::with_journal_and_store_and_projection(
+            journal,
+            task_store,
+            Arc::new(TimelineProjectionService::default()),
+        )
+    }
+
+    pub fn with_journal_and_projection<J>(
+        journal: Arc<J>,
+        projection_service: Arc<TimelineProjectionService>,
+    ) -> Self
+    where
+        J: CommitJournal + Send + Sync + 'static,
+    {
+        Self::with_journal_and_store_and_projection(
+            journal,
+            Arc::new(RuntimeMemoryNotificationTaskStore::default()),
+            projection_service,
+        )
+    }
+
+    pub fn with_journal_and_store_and_projection<J, S>(
+        journal: Arc<J>,
+        task_store: Arc<S>,
+        projection_service: Arc<TimelineProjectionService>,
+    ) -> Self
     where
         J: CommitJournal + Send + Sync + 'static,
         S: NotificationTaskStore + 'static,
@@ -190,6 +263,7 @@ impl NotificationRuntime {
             restored_recipients: Mutex::new(HashSet::new()),
             journal,
             task_store,
+            projection_service,
         }
     }
 
@@ -326,6 +400,125 @@ impl NotificationRuntime {
             task: dispatched,
             is_new: true,
         })
+    }
+
+    pub fn request_notification_from_public_api(
+        &self,
+        auth: &AuthContext,
+        request: RequestNotification,
+        is_bearer_request: bool,
+    ) -> Result<NotificationRequestResult, NotificationError> {
+        ensure_notification_request_access(auth, request.recipient_id.as_str(), is_bearer_request)?;
+        self.request_notification_with_outcome(auth, request)
+    }
+
+    pub fn request_notification_fanout(
+        &self,
+        auth: &AuthContext,
+        request: RequestNotificationFanout,
+    ) -> Result<Vec<NotificationTask>, NotificationError> {
+        let mut tasks = Vec::new();
+
+        for recipient_id in request
+            .recipient_ids
+            .into_iter()
+            .filter(|recipient_id| recipient_id.as_str() != auth.actor_id.as_str())
+        {
+            tasks.push(self.request_notification(
+                auth,
+                RequestNotification {
+                    notification_id: format!(
+                        "ntf_{}_{}",
+                        request.notification_id_seed, recipient_id
+                    ),
+                    source_event_id: request.source_event_id.clone(),
+                    source_event_type: request.source_event_type.clone(),
+                    category: request.category.clone(),
+                    channel: request.channel.clone(),
+                    recipient_id,
+                    title: request.title.clone(),
+                    body: request.body.clone(),
+                    payload: request.payload.clone(),
+                },
+            )?);
+        }
+
+        Ok(tasks)
+    }
+
+    pub fn request_message_posted_notifications(
+        &self,
+        auth: &AuthContext,
+        request: RequestMessagePostedNotifications,
+    ) -> Result<Vec<NotificationTask>, NotificationError> {
+        let RequestMessagePostedNotifications {
+            source_event_id,
+            conversation_id,
+            message_id,
+            message_seq,
+            message_type,
+            summary,
+        } = request;
+        let category = if message_type == "signal" {
+            "rtc.event"
+        } else {
+            "message.new"
+        };
+        let recipient_ids = self
+            .projection_service
+            .message_posted_notification_principal_ids_from_auth_context(
+                auth,
+                conversation_id.as_str(),
+            )?
+            .into_iter()
+            .collect::<BTreeSet<_>>();
+        let notification_id_seed = message_id.clone();
+        let payload = serde_json::json!({
+            "conversationId": conversation_id,
+            "messageId": message_id,
+            "messageSeq": message_seq,
+            "messageType": message_type,
+        })
+        .to_string();
+
+        self.request_notification_fanout(
+            auth,
+            RequestNotificationFanout {
+                notification_id_seed,
+                source_event_id,
+                source_event_type: "message.posted".into(),
+                category: category.into(),
+                channel: "inapp".into(),
+                recipient_ids,
+                title: summary.clone(),
+                body: summary,
+                payload: Some(payload),
+            },
+        )
+    }
+
+    pub fn request_automation_result_notification(
+        &self,
+        auth: &AuthContext,
+        request: RequestAutomationResultNotification,
+    ) -> Result<NotificationTask, NotificationError> {
+        self.request_notification(
+            auth,
+            RequestNotification {
+                notification_id: format!("ntf_automation_{}", request.execution_id),
+                source_event_id: format!(
+                    "evt_{}_automation_execution_completed",
+                    request.execution_id
+                ),
+                source_event_type: "automation.execution_completed".into(),
+                category: "automation.result".into(),
+                channel: "inapp".into(),
+                recipient_id: auth.actor_id.clone(),
+                title: Some("Automation completed".into()),
+                body: Some(request.target_ref),
+                payload: request.output_payload,
+            },
+        )
     }
 
     pub fn list_notifications(
@@ -526,8 +719,12 @@ async fn request_notification(
 ) -> Result<Json<NotificationTask>, NotificationError> {
     let is_bearer_request = headers.contains_key(axum::http::header::AUTHORIZATION);
     let auth = resolve_auth_context(&headers)?;
-    ensure_notification_request_access(&auth, request.recipient_id.as_str(), is_bearer_request)?;
-    Ok(Json(state.runtime.request_notification(&auth, request)?))
+    Ok(Json(
+        state
+            .runtime
+            .request_notification_from_public_api(&auth, request, is_bearer_request)?
+            .task,
+    ))
 }
 
 async fn list_notifications(

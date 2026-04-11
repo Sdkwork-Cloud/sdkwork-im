@@ -1,0 +1,59 @@
+{
+  "$schema": "../schemas/sdk-release-catalog.schema.json",
+  "version": 1,
+  "bundleId": "wave-d-2026-04-08",
+  "wave": "wave-d",
+  "artifact": "sdk-release-catalog",
+  "state": "template_only_pending_generation",
+  "updatedAt": "2026-04-08",
+  "sdkArtifacts": [
+    {
+      "id": "app-typescript",
+      "audience": "app",
+      "language": "typescript",
+      "package": "sdkwork-craw-chat-sdk-typescript",
+      "readmePath": "sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/README.md",
+      "plannedVersion": null,
+      "versionStatus": "version_unassigned_pending_freeze",
+      "versionDecisionSourcePath": null,
+      "generationStatus": "template_only_pending_generation",
+      "releaseStatus": "not_published"
+    },
+    {
+      "id": "app-flutter",
+      "audience": "app",
+      "language": "flutter",
+      "package": "sdkwork-craw-chat-sdk-flutter",
+      "readmePath": "sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-flutter/README.md",
+      "plannedVersion": null,
+      "versionStatus": "version_unassigned_pending_freeze",
+      "versionDecisionSourcePath": null,
+      "generationStatus": "template_only_pending_generation",
+      "releaseStatus": "not_published"
+    },
+    {
+      "id": "admin-typescript",
+      "audience": "admin",
+      "language": "typescript",
+      "package": "sdkwork-craw-chat-sdk-admin-typescript",
+      "readmePath": "sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-typescript/README.md",
+      "plannedVersion": null,
+      "versionStatus": "version_unassigned_pending_freeze",
+      "versionDecisionSourcePath": null,
+      "generationStatus": "template_only_pending_generation",
+      "releaseStatus": "not_published"
+    },
+    {
+      "id": "admin-flutter",
+      "audience": "admin",
+      "language": "flutter",
+      "package": "sdkwork-craw-chat-sdk-admin-flutter",
+      "readmePath": "sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-flutter/README.md",
+      "plannedVersion": null,
+      "versionStatus": "version_unassigned_pending_freeze",
+      "versionDecisionSourcePath": null,
+      "generationStatus": "template_only_pending_generation",
+      "releaseStatus": "not_published"
+    }
+  ]
+}

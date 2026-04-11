@@ -1,0 +1,1 @@
+{"version":3,"file":"stream-frame-window.d.ts","sourceRoot":"","sources":["../../src/types/stream-frame-window.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,WAAW,EAAE,MAAM,gBAAgB,CAAC;AAElD,MAAM,WAAW,iBAAiB;IAChC,KAAK,EAAE,WAAW,EAAE,CAAC;IACrB,iBAAiB,CAAC,EAAE,MAAM,CAAC;IAC3B,OAAO,EAAE,OAAO,CAAC;CAClB"}

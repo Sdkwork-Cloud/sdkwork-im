@@ -1,0 +1,1 @@
+{"version":3,"file":"create-upload-request.d.ts","sourceRoot":"","sources":["../../src/types/create-upload-request.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,aAAa,EAAE,MAAM,kBAAkB,CAAC;AAEtD,MAAM,WAAW,mBAAmB;IAClC,YAAY,EAAE,MAAM,CAAC;IACrB,QAAQ,EAAE,aAAa,CAAC;CACzB"}

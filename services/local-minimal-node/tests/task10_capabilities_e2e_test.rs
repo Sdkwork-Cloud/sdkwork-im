@@ -7,6 +7,16 @@ const DEMO_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbn
 const AUTOMATION_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X2RlbW8iLCJzaWQiOiJzX2RlbW8iLCJwZXJtaXNzaW9ucyI6WyJhdXRvbWF0aW9uLmV4ZWN1dGUiLCJhdXRvbWF0aW9uLnJlYWQiXX0.";
 const PRIVILEGED_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X29wc19hdWRpdF9kZW1vIiwic2lkIjoic19vcHNfYXVkaXRfZGVtbyIsInBlcm1pc3Npb25zIjpbImF1ZGl0LnJlYWQiLCJvcHMucmVhZCJdfQ.";
 
+async fn json_body(response: axum::response::Response) -> serde_json::Value {
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("response body should collect")
+        .to_bytes();
+    serde_json::from_slice(&body).expect("response body should be valid json")
+}
+
 #[tokio::test]
 async fn test_local_minimal_profile_exposes_notification_automation_audit_and_ops_capabilities() {
     let app = local_minimal_node::build_default_app();
@@ -356,6 +366,373 @@ async fn test_local_minimal_profile_treats_duplicate_automation_request_as_idemp
     let conflicting_json: serde_json::Value =
         serde_json::from_slice(&conflicting_body).expect("conflicting body should be valid json");
     assert_eq!(conflicting_json["code"], "automation_execution_conflict");
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_exposes_agent_response_and_tool_call_lifecycle_over_http() {
+    let app = local_minimal_node::build_default_app();
+
+    let create_execution = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/automation/executions")
+                .header("authorization", AUTOMATION_BEARER)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "executionId":"ae_local_agent",
+                        "triggerType":"agent.manual",
+                        "targetKind":"conversation",
+                        "targetRef":"c_task10_demo",
+                        "inputPayload":"{\"prompt\":\"hello\"}"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("automation request should return response");
+    assert_eq!(create_execution.status(), StatusCode::OK);
+
+    let start_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/automation/agent-responses")
+                .header("authorization", AUTOMATION_BEARER)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "executionId":"ae_local_agent",
+                        "streamId":"st_local_agent",
+                        "streamType":"agent.response.delta",
+                        "conversationId":"c_task10_demo",
+                        "schemaRef":"schema://agent/response.delta",
+                        "memberId":"cm_agent",
+                        "agent":{
+                            "agent_id":"ag_demo",
+                            "session_id":"s_agent",
+                            "metadata":{
+                                "agentMode":"assistant",
+                                "capabilityProfileId":"stable-agent"
+                            }
+                        }
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("agent response start should return response");
+    assert_eq!(start_response.status(), StatusCode::OK);
+    let start_json = json_body(start_response).await;
+    assert_eq!(start_json["streamId"], "st_local_agent");
+    assert_eq!(start_json["state"], "opened");
+
+    let delta_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/automation/agent-responses/st_local_agent/frames")
+                .header("authorization", AUTOMATION_BEARER)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "frameSeq":1,
+                        "frameType":"delta.text",
+                        "schemaRef":"schema://agent/response.delta#chunk",
+                        "encoding":"json",
+                        "payload":"{\"delta\":\"hello\"}",
+                        "attributes":{"chunk":"1"}
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("agent response delta should return response");
+    assert_eq!(delta_response.status(), StatusCode::OK);
+    let delta_json = json_body(delta_response).await;
+    assert_eq!(delta_json["sender"]["kind"], "agent");
+    assert_eq!(delta_json["sender"]["id"], "ag_demo");
+
+    let tool_request_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/automation/agent-tool-calls")
+                .header("authorization", AUTOMATION_BEARER)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "executionId":"ae_local_agent",
+                        "toolCallId":"tc_local_lookup",
+                        "toolName":"knowledge.search",
+                        "argumentsPayload":"{\"query\":\"hello\"}"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("tool request should return response");
+    assert_eq!(tool_request_response.status(), StatusCode::OK);
+    let tool_request_json = json_body(tool_request_response).await;
+    assert_eq!(tool_request_json["state"], "requested");
+
+    let tool_complete_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/automation/executions/ae_local_agent/agent-tool-calls/tc_local_lookup/complete")
+                .header("authorization", AUTOMATION_BEARER)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "resultPayload":"{\"hits\":[{\"id\":\"doc_1\"}]}"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("tool completion should return response");
+    assert_eq!(tool_complete_response.status(), StatusCode::OK);
+    let tool_complete_json = json_body(tool_complete_response).await;
+    assert_eq!(tool_complete_json["state"], "completed");
+
+    let complete_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/automation/agent-responses/st_local_agent/complete")
+                .header("authorization", AUTOMATION_BEARER)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "frameSeq":1,
+                        "resultMessageId":"m_local_agent"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("agent response complete should return response");
+    assert_eq!(complete_response.status(), StatusCode::OK);
+    let complete_json = json_body(complete_response).await;
+    assert_eq!(complete_json["state"], "completed");
+    assert_eq!(complete_json["resultMessageId"], "m_local_agent");
+
+    let audit_export = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/audit/export")
+                .header("authorization", PRIVILEGED_BEARER)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("audit export should return response");
+    assert_eq!(audit_export.status(), StatusCode::OK);
+    let audit_json = json_body(audit_export).await;
+    let items = audit_json["items"]
+        .as_array()
+        .expect("audit items should be array");
+    assert!(
+        items
+            .iter()
+            .any(|item| item["action"] == "automation.agent_response_started")
+    );
+    assert!(
+        items
+            .iter()
+            .any(|item| item["action"] == "automation.agent_response_delta")
+    );
+    assert!(
+        items
+            .iter()
+            .any(|item| item["action"] == "automation.agent_tool_call_requested")
+    );
+    assert!(
+        items
+            .iter()
+            .any(|item| item["action"] == "automation.agent_tool_call_completed")
+    );
+    assert!(
+        items
+            .iter()
+            .any(|item| item["action"] == "automation.agent_response_completed")
+    );
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_exposes_automation_governance_and_override_audit() {
+    let app = local_minimal_node::build_default_app();
+
+    let governance_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/automation/governance")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-permissions", "automation.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("governance request should return response");
+    assert_eq!(governance_response.status(), StatusCode::OK);
+    let governance_json = json_body(governance_response).await;
+    assert_eq!(governance_json["capabilityProfileId"], "stable-agent");
+    assert_eq!(governance_json["operatorOverrideActive"], false);
+
+    let create_execution = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/automation/executions")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-permissions", "automation.execute automation.read")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "executionId":"ae_local_guardrail",
+                        "triggerType":"agent.manual",
+                        "targetKind":"conversation",
+                        "targetRef":"c_task10_demo",
+                        "inputPayload":"{\"prompt\":\"shutdown\"}"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("automation request should return response");
+    assert_eq!(create_execution.status(), StatusCode::OK);
+
+    let start_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/automation/agent-responses")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-permissions", "automation.execute automation.read")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "executionId":"ae_local_guardrail",
+                        "streamId":"st_local_guardrail",
+                        "streamType":"agent.response.delta",
+                        "conversationId":"c_task10_demo",
+                        "schemaRef":"schema://agent/response.delta",
+                        "memberId":"cm_agent",
+                        "agent":{
+                            "agent_id":"ag_demo",
+                            "session_id":"s_agent",
+                            "metadata":{
+                                "agentMode":"assistant",
+                                "capabilityProfileId":"stable-agent"
+                            }
+                        }
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("agent response start should return response");
+    assert_eq!(start_response.status(), StatusCode::OK);
+
+    let denied_tool_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/automation/agent-tool-calls")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-permissions", "automation.execute automation.read")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "executionId":"ae_local_guardrail",
+                        "toolCallId":"tc_local_guardrail_denied",
+                        "toolName":"ops.shutdown",
+                        "argumentsPayload":"{\"scope\":\"tenant\"}"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("guardrail tool request should return response");
+    assert_eq!(denied_tool_response.status(), StatusCode::FORBIDDEN);
+    let denied_tool_json = json_body(denied_tool_response).await;
+    assert_eq!(denied_tool_json["code"], "automation_guardrail_denied");
+
+    let allowed_tool_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/automation/agent-tool-calls")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header(
+                    "x-permissions",
+                    "automation.execute automation.read automation.operator_override",
+                )
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "executionId":"ae_local_guardrail",
+                        "toolCallId":"tc_local_guardrail_allowed",
+                        "toolName":"ops.shutdown",
+                        "argumentsPayload":"{\"scope\":\"tenant\"}"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("override tool request should return response");
+    assert_eq!(allowed_tool_response.status(), StatusCode::OK);
+    let allowed_tool_json = json_body(allowed_tool_response).await;
+    assert_eq!(allowed_tool_json["state"], "requested");
+
+    let audit_export = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/audit/export")
+                .header("authorization", PRIVILEGED_BEARER)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("audit export should return response");
+    assert_eq!(audit_export.status(), StatusCode::OK);
+    let audit_json = json_body(audit_export).await;
+    let items = audit_json["items"]
+        .as_array()
+        .expect("audit items should be array");
+    assert!(
+        items
+            .iter()
+            .any(|item| item["action"] == "automation.guardrail_denied")
+    );
+    assert!(
+        items
+            .iter()
+            .any(|item| item["action"] == "automation.operator_override_applied")
+    );
+    assert!(
+        items
+            .iter()
+            .any(|item| item["action"] == "automation.agent_tool_call_requested")
+    );
 }
 
 #[tokio::test]

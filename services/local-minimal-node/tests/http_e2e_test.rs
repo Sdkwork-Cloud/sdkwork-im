@@ -5691,3 +5691,227 @@ async fn test_local_minimal_profile_rejects_conflicting_invite_after_accept_with
     assert_eq!(items[0]["summary"], "rtc.invite");
     assert_eq!(items[1]["summary"], "rtc.accept");
 }
+
+#[tokio::test]
+async fn test_local_minimal_profile_issues_rtc_participant_credential_over_http() {
+    let app = local_minimal_node::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/rtc/sessions")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "rtcSessionId":"rtc_local_provider_http",
+                        "rtcMode":"voice"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create rtc session should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let credential_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/rtc/sessions/rtc_local_provider_http/credentials")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "participantId":"u_peer"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("issue rtc credential request should return response");
+
+    assert_eq!(credential_response.status(), StatusCode::OK);
+    let credential_body = credential_response
+        .into_body()
+        .collect()
+        .await
+        .expect("credential body should collect")
+        .to_bytes();
+    let credential_json: serde_json::Value =
+        serde_json::from_slice(&credential_body).expect("credential response should be valid json");
+
+    assert_eq!(credential_json["tenantId"], "t_demo");
+    assert_eq!(credential_json["rtcSessionId"], "rtc_local_provider_http");
+    assert_eq!(credential_json["participantId"], "u_peer");
+    assert_eq!(
+        credential_json["credential"],
+        "volcengine-token:t_demo:rtc_local_provider_http:u_peer"
+    );
+    assert!(credential_json["expiresAt"].as_str().is_some());
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_gets_rtc_provider_health_over_http() {
+    let app = local_minimal_node::build_default_app();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/rtc/provider-health")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("provider health request should return response");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("provider health body should collect")
+        .to_bytes();
+    let json: serde_json::Value =
+        serde_json::from_slice(&body).expect("provider health response should be valid json");
+
+    assert_eq!(json["pluginId"], "rtc-volcengine");
+    assert_eq!(json["status"], "healthy");
+    assert_eq!(json["details"]["providerKind"], "volcengine");
+    assert_eq!(
+        json["details"]["accessEndpoint"],
+        "wss://rtc.volcengine.local/session"
+    );
+    assert!(json["checkedAt"].as_str().is_some());
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_maps_rtc_provider_callback_over_http() {
+    let app = local_minimal_node::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/rtc/sessions")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "rtcSessionId":"rtc_local_callback_http",
+                        "rtcMode":"voice"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create rtc session should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let callback_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/rtc/provider-callbacks")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "rtcSessionId":"rtc_local_callback_http",
+                        "callbackType":"room-ended",
+                        "payloadJson":"{\"reason\":\"host_left\"}"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("rtc provider callback request should return response");
+
+    assert_eq!(callback_response.status(), StatusCode::OK);
+    let callback_body = callback_response
+        .into_body()
+        .collect()
+        .await
+        .expect("callback body should collect")
+        .to_bytes();
+    let callback_json: serde_json::Value =
+        serde_json::from_slice(&callback_body).expect("callback response should be valid json");
+
+    assert_eq!(callback_json["rtcSessionId"], "rtc_local_callback_http");
+    assert_eq!(callback_json["eventType"], "room-ended");
+    assert_eq!(callback_json["participantId"], serde_json::Value::Null);
+    assert_eq!(callback_json["payloadJson"], "{\"reason\":\"host_left\"}");
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_gets_rtc_recording_artifact_over_http() {
+    let app = local_minimal_node::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/rtc/sessions")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "rtcSessionId":"rtc_local_recording_http",
+                        "rtcMode":"voice"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create rtc session should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let artifact_response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/rtc/sessions/rtc_local_recording_http/artifacts/recording")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("recording artifact request should return response");
+
+    assert_eq!(artifact_response.status(), StatusCode::OK);
+    let artifact_body = artifact_response
+        .into_body()
+        .collect()
+        .await
+        .expect("recording artifact body should collect")
+        .to_bytes();
+    let artifact_json: serde_json::Value = serde_json::from_slice(&artifact_body)
+        .expect("recording artifact response should be valid json");
+
+    assert_eq!(artifact_json["tenantId"], "t_demo");
+    assert_eq!(artifact_json["rtcSessionId"], "rtc_local_recording_http");
+    assert_eq!(artifact_json["bucket"], "rtc-artifacts");
+    assert_eq!(
+        artifact_json["objectKey"],
+        "recordings/t_demo/rtc_local_recording_http.mp4"
+    );
+    assert_eq!(
+        artifact_json["storageProvider"],
+        "object-storage-volcengine"
+    );
+    assert_eq!(
+        artifact_json["playbackUrl"],
+        "https://tos.volcengine.local/rtc-artifacts/recordings/t_demo/rtc_local_recording_http.mp4?provider=object-storage-volcengine&expires=3600"
+    );
+}

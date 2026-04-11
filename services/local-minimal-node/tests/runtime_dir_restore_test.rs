@@ -32,10 +32,13 @@ fn write_valid_backup_snapshot(root: &Path, owner_node_id: &str) {
         "realtime-checkpoints.json",
         "realtime-subscriptions.json",
         "presence-state.json",
+        "device-twin-state.json",
         "stream-state.json",
         "rtc-state.json",
         "notification-tasks.json",
         "automation-executions.json",
+        "projection-metadata.json",
+        "projection-timeline.json",
     ] {
         write_state_file(root, file_name, "{}");
     }
@@ -79,9 +82,29 @@ fn test_restore_runtime_dir_restores_selected_snapshot_and_creates_pre_restore_b
         .expect("current fence snapshot should serialize")
         .as_str(),
     );
+    write_state_file(
+        runtime_dir.as_path(),
+        "projection-metadata.json",
+        "{\"t_demo:c_demo:conversation-summary\":\"current\"}",
+    );
+    write_state_file(
+        runtime_dir.as_path(),
+        "projection-timeline.json",
+        "{\"t_demo:c_demo\":{\"1\":\"current\"}}",
+    );
 
     let backup_dir = unique_path("runtime_dir_restore_backup");
     write_valid_backup_snapshot(backup_dir.as_path(), "node_backup");
+    write_state_file(
+        backup_dir.as_path(),
+        "projection-metadata.json",
+        "{\"t_demo:c_demo:conversation-summary\":\"backup\"}",
+    );
+    write_state_file(
+        backup_dir.as_path(),
+        "projection-timeline.json",
+        "{\"t_demo:c_demo\":{\"1\":\"backup\"}}",
+    );
     let preview = local_minimal_node::preview_restore_runtime_dir(
         runtime_dir.as_path(),
         backup_dir.as_path(),
@@ -98,7 +121,7 @@ fn test_restore_runtime_dir_restores_selected_snapshot_and_creates_pre_restore_b
     assert_eq!(report.status, "restored");
     assert_eq!(report.before.status, "ok");
     assert_eq!(report.after.status, "ok");
-    assert_eq!(report.restored_file_count, 9);
+    assert_eq!(report.restored_file_count, 12);
     assert_eq!(report.skipped_file_count, 0);
     assert_eq!(report.source_backup_dir, backup_dir.display().to_string());
     assert_eq!(
@@ -129,6 +152,22 @@ fn test_restore_runtime_dir_restores_selected_snapshot_and_creates_pre_restore_b
         ))
         .expect("runtime state should be restored from backup snapshot")
         .contains("node_backup")
+    );
+    assert_eq!(
+        fs::read_to_string(state_file(
+            runtime_dir.as_path(),
+            "projection-metadata.json"
+        ))
+        .expect("projection metadata should be restored from backup snapshot"),
+        "{\"t_demo:c_demo:conversation-summary\":\"backup\"}"
+    );
+    assert_eq!(
+        fs::read_to_string(state_file(
+            runtime_dir.as_path(),
+            "projection-timeline.json"
+        ))
+        .expect("projection timeline should be restored from backup snapshot"),
+        "{\"t_demo:c_demo\":{\"1\":\"backup\"}}"
     );
 
     let _ = fs::remove_dir_all(runtime_dir);

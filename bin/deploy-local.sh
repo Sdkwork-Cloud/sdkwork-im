@@ -3,19 +3,37 @@ set -euo pipefail
 
 show_help() {
   cat <<'EOF'
-Usage: bash bin/deploy-local.sh [--skip-smoke]
+Usage: bash bin/deploy-local.sh [--profile <local-minimal|local-default>] [--skip-smoke] [--smoke-base-url <url>]
 
-Start the local-minimal Docker deployment profile with docker compose.
+Start the selected Docker deployment profile with docker compose.
 EOF
 }
 
 skip_smoke=0
+profile_name="local-minimal"
+smoke_base_url=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --profile)
+      if [[ $# -lt 2 ]]; then
+        echo "--profile requires a value" >&2
+        exit 1
+      fi
+      profile_name="$2"
+      shift 2
+      ;;
     --skip-smoke)
       skip_smoke=1
       shift
+      ;;
+    --smoke-base-url)
+      if [[ $# -lt 2 ]]; then
+        echo "--smoke-base-url requires a value" >&2
+        exit 1
+      fi
+      smoke_base_url="$2"
+      shift 2
       ;;
     -h|--help)
       show_help
@@ -33,10 +51,19 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 SMOKE_SCRIPT="tools/smoke/local_stack_smoke.sh"
-COMPOSE_FILE="deployments/docker-compose/local-minimal.yml"
+case "$profile_name" in
+  local-minimal|local-default)
+    ;;
+  *)
+    echo "Unsupported deployment profile: ${profile_name}" >&2
+    exit 1
+    ;;
+esac
+
+COMPOSE_FILE="deployments/docker-compose/${profile_name}.yml"
 
 print_compose_diagnostics() {
-  echo "Collecting docker compose diagnostics for local-minimal profile..." >&2
+  echo "Collecting docker compose diagnostics for ${profile_name} profile..." >&2
   echo "Running docker compose -f \"$COMPOSE_FILE\" ps" >&2
   docker compose -f "$COMPOSE_FILE" ps || true
   echo "Running docker compose -f \"$COMPOSE_FILE\" logs --tail 200" >&2
@@ -58,10 +85,15 @@ if ! docker compose version >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "Building and starting local-minimal deployment profile with docker compose..."
+if [[ ! -f "$COMPOSE_FILE" ]]; then
+  echo "Missing compose profile: ${COMPOSE_FILE}" >&2
+  exit 1
+fi
+
+echo "Building and starting ${profile_name} deployment profile with docker compose..."
 if ! docker compose -f "$COMPOSE_FILE" up -d --build; then
   print_compose_diagnostics
-  echo "Docker compose failed for local-minimal profile." >&2
+  echo "Docker compose failed for ${profile_name} profile." >&2
   exit 1
 fi
 
@@ -71,12 +103,17 @@ if [[ "$skip_smoke" -eq 0 ]]; then
     exit 1
   fi
 
-  if ! bash "$SMOKE_SCRIPT"; then
+  smoke_args=()
+  if [[ -n "$smoke_base_url" ]]; then
+    smoke_args+=(--base-url "$smoke_base_url")
+  fi
+
+  if ! bash "$SMOKE_SCRIPT" "${smoke_args[@]}"; then
     print_compose_diagnostics
-    echo "Smoke verification failed for local-minimal profile." >&2
+    echo "Smoke verification failed for ${profile_name} profile." >&2
     exit 1
   fi
   exit 0
 fi
 
-echo "local-minimal profile started without smoke verification."
+echo "${profile_name} profile started without smoke verification."

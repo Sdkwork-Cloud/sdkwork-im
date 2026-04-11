@@ -6,6 +6,11 @@ version.workspace = true
 
 [dependencies]
 bytes = "1.11.1"
+craw-chat-ccp-binding-ws = { path = "../../crates/craw-chat-ccp-binding-ws" }
+craw-chat-ccp-codec = { path = "../../crates/craw-chat-ccp-codec" }
+craw-chat-ccp-codec-json = { path = "../../crates/craw-chat-ccp-codec-json" }
+craw-chat-ccp-control = { path = "../../crates/craw-chat-ccp-control" }
+craw-chat-ccp-core = { path = "../../crates/craw-chat-ccp-core" }
 futures-util.workspace = true
 hyper = { version = "1.9.0", features = ["client", "http1"] }
 hyper-util = { version = "0.1.20", features = ["client", "client-legacy", "http1", "tokio"] }

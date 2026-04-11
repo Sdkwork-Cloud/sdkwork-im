@@ -6,6 +6,12 @@ version.workspace = true
 
 [dependencies]
 axum.workspace = true
+craw-chat-contract-core = { path = "../../crates/craw-chat-contract-core" }
+craw-chat-contract-rtc = { path = "../../crates/craw-chat-contract-rtc" }
+im-adapter-object-storage-s3 = { path = "../../adapters/object-storage-s3" }
+im-adapter-rtc-aliyun = { path = "../../adapters/rtc-aliyun" }
+im-adapter-rtc-tencent = { path = "../../adapters/rtc-tencent" }
+im-adapter-rtc-volcengine = { path = "../../adapters/rtc-volcengine" }
 im-auth-context = { path = "../../crates/im-auth-context" }
 im-domain-core = { path = "../../crates/im-domain-core" }
 im-platform-contracts = { path = "../../crates/im-platform-contracts" }

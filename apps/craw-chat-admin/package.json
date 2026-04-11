@@ -1,0 +1,52 @@
+{
+  "name": "sdkwork-craw-chat-admin-app",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.0.0",
+  "scripts": {
+    "app:update-create": "node -e \"console.log('craw-chat-admin does not require app:update-create bootstrap in this workspace')\"",
+    "dev": "node ../../scripts/dev/run-vite-cli.mjs --configLoader native --host 0.0.0.0",
+    "build": "node ../../scripts/dev/run-vite-cli.mjs build --configLoader native",
+    "typecheck": "node ../../scripts/dev/run-tsc-cli.mjs --noEmit",
+    "preview": "node ../../scripts/dev/run-vite-cli.mjs preview --configLoader native --host 0.0.0.0 --port 4173 --strictPort",
+    "tauri:dev": "node ../../scripts/run-tauri-cli.mjs dev",
+    "tauri:build": "node ../../scripts/run-tauri-cli.mjs build"
+  },
+  "dependencies": {
+    "@sdkwork/ui-pc-react": "file:../../../sdkwork-ui/sdkwork-ui-pc-react",
+    "lucide-react": "1.7.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "react-router-dom": "7.14.0",
+    "sdkwork-craw-chat-admin-admin-api": "workspace:*",
+    "sdkwork-craw-chat-admin-conversations": "workspace:*",
+    "sdkwork-craw-chat-admin-auth": "workspace:*",
+    "sdkwork-craw-chat-admin-groups": "workspace:*",
+    "sdkwork-craw-chat-admin-automation": "workspace:*",
+    "sdkwork-craw-chat-admin-core": "workspace:*",
+    "sdkwork-craw-chat-admin-moderation": "workspace:*",
+    "sdkwork-craw-chat-admin-system": "workspace:*",
+    "sdkwork-craw-chat-admin-overview": "workspace:*",
+    "sdkwork-craw-chat-admin-announcements": "workspace:*",
+    "sdkwork-craw-chat-admin-realtime": "workspace:*",
+    "sdkwork-craw-chat-admin-settings": "workspace:*",
+    "sdkwork-craw-chat-admin-shell": "workspace:*",
+    "sdkwork-craw-chat-admin-tenants": "workspace:*",
+    "sdkwork-craw-chat-admin-messages": "workspace:*",
+    "sdkwork-craw-chat-admin-types": "workspace:*",
+    "sdkwork-craw-chat-admin-users": "workspace:*"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.2.2",
+    "@tauri-apps/cli": "2.10.1",
+    "@types/node": "25.5.2",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.1",
+    "tailwindcss": "4.2.2",
+    "turbo": "2.9.3",
+    "typescript": "6.0.2",
+    "vite": "8.0.3"
+  },
+  "version": "0.1.0"
+}

@@ -1,0 +1,121 @@
+use axum::body::Body;
+use axum::http::{Request, StatusCode};
+use http_body_util::BodyExt;
+use tower::ServiceExt;
+
+#[tokio::test]
+async fn test_local_minimal_profile_gets_media_provider_health_over_http() {
+    let app = local_minimal_node::build_default_app();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/media/provider-health")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("provider health request should return response");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("provider health body should collect")
+        .to_bytes();
+    let json: serde_json::Value =
+        serde_json::from_slice(&body).expect("provider health response should be valid json");
+
+    assert_eq!(json["pluginId"], "object-storage-volcengine");
+    assert_eq!(json["status"], "healthy");
+    assert_eq!(json["details"]["providerKind"], "volcengine");
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_gets_media_download_url_over_http() {
+    let app = local_minimal_node::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/media/uploads")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "mediaAssetId":"ma_local_provider_http",
+                        "resource":{
+                            "uuid":"res_local_provider_http",
+                            "type":"video",
+                            "mimeType":"video/mp4",
+                            "size":2048,
+                            "name":"demo.mp4",
+                            "extension":"mp4"
+                        }
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create upload should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let complete_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/media/uploads/ma_local_provider_http/complete")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "bucket":"media-demo",
+                        "objectKey":"tenant/t_demo/ma_local_provider_http/demo.mp4",
+                        "url":"https://ignored.example/demo.mp4"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("complete upload should succeed");
+    assert_eq!(complete_response.status(), StatusCode::OK);
+
+    let download_response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/media/ma_local_provider_http/download-url?expiresInSeconds=1200")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("download url request should return response");
+
+    assert_eq!(download_response.status(), StatusCode::OK);
+    let body = download_response
+        .into_body()
+        .collect()
+        .await
+        .expect("download url body should collect")
+        .to_bytes();
+    let json: serde_json::Value =
+        serde_json::from_slice(&body).expect("download url response should be valid json");
+
+    assert_eq!(json["mediaAssetId"], "ma_local_provider_http");
+    assert_eq!(json["storageProvider"], "object-storage-volcengine");
+    assert_eq!(json["expiresInSeconds"], 1200);
+    let download_url = json["downloadUrl"]
+        .as_str()
+        .expect("downloadUrl should be present");
+    assert!(download_url.contains("object-storage-volcengine"));
+    assert!(download_url.contains("expires=1200"));
+}

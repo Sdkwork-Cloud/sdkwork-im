@@ -1,4 +1,6 @@
 param(
+    [ValidateSet("local-minimal", "local-default")]
+    [string]$ProfileName = "local-minimal",
     [string]$RuntimeDir,
     [switch]$Json,
     [switch]$Release,
@@ -8,79 +10,106 @@ param(
 $ErrorActionPreference = 'Stop'
 
 if ($Help) {
-    Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/list-runtime-backups-local.ps1 [-RuntimeDir <path>] [-Json] [-Release]"
-    Write-Host "List managed local-minimal runtime-dir backup snapshots with readiness preview through the local-minimal-node catalog entrypoint."
+    Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/list-runtime-backups-local.ps1 [-ProfileName <local-minimal|local-default>] [-RuntimeDir <path>] [-Json] [-Release]"
+    Write-Host "List managed local runtime-dir backup snapshots for the selected local-minimal/local-default profile through the local-minimal-node catalog entrypoint."
     exit 0
 }
 
-function Read-ConfigValue {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$ConfigFile,
-        [Parameter(Mandatory = $true)]
-        [string]$Key
-    )
+$root = Split-Path -Parent $PSScriptRoot
+$runtimeProfileHelper = Join-Path $PSScriptRoot "_runtime-profile-common.ps1"
+if (Test-Path $runtimeProfileHelper) {
+    . $runtimeProfileHelper
+}
+else {
+    function Read-ConfigValue {
+        param(
+            [Parameter(Mandatory = $true)]
+            [string]$ConfigFile,
+            [Parameter(Mandatory = $true)]
+            [string]$Key
+        )
 
-    if (-not (Test-Path $ConfigFile)) {
+        if (-not (Test-Path $ConfigFile)) {
+            return $null
+        }
+
+        foreach ($line in Get-Content -Path $ConfigFile) {
+            $trimmed = $line.Trim()
+            if ($trimmed.Length -eq 0 -or $trimmed.StartsWith('#')) {
+                continue
+            }
+
+            $parts = $trimmed -split '=', 2
+            if ($parts.Count -eq 2 -and $parts[0].Trim() -eq $Key) {
+                return $parts[1].Trim()
+            }
+        }
+
         return $null
     }
 
-    foreach ($line in Get-Content -Path $ConfigFile) {
-        $trimmed = $line.Trim()
-        if ($trimmed.Length -eq 0 -or $trimmed.StartsWith('#')) {
-            continue
+    function Resolve-RuntimeDirFromProfile {
+        param(
+            [Parameter(Mandatory = $true)]
+            [string]$Root,
+            [Parameter(Mandatory = $true)]
+            [ValidateSet("local-minimal", "local-default")]
+            [string]$ProfileName
+        )
+
+        $configFiles = if ($ProfileName -eq "local-default") {
+            @(
+                (Join-Path $Root ".runtime\local-default\config\local-default.env"),
+                (Join-Path $Root ".runtime\local-minimal\config\local-minimal.env")
+            )
+        }
+        else {
+            @((Join-Path $Root ".runtime\local-minimal\config\local-minimal.env"))
         }
 
-        $parts = $trimmed -split '=', 2
-        if ($parts.Count -eq 2 -and $parts[0].Trim() -eq $Key) {
-            return $parts[1].Trim()
+        foreach ($configFile in $configFiles) {
+            $configRuntimeDir = Read-ConfigValue -ConfigFile $configFile -Key "CRAW_CHAT_RUNTIME_DIR"
+            if (-not [string]::IsNullOrWhiteSpace($configRuntimeDir)) {
+                return $configRuntimeDir
+            }
         }
+
+        return Join-Path $Root ".runtime\local-minimal"
     }
 
-    return $null
+    function Resolve-BinaryPath {
+        param(
+            [Parameter(Mandatory = $true)]
+            [string]$Root,
+            [Parameter(Mandatory = $true)]
+            [bool]$PreferRelease
+        )
+
+        $releasePath = Join-Path $Root "target\release\local-minimal-node.exe"
+        $debugPath = Join-Path $Root "target\debug\local-minimal-node.exe"
+        $candidates = if ($PreferRelease) {
+            @($releasePath, $debugPath)
+        }
+        else {
+            @($debugPath, $releasePath)
+        }
+
+        foreach ($candidate in $candidates) {
+            if (Test-Path $candidate) {
+                return $candidate
+            }
+        }
+
+        return $null
+    }
 }
-
-function Resolve-BinaryPath {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$Root,
-        [Parameter(Mandatory = $true)]
-        [bool]$PreferRelease
-    )
-
-    $releasePath = Join-Path $Root "target\release\local-minimal-node.exe"
-    $debugPath = Join-Path $Root "target\debug\local-minimal-node.exe"
-    $candidates = if ($PreferRelease) {
-        @($releasePath, $debugPath)
-    }
-    else {
-        @($debugPath, $releasePath)
-    }
-
-    foreach ($candidate in $candidates) {
-        if (Test-Path $candidate) {
-            return $candidate
-        }
-    }
-
-    return $null
-}
-
-$root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
-$configFile = Join-Path $root ".runtime\local-minimal\config\local-minimal.env"
 $resolvedRuntimeDir = if ($PSBoundParameters.ContainsKey('RuntimeDir')) {
     $RuntimeDir
 }
 else {
-    $configRuntimeDir = Read-ConfigValue -ConfigFile $configFile -Key "CRAW_CHAT_RUNTIME_DIR"
-    if ([string]::IsNullOrWhiteSpace($configRuntimeDir)) {
-        Join-Path $root ".runtime\local-minimal"
-    }
-    else {
-        $configRuntimeDir
-    }
+    Resolve-RuntimeDirFromProfile -Root $root -ProfileName $ProfileName
 }
 
 $binaryPath = Resolve-BinaryPath -Root $root -PreferRelease:$Release

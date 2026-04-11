@@ -1,12 +1,16 @@
 param(
+    [ValidateSet("local-minimal", "local-default")]
+    [string]$ProfileName = "local-minimal",
+    [string]$RuntimeDir,
     [switch]$Help
 )
 
 $ErrorActionPreference = 'Stop'
 
 if ($Help) {
-    Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/status-local.ps1"
-    Write-Host "Show local-minimal-node pid, config, stdout/stderr logs, health status, and the next runtime-dir inspection/repair/list/preview/restore steps."
+    Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/status-local.ps1 [-ProfileName <local-minimal|local-default>] [-RuntimeDir <path>]"
+    Write-Host "Usage: cmd /c .\bin\status-local.cmd [--profile <local-minimal|local-default>] [--runtime-dir <path>]"
+    Write-Host "Show local-minimal-node pid, config, stdout/stderr logs, health status, and the next runtime-dir inspection/repair/list/archive/prune/preview/restore steps."
     exit 0
 }
 
@@ -70,6 +74,94 @@ function Read-ConfigValue {
     return $null
 }
 
+$root = Split-Path -Parent $PSScriptRoot
+$runtimeProfileHelper = Join-Path $PSScriptRoot "_runtime-profile-common.ps1"
+if (Test-Path $runtimeProfileHelper) {
+    . $runtimeProfileHelper
+}
+else {
+    function Resolve-RuntimeProfileConfigFiles {
+        param(
+            [Parameter(Mandatory = $true)]
+            [string]$Root,
+            [Parameter(Mandatory = $true)]
+            [ValidateSet("local-minimal", "local-default")]
+            [string]$ProfileName
+        )
+
+        switch ($ProfileName) {
+            "local-default" {
+                return @(
+                    (Join-Path $Root ".runtime\local-default\config\local-default.env"),
+                    (Join-Path $Root ".runtime\local-minimal\config\local-minimal.env")
+                )
+            }
+            default {
+                return @(
+                    (Join-Path $Root ".runtime\local-minimal\config\local-minimal.env")
+                )
+            }
+        }
+    }
+
+    function Resolve-RuntimeDirFromProfile {
+        param(
+            [Parameter(Mandatory = $true)]
+            [string]$Root,
+            [Parameter(Mandatory = $true)]
+            [ValidateSet("local-minimal", "local-default")]
+            [string]$ProfileName
+        )
+
+        foreach ($configFile in Resolve-RuntimeProfileConfigFiles -Root $Root -ProfileName $ProfileName) {
+            $configRuntimeDir = Read-ConfigValue -ConfigFile $configFile -Key "CRAW_CHAT_RUNTIME_DIR"
+            if (-not [string]::IsNullOrWhiteSpace($configRuntimeDir)) {
+                return $configRuntimeDir
+            }
+        }
+
+        return Join-Path $Root ".runtime\local-minimal"
+    }
+}
+
+function Resolve-ConfigFileFromProfile {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Root,
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("local-minimal", "local-default")]
+        [string]$ProfileName
+    )
+
+    $configFiles = Resolve-RuntimeProfileConfigFiles -Root $Root -ProfileName $ProfileName
+    foreach ($configFile in $configFiles) {
+        if (Test-Path $configFile) {
+            return $configFile
+        }
+    }
+
+    return $configFiles[0]
+}
+
+function Resolve-BindAddressFromProfile {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Root,
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("local-minimal", "local-default")]
+        [string]$ProfileName
+    )
+
+    foreach ($configFile in Resolve-RuntimeProfileConfigFiles -Root $Root -ProfileName $ProfileName) {
+        $configBindAddress = Read-ConfigValue -ConfigFile $configFile -Key "CRAW_CHAT_BIND_ADDR"
+        if (-not [string]::IsNullOrWhiteSpace($configBindAddress)) {
+            return $configBindAddress
+        }
+    }
+
+    return "127.0.0.1:18090"
+}
+
 function Get-HealthUrl {
     param(
         [Parameter(Mandatory = $true)]
@@ -108,29 +200,36 @@ function Get-HealthStatus {
     return "unreachable"
 }
 
-$root = Split-Path -Parent $PSScriptRoot
-$configFile = Join-Path $root ".runtime\local-minimal\config\local-minimal.env"
-$pidFile = Join-Path $root ".runtime\local-minimal\pids\local-minimal-node.pid"
-$stdoutLog = Join-Path $root ".runtime\local-minimal\logs\local-minimal-node.out.log"
-$stderrLog = Join-Path $root ".runtime\local-minimal\logs\local-minimal-node.err.log"
-$bindAddress = Read-ConfigValue -ConfigFile $configFile -Key "CRAW_CHAT_BIND_ADDR"
-if ([string]::IsNullOrWhiteSpace($bindAddress)) {
-    $bindAddress = "127.0.0.1:18090"
+$resolvedRuntimeDir = if ($PSBoundParameters.ContainsKey('RuntimeDir')) {
+    $RuntimeDir
 }
+else {
+    Resolve-RuntimeDirFromProfile -Root $root -ProfileName $ProfileName
+}
+
+$configFile = Resolve-ConfigFileFromProfile -Root $root -ProfileName $ProfileName
+$pidFile = Join-Path $resolvedRuntimeDir "pids\local-minimal-node.pid"
+$stdoutLog = Join-Path $resolvedRuntimeDir "logs\local-minimal-node.out.log"
+$stderrLog = Join-Path $resolvedRuntimeDir "logs\local-minimal-node.err.log"
+$bindAddress = Resolve-BindAddressFromProfile -Root $root -ProfileName $ProfileName
 $healthUrl = Get-HealthUrl -ResolvedBindAddress $bindAddress
+$runtimeProfileSuffix = if ($ProfileName -eq "local-minimal") { "" } else { " -ProfileName $ProfileName" }
 
 $process = Get-RunningProcessFromPidFile -PidFile $pidFile
 
+Write-Host "profile: $ProfileName"
 Write-Host "config: $configFile"
 Write-Host "bind: $bindAddress"
 Write-Host "health: $healthUrl"
 Write-Host "stdout log: $stdoutLog"
 Write-Host "stderr log: $stderrLog"
-Write-Host "runtime inspection: powershell -ExecutionPolicy Bypass -File bin/inspect-runtime-local.ps1"
-Write-Host "runtime repair: powershell -ExecutionPolicy Bypass -File bin/repair-runtime-local.ps1"
-Write-Host "runtime backups: powershell -ExecutionPolicy Bypass -File bin/list-runtime-backups-local.ps1"
-Write-Host "runtime restore preview: powershell -ExecutionPolicy Bypass -File bin/preview-runtime-restore-local.ps1 -BackupDir <path>"
-Write-Host "runtime restore: powershell -ExecutionPolicy Bypass -File bin/restore-runtime-local.ps1 -BackupDir <path> -ExpectedPreviewFingerprint <previewFingerprint>"
+Write-Host "runtime inspection: powershell -ExecutionPolicy Bypass -File bin/inspect-runtime-local.ps1$runtimeProfileSuffix"
+Write-Host "runtime repair: powershell -ExecutionPolicy Bypass -File bin/repair-runtime-local.ps1$runtimeProfileSuffix"
+Write-Host "runtime backups: powershell -ExecutionPolicy Bypass -File bin/list-runtime-backups-local.ps1$runtimeProfileSuffix"
+Write-Host "runtime archive: powershell -ExecutionPolicy Bypass -File bin/archive-runtime-backup-local.ps1 -BackupDir <path>$runtimeProfileSuffix"
+Write-Host "runtime archive prune: powershell -ExecutionPolicy Bypass -File bin/prune-runtime-archives-local.ps1$runtimeProfileSuffix"
+Write-Host "runtime restore preview: powershell -ExecutionPolicy Bypass -File bin/preview-runtime-restore-local.ps1 -BackupDir <path>$runtimeProfileSuffix"
+Write-Host "runtime restore: powershell -ExecutionPolicy Bypass -File bin/restore-runtime-local.ps1 -BackupDir <path> -ExpectedPreviewFingerprint <previewFingerprint>$runtimeProfileSuffix"
 
 if ($null -eq $process) {
     Write-Host "status: stopped"

@@ -1,24 +1,22 @@
-use std::sync::{Mutex, MutexGuard, OnceLock};
+use std::sync::OnceLock;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
 use im_auth_context::{PUBLIC_BEARER_HS256_SECRET_ENV, encode_hs256_bearer_token};
 use serde_json::json;
+use tokio::sync::{Mutex, MutexGuard};
 use tower::ServiceExt;
 
 const TEST_PUBLIC_SECRET: &str = "public-test-secret";
 
-fn public_auth_guard() -> MutexGuard<'static, ()> {
+async fn public_auth_guard() -> MutexGuard<'static, ()> {
     static GUARD: OnceLock<Mutex<()>> = OnceLock::new();
-    GUARD
-        .get_or_init(|| Mutex::new(()))
-        .lock()
-        .expect("public auth guard should lock")
+    GUARD.get_or_init(|| Mutex::new(())).lock().await
 }
 
-fn configure_public_bearer_secret() -> MutexGuard<'static, ()> {
-    let guard = public_auth_guard();
+async fn configure_public_bearer_secret() -> MutexGuard<'static, ()> {
+    let guard = public_auth_guard().await;
     unsafe {
         std::env::set_var(PUBLIC_BEARER_HS256_SECRET_ENV, TEST_PUBLIC_SECRET);
     }
@@ -51,7 +49,7 @@ fn owner_bearer() -> String {
 
 #[tokio::test]
 async fn test_public_app_rejects_trusted_headers_for_media_upload() {
-    let _guard = configure_public_bearer_secret();
+    let _guard = configure_public_bearer_secret().await;
     let app = media_service::build_public_app();
 
     let response = app
@@ -95,7 +93,7 @@ async fn test_public_app_rejects_trusted_headers_for_media_upload() {
 
 #[tokio::test]
 async fn test_public_app_accepts_bearer_for_media_upload() {
-    let _guard = configure_public_bearer_secret();
+    let _guard = configure_public_bearer_secret().await;
     let app = media_service::build_public_app();
 
     let response = app
@@ -130,7 +128,7 @@ async fn test_public_app_accepts_bearer_for_media_upload() {
 
 #[tokio::test]
 async fn test_public_app_rejects_cross_principal_media_read() {
-    let _guard = configure_public_bearer_secret();
+    let _guard = configure_public_bearer_secret().await;
     let app = media_service::build_public_app();
 
     let create_response = app
@@ -209,7 +207,7 @@ async fn test_public_app_rejects_cross_principal_media_read() {
 
 #[tokio::test]
 async fn test_public_app_rejects_cross_principal_media_asset_id_collision() {
-    let _guard = configure_public_bearer_secret();
+    let _guard = configure_public_bearer_secret().await;
     let app = media_service::build_public_app();
 
     let owner_create = app

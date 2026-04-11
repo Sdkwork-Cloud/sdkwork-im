@@ -9,6 +9,7 @@ axum.workspace = true
 im-auth-context = { path = "../../crates/im-auth-context" }
 im-domain-core = { path = "../../crates/im-domain-core" }
 im-domain-events = { path = "../../crates/im-domain-events" }
+im-platform-contracts = { path = "../../crates/im-platform-contracts" }
 im-time = { path = "../../crates/im-time" }
 serde.workspace = true
 serde_json.workspace = true
@@ -16,4 +17,5 @@ tokio.workspace = true
 
 [dev-dependencies]
 http-body-util.workspace = true
+im-adapters-local-memory = { path = "../../adapters/local-memory" }
 tower.workspace = true

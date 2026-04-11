@@ -1,0 +1,47 @@
+# `POST /api/v1/notifications/requests`
+
+<p class="api-page-intro">
+  OpenAPI-style operation reference for <strong>Notifications</strong> in the <strong>Platform API</strong>.
+</p>
+
+<div class="api-link-list">
+  <a href="/api-reference/platform/notifications">Back to Notifications</a>
+</div>
+
+<section class="api-op api-op-single">
+
+<div class="api-op-header">
+  <span class="endpoint-tag endpoint-post">POST</span>
+  <code>/api/v1/notifications/requests</code>
+  <span class="api-op-id">operationId: requestNotification</span>
+</div>
+
+Creates or idempotently reuses a notification task.
+
+
+<div class="api-meta-grid">
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / notifications</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Own recipient scope or `notification.write` for delegated sends.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200 NotificationTask`</span></div>
+</div>
+
+### Request Body
+
+<ApiSchemaTable schema="RequestNotification" />
+
+### Response `200`
+
+<ApiSchemaTable schema="NotificationTask" />
+
+
+### Error Responses
+
+| HTTP | `code` | Description |
+| --- | --- | --- |
+| `400` | `invalid_request`, `validation_error` | The notification request is invalid. |
+| `401` | `missing_authorization`, `invalid_token` | Authentication failed. |
+| `403` | `permission_denied` | The caller lacks delegated notification authority. |
+| `409` | `notification_conflict` | The idempotent notification request conflicts with existing state. |
+
+</section>

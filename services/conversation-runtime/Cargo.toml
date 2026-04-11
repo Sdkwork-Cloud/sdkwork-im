@@ -6,6 +6,8 @@ version.workspace = true
 
 [dependencies]
 axum.workspace = true
+craw-chat-contract-core = { path = "../../crates/craw-chat-contract-core" }
+craw-chat-contract-message = { path = "../../crates/craw-chat-contract-message" }
 im-auth-context = { path = "../../crates/im-auth-context" }
 im-domain-core = { path = "../../crates/im-domain-core" }
 im-domain-events = { path = "../../crates/im-domain-events" }

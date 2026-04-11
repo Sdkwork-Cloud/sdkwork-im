@@ -16,7 +16,7 @@ async fn test_control_plane_can_drain_and_migrate_routes() {
     cluster.bind_node_runtime("node_a", runtime_a.clone());
     cluster.bind_node_runtime("node_b", runtime_b.clone());
 
-    runtime_a.sync_subscriptions(
+    let _ = runtime_a.sync_subscriptions(
         "t_demo",
         "u_demo",
         "d_pad",

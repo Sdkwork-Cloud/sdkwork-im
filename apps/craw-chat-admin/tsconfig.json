@@ -1,0 +1,73 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "allowJs": false,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "ignoreDeprecations": "6.0",
+    "baseUrl": ".",
+    "paths": {
+      "@sdkwork/ui-pc-react": ["src/types/sdkwork-ui-pc-react-shim.d.ts"],
+      "@sdkwork/ui-pc-react/theme": [
+        "../../../sdkwork-ui/sdkwork-ui-pc-react/dist/theme/index.d.ts"
+      ],
+      "@sdkwork/ui-pc-react/*": ["../../../sdkwork-ui/sdkwork-ui-pc-react/dist/*"],
+      "@sdkwork/ui-pc-react/styles.css": [
+        "../../../sdkwork-ui/sdkwork-ui-pc-react/dist/sdkwork-ui.css"
+      ],
+      "motion/react": ["src/vendor/motion-react.tsx"],
+      "sdkwork-craw-chat-admin-conversations": ["packages/sdkwork-craw-chat-admin-conversations/src/index.tsx"],
+      "sdkwork-craw-chat-admin-admin-api": ["packages/sdkwork-craw-chat-admin-admin-api/src/index.ts"],
+      "sdkwork-craw-chat-admin-auth": ["packages/sdkwork-craw-chat-admin-auth/src/index.tsx"],
+      "sdkwork-craw-chat-admin-groups": ["packages/sdkwork-craw-chat-admin-groups/src/index.tsx"],
+      "sdkwork-craw-chat-admin-automation": ["packages/sdkwork-craw-chat-admin-automation/src/index.tsx"],
+      "sdkwork-craw-chat-admin-core": ["packages/sdkwork-craw-chat-admin-core/src/index.tsx"],
+      "sdkwork-craw-chat-admin-moderation": ["packages/sdkwork-craw-chat-admin-moderation/src/index.tsx"],
+      "sdkwork-craw-chat-admin-system": ["packages/sdkwork-craw-chat-admin-system/src/index.tsx"],
+      "sdkwork-craw-chat-admin-overview": ["packages/sdkwork-craw-chat-admin-overview/src/index.tsx"],
+      "sdkwork-craw-chat-admin-announcements": ["packages/sdkwork-craw-chat-admin-announcements/src/index.tsx"],
+      "sdkwork-craw-chat-admin-realtime": ["packages/sdkwork-craw-chat-admin-realtime/src/index.tsx"],
+      "sdkwork-craw-chat-admin-settings": ["packages/sdkwork-craw-chat-admin-settings/src/index.tsx"],
+      "sdkwork-craw-chat-admin-shell": ["packages/sdkwork-craw-chat-admin-shell/src/index.ts"],
+      "sdkwork-craw-chat-admin-tenants": ["packages/sdkwork-craw-chat-admin-tenants/src/index.tsx"],
+      "sdkwork-craw-chat-admin-messages": ["packages/sdkwork-craw-chat-admin-messages/src/index.tsx"],
+      "sdkwork-craw-chat-admin-types": ["packages/sdkwork-craw-chat-admin-types/src/index.ts"],
+      "sdkwork-craw-chat-admin-users": ["packages/sdkwork-craw-chat-admin-users/src/index.tsx"]
+    }
+  },
+  "include": [
+    "src",
+    "vite.config.ts",
+    "packages/sdkwork-craw-chat-admin-admin-api/src/**/*.ts",
+    "packages/sdkwork-craw-chat-admin-auth/src/**/*.tsx",
+    "packages/sdkwork-craw-chat-admin-core/src/**/*.ts",
+    "packages/sdkwork-craw-chat-admin-core/src/**/*.tsx",
+    "packages/sdkwork-craw-chat-admin-overview/src/index.tsx",
+    "packages/sdkwork-craw-chat-admin-tenants/src/index.tsx",
+    "packages/sdkwork-craw-chat-admin-users/src/index.tsx",
+    "packages/sdkwork-craw-chat-admin-conversations/src/index.tsx",
+    "packages/sdkwork-craw-chat-admin-messages/src/index.tsx",
+    "packages/sdkwork-craw-chat-admin-groups/src/index.tsx",
+    "packages/sdkwork-craw-chat-admin-moderation/src/index.tsx",
+    "packages/sdkwork-craw-chat-admin-automation/src/index.tsx",
+    "packages/sdkwork-craw-chat-admin-announcements/src/index.tsx",
+    "packages/sdkwork-craw-chat-admin-realtime/src/index.tsx",
+    "packages/sdkwork-craw-chat-admin-system/src/index.tsx",
+    "packages/sdkwork-craw-chat-admin-settings/src/index.tsx",
+    "packages/sdkwork-craw-chat-admin-shell/src/**/*.ts",
+    "packages/sdkwork-craw-chat-admin-shell/src/**/*.tsx",
+    "packages/sdkwork-craw-chat-admin-types/src/**/*.ts"
+  ],
+  "exclude": ["packages/**/node_modules/**"]
+}
