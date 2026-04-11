@@ -1,15 +1,50 @@
 use std::sync::OnceLock;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
-use im_auth_context::{PUBLIC_BEARER_HS256_SECRET_ENV, encode_hs256_bearer_token};
+use im_auth_context::{
+    PUBLIC_BEARER_HS256_SECRET_ENV, PUBLIC_BEARER_MAX_TTL_SECONDS_ENV,
+    PUBLIC_BEARER_REQUIRE_EXP_ENV, PUBLIC_BEARER_REQUIRED_AUD_ENV, PUBLIC_BEARER_REQUIRED_ISS_ENV,
+    encode_hs256_bearer_token,
+};
 use serde_json::json;
 use tokio::sync::{Mutex, MutexGuard};
 use tower::ServiceExt;
 
 const TEST_PUBLIC_SECRET: &str = "public-test-secret";
 const UNSIGNED_DEMO_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X2RlbW8iLCJzaWQiOiJzX2RlbW8ifQ.";
+
+struct ScopedEnvVar {
+    name: &'static str,
+    previous: Option<String>,
+}
+
+impl ScopedEnvVar {
+    fn set(name: &'static str, value: &str) -> Self {
+        let previous = std::env::var(name).ok();
+        unsafe {
+            std::env::set_var(name, value);
+        }
+        Self { name, previous }
+    }
+}
+
+impl Drop for ScopedEnvVar {
+    fn drop(&mut self) {
+        if let Some(previous) = &self.previous {
+            unsafe {
+                std::env::set_var(self.name, previous);
+            }
+            return;
+        }
+
+        unsafe {
+            std::env::remove_var(self.name);
+        }
+    }
+}
 
 async fn public_auth_guard() -> MutexGuard<'static, ()> {
     static GUARD: OnceLock<Mutex<()>> = OnceLock::new();
@@ -46,6 +81,29 @@ fn owner_bearer() -> String {
         "sub": "u_owner",
         "sid": "s_owner"
     }))
+}
+
+async fn create_group_conversation(
+    app: axum::Router,
+    authorization: String,
+    conversation_id: &str,
+) -> axum::response::Response {
+    app.oneshot(
+        Request::builder()
+            .method("POST")
+            .uri("/api/v1/conversations")
+            .header("authorization", authorization)
+            .header("content-type", "application/json")
+            .body(Body::from(format!(
+                r#"{{
+                        "conversationId":"{conversation_id}",
+                        "conversationType":"group"
+                    }}"#
+            )))
+            .expect("conversation request should build"),
+    )
+    .await
+    .expect("conversation route should return response")
 }
 
 #[tokio::test]
@@ -409,4 +467,135 @@ async fn test_public_app_rejects_cross_principal_media_attach() {
         .to_bytes();
     let json: serde_json::Value = serde_json::from_slice(&body).expect("body should be valid json");
     assert_eq!(json["code"], "media_asset_not_found");
+}
+
+#[tokio::test]
+async fn test_public_app_rejects_bearer_without_exp_when_exp_requirement_is_enabled() {
+    let _guard = configure_public_bearer_secret().await;
+    let _exp_requirement = ScopedEnvVar::set(PUBLIC_BEARER_REQUIRE_EXP_ENV, "true");
+    let app = local_minimal_node::build_public_app();
+    let bearer_without_exp = bearer(json!({
+        "tenant_id": "t_demo",
+        "sub": "u_demo",
+        "sid": "s_demo"
+    }));
+
+    let response =
+        create_group_conversation(app, bearer_without_exp, "c_public_auth_require_exp_guard").await;
+
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let json: serde_json::Value = serde_json::from_slice(&body).expect("body should be valid json");
+    assert_eq!(json["code"], "jwt_exp_required");
+}
+
+#[tokio::test]
+async fn test_public_app_rejects_bearer_exceeding_max_ttl_when_ttl_guard_is_enabled() {
+    let _guard = configure_public_bearer_secret().await;
+    let _ttl_guard = ScopedEnvVar::set(PUBLIC_BEARER_MAX_TTL_SECONDS_ENV, "60");
+    let app = local_minimal_node::build_public_app();
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("system clock should be after unix epoch")
+        .as_secs();
+    let long_ttl_bearer = bearer(json!({
+        "tenant_id": "t_demo",
+        "sub": "u_demo",
+        "sid": "s_demo",
+        "iat": now,
+        "exp": now + 3600
+    }));
+
+    let response = create_group_conversation(app, long_ttl_bearer, "c_public_auth_ttl_guard").await;
+
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let json: serde_json::Value = serde_json::from_slice(&body).expect("body should be valid json");
+    assert_eq!(json["code"], "jwt_ttl_exceeded");
+}
+
+#[tokio::test]
+async fn test_public_app_rejects_bearer_when_required_issuer_or_audience_do_not_match() {
+    let _guard = configure_public_bearer_secret().await;
+    let _required_issuer = ScopedEnvVar::set(PUBLIC_BEARER_REQUIRED_ISS_ENV, "craw-chat");
+    let _required_audience = ScopedEnvVar::set(PUBLIC_BEARER_REQUIRED_AUD_ENV, "craw-chat-public");
+    let app = local_minimal_node::build_public_app();
+    let missing_contract_claims_bearer = bearer(json!({
+        "tenant_id": "t_demo",
+        "sub": "u_demo",
+        "sid": "s_demo"
+    }));
+
+    let response = create_group_conversation(
+        app.clone(),
+        missing_contract_claims_bearer,
+        "c_public_auth_required_issuer_guard",
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let json: serde_json::Value = serde_json::from_slice(&body).expect("body should be valid json");
+    assert_eq!(json["code"], "jwt_issuer_invalid");
+
+    let wrong_audience_bearer = bearer(json!({
+        "tenant_id": "t_demo",
+        "sub": "u_demo",
+        "sid": "s_demo",
+        "iss": "craw-chat",
+        "aud": "another-audience"
+    }));
+    let response = create_group_conversation(
+        app,
+        wrong_audience_bearer,
+        "c_public_auth_required_audience_guard",
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let json: serde_json::Value = serde_json::from_slice(&body).expect("body should be valid json");
+    assert_eq!(json["code"], "jwt_audience_invalid");
+}
+
+#[tokio::test]
+async fn test_public_app_accepts_bearer_when_required_issuer_and_audience_match() {
+    let _guard = configure_public_bearer_secret().await;
+    let _required_issuer = ScopedEnvVar::set(PUBLIC_BEARER_REQUIRED_ISS_ENV, "craw-chat");
+    let _required_audience = ScopedEnvVar::set(PUBLIC_BEARER_REQUIRED_AUD_ENV, "craw-chat-public");
+    let app = local_minimal_node::build_public_app();
+    let contract_compliant_bearer = bearer(json!({
+        "tenant_id": "t_demo",
+        "sub": "u_demo",
+        "sid": "s_demo",
+        "iss": "craw-chat",
+        "aud": ["craw-chat-public", "fallback-audience"]
+    }));
+
+    let response = create_group_conversation(
+        app,
+        contract_compliant_bearer,
+        "c_public_auth_issuer_audience_ok",
+    )
+    .await;
+
+    assert_eq!(response.status(), StatusCode::OK);
 }
