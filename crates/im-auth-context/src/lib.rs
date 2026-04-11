@@ -9,6 +9,7 @@ use serde_json::Value;
 use sha2::Sha256;
 
 pub const PUBLIC_BEARER_HS256_SECRET_ENV: &str = "CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET";
+pub const PUBLIC_BEARER_REQUIRE_EXP_ENV: &str = "CRAW_CHAT_PUBLIC_BEARER_REQUIRE_EXP";
 const TEMPORAL_CLAIM_CLOCK_SKEW_SECONDS: u64 = 60;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -346,6 +347,15 @@ fn validate_temporal_claims(claims: &Value) -> Result<(), AuthContextError> {
     }
 
     let expires_at = resolve_optional_numeric_claim(claims, "exp")?;
+    if require_public_bearer_exp_claim() && expires_at.is_none() {
+        return Err(AuthContextError::invalid(
+            "jwt_exp_required",
+            format!(
+                "public bearer token must include exp claim when {} is enabled",
+                PUBLIC_BEARER_REQUIRE_EXP_ENV
+            ),
+        ));
+    }
     if let Some(expires_at) = expires_at
         && now.saturating_sub(TEMPORAL_CLAIM_CLOCK_SKEW_SECONDS) >= expires_at
     {
@@ -404,6 +414,17 @@ fn current_unix_epoch_seconds() -> u64 {
         .duration_since(UNIX_EPOCH)
         .expect("system clock should be after unix epoch")
         .as_secs()
+}
+
+fn require_public_bearer_exp_claim() -> bool {
+    std::env::var(PUBLIC_BEARER_REQUIRE_EXP_ENV)
+        .ok()
+        .is_some_and(|value| {
+            matches!(
+                value.trim().to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes" | "on"
+            )
+        })
 }
 
 fn resolve_header(headers: &HeaderMap, names: &[&str]) -> Result<String, AuthContextError> {

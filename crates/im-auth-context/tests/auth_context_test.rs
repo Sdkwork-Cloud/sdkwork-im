@@ -4,11 +4,41 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use axum::http::header::AUTHORIZATION;
 use axum::http::{HeaderMap, HeaderValue};
 use im_auth_context::{
-    PUBLIC_BEARER_HS256_SECRET_ENV, resolve_auth_context, resolve_bearer_auth_context,
-    resolve_public_bearer_auth_context,
+    PUBLIC_BEARER_HS256_SECRET_ENV, PUBLIC_BEARER_REQUIRE_EXP_ENV, resolve_auth_context,
+    resolve_bearer_auth_context, resolve_public_bearer_auth_context,
 };
 
 const TEST_PUBLIC_SECRET: &str = "public-test-secret";
+
+struct ScopedEnvVar {
+    name: &'static str,
+    previous: Option<String>,
+}
+
+impl ScopedEnvVar {
+    fn set(name: &'static str, value: &str) -> Self {
+        let previous = std::env::var(name).ok();
+        unsafe {
+            std::env::set_var(name, value);
+        }
+        Self { name, previous }
+    }
+}
+
+impl Drop for ScopedEnvVar {
+    fn drop(&mut self) {
+        if let Some(previous) = &self.previous {
+            unsafe {
+                std::env::set_var(self.name, previous);
+            }
+            return;
+        }
+
+        unsafe {
+            std::env::remove_var(self.name);
+        }
+    }
+}
 
 fn public_auth_guard() -> MutexGuard<'static, ()> {
     static GUARD: OnceLock<Mutex<()>> = OnceLock::new();
@@ -239,4 +269,28 @@ fn test_resolve_public_bearer_auth_context_rejects_signed_token_with_future_iat(
     let error = resolve_public_bearer_auth_context(&headers)
         .expect_err("token with future iat should fail public bearer verification");
     assert_eq!(error.code(), "jwt_issued_at_invalid");
+}
+
+#[test]
+fn test_resolve_public_bearer_auth_context_rejects_signed_token_without_exp_when_required() {
+    let _guard = configure_public_bearer_secret();
+    let _exp_requirement = ScopedEnvVar::set(PUBLIC_BEARER_REQUIRE_EXP_ENV, "true");
+    let token = im_auth_context::encode_hs256_bearer_token(
+        &serde_json::json!({
+            "tenant_id": "t_demo",
+            "sub": "u_demo"
+        }),
+        TEST_PUBLIC_SECRET,
+    )
+    .expect("signed token should encode");
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        AUTHORIZATION,
+        HeaderValue::from_str(format!("Bearer {token}").as_str())
+            .expect("authorization header should be valid"),
+    );
+
+    let error = resolve_public_bearer_auth_context(&headers)
+        .expect_err("token without exp should fail when exp requirement is enabled");
+    assert_eq!(error.code(), "jwt_exp_required");
 }
