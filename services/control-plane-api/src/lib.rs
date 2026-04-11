@@ -99,8 +99,11 @@ const SOCIAL_TRANSACTION_MARKER_FILE_NAME: &str = "social-transaction-marker.jso
 const SOCIAL_COMMIT_PARTITION: &str = "control-plane-social";
 const PUBLIC_SHARED_CHANNEL_SYNC_ROUTE: &str = "/api/v1/conversations/shared-channel-links/sync";
 const PUBLIC_SHARED_CHANNEL_SYNC_ACTOR_ID: &str = "control-plane-sync";
+pub const SHARED_CHANNEL_SYNC_PERMISSION: &str = "conversation.shared_channel.sync";
 const SHARED_CHANNEL_SYNC_DEAD_LETTER_FAILURE_THRESHOLD: u32 = 3;
 const SHARED_CHANNEL_SYNC_PENDING_LEASE_WINDOW_MILLIS: u128 = 900_000;
+pub const ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP_ENV: &str =
+    "CRAW_CHAT_ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP";
 pub const SHARED_CHANNEL_SYNC_TARGET_BASE_URL_ENV: &str =
     "CRAW_CHAT_SHARED_CHANNEL_SYNC_TARGET_BASE_URL";
 
@@ -114,15 +117,7 @@ impl PublicSharedChannelLinkedMemberSyncTrigger {
         base_url: impl AsRef<str>,
         public_bearer_secret: impl AsRef<str>,
     ) -> Result<Self, String> {
-        let base_url = base_url.as_ref().trim().trim_end_matches('/').to_owned();
-        if base_url.is_empty() {
-            return Err("shared-channel sync target base url cannot be empty".into());
-        }
-        if !base_url.starts_with("http://") {
-            return Err(format!(
-                "shared-channel sync target base url must start with http://, got {base_url}"
-            ));
-        }
+        let base_url = validate_shared_channel_sync_target_base_url(base_url.as_ref())?;
 
         let public_bearer_secret = public_bearer_secret.as_ref().trim().to_owned();
         if public_bearer_secret.is_empty() {
@@ -136,11 +131,17 @@ impl PublicSharedChannelLinkedMemberSyncTrigger {
     }
 
     fn authorization_header(&self, tenant_id: &str) -> Result<String, String> {
+        let now = current_unix_epoch_seconds();
         let token = encode_hs256_bearer_token(
             &serde_json::json!({
                 "tenant_id": tenant_id,
                 "sub": PUBLIC_SHARED_CHANNEL_SYNC_ACTOR_ID,
                 "actor_kind": "system",
+                "permissions": [SHARED_CHANNEL_SYNC_PERMISSION],
+                "scope": SHARED_CHANNEL_SYNC_PERMISSION,
+                "iat": now,
+                "nbf": now.saturating_sub(1),
+                "exp": now.saturating_add(300),
             }),
             self.public_bearer_secret.as_str(),
         )
@@ -210,6 +211,65 @@ impl PublicSharedChannelLinkedMemberSyncTrigger {
             detail
         ))
     }
+}
+
+fn validate_shared_channel_sync_target_base_url(base_url: &str) -> Result<String, String> {
+    let base_url = base_url.trim().trim_end_matches('/').to_owned();
+    if base_url.is_empty() {
+        return Err("shared-channel sync target base url cannot be empty".into());
+    }
+
+    let uri = base_url.parse::<hyper::Uri>().map_err(|error| {
+        format!("shared-channel sync target base url is invalid: {base_url}, error: {error}")
+    })?;
+    let scheme = uri.scheme_str().ok_or_else(|| {
+        format!(
+            "shared-channel sync target base url must include scheme (https://), got {base_url}"
+        )
+    })?;
+    let host = uri.host().ok_or_else(|| {
+        format!("shared-channel sync target base url must include host, got {base_url}")
+    })?;
+
+    match scheme {
+        "https" => Ok(base_url),
+        "http" => {
+            if is_local_shared_channel_sync_host(host) || allow_insecure_shared_channel_sync_http()
+            {
+                return Ok(base_url);
+            }
+
+            Err(format!(
+                "shared-channel sync target base url must use https:// in non-local environments, got {base_url} (set {}=true only for controlled local testing)",
+                ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP_ENV
+            ))
+        }
+        _ => Err(format!(
+            "shared-channel sync target base url must use https:// (or http://localhost for local testing), got {base_url}"
+        )),
+    }
+}
+
+fn is_local_shared_channel_sync_host(host: &str) -> bool {
+    matches!(host, "localhost" | "127.0.0.1" | "::1")
+}
+
+fn allow_insecure_shared_channel_sync_http() -> bool {
+    std::env::var(ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP_ENV)
+        .ok()
+        .is_some_and(|value| {
+            matches!(
+                value.trim().to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes" | "on"
+            )
+        })
+}
+
+fn current_unix_epoch_seconds() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("system clock should be after unix epoch")
+        .as_secs()
 }
 
 impl SharedChannelLinkedMemberSyncTrigger for PublicSharedChannelLinkedMemberSyncTrigger {

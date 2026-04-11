@@ -1,4 +1,5 @@
 use std::sync::{Mutex, MutexGuard, OnceLock};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use axum::http::header::AUTHORIZATION;
 use axum::http::{HeaderMap, HeaderValue};
@@ -14,7 +15,7 @@ fn public_auth_guard() -> MutexGuard<'static, ()> {
     GUARD
         .get_or_init(|| Mutex::new(()))
         .lock()
-        .expect("public auth guard should lock")
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
 fn configure_public_bearer_secret() -> MutexGuard<'static, ()> {
@@ -125,4 +126,117 @@ fn test_resolve_public_bearer_auth_context_rejects_unsigned_tokens_when_secret_i
         .expect_err("public bearer auth should reject unsigned tokens");
 
     assert_eq!(error.code(), "jwt_algorithm_invalid");
+}
+
+#[test]
+fn test_resolve_public_bearer_auth_context_accepts_unexpired_signed_token() {
+    let _guard = configure_public_bearer_secret();
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("system clock should be after unix epoch")
+        .as_secs();
+    let token = im_auth_context::encode_hs256_bearer_token(
+        &serde_json::json!({
+            "tenant_id": "t_demo",
+            "sub": "u_demo",
+            "exp": now + 300
+        }),
+        TEST_PUBLIC_SECRET,
+    )
+    .expect("signed token should encode");
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        AUTHORIZATION,
+        HeaderValue::from_str(format!("Bearer {token}").as_str())
+            .expect("authorization header should be valid"),
+    );
+
+    let auth = resolve_public_bearer_auth_context(&headers)
+        .expect("unexpired signed token should pass public bearer verification");
+    assert_eq!(auth.tenant_id, "t_demo");
+    assert_eq!(auth.actor_id, "u_demo");
+}
+
+#[test]
+fn test_resolve_public_bearer_auth_context_rejects_expired_signed_token() {
+    let _guard = configure_public_bearer_secret();
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("system clock should be after unix epoch")
+        .as_secs();
+    let token = im_auth_context::encode_hs256_bearer_token(
+        &serde_json::json!({
+            "tenant_id": "t_demo",
+            "sub": "u_demo",
+            "exp": now.saturating_sub(120)
+        }),
+        TEST_PUBLIC_SECRET,
+    )
+    .expect("signed token should encode");
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        AUTHORIZATION,
+        HeaderValue::from_str(format!("Bearer {token}").as_str())
+            .expect("authorization header should be valid"),
+    );
+
+    let error = resolve_public_bearer_auth_context(&headers)
+        .expect_err("expired signed token should fail public bearer verification");
+    assert_eq!(error.code(), "jwt_expired");
+}
+
+#[test]
+fn test_resolve_public_bearer_auth_context_rejects_not_yet_valid_signed_token() {
+    let _guard = configure_public_bearer_secret();
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("system clock should be after unix epoch")
+        .as_secs();
+    let token = im_auth_context::encode_hs256_bearer_token(
+        &serde_json::json!({
+            "tenant_id": "t_demo",
+            "sub": "u_demo",
+            "nbf": now + 300
+        }),
+        TEST_PUBLIC_SECRET,
+    )
+    .expect("signed token should encode");
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        AUTHORIZATION,
+        HeaderValue::from_str(format!("Bearer {token}").as_str())
+            .expect("authorization header should be valid"),
+    );
+
+    let error = resolve_public_bearer_auth_context(&headers)
+        .expect_err("token with future nbf should fail public bearer verification");
+    assert_eq!(error.code(), "jwt_not_yet_valid");
+}
+
+#[test]
+fn test_resolve_public_bearer_auth_context_rejects_signed_token_with_future_iat() {
+    let _guard = configure_public_bearer_secret();
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("system clock should be after unix epoch")
+        .as_secs();
+    let token = im_auth_context::encode_hs256_bearer_token(
+        &serde_json::json!({
+            "tenant_id": "t_demo",
+            "sub": "u_demo",
+            "iat": now + 300
+        }),
+        TEST_PUBLIC_SECRET,
+    )
+    .expect("signed token should encode");
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        AUTHORIZATION,
+        HeaderValue::from_str(format!("Bearer {token}").as_str())
+            .expect("authorization header should be valid"),
+    );
+
+    let error = resolve_public_bearer_auth_context(&headers)
+        .expect_err("token with future iat should fail public bearer verification");
+    assert_eq!(error.code(), "jwt_issued_at_invalid");
 }

@@ -24,6 +24,9 @@ struct AppState {
     runtime: Arc<ConversationRuntime<InMemoryJournal>>,
 }
 
+const SHARED_CHANNEL_SYNC_PERMISSION: &str = "conversation.shared_channel.sync";
+const SHARED_CHANNEL_SYNC_ACTOR_ID: &str = "control-plane-sync";
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct HealthResponse {
@@ -557,6 +560,23 @@ async fn sync_shared_channel_linked_member(
     Json(request): Json<SyncSharedChannelLinkedMemberRequest>,
 ) -> Result<Json<ConversationMember>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
+    if !auth.has_permission(SHARED_CHANNEL_SYNC_PERMISSION) {
+        return Err(ApiError::forbidden(
+            "shared_channel_sync_permission_denied",
+            format!(
+                "shared channel linked-member sync requires permission {SHARED_CHANNEL_SYNC_PERMISSION}"
+            ),
+        ));
+    }
+    if auth.actor_id != SHARED_CHANNEL_SYNC_ACTOR_ID {
+        return Err(ApiError::forbidden(
+            "shared_channel_sync_actor_invalid",
+            format!(
+                "shared channel linked-member sync requires actor {}",
+                SHARED_CHANNEL_SYNC_ACTOR_ID
+            ),
+        ));
+    }
     Ok(Json(
         state
             .runtime

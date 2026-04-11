@@ -2904,8 +2904,9 @@ async fn test_sync_shared_channel_linked_member_over_http_materializes_linked_hi
                 .method("POST")
                 .uri("/api/v1/conversations/shared-channel-links/sync")
                 .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "svc_control")
+                .header("x-user-id", "control-plane-sync")
                 .header("x-actor-kind", "system")
+                .header("x-permissions", "conversation.shared_channel.sync")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{

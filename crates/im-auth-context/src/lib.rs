@@ -1,4 +1,5 @@
 use std::collections::BTreeSet;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use axum::http::header::AUTHORIZATION;
 use axum::http::{HeaderMap, HeaderValue};
@@ -8,6 +9,7 @@ use serde_json::Value;
 use sha2::Sha256;
 
 pub const PUBLIC_BEARER_HS256_SECRET_ENV: &str = "CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET";
+const TEMPORAL_CLAIM_CLOCK_SKEW_SECONDS: u64 = 60;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AuthContext {
@@ -322,7 +324,86 @@ fn resolve_hs256_bearer_token(token: &str, secret: &[u8]) -> Result<AuthContext,
         )
     })?;
 
+    let payload = decode_base64url(parts[1])?;
+    let claims: Value = serde_json::from_slice(&payload).map_err(|_| {
+        AuthContextError::invalid("jwt_claims_invalid", "jwt claims payload is not valid json")
+    })?;
+    validate_temporal_claims(&claims)?;
+
     resolve_bearer_token(token)
+}
+
+fn validate_temporal_claims(claims: &Value) -> Result<(), AuthContextError> {
+    let now = current_unix_epoch_seconds();
+    let not_before = resolve_optional_numeric_claim(claims, "nbf")?;
+    if let Some(not_before) = not_before
+        && now.saturating_add(TEMPORAL_CLAIM_CLOCK_SKEW_SECONDS) < not_before
+    {
+        return Err(AuthContextError::invalid(
+            "jwt_not_yet_valid",
+            "public bearer token is not valid yet",
+        ));
+    }
+
+    let expires_at = resolve_optional_numeric_claim(claims, "exp")?;
+    if let Some(expires_at) = expires_at
+        && now.saturating_sub(TEMPORAL_CLAIM_CLOCK_SKEW_SECONDS) >= expires_at
+    {
+        return Err(AuthContextError::invalid(
+            "jwt_expired",
+            "public bearer token is expired",
+        ));
+    }
+
+    let issued_at = resolve_optional_numeric_claim(claims, "iat")?;
+    if let Some(issued_at) = issued_at
+        && issued_at > now.saturating_add(TEMPORAL_CLAIM_CLOCK_SKEW_SECONDS)
+    {
+        return Err(AuthContextError::invalid(
+            "jwt_issued_at_invalid",
+            "public bearer token has invalid issued-at claim",
+        ));
+    }
+
+    Ok(())
+}
+
+fn resolve_optional_numeric_claim(
+    claims: &Value,
+    claim_name: &'static str,
+) -> Result<Option<u64>, AuthContextError> {
+    let Some(value) = claims.get(claim_name) else {
+        return Ok(None);
+    };
+
+    let parsed = match value {
+        Value::Number(number) => number.as_u64(),
+        Value::String(text) => {
+            let text = text.trim();
+            if text.is_empty() {
+                None
+            } else {
+                text.parse::<u64>().ok()
+            }
+        }
+        _ => None,
+    };
+
+    parsed
+        .ok_or_else(|| {
+            AuthContextError::invalid(
+                "jwt_temporal_claim_invalid",
+                format!("jwt temporal claim {claim_name} must be an integer"),
+            )
+        })
+        .map(Some)
+}
+
+fn current_unix_epoch_seconds() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("system clock should be after unix epoch")
+        .as_secs()
 }
 
 fn resolve_header(headers: &HeaderMap, names: &[&str]) -> Result<String, AuthContextError> {
