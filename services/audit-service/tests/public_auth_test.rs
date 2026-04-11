@@ -121,3 +121,49 @@ async fn test_public_app_accepts_privileged_bearer_for_audit_export() {
 
     assert_eq!(response.status(), StatusCode::OK);
 }
+
+#[tokio::test]
+async fn test_public_app_rejects_bearer_without_audit_read_permission_for_audit_verify() {
+    let _guard = configure_public_bearer_secret().await;
+    let app = audit_service::build_public_app();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/audit/verify")
+                .header("authorization", demo_bearer())
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("public app should return response");
+
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let json: serde_json::Value = serde_json::from_slice(&body).expect("body should be valid json");
+    assert_eq!(json["code"], "permission_denied");
+}
+
+#[tokio::test]
+async fn test_public_app_accepts_privileged_bearer_for_audit_verify() {
+    let _guard = configure_public_bearer_secret().await;
+    let app = audit_service::build_public_app();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/audit/verify")
+                .header("authorization", audit_bearer())
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("public app should return response");
+
+    assert_eq!(response.status(), StatusCode::OK);
+}
