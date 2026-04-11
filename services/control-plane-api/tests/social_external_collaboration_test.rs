@@ -1127,6 +1127,137 @@ async fn test_control_plane_social_shared_channel_policy_auto_triggers_shared_ch
     );
 }
 
+#[tokio::test]
+async fn test_control_plane_social_external_member_link_idempotent_replay_does_not_duplicate_shared_channel_sync_dispatch()
+ {
+    let cluster = Arc::new(RealtimeClusterBridge::default());
+    let ops_runtime = Arc::new(OpsRuntime::new(
+        "node_a",
+        "local-minimal",
+        "127.0.0.1:18090",
+        vec!["session-gateway".into(), "control-plane-api".into()],
+        vec![],
+    ));
+    let audit_runtime = Arc::new(AuditRuntime::default());
+    let trigger = Arc::new(RecordingSharedChannelSyncTrigger::default());
+    let app = control_plane_api::build_app_with_cluster_and_governance_sinks_and_shared_channel_sync_trigger(
+        cluster,
+        ops_runtime,
+        audit_runtime,
+        trigger.clone(),
+    );
+
+    let _ = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/control/social/external-connections")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "connectionId":"ec_005_replay",
+                        "eventId":"evt_ec_005_replay",
+                        "externalTenantId":"t_partner",
+                        "connectionKind":"shared_channel",
+                        "establishedAt":"2026-04-10T13:30:00Z"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("external connection write should return response");
+
+    let _ = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/control/social/shared-channel-policies")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "policyId":"scp_005_replay",
+                        "eventId":"evt_scp_005_replay",
+                        "connectionId":"ec_005_replay",
+                        "channelId":"ch_partner_ops",
+                        "conversationId":"c_partner_ops",
+                        "policyVersion":2,
+                        "historyVisibility":"shared",
+                        "appliedAt":"2026-04-10T13:31:00Z"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("shared channel policy write should return response");
+
+    let request_body = r#"{
+        "linkId":"eml_005_replay",
+        "eventId":"evt_eml_005_replay",
+        "connectionId":"ec_005_replay",
+        "localActorId":"actor_alice",
+        "localActorKind":"user",
+        "externalMemberId":"partner::bob",
+        "linkedAt":"2026-04-10T13:32:00Z"
+    }"#;
+
+    let first_bind = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/control/social/external-member-links")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(request_body))
+                .unwrap(),
+        )
+        .await
+        .expect("first external member link write should return response");
+    assert_eq!(first_bind.status(), StatusCode::OK);
+
+    let second_bind = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/control/social/external-member-links")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(request_body))
+                .unwrap(),
+        )
+        .await
+        .expect("idempotent replay external member link write should return response");
+    assert_eq!(second_bind.status(), StatusCode::OK);
+
+    let requests = trigger.snapshot();
+    assert_eq!(
+        requests,
+        vec![SharedChannelLinkedMemberSyncRequest {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_partner_ops".into(),
+            shared_channel_policy_id: "scp_005_replay".into(),
+            external_connection_id: "ec_005_replay".into(),
+            local_actor_id: "actor_alice".into(),
+            local_actor_kind: "user".into(),
+            external_member_id: "partner::bob".into(),
+        }],
+        "idempotent replay of the same external member link event should not enqueue duplicate shared-channel sync dispatches"
+    );
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_control_plane_social_shared_channel_http_trigger_materializes_remote_runtime_linked_member_over_public_runtime()
  {

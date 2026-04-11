@@ -105,6 +105,7 @@ const PUBLIC_SHARED_CHANNEL_SYNC_ACTOR_ID: &str = "control-plane-sync";
 pub const SHARED_CHANNEL_SYNC_PERMISSION: &str = "conversation.shared_channel.sync";
 const SHARED_CHANNEL_SYNC_DEAD_LETTER_FAILURE_THRESHOLD: u32 = 3;
 const SHARED_CHANNEL_SYNC_PENDING_LEASE_WINDOW_MILLIS: u128 = 900_000;
+const SHARED_CHANNEL_SYNC_DISPATCH_DELIVERY_DEDUP_WINDOW_MILLIS: u128 = 300_000;
 pub const ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP_ENV: &str =
     "CRAW_CHAT_ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP";
 pub const SHARED_CHANNEL_SYNC_TARGET_BASE_URL_ENV: &str =
@@ -499,6 +500,7 @@ struct SocialControlState {
     shared_channel_policies: BTreeMap<String, StoredSharedChannelPolicy>,
     pending_shared_channel_sync_requests: BTreeMap<String, PendingSharedChannelSyncRequest>,
     dead_letter_shared_channel_sync_requests: BTreeMap<String, PendingSharedChannelSyncRequest>,
+    recent_shared_channel_sync_deliveries: BTreeMap<String, String>,
 }
 
 struct SocialControlRuntime {
@@ -986,6 +988,19 @@ impl SocialControlState {
         }
     }
 
+    fn merge_recent_shared_channel_sync_deliveries_from(&mut self, other: &Self) {
+        for (key, delivered_at) in &other.recent_shared_channel_sync_deliveries {
+            self.recent_shared_channel_sync_deliveries
+                .entry(key.clone())
+                .and_modify(|existing| {
+                    if delivered_at > existing {
+                        *existing = delivered_at.clone();
+                    }
+                })
+                .or_insert_with(|| delivered_at.clone());
+        }
+    }
+
     fn pending_shared_channel_sync_count(&self) -> usize {
         self.pending_shared_channel_sync_requests.len()
     }
@@ -1087,6 +1102,39 @@ impl SocialControlState {
         self.pending_shared_channel_sync_requests
             .remove(shared_channel_sync_request_key(request).as_str())
             .is_some()
+    }
+
+    fn recently_dispatched_shared_channel_sync_request(
+        &self,
+        request: &SharedChannelLinkedMemberSyncRequest,
+        dedup_window_start: &str,
+    ) -> bool {
+        self.recent_shared_channel_sync_deliveries
+            .get(shared_channel_sync_request_key(request).as_str())
+            .is_some_and(|delivered_at| delivered_at.as_str() >= dedup_window_start)
+    }
+
+    fn record_dispatched_shared_channel_sync_request(
+        &mut self,
+        request: &SharedChannelLinkedMemberSyncRequest,
+        delivered_at: &str,
+        dedup_window_start: &str,
+    ) -> bool {
+        self.recent_shared_channel_sync_deliveries
+            .retain(|_, existing_delivered_at| {
+                existing_delivered_at.as_str() >= dedup_window_start
+            });
+        let key = shared_channel_sync_request_key(request);
+        let should_update = self
+            .recent_shared_channel_sync_deliveries
+            .get(key.as_str())
+            .map(String::as_str)
+            != Some(delivered_at);
+        if should_update {
+            self.recent_shared_channel_sync_deliveries
+                .insert(key, delivered_at.to_owned());
+        }
+        should_update
     }
 
     fn requeue_dead_letter_shared_channel_sync_requests(&mut self) -> usize {
@@ -2829,6 +2877,7 @@ impl SocialControlRuntime {
             };
             replayed_state.merge_pending_shared_channel_sync_requests_from(&snapshot_state);
             replayed_state.merge_dead_letter_shared_channel_sync_requests_from(&snapshot_state);
+            replayed_state.merge_recent_shared_channel_sync_deliveries_from(&snapshot_state);
             if let Err(error) = state_store.save(&replayed_state) {
                 eprintln!(
                     "failed to persist replayed control-plane social state {}: {error}. continuing with in-memory replayed state",
@@ -3045,6 +3094,7 @@ impl SocialControlRuntime {
         };
         repaired_state.merge_pending_shared_channel_sync_requests_from(&pending_state);
         repaired_state.merge_dead_letter_shared_channel_sync_requests_from(&pending_state);
+        repaired_state.merge_recent_shared_channel_sync_deliveries_from(&pending_state);
         self.state_store.save(&repaired_state).map_err(|error| {
             ControlPlaneError::service_unavailable(
                 "social_state_unavailable",
@@ -3108,7 +3158,12 @@ impl SocialControlRuntime {
             .state
             .read()
             .expect("social runtime lock should not be poisoned");
-        let now = format_unix_timestamp_millis(current_unix_epoch_millis());
+        let now_epoch_millis = current_unix_epoch_millis();
+        let now = format_unix_timestamp_millis(now_epoch_millis);
+        let dedup_window_start = format_unix_timestamp_millis(
+            now_epoch_millis
+                .saturating_sub(SHARED_CHANNEL_SYNC_DISPATCH_DELIVERY_DEDUP_WINDOW_MILLIS),
+        );
         let mut queue = Vec::with_capacity(
             state.pending_shared_channel_sync_requests.len()
                 + state.dead_letter_shared_channel_sync_requests.len()
@@ -3133,6 +3188,12 @@ impl SocialControlRuntime {
             if state.is_dead_letter_shared_channel_sync_request(request) {
                 continue;
             }
+            if state.recently_dispatched_shared_channel_sync_request(
+                request,
+                dedup_window_start.as_str(),
+            ) {
+                continue;
+            }
             let key = shared_channel_sync_request_key(request);
             if blocked.contains(&key) {
                 continue;
@@ -3153,7 +3214,19 @@ impl SocialControlRuntime {
             .write()
             .expect("social runtime lock should not be poisoned");
         let mut next_state = state.clone();
-        if !next_state.remove_pending_shared_channel_sync_request(request) {
+        let now_epoch_millis = current_unix_epoch_millis();
+        let delivered_at = format_unix_timestamp_millis(now_epoch_millis);
+        let dedup_window_start = format_unix_timestamp_millis(
+            now_epoch_millis
+                .saturating_sub(SHARED_CHANNEL_SYNC_DISPATCH_DELIVERY_DEDUP_WINDOW_MILLIS),
+        );
+        let removed_pending = next_state.remove_pending_shared_channel_sync_request(request);
+        let recorded_delivery = next_state.record_dispatched_shared_channel_sync_request(
+            request,
+            delivered_at.as_str(),
+            dedup_window_start.as_str(),
+        );
+        if !removed_pending && !recorded_delivery {
             return;
         }
         if self.state_store.save(&next_state).is_ok() {
@@ -5444,6 +5517,7 @@ pub fn repair_social_runtime_dir(
         SocialControlRuntime::replay_state_from_commit_journal(journal_path.as_path())?;
     replayed_state.merge_pending_shared_channel_sync_requests_from(&snapshot_state);
     replayed_state.merge_dead_letter_shared_channel_sync_requests_from(&snapshot_state);
+    replayed_state.merge_recent_shared_channel_sync_deliveries_from(&snapshot_state);
     state_store.save(&replayed_state)?;
     let transaction_marker_cleared = clear_social_transaction_marker(tx_marker_path.as_path())?;
 
