@@ -1,0 +1,41 @@
+# Continuous Optimization: Start Local CMD Help GNU-Surface Contract
+
+## Current Step / Wave
+
+- Step: `12`
+- Mode: continuous optimization after Step 12 closure
+
+## Why This Round
+
+- `start-local` is part of the documented local operator path.
+- The docs already exposed GNU-style Windows flags for the `.cmd` launcher.
+- The remaining real gap was local discoverability: `start-local.cmd --help` still only surfaced PowerShell syntax.
+
+## Closure Target
+
+1. Add a Windows regression for `bin/start-local.cmd --help`.
+2. Prove the wrapper currently hides the GNU-style named flags.
+3. Patch only the help text surface.
+4. Backwrite review, step, architecture, and operator docs for this micro-loop.
+
+## Actual Delivery
+
+- Added `test_start_local_cmd_help_surfaces_gnu_style_named_flags`
+- Reproduced the real help-surface gap first
+- Added a `.cmd` GNU-style usage line to the `-Help` branch in `bin/start-local.ps1`
+- Updated the local operator quick-start doc
+- Backwrote review and architecture docs for this micro-loop
+
+## Verification
+
+```powershell
+cargo test -p craw-chat-cli --offline --test chat_cli_e2e_test test_start_local_cmd_help_surfaces_gnu_style_named_flags -- --exact --nocapture
+cmd /c .\bin\start-local.cmd --help
+cargo test -p craw-chat-cli --offline -- --nocapture
+cargo fmt --all --check
+```
+
+## Next Round
+
+- Continue from Step 12 Windows wrapper seams.
+- Prefer the next smallest real mismatch in help discoverability, GNU-style runtime acceptance, or literal argument fidelity.

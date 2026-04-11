@@ -1,5 +1,8 @@
+use im_auth_context::AuthContext;
 use im_domain_core::conversation::MembershipRole;
-use projection_service::{TimelineProjectionService, TimelineViewEntry};
+use projection_service::{
+    MessageReactionCountView, RealtimeFanoutTarget, TimelineProjectionService, TimelineViewEntry,
+};
 use std::thread::sleep;
 use std::time::Duration;
 
@@ -1008,6 +1011,354 @@ fn test_registered_devices_and_latest_sync_seq_are_queryable() {
 }
 
 #[test]
+fn test_realtime_fanout_targets_for_principals_return_registered_principal_device_pairs() {
+    let service = TimelineProjectionService::default();
+
+    service.register_device("t_demo", "u_b", "d_phone");
+    service.register_device("t_demo", "u_a", "d_watch");
+    service.register_device("t_demo", "u_a", "d_pad");
+
+    let targets = service.realtime_fanout_targets_for_principals(
+        "t_demo",
+        vec![
+            "u_b".to_string(),
+            "u_missing".to_string(),
+            "u_a".to_string(),
+        ],
+    );
+
+    assert_eq!(
+        targets,
+        vec![
+            RealtimeFanoutTarget {
+                principal_id: "u_a".into(),
+                device_id: "d_pad".into(),
+            },
+            RealtimeFanoutTarget {
+                principal_id: "u_a".into(),
+                device_id: "d_watch".into(),
+            },
+            RealtimeFanoutTarget {
+                principal_id: "u_b".into(),
+                device_id: "d_phone".into(),
+            },
+        ]
+    );
+}
+
+#[test]
+fn test_device_sync_fanout_targets_for_conversation_include_active_members_and_fallback_devices() {
+    let service = TimelineProjectionService::default();
+
+    let owner_joined = im_domain_events::CommitEnvelope::minimal(
+        "evt_sync_targets_owner",
+        "t_demo",
+        "conversation.member_joined",
+        "conversation",
+        "c_sync_targets",
+        1,
+    )
+    .with_payload(
+        "conversation.member.v1",
+        r#"{
+            "tenantId":"t_demo",
+            "conversationId":"c_sync_targets",
+            "memberId":"cm_sync_targets_owner",
+            "principalId":"u_owner",
+            "principalKind":"user",
+            "role":"owner",
+            "state":"joined",
+            "invitedBy":null,
+            "joinedAt":"2026-04-07T09:00:00Z",
+            "removedAt":null,
+            "attributes":{}
+        }"#,
+    );
+    let member_joined = im_domain_events::CommitEnvelope::minimal(
+        "evt_sync_targets_member",
+        "t_demo",
+        "conversation.member_joined",
+        "conversation",
+        "c_sync_targets",
+        2,
+    )
+    .with_payload(
+        "conversation.member.v1",
+        r#"{
+            "tenantId":"t_demo",
+            "conversationId":"c_sync_targets",
+            "memberId":"cm_sync_targets_member",
+            "principalId":"u_member",
+            "principalKind":"user",
+            "role":"member",
+            "state":"joined",
+            "invitedBy":"u_owner",
+            "joinedAt":"2026-04-07T09:01:00Z",
+            "removedAt":null,
+            "attributes":{}
+        }"#,
+    );
+
+    service
+        .apply(&owner_joined)
+        .expect("owner projection should succeed");
+    service
+        .apply(&member_joined)
+        .expect("member projection should succeed");
+
+    service.register_device("t_demo", "u_owner", "d_phone");
+    service.register_device("t_demo", "u_owner", "d_pad");
+    service.register_device("t_demo", "u_member", "d_watch");
+    service.register_device("t_demo", "u_removed", "d_removed");
+
+    let targets = service.device_sync_fanout_targets_for_conversation(
+        "t_demo",
+        "c_sync_targets",
+        vec!["u_removed".to_string()],
+    );
+
+    assert_eq!(
+        targets,
+        vec![
+            RealtimeFanoutTarget {
+                principal_id: "u_member".into(),
+                device_id: "d_watch".into(),
+            },
+            RealtimeFanoutTarget {
+                principal_id: "u_owner".into(),
+                device_id: "d_pad".into(),
+            },
+            RealtimeFanoutTarget {
+                principal_id: "u_owner".into(),
+                device_id: "d_phone".into(),
+            },
+            RealtimeFanoutTarget {
+                principal_id: "u_removed".into(),
+                device_id: "d_removed".into(),
+            },
+        ]
+    );
+}
+
+#[test]
+fn test_active_conversation_principal_ids_from_auth_context_returns_current_active_members() {
+    let service = TimelineProjectionService::default();
+
+    let owner_joined = im_domain_events::CommitEnvelope::minimal(
+        "evt_active_principals_owner",
+        "t_demo",
+        "conversation.member_joined",
+        "conversation",
+        "c_active_principals",
+        1,
+    )
+    .with_payload(
+        "conversation.member.v1",
+        r#"{
+            "tenantId":"t_demo",
+            "conversationId":"c_active_principals",
+            "memberId":"cm_active_principals_owner",
+            "principalId":"u_owner",
+            "principalKind":"user",
+            "role":"owner",
+            "state":"joined",
+            "invitedBy":null,
+            "joinedAt":"2026-04-07T10:00:00Z",
+            "removedAt":null,
+            "attributes":{}
+        }"#,
+    );
+    let member_joined = im_domain_events::CommitEnvelope::minimal(
+        "evt_active_principals_member",
+        "t_demo",
+        "conversation.member_joined",
+        "conversation",
+        "c_active_principals",
+        2,
+    )
+    .with_payload(
+        "conversation.member.v1",
+        r#"{
+            "tenantId":"t_demo",
+            "conversationId":"c_active_principals",
+            "memberId":"cm_active_principals_member",
+            "principalId":"u_member",
+            "principalKind":"user",
+            "role":"member",
+            "state":"joined",
+            "invitedBy":"u_owner",
+            "joinedAt":"2026-04-07T10:01:00Z",
+            "removedAt":null,
+            "attributes":{}
+        }"#,
+    );
+    let member_removed = im_domain_events::CommitEnvelope::minimal(
+        "evt_active_principals_removed",
+        "t_demo",
+        "conversation.member_removed",
+        "conversation",
+        "c_active_principals",
+        3,
+    )
+    .with_payload(
+        "conversation.member.v1",
+        r#"{
+            "tenantId":"t_demo",
+            "conversationId":"c_active_principals",
+            "memberId":"cm_active_principals_member",
+            "principalId":"u_member",
+            "principalKind":"user",
+            "role":"member",
+            "state":"removed",
+            "invitedBy":"u_owner",
+            "joinedAt":"2026-04-07T10:01:00Z",
+            "removedAt":"2026-04-07T10:02:00Z",
+            "attributes":{}
+        }"#,
+    );
+
+    for event in [owner_joined, member_joined, member_removed] {
+        service
+            .apply(&event)
+            .expect("member projection should succeed");
+    }
+
+    let auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_owner".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_owner".into()),
+        device_id: Some("d_owner".into()),
+        permissions: Default::default(),
+    };
+
+    assert_eq!(
+        service
+            .active_conversation_principal_ids_from_auth_context(&auth, "c_active_principals")
+            .expect("active member should read active principal ids"),
+        vec!["u_owner".to_string()]
+    );
+}
+
+#[test]
+fn test_message_posted_notification_principal_ids_from_auth_context_includes_shared_linked_members()
+{
+    let service = TimelineProjectionService::default();
+
+    let owner_joined = im_domain_events::CommitEnvelope::minimal(
+        "evt_notification_targets_owner",
+        "t_demo",
+        "conversation.member_joined",
+        "conversation",
+        "c_notification_targets",
+        1,
+    )
+    .with_payload(
+        "conversation.member.v1",
+        r#"{
+            "tenantId":"t_demo",
+            "conversationId":"c_notification_targets",
+            "memberId":"cm_notification_targets_owner",
+            "principalId":"u_owner",
+            "principalKind":"user",
+            "role":"owner",
+            "state":"joined",
+            "invitedBy":null,
+            "joinedAt":"2026-04-07T10:00:00Z",
+            "removedAt":null,
+            "attributes":{}
+        }"#,
+    );
+    let member_joined = im_domain_events::CommitEnvelope::minimal(
+        "evt_notification_targets_member",
+        "t_demo",
+        "conversation.member_joined",
+        "conversation",
+        "c_notification_targets",
+        2,
+    )
+    .with_payload(
+        "conversation.member.v1",
+        r#"{
+            "tenantId":"t_demo",
+            "conversationId":"c_notification_targets",
+            "memberId":"cm_notification_targets_member",
+            "principalId":"u_member",
+            "principalKind":"user",
+            "role":"member",
+            "state":"joined",
+            "invitedBy":"u_owner",
+            "joinedAt":"2026-04-07T10:01:00Z",
+            "removedAt":null,
+            "attributes":{}
+        }"#,
+    );
+    let shared_linked = im_domain_events::CommitEnvelope::minimal(
+        "evt_notification_targets_shared_linked",
+        "t_demo",
+        "conversation.member_joined",
+        "conversation",
+        "c_notification_targets",
+        3,
+    )
+    .with_payload(
+        "conversation.member.v1",
+        r#"{
+            "tenantId":"t_demo",
+            "conversationId":"c_notification_targets",
+            "memberId":"cm_notification_targets_shared",
+            "principalId":"u_shared_external",
+            "principalKind":"external_user",
+            "role":"member",
+            "state":"linked",
+            "invitedBy":"u_owner",
+            "joinedAt":"2026-04-07T10:02:00Z",
+            "removedAt":null,
+            "attributes":{
+                "sharedChannelPolicyId":"scp_demo",
+                "externalConnectionId":"conn_demo",
+                "externalMemberId":"ext_demo"
+            }
+        }"#,
+    );
+
+    for event in [owner_joined, member_joined, shared_linked] {
+        service
+            .apply(&event)
+            .expect("member projection should accept notification target events");
+    }
+
+    let auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_owner".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_owner".into()),
+        device_id: Some("d_owner".into()),
+        permissions: Default::default(),
+    };
+
+    assert_eq!(
+        service
+            .active_conversation_principal_ids_from_auth_context(&auth, "c_notification_targets")
+            .expect("active member should still resolve active principal ids"),
+        vec!["u_member".to_string(), "u_owner".to_string()]
+    );
+    assert_eq!(
+        service
+            .message_posted_notification_principal_ids_from_auth_context(
+                &auth,
+                "c_notification_targets",
+            )
+            .expect("active member should resolve shared notification principal ids"),
+        vec![
+            "u_member".to_string(),
+            "u_owner".to_string(),
+            "u_shared_external".to_string()
+        ]
+    );
+}
+
+#[test]
 fn test_registered_device_timestamps_advance_between_distinct_registrations() {
     let service = TimelineProjectionService::default();
 
@@ -1110,6 +1461,176 @@ fn test_message_edit_and_recall_events_update_timeline_and_summary() {
         .expect("summary should exist");
     assert_eq!(summary.last_message_id.as_deref(), Some("msg_c_mutation_1"));
     assert_eq!(summary.last_summary.as_deref(), Some("[recalled]"));
+}
+
+#[test]
+fn test_reaction_and_pin_events_project_into_interaction_summary_views() {
+    let service = TimelineProjectionService::default();
+
+    let posted = im_domain_events::CommitEnvelope::minimal(
+        "evt_interaction_posted",
+        "t_demo",
+        "message.posted",
+        "conversation",
+        "c_interaction",
+        1,
+    )
+    .with_payload(
+        "message.posted.v1",
+        r#"{
+            "tenantId":"t_demo",
+            "conversationId":"c_interaction",
+            "messageId":"msg_c_interaction_1",
+            "messageSeq":1,
+            "sender":{"id":"u_owner","kind":"user","memberId":"cm_owner","deviceId":"d_owner","sessionId":"s_owner","metadata":{}},
+            "messageType":"standard",
+            "deliveryMode":"discrete",
+            "clientMsgId":"client_interaction_1",
+            "streamSessionId":null,
+            "rtcSessionId":null,
+            "body":{"summary":"interaction target","parts":[{"kind":"text","text":"interaction target"}],"renderHints":{}},
+            "attributes":{},
+            "metadata":{},
+            "occurredAt":"2026-04-10T12:00:00Z",
+            "committedAt":"2026-04-10T12:00:00Z"
+        }"#,
+    );
+    let reaction_added_owner = im_domain_events::CommitEnvelope::minimal(
+        "evt_interaction_reaction_owner",
+        "t_demo",
+        "message.reaction_added",
+        "conversation",
+        "c_interaction",
+        2,
+    )
+    .with_payload(
+        "message.reaction_added.v1",
+        r#"{
+            "tenantId":"t_demo",
+            "conversationId":"c_interaction",
+            "messageId":"msg_c_interaction_1",
+            "messageSeq":1,
+            "reactionKey":"thumbs_up",
+            "reactedBy":{"id":"u_owner","kind":"user","memberId":"cm_owner","deviceId":"d_owner","sessionId":"s_owner","metadata":{}},
+            "reactedAt":"2026-04-10T12:00:10Z"
+        }"#,
+    );
+    let reaction_added_member = im_domain_events::CommitEnvelope::minimal(
+        "evt_interaction_reaction_member",
+        "t_demo",
+        "message.reaction_added",
+        "conversation",
+        "c_interaction",
+        3,
+    )
+    .with_payload(
+        "message.reaction_added.v1",
+        r#"{
+            "tenantId":"t_demo",
+            "conversationId":"c_interaction",
+            "messageId":"msg_c_interaction_1",
+            "messageSeq":1,
+            "reactionKey":"thumbs_up",
+            "reactedBy":{"id":"u_member","kind":"user","memberId":"cm_member","deviceId":"d_member","sessionId":"s_member","metadata":{}},
+            "reactedAt":"2026-04-10T12:00:11Z"
+        }"#,
+    );
+    let pinned = im_domain_events::CommitEnvelope::minimal(
+        "evt_interaction_pin",
+        "t_demo",
+        "message.pin_added",
+        "conversation",
+        "c_interaction",
+        4,
+    )
+    .with_payload(
+        "message.pin_added.v1",
+        r#"{
+            "tenantId":"t_demo",
+            "conversationId":"c_interaction",
+            "messageId":"msg_c_interaction_1",
+            "messageSeq":1,
+            "pinnedBy":{"id":"u_owner","kind":"user","memberId":"cm_owner","deviceId":"d_owner","sessionId":"s_owner","metadata":{}},
+            "pinnedAt":"2026-04-10T12:00:20Z"
+        }"#,
+    );
+    let reaction_removed_owner = im_domain_events::CommitEnvelope::minimal(
+        "evt_interaction_reaction_removed_owner",
+        "t_demo",
+        "message.reaction_removed",
+        "conversation",
+        "c_interaction",
+        5,
+    )
+    .with_payload(
+        "message.reaction_removed.v1",
+        r#"{
+            "tenantId":"t_demo",
+            "conversationId":"c_interaction",
+            "messageId":"msg_c_interaction_1",
+            "messageSeq":1,
+            "reactionKey":"thumbs_up",
+            "removedBy":{"id":"u_owner","kind":"user","memberId":"cm_owner","deviceId":"d_owner","sessionId":"s_owner","metadata":{}},
+            "removedAt":"2026-04-10T12:00:30Z"
+        }"#,
+    );
+    let unpinned = im_domain_events::CommitEnvelope::minimal(
+        "evt_interaction_unpin",
+        "t_demo",
+        "message.pin_removed",
+        "conversation",
+        "c_interaction",
+        6,
+    )
+    .with_payload(
+        "message.pin_removed.v1",
+        r#"{
+            "tenantId":"t_demo",
+            "conversationId":"c_interaction",
+            "messageId":"msg_c_interaction_1",
+            "messageSeq":1,
+            "unpinnedBy":{"id":"u_owner","kind":"user","memberId":"cm_owner","deviceId":"d_owner","sessionId":"s_owner","metadata":{}},
+            "unpinnedAt":"2026-04-10T12:00:40Z"
+        }"#,
+    );
+
+    for event in [
+        posted,
+        reaction_added_owner.clone(),
+        reaction_added_owner,
+        reaction_added_member,
+        pinned.clone(),
+        pinned,
+        reaction_removed_owner.clone(),
+        reaction_removed_owner,
+        unpinned.clone(),
+        unpinned,
+    ] {
+        service
+            .apply(&event)
+            .expect("interaction projection should succeed");
+    }
+
+    let summary = service
+        .message_interaction_summary("t_demo", "c_interaction", "msg_c_interaction_1")
+        .expect("interaction summary should exist");
+    assert_eq!(summary.message_seq, 1);
+    assert_eq!(summary.total_reaction_count, 1);
+    assert_eq!(
+        summary.reaction_counts,
+        vec![MessageReactionCountView {
+            reaction_key: "thumbs_up".into(),
+            count: 1,
+        }]
+    );
+    assert_eq!(summary.pin, None);
+
+    assert!(
+        service
+            .pinned_messages("t_demo", "c_interaction")
+            .is_empty(),
+        "unpinned message should not stay in pinned-message summary view"
+    );
 }
 
 #[test]

@@ -1,12 +1,20 @@
 param(
+    [Alias("base-url")]
     [string]$BaseUrl,
+    [Alias("tenant-id")]
     [string]$TenantId = "t_demo",
+    [Alias("conversation-id")]
     [string]$ConversationId,
+    [Alias("user-id")]
     [string]$UserId,
+    [Alias("session-id")]
     [string]$SessionId,
+    [Alias("device-id")]
     [string]$DeviceId,
     [string]$Label,
+    [Alias("message-prefix")]
     [string]$MessagePrefix,
+    [Alias("diagnostics-file")]
     [string]$DiagnosticsFile,
     [switch]$Release,
     [switch]$Help
@@ -84,6 +92,7 @@ function Quote-ProcessArgument {
 
 if ($Help -or [string]::IsNullOrWhiteSpace($ConversationId) -or [string]::IsNullOrWhiteSpace($UserId)) {
     Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/chat-window-gui.ps1 -ConversationId <id> -UserId <id> [-BaseUrl <url>] [-TenantId <id>] [-SessionId <id>] [-DeviceId <id>] [-Label <name>] [-MessagePrefix <prefix>] [-Release]"
+    Write-Host "Usage: cmd /c .\bin\chat-window-gui.cmd --conversation-id <id> --user-id <id> [--base-url <url>] [--tenant-id <id>] [--session-id <id>] [--device-id <id>] [--label <name>] [--message-prefix <prefix>] [--release]"
     Write-Host "Open one visible GUI chat window backed by polling chat-cli timeline/send-message commands."
     if ($Help) {
         exit 0

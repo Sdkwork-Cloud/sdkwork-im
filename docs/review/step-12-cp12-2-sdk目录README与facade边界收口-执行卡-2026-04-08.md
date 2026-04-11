@@ -1,0 +1,95 @@
+# Step 12 / CP12-2 SDK 目录 README 与 facade 边界收口 执行卡 - 2026-04-08
+
+## 当前上下文
+- 当前波次：`Wave D`
+- 当前 step：`Step 12`
+- 当前子任务：`CP12-2`
+- 前置状态：
+  - `CP12-1` 已闭环，CLI / realtime / public app 主链路已具备可信验证基线
+  - `sdks/` 目录已经存在，但此前缺少能冻结边界的 README 与 workspace 入口说明
+  - `Step 12` 仍未闭环，因为 SDK facade、compatibility matrix、终端验证脚本仍未收口
+
+## 本轮为什么做这个增量
+- `docs/step/12-SDK-CLI与兼容矩阵收口.md` 明确要求两套 SDK 目录具备清晰 facade 边界与 README，不能保留为“空目录 + 未来再说”的幽灵路径。
+- 如果 `sdks/` 没有稳定入口与职责声明，后续 `CP12-3` 的 compatibility matrix 与 control-plane 映射就会缺少明确消费者边界。
+- 因此本轮先冻结：
+  - workspace 根 README 到 `sdks/README.md` 的入口
+  - 应用侧 / 管理侧 SDK 的 facade 边界
+  - `TypeScript` / `Flutter` 子目录的稳定占位路径
+
+## 本轮实际完成
+
+### 1. 已先用契约测试把 README 边界冻结下来
+- 更新：`tools/chat-cli/tests/chat_cli_contract_test.rs`
+- 新增测试：
+  - `test_step12_sdk_readmes_freeze_facade_boundaries_and_workspace_entry_points`
+- 该测试当前冻结了以下事实：
+  - `sdks/README.md` 必须公开两套 SDK 入口、`compatibility matrix`、`TypeScript`、`Flutter`
+  - `sdks/sdkwork-craw-chat-sdk/README.md` 必须声明 `payload.json`、`ccp/ws/1`、`bearer` 与 app-facing 边界
+  - `sdks/sdkwork-craw-chat-sdk-admin/README.md` 必须声明 `control-plane`、`protocol governance` 与 admin-facing 边界
+  - 根 `README.md` 必须链接 `sdks/README.md`
+
+### 2. 已把 workspace 根入口补到 SDK 总览
+- 更新：`README.md`
+- 当前仓库根 README 已显式公开：
+  - `sdks/README.md`
+- 这消除了“SDK 目录存在但没有仓库级入口”的灰色状态。
+
+### 3. 已冻结 `sdks/` 总览与两套 facade 容器边界
+- 更新：
+  - `sdks/README.md`
+  - `sdks/sdkwork-craw-chat-sdk/README.md`
+  - `sdks/sdkwork-craw-chat-sdk-admin/README.md`
+- 当前已明确：
+  - `sdkwork-craw-chat-sdk`
+    - 只承接 app-facing conversation / message / timeline / realtime facade
+    - 遵守 `payload.json`、`ccp/ws/1`、bearer 与 `auth_bind`
+    - capability 是否启用由 `compatibility matrix` 与协商结果决定
+  - `sdkwork-craw-chat-sdk-admin`
+    - 只承接 `control-plane` / `protocol governance` / `compatibility matrix`
+    - 不冒充聊天产品 SDK
+    - 协议能力决策以 control-plane snapshot 为准
+
+### 4. 已把 `TypeScript` / `Flutter` 子目录从空壳路径升级为稳定占位入口
+- 新增：
+  - `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/README.md`
+  - `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-flutter/README.md`
+  - `sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-typescript/README.md`
+  - `sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-flutter/README.md`
+- 当前这些目录不再只是空文件夹，而是有了最小可信职责声明：
+  - 谁消费 app-facing facade
+  - 谁消费 admin-facing facade
+  - 当前不提前宣称代码生成或发布链已经完成
+
+## TDD / Red-Green 证据
+
+### Red
+- 延续上一轮已完成的失败验证：
+  - `cargo test -p craw-chat-cli --offline --test chat_cli_contract_test test_step12_sdk_readmes_freeze_facade_boundaries_and_workspace_entry_points -- --nocapture`
+  - 初始失败原因：SDK README 为空或缺少 Step 12 需要冻结的边界文本
+
+### Green
+- 在 README 与占位入口补齐后，同一条契约测试已转绿。
+- 本轮没有跳过 README 约束，也没有把边界说明留到后续再补，而是把 workspace 入口、facade 角色与语言路径一次性写成了可回归资产。
+
+## Fresh 验证
+- `cargo test -p craw-chat-cli --offline --test chat_cli_contract_test -- --nocapture`
+- `cargo test -p craw-chat-cli --offline --test chat_cli_e2e_test -- --nocapture`
+- `cargo fmt --all --check`
+
+## 当前判断
+- `CP12-2`：闭环
+- 已兑现：
+  - `sdks/` 目录不再是无边界的占位空间
+  - app-facing / admin-facing facade 边界已冻结
+  - `TypeScript` / `Flutter` 目录已具备稳定入口
+  - 根 README 到 SDK 总览的 workspace 入口已建立
+- 当前仍未兑现但不阻塞 `CP12-2` 关闭：
+  - `CP12-3` 的 compatibility matrix 文档 / 测试 / 控制面映射整合
+  - `CP12-4` 的多终端聊天与流式验证脚本收口
+  - 多语言 SDK 的真实生成、发布与示例链路
+
+## 下一轮继续做什么
+1. 进入 `Wave D / Step 12 / CP12-3`
+2. 盘点 `compatibility matrix` 当前文档、测试、control-plane snapshot 的真实差距
+3. 继续保持 `CP12-2` 已冻结的 SDK facade 边界不漂移

@@ -2,6 +2,7 @@ use std::sync::Arc;
 use std::thread::sleep;
 use std::time::Duration;
 
+use craw_chat_runtime_route::{RouteBinding, RouteMigrationResult, RouteNodeLifecycle};
 use im_adapters_local_memory::MemoryRealtimeCheckpointStore;
 use im_platform_contracts::{ContractError, RealtimeCheckpointRecord, RealtimeCheckpointStore};
 use session_gateway::{
@@ -567,4 +568,50 @@ fn test_cluster_route_bound_at_advances_between_distinct_bind_and_migration_oper
         .expect("migrated route should exist");
     assert_eq!(migrated_route.owner_node_id, "node_b");
     assert!(second_route.bound_at < migrated_route.bound_at);
+}
+
+#[test]
+fn test_cluster_bridge_public_route_models_use_runtime_route_owner_types() {
+    let cluster = Arc::new(RealtimeClusterBridge::default());
+    let runtime_a = Arc::new(RealtimeDeliveryRuntime::default());
+    let runtime_b = Arc::new(RealtimeDeliveryRuntime::default());
+    cluster.bind_node_runtime("node_a", runtime_a);
+    cluster.bind_node_runtime("node_b", runtime_b);
+
+    let first_bind: RouteBinding = cluster
+        .bind_device_route(
+            "t_demo",
+            "u_demo",
+            "d_runtime_owner",
+            "node_a",
+            Some("s_owner_1"),
+            "websocket",
+        )
+        .expect("initial route bind should succeed");
+    assert_eq!(first_bind.route_epoch, 1);
+    assert_eq!(first_bind.owner_node_id, "node_a");
+    assert_eq!(first_bind.session_id.as_deref(), Some("s_owner_1"));
+    assert_eq!(first_bind.connection_kind, "websocket");
+
+    let draining: RouteNodeLifecycle = cluster
+        .mark_node_draining("node_a")
+        .expect("source node should enter draining");
+    assert_eq!(draining.drain_status, "draining");
+    assert_eq!(draining.rebalance_state, "moving_routes");
+    assert_eq!(draining.owned_route_count, 1);
+
+    let migration: RouteMigrationResult = cluster
+        .migrate_node_routes("node_a", "node_b")
+        .expect("route migration should succeed");
+    assert_eq!(migration.migrated_route_count, 1);
+    assert_eq!(migration.source_drain_status, "drained");
+    assert_eq!(migration.target_drain_status, "active");
+
+    let migrated: RouteBinding = cluster
+        .resolve_device_route("t_demo", "u_demo", "d_runtime_owner")
+        .expect("migrated route should remain present");
+    assert_eq!(migrated.owner_node_id, "node_b");
+    assert_eq!(migrated.route_epoch, 2);
+    assert_eq!(migrated.session_id.as_deref(), Some("s_owner_1"));
+    assert_eq!(migrated.connection_kind, "websocket");
 }

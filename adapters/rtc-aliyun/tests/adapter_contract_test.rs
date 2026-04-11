@@ -1,0 +1,66 @@
+use im_adapter_rtc_aliyun::{ALIYUN_RTC_PLUGIN_ID, AliyunRtcProvider, AliyunRtcProviderConfig};
+use im_platform_contracts::{RtcCallbackRequest, RtcCreateSessionRequest, RtcProviderPort};
+
+#[test]
+fn test_aliyun_rtc_provider_implements_contract_surface() {
+    let provider = AliyunRtcProvider::new(AliyunRtcProviderConfig {
+        access_endpoint: "wss://rtc.aliyun.local/session".into(),
+        region: "cn-shanghai".into(),
+    });
+
+    let descriptor = provider.descriptor();
+    assert_eq!(descriptor.plugin_id, ALIYUN_RTC_PLUGIN_ID);
+    assert_eq!(descriptor.provider_kind, "aliyun");
+    assert_eq!(
+        descriptor.required_capabilities,
+        vec!["session", "credential", "callback", "health"]
+    );
+    assert_eq!(
+        descriptor.optional_capabilities,
+        vec!["recording", "artifact"]
+    );
+
+    let session = provider
+        .create_session(RtcCreateSessionRequest {
+            tenant_id: "t_demo".into(),
+            rtc_session_id: "rtc_demo".into(),
+            conversation_id: Some("c_demo".into()),
+            rtc_mode: "voice".into(),
+            initiator_id: "u_demo".into(),
+        })
+        .expect("aliyun rtc create_session should succeed");
+    assert_eq!(session.provider_session_id, "aliyun:rtc_demo");
+    assert_eq!(
+        session.access_endpoint.as_deref(),
+        Some("wss://rtc.aliyun.local/session")
+    );
+    assert_eq!(session.region.as_deref(), Some("cn-shanghai"));
+
+    let credential = provider
+        .issue_participant_credential("t_demo", "rtc_demo", "u_peer")
+        .expect("aliyun rtc credential should succeed");
+    assert_eq!(credential.credential, "aliyun-token:t_demo:rtc_demo:u_peer");
+
+    let callback = provider
+        .map_provider_callback(RtcCallbackRequest {
+            rtc_session_id: "rtc_demo".into(),
+            callback_type: "room-ended".into(),
+            payload_json: "{\"reason\":\"host_left\"}".into(),
+        })
+        .expect("aliyun rtc callback mapping should succeed");
+    assert_eq!(callback.event_type, "room-ended");
+
+    let artifact = provider
+        .export_recording_artifact("t_demo", "rtc_demo")
+        .expect("aliyun rtc artifact export should succeed")
+        .expect("aliyun rtc artifact should exist");
+    assert_eq!(artifact.bucket, "rtc-artifacts");
+    assert_eq!(artifact.object_key, "recordings/t_demo/rtc_demo.mp4");
+    assert_eq!(artifact.storage_provider, None);
+    assert_eq!(artifact.playback_url, None);
+
+    let health = provider.provider_health_snapshot();
+    assert_eq!(health.plugin_id, ALIYUN_RTC_PLUGIN_ID);
+    assert_eq!(health.status, "healthy");
+    assert_eq!(health.details["providerKind"], "aliyun");
+}

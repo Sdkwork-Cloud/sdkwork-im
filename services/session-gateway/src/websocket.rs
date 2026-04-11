@@ -1,15 +1,43 @@
 use std::sync::Arc;
 
-use axum::extract::ws::{CloseFrame, Message, Utf8Bytes, WebSocket};
+use axum::extract::ws::{CloseFrame, Message, Utf8Bytes, WebSocket, close_code};
+use craw_chat_ccp_binding_ws::{WsBinding, WsBindingMessage, WsOpcode};
+use craw_chat_ccp_codec::CcpCodec;
+use craw_chat_ccp_codec_json::JsonEnvelopeCodec;
+use craw_chat_ccp_control::{AuthOkFrame, ControlFrame, ErrorFrame};
+use craw_chat_ccp_core::{CcpEnvelope, CcpRoute, ProtocolVersion, TransportBinding};
+use craw_chat_runtime_link::{
+    LINK_WEBSOCKET_SUBPROTOCOL, LinkBufferedPushDrainDriver, LinkBufferedPushDrainStatus,
+    LinkBufferedPushFetchedWindow, LinkBufferedPushPlan, LinkGoAwayDirective,
+    LinkOutboundQueueState, LinkSession, OutboundQueuePolicy,
+    REALTIME_OVERLOAD_CLOSE_CODE as RUNTIME_LINK_REALTIME_OVERLOAD_CLOSE_CODE,
+    REALTIME_OVERLOAD_CLOSE_REASON as RUNTIME_LINK_REALTIME_OVERLOAD_CLOSE_REASON, ResumeWindow,
+    SESSION_DISCONNECT_CLOSE_CODE as RUNTIME_LINK_SESSION_DISCONNECT_CLOSE_CODE,
+    SESSION_DISCONNECT_CLOSE_REASON as RUNTIME_LINK_SESSION_DISCONNECT_CLOSE_REASON,
+    session_disconnect_goaway,
+};
 use futures_util::StreamExt;
 use im_auth_context::AuthContext;
+use im_domain_core::realtime::RealtimeEventWindow;
 use serde::Deserialize;
-use serde_json::json;
+use serde_json::{Value, json};
 
-use crate::{RealtimeDeliveryRuntime, RealtimeRuntimeError, RealtimeSubscriptionItemInput};
+use crate::{
+    RealtimeDeliveryRuntime, RealtimeRuntimeError, RealtimeSubscriptionItemInput,
+    realtime::RealtimeWindowCheckpoint,
+};
 
-pub const SESSION_DISCONNECT_CLOSE_CODE: u16 = 4001;
-pub const SESSION_DISCONNECT_CLOSE_REASON: &str = "session.disconnect";
+pub const CCP_WEBSOCKET_SUBPROTOCOL: &str = LINK_WEBSOCKET_SUBPROTOCOL;
+pub const SESSION_DISCONNECT_CLOSE_CODE: u16 = RUNTIME_LINK_SESSION_DISCONNECT_CLOSE_CODE;
+pub const SESSION_DISCONNECT_CLOSE_REASON: &str = RUNTIME_LINK_SESSION_DISCONNECT_CLOSE_REASON;
+pub const REALTIME_OVERLOAD_CLOSE_CODE: u16 = RUNTIME_LINK_REALTIME_OVERLOAD_CLOSE_CODE;
+pub const REALTIME_OVERLOAD_CLOSE_REASON: &str = RUNTIME_LINK_REALTIME_OVERLOAD_CLOSE_REASON;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RealtimeWebsocketMode {
+    LegacyJson,
+    CcpJson,
+}
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -24,21 +52,139 @@ struct ClientFrameEnvelope {
     acked_seq: Option<u64>,
 }
 
+#[derive(Clone, Copy, Debug, Default)]
+struct CcpWebsocketRuntime {
+    binding: WsBinding,
+    codec: JsonEnvelopeCodec,
+}
+
+impl CcpWebsocketRuntime {
+    fn decode_message(&self, message: Message) -> Result<CcpEnvelope, String> {
+        let binding_message = match message {
+            Message::Text(text) => WsBindingMessage {
+                protocol_id: TransportBinding::Ws1.protocol_id(),
+                content_type: self.codec.content_type(),
+                opcode: WsOpcode::Text,
+                payload: text.to_string().into_bytes(),
+            },
+            Message::Binary(bytes) => WsBindingMessage {
+                protocol_id: TransportBinding::Ws1.protocol_id(),
+                content_type: self.codec.content_type(),
+                opcode: WsOpcode::Binary,
+                payload: bytes.to_vec(),
+            },
+            Message::Ping(_) | Message::Pong(_) => {
+                return Err("ccp control/business frames must use text or binary messages".into());
+            }
+            Message::Close(_) => return Err("websocket closed before CCP frame arrived".into()),
+        };
+        let envelope = self
+            .binding
+            .decode(&binding_message, &self.codec)
+            .map_err(|error| error.message().to_owned())?;
+        if envelope.protocol.family != "ccp" || envelope.protocol.major != 1 {
+            return Err(format!(
+                "unsupported CCP protocol: {}",
+                envelope.protocol.wire_id()
+            ));
+        }
+        if envelope.binding != TransportBinding::Ws1 {
+            return Err("unsupported websocket binding".into());
+        }
+        Ok(envelope)
+    }
+
+    async fn send_envelope(
+        &self,
+        socket: &mut WebSocket,
+        envelope: &CcpEnvelope,
+    ) -> Result<(), axum::Error> {
+        let message = self
+            .binding
+            .encode(envelope, &self.codec)
+            .map_err(axum::Error::new)?;
+        match message.opcode {
+            WsOpcode::Text => {
+                socket
+                    .send(Message::Text(
+                        String::from_utf8(message.payload)
+                            .expect("json ccp payload should remain utf8")
+                            .into(),
+                    ))
+                    .await
+            }
+            WsOpcode::Binary => socket.send(Message::Binary(message.payload.into())).await,
+        }
+    }
+
+    async fn send_control_frame(
+        &self,
+        socket: &mut WebSocket,
+        route: &CcpRoute,
+        frame: &ControlFrame,
+    ) -> Result<(), axum::Error> {
+        let envelope = CcpEnvelope::new(
+            ccp_protocol_version(),
+            TransportBinding::Ws1,
+            "control",
+            control_schema(frame),
+            None,
+            Some(route.clone()),
+            std::iter::empty::<String>(),
+            None,
+            serde_json::to_string(frame).expect("control frame should serialize"),
+        );
+        self.send_envelope(socket, &envelope).await
+    }
+
+    async fn send_business_payload(
+        &self,
+        socket: &mut WebSocket,
+        route: &CcpRoute,
+        kind: &str,
+        schema: &str,
+        payload: Value,
+    ) -> Result<(), axum::Error> {
+        let envelope = CcpEnvelope::new(
+            ccp_protocol_version(),
+            TransportBinding::Ws1,
+            kind,
+            schema,
+            None,
+            Some(route.clone()),
+            std::iter::empty::<String>(),
+            None,
+            payload.to_string(),
+        );
+        self.send_envelope(socket, &envelope).await
+    }
+}
+
 pub async fn serve_realtime_websocket(
     socket: WebSocket,
     auth: AuthContext,
     device_id: String,
     runtime: Arc<RealtimeDeliveryRuntime>,
+    wire_mode: RealtimeWebsocketMode,
 ) {
     let tenant_id = auth.tenant_id.clone();
     let principal_id = auth.actor_id.clone();
+    let authority = auth.ccp_authority();
+    let route = CcpRoute::for_principal(
+        tenant_id.clone(),
+        principal_id.clone(),
+        Some(device_id.clone()),
+    );
+    let ccp_runtime = CcpWebsocketRuntime::default();
+    let sender_id = authority.sender.sender_id();
     let mut socket = socket;
     if let Err(error) = runtime.ensure_device_state(
         tenant_id.as_str(),
         principal_id.as_str(),
         device_id.as_str(),
     ) {
-        let _ = send_runtime_error(&mut socket, None, &error).await;
+        let _ =
+            send_initial_runtime_error(&mut socket, wire_mode, &ccp_runtime, &route, &error).await;
         return;
     }
     let checkpoint = match runtime.window_checkpoint(
@@ -48,7 +194,9 @@ pub async fn serve_realtime_websocket(
     ) {
         Ok(checkpoint) => checkpoint,
         Err(error) => {
-            let _ = send_runtime_error(&mut socket, None, &error).await;
+            let _ =
+                send_initial_runtime_error(&mut socket, wire_mode, &ccp_runtime, &route, &error)
+                    .await;
             return;
         }
     };
@@ -59,11 +207,14 @@ pub async fn serve_realtime_websocket(
     ) {
         Ok(disconnect_generation) => disconnect_generation,
         Err(error) => {
-            let _ = send_runtime_error(&mut socket, None, &error).await;
+            let _ =
+                send_initial_runtime_error(&mut socket, wire_mode, &ccp_runtime, &route, &error)
+                    .await;
             return;
         }
     };
-    let mut last_sent_seq = checkpoint
+    let mut link_session = build_link_session(&auth, device_id.as_str());
+    let mut resume_after_seq = checkpoint
         .acked_through_seq
         .max(checkpoint.trimmed_through_seq);
     let mut receiver = match runtime.subscribe_device(
@@ -73,7 +224,9 @@ pub async fn serve_realtime_websocket(
     ) {
         Ok(receiver) => receiver,
         Err(error) => {
-            let _ = send_runtime_error(&mut socket, None, &error).await;
+            let _ =
+                send_initial_runtime_error(&mut socket, wire_mode, &ccp_runtime, &route, &error)
+                    .await;
             return;
         }
     };
@@ -84,18 +237,56 @@ pub async fn serve_realtime_websocket(
     ) {
         Ok(receiver) => receiver,
         Err(error) => {
-            let _ = send_runtime_error(&mut socket, None, &error).await;
+            let _ =
+                send_initial_runtime_error(&mut socket, wire_mode, &ccp_runtime, &route, &error)
+                    .await;
             return;
         }
     };
 
-    if send_json(
+    if wire_mode == RealtimeWebsocketMode::CcpJson {
+        let Some(negotiated_after_seq) = complete_ccp_handshake(
+            &mut socket,
+            &ccp_runtime,
+            &route,
+            &mut link_session,
+            &checkpoint,
+        )
+        .await
+        else {
+            return;
+        };
+        resume_after_seq = negotiated_after_seq;
+    }
+    if wire_mode == RealtimeWebsocketMode::LegacyJson {
+        link_session.mark_authenticated();
+    }
+    activate_link_session(&mut link_session, &checkpoint);
+    let mut outbound_queue =
+        link_session.start_outbound_queue(resume_after_seq, checkpoint.latest_realtime_seq);
+
+    if send_business_payload(
         &mut socket,
+        wire_mode,
+        &ccp_runtime,
+        &route,
+        "evt",
+        "cc.realtime.connected.v1",
         json!({
             "type": "realtime.connected",
             "tenantId": tenant_id,
             "principalId": principal_id,
             "deviceId": device_id,
+            "actor": {
+                "id": authority.actor.actor_id,
+                "kind": authority.actor.actor_kind
+            },
+            "sender": {
+                "principalId": authority.sender.principal_id,
+                "deviceId": authority.sender.device_id,
+                "sessionId": authority.sender.session_id,
+                "senderId": sender_id
+            },
             "ackedThroughSeq": checkpoint.acked_through_seq,
             "trimmedThroughSeq": checkpoint.trimmed_through_seq,
             "latestRealtimeSeq": checkpoint.latest_realtime_seq
@@ -107,34 +298,44 @@ pub async fn serve_realtime_websocket(
         return;
     }
 
-    let catchup = match runtime.list_events(
-        auth.tenant_id.as_str(),
-        auth.actor_id.as_str(),
-        device_id.as_str(),
-        last_sent_seq,
-        100,
-    ) {
-        Ok(catchup) => catchup,
-        Err(error) => {
-            let _ = send_runtime_error(&mut socket, None, &error).await;
-            return;
-        }
-    };
-    if !catchup.items.is_empty() {
-        last_sent_seq = catchup.next_after_seq.unwrap_or(last_sent_seq);
-        if send_json(
-            &mut socket,
-            json!({
-                "type": "event.window",
-                "requestId": serde_json::Value::Null,
-                "reason": "catchup",
-                "window": catchup
-            }),
-        )
-        .await
-        .is_err()
-        {
-            return;
+    if let Some(catchup_plan) = outbound_queue.plan_catchup() {
+        let catchup = match runtime.list_events(
+            auth.tenant_id.as_str(),
+            auth.actor_id.as_str(),
+            device_id.as_str(),
+            catchup_plan.after_seq,
+            catchup_plan.batch.limit,
+        ) {
+            Ok(catchup) => catchup,
+            Err(error) => {
+                let _ =
+                    send_runtime_error(&mut socket, wire_mode, &ccp_runtime, &route, None, &error)
+                        .await;
+                return;
+            }
+        };
+        if !catchup.items.is_empty() {
+            let next_after_seq = catchup.next_after_seq;
+            if send_business_payload(
+                &mut socket,
+                wire_mode,
+                &ccp_runtime,
+                &route,
+                "evt",
+                "cc.realtime.event.window.v1",
+                json!({
+                    "type": "event.window",
+                    "requestId": serde_json::Value::Null,
+                    "reason": "catchup",
+                    "window": catchup
+                }),
+            )
+            .await
+            .is_err()
+            {
+                return;
+            }
+            let _ = outbound_queue.record_window_sent(catchup_plan.after_seq, next_after_seq);
         }
     }
 
@@ -145,34 +346,21 @@ pub async fn serve_realtime_websocket(
                     break;
                 }
 
-                let window = match runtime.list_events(
+                let latest_realtime_seq = *receiver.borrow_and_update();
+                let push_plan = outbound_queue.observe_latest_realtime_seq(latest_realtime_seq);
+                if !drain_runtime_owned_buffered_push(
+                    &mut socket,
+                    runtime.as_ref(),
                     auth.tenant_id.as_str(),
                     auth.actor_id.as_str(),
                     device_id.as_str(),
-                    last_sent_seq,
-                    100,
-                ) {
-                    Ok(window) => window,
-                    Err(error) => {
-                        let _ = send_runtime_error(&mut socket, None, &error).await;
-                        break;
-                    }
-                };
-                if window.items.is_empty() {
-                    continue;
-                }
-                last_sent_seq = window.next_after_seq.unwrap_or(last_sent_seq);
-                if send_json(
-                    &mut socket,
-                    json!({
-                        "type": "event.window",
-                        "requestId": serde_json::Value::Null,
-                        "reason": "push",
-                        "window": window
-                    }),
+                    &mut outbound_queue,
+                    push_plan,
+                    wire_mode,
+                    &ccp_runtime,
+                    &route,
                 )
                 .await
-                .is_err()
                 {
                     break;
                 }
@@ -188,13 +376,27 @@ pub async fn serve_realtime_websocket(
                 ) {
                     Ok(disconnect_generation) => disconnect_generation,
                     Err(error) => {
-                        let _ = send_runtime_error(&mut socket, None, &error).await;
+                        let _ = send_runtime_error(
+                            &mut socket,
+                            wire_mode,
+                            &ccp_runtime,
+                            &route,
+                            None,
+                            &error,
+                        )
+                        .await;
                         break;
                     }
                 };
                 if current_disconnect_generation != disconnect_generation
                 {
-                    let _ = socket.send(session_disconnect_close_message()).await;
+                    send_session_disconnect_signal(
+                        &mut socket,
+                        wire_mode,
+                        &ccp_runtime,
+                        &route,
+                    )
+                    .await;
                     break;
                 }
             }
@@ -212,13 +414,27 @@ pub async fn serve_realtime_websocket(
                 ) {
                     Ok(disconnect_generation) => disconnect_generation,
                     Err(error) => {
-                        let _ = send_runtime_error(&mut socket, None, &error).await;
+                        let _ = send_runtime_error(
+                            &mut socket,
+                            wire_mode,
+                            &ccp_runtime,
+                            &route,
+                            None,
+                            &error,
+                        )
+                        .await;
                         break;
                     }
                 };
                 if current_disconnect_generation != disconnect_generation
                 {
-                    let _ = socket.send(session_disconnect_close_message()).await;
+                    send_session_disconnect_signal(
+                        &mut socket,
+                        wire_mode,
+                        &ccp_runtime,
+                        &route,
+                    )
+                    .await;
                     break;
                 }
 
@@ -228,8 +444,11 @@ pub async fn serve_realtime_websocket(
                     auth.tenant_id.as_str(),
                     auth.actor_id.as_str(),
                     device_id.as_str(),
-                    &mut last_sent_seq,
+                    &mut outbound_queue,
                     message,
+                    wire_mode,
+                    &ccp_runtime,
+                    &route,
                 )
                 .await;
                 if !keep_open {
@@ -238,31 +457,363 @@ pub async fn serve_realtime_websocket(
             }
         }
     }
+    link_session.mark_draining();
 }
 
-fn session_disconnect_close_message() -> Message {
+async fn complete_ccp_handshake(
+    socket: &mut WebSocket,
+    ccp_runtime: &CcpWebsocketRuntime,
+    route: &CcpRoute,
+    link_session: &mut LinkSession,
+    checkpoint: &RealtimeWindowCheckpoint,
+) -> Option<u64> {
+    let hello = match receive_next_control_frame(socket, ccp_runtime, route).await {
+        Ok(frame) => frame,
+        Err(()) => return None,
+    };
+    let hello = match hello {
+        ControlFrame::Hello(frame) => frame,
+        other => {
+            let _ = send_control_error(
+                socket,
+                ccp_runtime,
+                route,
+                "CCP_HELLO_REQUIRED",
+                format!("expected hello frame, got {}", other.frame_type()),
+            )
+            .await;
+            return None;
+        }
+    };
+
+    let hello_ack = match link_session.negotiate_hello(&hello) {
+        Ok(hello_ack) => hello_ack,
+        Err(error) => {
+            let _ =
+                send_control_error(socket, ccp_runtime, route, error.code(), error.message()).await;
+            return None;
+        }
+    };
+    let resume_negotiated = hello_ack.capabilities.supports("session.resume");
+    if ccp_runtime
+        .send_control_frame(socket, route, &ControlFrame::HelloAck(hello_ack))
+        .await
+        .is_err()
+    {
+        return None;
+    }
+
+    let auth_bind = match receive_next_control_frame(socket, ccp_runtime, route).await {
+        Ok(frame) => frame,
+        Err(()) => return None,
+    };
+    let auth_bind = match auth_bind {
+        ControlFrame::AuthBind(frame) => frame,
+        other => {
+            let _ = send_control_error(
+                socket,
+                ccp_runtime,
+                route,
+                "CCP_AUTH_BIND_REQUIRED",
+                format!("expected auth_bind frame, got {}", other.frame_type()),
+            )
+            .await;
+            return None;
+        }
+    };
+
+    if !link_session.matches_auth_bind(
+        auth_bind.principal_id.as_str(),
+        auth_bind.actor_kind.as_str(),
+        auth_bind.device_id.as_deref(),
+        auth_bind.session_id.as_deref(),
+    ) {
+        let _ = send_control_error(
+            socket,
+            ccp_runtime,
+            route,
+            "CCP_AUTH_FAILED",
+            "auth_bind does not match authenticated context",
+        )
+        .await;
+        let _ = socket
+            .send(Message::Close(Some(CloseFrame {
+                code: close_code::POLICY,
+                reason: Utf8Bytes::from_static("ccp.auth_failed"),
+            })))
+            .await;
+        return None;
+    }
+
+    let auth_ok = ControlFrame::AuthOk(AuthOkFrame {
+        tenant_id: link_session.tenant_id.clone(),
+        principal_id: link_session.principal_id.clone(),
+        actor_kind: link_session.actor_kind.clone(),
+        device_id: Some(link_session.device_id.clone()),
+        session_id: link_session.session_id.clone(),
+    });
+    if ccp_runtime
+        .send_control_frame(socket, route, &auth_ok)
+        .await
+        .is_err()
+    {
+        return None;
+    }
+    link_session.mark_authenticated();
+
+    if !resume_negotiated {
+        return Some(checkpoint.acked_through_seq);
+    }
+
+    let session_resume = match receive_next_control_frame(socket, ccp_runtime, route).await {
+        Ok(frame) => frame,
+        Err(()) => return None,
+    };
+    let session_resume = match session_resume {
+        ControlFrame::SessionResume(frame) => frame,
+        other => {
+            let _ = send_control_error(
+                socket,
+                ccp_runtime,
+                route,
+                "CCP_SESSION_RESUME_REQUIRED",
+                format!("expected session_resume frame, got {}", other.frame_type()),
+            )
+            .await;
+            return None;
+        }
+    };
+
+    let directive = match link_session.negotiate_session_resume(
+        &session_resume,
+        checkpoint.latest_realtime_seq,
+        checkpoint.acked_through_seq,
+    ) {
+        Ok(directive) => directive,
+        Err(error) => {
+            let _ =
+                send_control_error(socket, ccp_runtime, route, error.code(), error.message()).await;
+            return None;
+        }
+    };
+    let catchup_after_seq = directive
+        .catchup_after_seq
+        .max(checkpoint.trimmed_through_seq);
+    let session_resumed = ControlFrame::SessionResumed(directive.frame);
+    if ccp_runtime
+        .send_control_frame(socket, route, &session_resumed)
+        .await
+        .is_err()
+    {
+        return None;
+    }
+
+    Some(catchup_after_seq)
+}
+
+async fn receive_next_control_frame(
+    socket: &mut WebSocket,
+    ccp_runtime: &CcpWebsocketRuntime,
+    route: &CcpRoute,
+) -> Result<ControlFrame, ()> {
+    loop {
+        let Some(message) = socket.next().await else {
+            return Err(());
+        };
+        let Ok(message) = message else {
+            return Err(());
+        };
+        match message {
+            Message::Ping(payload) => {
+                if socket.send(Message::Pong(payload)).await.is_err() {
+                    return Err(());
+                }
+            }
+            Message::Pong(_) => {}
+            Message::Close(frame) => {
+                let _ = socket.send(Message::Close(frame)).await;
+                return Err(());
+            }
+            Message::Text(_) | Message::Binary(_) => {
+                let envelope = match ccp_runtime.decode_message(message) {
+                    Ok(envelope) => envelope,
+                    Err(error) => {
+                        let _ = send_control_error(
+                            socket,
+                            ccp_runtime,
+                            route,
+                            "CCP_SCHEMA_INCOMPATIBLE",
+                            error,
+                        )
+                        .await;
+                        return Err(());
+                    }
+                };
+                if envelope.kind != "control" {
+                    let _ = send_control_error(
+                        socket,
+                        ccp_runtime,
+                        route,
+                        "CCP_CONTROL_REQUIRED",
+                        format!("expected control envelope, got kind {}", envelope.kind),
+                    )
+                    .await;
+                    return Err(());
+                }
+                let control: ControlFrame = match serde_json::from_str(envelope.payload.as_str()) {
+                    Ok(frame) => frame,
+                    Err(error) => {
+                        let _ = send_control_error(
+                            socket,
+                            ccp_runtime,
+                            route,
+                            "CCP_SCHEMA_INCOMPATIBLE",
+                            format!("control payload decode failed: {error}"),
+                        )
+                        .await;
+                        return Err(());
+                    }
+                };
+                return Ok(control);
+            }
+        }
+    }
+}
+
+async fn send_session_disconnect_signal(
+    socket: &mut WebSocket,
+    wire_mode: RealtimeWebsocketMode,
+    ccp_runtime: &CcpWebsocketRuntime,
+    route: &CcpRoute,
+) {
+    let directive = session_disconnect_goaway();
+    send_link_goaway_and_close(socket, wire_mode, ccp_runtime, route, &directive).await;
+}
+
+async fn send_link_goaway_and_close(
+    socket: &mut WebSocket,
+    wire_mode: RealtimeWebsocketMode,
+    ccp_runtime: &CcpWebsocketRuntime,
+    route: &CcpRoute,
+    directive: &LinkGoAwayDirective,
+) {
+    if wire_mode == RealtimeWebsocketMode::CcpJson {
+        let frame = ControlFrame::GoAway(directive.frame.clone());
+        if ccp_runtime
+            .send_control_frame(socket, route, &frame)
+            .await
+            .is_err()
+        {
+            return;
+        }
+    }
+    let _ = socket
+        .send(session_disconnect_close_message(directive))
+        .await;
+}
+
+fn session_disconnect_close_message(directive: &LinkGoAwayDirective) -> Message {
     Message::Close(Some(CloseFrame {
-        code: SESSION_DISCONNECT_CLOSE_CODE,
-        reason: Utf8Bytes::from_static(SESSION_DISCONNECT_CLOSE_REASON),
+        code: directive.close_code,
+        reason: Utf8Bytes::from_static(directive.close_reason),
     }))
 }
 
+#[derive(Debug)]
+enum BufferedPushDrainError {
+    Runtime(RealtimeRuntimeError),
+    Send,
+}
+
+struct BufferedPushDrainDriver<'a> {
+    socket: &'a mut WebSocket,
+    runtime: &'a RealtimeDeliveryRuntime,
+    tenant_id: &'a str,
+    principal_id: &'a str,
+    device_id: &'a str,
+    wire_mode: RealtimeWebsocketMode,
+    ccp_runtime: &'a CcpWebsocketRuntime,
+    route: &'a CcpRoute,
+}
+
+impl LinkBufferedPushDrainDriver for BufferedPushDrainDriver<'_> {
+    type Window = RealtimeEventWindow;
+    type Error = BufferedPushDrainError;
+
+    async fn fetch_window(
+        &mut self,
+        after_seq: u64,
+        limit: usize,
+    ) -> Result<LinkBufferedPushFetchedWindow<Self::Window>, Self::Error> {
+        let window = self
+            .runtime
+            .list_events(
+                self.tenant_id,
+                self.principal_id,
+                self.device_id,
+                after_seq,
+                limit,
+            )
+            .map_err(BufferedPushDrainError::Runtime)?;
+        let next_after_seq = window.next_after_seq;
+        let is_empty = window.items.is_empty();
+        Ok(LinkBufferedPushFetchedWindow {
+            window,
+            next_after_seq,
+            is_empty,
+        })
+    }
+
+    async fn send_window(&mut self, window: Self::Window) -> Result<(), Self::Error> {
+        send_business_payload(
+            self.socket,
+            self.wire_mode,
+            self.ccp_runtime,
+            self.route,
+            "evt",
+            "cc.realtime.event.window.v1",
+            json!({
+                "type": "event.window",
+                "requestId": serde_json::Value::Null,
+                "reason": "push",
+                "window": window
+            }),
+        )
+        .await
+        .map_err(|_| BufferedPushDrainError::Send)
+    }
+}
+
+// The websocket message loop is a boundary adapter that needs the full runtime,
+// queue, transport, and routing context visible while decoding client frames.
+#[allow(clippy::too_many_arguments)]
 async fn handle_client_message(
     socket: &mut WebSocket,
     runtime: &RealtimeDeliveryRuntime,
     tenant_id: &str,
     principal_id: &str,
     device_id: &str,
-    last_sent_seq: &mut u64,
+    outbound_queue: &mut LinkOutboundQueueState,
     message: Message,
+    wire_mode: RealtimeWebsocketMode,
+    ccp_runtime: &CcpWebsocketRuntime,
+    route: &CcpRoute,
 ) -> bool {
     match message {
-        Message::Text(text) => {
-            let frame: ClientFrameEnvelope = match serde_json::from_str(text.as_str()) {
+        Message::Text(_) | Message::Binary(_) => {
+            let frame = match decode_client_frame(message, wire_mode, ccp_runtime) {
                 Ok(frame) => frame,
-                Err(_) => {
-                    let _ =
-                        send_error(socket, None, "invalid_frame", "frame must be valid json").await;
+                Err(error) => {
+                    let _ = send_business_error(
+                        socket,
+                        wire_mode,
+                        ccp_runtime,
+                        route,
+                        None,
+                        "invalid_frame",
+                        error,
+                    )
+                    .await;
                     return true;
                 }
             };
@@ -277,12 +828,25 @@ async fn handle_client_message(
                     ) {
                         Ok(snapshot) => snapshot,
                         Err(error) => {
-                            let _ = send_runtime_error(socket, frame.request_id, &error).await;
+                            let _ = send_runtime_error(
+                                socket,
+                                wire_mode,
+                                ccp_runtime,
+                                route,
+                                frame.request_id,
+                                &error,
+                            )
+                            .await;
                             return true;
                         }
                     };
-                    let _ = send_json(
+                    let _ = send_business_payload(
                         socket,
+                        wire_mode,
+                        ccp_runtime,
+                        route,
+                        "evt",
+                        "cc.realtime.subscriptions.synced.v1",
                         json!({
                             "type": "subscriptions.synced",
                             "requestId": frame.request_id,
@@ -295,8 +859,11 @@ async fn handle_client_message(
                 "events.pull" => {
                     let limit = frame.limit.unwrap_or(100);
                     if limit == 0 {
-                        let _ = send_error(
+                        let _ = send_business_error(
                             socket,
+                            wire_mode,
+                            ccp_runtime,
+                            route,
                             frame.request_id,
                             "limit_invalid",
                             "limit must be greater than 0",
@@ -305,24 +872,53 @@ async fn handle_client_message(
                         return true;
                     }
 
-                    let after_seq = frame.after_seq.unwrap_or(*last_sent_seq);
+                    let latest_realtime_seq =
+                        match runtime.window_checkpoint(tenant_id, principal_id, device_id) {
+                            Ok(checkpoint) => checkpoint.latest_realtime_seq,
+                            Err(error) => {
+                                let _ = send_runtime_error(
+                                    socket,
+                                    wire_mode,
+                                    ccp_runtime,
+                                    route,
+                                    frame.request_id,
+                                    &error,
+                                )
+                                .await;
+                                return true;
+                            }
+                        };
+                    let pull_plan =
+                        outbound_queue.plan_pull(frame.after_seq, limit, latest_realtime_seq);
                     let window = match runtime.list_events(
                         tenant_id,
                         principal_id,
                         device_id,
-                        after_seq,
-                        limit,
+                        pull_plan.after_seq,
+                        pull_plan.batch.limit,
                     ) {
                         Ok(window) => window,
                         Err(error) => {
-                            let _ = send_runtime_error(socket, frame.request_id, &error).await;
+                            let _ = send_runtime_error(
+                                socket,
+                                wire_mode,
+                                ccp_runtime,
+                                route,
+                                frame.request_id,
+                                &error,
+                            )
+                            .await;
                             return true;
                         }
                     };
-                    *last_sent_seq =
-                        (*last_sent_seq).max(window.next_after_seq.unwrap_or(after_seq));
-                    let _ = send_json(
+                    let next_after_seq = window.next_after_seq;
+                    if send_business_payload(
                         socket,
+                        wire_mode,
+                        ccp_runtime,
+                        route,
+                        "evt",
+                        "cc.realtime.event.window.v1",
                         json!({
                             "type": "event.window",
                             "requestId": frame.request_id,
@@ -330,13 +926,38 @@ async fn handle_client_message(
                             "window": window
                         }),
                     )
-                    .await;
+                    .await
+                    .is_err()
+                    {
+                        return false;
+                    }
+                    let recovery_plan =
+                        outbound_queue.record_window_sent(pull_plan.after_seq, next_after_seq);
+                    if !drain_runtime_owned_buffered_push(
+                        socket,
+                        runtime,
+                        tenant_id,
+                        principal_id,
+                        device_id,
+                        outbound_queue,
+                        recovery_plan,
+                        wire_mode,
+                        ccp_runtime,
+                        route,
+                    )
+                    .await
+                    {
+                        return false;
+                    }
                     true
                 }
                 "events.ack" => {
                     let Some(acked_seq) = frame.acked_seq else {
-                        let _ = send_error(
+                        let _ = send_business_error(
                             socket,
+                            wire_mode,
+                            ccp_runtime,
+                            route,
                             frame.request_id,
                             "acked_seq_missing",
                             "ackedSeq is required",
@@ -349,13 +970,26 @@ async fn handle_client_message(
                         match runtime.ack_events(tenant_id, principal_id, device_id, acked_seq) {
                             Ok(ack) => ack,
                             Err(error) => {
-                                let _ = send_runtime_error(socket, frame.request_id, &error).await;
+                                let _ = send_runtime_error(
+                                    socket,
+                                    wire_mode,
+                                    ccp_runtime,
+                                    route,
+                                    frame.request_id,
+                                    &error,
+                                )
+                                .await;
                                 return true;
                             }
                         };
-                    *last_sent_seq = (*last_sent_seq).max(ack.acked_through_seq);
-                    let _ = send_json(
+                    outbound_queue.record_client_ack(ack.acked_through_seq);
+                    let _ = send_business_payload(
                         socket,
+                        wire_mode,
+                        ccp_runtime,
+                        route,
+                        "ack",
+                        "cc.realtime.events.acked.v1",
                         json!({
                             "type": "events.acked",
                             "requestId": frame.request_id,
@@ -366,8 +1000,11 @@ async fn handle_client_message(
                     true
                 }
                 _ => {
-                    let _ = send_error(
+                    let _ = send_business_error(
                         socket,
+                        wire_mode,
+                        ccp_runtime,
+                        route,
                         frame.request_id,
                         "frame_type_unsupported",
                         format!("unsupported frame type: {}", frame.frame_type),
@@ -376,16 +1013,6 @@ async fn handle_client_message(
                     true
                 }
             }
-        }
-        Message::Binary(_) => {
-            let _ = send_error(
-                socket,
-                None,
-                "binary_unsupported",
-                "binary websocket frames are not supported",
-            )
-            .await;
-            true
         }
         Message::Ping(payload) => socket.send(Message::Pong(payload)).await.is_ok(),
         Message::Pong(_) => true,
@@ -396,19 +1023,142 @@ async fn handle_client_message(
     }
 }
 
-async fn send_error(
+#[allow(clippy::too_many_arguments)]
+async fn drain_runtime_owned_buffered_push(
     socket: &mut WebSocket,
+    runtime: &RealtimeDeliveryRuntime,
+    tenant_id: &str,
+    principal_id: &str,
+    device_id: &str,
+    outbound_queue: &mut LinkOutboundQueueState,
+    push_plan: Option<LinkBufferedPushPlan>,
+    wire_mode: RealtimeWebsocketMode,
+    ccp_runtime: &CcpWebsocketRuntime,
+    route: &CcpRoute,
+) -> bool {
+    let mut driver = BufferedPushDrainDriver {
+        socket,
+        runtime,
+        tenant_id,
+        principal_id,
+        device_id,
+        wire_mode,
+        ccp_runtime,
+        route,
+    };
+
+    match outbound_queue
+        .drain_buffered_push_windows(push_plan, &mut driver)
+        .await
+    {
+        Ok(LinkBufferedPushDrainStatus::Drained) | Ok(LinkBufferedPushDrainStatus::PullOnly) => {
+            true
+        }
+        Ok(LinkBufferedPushDrainStatus::Disconnect(directive)) => {
+            send_link_goaway_and_close(socket, wire_mode, ccp_runtime, route, &directive).await;
+            false
+        }
+        Err(BufferedPushDrainError::Runtime(error)) => {
+            let _ = send_runtime_error(socket, wire_mode, ccp_runtime, route, None, &error).await;
+            false
+        }
+        Err(BufferedPushDrainError::Send) => false,
+    }
+}
+
+fn decode_client_frame(
+    message: Message,
+    wire_mode: RealtimeWebsocketMode,
+    ccp_runtime: &CcpWebsocketRuntime,
+) -> Result<ClientFrameEnvelope, String> {
+    match wire_mode {
+        RealtimeWebsocketMode::LegacyJson => match message {
+            Message::Text(text) => serde_json::from_str(text.as_str())
+                .map_err(|_| "frame must be valid json".to_owned()),
+            Message::Binary(_) => Err("binary websocket frames are not supported".into()),
+            Message::Ping(_) | Message::Pong(_) | Message::Close(_) => {
+                Err("unexpected websocket control message".into())
+            }
+        },
+        RealtimeWebsocketMode::CcpJson => {
+            let envelope = ccp_runtime.decode_message(message)?;
+            serde_json::from_str(envelope.payload.as_str())
+                .map_err(|error| format!("ccp payload must be valid json: {error}"))
+        }
+    }
+}
+
+async fn send_initial_runtime_error(
+    socket: &mut WebSocket,
+    wire_mode: RealtimeWebsocketMode,
+    ccp_runtime: &CcpWebsocketRuntime,
+    route: &CcpRoute,
+    error: &RealtimeRuntimeError,
+) -> Result<(), axum::Error> {
+    match wire_mode {
+        RealtimeWebsocketMode::LegacyJson => {
+            send_json(
+                socket,
+                json!({
+                    "type": "error",
+                    "requestId": serde_json::Value::Null,
+                    "code": error.code,
+                    "message": error.message
+                }),
+            )
+            .await
+        }
+        RealtimeWebsocketMode::CcpJson => {
+            send_control_error(
+                socket,
+                ccp_runtime,
+                route,
+                error.code,
+                error.message.as_str(),
+            )
+            .await
+        }
+    }
+}
+
+async fn send_control_error(
+    socket: &mut WebSocket,
+    ccp_runtime: &CcpWebsocketRuntime,
+    route: &CcpRoute,
+    code: impl Into<String>,
+    message: impl Into<String>,
+) -> Result<(), axum::Error> {
+    let frame = ControlFrame::Error(ErrorFrame {
+        code: code.into(),
+        message: message.into(),
+        retryable: false,
+    });
+    ccp_runtime.send_control_frame(socket, route, &frame).await
+}
+
+async fn send_business_error(
+    socket: &mut WebSocket,
+    wire_mode: RealtimeWebsocketMode,
+    ccp_runtime: &CcpWebsocketRuntime,
+    route: &CcpRoute,
     request_id: Option<String>,
     code: impl Into<String>,
     message: impl Into<String>,
 ) -> Result<(), axum::Error> {
-    send_json(
+    let code = code.into();
+    let message = message.into();
+    send_business_payload(
         socket,
+        wire_mode,
+        ccp_runtime,
+        route,
+        "error",
+        "cc.realtime.error.v1",
         json!({
             "type": "error",
             "requestId": request_id,
-            "code": code.into(),
-            "message": message.into()
+            "code": code,
+            "message": message
         }),
     )
     .await
@@ -416,12 +1166,174 @@ async fn send_error(
 
 async fn send_runtime_error(
     socket: &mut WebSocket,
+    wire_mode: RealtimeWebsocketMode,
+    ccp_runtime: &CcpWebsocketRuntime,
+    route: &CcpRoute,
     request_id: Option<String>,
     error: &RealtimeRuntimeError,
 ) -> Result<(), axum::Error> {
-    send_error(socket, request_id, error.code, error.message.as_str()).await
+    send_business_error(
+        socket,
+        wire_mode,
+        ccp_runtime,
+        route,
+        request_id,
+        error.code,
+        error.message.as_str(),
+    )
+    .await
 }
 
-async fn send_json(socket: &mut WebSocket, value: serde_json::Value) -> Result<(), axum::Error> {
+async fn send_business_payload(
+    socket: &mut WebSocket,
+    wire_mode: RealtimeWebsocketMode,
+    ccp_runtime: &CcpWebsocketRuntime,
+    route: &CcpRoute,
+    kind: &str,
+    schema: &str,
+    payload: Value,
+) -> Result<(), axum::Error> {
+    match wire_mode {
+        RealtimeWebsocketMode::LegacyJson => send_json(socket, payload).await,
+        RealtimeWebsocketMode::CcpJson => {
+            ccp_runtime
+                .send_business_payload(socket, route, kind, schema, payload)
+                .await
+        }
+    }
+}
+
+fn ccp_protocol_version() -> ProtocolVersion {
+    ProtocolVersion::new("ccp", 1, 0)
+}
+
+fn control_schema(frame: &ControlFrame) -> &'static str {
+    match frame {
+        ControlFrame::Hello(_) => "cc.control.hello.v1",
+        ControlFrame::HelloAck(_) => "cc.control.hello_ack.v1",
+        ControlFrame::AuthBind(_) => "cc.control.auth_bind.v1",
+        ControlFrame::AuthOk(_) => "cc.control.auth_ok.v1",
+        ControlFrame::SessionResume(_) => "cc.control.session_resume.v1",
+        ControlFrame::SessionResumed(_) => "cc.control.session_resumed.v1",
+        ControlFrame::Heartbeat(_) => "cc.control.heartbeat.v1",
+        ControlFrame::GoAway(_) => "cc.control.goaway.v1",
+        ControlFrame::Error(_) => "cc.control.error.v1",
+    }
+}
+
+fn build_link_session(auth: &AuthContext, device_id: &str) -> LinkSession {
+    LinkSession::new(
+        auth.tenant_id.as_str(),
+        auth.actor_id.as_str(),
+        auth.actor_kind.as_str(),
+        device_id,
+        auth.session_id.as_deref(),
+        OutboundQueuePolicy::realtime_default(),
+    )
+}
+
+fn activate_link_session(session: &mut LinkSession, checkpoint: &RealtimeWindowCheckpoint) {
+    session.activate(ResumeWindow::new(
+        checkpoint.latest_realtime_seq,
+        checkpoint.acked_through_seq,
+    ));
+}
+
+async fn send_json(socket: &mut WebSocket, value: Value) -> Result<(), axum::Error> {
     socket.send(Message::Text(value.to_string().into())).await
+}
+
+#[cfg(test)]
+mod tests {
+    use craw_chat_ccp_control::HelloFrame;
+    use craw_chat_ccp_core::{CapabilitySet, ProtocolVersion, TransportBinding};
+    use craw_chat_runtime_link::{LinkConnectionState, OutboundQueuePolicy, ResumeWindow};
+    use im_auth_context::AuthContext;
+    use std::collections::BTreeSet;
+
+    use super::*;
+
+    fn demo_auth_context() -> AuthContext {
+        AuthContext {
+            tenant_id: "t_demo".into(),
+            actor_id: "u_demo".into(),
+            actor_kind: "user".into(),
+            device_id: Some("d_pad".into()),
+            session_id: Some("s_demo".into()),
+            permissions: BTreeSet::new(),
+        }
+    }
+
+    #[test]
+    fn test_build_active_link_session_maps_checkpoint_into_runtime_link_owner() {
+        let auth = demo_auth_context();
+        let checkpoint = RealtimeWindowCheckpoint {
+            latest_realtime_seq: 17,
+            acked_through_seq: 9,
+            trimmed_through_seq: 9,
+        };
+
+        let mut session = build_link_session(&auth, "d_pad");
+        session.mark_authenticated();
+        activate_link_session(&mut session, &checkpoint);
+
+        assert_eq!(session.state(), LinkConnectionState::Active);
+        assert_eq!(session.tenant_id, "t_demo");
+        assert_eq!(session.principal_id, "u_demo");
+        assert_eq!(session.actor_kind, "user");
+        assert_eq!(session.device_id, "d_pad");
+        assert_eq!(session.session_id.as_deref(), Some("s_demo"));
+        assert_eq!(session.resume_window(), &ResumeWindow::new(17, 9));
+    }
+
+    #[test]
+    fn test_build_link_session_uses_runtime_link_default_queue_owner_policy() {
+        let auth = demo_auth_context();
+
+        let session = build_link_session(&auth, "d_pad");
+
+        assert_eq!(
+            session.queue_policy(),
+            &OutboundQueuePolicy::realtime_default()
+        );
+    }
+
+    #[test]
+    fn test_build_link_session_preserves_actor_identity_for_runtime_link_auth_owner() {
+        let auth = demo_auth_context();
+
+        let session = build_link_session(&auth, "d_pad");
+
+        assert!(session.matches_auth_bind("u_demo", "user", Some("d_pad"), Some("s_demo")));
+    }
+
+    #[test]
+    fn test_build_link_session_negotiates_hello_via_runtime_link_owner_and_strips_unpublished_capabilities()
+     {
+        let auth = demo_auth_context();
+        let mut session = build_link_session(&auth, "d_pad");
+        let hello = HelloFrame {
+            protocol: ProtocolVersion::new("ccp", 1, 0),
+            binding: TransportBinding::Ws1,
+            capabilities: CapabilitySet::from_iter(["session.resume", "payload.json", "ignored"]),
+            trace_id: Some("trace-hello".into()),
+        };
+
+        let hello_ack = session
+            .negotiate_hello(&hello)
+            .expect("runtime-link should accept supported hello frame");
+
+        assert_eq!(session.state(), LinkConnectionState::HelloNegotiated);
+        assert_eq!(hello_ack.protocol, ProtocolVersion::new("ccp", 1, 0));
+        assert_eq!(hello_ack.binding, TransportBinding::Ws1);
+        assert_eq!(
+            hello_ack.capabilities,
+            CapabilitySet::from_iter(["payload.json"])
+        );
+        assert!(
+            !hello_ack.capabilities.supports("session.resume"),
+            "default runtime-link owner must not negotiate unpublished session.resume"
+        );
+        assert!(hello_ack.accepted);
+    }
 }

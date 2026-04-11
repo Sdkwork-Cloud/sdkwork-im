@@ -1,25 +1,23 @@
-use std::sync::{Mutex, MutexGuard, OnceLock};
+use std::sync::OnceLock;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
 use im_auth_context::{PUBLIC_BEARER_HS256_SECRET_ENV, encode_hs256_bearer_token};
 use serde_json::json;
+use tokio::sync::{Mutex, MutexGuard};
 use tower::ServiceExt;
 
 const TEST_PUBLIC_SECRET: &str = "public-test-secret";
 const UNSIGNED_DEMO_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X2RlbW8iLCJzaWQiOiJzX2RlbW8ifQ.";
 
-fn public_auth_guard() -> MutexGuard<'static, ()> {
+async fn public_auth_guard() -> MutexGuard<'static, ()> {
     static GUARD: OnceLock<Mutex<()>> = OnceLock::new();
-    GUARD
-        .get_or_init(|| Mutex::new(()))
-        .lock()
-        .expect("public auth guard should lock")
+    GUARD.get_or_init(|| Mutex::new(())).lock().await
 }
 
-fn configure_public_bearer_secret() -> MutexGuard<'static, ()> {
-    let guard = public_auth_guard();
+async fn configure_public_bearer_secret() -> MutexGuard<'static, ()> {
+    let guard = public_auth_guard().await;
     unsafe {
         std::env::set_var(PUBLIC_BEARER_HS256_SECRET_ENV, TEST_PUBLIC_SECRET);
     }
@@ -52,7 +50,7 @@ fn owner_bearer() -> String {
 
 #[tokio::test]
 async fn test_public_app_rejects_trusted_headers_without_bearer() {
-    let _guard = configure_public_bearer_secret();
+    let _guard = configure_public_bearer_secret().await;
     let app = local_minimal_node::build_public_app();
 
     let response = app
@@ -87,7 +85,7 @@ async fn test_public_app_rejects_trusted_headers_without_bearer() {
 
 #[tokio::test]
 async fn test_public_app_accepts_bearer_for_app_facing_routes() {
-    let _guard = configure_public_bearer_secret();
+    let _guard = configure_public_bearer_secret().await;
     let app = local_minimal_node::build_public_app();
 
     let response = app
@@ -113,7 +111,7 @@ async fn test_public_app_accepts_bearer_for_app_facing_routes() {
 
 #[tokio::test]
 async fn test_public_app_rejects_unsigned_bearer_when_public_verifier_is_configured() {
-    let _guard = configure_public_bearer_secret();
+    let _guard = configure_public_bearer_secret().await;
     let app = local_minimal_node::build_public_app();
 
     let response = app
@@ -147,7 +145,7 @@ async fn test_public_app_rejects_unsigned_bearer_when_public_verifier_is_configu
 
 #[tokio::test]
 async fn test_public_app_rejects_unprivileged_bearer_for_ops_and_audit_routes() {
-    let _guard = configure_public_bearer_secret();
+    let _guard = configure_public_bearer_secret().await;
     let app = local_minimal_node::build_public_app();
 
     let audit_response = app
@@ -198,7 +196,7 @@ async fn test_public_app_rejects_unprivileged_bearer_for_ops_and_audit_routes() 
 
 #[tokio::test]
 async fn test_public_app_rejects_cross_recipient_notification_request_without_permission() {
-    let _guard = configure_public_bearer_secret();
+    let _guard = configure_public_bearer_secret().await;
     let app = local_minimal_node::build_public_app();
 
     let response = app
@@ -238,7 +236,7 @@ async fn test_public_app_rejects_cross_recipient_notification_request_without_pe
 
 #[tokio::test]
 async fn test_public_app_accepts_self_notification_request() {
-    let _guard = configure_public_bearer_secret();
+    let _guard = configure_public_bearer_secret().await;
     let app = local_minimal_node::build_public_app();
 
     let response = app
@@ -270,7 +268,7 @@ async fn test_public_app_accepts_self_notification_request() {
 
 #[tokio::test]
 async fn test_public_app_rejects_unprivileged_bearer_for_automation_execution() {
-    let _guard = configure_public_bearer_secret();
+    let _guard = configure_public_bearer_secret().await;
     let app = local_minimal_node::build_public_app();
 
     let response = app
@@ -307,7 +305,7 @@ async fn test_public_app_rejects_unprivileged_bearer_for_automation_execution() 
 
 #[tokio::test]
 async fn test_public_app_rejects_cross_principal_media_attach() {
-    let _guard = configure_public_bearer_secret();
+    let _guard = configure_public_bearer_secret().await;
     let app = local_minimal_node::build_public_app();
 
     let create_upload = app

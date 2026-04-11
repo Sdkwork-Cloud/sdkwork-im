@@ -11,6 +11,20 @@ use im_domain_events::CommitEnvelope;
 use tower::ServiceExt;
 
 static NEXT_RUNTIME_DIR_ID: AtomicU64 = AtomicU64::new(0);
+const MANAGED_RUNTIME_STATE_FILES: [&str; 12] = [
+    "commit-journal.json",
+    "realtime-disconnect-fences.json",
+    "realtime-checkpoints.json",
+    "realtime-subscriptions.json",
+    "presence-state.json",
+    "device-twin-state.json",
+    "stream-state.json",
+    "rtc-state.json",
+    "notification-tasks.json",
+    "automation-executions.json",
+    "projection-metadata.json",
+    "projection-timeline.json",
+];
 
 fn unique_runtime_dir() -> PathBuf {
     let unique = SystemTime::now()
@@ -90,17 +104,7 @@ async fn test_managed_runtime_dir_inspection_reports_all_expected_files_when_par
     let runtime_dir = unique_runtime_dir();
     fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
 
-    for file_name in [
-        "commit-journal.json",
-        "realtime-disconnect-fences.json",
-        "realtime-checkpoints.json",
-        "realtime-subscriptions.json",
-        "presence-state.json",
-        "stream-state.json",
-        "rtc-state.json",
-        "notification-tasks.json",
-        "automation-executions.json",
-    ] {
+    for file_name in MANAGED_RUNTIME_STATE_FILES {
         seed_runtime_state_file(runtime_dir.as_path(), file_name);
     }
 
@@ -129,14 +133,32 @@ async fn test_managed_runtime_dir_inspection_reports_all_expected_files_when_par
         serde_json::from_slice(&body).expect("runtime-dir inspection body should be valid json");
 
     assert_eq!(json["status"], "ok");
-    assert_eq!(json["healthyFileCount"], 9);
+    assert_eq!(json["healthyFileCount"], 12);
     assert_eq!(json["missingFileCount"], 0);
     assert_eq!(json["corruptFileCount"], 0);
 
     let files = json["files"].as_array().expect("files should be an array");
-    assert_eq!(files.len(), 9);
+    assert_eq!(files.len(), 12);
     assert!(files.iter().any(|file| {
         file["fileName"] == "presence-state.json"
+            && file["status"] == "ok"
+            && file["recommendedAction"] == "none"
+            && file["parseable"] == true
+    }));
+    assert!(files.iter().any(|file| {
+        file["fileName"] == "device-twin-state.json"
+            && file["status"] == "ok"
+            && file["recommendedAction"] == "none"
+            && file["parseable"] == true
+    }));
+    assert!(files.iter().any(|file| {
+        file["fileName"] == "projection-metadata.json"
+            && file["status"] == "ok"
+            && file["recommendedAction"] == "none"
+            && file["parseable"] == true
+    }));
+    assert!(files.iter().any(|file| {
+        file["fileName"] == "projection-timeline.json"
             && file["status"] == "ok"
             && file["recommendedAction"] == "none"
             && file["parseable"] == true
@@ -150,16 +172,11 @@ async fn test_managed_runtime_dir_inspection_reports_missing_and_corrupt_files_a
     let runtime_dir = unique_runtime_dir();
     fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
 
-    for file_name in [
-        "commit-journal.json",
-        "realtime-disconnect-fences.json",
-        "realtime-checkpoints.json",
-        "realtime-subscriptions.json",
-        "stream-state.json",
-        "rtc-state.json",
-        "notification-tasks.json",
-        "automation-executions.json",
-    ] {
+    for file_name in MANAGED_RUNTIME_STATE_FILES
+        .iter()
+        .copied()
+        .filter(|file_name| *file_name != "presence-state.json")
+    {
         seed_runtime_state_file(runtime_dir.as_path(), file_name);
     }
     write_runtime_state_file(runtime_dir.as_path(), "rtc-state.json", "{not-valid-json");
@@ -189,7 +206,7 @@ async fn test_managed_runtime_dir_inspection_reports_missing_and_corrupt_files_a
         serde_json::from_slice(&body).expect("runtime-dir inspection body should be valid json");
 
     assert_eq!(json["status"], "degraded");
-    assert_eq!(json["healthyFileCount"], 7);
+    assert_eq!(json["healthyFileCount"], 10);
     assert_eq!(json["missingFileCount"], 1);
     assert_eq!(json["corruptFileCount"], 1);
 
@@ -216,17 +233,7 @@ async fn test_managed_runtime_dir_inspection_reports_typed_store_shape_violation
     let runtime_dir = unique_runtime_dir();
     fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
 
-    for file_name in [
-        "commit-journal.json",
-        "realtime-disconnect-fences.json",
-        "realtime-checkpoints.json",
-        "realtime-subscriptions.json",
-        "presence-state.json",
-        "stream-state.json",
-        "rtc-state.json",
-        "notification-tasks.json",
-        "automation-executions.json",
-    ] {
+    for file_name in MANAGED_RUNTIME_STATE_FILES {
         seed_runtime_state_file(runtime_dir.as_path(), file_name);
     }
     write_runtime_state_file(runtime_dir.as_path(), "realtime-checkpoints.json", "[]");
@@ -272,16 +279,11 @@ async fn test_managed_runtime_dir_inspection_reports_journal_replay_violation_as
     let runtime_dir = unique_runtime_dir();
     fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
 
-    for file_name in [
-        "realtime-disconnect-fences.json",
-        "realtime-checkpoints.json",
-        "realtime-subscriptions.json",
-        "presence-state.json",
-        "stream-state.json",
-        "rtc-state.json",
-        "notification-tasks.json",
-        "automation-executions.json",
-    ] {
+    for file_name in MANAGED_RUNTIME_STATE_FILES
+        .iter()
+        .copied()
+        .filter(|file_name| *file_name != "commit-journal.json")
+    {
         seed_runtime_state_file(runtime_dir.as_path(), file_name);
     }
     write_commit_journal(runtime_dir.as_path(), &[invalid_replay_message_envelope()]);

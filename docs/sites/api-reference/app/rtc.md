@@ -1,0 +1,422 @@
+# RTC
+
+<p class="api-page-intro">
+  RTC endpoints manage session lifecycle, custom signaling, participant credential issuance,
+  recording artifact lookup, and mapping of provider callbacks into platform events.
+</p>
+
+<a id="create-rtc-session"></a>
+<section class="api-op">
+
+## `POST /api/v1/rtc/sessions`
+
+<div class="api-op-header">
+  <span class="endpoint-tag endpoint-post">POST</span>
+  <code>/api/v1/rtc/sessions</code>
+  <span class="api-op-id">operationId: createRtcSession</span>
+</div>
+
+Creates a new RTC session.
+
+
+<div class="api-meta-grid">
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / rtc</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Conversation `rtc.create` capability when the session is bound to a conversation.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200 RtcSession`</span></div>
+</div>
+
+### Request Body
+
+<ApiSchemaTable schema="CreateRtcSessionRequest" />
+
+### Response `200`
+
+<ApiSchemaTable schema="RtcSession" />
+
+
+### Error Responses
+
+| HTTP | `code` | Description |
+| --- | --- | --- |
+| `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
+| `401` | `missing_authorization`, `invalid_token` | Authentication failed. |
+| `403` | `conversation_permission_denied`, `device_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
+| `404` | `*_not_found` | The requested resource does not exist. |
+| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
+| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+
+</section>
+<a id="invite-rtc-session"></a>
+<section class="api-op">
+
+## `POST /api/v1/rtc/sessions/{rtc_session_id}/invite`
+
+<div class="api-op-header">
+  <span class="endpoint-tag endpoint-post">POST</span>
+  <code>/api/v1/rtc/sessions/{rtc_session_id}/invite</code>
+  <span class="api-op-id">operationId: inviteRtcSession</span>
+</div>
+
+Starts the invitation phase for the RTC session.
+
+
+<div class="api-meta-grid">
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / rtc</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Conversation `rtc.invite` capability.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200 RtcSession`</span></div>
+</div>
+
+### Path Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `rtc_session_id` | `string` | Yes | RTC session identifier. |
+
+### Request Body
+
+<ApiSchemaTable schema="InviteRtcSessionRequest" />
+
+### Response `200`
+
+<ApiSchemaTable schema="RtcSession" />
+
+
+### Error Responses
+
+| HTTP | `code` | Description |
+| --- | --- | --- |
+| `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
+| `401` | `missing_authorization`, `invalid_token` | Authentication failed. |
+| `403` | `conversation_permission_denied`, `device_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
+| `404` | `*_not_found` | The requested resource does not exist. |
+| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
+| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+
+</section>
+<a id="accept-rtc-session"></a>
+<section class="api-op">
+
+## `POST /api/v1/rtc/sessions/{rtc_session_id}/accept`
+
+<div class="api-op-header">
+  <span class="endpoint-tag endpoint-post">POST</span>
+  <code>/api/v1/rtc/sessions/{rtc_session_id}/accept</code>
+  <span class="api-op-id">operationId: acceptRtcSession</span>
+</div>
+
+Accepts the RTC session.
+
+
+<div class="api-meta-grid">
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / rtc</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Conversation `rtc.accept` capability.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200 RtcSession`</span></div>
+</div>
+
+### Path Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `rtc_session_id` | `string` | Yes | RTC session identifier. |
+
+### Request Body
+
+<ApiSchemaTable schema="UpdateRtcSessionRequest" />
+
+### Response `200`
+
+<ApiSchemaTable schema="RtcSession" />
+
+
+### Error Responses
+
+| HTTP | `code` | Description |
+| --- | --- | --- |
+| `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
+| `401` | `missing_authorization`, `invalid_token` | Authentication failed. |
+| `403` | `conversation_permission_denied`, `device_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
+| `404` | `*_not_found` | The requested resource does not exist. |
+| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
+| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+
+</section>
+<a id="reject-rtc-session"></a>
+<section class="api-op">
+
+## `POST /api/v1/rtc/sessions/{rtc_session_id}/reject`
+
+<div class="api-op-header">
+  <span class="endpoint-tag endpoint-post">POST</span>
+  <code>/api/v1/rtc/sessions/{rtc_session_id}/reject</code>
+  <span class="api-op-id">operationId: rejectRtcSession</span>
+</div>
+
+Rejects the RTC session.
+
+
+<div class="api-meta-grid">
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / rtc</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Conversation `rtc.reject` capability.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200 RtcSession`</span></div>
+</div>
+
+### Path Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `rtc_session_id` | `string` | Yes | RTC session identifier. |
+
+### Request Body
+
+<ApiSchemaTable schema="UpdateRtcSessionRequest" />
+
+### Response `200`
+
+<ApiSchemaTable schema="RtcSession" />
+
+
+### Error Responses
+
+| HTTP | `code` | Description |
+| --- | --- | --- |
+| `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
+| `401` | `missing_authorization`, `invalid_token` | Authentication failed. |
+| `403` | `conversation_permission_denied`, `device_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
+| `404` | `*_not_found` | The requested resource does not exist. |
+| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
+| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+
+</section>
+<a id="end-rtc-session"></a>
+<section class="api-op">
+
+## `POST /api/v1/rtc/sessions/{rtc_session_id}/end`
+
+<div class="api-op-header">
+  <span class="endpoint-tag endpoint-post">POST</span>
+  <code>/api/v1/rtc/sessions/{rtc_session_id}/end</code>
+  <span class="api-op-id">operationId: endRtcSession</span>
+</div>
+
+Ends the RTC session.
+
+
+<div class="api-meta-grid">
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / rtc</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Conversation `rtc.end` capability.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200 RtcSession`</span></div>
+</div>
+
+### Path Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `rtc_session_id` | `string` | Yes | RTC session identifier. |
+
+### Request Body
+
+<ApiSchemaTable schema="UpdateRtcSessionRequest" />
+
+### Response `200`
+
+<ApiSchemaTable schema="RtcSession" />
+
+
+### Error Responses
+
+| HTTP | `code` | Description |
+| --- | --- | --- |
+| `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
+| `401` | `missing_authorization`, `invalid_token` | Authentication failed. |
+| `403` | `conversation_permission_denied`, `device_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
+| `404` | `*_not_found` | The requested resource does not exist. |
+| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
+| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+
+</section>
+<a id="post-rtc-signal"></a>
+<section class="api-op">
+
+## `POST /api/v1/rtc/sessions/{rtc_session_id}/signals`
+
+<div class="api-op-header">
+  <span class="endpoint-tag endpoint-post">POST</span>
+  <code>/api/v1/rtc/sessions/{rtc_session_id}/signals</code>
+  <span class="api-op-id">operationId: postRtcSignal</span>
+</div>
+
+Posts a custom RTC signal event.
+
+
+<div class="api-meta-grid">
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / rtc</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Conversation `rtc.signal` capability.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200 RtcSignalEvent`</span></div>
+</div>
+
+### Path Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `rtc_session_id` | `string` | Yes | RTC session identifier. |
+
+### Request Body
+
+<ApiSchemaTable schema="PostRtcSignalRequest" />
+
+### Response `200`
+
+<ApiSchemaTable schema="RtcSignalEvent" />
+
+
+### Error Responses
+
+| HTTP | `code` | Description |
+| --- | --- | --- |
+| `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
+| `401` | `missing_authorization`, `invalid_token` | Authentication failed. |
+| `403` | `conversation_permission_denied`, `device_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
+| `404` | `*_not_found` | The requested resource does not exist. |
+| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
+| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+
+</section>
+<a id="issue-rtc-participant-credential"></a>
+<section class="api-op">
+
+## `POST /api/v1/rtc/sessions/{rtc_session_id}/credentials`
+
+<div class="api-op-header">
+  <span class="endpoint-tag endpoint-post">POST</span>
+  <code>/api/v1/rtc/sessions/{rtc_session_id}/credentials</code>
+  <span class="api-op-id">operationId: issueRtcParticipantCredential</span>
+</div>
+
+Issues a provider credential for a participant.
+
+
+<div class="api-meta-grid">
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / rtc</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Conversation `rtc.issue_credential` capability.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200 RtcParticipantCredential`</span></div>
+</div>
+
+### Path Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `rtc_session_id` | `string` | Yes | RTC session identifier. |
+
+### Request Body
+
+<ApiSchemaTable schema="IssueRtcParticipantCredentialRequest" />
+
+### Response `200`
+
+<ApiSchemaTable schema="RtcParticipantCredential" />
+
+
+### Error Responses
+
+| HTTP | `code` | Description |
+| --- | --- | --- |
+| `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
+| `401` | `missing_authorization`, `invalid_token` | Authentication failed. |
+| `403` | `conversation_permission_denied`, `device_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
+| `404` | `*_not_found` | The requested resource does not exist. |
+| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
+| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+
+</section>
+<a id="get-rtc-recording-artifact"></a>
+<section class="api-op">
+
+## `GET /api/v1/rtc/sessions/{rtc_session_id}/artifacts/recording`
+
+<div class="api-op-header">
+  <span class="endpoint-tag endpoint-get">GET</span>
+  <code>/api/v1/rtc/sessions/{rtc_session_id}/artifacts/recording</code>
+  <span class="api-op-id">operationId: getRtcRecordingArtifact</span>
+</div>
+
+Returns recording artifact metadata when available.
+
+
+<div class="api-meta-grid">
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / rtc</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Conversation `rtc.artifact` capability.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200 RtcRecordingArtifact`</span></div>
+</div>
+
+### Path Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `rtc_session_id` | `string` | Yes | RTC session identifier. |
+
+### Response `200`
+
+<ApiSchemaTable schema="RtcRecordingArtifact" />
+
+
+### Error Responses
+
+| HTTP | `code` | Description |
+| --- | --- | --- |
+| `401` | `missing_authorization`, `invalid_token` | Authentication failed. |
+| `403` | `conversation_permission_denied`, `device_permission_denied`, `permission_denied` | The caller is not allowed to access the target resource. |
+| `404` | `*_not_found` | The requested resource does not exist. |
+| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the read or handshake flow. |
+| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+
+</section>
+<a id="map-rtc-provider-callback"></a>
+<section class="api-op">
+
+## `POST /api/v1/rtc/provider-callbacks`
+
+<div class="api-op-header">
+  <span class="endpoint-tag endpoint-post">POST</span>
+  <code>/api/v1/rtc/provider-callbacks</code>
+  <span class="api-op-id">operationId: mapRtcProviderCallback</span>
+</div>
+
+Maps a provider callback into an internal RTC domain event.
+
+
+<div class="api-meta-grid">
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / rtc</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; provider callback mapping is validated by the RTC runtime.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200 RtcCallbackEvent`</span></div>
+</div>
+
+### Request Body
+
+<ApiSchemaTable schema="RtcCallbackRequest" />
+
+### Response `200`
+
+<ApiSchemaTable schema="RtcCallbackEvent" />
+
+
+### Error Responses
+
+| HTTP | `code` | Description |
+| --- | --- | --- |
+| `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
+| `401` | `missing_authorization`, `invalid_token` | Authentication failed. |
+| `403` | `conversation_permission_denied`, `device_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
+| `404` | `*_not_found` | The requested resource does not exist. |
+| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
+| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+
+</section>

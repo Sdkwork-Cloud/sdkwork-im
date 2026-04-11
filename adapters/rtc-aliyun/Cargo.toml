@@ -1,0 +1,10 @@
+[package]
+name = "im-adapter-rtc-aliyun"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+craw-chat-contract-core = { path = "../../crates/craw-chat-contract-core" }
+im-platform-contracts = { path = "../../crates/im-platform-contracts" }
+im-time = { path = "../../crates/im-time" }

@@ -47,7 +47,7 @@ fn test_ack_events_trims_window_and_tracks_checkpoint() {
     assert_eq!(window.items.len(), 0);
     assert_eq!(window.acked_through_seq, 1);
     assert_eq!(window.trimmed_through_seq, 1);
-    assert_eq!(window.has_more, false);
+    assert!(!window.has_more);
 }
 
 #[test]

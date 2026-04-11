@@ -75,3 +75,25 @@ fn test_runtime_restores_presence_as_offline_and_requires_fresh_resume_after_reb
         Some("s_after")
     );
 }
+
+#[test]
+fn test_presence_runtime_resume_returns_incremental_sync_window_from_runtime_link_owner() {
+    let runtime = session_gateway::SessionPresenceRuntime::default();
+    runtime
+        .register_device("t_demo", "u_demo", "d_pad")
+        .expect("device registration should seed presence state");
+
+    let resumed = runtime
+        .resume(
+            &demo_auth("s_demo", "d_pad"),
+            "d_pad".into(),
+            4,
+            9,
+            vec!["d_pad".into()],
+        )
+        .expect("resume should succeed");
+
+    assert!(resumed.resume_required);
+    assert_eq!(resumed.resume_from_sync_seq, 5);
+    assert_eq!(resumed.latest_sync_seq, 9);
+}

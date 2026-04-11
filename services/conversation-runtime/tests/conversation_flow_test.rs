@@ -3,17 +3,22 @@ use std::thread::sleep;
 use std::time::Duration;
 
 use conversation_runtime::{
-    AcceptAgentHandoffCommand, AddConversationMemberCommand, ChangeAgentHandoffStatusView,
-    ChangeConversationMemberRoleCommand, CloseAgentHandoffCommand, ConversationRuntime,
-    CreateAgentDialogCommand, CreateAgentHandoffCommand, CreateConversationCommand,
-    CreateSystemChannelCommand, EditMessageCommand, LeaveConversationCommand, PostMessageCommand,
-    PublishSystemChannelMessageCommand, RecallMessageCommand, RemoveConversationMemberCommand,
-    ResolveAgentHandoffCommand, RuntimeError, TransferConversationOwnerCommand,
-    UpdateReadCursorCommand,
+    AcceptAgentHandoffCommand, AddConversationMemberCommand, AddMessageReactionCommand,
+    ApplyConversationPolicyCommand, BindDirectChatConversationCommand,
+    ChangeAgentHandoffStatusView, ChangeConversationMemberRoleCommand, CloseAgentHandoffCommand,
+    ConversationBusinessBinding, ConversationRuntime, CreateAgentDialogCommand,
+    CreateAgentHandoffCommand, CreateConversationCommand, CreateSystemChannelCommand,
+    CreateThreadConversationCommand, EditMessageCommand, LeaveConversationCommand,
+    PinMessageCommand, PostMessageCommand, PublishSystemChannelMessageCommand,
+    RecallMessageCommand, RemoveConversationMemberCommand, RemoveMessageReactionCommand,
+    ResolveAgentHandoffCommand, RuntimeError, SyncSharedChannelLinkedMemberCommand,
+    TransferConversationOwnerCommand, UnpinMessageCommand, UpdateReadCursorCommand,
 };
-use im_domain_core::conversation::{ConversationMember, MembershipRole, MembershipState};
+use im_domain_core::conversation::{
+    ConversationMember, ConversationPolicy, MembershipRole, MembershipState,
+};
 use im_domain_core::message::{ContentPart, MessageBody, MessageType, Sender};
-use im_domain_events::CommitEnvelope;
+use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
 use im_platform_contracts::{CommitJournal, CommitPosition, ContractError};
 
 #[derive(Clone, Default)]
@@ -1202,6 +1207,225 @@ fn test_conversation_bound_write_capability_gate_rejects_actor_kind_mismatch() {
         gate_attempt,
         Err(RuntimeError::PermissionDenied(_))
     ));
+}
+
+#[test]
+fn test_recovered_conversation_policy_capability_flags_disable_pin_after_replay() {
+    let source_journal = InMemoryJournal::default();
+    let source_runtime = ConversationRuntime::new(source_journal.clone());
+
+    source_runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_policy_replay".into(),
+            creator_id: "u_owner".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("create conversation should succeed");
+
+    let posted = source_runtime
+        .post_message(PostMessageCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_policy_replay".into(),
+            sender: Sender {
+                id: "u_owner".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+            client_msg_id: Some("client_policy_replay".into()),
+            message_type: MessageType::Standard,
+            body: MessageBody {
+                summary: Some("policy target".into()),
+                parts: vec![ContentPart::text("policy target")],
+                render_hints: Default::default(),
+            },
+        })
+        .expect("post message should succeed");
+
+    let replay_journal = InMemoryJournal::default();
+    let replay_runtime = ConversationRuntime::new(replay_journal);
+    let policy_event = CommitEnvelope {
+        event_id: "evt_c_policy_replay_policy_1".into(),
+        tenant_id: "t_demo".into(),
+        event_type: "conversation.policy_applied".into(),
+        event_version: 1,
+        aggregate_type: AggregateType::Conversation,
+        aggregate_id: "c_policy_replay".into(),
+        scope_type: "conversation".into(),
+        scope_id: "c_policy_replay".into(),
+        ordering_key: CommitEnvelope::ordering_key("t_demo", "c_policy_replay"),
+        ordering_seq: 1,
+        causation_id: None,
+        correlation_id: None,
+        idempotency_key: None,
+        actor: EventActor {
+            actor_id: "u_owner".into(),
+            actor_kind: "user".into(),
+            actor_session_id: None,
+        },
+        occurred_at: "2026-04-10T00:00:00.000Z".into(),
+        committed_at: "2026-04-10T00:00:00.000Z".into(),
+        payload_schema: Some("conversation.policy_applied.v1".into()),
+        payload: serde_json::json!({
+            "conversationId": "c_policy_replay",
+            "policyVersion": "group.policy.v1",
+            "capabilityFlags": ["message.reaction"],
+            "historyVisibility": "joined",
+            "retentionPolicyRef": "tenant.standard"
+        })
+        .to_string(),
+        retention_class: "standard".into(),
+        audit_class: "default".into(),
+    };
+
+    for envelope in source_journal.recorded() {
+        replay_runtime
+            .apply_recovered_envelope(&envelope)
+            .expect("replay should succeed");
+    }
+    replay_runtime
+        .apply_recovered_envelope(&policy_event)
+        .expect("policy replay should succeed");
+
+    let reaction = replay_runtime
+        .add_message_reaction(AddMessageReactionCommand {
+            tenant_id: "t_demo".into(),
+            message_id: posted.message_id.clone(),
+            reaction_key: "thumbs_up".into(),
+            reacted_by: Sender {
+                id: "u_owner".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+        })
+        .expect("reaction should stay enabled");
+    assert!(reaction.changed);
+
+    let denied_pin = replay_runtime.pin_message(PinMessageCommand {
+        tenant_id: "t_demo".into(),
+        message_id: posted.message_id,
+        pinned_by: Sender {
+            id: "u_owner".into(),
+            kind: "user".into(),
+            member_id: None,
+            device_id: Some("d_owner".into()),
+            session_id: Some("s_owner".into()),
+            metadata: Default::default(),
+        },
+    });
+    assert!(matches!(denied_pin, Err(RuntimeError::PermissionDenied(_))));
+}
+
+#[test]
+fn test_applied_retention_policy_ref_propagates_to_subsequent_message_commit_envelopes() {
+    let source_journal = InMemoryJournal::default();
+    let runtime = ConversationRuntime::new(source_journal.clone());
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_retention_policy".into(),
+            creator_id: "u_owner".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("create conversation should succeed");
+
+    runtime
+        .apply_conversation_policy_with_actor_kind(
+            ApplyConversationPolicyCommand {
+                tenant_id: "t_demo".into(),
+                conversation_id: "c_retention_policy".into(),
+                applied_by: "u_owner".into(),
+                policy: ConversationPolicy {
+                    policy_version: "group.policy.v1".into(),
+                    capability_flags: None,
+                    history_visibility: "joined".into(),
+                    retention_policy_ref: "tenant.compliance".into(),
+                },
+            },
+            "user",
+        )
+        .expect("apply conversation policy should succeed");
+
+    runtime
+        .post_message(PostMessageCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_retention_policy".into(),
+            sender: Sender {
+                id: "u_owner".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+            client_msg_id: Some("client_retention_policy_1".into()),
+            message_type: MessageType::Standard,
+            body: MessageBody {
+                summary: Some("retained".into()),
+                parts: vec![ContentPart::text("retained")],
+                render_hints: Default::default(),
+            },
+        })
+        .expect("post message should succeed");
+
+    let recorded = source_journal.recorded();
+    let policy_event = recorded
+        .iter()
+        .find(|event| event.event_type == "conversation.policy_applied")
+        .expect("policy event should exist");
+    assert_eq!(policy_event.retention_class, "compliance");
+
+    let posted_event = recorded
+        .iter()
+        .find(|event| {
+            event.event_type == "message.posted" && event.aggregate_id == "c_retention_policy"
+        })
+        .expect("posted event should exist");
+    assert_eq!(posted_event.retention_class, "compliance");
+
+    let replay_journal = InMemoryJournal::default();
+    let replay_runtime = ConversationRuntime::new(replay_journal.clone());
+    for envelope in recorded {
+        replay_runtime
+            .apply_recovered_envelope(&envelope)
+            .expect("replay should succeed");
+    }
+
+    replay_runtime
+        .post_message(PostMessageCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_retention_policy".into(),
+            sender: Sender {
+                id: "u_owner".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner_replay".into()),
+                metadata: Default::default(),
+            },
+            client_msg_id: Some("client_retention_policy_2".into()),
+            message_type: MessageType::Standard,
+            body: MessageBody {
+                summary: Some("retained after replay".into()),
+                parts: vec![ContentPart::text("retained after replay")],
+                render_hints: Default::default(),
+            },
+        })
+        .expect("post after replay should succeed");
+
+    let replay_posted_event = replay_journal
+        .recorded()
+        .into_iter()
+        .find(|event| event.event_type == "message.posted")
+        .expect("replay posted event should exist");
+    assert_eq!(replay_posted_event.retention_class, "compliance");
 }
 
 #[test]
@@ -3324,4 +3548,1055 @@ fn test_message_edit_and_recall_timestamps_advance_between_distinct_mutations() 
         recalled_events[0].occurred_at, recalled_events[1].occurred_at,
         "separate recalls must not reuse a fixed recalled_at timestamp"
     );
+}
+
+#[test]
+fn test_add_and_remove_message_reaction_emit_events_and_are_idempotent() {
+    let journal = InMemoryJournal::default();
+    let runtime = ConversationRuntime::new(journal.clone());
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_reaction_flow".into(),
+            creator_id: "u_owner".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("create conversation should succeed");
+
+    let posted = runtime
+        .post_message(PostMessageCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_reaction_flow".into(),
+            sender: Sender {
+                id: "u_owner".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+            client_msg_id: Some("client_reaction_flow".into()),
+            message_type: MessageType::Standard,
+            body: MessageBody {
+                summary: Some("reaction target".into()),
+                parts: vec![ContentPart::text("reaction target")],
+                render_hints: Default::default(),
+            },
+        })
+        .expect("post message should succeed");
+
+    let added = runtime
+        .add_message_reaction(AddMessageReactionCommand {
+            tenant_id: "t_demo".into(),
+            message_id: posted.message_id.clone(),
+            reaction_key: "thumbs_up".into(),
+            reacted_by: Sender {
+                id: "u_owner".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+        })
+        .expect("add reaction should succeed");
+    assert!(added.changed);
+    assert_eq!(added.message_id, posted.message_id);
+    assert_eq!(added.message_seq, 1);
+    assert_eq!(added.reaction_key, "thumbs_up");
+
+    let duplicate_add = runtime
+        .add_message_reaction(AddMessageReactionCommand {
+            tenant_id: "t_demo".into(),
+            message_id: posted.message_id.clone(),
+            reaction_key: "thumbs_up".into(),
+            reacted_by: Sender {
+                id: "u_owner".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+        })
+        .expect("duplicate add should be idempotent");
+    assert!(!duplicate_add.changed);
+
+    let removed = runtime
+        .remove_message_reaction(RemoveMessageReactionCommand {
+            tenant_id: "t_demo".into(),
+            message_id: posted.message_id.clone(),
+            reaction_key: "thumbs_up".into(),
+            removed_by: Sender {
+                id: "u_owner".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+        })
+        .expect("remove reaction should succeed");
+    assert!(removed.changed);
+    assert_eq!(removed.message_id, posted.message_id);
+    assert_eq!(removed.message_seq, 1);
+    assert_eq!(removed.reaction_key, "thumbs_up");
+
+    let duplicate_remove = runtime
+        .remove_message_reaction(RemoveMessageReactionCommand {
+            tenant_id: "t_demo".into(),
+            message_id: posted.message_id.clone(),
+            reaction_key: "thumbs_up".into(),
+            removed_by: Sender {
+                id: "u_owner".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+        })
+        .expect("duplicate remove should be idempotent");
+    assert!(!duplicate_remove.changed);
+
+    let events = journal.recorded();
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| event.event_type == "message.reaction_added")
+            .count(),
+        1
+    );
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| event.event_type == "message.reaction_removed")
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn test_pin_and_unpin_message_emit_events_and_require_privileged_member() {
+    let journal = InMemoryJournal::default();
+    let runtime = ConversationRuntime::new(journal.clone());
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_pin_flow".into(),
+            creator_id: "u_owner".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("create conversation should succeed");
+
+    runtime
+        .add_member(AddConversationMemberCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_pin_flow".into(),
+            principal_id: "u_member".into(),
+            principal_kind: "user".into(),
+            role: MembershipRole::Member,
+            invited_by: "u_owner".into(),
+        })
+        .expect("add member should succeed");
+
+    let posted = runtime
+        .post_message(PostMessageCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_pin_flow".into(),
+            sender: Sender {
+                id: "u_member".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: None,
+                session_id: Some("s_member".into()),
+                metadata: Default::default(),
+            },
+            client_msg_id: Some("client_pin_flow".into()),
+            message_type: MessageType::Standard,
+            body: MessageBody {
+                summary: Some("pin target".into()),
+                parts: vec![ContentPart::text("pin target")],
+                render_hints: Default::default(),
+            },
+        })
+        .expect("member post should succeed");
+
+    let denied_pin = runtime.pin_message(PinMessageCommand {
+        tenant_id: "t_demo".into(),
+        message_id: posted.message_id.clone(),
+        pinned_by: Sender {
+            id: "u_member".into(),
+            kind: "user".into(),
+            member_id: None,
+            device_id: None,
+            session_id: Some("s_member".into()),
+            metadata: Default::default(),
+        },
+    });
+    assert!(matches!(denied_pin, Err(RuntimeError::PermissionDenied(_))));
+
+    let pinned = runtime
+        .pin_message(PinMessageCommand {
+            tenant_id: "t_demo".into(),
+            message_id: posted.message_id.clone(),
+            pinned_by: Sender {
+                id: "u_owner".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+        })
+        .expect("owner pin should succeed");
+    assert!(pinned.changed);
+    assert_eq!(pinned.message_id, posted.message_id);
+    assert_eq!(pinned.message_seq, 1);
+
+    let duplicate_pin = runtime
+        .pin_message(PinMessageCommand {
+            tenant_id: "t_demo".into(),
+            message_id: posted.message_id.clone(),
+            pinned_by: Sender {
+                id: "u_owner".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+        })
+        .expect("duplicate pin should be idempotent");
+    assert!(!duplicate_pin.changed);
+
+    let unpinned = runtime
+        .unpin_message(UnpinMessageCommand {
+            tenant_id: "t_demo".into(),
+            message_id: posted.message_id.clone(),
+            unpinned_by: Sender {
+                id: "u_owner".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+        })
+        .expect("owner unpin should succeed");
+    assert!(unpinned.changed);
+
+    let duplicate_unpin = runtime
+        .unpin_message(UnpinMessageCommand {
+            tenant_id: "t_demo".into(),
+            message_id: posted.message_id.clone(),
+            unpinned_by: Sender {
+                id: "u_owner".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+        })
+        .expect("duplicate unpin should be idempotent");
+    assert!(!duplicate_unpin.changed);
+
+    let events = journal.recorded();
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| event.event_type == "message.pin_added")
+            .count(),
+        1
+    );
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| event.event_type == "message.pin_removed")
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn test_reaction_and_pin_state_survive_recovery_replay() {
+    let source_journal = InMemoryJournal::default();
+    let source_runtime = ConversationRuntime::new(source_journal.clone());
+
+    source_runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_reaction_pin_replay".into(),
+            creator_id: "u_owner".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("create conversation should succeed");
+
+    let posted = source_runtime
+        .post_message(PostMessageCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_reaction_pin_replay".into(),
+            sender: Sender {
+                id: "u_owner".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+            client_msg_id: Some("client_replay_reaction_pin".into()),
+            message_type: MessageType::Standard,
+            body: MessageBody {
+                summary: Some("replay target".into()),
+                parts: vec![ContentPart::text("replay target")],
+                render_hints: Default::default(),
+            },
+        })
+        .expect("post message should succeed");
+
+    source_runtime
+        .add_message_reaction(AddMessageReactionCommand {
+            tenant_id: "t_demo".into(),
+            message_id: posted.message_id.clone(),
+            reaction_key: "thumbs_up".into(),
+            reacted_by: Sender {
+                id: "u_owner".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+        })
+        .expect("add reaction should succeed");
+    source_runtime
+        .pin_message(PinMessageCommand {
+            tenant_id: "t_demo".into(),
+            message_id: posted.message_id.clone(),
+            pinned_by: Sender {
+                id: "u_owner".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+        })
+        .expect("pin should succeed");
+
+    let replay_journal = InMemoryJournal::default();
+    let replay_runtime = ConversationRuntime::new(replay_journal.clone());
+    for envelope in source_journal.recorded() {
+        replay_runtime
+            .apply_recovered_envelope(&envelope)
+            .expect("replay should succeed");
+    }
+
+    let duplicate_reaction = replay_runtime
+        .add_message_reaction(AddMessageReactionCommand {
+            tenant_id: "t_demo".into(),
+            message_id: posted.message_id.clone(),
+            reaction_key: "thumbs_up".into(),
+            reacted_by: Sender {
+                id: "u_owner".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+        })
+        .expect("replayed reaction should be idempotent");
+    assert!(!duplicate_reaction.changed);
+
+    let duplicate_pin = replay_runtime
+        .pin_message(PinMessageCommand {
+            tenant_id: "t_demo".into(),
+            message_id: posted.message_id.clone(),
+            pinned_by: Sender {
+                id: "u_owner".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+        })
+        .expect("replayed pin should be idempotent");
+    assert!(!duplicate_pin.changed);
+
+    let removed = replay_runtime
+        .remove_message_reaction(RemoveMessageReactionCommand {
+            tenant_id: "t_demo".into(),
+            message_id: posted.message_id.clone(),
+            reaction_key: "thumbs_up".into(),
+            removed_by: Sender {
+                id: "u_owner".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+        })
+        .expect("remove reaction after replay should succeed");
+    assert!(removed.changed);
+
+    let unpinned = replay_runtime
+        .unpin_message(UnpinMessageCommand {
+            tenant_id: "t_demo".into(),
+            message_id: posted.message_id.clone(),
+            unpinned_by: Sender {
+                id: "u_owner".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+        })
+        .expect("unpin after replay should succeed");
+    assert!(unpinned.changed);
+
+    let replay_events = replay_journal.recorded();
+    assert_eq!(
+        replay_events
+            .iter()
+            .filter(|event| event.event_type == "message.reaction_added")
+            .count(),
+        0
+    );
+    assert_eq!(
+        replay_events
+            .iter()
+            .filter(|event| event.event_type == "message.pin_added")
+            .count(),
+        0
+    );
+    assert_eq!(
+        replay_events
+            .iter()
+            .filter(|event| event.event_type == "message.reaction_removed")
+            .count(),
+        1
+    );
+    assert_eq!(
+        replay_events
+            .iter()
+            .filter(|event| event.event_type == "message.pin_removed")
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn test_bind_direct_chat_conversation_creates_business_bound_direct_runtime() {
+    let journal = InMemoryJournal::default();
+    let runtime = ConversationRuntime::new(journal.clone());
+
+    let created = runtime
+        .bind_direct_chat_conversation_with_binder_kind(
+            BindDirectChatConversationCommand {
+                tenant_id: "t_demo".into(),
+                conversation_id: "c_direct_binding".into(),
+                direct_chat_id: "dc_001".into(),
+                left_actor_id: "actor_a".into(),
+                left_actor_kind: "user".into(),
+                right_actor_id: "actor_b".into(),
+                right_actor_kind: "user".into(),
+                bound_by: "svc_control".into(),
+            },
+            "system",
+        )
+        .expect("direct chat binding should succeed");
+
+    assert_eq!(created.conversation_id, "c_direct_binding");
+
+    let binding = runtime
+        .conversation_business_binding("t_demo", "c_direct_binding")
+        .expect("binding should be queryable");
+    assert_eq!(
+        binding,
+        ConversationBusinessBinding {
+            business_type: "direct_chat".into(),
+            business_id: "dc_001".into(),
+        }
+    );
+
+    let members = runtime
+        .list_members("t_demo", "c_direct_binding")
+        .expect("bound direct conversation should expose members");
+    assert_eq!(members.len(), 2);
+    assert!(
+        members.iter().any(|member| {
+            member.principal_id == "actor_a"
+                && member.role == MembershipRole::Owner
+                && member.attributes.get("directChatId").map(String::as_str) == Some("dc_001")
+        }),
+        "left actor should become the anchor owner with direct chat binding metadata"
+    );
+    assert!(
+        members.iter().any(|member| {
+            member.principal_id == "actor_b"
+                && member.role == MembershipRole::Member
+                && member.attributes.get("directChatId").map(String::as_str) == Some("dc_001")
+        }),
+        "right actor should become the peer member with direct chat binding metadata"
+    );
+
+    let events = journal.recorded();
+    assert_eq!(events.len(), 3);
+    assert_eq!(events[0].event_type, "conversation.created");
+    let created_payload: serde_json::Value =
+        serde_json::from_str(events[0].payload.as_str()).expect("created payload should be json");
+    assert_eq!(created_payload["conversationType"], "direct");
+    assert_eq!(created_payload["businessType"], "direct_chat");
+    assert_eq!(created_payload["businessId"], "dc_001");
+}
+
+#[test]
+fn test_create_thread_conversation_binds_parent_message_runtime_and_survives_recovery_replay() {
+    let source_journal = InMemoryJournal::default();
+    let runtime = ConversationRuntime::new(source_journal.clone());
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_parent_thread".into(),
+            creator_id: "u_owner".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("parent conversation should succeed");
+
+    let root_message = runtime
+        .post_message(PostMessageCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_parent_thread".into(),
+            sender: Sender {
+                id: "u_owner".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+            client_msg_id: Some("client_thread_root".into()),
+            message_type: MessageType::Standard,
+            body: MessageBody {
+                summary: Some("root".into()),
+                parts: vec![ContentPart::text("root")],
+                render_hints: Default::default(),
+            },
+        })
+        .expect("root message should succeed");
+
+    let created = runtime
+        .create_thread_conversation_with_creator_kind(
+            CreateThreadConversationCommand {
+                tenant_id: "t_demo".into(),
+                conversation_id: "c_thread_runtime".into(),
+                parent_conversation_id: "c_parent_thread".into(),
+                root_message_id: root_message.message_id.clone(),
+                creator_id: "u_owner".into(),
+            },
+            "user",
+        )
+        .expect("thread conversation should succeed");
+
+    assert_eq!(created.conversation_id, "c_thread_runtime");
+
+    let binding = runtime
+        .conversation_business_binding("t_demo", "c_thread_runtime")
+        .expect("thread binding should be queryable");
+    assert_eq!(
+        binding,
+        ConversationBusinessBinding {
+            business_type: "thread".into(),
+            business_id: root_message.message_id.clone(),
+        }
+    );
+
+    let thread_members = runtime
+        .list_members("t_demo", "c_thread_runtime")
+        .expect("thread members should be queryable");
+    assert_eq!(thread_members.len(), 1);
+    let owner = &thread_members[0];
+    assert_eq!(owner.principal_id, "u_owner");
+    assert_eq!(owner.role, MembershipRole::Owner);
+    assert_eq!(
+        owner
+            .attributes
+            .get("parentConversationId")
+            .map(String::as_str),
+        Some("c_parent_thread")
+    );
+    assert_eq!(
+        owner.attributes.get("rootMessageId").map(String::as_str),
+        Some(root_message.message_id.as_str())
+    );
+    assert_eq!(
+        owner.attributes.get("threadRole").map(String::as_str),
+        Some("owner")
+    );
+
+    let reply = runtime
+        .post_message(PostMessageCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_thread_runtime".into(),
+            sender: Sender {
+                id: "u_owner".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+            client_msg_id: Some("client_thread_reply".into()),
+            message_type: MessageType::Standard,
+            body: MessageBody {
+                summary: Some("reply".into()),
+                parts: vec![ContentPart::text("reply")],
+                render_hints: Default::default(),
+            },
+        })
+        .expect("thread reply should succeed");
+    assert_eq!(reply.message_seq, 1);
+
+    let created_event = source_journal
+        .recorded()
+        .into_iter()
+        .find(|event| {
+            event.event_type == "conversation.created"
+                && event.aggregate_id == "c_thread_runtime"
+                && event.scope_id == "c_thread_runtime"
+        })
+        .expect("thread created event should exist");
+    let created_payload: serde_json::Value = serde_json::from_str(created_event.payload.as_str())
+        .expect("thread created payload should be json");
+    assert_eq!(created_payload["conversationType"], "thread");
+    assert_eq!(created_payload["businessType"], "thread");
+    assert_eq!(created_payload["businessId"], root_message.message_id);
+
+    let replay_runtime = ConversationRuntime::new(InMemoryJournal::default());
+    for envelope in source_journal.recorded() {
+        replay_runtime
+            .apply_recovered_envelope(&envelope)
+            .expect("replay should succeed");
+    }
+
+    let replay_binding = replay_runtime
+        .conversation_business_binding("t_demo", "c_thread_runtime")
+        .expect("replayed thread binding should exist");
+    assert_eq!(replay_binding.business_type, "thread");
+    assert_eq!(
+        replay_binding.business_id,
+        created_payload["businessId"].as_str().unwrap()
+    );
+
+    let replay_members = replay_runtime
+        .list_members("t_demo", "c_thread_runtime")
+        .expect("replayed thread members should exist");
+    assert_eq!(replay_members.len(), 1);
+    assert_eq!(
+        replay_members[0]
+            .attributes
+            .get("parentConversationId")
+            .map(String::as_str),
+        Some("c_parent_thread")
+    );
+}
+
+#[test]
+fn test_create_thread_conversation_auto_subscribes_root_message_author_for_notification_truth() {
+    let source_journal = InMemoryJournal::default();
+    let runtime = ConversationRuntime::new(source_journal.clone());
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_parent_thread_notify".into(),
+            creator_id: "u_owner".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("parent conversation should succeed");
+
+    runtime
+        .add_member(AddConversationMemberCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_parent_thread_notify".into(),
+            principal_id: "u_root_author".into(),
+            principal_kind: "user".into(),
+            role: MembershipRole::Member,
+            invited_by: "u_owner".into(),
+        })
+        .expect("root author should join parent conversation");
+
+    let root_message = runtime
+        .post_message(PostMessageCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_parent_thread_notify".into(),
+            sender: Sender {
+                id: "u_root_author".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_root_author".into()),
+                session_id: Some("s_root_author".into()),
+                metadata: Default::default(),
+            },
+            client_msg_id: Some("client_thread_root_notify".into()),
+            message_type: MessageType::Standard,
+            body: MessageBody {
+                summary: Some("root notify".into()),
+                parts: vec![ContentPart::text("root notify")],
+                render_hints: Default::default(),
+            },
+        })
+        .expect("root author should post parent message");
+
+    runtime
+        .create_thread_conversation_with_creator_kind(
+            CreateThreadConversationCommand {
+                tenant_id: "t_demo".into(),
+                conversation_id: "c_thread_notify".into(),
+                parent_conversation_id: "c_parent_thread_notify".into(),
+                root_message_id: root_message.message_id.clone(),
+                creator_id: "u_owner".into(),
+            },
+            "user",
+        )
+        .expect("thread conversation should succeed");
+
+    let thread_members = runtime
+        .list_members("t_demo", "c_thread_notify")
+        .expect("thread members should be queryable");
+    assert_eq!(thread_members.len(), 2);
+
+    let owner = thread_members
+        .iter()
+        .find(|member| member.principal_id == "u_owner")
+        .expect("thread owner should exist");
+    assert_eq!(owner.role, MembershipRole::Owner);
+    assert_eq!(
+        owner.attributes.get("threadRole").map(String::as_str),
+        Some("owner")
+    );
+
+    let root_author = thread_members
+        .iter()
+        .find(|member| member.principal_id == "u_root_author")
+        .expect("root author should be auto-subscribed into thread");
+    assert_eq!(root_author.role, MembershipRole::Member);
+    assert_eq!(root_author.invited_by.as_deref(), Some("u_owner"));
+    assert_eq!(
+        root_author
+            .attributes
+            .get("parentConversationId")
+            .map(String::as_str),
+        Some("c_parent_thread_notify")
+    );
+    assert_eq!(
+        root_author
+            .attributes
+            .get("rootMessageId")
+            .map(String::as_str),
+        Some(root_message.message_id.as_str())
+    );
+    assert_eq!(
+        root_author.attributes.get("threadRole").map(String::as_str),
+        Some("root_author")
+    );
+
+    let read_cursor = runtime
+        .read_cursor_view("t_demo", "c_thread_notify", "u_root_author")
+        .expect("auto-subscribed thread member should get default read cursor");
+    assert_eq!(read_cursor.principal_id, "u_root_author");
+    assert_eq!(read_cursor.read_seq, 0);
+
+    let source_events = source_journal.recorded();
+    let thread_join_events: Vec<_> = source_events
+        .iter()
+        .filter(|event| {
+            event.event_type == "conversation.member_joined"
+                && event.aggregate_id == "c_thread_notify"
+        })
+        .collect();
+    assert_eq!(thread_join_events.len(), 2);
+    assert!(thread_join_events.iter().any(|event| {
+        let payload: serde_json::Value = serde_json::from_str(event.payload.as_str())
+            .expect("thread member joined payload should be json");
+        payload["principalId"] == "u_root_author"
+            && payload["attributes"]["threadRole"] == "root_author"
+    }));
+
+    let replay_runtime = ConversationRuntime::new(InMemoryJournal::default());
+    for envelope in &source_events {
+        replay_runtime
+            .apply_recovered_envelope(envelope)
+            .expect("replay should succeed");
+    }
+
+    let replay_members = replay_runtime
+        .list_members("t_demo", "c_thread_notify")
+        .expect("replayed thread members should exist");
+    assert_eq!(replay_members.len(), 2);
+    assert!(replay_members.iter().any(|member| {
+        member.principal_id == "u_root_author"
+            && member.attributes.get("threadRole").map(String::as_str) == Some("root_author")
+    }));
+
+    let reply = replay_runtime
+        .post_message(PostMessageCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_thread_notify".into(),
+            sender: Sender {
+                id: "u_root_author".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_root_author".into()),
+                session_id: Some("s_root_author".into()),
+                metadata: Default::default(),
+            },
+            client_msg_id: Some("client_thread_notify_reply".into()),
+            message_type: MessageType::Standard,
+            body: MessageBody {
+                summary: Some("reply from root author".into()),
+                parts: vec![ContentPart::text("reply from root author")],
+                render_hints: Default::default(),
+            },
+        })
+        .expect("replayed thread should allow auto-subscribed root author to reply");
+    assert_eq!(reply.message_seq, 1);
+}
+
+#[test]
+fn test_sync_shared_channel_linked_member_materializes_runtime_truth_and_survives_recovery_replay()
+{
+    let source_journal = InMemoryJournal::default();
+    let runtime = ConversationRuntime::new(source_journal.clone());
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_shared_sync_runtime".into(),
+            creator_id: "u_owner".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("shared-sync conversation should succeed");
+
+    runtime
+        .apply_conversation_policy(ApplyConversationPolicyCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_shared_sync_runtime".into(),
+            applied_by: "u_owner".into(),
+            policy: ConversationPolicy {
+                policy_version: "group.policy.v1".into(),
+                capability_flags: None,
+                history_visibility: "shared".into(),
+                retention_policy_ref: "tenant.standard".into(),
+            },
+        })
+        .expect("shared history policy should apply");
+
+    let posted = runtime
+        .post_message(PostMessageCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_shared_sync_runtime".into(),
+            sender: Sender {
+                id: "u_owner".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+            client_msg_id: Some("client_shared_sync_runtime".into()),
+            message_type: MessageType::Standard,
+            body: MessageBody {
+                summary: Some("hello runtime sync".into()),
+                parts: vec![ContentPart::text("hello runtime sync")],
+                render_hints: Default::default(),
+            },
+        })
+        .expect("shared-sync root message should post");
+    assert_eq!(posted.message_seq, 1);
+
+    let linked_member = runtime
+        .sync_shared_channel_linked_member_with_requester_kind(
+            SyncSharedChannelLinkedMemberCommand {
+                tenant_id: "t_demo".into(),
+                conversation_id: "c_shared_sync_runtime".into(),
+                shared_channel_policy_id: "scp_runtime".into(),
+                external_connection_id: "ec_runtime".into(),
+                local_actor_id: "u_partner_runtime".into(),
+                local_actor_kind: "user".into(),
+                external_member_id: "partner::runtime-user".into(),
+                synced_by: "svc_control".into(),
+            },
+            "system",
+        )
+        .expect("shared channel linked member sync should succeed");
+
+    assert_eq!(linked_member.principal_id, "u_partner_runtime");
+    assert_eq!(linked_member.principal_kind, "user");
+    assert_eq!(linked_member.role, MembershipRole::Guest);
+    assert_eq!(linked_member.state, MembershipState::Linked);
+    assert_eq!(
+        linked_member
+            .attributes
+            .get("sharedChannelPolicyId")
+            .map(String::as_str),
+        Some("scp_runtime")
+    );
+    assert_eq!(
+        linked_member
+            .attributes
+            .get("externalConnectionId")
+            .map(String::as_str),
+        Some("ec_runtime")
+    );
+    assert_eq!(
+        linked_member
+            .attributes
+            .get("externalMemberId")
+            .map(String::as_str),
+        Some("partner::runtime-user")
+    );
+
+    let linked_history = runtime
+        .list_messages("t_demo", "c_shared_sync_runtime", "u_partner_runtime")
+        .expect("linked member should read shared history after sync");
+    assert_eq!(linked_history.items.len(), 1);
+    assert_eq!(
+        linked_history.items[0].message.message_id,
+        posted.message_id
+    );
+
+    let source_events = source_journal.recorded();
+    assert!(source_events.iter().any(|event| {
+        event.event_type == "conversation.member_joined"
+            && event.aggregate_id == "c_shared_sync_runtime"
+            && serde_json::from_str::<serde_json::Value>(event.payload.as_str())
+                .ok()
+                .is_some_and(|payload| {
+                    payload["principalId"] == "u_partner_runtime"
+                        && payload["state"] == "linked"
+                        && payload["attributes"]["sharedChannelPolicyId"] == "scp_runtime"
+                })
+    }));
+
+    let replay_runtime = ConversationRuntime::new(InMemoryJournal::default());
+    for envelope in &source_events {
+        replay_runtime
+            .apply_recovered_envelope(envelope)
+            .expect("replay should succeed");
+    }
+
+    let replay_linked_history = replay_runtime
+        .list_messages("t_demo", "c_shared_sync_runtime", "u_partner_runtime")
+        .expect("replayed linked member should still read shared history");
+    assert_eq!(replay_linked_history.items.len(), 1);
+    assert_eq!(
+        replay_linked_history.items[0]
+            .message
+            .body
+            .summary
+            .as_deref(),
+        Some("hello runtime sync")
+    );
+}
+
+#[test]
+fn test_bind_direct_chat_conversation_rejects_duplicate_business_binding() {
+    let journal = InMemoryJournal::default();
+    let runtime = ConversationRuntime::new(journal);
+
+    runtime
+        .bind_direct_chat_conversation_with_binder_kind(
+            BindDirectChatConversationCommand {
+                tenant_id: "t_demo".into(),
+                conversation_id: "c_direct_binding_first".into(),
+                direct_chat_id: "dc_dup".into(),
+                left_actor_id: "actor_a".into(),
+                left_actor_kind: "user".into(),
+                right_actor_id: "actor_b".into(),
+                right_actor_kind: "user".into(),
+                bound_by: "svc_control".into(),
+            },
+            "system",
+        )
+        .expect("first direct chat binding should succeed");
+
+    let duplicate = runtime.bind_direct_chat_conversation_with_binder_kind(
+        BindDirectChatConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_direct_binding_second".into(),
+            direct_chat_id: "dc_dup".into(),
+            left_actor_id: "actor_a".into(),
+            left_actor_kind: "user".into(),
+            right_actor_id: "actor_b".into(),
+            right_actor_kind: "user".into(),
+            bound_by: "svc_control".into(),
+        },
+        "system",
+    );
+
+    assert!(matches!(duplicate, Err(RuntimeError::Conflict(_))));
+}
+
+#[test]
+fn test_direct_chat_business_binding_survives_recovery_replay() {
+    let source_journal = InMemoryJournal::default();
+    let source_runtime = ConversationRuntime::new(source_journal.clone());
+
+    source_runtime
+        .bind_direct_chat_conversation_with_binder_kind(
+            BindDirectChatConversationCommand {
+                tenant_id: "t_demo".into(),
+                conversation_id: "c_direct_replay".into(),
+                direct_chat_id: "dc_replay".into(),
+                left_actor_id: "actor_a".into(),
+                left_actor_kind: "user".into(),
+                right_actor_id: "actor_b".into(),
+                right_actor_kind: "user".into(),
+                bound_by: "svc_control".into(),
+            },
+            "system",
+        )
+        .expect("direct chat binding should succeed");
+
+    let replay_journal = InMemoryJournal::default();
+    let replay_runtime = ConversationRuntime::new(replay_journal);
+    for envelope in source_journal.recorded() {
+        replay_runtime
+            .apply_recovered_envelope(&envelope)
+            .expect("replay should succeed");
+    }
+
+    let binding = replay_runtime
+        .conversation_business_binding("t_demo", "c_direct_replay")
+        .expect("replayed binding should exist");
+    assert_eq!(binding.business_type, "direct_chat");
+    assert_eq!(binding.business_id, "dc_replay");
+
+    let duplicate_after_replay = replay_runtime.bind_direct_chat_conversation_with_binder_kind(
+        BindDirectChatConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_direct_replay_dup".into(),
+            direct_chat_id: "dc_replay".into(),
+            left_actor_id: "actor_a".into(),
+            left_actor_kind: "user".into(),
+            right_actor_id: "actor_b".into(),
+            right_actor_kind: "user".into(),
+            bound_by: "svc_control".into(),
+        },
+        "system",
+    );
+
+    assert!(matches!(
+        duplicate_after_replay,
+        Err(RuntimeError::Conflict(_))
+    ));
 }

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Mutex};
 
 use axum::extract::{Path, State};
@@ -9,15 +9,19 @@ use axum::{
     Json, Router,
     routing::{get, post},
 };
+use craw_chat_contract_agent::{AgentSubject, AutomationExecutionRecord, AutomationExecutionStore};
+use craw_chat_contract_core::ContractError;
+use craw_chat_contract_message::{CommitJournal, CommitPosition};
 use im_auth_context::{
     AuthContext, AuthContextError, resolve_auth_context, resolve_public_bearer_auth_context,
 };
-pub use im_domain_core::automation::{AutomationExecution, AutomationExecutionState};
-use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
-use im_platform_contracts::{
-    AutomationExecutionRecord, AutomationExecutionStore, CommitJournal, CommitPosition,
-    ContractError,
+pub use im_domain_core::automation::{
+    AgentToolCall, AgentToolCallState, AutomationExecution, AutomationExecutionState,
 };
+use im_domain_core::stream::{
+    StreamDurabilityClass, StreamFrame, StreamSession, StreamSessionState,
+};
+use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
 use im_time::utc_now_rfc3339_millis;
 use serde::{Deserialize, Serialize};
 
@@ -36,10 +40,77 @@ pub struct RequestAutomationExecution {
     pub input_payload: Option<String>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StartAgentResponseRequest {
+    pub execution_id: String,
+    pub stream_id: String,
+    pub stream_type: String,
+    pub conversation_id: String,
+    pub schema_ref: Option<String>,
+    pub member_id: Option<String>,
+    pub agent: AgentSubject,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppendAgentResponseDeltaRequest {
+    pub frame_seq: u64,
+    pub frame_type: String,
+    pub schema_ref: Option<String>,
+    pub encoding: String,
+    pub payload: String,
+    #[serde(default)]
+    pub attributes: BTreeMap<String, String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CompleteAgentResponseRequest {
+    pub frame_seq: u64,
+    pub result_message_id: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RequestAgentToolCallRequest {
+    pub execution_id: String,
+    pub tool_call_id: String,
+    pub tool_name: String,
+    pub arguments_payload: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CompleteAgentToolCallRequest {
+    pub result_payload: String,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AutomationExecutionRequestResult {
     pub execution: AutomationExecution,
     pub is_new: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AutomationGovernanceSnapshot {
+    pub capability_profile_id: String,
+    pub enabled_capabilities: Vec<String>,
+    pub guardrail_policy_id: String,
+    pub restricted_tool_prefixes: Vec<String>,
+    pub operator_override_permission: String,
+    pub operator_override_active: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct AgentResponseRuntimeState {
+    principal_id: String,
+    execution_id: String,
+    session: StreamSession,
+    agent: AgentSubject,
+    member_id: Option<String>,
+    frames: Vec<StreamFrame>,
 }
 
 #[derive(Debug, Serialize)]
@@ -51,6 +122,9 @@ struct HealthResponse {
 
 pub struct AutomationRuntime {
     executions: Mutex<HashMap<String, AutomationExecution>>,
+    agent_responses: Mutex<HashMap<String, AgentResponseRuntimeState>>,
+    tool_calls: Mutex<HashMap<String, AgentToolCall>>,
+    event_orders: Mutex<HashMap<String, u64>>,
     journal: Arc<dyn CommitJournal + Send + Sync>,
     execution_store: Arc<dyn AutomationExecutionStore>,
 }
@@ -121,6 +195,10 @@ impl AutomationError {
             },
         }
     }
+
+    pub fn code(&self) -> &'static str {
+        self.code
+    }
 }
 
 impl From<AuthContextError> for AutomationError {
@@ -174,6 +252,9 @@ impl AutomationRuntime {
     {
         Self {
             executions: Mutex::new(HashMap::new()),
+            agent_responses: Mutex::new(HashMap::new()),
+            tool_calls: Mutex::new(HashMap::new()),
+            event_orders: Mutex::new(HashMap::new()),
             journal,
             execution_store,
         }
@@ -288,6 +369,10 @@ impl AutomationRuntime {
         self.append_event(auth, &completed, "automation.execution_completed", 2)?;
 
         executions.insert(execution_key.clone(), completed.clone());
+        self.event_orders
+            .lock()
+            .expect("automation runtime should lock")
+            .insert(execution_key.clone(), 2);
         if let Err(error) = self
             .execution_store
             .save_execution(self.execution_record(&completed))
@@ -300,6 +385,427 @@ impl AutomationRuntime {
             execution: completed,
             is_new: true,
         })
+    }
+
+    pub fn governance_snapshot(
+        &self,
+        auth: &AuthContext,
+    ) -> Result<AutomationGovernanceSnapshot, AutomationError> {
+        ensure_automation_read_access(auth)?;
+        Ok(automation_governance_snapshot(auth))
+    }
+
+    pub fn start_agent_response(
+        &self,
+        auth: &AuthContext,
+        request: StartAgentResponseRequest,
+    ) -> Result<StreamSession, AutomationError> {
+        ensure_automation_execute_access(auth)?;
+        let execution = self.execution_for_actor(auth, request.execution_id.as_str())?;
+        let scope_key = agent_response_scope_key(
+            auth.tenant_id.as_str(),
+            auth.actor_id.as_str(),
+            request.execution_id.as_str(),
+            request.stream_id.as_str(),
+        );
+        let mut responses = self
+            .agent_responses
+            .lock()
+            .expect("automation runtime should lock");
+        if let Some(existing) = responses.get(scope_key.as_str()) {
+            if existing.agent == request.agent
+                && existing.member_id == request.member_id
+                && existing.session.stream_type == request.stream_type
+                && existing.session.scope_id == request.conversation_id
+                && existing.session.schema_ref == request.schema_ref
+            {
+                return Ok(existing.session.clone());
+            }
+            return Err(AutomationError {
+                status: axum::http::StatusCode::CONFLICT,
+                code: "agent_response_conflict",
+                message: format!(
+                    "agent response stream conflicts with existing definition: {}",
+                    request.stream_id
+                ),
+            });
+        }
+
+        let session = StreamSession {
+            tenant_id: auth.tenant_id.clone(),
+            stream_id: request.stream_id.clone(),
+            stream_type: request.stream_type.clone(),
+            scope_kind: "conversation".into(),
+            scope_id: request.conversation_id.clone(),
+            durability_class: StreamDurabilityClass::EventLog,
+            ordering_scope: "stream".into(),
+            schema_ref: request.schema_ref.clone(),
+            state: StreamSessionState::Opened,
+            last_frame_seq: 0,
+            last_checkpoint_seq: None,
+            result_message_id: None,
+            opened_at: utc_now_rfc3339_millis(),
+            closed_at: None,
+            expires_at: None,
+        };
+        let sender = request.agent.sender(request.member_id.clone());
+        let payload = serde_json::json!({
+            "executionId": request.execution_id,
+            "streamId": session.stream_id,
+            "streamType": session.stream_type,
+            "conversationId": session.scope_id,
+            "state": session.state.as_wire_value(),
+            "sender": sender,
+        });
+        responses.insert(
+            scope_key,
+            AgentResponseRuntimeState {
+                principal_id: auth.actor_id.clone(),
+                execution_id: execution.execution_id.clone(),
+                session: session.clone(),
+                agent: request.agent,
+                member_id: request.member_id,
+                frames: Vec::new(),
+            },
+        );
+        drop(responses);
+        self.append_json_event(
+            auth,
+            &execution,
+            "automation.agent_response_started",
+            "automation.agent_response_stream.v1",
+            &payload,
+        )?;
+
+        Ok(session)
+    }
+
+    pub fn append_agent_response_delta(
+        &self,
+        auth: &AuthContext,
+        stream_id: &str,
+        request: AppendAgentResponseDeltaRequest,
+    ) -> Result<StreamFrame, AutomationError> {
+        ensure_automation_execute_access(auth)?;
+        if request.frame_seq == 0 {
+            return Err(AutomationError {
+                status: axum::http::StatusCode::BAD_REQUEST,
+                code: "invalid_frame_seq",
+                message: "frameSeq must start from 1".into(),
+            });
+        }
+
+        let mut responses = self
+            .agent_responses
+            .lock()
+            .expect("automation runtime should lock");
+        let state = responses
+            .values_mut()
+            .find(|state| {
+                state.principal_id == auth.actor_id
+                    && state.session.tenant_id == auth.tenant_id
+                    && state.session.stream_id == stream_id
+            })
+            .ok_or_else(|| AutomationError {
+                status: axum::http::StatusCode::NOT_FOUND,
+                code: "agent_response_not_found",
+                message: format!("agent response stream not found: {stream_id}"),
+            })?;
+
+        if matches!(
+            state.session.state,
+            StreamSessionState::Completed | StreamSessionState::Aborted
+        ) {
+            return Err(AutomationError {
+                status: axum::http::StatusCode::BAD_REQUEST,
+                code: "agent_response_state_invalid",
+                message: format!("agent response stream is already closed: {stream_id}"),
+            });
+        }
+
+        let sender = state.agent.sender(state.member_id.clone());
+        if let Some(existing) = state
+            .frames
+            .iter()
+            .find(|frame| frame.frame_seq == request.frame_seq)
+        {
+            let is_same_retry = existing.frame_type == request.frame_type
+                && existing.schema_ref == request.schema_ref
+                && existing.encoding == request.encoding
+                && existing.payload == request.payload
+                && existing.sender == sender
+                && existing.attributes == request.attributes;
+            if is_same_retry {
+                return Ok(existing.clone());
+            }
+            return Err(AutomationError {
+                status: axum::http::StatusCode::CONFLICT,
+                code: "agent_response_frame_conflict",
+                message: format!("agent response frame seq conflict: {}", request.frame_seq),
+            });
+        }
+
+        if request.frame_seq != state.session.last_frame_seq + 1 {
+            return Err(AutomationError {
+                status: axum::http::StatusCode::BAD_REQUEST,
+                code: "agent_response_frame_out_of_order",
+                message: format!(
+                    "expected next frame seq {}, got {}",
+                    state.session.last_frame_seq + 1,
+                    request.frame_seq
+                ),
+            });
+        }
+
+        let frame = StreamFrame {
+            tenant_id: auth.tenant_id.clone(),
+            stream_id: state.session.stream_id.clone(),
+            stream_type: state.session.stream_type.clone(),
+            scope_kind: state.session.scope_kind.clone(),
+            scope_id: state.session.scope_id.clone(),
+            frame_seq: request.frame_seq,
+            frame_type: request.frame_type,
+            schema_ref: request.schema_ref,
+            encoding: request.encoding,
+            payload: request.payload,
+            sender,
+            attributes: request.attributes,
+            occurred_at: utc_now_rfc3339_millis(),
+        };
+        state.session.last_frame_seq = frame.frame_seq;
+        state.session.state = StreamSessionState::Active;
+        let execution_id = state.execution_id.clone();
+        state.frames.push(frame.clone());
+        drop(responses);
+
+        let execution = self.execution_for_actor(auth, execution_id.as_str())?;
+        self.append_json_event(
+            auth,
+            &execution,
+            "automation.agent_response_delta",
+            "automation.agent_response_frame.v1",
+            &frame,
+        )?;
+
+        Ok(frame)
+    }
+
+    pub fn complete_agent_response(
+        &self,
+        auth: &AuthContext,
+        stream_id: &str,
+        request: CompleteAgentResponseRequest,
+    ) -> Result<StreamSession, AutomationError> {
+        ensure_automation_execute_access(auth)?;
+        let mut responses = self
+            .agent_responses
+            .lock()
+            .expect("automation runtime should lock");
+        let state = responses
+            .values_mut()
+            .find(|state| {
+                state.principal_id == auth.actor_id
+                    && state.session.tenant_id == auth.tenant_id
+                    && state.session.stream_id == stream_id
+            })
+            .ok_or_else(|| AutomationError {
+                status: axum::http::StatusCode::NOT_FOUND,
+                code: "agent_response_not_found",
+                message: format!("agent response stream not found: {stream_id}"),
+            })?;
+
+        if matches!(
+            state.session.state,
+            StreamSessionState::Completed | StreamSessionState::Aborted
+        ) {
+            return Ok(state.session.clone());
+        }
+
+        state.session.last_frame_seq = state.session.last_frame_seq.max(request.frame_seq);
+        state.session.last_checkpoint_seq = Some(request.frame_seq);
+        state.session.result_message_id = request.result_message_id;
+        state.session.state = StreamSessionState::Completed;
+        state.session.closed_at = Some(utc_now_rfc3339_millis());
+        let session = state.session.clone();
+        let execution_id = state.execution_id.clone();
+        drop(responses);
+
+        let execution = self.execution_for_actor(auth, execution_id.as_str())?;
+        self.append_json_event(
+            auth,
+            &execution,
+            "automation.agent_response_completed",
+            "automation.agent_response_stream.v1",
+            &session,
+        )?;
+
+        Ok(session)
+    }
+
+    pub fn request_agent_tool_call(
+        &self,
+        auth: &AuthContext,
+        request: RequestAgentToolCallRequest,
+    ) -> Result<AgentToolCall, AutomationError> {
+        ensure_automation_execute_access(auth)?;
+        let execution = self.execution_for_actor(auth, request.execution_id.as_str())?;
+        let agent_id = self
+            .agent_responses
+            .lock()
+            .expect("automation runtime should lock")
+            .values()
+            .find(|state| {
+                state.principal_id == auth.actor_id
+                    && state.session.tenant_id == auth.tenant_id
+                    && state.execution_id == request.execution_id
+            })
+            .map(|state| state.agent.agent_id.clone())
+            .ok_or_else(|| AutomationError {
+                status: axum::http::StatusCode::BAD_REQUEST,
+                code: "agent_response_not_started",
+                message: format!(
+                    "agent response stream must start before tool calls: {}",
+                    request.execution_id
+                ),
+            })?;
+
+        let tool_requires_override =
+            automation_tool_requires_operator_override(request.tool_name.as_str());
+        let operator_override_active = automation_operator_override_active(auth);
+        if tool_requires_override && !operator_override_active {
+            self.append_guardrail_event(
+                auth,
+                &execution,
+                "automation.guardrail_denied",
+                request.tool_name.as_str(),
+                false,
+            )?;
+            return Err(AutomationError {
+                status: axum::http::StatusCode::FORBIDDEN,
+                code: "automation_guardrail_denied",
+                message: format!(
+                    "tool call blocked by automation guardrail: {}",
+                    request.tool_name
+                ),
+            });
+        }
+
+        let scope_key = agent_tool_call_scope_key(
+            auth.tenant_id.as_str(),
+            auth.actor_id.as_str(),
+            request.execution_id.as_str(),
+            request.tool_call_id.as_str(),
+        );
+        let tool_calls = self
+            .tool_calls
+            .lock()
+            .expect("automation runtime should lock");
+        if let Some(existing) = tool_calls.get(scope_key.as_str()).cloned() {
+            if existing.tool_name == request.tool_name
+                && existing.arguments_payload == request.arguments_payload
+            {
+                return Ok(existing);
+            }
+            return Err(AutomationError {
+                status: axum::http::StatusCode::CONFLICT,
+                code: "agent_tool_call_conflict",
+                message: format!("agent tool call conflict: {}", request.tool_call_id),
+            });
+        }
+        drop(tool_calls);
+
+        if tool_requires_override {
+            self.append_guardrail_event(
+                auth,
+                &execution,
+                "automation.operator_override_applied",
+                request.tool_name.as_str(),
+                true,
+            )?;
+        }
+
+        let mut tool_calls = self
+            .tool_calls
+            .lock()
+            .expect("automation runtime should lock");
+
+        let tool_call = AgentToolCall {
+            tenant_id: auth.tenant_id.clone(),
+            execution_id: request.execution_id.clone(),
+            agent_id,
+            tool_call_id: request.tool_call_id.clone(),
+            tool_name: request.tool_name,
+            arguments_payload: request.arguments_payload,
+            result_payload: None,
+            state: AgentToolCallState::Requested,
+            requested_at: utc_now_rfc3339_millis(),
+            completed_at: None,
+        };
+        tool_calls.insert(scope_key, tool_call.clone());
+        drop(tool_calls);
+        self.append_json_event(
+            auth,
+            &execution,
+            "automation.agent_tool_call_requested",
+            "automation.agent_tool_call.v1",
+            &tool_call,
+        )?;
+
+        Ok(tool_call)
+    }
+
+    pub fn complete_agent_tool_call(
+        &self,
+        auth: &AuthContext,
+        execution_id: &str,
+        tool_call_id: &str,
+        request: CompleteAgentToolCallRequest,
+    ) -> Result<AgentToolCall, AutomationError> {
+        ensure_automation_execute_access(auth)?;
+        let execution = self.execution_for_actor(auth, execution_id)?;
+        let scope_key = agent_tool_call_scope_key(
+            auth.tenant_id.as_str(),
+            auth.actor_id.as_str(),
+            execution_id,
+            tool_call_id,
+        );
+        let mut tool_calls = self
+            .tool_calls
+            .lock()
+            .expect("automation runtime should lock");
+        let tool_call = tool_calls
+            .get_mut(scope_key.as_str())
+            .ok_or_else(|| AutomationError {
+                status: axum::http::StatusCode::NOT_FOUND,
+                code: "agent_tool_call_not_found",
+                message: format!("agent tool call not found: {tool_call_id}"),
+            })?;
+
+        if tool_call.state == AgentToolCallState::Completed {
+            if tool_call.result_payload.as_deref() == Some(request.result_payload.as_str()) {
+                return Ok(tool_call.clone());
+            }
+            return Err(AutomationError {
+                status: axum::http::StatusCode::CONFLICT,
+                code: "agent_tool_call_conflict",
+                message: format!("agent tool call already completed: {tool_call_id}"),
+            });
+        }
+
+        tool_call.result_payload = Some(request.result_payload);
+        tool_call.state = AgentToolCallState::Completed;
+        tool_call.completed_at = Some(utc_now_rfc3339_millis());
+        let tool_call = tool_call.clone();
+        drop(tool_calls);
+        self.append_json_event(
+            auth,
+            &execution,
+            "automation.agent_tool_call_completed",
+            "automation.agent_tool_call.v1",
+            &tool_call,
+        )?;
+
+        Ok(tool_call)
     }
 
     pub fn get_execution(
@@ -386,6 +892,117 @@ impl AutomationRuntime {
         self.journal.append(envelope)?;
         Ok(())
     }
+
+    fn append_json_event<P: Serialize>(
+        &self,
+        auth: &AuthContext,
+        execution: &AutomationExecution,
+        event_type: &str,
+        payload_schema: &str,
+        payload: &P,
+    ) -> Result<(), AutomationError> {
+        let event_scope_key = execution_scope_key(
+            auth.tenant_id.as_str(),
+            auth.actor_id.as_str(),
+            execution.execution_id.as_str(),
+        );
+        let ordering_seq = {
+            let mut orders = self
+                .event_orders
+                .lock()
+                .expect("automation runtime should lock");
+            let next = orders.get(event_scope_key.as_str()).copied().unwrap_or(2) + 1;
+            orders.insert(event_scope_key, next);
+            next
+        };
+        let occurred_at = utc_now_rfc3339_millis();
+        let envelope = CommitEnvelope {
+            event_id: format!(
+                "evt_{}_{}_{}",
+                execution.execution_id,
+                ordering_seq,
+                event_type.replace('.', "_")
+            ),
+            tenant_id: auth.tenant_id.clone(),
+            event_type: event_type.into(),
+            event_version: 1,
+            aggregate_type: AggregateType::AutomationExecution,
+            aggregate_id: execution.execution_id.clone(),
+            scope_type: "automation_execution".into(),
+            scope_id: execution.execution_id.clone(),
+            ordering_key: CommitEnvelope::ordering_key(
+                auth.tenant_id.as_str(),
+                execution.execution_id.as_str(),
+            ),
+            ordering_seq,
+            causation_id: None,
+            correlation_id: Some(execution.execution_id.clone()),
+            idempotency_key: Some(format!("{}:{event_type}", execution.execution_id)),
+            actor: EventActor {
+                actor_id: auth.actor_id.clone(),
+                actor_kind: auth.actor_kind.clone(),
+                actor_session_id: auth.session_id.clone(),
+            },
+            occurred_at: occurred_at.clone(),
+            committed_at: occurred_at,
+            payload_schema: Some(payload_schema.into()),
+            payload: serde_json::to_string(payload)
+                .expect("automation lifecycle payload should serialize into commit envelope"),
+            retention_class: "standard".into(),
+            audit_class: "default".into(),
+        };
+        self.journal.append(envelope)?;
+        Ok(())
+    }
+
+    fn append_guardrail_event(
+        &self,
+        auth: &AuthContext,
+        execution: &AutomationExecution,
+        event_type: &str,
+        tool_name: &str,
+        operator_override_active: bool,
+    ) -> Result<(), AutomationError> {
+        self.append_json_event(
+            auth,
+            execution,
+            event_type,
+            "automation.guardrail.v1",
+            &serde_json::json!({
+                "capabilityProfileId": AUTOMATION_CAPABILITY_PROFILE_ID,
+                "guardrailPolicyId": AUTOMATION_GUARDRAIL_POLICY_ID,
+                "toolName": tool_name,
+                "restrictedToolPrefixes": AUTOMATION_RESTRICTED_TOOL_PREFIXES,
+                "operatorOverridePermission": AUTOMATION_OPERATOR_OVERRIDE_PERMISSION,
+                "operatorOverrideActive": operator_override_active,
+            }),
+        )
+    }
+
+    fn execution_for_actor(
+        &self,
+        auth: &AuthContext,
+        execution_id: &str,
+    ) -> Result<AutomationExecution, AutomationError> {
+        self.ensure_execution_state(
+            auth.tenant_id.as_str(),
+            auth.actor_id.as_str(),
+            execution_id,
+        )?;
+        self.executions
+            .lock()
+            .expect("automation runtime should lock")
+            .get(
+                execution_scope_key(
+                    auth.tenant_id.as_str(),
+                    auth.actor_id.as_str(),
+                    execution_id,
+                )
+                .as_str(),
+            )
+            .cloned()
+            .ok_or_else(|| AutomationError::not_found(execution_id))
+    }
 }
 
 #[derive(Clone, Default)]
@@ -437,6 +1054,27 @@ pub fn build_app(runtime: Arc<AutomationRuntime>) -> Router {
         .route("/healthz", get(healthz))
         .route("/readyz", get(readyz))
         .route("/api/v1/automation/executions", post(request_execution))
+        .route("/api/v1/automation/governance", get(get_governance))
+        .route(
+            "/api/v1/automation/agent-responses",
+            post(start_agent_response),
+        )
+        .route(
+            "/api/v1/automation/agent-responses/{stream_id}/frames",
+            post(append_agent_response_delta),
+        )
+        .route(
+            "/api/v1/automation/agent-responses/{stream_id}/complete",
+            post(complete_agent_response),
+        )
+        .route(
+            "/api/v1/automation/agent-tool-calls",
+            post(request_agent_tool_call),
+        )
+        .route(
+            "/api/v1/automation/executions/{execution_id}/agent-tool-calls/{tool_call_id}/complete",
+            post(complete_agent_tool_call),
+        )
         .route(
             "/api/v1/automation/executions/{execution_id}",
             get(get_execution),
@@ -488,6 +1126,75 @@ async fn get_execution(
     ))
 }
 
+async fn get_governance(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> Result<Json<AutomationGovernanceSnapshot>, AutomationError> {
+    let auth = resolve_auth_context(&headers)?;
+    Ok(Json(state.runtime.governance_snapshot(&auth)?))
+}
+
+async fn start_agent_response(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Json(request): Json<StartAgentResponseRequest>,
+) -> Result<Json<StreamSession>, AutomationError> {
+    let auth = resolve_auth_context(&headers)?;
+    Ok(Json(state.runtime.start_agent_response(&auth, request)?))
+}
+
+async fn append_agent_response_delta(
+    Path(stream_id): Path<String>,
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Json(request): Json<AppendAgentResponseDeltaRequest>,
+) -> Result<Json<StreamFrame>, AutomationError> {
+    let auth = resolve_auth_context(&headers)?;
+    Ok(Json(
+        state
+            .runtime
+            .append_agent_response_delta(&auth, stream_id.as_str(), request)?,
+    ))
+}
+
+async fn complete_agent_response(
+    Path(stream_id): Path<String>,
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Json(request): Json<CompleteAgentResponseRequest>,
+) -> Result<Json<StreamSession>, AutomationError> {
+    let auth = resolve_auth_context(&headers)?;
+    Ok(Json(
+        state
+            .runtime
+            .complete_agent_response(&auth, stream_id.as_str(), request)?,
+    ))
+}
+
+async fn request_agent_tool_call(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Json(request): Json<RequestAgentToolCallRequest>,
+) -> Result<Json<AgentToolCall>, AutomationError> {
+    let auth = resolve_auth_context(&headers)?;
+    Ok(Json(state.runtime.request_agent_tool_call(&auth, request)?))
+}
+
+async fn complete_agent_tool_call(
+    Path((execution_id, tool_call_id)): Path<(String, String)>,
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Json(request): Json<CompleteAgentToolCallRequest>,
+) -> Result<Json<AgentToolCall>, AutomationError> {
+    let auth = resolve_auth_context(&headers)?;
+    Ok(Json(state.runtime.complete_agent_tool_call(
+        &auth,
+        execution_id.as_str(),
+        tool_call_id.as_str(),
+        request,
+    )?))
+}
+
 fn ensure_automation_execute_access(auth: &AuthContext) -> Result<(), AutomationError> {
     if auth.has_permission("automation.execute") {
         return Ok(());
@@ -508,6 +1215,24 @@ fn execution_scope_key(tenant_id: &str, principal_id: &str, execution_id: &str) 
     format!("{tenant_id}:{principal_id}:{execution_id}")
 }
 
+fn agent_response_scope_key(
+    tenant_id: &str,
+    principal_id: &str,
+    execution_id: &str,
+    stream_id: &str,
+) -> String {
+    format!("{tenant_id}:{principal_id}:{execution_id}:{stream_id}")
+}
+
+fn agent_tool_call_scope_key(
+    tenant_id: &str,
+    principal_id: &str,
+    execution_id: &str,
+    tool_call_id: &str,
+) -> String {
+    format!("{tenant_id}:{principal_id}:{execution_id}:{tool_call_id}")
+}
+
 fn execution_matches_request(
     existing: &AutomationExecution,
     request: &RequestAutomationExecution,
@@ -516,4 +1241,41 @@ fn execution_matches_request(
         && existing.target_kind == request.target_kind
         && existing.target_ref == request.target_ref
         && existing.input_payload == request.input_payload
+}
+
+const AUTOMATION_CAPABILITY_PROFILE_ID: &str = "stable-agent";
+const AUTOMATION_GUARDRAIL_POLICY_ID: &str = "automation-tool-call-guardrail-v1";
+const AUTOMATION_OPERATOR_OVERRIDE_PERMISSION: &str = "automation.operator_override";
+const AUTOMATION_ENABLED_CAPABILITIES: [&str; 2] = ["agent.response", "agent.tool_call"];
+const AUTOMATION_RESTRICTED_TOOL_PREFIXES: [&str; 2] = ["ops.", "admin."];
+
+fn automation_governance_snapshot(auth: &AuthContext) -> AutomationGovernanceSnapshot {
+    AutomationGovernanceSnapshot {
+        capability_profile_id: AUTOMATION_CAPABILITY_PROFILE_ID.into(),
+        enabled_capabilities: AUTOMATION_ENABLED_CAPABILITIES
+            .into_iter()
+            .map(str::to_owned)
+            .collect(),
+        guardrail_policy_id: AUTOMATION_GUARDRAIL_POLICY_ID.into(),
+        restricted_tool_prefixes: AUTOMATION_RESTRICTED_TOOL_PREFIXES
+            .into_iter()
+            .map(str::to_owned)
+            .collect(),
+        operator_override_permission: AUTOMATION_OPERATOR_OVERRIDE_PERMISSION.into(),
+        operator_override_active: automation_operator_override_active(auth),
+    }
+}
+
+pub fn automation_operator_override_permission() -> &'static str {
+    AUTOMATION_OPERATOR_OVERRIDE_PERMISSION
+}
+
+pub fn automation_tool_requires_operator_override(tool_name: &str) -> bool {
+    AUTOMATION_RESTRICTED_TOOL_PREFIXES
+        .iter()
+        .any(|prefix| tool_name.starts_with(prefix))
+}
+
+fn automation_operator_override_active(auth: &AuthContext) -> bool {
+    auth.has_permission(AUTOMATION_OPERATOR_OVERRIDE_PERMISSION)
 }

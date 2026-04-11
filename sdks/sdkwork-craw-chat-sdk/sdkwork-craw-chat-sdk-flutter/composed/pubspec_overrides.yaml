@@ -1,0 +1,5 @@
+dependency_overrides:
+  backend_sdk:
+    path: ../generated/server-openapi
+  sdkwork_common_flutter:
+    path: ../../../../../../sdk/sdkwork-sdk-commons/sdkwork-sdk-common-flutter

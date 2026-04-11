@@ -21,6 +21,31 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
         .await
         .expect("ops health should succeed");
     assert_eq!(health_response.status(), StatusCode::OK);
+    let health_body = health_response
+        .into_body()
+        .collect()
+        .await
+        .expect("health body should collect")
+        .to_bytes();
+    let health_json: serde_json::Value =
+        serde_json::from_slice(&health_body).expect("health body should be valid json");
+    assert_eq!(health_json["projectionPlane"]["status"], "idle");
+    assert_eq!(
+        health_json["projectionPlane"]["metrics"]["conversationSnapshotPersist"]["successCount"],
+        0
+    );
+    assert_eq!(health_json["projectionPlane"]["replay"]["backlogSize"], 0);
+    assert_eq!(
+        health_json["projectionPlane"]["replay"]["replayedEventCount"],
+        0
+    );
+    assert_eq!(health_json["projectionPlane"]["replay"]["durationMs"], 0);
+    assert_eq!(health_json["projectionPlane"]["rebuildDurationMs"], 0);
+    assert_eq!(
+        health_json["projectionPlane"]["updateDelay"]["timelineMs"],
+        0
+    );
+    assert_eq!(health_json["projectionPlane"]["updateDelay"]["inboxMs"], 0);
 
     let cluster_response = app
         .clone()
@@ -61,6 +86,58 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
         .await
         .expect("ops lag should succeed");
     assert_eq!(lag_response.status(), StatusCode::OK);
+    let lag_body = lag_response
+        .into_body()
+        .collect()
+        .await
+        .expect("lag body should collect")
+        .to_bytes();
+    let lag_json: serde_json::Value =
+        serde_json::from_slice(&lag_body).expect("lag body should be valid json");
+    assert!(
+        lag_json["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|item| item["component"] == "projection_replay" && item["lag"] == 0),
+        "ops lag should expose the default projection replay lag item"
+    );
+
+    let replay_status_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/ops/replay-status")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-permissions", "ops.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("ops replay-status should succeed");
+    assert_eq!(replay_status_response.status(), StatusCode::OK);
+    let replay_status_body = replay_status_response
+        .into_body()
+        .collect()
+        .await
+        .expect("replay-status body should collect")
+        .to_bytes();
+    let replay_status_json: serde_json::Value = serde_json::from_slice(&replay_status_body)
+        .expect("replay-status body should be valid json");
+    assert_eq!(replay_status_json["status"], "idle");
+    assert_eq!(replay_status_json["replay"]["backlogSize"], 0);
+    assert_eq!(replay_status_json["replay"]["replayedEventCount"], 0);
+    assert_eq!(replay_status_json["replay"]["durationMs"], 0);
+    assert_eq!(replay_status_json["replayThroughputPerSecond"], 0);
+    assert!(
+        replay_status_json["lag"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|item| item["component"] == "projection_replay" && item["lag"] == 0),
+        "ops replay-status should expose the default projection replay lag item"
+    );
 
     let runtime_dir_response = app
         .clone()
@@ -87,6 +164,61 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
     assert_eq!(runtime_dir_json["status"], "unmanaged");
     assert_eq!(runtime_dir_json["files"].as_array().unwrap().len(), 0);
 
+    let provider_bindings_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/ops/provider-bindings")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-permissions", "ops.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("ops provider-bindings should succeed");
+    assert_eq!(provider_bindings_response.status(), StatusCode::OK);
+    let provider_bindings_body = provider_bindings_response
+        .into_body()
+        .collect()
+        .await
+        .expect("provider-bindings body should collect")
+        .to_bytes();
+    let provider_bindings_json: serde_json::Value = serde_json::from_slice(&provider_bindings_body)
+        .expect("provider-bindings body should be valid json");
+    assert_eq!(provider_bindings_json["items"].as_array().unwrap().len(), 0);
+
+    let provider_binding_drift_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/ops/provider-bindings/drift")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-permissions", "ops.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("ops provider-bindings drift should succeed");
+    assert_eq!(provider_binding_drift_response.status(), StatusCode::OK);
+    let provider_binding_drift_body = provider_binding_drift_response
+        .into_body()
+        .collect()
+        .await
+        .expect("provider-bindings drift body should collect")
+        .to_bytes();
+    let provider_binding_drift_json: serde_json::Value =
+        serde_json::from_slice(&provider_binding_drift_body)
+            .expect("provider-bindings drift body should be valid json");
+    assert_eq!(
+        provider_binding_drift_json["items"]
+            .as_array()
+            .unwrap()
+            .len(),
+        0
+    );
+
     let diagnostics_response = app
         .oneshot(
             Request::builder()
@@ -111,6 +243,49 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
     assert_eq!(diagnostics_json["profile"], "standalone");
     assert_eq!(
         diagnostics_json["deviceRoutes"].as_array().unwrap().len(),
+        0
+    );
+    assert_eq!(diagnostics_json["projectionPlane"]["status"], "idle");
+    assert_eq!(
+        diagnostics_json["projectionPlane"]["replay"]["backlogSize"],
+        0
+    );
+    assert_eq!(
+        diagnostics_json["projectionPlane"]["replay"]["replayedEventCount"],
+        0
+    );
+    assert_eq!(
+        diagnostics_json["projectionPlane"]["replay"]["durationMs"],
+        0
+    );
+    assert_eq!(diagnostics_json["projectionPlane"]["rebuildDurationMs"], 0);
+    assert_eq!(
+        diagnostics_json["projectionPlane"]["updateDelay"]["timelineMs"],
+        0
+    );
+    assert_eq!(
+        diagnostics_json["projectionPlane"]["updateDelay"]["inboxMs"],
+        0
+    );
+    assert_eq!(
+        diagnostics_json["projectionPlane"]["traces"]
+            .as_array()
+            .unwrap()
+            .len(),
+        0
+    );
+    assert_eq!(
+        diagnostics_json["providerBindings"]
+            .as_array()
+            .unwrap()
+            .len(),
+        0
+    );
+    assert_eq!(
+        diagnostics_json["providerBindingDrift"]["items"]
+            .as_array()
+            .unwrap()
+            .len(),
         0
     );
 }

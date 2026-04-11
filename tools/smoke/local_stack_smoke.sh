@@ -3,7 +3,7 @@ set -euo pipefail
 
 show_help() {
   cat <<'EOF'
-Usage: bash tools/smoke/local_stack_smoke.sh [--base-url <url>]
+Usage: bash tools/smoke/local_stack_smoke.sh [--base-url <url>] [--public-bearer-secret <secret>] [--bearer-token <token>]
 
 Run a minimal local-stack smoke check against the local-minimal deployment profile.
 EOF
@@ -11,7 +11,12 @@ EOF
 
 DEFAULT_BASE_URL="http://127.0.0.1:18090"
 DEFAULT_HEALTH_URL="http://127.0.0.1:18090/healthz"
+DEFAULT_DOCKER_PUBLIC_BEARER_SECRET="local-minimal-public-dev-secret"
 base_url="$DEFAULT_BASE_URL"
+public_bearer_secret="${CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET:-}"
+bearer_token="${CRAW_CHAT_SMOKE_BEARER_TOKEN:-}"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+LOCAL_CONFIG_FILE="${ROOT_DIR}/.runtime/local-minimal/config/local-minimal.env"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -21,6 +26,22 @@ while [[ $# -gt 0 ]]; do
         exit 1
       fi
       base_url="$2"
+      shift 2
+      ;;
+    --public-bearer-secret)
+      if [[ $# -lt 2 ]]; then
+        echo "--public-bearer-secret requires a value" >&2
+        exit 1
+      fi
+      public_bearer_secret="$2"
+      shift 2
+      ;;
+    --bearer-token)
+      if [[ $# -lt 2 ]]; then
+        echo "--bearer-token requires a value" >&2
+        exit 1
+      fi
+      bearer_token="$2"
       shift 2
       ;;
     -h|--help)
@@ -35,8 +56,87 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-AUTHORIZATION_HEADER="Authorization: Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X2RlbW8iLCJzaWQiOiJzX2RlbW8ifQ."
 CONTENT_TYPE_HEADER="Content-Type: application/json"
+
+read_config_value() {
+  local key="$1"
+
+  if [[ ! -f "$LOCAL_CONFIG_FILE" ]]; then
+    return 1
+  fi
+
+  grep -E "^${key}=" "$LOCAL_CONFIG_FILE" \
+    | tail -n 1 \
+    | cut -d= -f2- \
+    | tr -d '\r'
+}
+
+have_openssl() {
+  command -v openssl >/dev/null 2>&1
+}
+
+base64url_encode() {
+  openssl base64 -A | tr '+/' '-_' | tr -d '='
+}
+
+normalize_bearer_header() {
+  local value="$1"
+
+  if [[ "$value" == Bearer\ * || "$value" == bearer\ * ]]; then
+    printf '%s' "$value"
+    return
+  fi
+
+  printf 'Bearer %s' "$value"
+}
+
+resolve_public_bearer_secret() {
+  local resolved="$public_bearer_secret"
+
+  if [[ -z "$resolved" ]]; then
+    resolved="$(read_config_value "CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET" || true)"
+  fi
+
+  if [[ -z "$resolved" ]]; then
+    resolved="$DEFAULT_DOCKER_PUBLIC_BEARER_SECRET"
+  fi
+
+  printf '%s' "$resolved"
+}
+
+generate_hs256_bearer() {
+  local secret="$1"
+  local header_segment payload_segment signing_input signature_segment
+
+  if ! have_openssl; then
+    echo "openssl is required to generate HS256 smoke bearer tokens. Install openssl or pass --bearer-token." >&2
+    exit 1
+  fi
+
+  header_segment="$(printf '%s' '{"alg":"HS256","typ":"JWT"}' | base64url_encode)"
+  payload_segment="$(printf '%s' '{"tenant_id":"t_demo","sub":"u_demo","sid":"s_demo"}' | base64url_encode)"
+  signing_input="${header_segment}.${payload_segment}"
+  signature_segment="$(
+    printf '%s' "$signing_input" \
+      | openssl dgst -binary -sha256 -hmac "$secret" \
+      | base64url_encode
+  )"
+
+  printf 'Bearer %s.%s' "$signing_input" "$signature_segment"
+}
+
+resolve_authorization_header() {
+  if [[ -n "$bearer_token" ]]; then
+    normalize_bearer_header "$bearer_token"
+    return
+  fi
+
+  local resolved_secret
+  resolved_secret="$(resolve_public_bearer_secret)"
+  generate_hs256_bearer "$resolved_secret"
+}
+
+AUTHORIZATION_HEADER="Authorization: $(resolve_authorization_header)"
 
 have_curl() {
   command -v curl >/dev/null 2>&1

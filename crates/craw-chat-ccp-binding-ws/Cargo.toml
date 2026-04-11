@@ -1,0 +1,9 @@
+[package]
+name = "craw-chat-ccp-binding-ws"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+craw-chat-ccp-codec = { path = "../craw-chat-ccp-codec" }
+craw-chat-ccp-core = { path = "../craw-chat-ccp-core" }

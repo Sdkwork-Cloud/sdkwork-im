@@ -12,6 +12,8 @@ use axum::{
     Json, Router,
     routing::{get, post},
 };
+use craw_chat_contract_core::ContractError;
+use craw_chat_contract_stream::{StreamStateRecord, StreamStateStore};
 use im_auth_context::{
     AuthContext, AuthContextError, resolve_auth_context, resolve_public_bearer_auth_context,
 };
@@ -19,9 +21,12 @@ use im_domain_core::message::Sender;
 use im_domain_core::stream::{
     StreamDurabilityClass, StreamFrame, StreamSession, StreamSessionState,
 };
-use im_platform_contracts::{ContractError, StreamStateRecord, StreamStateStore};
+use im_platform_contracts::DeviceSubject;
 use im_time::utc_now_rfc3339_millis;
 use serde::{Deserialize, Serialize};
+
+const DEVICE_SCOPE_KIND: &str = "device";
+const DEVICE_TELEMETRY_STREAM_TYPE: &str = "device.telemetry";
 
 #[derive(Clone)]
 struct AppState {
@@ -326,14 +331,7 @@ impl StreamingRuntime {
             });
         }
 
-        let sender = Sender {
-            id: auth.actor_id.clone(),
-            kind: auth.actor_kind.clone(),
-            member_id: None,
-            device_id: auth.device_id.clone(),
-            session_id: auth.session_id.clone(),
-            metadata: BTreeMap::new(),
-        };
+        let sender = resolve_stream_frame_sender(auth, session);
 
         let mut frames = self.frames.lock().expect("stream runtime should lock");
         let stream_frames = frames.entry(scope_key).or_default();
@@ -808,13 +806,16 @@ fn stream_scope_key(tenant_id: &str, stream_id: &str) -> String {
 fn ensure_standalone_stream_open_allowed(
     request: &OpenStreamRequest,
 ) -> Result<(), StreamingError> {
-    if request.scope_kind != "conversation" {
+    if request.scope_kind != "conversation" && request.scope_kind != DEVICE_SCOPE_KIND {
         return Ok(());
     }
 
-    Err(conversation_gateway_required(
-        "conversation-bound streams must be opened through an authorizing IM gateway",
-    ))
+    let message = if request.scope_kind == DEVICE_SCOPE_KIND {
+        "device-bound streams must be opened through an authorizing IM gateway"
+    } else {
+        "conversation-bound streams must be opened through an authorizing IM gateway"
+    };
+    Err(conversation_gateway_required(message))
 }
 
 fn ensure_standalone_stream_session_allowed(
@@ -823,13 +824,16 @@ fn ensure_standalone_stream_session_allowed(
     stream_id: &str,
 ) -> Result<(), StreamingError> {
     let session = runtime.session(auth, stream_id)?;
-    if session.scope_kind != "conversation" {
+    if session.scope_kind != "conversation" && session.scope_kind != DEVICE_SCOPE_KIND {
         return Ok(());
     }
 
-    Err(conversation_gateway_required(
-        "conversation-bound streams must be accessed through an authorizing IM gateway",
-    ))
+    let message = if session.scope_kind == DEVICE_SCOPE_KIND {
+        "device-bound streams must be accessed through an authorizing IM gateway"
+    } else {
+        "conversation-bound streams must be accessed through an authorizing IM gateway"
+    };
+    Err(conversation_gateway_required(message))
 }
 
 fn conversation_gateway_required(message: &str) -> StreamingError {
@@ -851,4 +855,32 @@ fn stream_session_matches_open_request(
         && session.scope_id == request.scope_id.as_str()
         && session.durability_class == *durability_class
         && session.schema_ref.as_ref() == request.schema_ref.as_ref()
+}
+
+fn resolve_stream_frame_sender(auth: &AuthContext, session: &StreamSession) -> Sender {
+    if session.scope_kind == DEVICE_SCOPE_KIND
+        && session.stream_type == DEVICE_TELEMETRY_STREAM_TYPE
+        && auth.actor_kind == "device"
+    {
+        let device_id = auth
+            .device_id
+            .clone()
+            .unwrap_or_else(|| session.scope_id.clone());
+        return DeviceSubject {
+            device_id,
+            owner_principal_id: Some(auth.actor_id.clone()),
+            session_id: auth.session_id.clone(),
+            metadata: BTreeMap::new(),
+        }
+        .sender(None);
+    }
+
+    Sender {
+        id: auth.actor_id.clone(),
+        kind: auth.actor_kind.clone(),
+        member_id: None,
+        device_id: auth.device_id.clone(),
+        session_id: auth.session_id.clone(),
+        metadata: BTreeMap::new(),
+    }
 }

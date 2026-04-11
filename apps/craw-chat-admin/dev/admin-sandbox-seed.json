@@ -1,0 +1,617 @@
+{
+  "clockMs": 1762752000000,
+  "sandboxPassword": "ChangeMe123!",
+  "authSession": {
+    "token": "sandbox-admin-session",
+    "claims": {
+      "sub": "operator_admin_001",
+      "iss": "sdkwork-admin-sandbox",
+      "aud": "sdkwork-craw-chat-admin",
+      "exp": 1763356800,
+      "iat": 1762752000
+    },
+    "user": {
+      "id": "operator_admin_001",
+      "email": "admin@sdkwork.local",
+      "display_name": "Operations Lead",
+      "active": true,
+      "created_at_ms": 1762150800000
+    }
+  },
+  "operatorUsers": [
+    {
+      "id": "operator_admin_001",
+      "email": "admin@sdkwork.local",
+      "display_name": "Operations Lead",
+      "active": true,
+      "created_at_ms": 1762150800000
+    },
+    {
+      "id": "operator_mod_002",
+      "email": "moderation@sdkwork.local",
+      "display_name": "Moderation Captain",
+      "active": true,
+      "created_at_ms": 1762237200000
+    }
+  ],
+  "portalUsers": [
+    {
+      "id": "portal_user_001",
+      "email": "owner@northstar.local",
+      "display_name": "Northstar Owner",
+      "workspace_tenant_id": "tenant_northstar",
+      "workspace_project_id": "project_support_cn",
+      "active": true,
+      "created_at_ms": 1762323600000
+    },
+    {
+      "id": "portal_user_002",
+      "email": "creator@aurora.local",
+      "display_name": "Aurora Creator",
+      "workspace_tenant_id": "tenant_aurora",
+      "workspace_project_id": "project_creator_hub",
+      "active": true,
+      "created_at_ms": 1762410000000
+    }
+  ],
+  "marketingCampaigns": [
+    {
+      "marketing_campaign_id": "campaign_broadcast_001",
+      "display_name": "New feature broadcast",
+      "status": "active",
+      "start_at_ms": 1762665600000,
+      "end_at_ms": 1763270400000,
+      "created_at_ms": 1762582800000,
+      "updated_at_ms": 1762752000000
+    }
+  ],
+  "tenants": [
+    {
+      "id": "tenant_northstar",
+      "name": "Northstar Support Cloud"
+    },
+    {
+      "id": "tenant_aurora",
+      "name": "Aurora Creator Network"
+    }
+  ],
+  "projects": [
+    {
+      "tenant_id": "tenant_northstar",
+      "id": "project_support_cn",
+      "name": "Support CN"
+    },
+    {
+      "tenant_id": "tenant_northstar",
+      "id": "project_vip_care",
+      "name": "VIP Care"
+    },
+    {
+      "tenant_id": "tenant_aurora",
+      "id": "project_creator_hub",
+      "name": "Creator Hub"
+    }
+  ],
+  "apiKeys": [
+    {
+      "tenant_id": "tenant_northstar",
+      "project_id": "project_support_cn",
+      "environment": "production",
+      "hashed_key": "sandbox_hash_0001",
+      "api_key_group_id": "group_support_prod",
+      "label": "Primary support key",
+      "notes": "Rotated weekly by the operator sandbox",
+      "created_at_ms": 1762496400000,
+      "last_used_at_ms": 1762748400000,
+      "expires_at_ms": null,
+      "active": true
+    }
+  ],
+  "apiKeyGroups": [
+    {
+      "group_id": "group_support_prod",
+      "tenant_id": "tenant_northstar",
+      "project_id": "project_support_cn",
+      "environment": "production",
+      "name": "Support prod",
+      "slug": "support-prod",
+      "description": "Primary support plane traffic",
+      "color": "#0f766e",
+      "default_capability_scope": "im-support",
+      "default_routing_profile_id": "routing_support_primary",
+      "default_accounting_mode": "platform_credit",
+      "active": true,
+      "created_at_ms": 1762492800000,
+      "updated_at_ms": 1762752000000
+    }
+  ],
+  "routingProfiles": [
+    {
+      "profile_id": "routing_support_primary",
+      "tenant_id": "tenant_northstar",
+      "project_id": "project_support_cn",
+      "name": "Support primary",
+      "slug": "support-primary",
+      "description": "Primary routing for support queues",
+      "active": true,
+      "strategy": "priority",
+      "ordered_provider_ids": [
+        "provider_openai_primary",
+        "provider_azure_backup"
+      ],
+      "default_provider_id": "provider_openai_primary",
+      "max_cost": 0.08,
+      "max_latency_ms": 800,
+      "require_healthy": true,
+      "preferred_region": "ap-southeast-1",
+      "created_at_ms": 1762489200000,
+      "updated_at_ms": 1762752000000
+    }
+  ],
+  "compiledRoutingSnapshots": [
+    {
+      "snapshot_id": "snapshot_support_001",
+      "tenant_id": "tenant_northstar",
+      "project_id": "project_support_cn",
+      "api_key_group_id": "group_support_prod",
+      "capability": "chat.reply",
+      "route_key": "support-primary",
+      "matched_policy_id": null,
+      "project_routing_preferences_project_id": "project_support_cn",
+      "applied_routing_profile_id": "routing_support_primary",
+      "strategy": "priority",
+      "ordered_provider_ids": [
+        "provider_openai_primary",
+        "provider_azure_backup"
+      ],
+      "default_provider_id": "provider_openai_primary",
+      "max_cost": 0.08,
+      "max_latency_ms": 800,
+      "require_healthy": true,
+      "preferred_region": "ap-southeast-1",
+      "created_at_ms": 1762575600000,
+      "updated_at_ms": 1762752000000
+    }
+  ],
+  "rateLimitPolicies": [
+    {
+      "policy_id": "policy_support_primary",
+      "project_id": "project_support_cn",
+      "api_key_hash": "sandbox_hash_0001",
+      "route_key": "support-primary",
+      "model_name": "gpt-4o-mini",
+      "requests_per_window": 1200,
+      "window_seconds": 60,
+      "burst_requests": 240,
+      "limit_requests": 1200,
+      "enabled": true,
+      "notes": "Sandbox protection for support queues",
+      "created_at_ms": 1762582800000,
+      "updated_at_ms": 1762752000000
+    }
+  ],
+  "rateLimitWindows": [
+    {
+      "policy_id": "policy_support_primary",
+      "project_id": "project_support_cn",
+      "api_key_hash": "sandbox_hash_0001",
+      "route_key": "support-primary",
+      "model_name": "gpt-4o-mini",
+      "requests_per_window": 1200,
+      "window_seconds": 60,
+      "burst_requests": 240,
+      "limit_requests": 1200,
+      "request_count": 184,
+      "remaining_requests": 1016,
+      "window_start_ms": 1762751940000,
+      "window_end_ms": 1762752000000,
+      "updated_at_ms": 1762752000000,
+      "enabled": true,
+      "exceeded": false
+    }
+  ],
+  "channels": [
+    {
+      "id": "channel_text",
+      "name": "Text Channel"
+    },
+    {
+      "id": "channel_realtime",
+      "name": "Realtime Channel"
+    }
+  ],
+  "providers": [
+    {
+      "id": "provider_openai_primary",
+      "channel_id": "channel_text",
+      "extension_id": "runtime_openai",
+      "adapter_kind": "openai-compatible",
+      "protocol_kind": "openai",
+      "base_url": "https://sandbox.openai.sdkwork.local",
+      "display_name": "OpenAI Primary",
+      "channel_bindings": [
+        {
+          "channel_id": "channel_text",
+          "is_primary": true
+        }
+      ],
+      "integration": {
+        "mode": "standard_passthrough",
+        "default_plugin_family": "openai"
+      },
+      "execution": {
+        "binding_kind": "provider",
+        "runtime": "sandbox-runtime",
+        "runtime_key": "runtime_openai",
+        "passthrough_protocol": "openai",
+        "supports_provider_adapter": true,
+        "supports_raw_plugin": false,
+        "fail_closed": true,
+        "route_readiness": {
+          "openai": {
+            "executable": true,
+            "supported": true
+          },
+          "anthropic": {
+            "executable": false,
+            "supported": false
+          },
+          "gemini": {
+            "executable": false,
+            "supported": false
+          }
+        }
+      },
+      "credential_readiness": {
+        "ready": true,
+        "state": "ready"
+      }
+    },
+    {
+      "id": "provider_azure_backup",
+      "channel_id": "channel_text",
+      "extension_id": "runtime_azure",
+      "adapter_kind": "openai-compatible",
+      "protocol_kind": "openai",
+      "base_url": "https://sandbox.azure.sdkwork.local",
+      "display_name": "Azure Backup",
+      "channel_bindings": [
+        {
+          "channel_id": "channel_text",
+          "is_primary": false
+        }
+      ],
+      "integration": {
+        "mode": "custom_plugin",
+        "default_plugin_family": "azure-openai"
+      },
+      "execution": {
+        "binding_kind": "provider",
+        "runtime": "sandbox-runtime",
+        "runtime_key": "runtime_azure",
+        "passthrough_protocol": "openai",
+        "supports_provider_adapter": true,
+        "supports_raw_plugin": true,
+        "fail_closed": true,
+        "route_readiness": {
+          "openai": {
+            "executable": true,
+            "supported": true
+          },
+          "anthropic": {
+            "executable": false,
+            "supported": false
+          },
+          "gemini": {
+            "executable": false,
+            "supported": false
+          }
+        }
+      },
+      "credential_readiness": {
+        "ready": false,
+        "state": "missing"
+      }
+    }
+  ],
+  "credentials": [
+    {
+      "tenant_id": "tenant_northstar",
+      "provider_id": "provider_openai_primary",
+      "key_reference": "primary",
+      "secret_backend": "sandbox-inmemory",
+      "secret_local_file": null,
+      "secret_keyring_service": null,
+      "secret_master_key_id": null
+    }
+  ],
+  "models": [
+    {
+      "external_name": "gpt-4o-mini",
+      "provider_id": "provider_openai_primary",
+      "capabilities": [
+        "chat.reply",
+        "moderation.score"
+      ],
+      "streaming": true,
+      "context_window": 128000
+    },
+    {
+      "external_name": "gpt-4.1-mini",
+      "provider_id": "provider_azure_backup",
+      "capabilities": [
+        "chat.reply"
+      ],
+      "streaming": true,
+      "context_window": 128000
+    }
+  ],
+  "channelModels": [
+    {
+      "channel_id": "channel_text",
+      "model_id": "gpt-4o-mini",
+      "model_display_name": "GPT-4o Mini",
+      "capabilities": [
+        "chat.reply",
+        "moderation.score"
+      ],
+      "streaming": true,
+      "context_window": 128000,
+      "description": "Primary text moderation and reply model"
+    }
+  ],
+  "modelPrices": [
+    {
+      "channel_id": "channel_text",
+      "model_id": "gpt-4o-mini",
+      "proxy_provider_id": "provider_openai_primary",
+      "currency_code": "USD",
+      "price_unit": "1k_tokens",
+      "input_price": 0.00015,
+      "output_price": 0.0006,
+      "cache_read_price": 0.0,
+      "cache_write_price": 0.0,
+      "request_price": 0.0,
+      "is_active": true
+    }
+  ],
+  "usageRecords": [
+    {
+      "project_id": "project_support_cn",
+      "model": "gpt-4o-mini",
+      "provider": "provider_openai_primary",
+      "units": 1840,
+      "amount": 14.2,
+      "api_key_hash": "sandbox_hash_0001",
+      "channel_id": "channel_text",
+      "input_tokens": 182000,
+      "output_tokens": 91000,
+      "total_tokens": 273000,
+      "latency_ms": 420,
+      "reference_amount": 14.2,
+      "created_at_ms": 1762748400000
+    },
+    {
+      "project_id": "project_creator_hub",
+      "model": "gpt-4o-mini",
+      "provider": "provider_openai_primary",
+      "units": 980,
+      "amount": 8.1,
+      "api_key_hash": null,
+      "channel_id": "channel_text",
+      "input_tokens": 94000,
+      "output_tokens": 52000,
+      "total_tokens": 146000,
+      "latency_ms": 510,
+      "reference_amount": 8.1,
+      "created_at_ms": 1762749000000
+    }
+  ],
+  "usageSummary": {
+    "total_requests": 2820,
+    "project_count": 2,
+    "model_count": 1,
+    "provider_count": 1,
+    "projects": [
+      {
+        "project_id": "project_support_cn",
+        "request_count": 1840
+      },
+      {
+        "project_id": "project_creator_hub",
+        "request_count": 980
+      }
+    ],
+    "providers": [
+      {
+        "provider": "provider_openai_primary",
+        "request_count": 2820,
+        "project_count": 2
+      }
+    ],
+    "models": [
+      {
+        "model": "gpt-4o-mini",
+        "request_count": 2820,
+        "provider_count": 1
+      }
+    ]
+  },
+  "billingEvents": [
+    {
+      "event_id": "billing_event_001",
+      "tenant_id": "tenant_northstar",
+      "project_id": "project_support_cn",
+      "api_key_group_id": "group_support_prod",
+      "capability": "chat.reply",
+      "route_key": "support-primary",
+      "usage_model": "gpt-4o-mini",
+      "provider_id": "provider_openai_primary",
+      "accounting_mode": "platform_credit",
+      "operation_kind": "message.reply",
+      "modality": "text",
+      "api_key_hash": "sandbox_hash_0001",
+      "channel_id": "channel_text",
+      "reference_id": "conv_001",
+      "latency_ms": 420,
+      "units": 1840,
+      "request_count": 1840,
+      "input_tokens": 182000,
+      "output_tokens": 91000,
+      "total_tokens": 273000,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "image_count": 0,
+      "audio_seconds": 0,
+      "video_seconds": 0,
+      "music_seconds": 0,
+      "upstream_cost": 12.4,
+      "customer_charge": 14.2,
+      "applied_routing_profile_id": "routing_support_primary",
+      "compiled_routing_snapshot_id": "snapshot_support_001",
+      "fallback_reason": null,
+      "created_at_ms": 1762748400000
+    }
+  ],
+  "billingEventSummary": {
+    "total_events": 1,
+    "project_count": 1,
+    "group_count": 1,
+    "capability_count": 1,
+    "total_request_count": 1840,
+    "total_units": 1840,
+    "total_input_tokens": 182000,
+    "total_output_tokens": 91000,
+    "total_tokens": 273000,
+    "total_image_count": 0,
+    "total_audio_seconds": 0,
+    "total_video_seconds": 0,
+    "total_music_seconds": 0,
+    "total_upstream_cost": 12.4,
+    "total_customer_charge": 14.2,
+    "projects": [
+      {
+        "project_id": "project_support_cn",
+        "event_count": 1,
+        "request_count": 1840,
+        "total_units": 1840,
+        "total_input_tokens": 182000,
+        "total_output_tokens": 91000,
+        "total_tokens": 273000,
+        "total_image_count": 0,
+        "total_audio_seconds": 0,
+        "total_video_seconds": 0,
+        "total_music_seconds": 0,
+        "total_upstream_cost": 12.4,
+        "total_customer_charge": 14.2
+      }
+    ],
+    "groups": [
+      {
+        "api_key_group_id": "group_support_prod",
+        "project_count": 1,
+        "event_count": 1,
+        "request_count": 1840,
+        "total_upstream_cost": 12.4,
+        "total_customer_charge": 14.2
+      }
+    ],
+    "capabilities": [
+      {
+        "capability": "chat.reply",
+        "event_count": 1,
+        "request_count": 1840,
+        "total_tokens": 273000,
+        "image_count": 0,
+        "audio_seconds": 0,
+        "video_seconds": 0,
+        "music_seconds": 0,
+        "total_upstream_cost": 12.4,
+        "total_customer_charge": 14.2
+      }
+    ],
+    "accounting_modes": [
+      {
+        "accounting_mode": "platform_credit",
+        "event_count": 1,
+        "request_count": 1840,
+        "total_upstream_cost": 12.4,
+        "total_customer_charge": 14.2
+      }
+    ]
+  },
+  "billingSummary": {
+    "total_entries": 1,
+    "project_count": 1,
+    "total_units": 1840,
+    "total_amount": 14.2,
+    "active_quota_policy_count": 1,
+    "exhausted_project_count": 0,
+    "projects": [
+      {
+        "project_id": "project_support_cn",
+        "entry_count": 1,
+        "used_units": 1840,
+        "booked_amount": 14.2,
+        "quota_policy_id": "policy_support_primary",
+        "quota_limit_units": 4000,
+        "remaining_units": 2160,
+        "exhausted": false
+      }
+    ]
+  },
+  "routingLogs": [
+    {
+      "decision_id": "decision_001",
+      "decision_source": "sandbox-router",
+      "capability": "chat.reply",
+      "route_key": "support-primary",
+      "selected_provider_id": "provider_openai_primary",
+      "strategy": "priority",
+      "selection_reason": "Primary provider healthy and under cost ceiling",
+      "compiled_routing_snapshot_id": "snapshot_support_001",
+      "fallback_reason": null,
+      "requested_region": "ap-southeast-1",
+      "selection_seed": 101,
+      "slo_applied": true,
+      "slo_degraded": false,
+      "created_at_ms": 1762748400000
+    }
+  ],
+  "providerHealth": [
+    {
+      "provider_id": "provider_openai_primary",
+      "status": "healthy",
+      "healthy": true,
+      "message": "Primary transport healthy.",
+      "observed_at_ms": 1762752000000
+    },
+    {
+      "provider_id": "provider_azure_backup",
+      "status": "degraded",
+      "healthy": false,
+      "message": "Backup pool is available but carrying elevated latency.",
+      "observed_at_ms": 1762752000000
+    }
+  ],
+  "runtimeStatuses": [
+    {
+      "runtime": "sandbox-runtime",
+      "extension_id": "runtime_openai",
+      "instance_id": "openai-primary-1",
+      "display_name": "OpenAI Primary Runtime",
+      "running": true,
+      "healthy": true,
+      "message": "Serving primary support traffic."
+    },
+    {
+      "runtime": "sandbox-runtime",
+      "extension_id": "runtime_azure",
+      "instance_id": "azure-backup-1",
+      "display_name": "Azure Backup Runtime",
+      "running": true,
+      "healthy": false,
+      "message": "Operating in degraded latency mode."
+    }
+  ]
+}

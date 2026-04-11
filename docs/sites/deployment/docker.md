@@ -1,0 +1,77 @@
+# Docker
+
+Docker deployment is the recommended path for local container validation and demo-style bring-up.
+
+## Compose Profiles
+
+| Profile | Compose file | Current status |
+| --- | --- | --- |
+| `local-minimal` | `deployments/docker-compose/local-minimal.yml` | Fully defined |
+| `local-default` | `deployments/docker-compose/local-default.yml` | Compatibility layer that extends `local-minimal.yml` |
+
+## `local-minimal` Compose Facts
+
+The checked-in Compose profile currently sets:
+
+- container name: `craw-chat-local-minimal`
+- `CRAW_CHAT_BIND_ADDR=0.0.0.0:18090`
+- `CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET=local-minimal-public-dev-secret`
+- port mapping: `18090:18090`
+- healthcheck: `curl -fsS http://127.0.0.1:18090/healthz`
+
+## Recommended Commands
+
+### PowerShell wrapper
+
+```powershell
+./bin/deploy-local.ps1 -ProfileName local-minimal
+./bin/deploy-local.ps1 -ProfileName local-default -SmokeBaseUrl http://127.0.0.1:28090
+./bin/deploy-local.ps1 -Help
+```
+
+### Direct bootstrap
+
+```powershell
+powershell -ExecutionPolicy Bypass -File deployments\scripts\bootstrap-local.ps1 -ProfileName local-minimal
+```
+
+### Direct Compose
+
+```bash
+docker compose -f deployments/docker-compose/local-minimal.yml up -d --build
+```
+
+## What The Bootstrap Script Does
+
+`deployments/scripts/bootstrap-local.ps1`:
+
+1. verifies the Docker CLI
+2. verifies the Docker daemon
+3. verifies the Docker Compose plugin
+4. runs `docker compose -f <profile>.yml up -d --build`
+5. runs smoke verification unless `-SkipSmoke` is passed
+6. collects `docker compose ps` and `docker compose logs --tail 200` on failure
+
+## Smoke Behavior
+
+By default the Docker bootstrap calls `tools/smoke/local_stack_smoke.ps1`, which:
+
+- waits for `/healthz`
+- generates a signed local bearer token
+- creates a conversation
+- posts a message
+- verifies the conversation summary path
+
+## Current Boundary
+
+`local-default.yml` currently contains only an `extends` relationship:
+
+```yaml
+services:
+  local-minimal-node:
+    extends:
+      file: local-minimal.yml
+      service: local-minimal-node
+```
+
+So it is a profile compatibility layer, not a separate image, port layout, or service graph.

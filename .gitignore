@@ -5,6 +5,7 @@
 # Runtime data
 /.runtime/
 /tmp/
+/.worktrees/
 
 # Local helper output
 /$jsonFile
@@ -18,3 +19,12 @@
 Thumbs.db
 .idea/
 .vscode/
+
+# Frontend dependency caches and build output
+**/node_modules/
+**/.pnpm-store/
+apps/craw-chat-admin/node_modules.__stale__donor/
+apps/craw-chat-admin/dist/
+apps/craw-chat-admin/dist-portal/
+apps/craw-chat-admin/src-tauri/target/
+apps/craw-chat-admin/src-tauri/target-local/

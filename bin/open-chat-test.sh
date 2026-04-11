@@ -10,11 +10,14 @@ owner_label="owner"
 guest_label="guest"
 release_flag=""
 skip_start="false"
+scripted_validation="false"
+validation_message=""
+json_output="false"
 
 usage() {
   cat <<'EOF'
-Usage: bin/open-chat-test.sh [--conversation-id <id>] [--base-url <url>] [--tenant-id <id>] [--owner-user-id <id>] [--guest-user-id <id>] [--owner-label <label>] [--guest-label <label>] [--release] [--skip-start]
-Create a local test conversation and open two terminal windows for manual chat validation.
+Usage: bin/open-chat-test.sh [--conversation-id <id>] [--base-url <url>] [--tenant-id <id>] [--owner-user-id <id>] [--guest-user-id <id>] [--owner-label <label>] [--guest-label <label>] [--release] [--skip-start] [--scripted-validation] [--validation-message <text>] [--json]
+Create a local test conversation and either open two terminal windows or run scripted watch/timeline validation.
 EOF
 }
 
@@ -47,6 +50,18 @@ while [[ $# -gt 0 ]]; do
     --guest-label)
       guest_label="$2"
       shift 2
+      ;;
+    --scripted-validation)
+      scripted_validation="true"
+      shift
+      ;;
+    --validation-message)
+      validation_message="$2"
+      shift 2
+      ;;
+    --json)
+      json_output="true"
+      shift
       ;;
     --release|-Release)
       release_flag="--release"
@@ -146,6 +161,147 @@ open_terminal() {
   return 1
 }
 
+json_escape() {
+  local value="${1//\\/\\\\}"
+  value="${value//\"/\\\"}"
+  value="${value//$'\n'/\\n}"
+  value="${value//$'\r'/\\r}"
+  printf '%s' "$value"
+}
+
+print_json_string_array() {
+  local first="true"
+  printf '['
+  for value in "$@"; do
+    if [[ "$first" == "true" ]]; then
+      first="false"
+    else
+      printf ', '
+    fi
+    printf '"%s"' "$(json_escape "$value")"
+  done
+  printf ']'
+}
+
+run_scripted_validation() {
+  local resolved_validation_message="$validation_message"
+  if [[ -z "$resolved_validation_message" ]]; then
+    resolved_validation_message="step12 scripted validation $conversation_id"
+  fi
+
+  local watch_stdout
+  local watch_stderr
+  watch_stdout="$(mktemp)"
+  watch_stderr="$(mktemp)"
+
+  local watch_args=()
+  if [[ -n "$release_flag" ]]; then
+    watch_args+=("$release_flag")
+  fi
+  watch_args+=(
+    --base-url "$base_url"
+    --tenant-id "$tenant_id"
+    --user-id "$guest_user_id"
+    --session-id "$guest_session_id"
+    --device-id "$guest_device_id"
+    watch
+    --conversation-id "$conversation_id"
+    --event-type message.posted
+    --exit-after-events 1
+    --idle-timeout-seconds 5
+  )
+
+  "$script_dir/chat-cli.sh" "${watch_args[@]}" >"$watch_stdout" 2>"$watch_stderr" &
+  local watch_pid=$!
+  sleep 1
+
+  invoke_chat_cli \
+    --base-url "$base_url" \
+    --tenant-id "$tenant_id" \
+    --user-id "$owner_user_id" \
+    --session-id "$owner_session_id" \
+    --device-id "$owner_device_id" \
+    send-message \
+    --conversation-id "$conversation_id" \
+    --summary "$resolved_validation_message" \
+    --text "$resolved_validation_message" \
+    --client-msg-id "open_chat_test_scripted_$(date +%Y%m%d%H%M%S)"
+  >/dev/null
+
+  local watch_exit=0
+  if ! wait "$watch_pid"; then
+    watch_exit=$?
+  fi
+
+  if [[ $watch_exit -ne 0 ]]; then
+    echo "scripted validation watch failed" >&2
+    cat "$watch_stderr" >&2 || true
+    cat "$watch_stdout" >&2 || true
+    rm -f "$watch_stdout" "$watch_stderr"
+    exit "$watch_exit"
+  fi
+
+  local watch_frame_types=()
+  while IFS= read -r frame_type; do
+    [[ -n "$frame_type" ]] || continue
+    watch_frame_types+=("$frame_type")
+  done < <(sed -nE 's/.*"type"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' "$watch_stdout")
+
+  if [[ ${#watch_frame_types[@]} -eq 0 ]]; then
+    echo "scripted validation watch did not produce any frames" >&2
+    cat "$watch_stderr" >&2 || true
+    cat "$watch_stdout" >&2 || true
+    rm -f "$watch_stdout" "$watch_stderr"
+    exit 1
+  fi
+
+  local timeline_json
+  timeline_json="$(
+    invoke_chat_cli \
+      --base-url "$base_url" \
+      --tenant-id "$tenant_id" \
+      --user-id "$guest_user_id" \
+      --session-id "$guest_session_id" \
+      --device-id "$guest_device_id" \
+      timeline \
+      --conversation-id "$conversation_id"
+  )"
+
+  local watch_delivered="false"
+  if grep -q "$resolved_validation_message" "$watch_stdout"; then
+    watch_delivered="true"
+  fi
+
+  local timeline_contains="false"
+  if printf '%s' "$timeline_json" | grep -q "$resolved_validation_message"; then
+    timeline_contains="true"
+  fi
+
+  if [[ "$json_output" == "true" ]]; then
+    printf '{\n'
+    printf '  "mode": "scripted",\n'
+    printf '  "conversationId": "%s",\n' "$(json_escape "$conversation_id")"
+    printf '  "ownerUserId": "%s",\n' "$(json_escape "$owner_user_id")"
+    printf '  "guestUserId": "%s",\n' "$(json_escape "$guest_user_id")"
+    printf '  "validationMessage": "%s",\n' "$(json_escape "$resolved_validation_message")"
+    printf '  "watchFrameTypes": '
+    print_json_string_array "${watch_frame_types[@]}"
+    printf ',\n'
+    printf '  "watchDelivered": %s,\n' "$watch_delivered"
+    printf '  "timelineContainsValidationMessage": %s\n' "$timeline_contains"
+    printf '}\n'
+  else
+    echo "Scripted validation completed."
+    echo "conversationId: $conversation_id"
+    echo "validationMessage: $resolved_validation_message"
+    echo "watchFrameTypes: ${watch_frame_types[*]}"
+    echo "watchDelivered: $watch_delivered"
+    echo "timelineContainsValidationMessage: $timeline_contains"
+  fi
+
+  rm -f "$watch_stdout" "$watch_stderr"
+}
+
 if [[ -z "$conversation_id" ]]; then
   conversation_id="c_demo_$(date +%Y%m%d%H%M%S)"
 fi
@@ -179,7 +335,8 @@ invoke_chat_cli \
   --device-id "$owner_device_id" \
   create-conversation \
   --conversation-id "$conversation_id" \
-  --conversation-type group
+  --conversation-type group \
+  >/dev/null
 
 invoke_chat_cli \
   --base-url "$base_url" \
@@ -192,6 +349,12 @@ invoke_chat_cli \
   --principal-id "$guest_user_id" \
   --principal-kind user \
   --role member
+ >/dev/null
+
+if [[ "$scripted_validation" == "true" ]]; then
+  run_scripted_validation
+  exit 0
+fi
 
 owner_command="$(printf '%q ' "$script_dir/chat-window.sh" ${release_flag:+$release_flag} --base-url "$base_url" --tenant-id "$tenant_id" --conversation-id "$conversation_id" --user-id "$owner_user_id" --session-id "$owner_session_id" --device-id "$owner_device_id" --label "$owner_label" --message-prefix "[$owner_label] ")"
 guest_command="$(printf '%q ' "$script_dir/chat-window.sh" ${release_flag:+$release_flag} --base-url "$base_url" --tenant-id "$tenant_id" --conversation-id "$conversation_id" --user-id "$guest_user_id" --session-id "$guest_session_id" --device-id "$guest_device_id" --label "$guest_label" --message-prefix "[$guest_label] ")"

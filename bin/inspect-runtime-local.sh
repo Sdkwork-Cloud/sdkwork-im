@@ -3,18 +3,28 @@ set -euo pipefail
 
 show_help() {
   cat <<'EOF'
-Usage: bash bin/inspect-runtime-local.sh [--runtime-dir <path>] [--json] [--release]
+Usage: bash bin/inspect-runtime-local.sh [--profile <local-minimal|local-default>] [--runtime-dir <path>] [--json] [--release]
 
-Inspect managed local-minimal runtime-dir state files through the local-minimal-node inspection entrypoint.
+Inspect managed local runtime-dir state files for the selected local-minimal/local-default profile through the local-minimal-node inspection entrypoint.
 EOF
 }
 
+# Resolves CRAW_CHAT_RUNTIME_DIR from the selected profile config before preferring target/debug/local-minimal-node or target/release/local-minimal-node.
+profile_name="local-minimal"
 runtime_dir=""
 json_output=0
 prefer_release=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --profile)
+      if [[ $# -lt 2 ]]; then
+        echo "--profile requires a value" >&2
+        exit 1
+      fi
+      profile_name="$2"
+      shift 2
+      ;;
     --runtime-dir)
       if [[ $# -lt 2 ]]; then
         echo "--runtime-dir requires a value" >&2
@@ -44,53 +54,18 @@ while [[ $# -gt 0 ]]; do
 done
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CONFIG_FILE="${ROOT_DIR}/.runtime/local-minimal/config/local-minimal.env"
-
-read_config_value() {
-  local key="$1"
-  [[ -f "$CONFIG_FILE" ]] || return 1
-
-  while IFS='=' read -r current_key current_value; do
-    current_key="${current_key%$'\r'}"
-    current_value="${current_value%$'\r'}"
-    [[ -z "$current_key" || "$current_key" == \#* ]] && continue
-    if [[ "$current_key" == "$key" ]]; then
-      printf '%s\n' "$current_value"
-      return 0
-    fi
-  done <"$CONFIG_FILE"
-
-  return 1
-}
-
-resolve_binary_path() {
-  local release_path="${ROOT_DIR}/target/release/local-minimal-node"
-  local debug_path="${ROOT_DIR}/target/debug/local-minimal-node"
-
-  if [[ "$prefer_release" -eq 1 ]]; then
-    for candidate in "$release_path" "$debug_path"; do
-      if [[ -x "$candidate" ]]; then
-        printf '%s\n' "$candidate"
-        return 0
-      fi
-    done
-  else
-    for candidate in "$debug_path" "$release_path"; do
-      if [[ -x "$candidate" ]]; then
-        printf '%s\n' "$candidate"
-        return 0
-      fi
-    done
-  fi
-
-  return 1
-}
-
-if [[ -z "$runtime_dir" ]]; then
-  runtime_dir="$(read_config_value "CRAW_CHAT_RUNTIME_DIR" || true)"
+RUNTIME_PROFILE_HELPER="${ROOT_DIR}/bin/_runtime-profile-common.sh"
+if [[ ! -f "$RUNTIME_PROFILE_HELPER" ]]; then
+  echo "Missing runtime profile helper: ${RUNTIME_PROFILE_HELPER}" >&2
+  exit 1
 fi
+# shellcheck source=bin/_runtime-profile-common.sh
+source "$RUNTIME_PROFILE_HELPER"
+
+validate_runtime_profile_name "$profile_name"
+
 if [[ -z "$runtime_dir" ]]; then
-  runtime_dir="${ROOT_DIR}/.runtime/local-minimal"
+  runtime_dir="$(resolve_runtime_dir_from_profile "$ROOT_DIR" "$profile_name")"
 fi
 
 inspect_args=(inspect-runtime-dir --runtime-dir "$runtime_dir")
@@ -98,7 +73,7 @@ if [[ "$json_output" -eq 1 ]]; then
   inspect_args+=(--json)
 fi
 
-if binary_path="$(resolve_binary_path)"; then
+if binary_path="$(resolve_binary_path "$ROOT_DIR" "$prefer_release")"; then
   exec "$binary_path" "${inspect_args[@]}"
 fi
 

@@ -1,0 +1,167 @@
+use std::fs;
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use axum::body::Body;
+use axum::http::{Request, StatusCode};
+use http_body_util::BodyExt;
+use im_platform_contracts::{
+    ContractError, DeviceAccessOwnerBindingRequest, DeviceAccessProvider, DeviceAccessRegistration,
+    DeviceAccessRegistrationRequest, ProviderDomain, ProviderHealthSnapshot,
+    ProviderPluginDescriptor,
+};
+use tower::ServiceExt;
+
+static UNIQUE_RUNTIME_DIR_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+fn unique_runtime_dir() -> PathBuf {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("system time should be after epoch")
+        .as_nanos();
+    let counter = UNIQUE_RUNTIME_DIR_COUNTER.fetch_add(1, Ordering::Relaxed);
+    std::env::temp_dir().join(format!(
+        "craw_chat_device_access_provider_runtime_{unique}_{counter}"
+    ))
+}
+
+#[derive(Debug, Default)]
+struct RecordingDeviceAccessProviderState {
+    register_requests: Vec<DeviceAccessRegistrationRequest>,
+    bind_owner_requests: Vec<DeviceAccessOwnerBindingRequest>,
+}
+
+#[derive(Clone, Default)]
+struct RecordingDeviceAccessProvider {
+    state: Arc<Mutex<RecordingDeviceAccessProviderState>>,
+}
+
+impl RecordingDeviceAccessProvider {
+    fn recorded_state(&self) -> RecordingDeviceAccessProviderState {
+        let guard = self
+            .state
+            .lock()
+            .expect("device access provider state should lock");
+        RecordingDeviceAccessProviderState {
+            register_requests: guard.register_requests.clone(),
+            bind_owner_requests: guard.bind_owner_requests.clone(),
+        }
+    }
+}
+
+impl DeviceAccessProvider for RecordingDeviceAccessProvider {
+    fn descriptor(&self) -> ProviderPluginDescriptor {
+        ProviderPluginDescriptor::new(
+            "iot-access-recording",
+            ProviderDomain::IotAccess,
+            "recording",
+            "Recording Device Access",
+        )
+        .with_required_capabilities(["registry", "binding"])
+    }
+
+    fn register_device(
+        &self,
+        request: DeviceAccessRegistrationRequest,
+    ) -> Result<DeviceAccessRegistration, ContractError> {
+        self.state
+            .lock()
+            .expect("device access provider state should lock")
+            .register_requests
+            .push(request.clone());
+        Ok(DeviceAccessRegistration {
+            tenant_id: request.tenant_id,
+            device_id: request.device_id,
+            product_id: request.product_id,
+            owner_principal_id: request.owner_principal_id,
+            credential_secret: Some("recording-secret".into()),
+            assigned_protocols: vec!["mqtt".into(), "xiaozhi".into()],
+        })
+    }
+
+    fn bind_owner(&self, request: DeviceAccessOwnerBindingRequest) -> Result<bool, ContractError> {
+        self.state
+            .lock()
+            .expect("device access provider state should lock")
+            .bind_owner_requests
+            .push(request);
+        Ok(true)
+    }
+
+    fn disable_device(&self, _tenant_id: &str, _device_id: &str) -> Result<bool, ContractError> {
+        Ok(true)
+    }
+
+    fn provider_health_snapshot(&self) -> ProviderHealthSnapshot {
+        ProviderHealthSnapshot::healthy("iot-access-recording", "2026-04-08T00:00:00Z")
+    }
+}
+
+#[tokio::test]
+async fn test_device_register_route_calls_injected_device_access_provider() {
+    let runtime_dir = unique_runtime_dir();
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+    let provider = RecordingDeviceAccessProvider::default();
+    let app = local_minimal_node::build_default_app_with_runtime_dir_and_device_access_provider(
+        runtime_dir.as_path(),
+        Arc::new(provider.clone()),
+    );
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/devices/register")
+                .header("x-tenant-id", "t_device_provider")
+                .header("x-user-id", "u_device_provider")
+                .header("x-device-id", "d_device_provider")
+                .header("x-session-id", "s_device_provider")
+                .header("content-type", "application/json")
+                .body(Body::from("{}"))
+                .unwrap(),
+        )
+        .await
+        .expect("device register request should succeed");
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("device register body should collect")
+        .to_bytes();
+    let json: serde_json::Value =
+        serde_json::from_slice(&body).expect("device register response should be valid json");
+    assert_eq!(json["tenantId"], "t_device_provider");
+    assert_eq!(json["principalId"], "u_device_provider");
+    assert_eq!(json["deviceId"], "d_device_provider");
+
+    let recorded = provider.recorded_state();
+    assert_eq!(recorded.register_requests.len(), 1);
+    assert_eq!(
+        recorded.register_requests[0],
+        DeviceAccessRegistrationRequest {
+            tenant_id: "t_device_provider".into(),
+            device_id: "d_device_provider".into(),
+            product_id: "local-minimal-device".into(),
+            credential_kind: "session".into(),
+            owner_principal_id: Some("u_device_provider".into()),
+        }
+    );
+    assert_eq!(recorded.bind_owner_requests.len(), 1);
+    assert_eq!(
+        recorded.bind_owner_requests[0],
+        DeviceAccessOwnerBindingRequest {
+            tenant_id: "t_device_provider".into(),
+            device_id: "d_device_provider".into(),
+            owner_principal_id: "u_device_provider".into(),
+            session_id: Some("s_device_provider".into()),
+        }
+    );
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}

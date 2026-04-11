@@ -1,0 +1,5 @@
+[package]
+name = "craw-chat-ccp-codec"
+edition.workspace = true
+license.workspace = true
+version.workspace = true

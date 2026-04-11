@@ -42,6 +42,27 @@ fn test_resolve_trusted_headers_supports_device_id() {
 }
 
 #[test]
+fn test_auth_context_projects_ccp_authority_fields() {
+    let mut headers = HeaderMap::new();
+    headers.insert("x-tenant-id", HeaderValue::from_static("t_demo"));
+    headers.insert("x-user-id", HeaderValue::from_static("u_demo"));
+    headers.insert("x-session-id", HeaderValue::from_static("s_demo"));
+    headers.insert("x-device-id", HeaderValue::from_static("d_demo"));
+    headers.insert("x-actor-kind", HeaderValue::from_static("user"));
+
+    let auth = resolve_auth_context(&headers).expect("trusted headers should resolve");
+    let authority = auth.ccp_authority();
+
+    assert_eq!(authority.tenant_id, "t_demo");
+    assert_eq!(authority.actor.actor_id, "u_demo");
+    assert_eq!(authority.actor.actor_kind, "user");
+    assert_eq!(authority.sender.principal_id, "u_demo");
+    assert_eq!(authority.sender.device_id.as_deref(), Some("d_demo"));
+    assert_eq!(authority.sender.session_id.as_deref(), Some("s_demo"));
+    assert_eq!(authority.sender.sender_id(), "u_demo:d_demo");
+}
+
+#[test]
 fn test_resolve_bearer_token_supports_device_claim() {
     let mut headers = HeaderMap::new();
     headers.insert(

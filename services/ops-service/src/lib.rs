@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
 use axum::extract::State;
@@ -27,6 +28,7 @@ pub struct ServiceHealthView {
 #[serde(rename_all = "camelCase")]
 pub struct OpsHealthResponse {
     pub items: Vec<ServiceHealthView>,
+    pub projection_plane: ProjectionPlaneHealthView,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -62,6 +64,16 @@ pub struct LagItem {
 #[serde(rename_all = "camelCase")]
 pub struct LagView {
     pub items: Vec<LagItem>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectionReplayStatusView {
+    pub generated_at: String,
+    pub status: String,
+    pub replay: ProjectionReplayMetricsView,
+    pub replay_throughput_per_second: u64,
+    pub lag: Vec<LagItem>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -104,6 +116,134 @@ impl RuntimeDirInspectionView {
     }
 }
 
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectionPlaneMetricCounterView {
+    pub attempt_count: u64,
+    pub success_count: u64,
+    pub failure_count: u64,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectionPlaneMetricsView {
+    pub conversation_snapshot_persist: ProjectionPlaneMetricCounterView,
+    pub conversation_snapshot_restore: ProjectionPlaneMetricCounterView,
+    pub device_sync_snapshot_persist: ProjectionPlaneMetricCounterView,
+    pub device_sync_snapshot_restore: ProjectionPlaneMetricCounterView,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectionReplayMetricsView {
+    pub backlog_size: u64,
+    pub replayed_event_count: u64,
+    pub duration_ms: u64,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectionUpdateDelayView {
+    pub timeline_ms: u64,
+    pub inbox_ms: u64,
+    pub source_event_type: Option<String>,
+    pub scope_id: Option<String>,
+    pub recorded_at: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectionPlaneTraceView {
+    pub trace_id: String,
+    pub operation: String,
+    pub scope_type: String,
+    pub scope_id: String,
+    pub outcome: String,
+    pub recorded_at: String,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectionPlaneLogView {
+    pub level: String,
+    pub code: String,
+    pub operation: String,
+    pub scope_type: String,
+    pub scope_id: String,
+    pub message: String,
+    pub recorded_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectionPlaneHealthView {
+    pub status: String,
+    pub metrics: ProjectionPlaneMetricsView,
+    pub replay: ProjectionReplayMetricsView,
+    pub rebuild_duration_ms: u64,
+    pub update_delay: ProjectionUpdateDelayView,
+    pub last_failure_code: Option<String>,
+    pub last_failure_message: Option<String>,
+}
+
+impl Default for ProjectionPlaneHealthView {
+    fn default() -> Self {
+        Self {
+            status: "idle".into(),
+            metrics: ProjectionPlaneMetricsView::default(),
+            replay: ProjectionReplayMetricsView::default(),
+            rebuild_duration_ms: 0,
+            update_delay: ProjectionUpdateDelayView::default(),
+            last_failure_code: None,
+            last_failure_message: None,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectionPlaneDiagnosticsView {
+    pub status: String,
+    pub metrics: ProjectionPlaneMetricsView,
+    pub replay: ProjectionReplayMetricsView,
+    pub rebuild_duration_ms: u64,
+    pub update_delay: ProjectionUpdateDelayView,
+    pub last_failure_code: Option<String>,
+    pub last_failure_message: Option<String>,
+    pub traces: Vec<ProjectionPlaneTraceView>,
+    pub logs: Vec<ProjectionPlaneLogView>,
+}
+
+impl Default for ProjectionPlaneDiagnosticsView {
+    fn default() -> Self {
+        Self {
+            status: "idle".into(),
+            metrics: ProjectionPlaneMetricsView::default(),
+            replay: ProjectionReplayMetricsView::default(),
+            rebuild_duration_ms: 0,
+            update_delay: ProjectionUpdateDelayView::default(),
+            last_failure_code: None,
+            last_failure_message: None,
+            traces: Vec::new(),
+            logs: Vec::new(),
+        }
+    }
+}
+
+impl From<ProjectionPlaneDiagnosticsView> for ProjectionPlaneHealthView {
+    fn from(value: ProjectionPlaneDiagnosticsView) -> Self {
+        Self {
+            status: value.status,
+            metrics: value.metrics,
+            replay: value.replay,
+            rebuild_duration_ms: value.rebuild_duration_ms,
+            update_delay: value.update_delay,
+            last_failure_code: value.last_failure_code,
+            last_failure_message: value.last_failure_message,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiagnosticBundle {
@@ -117,6 +257,9 @@ pub struct DiagnosticBundle {
     pub services: Vec<ServiceHealthView>,
     pub lag: Vec<LagItem>,
     pub device_routes: Vec<RouteOwnershipView>,
+    pub provider_bindings: Vec<ProviderBindingSnapshotView>,
+    pub provider_binding_drift: ProviderBindingDriftView,
+    pub projection_plane: ProjectionPlaneDiagnosticsView,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -128,6 +271,59 @@ pub struct RouteOwnershipView {
     pub owner_node_id: String,
     pub connection_kind: String,
     pub bound_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderBindingItemView {
+    pub domain: String,
+    pub default_plugin_id: Option<String>,
+    pub selected_plugin_id: Option<String>,
+    pub selection_source: String,
+    pub tenant_override_allowed: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderBindingSnapshotView {
+    pub interface_version: String,
+    pub tenant_id: Option<String>,
+    pub effective_bindings: Vec<ProviderBindingItemView>,
+    pub precedence: Vec<String>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderBindingsView {
+    pub items: Vec<ProviderBindingSnapshotView>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderBindingDriftItemView {
+    pub tenant_id: String,
+    pub domain: String,
+    pub baseline_selected_plugin_id: Option<String>,
+    pub selected_plugin_id: Option<String>,
+    pub baseline_selection_source: String,
+    pub selection_source: String,
+    pub drift_kind: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderBindingDriftView {
+    pub baseline_tenant_id: Option<String>,
+    pub items: Vec<ProviderBindingDriftItemView>,
+}
+
+impl Default for ProviderBindingDriftView {
+    fn default() -> Self {
+        Self {
+            baseline_tenant_id: None,
+            items: Vec::new(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -143,11 +339,13 @@ pub struct OpsRuntime {
     bind_addr: String,
     services: Vec<ServiceHealthView>,
     owned_scopes: Vec<String>,
-    lag_items: Vec<LagItem>,
+    lag_items: Mutex<Vec<LagItem>>,
     drain_status: Mutex<String>,
     rebalance_state: Mutex<String>,
     device_routes: Mutex<Vec<RouteOwnershipView>>,
+    provider_bindings: Mutex<BTreeMap<String, ProviderBindingSnapshotView>>,
     runtime_dir_inspection: Mutex<RuntimeDirInspectionView>,
+    projection_plane: Mutex<ProjectionPlaneDiagnosticsView>,
 }
 
 impl Default for OpsRuntime {
@@ -182,17 +380,13 @@ impl OpsRuntime {
                 })
                 .collect(),
             owned_scopes,
-            lag_items: vec![LagItem {
-                component: "commit_journal".into(),
-                scope_id: "local-minimal".into(),
-                current_offset: 0,
-                committed_offset: 0,
-                lag: 0,
-            }],
+            lag_items: Mutex::new(default_lag_items()),
             drain_status: Mutex::new("active".into()),
             rebalance_state: Mutex::new("stable".into()),
             device_routes: Mutex::new(Vec::new()),
+            provider_bindings: Mutex::new(BTreeMap::new()),
             runtime_dir_inspection: Mutex::new(RuntimeDirInspectionView::unmanaged()),
+            projection_plane: Mutex::new(ProjectionPlaneDiagnosticsView::default()),
         }
     }
 
@@ -227,9 +421,77 @@ impl OpsRuntime {
             .expect("ops runtime-dir inspection should lock") = inspection;
     }
 
+    pub fn update_provider_binding_snapshot(&self, snapshot: ProviderBindingSnapshotView) {
+        let key = snapshot.tenant_id.clone().unwrap_or_default();
+        self.provider_bindings
+            .lock()
+            .expect("ops provider bindings should lock")
+            .insert(key, snapshot);
+    }
+
+    pub fn replace_provider_binding_snapshots(&self, snapshots: Vec<ProviderBindingSnapshotView>) {
+        let mut provider_bindings = self
+            .provider_bindings
+            .lock()
+            .expect("ops provider bindings should lock");
+        provider_bindings.clear();
+        for snapshot in snapshots {
+            let key = snapshot.tenant_id.clone().unwrap_or_default();
+            provider_bindings.insert(key, snapshot);
+        }
+    }
+
+    pub fn update_projection_plane(&self, projection_plane: ProjectionPlaneDiagnosticsView) {
+        *self
+            .projection_plane
+            .lock()
+            .expect("ops projection-plane should lock") = projection_plane;
+    }
+
+    pub fn update_projection_replay_lag(&self, mut projection_lag_items: Vec<LagItem>) {
+        projection_lag_items.retain(|item| item.component == "projection_replay");
+        if projection_lag_items.is_empty() {
+            projection_lag_items.push(default_projection_replay_lag_item());
+        }
+        projection_lag_items.sort_by(|left, right| left.scope_id.cmp(&right.scope_id));
+
+        let mut lag_items = self.lag_items.lock().expect("ops lag items should lock");
+        let mut merged = lag_items
+            .iter()
+            .filter(|item| item.component != "projection_replay")
+            .cloned()
+            .collect::<Vec<_>>();
+        merged.extend(projection_lag_items);
+        *lag_items = merged;
+    }
+
+    pub fn update_projection_live_lag(&self, mut projection_lag_items: Vec<LagItem>) {
+        projection_lag_items.retain(|item| item.component == "projection_live");
+        projection_lag_items.sort_by(|left, right| left.scope_id.cmp(&right.scope_id));
+
+        let mut lag_items = self.lag_items.lock().expect("ops lag items should lock");
+        let mut merged = lag_items
+            .iter()
+            .filter(|item| item.component != "projection_live")
+            .cloned()
+            .collect::<Vec<_>>();
+        merged.extend(projection_lag_items);
+        *lag_items = merged;
+    }
+
+    pub fn node_id(&self) -> &str {
+        self.node_id.as_str()
+    }
+
     pub fn health_view(&self) -> OpsHealthResponse {
+        let projection_plane = self
+            .projection_plane
+            .lock()
+            .expect("ops projection-plane should lock")
+            .clone();
         OpsHealthResponse {
             items: self.services.clone(),
+            projection_plane: projection_plane.into(),
         }
     }
 
@@ -265,7 +527,11 @@ impl OpsRuntime {
 
     pub fn lag_view(&self) -> LagView {
         LagView {
-            items: self.lag_items.clone(),
+            items: self
+                .lag_items
+                .lock()
+                .expect("ops lag items should lock")
+                .clone(),
         }
     }
 
@@ -274,6 +540,85 @@ impl OpsRuntime {
             .lock()
             .expect("ops runtime-dir inspection should lock")
             .clone()
+    }
+
+    pub fn provider_bindings_view(&self) -> ProviderBindingsView {
+        ProviderBindingsView {
+            items: self
+                .provider_bindings
+                .lock()
+                .expect("ops provider bindings should lock")
+                .values()
+                .cloned()
+                .collect(),
+        }
+    }
+
+    pub fn provider_binding_drift_view(&self) -> ProviderBindingDriftView {
+        let provider_bindings = self
+            .provider_bindings
+            .lock()
+            .expect("ops provider bindings should lock");
+        let Some(global_snapshot) = provider_bindings.get("") else {
+            return ProviderBindingDriftView::default();
+        };
+
+        let baseline_bindings = global_snapshot
+            .effective_bindings
+            .iter()
+            .map(|binding| (binding.domain.clone(), binding))
+            .collect::<BTreeMap<_, _>>();
+
+        let items = provider_bindings
+            .iter()
+            .filter_map(|(tenant_key, snapshot)| {
+                if tenant_key.is_empty() {
+                    return None;
+                }
+
+                Some(
+                    snapshot
+                        .effective_bindings
+                        .iter()
+                        .filter_map(|binding| {
+                            let baseline = baseline_bindings.get(binding.domain.as_str())?;
+                            provider_binding_drift_item(tenant_key.as_str(), baseline, binding)
+                        })
+                        .collect::<Vec<_>>(),
+                )
+            })
+            .flatten()
+            .collect();
+
+        ProviderBindingDriftView {
+            baseline_tenant_id: None,
+            items,
+        }
+    }
+
+    pub fn replay_status_view(&self) -> ProjectionReplayStatusView {
+        let projection_plane = self
+            .projection_plane
+            .lock()
+            .expect("ops projection-plane should lock")
+            .clone();
+        let lag = self
+            .lag_items
+            .lock()
+            .expect("ops lag items should lock")
+            .iter()
+            .filter(|item| item.component == "projection_replay")
+            .cloned()
+            .collect::<Vec<_>>();
+        ProjectionReplayStatusView {
+            generated_at: utc_now_rfc3339_millis(),
+            status: projection_replay_status(&projection_plane.replay).into(),
+            replay_throughput_per_second: projection_replay_throughput_per_second(
+                &projection_plane.replay,
+            ),
+            replay: projection_plane.replay,
+            lag,
+        }
     }
 
     pub fn diagnostic_bundle(&self) -> DiagnosticBundle {
@@ -292,6 +637,24 @@ impl OpsRuntime {
             .lock()
             .expect("ops device routes should lock")
             .clone();
+        let provider_bindings = self
+            .provider_bindings
+            .lock()
+            .expect("ops provider bindings should lock")
+            .values()
+            .cloned()
+            .collect();
+        let provider_binding_drift = self.provider_binding_drift_view();
+        let projection_plane = self
+            .projection_plane
+            .lock()
+            .expect("ops projection-plane should lock")
+            .clone();
+        let lag = self
+            .lag_items
+            .lock()
+            .expect("ops lag items should lock")
+            .clone();
         DiagnosticBundle {
             generated_at: utc_now_rfc3339_millis(),
             profile: self.profile.clone(),
@@ -301,9 +664,51 @@ impl OpsRuntime {
             rebalance_state,
             owned_scopes: self.owned_scopes.clone(),
             services: self.services.clone(),
-            lag: self.lag_items.clone(),
+            lag,
             device_routes,
+            provider_bindings,
+            provider_binding_drift,
+            projection_plane,
         }
+    }
+}
+
+fn default_lag_items() -> Vec<LagItem> {
+    vec![
+        LagItem {
+            component: "commit_journal".into(),
+            scope_id: "local-minimal".into(),
+            current_offset: 0,
+            committed_offset: 0,
+            lag: 0,
+        },
+        default_projection_replay_lag_item(),
+    ]
+}
+
+fn default_projection_replay_lag_item() -> LagItem {
+    LagItem {
+        component: "projection_replay".into(),
+        scope_id: "projection:*".into(),
+        current_offset: 0,
+        committed_offset: 0,
+        lag: 0,
+    }
+}
+
+fn projection_replay_status(replay: &ProjectionReplayMetricsView) -> &'static str {
+    if replay.backlog_size == 0 && replay.replayed_event_count == 0 {
+        "idle"
+    } else {
+        "replayed"
+    }
+}
+
+fn projection_replay_throughput_per_second(replay: &ProjectionReplayMetricsView) -> u64 {
+    if replay.duration_ms == 0 {
+        0
+    } else {
+        replay.replayed_event_count.saturating_mul(1000) / replay.duration_ms
     }
 }
 
@@ -362,7 +767,13 @@ pub fn build_app(runtime: Arc<OpsRuntime>) -> Router {
         .route("/api/v1/ops/health", get(get_ops_health))
         .route("/api/v1/ops/cluster", get(get_cluster))
         .route("/api/v1/ops/lag", get(get_lag))
+        .route("/api/v1/ops/replay-status", get(get_replay_status))
         .route("/api/v1/ops/runtime-dir", get(get_runtime_dir))
+        .route("/api/v1/ops/provider-bindings", get(get_provider_bindings))
+        .route(
+            "/api/v1/ops/provider-bindings/drift",
+            get(get_provider_binding_drift),
+        )
         .route("/api/v1/ops/diagnostics", get(get_diagnostics))
         .with_state(AppState { runtime })
 }
@@ -427,6 +838,33 @@ async fn get_runtime_dir(
     Ok(Json(state.runtime.runtime_dir_view()))
 }
 
+async fn get_provider_bindings(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> Result<Json<ProviderBindingsView>, OpsError> {
+    let auth = resolve_auth_context(&headers)?;
+    ensure_ops_read_access(&auth)?;
+    Ok(Json(state.runtime.provider_bindings_view()))
+}
+
+async fn get_provider_binding_drift(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> Result<Json<ProviderBindingDriftView>, OpsError> {
+    let auth = resolve_auth_context(&headers)?;
+    ensure_ops_read_access(&auth)?;
+    Ok(Json(state.runtime.provider_binding_drift_view()))
+}
+
+async fn get_replay_status(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> Result<Json<ProjectionReplayStatusView>, OpsError> {
+    let auth = resolve_auth_context(&headers)?;
+    ensure_ops_read_access(&auth)?;
+    Ok(Json(state.runtime.replay_status_view()))
+}
+
 async fn get_diagnostics(
     headers: HeaderMap,
     State(state): State<AppState>,
@@ -442,4 +880,33 @@ fn ensure_ops_read_access(auth: &AuthContext) -> Result<(), OpsError> {
     }
 
     Err(OpsError::forbidden("ops.read"))
+}
+
+fn provider_binding_drift_item(
+    tenant_id: &str,
+    baseline: &ProviderBindingItemView,
+    binding: &ProviderBindingItemView,
+) -> Option<ProviderBindingDriftItemView> {
+    let plugin_changed = baseline.selected_plugin_id != binding.selected_plugin_id;
+    let source_changed = baseline.selection_source != binding.selection_source;
+    if !plugin_changed && !source_changed {
+        return None;
+    }
+
+    let drift_kind = match (plugin_changed, source_changed) {
+        (true, true) => "plugin_and_selection_source_changed",
+        (true, false) => "plugin_changed",
+        (false, true) => "selection_source_changed",
+        (false, false) => unreachable!("drift item should only be built when drift exists"),
+    };
+
+    Some(ProviderBindingDriftItemView {
+        tenant_id: tenant_id.into(),
+        domain: binding.domain.clone(),
+        baseline_selected_plugin_id: baseline.selected_plugin_id.clone(),
+        selected_plugin_id: binding.selected_plugin_id.clone(),
+        baseline_selection_source: baseline.selection_source.clone(),
+        selection_source: binding.selection_source.clone(),
+        drift_kind: drift_kind.into(),
+    })
 }

@@ -1,26 +1,42 @@
 use serde::{Deserialize, Serialize};
 
+pub mod social;
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AggregateType {
     Conversation,
+    FriendRequest,
+    Friendship,
+    ExternalConnection,
+    ExternalMemberLink,
+    SharedChannelPolicy,
     StreamSession,
     RtcSession,
     TenantPolicy,
+    DirectChat,
     MediaAsset,
     Notification,
     AutomationExecution,
+    UserBlock,
 }
 
 impl AggregateType {
     pub fn as_wire_value(&self) -> &'static str {
         match self {
             Self::Conversation => "conversation",
+            Self::FriendRequest => "friend_request",
+            Self::Friendship => "friendship",
+            Self::ExternalConnection => "external_connection",
+            Self::ExternalMemberLink => "external_member_link",
+            Self::SharedChannelPolicy => "shared_channel_policy",
             Self::StreamSession => "stream_session",
             Self::RtcSession => "rtc_session",
             Self::TenantPolicy => "tenant_policy",
+            Self::DirectChat => "direct_chat",
             Self::MediaAsset => "media_asset",
             Self::Notification => "notification",
             Self::AutomationExecution => "automation_execution",
+            Self::UserBlock => "user_block",
         }
     }
 }

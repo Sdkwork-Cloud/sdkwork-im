@@ -30,7 +30,7 @@
 - `App Gateway API`
 - `Admin / Ops API`
 
-## 3. 核心外部 API
+## 3. 核心外部 API（标准目标面）
 
 - 当前代码已落地的最小闭环包括：会话创建与摘要查询、消息发送与时间线查询、媒体上传创建/完成/查询/绑定、流开启/检查点/完成、RTC 创建/邀请/接受/拒绝/结束。
 
@@ -381,7 +381,7 @@ Content-Type: application/json
 }
 ```
 
-## 4. CCP 实时绑定协议
+## 4. CCP 实时绑定协议（标准目标面）
 
 ### 4.1 连接初始化
 
@@ -581,3 +581,23 @@ Content-Type: application/json
 - 所有 schema 显式版本化
 - 客户端必须忽略未知可选字段
 - 服务端必须容忍旧客户端缺少新增的可选字段
+
+## 2026-04-09 增补：当前 API 真相与目标协议边界
+
+### A. 当前 API 真相
+
+- 本文主体描述的是标准协议目标面，不表示文中所有 API 都已在当前应用完整交付。
+- 当前真实可验证的 API 面主要围绕：认证与会话、消息主链路、流、RTC provider surface、provider 治理、审计与运维。
+- 好友、空间、群组、频道、线程、外部协作 API 仍属于目标合同面，需要以独立 durable truth 落地后再视为正式交付。
+
+### B. 当前与目标的收口关系
+
+- 当前 `conversation` 仍是消息运行时主容器。
+- 目标态中 `direct_chat / chat_channel / thread` 应通过 `business_type + business_id` 绑定到 `conversation`，而不是直接把关系真相写在会话 API 本体里。
+- `tenantId`、`sender`、`routeEpoch` 继续保持服务端权威生成，任何新增社交 API 也不得突破这一边界。
+
+### C. 文档口径规则
+
+- 写“当前外部面”时，应优先引用已存在服务：`session-gateway`、`conversation-runtime`、`rtc-signaling-service`、`control-plane-api`、`ops-service`、`local-minimal-node`。
+- 写“标准协议面”时，可以保留未来 API 合同，但必须显式标记为目标态。
+- 压缩文档时，优先压缩样例重复，不压缩权威字段来源与边界说明。

@@ -1,11 +1,18 @@
 param(
+    [Alias("base-url")]
     [string]$BaseUrl,
+    [Alias("tenant-id")]
     [string]$TenantId = "t_demo",
+    [Alias("conversation-id")]
     [string]$ConversationId,
+    [Alias("user-id")]
     [string]$UserId,
+    [Alias("session-id")]
     [string]$SessionId,
+    [Alias("device-id")]
     [string]$DeviceId,
     [string]$Label,
+    [Alias("message-prefix")]
     [string]$MessagePrefix,
     [switch]$Release,
     [switch]$Help
@@ -66,6 +73,7 @@ function Resolve-BaseUrl {
 
 if ($Help -or [string]::IsNullOrWhiteSpace($ConversationId) -or [string]::IsNullOrWhiteSpace($UserId)) {
     Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/chat-window.ps1 -ConversationId <id> -UserId <id> [-BaseUrl <url>] [-TenantId <id>] [-SessionId <id>] [-DeviceId <id>] [-Label <name>] [-MessagePrefix <prefix>] [-Release]"
+    Write-Host "Usage: cmd /c .\bin\chat-window.cmd --conversation-id <id> --user-id <id> [--base-url <url>] [--tenant-id <id>] [--session-id <id>] [--device-id <id>] [--label <name>] [--message-prefix <prefix>] [--release]"
     Write-Host "Open one interactive chat terminal backed by bin/chat-cli.ps1 chat-session."
     if ($Help) {
         exit 0

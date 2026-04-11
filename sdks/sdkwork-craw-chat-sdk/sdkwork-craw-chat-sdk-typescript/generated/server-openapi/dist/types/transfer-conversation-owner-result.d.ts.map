@@ -1,0 +1,1 @@
+{"version":3,"file":"transfer-conversation-owner-result.d.ts","sourceRoot":"","sources":["../../src/types/transfer-conversation-owner-result.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,kBAAkB,EAAE,MAAM,uBAAuB,CAAC;AAEhE,MAAM,WAAW,+BAA+B;IAC9C,OAAO,EAAE,MAAM,CAAC;IAChB,aAAa,EAAE,MAAM,CAAC;IACtB,aAAa,EAAE,kBAAkB,CAAC;IAClC,QAAQ,EAAE,kBAAkB,CAAC;CAC9B"}

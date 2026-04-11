@@ -5,6 +5,29 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
+craw-chat-contract-admin = { path = "../craw-chat-contract-admin" }
+craw-chat-contract-agent = { path = "../craw-chat-contract-agent" }
+craw-chat-contract-control = { path = "../craw-chat-contract-control" }
+craw-chat-contract-core = { path = "../craw-chat-contract-core" }
+craw-chat-contract-iot = { path = "../craw-chat-contract-iot" }
+craw-chat-contract-message = { path = "../craw-chat-contract-message" }
+craw-chat-contract-notification = { path = "../craw-chat-contract-notification" }
+craw-chat-contract-rtc = { path = "../craw-chat-contract-rtc" }
+craw-chat-contract-stream = { path = "../craw-chat-contract-stream" }
 im-domain-core = { path = "../im-domain-core" }
 im-domain-events = { path = "../im-domain-events" }
+im-time = { path = "../im-time" }
 serde.workspace = true
+
+[dev-dependencies]
+craw-chat-ccp-binding-http = { path = "../craw-chat-ccp-binding-http" }
+craw-chat-ccp-binding-mqtt = { path = "../craw-chat-ccp-binding-mqtt" }
+craw-chat-ccp-binding-sse = { path = "../craw-chat-ccp-binding-sse" }
+craw-chat-ccp-binding-ws = { path = "../craw-chat-ccp-binding-ws" }
+craw-chat-ccp-codec = { path = "../craw-chat-ccp-codec" }
+craw-chat-ccp-codec-cbor = { path = "../craw-chat-ccp-codec-cbor" }
+craw-chat-ccp-codec-json = { path = "../craw-chat-ccp-codec-json" }
+craw-chat-ccp-control = { path = "../craw-chat-ccp-control" }
+craw-chat-ccp-core = { path = "../craw-chat-ccp-core" }
+craw-chat-ccp-registry = { path = "../craw-chat-ccp-registry" }
+serde_json.workspace = true

@@ -10,14 +10,31 @@ use axum::{
     Json, Router,
     routing::{get, post},
 };
+use craw_chat_contract_core::ContractError;
+use craw_chat_contract_rtc::{RtcStateRecord, RtcStateStore};
+use im_adapter_object_storage_s3::{
+    ALIYUN_OBJECT_STORAGE_PLUGIN_ID, AWS_OBJECT_STORAGE_PLUGIN_ID, GOOGLE_OBJECT_STORAGE_PLUGIN_ID,
+    MICROSOFT_OBJECT_STORAGE_PLUGIN_ID, S3CompatibleObjectStorageProvider,
+    TENCENT_OBJECT_STORAGE_PLUGIN_ID, VOLCENGINE_OBJECT_STORAGE_PLUGIN_ID,
+};
+use im_adapter_rtc_aliyun::{ALIYUN_RTC_PLUGIN_ID, AliyunRtcProvider};
+use im_adapter_rtc_tencent::{TENCENT_RTC_PLUGIN_ID, TencentRtcProvider};
+use im_adapter_rtc_volcengine::{VOLCENGINE_RTC_PLUGIN_ID, VolcengineRtcProvider};
 use im_auth_context::{
     AuthContext, AuthContextError, resolve_auth_context, resolve_public_bearer_auth_context,
 };
 use im_domain_core::message::Sender;
 use im_domain_core::rtc::{RtcSession, RtcSessionState, RtcSignalEvent};
-use im_platform_contracts::{ContractError, RtcStateRecord, RtcStateStore};
+use im_platform_contracts::{
+    EffectiveProviderBinding, ObjectStorageDownloadUrlRequest, ObjectStorageProvider,
+    ProviderDomain, ProviderHealthSnapshot, ProviderRegistry, RtcCallbackEvent, RtcCallbackRequest,
+    RtcCreateSessionRequest as ProviderRtcCreateSessionRequest, RtcParticipantCredential,
+    RtcProviderPort, RtcRecordingArtifact, StaticProviderRegistry,
+};
 use im_time::utc_now_rfc3339_millis;
 use serde::{Deserialize, Serialize};
+
+const DEFAULT_RTC_RECORDING_PLAYBACK_URL_TTL_SECONDS: u32 = 3600;
 
 #[derive(Clone)]
 struct AppState {
@@ -28,6 +45,9 @@ pub struct RtcRuntime {
     sessions: Mutex<HashMap<String, RtcSession>>,
     signals: Mutex<HashMap<String, Vec<RtcSignalEvent>>>,
     state_store: Arc<dyn RtcStateStore>,
+    provider_registry: Arc<dyn ProviderRegistry>,
+    rtc_providers: HashMap<String, Arc<dyn RtcProviderPort>>,
+    object_storage_providers: HashMap<String, Arc<dyn ObjectStorageProvider>>,
 }
 
 #[derive(Clone, Debug)]
@@ -72,12 +92,68 @@ pub struct PostRtcSignalRequest {
     pub signaling_stream_id: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IssueRtcParticipantCredentialRequest {
+    pub participant_id: String,
+}
+
 impl RtcRuntime {
     pub fn with_store(state_store: Arc<dyn RtcStateStore>) -> Self {
+        let volcengine = Arc::new(VolcengineRtcProvider::default()) as Arc<dyn RtcProviderPort>;
+        let aliyun = Arc::new(AliyunRtcProvider::default()) as Arc<dyn RtcProviderPort>;
+        let tencent = Arc::new(TencentRtcProvider::default()) as Arc<dyn RtcProviderPort>;
+        let provider_registry = Arc::new(
+            StaticProviderRegistry::platform_default().with_deployment_profile(
+                ProviderDomain::ObjectStorage,
+                VOLCENGINE_OBJECT_STORAGE_PLUGIN_ID,
+            ),
+        );
+        Self::with_store_and_provider_registry_and_object_storage_providers(
+            state_store,
+            provider_registry,
+            [
+                (VOLCENGINE_RTC_PLUGIN_ID.into(), volcengine),
+                (ALIYUN_RTC_PLUGIN_ID.into(), aliyun),
+                (TENCENT_RTC_PLUGIN_ID.into(), tencent),
+            ],
+            built_in_object_storage_providers(),
+        )
+    }
+
+    pub fn with_store_and_provider_registry<I>(
+        state_store: Arc<dyn RtcStateStore>,
+        provider_registry: Arc<dyn ProviderRegistry>,
+        rtc_providers: I,
+    ) -> Self
+    where
+        I: IntoIterator<Item = (String, Arc<dyn RtcProviderPort>)>,
+    {
+        Self::with_store_and_provider_registry_and_object_storage_providers(
+            state_store,
+            provider_registry,
+            rtc_providers,
+            built_in_object_storage_providers(),
+        )
+    }
+
+    pub fn with_store_and_provider_registry_and_object_storage_providers<I, J>(
+        state_store: Arc<dyn RtcStateStore>,
+        provider_registry: Arc<dyn ProviderRegistry>,
+        rtc_providers: I,
+        object_storage_providers: J,
+    ) -> Self
+    where
+        I: IntoIterator<Item = (String, Arc<dyn RtcProviderPort>)>,
+        J: IntoIterator<Item = (String, Arc<dyn ObjectStorageProvider>)>,
+    {
         Self {
             sessions: Mutex::new(HashMap::new()),
             signals: Mutex::new(HashMap::new()),
             state_store,
+            provider_registry,
+            rtc_providers: rtc_providers.into_iter().collect(),
+            object_storage_providers: object_storage_providers.into_iter().collect(),
         }
     }
 
@@ -149,6 +225,17 @@ impl RtcRuntime {
             return Err(RtcError::conflict(request.rtc_session_id.as_str()));
         }
 
+        let provider_plugin_id = self.selected_provider_plugin_id(auth.tenant_id.as_str(), None)?;
+        let provider = self.rtc_provider(provider_plugin_id.as_str())?;
+        let provider_session = provider
+            .create_session(ProviderRtcCreateSessionRequest {
+                tenant_id: auth.tenant_id.clone(),
+                rtc_session_id: request.rtc_session_id.clone(),
+                conversation_id: request.conversation_id.clone(),
+                rtc_mode: request.rtc_mode.clone(),
+                initiator_id: auth.actor_id.clone(),
+            })
+            .map_err(RtcError::rtc_provider)?;
         let started_at = utc_now_rfc3339_millis();
         let session = RtcSession {
             tenant_id: auth.tenant_id.clone(),
@@ -156,6 +243,10 @@ impl RtcRuntime {
             conversation_id: request.conversation_id,
             rtc_mode: request.rtc_mode,
             initiator_id: auth.actor_id.clone(),
+            provider_plugin_id: Some(provider_plugin_id),
+            provider_session_id: Some(provider_session.provider_session_id),
+            access_endpoint: provider_session.access_endpoint,
+            provider_region: provider_session.region,
             state: RtcSessionState::Started,
             signaling_stream_id: None,
             artifact_message_id: None,
@@ -176,6 +267,82 @@ impl RtcRuntime {
         self.persist_state(auth.tenant_id.as_str(), request.rtc_session_id.as_str())?;
 
         Ok(session)
+    }
+
+    pub fn issue_participant_credential(
+        &self,
+        auth: &AuthContext,
+        rtc_session_id: &str,
+        participant_id: &str,
+    ) -> Result<RtcParticipantCredential, RtcError> {
+        let session = self.session(auth, rtc_session_id)?;
+        let provider = self.rtc_provider_for_session(auth.tenant_id.as_str(), &session)?;
+        provider
+            .issue_participant_credential(auth.tenant_id.as_str(), rtc_session_id, participant_id)
+            .map_err(RtcError::rtc_provider)
+    }
+
+    pub fn map_provider_callback(
+        &self,
+        auth: &AuthContext,
+        request: RtcCallbackRequest,
+    ) -> Result<RtcCallbackEvent, RtcError> {
+        let provider = self
+            .rtc_provider_for_callback(auth.tenant_id.as_str(), request.rtc_session_id.as_str())?;
+        provider
+            .map_provider_callback(request)
+            .map_err(RtcError::rtc_provider)
+    }
+
+    pub fn recording_artifact(
+        &self,
+        auth: &AuthContext,
+        rtc_session_id: &str,
+    ) -> Result<RtcRecordingArtifact, RtcError> {
+        let session = self.session(auth, rtc_session_id)?;
+        let provider = self.rtc_provider_for_session(auth.tenant_id.as_str(), &session)?;
+        let mut artifact = provider
+            .export_recording_artifact(auth.tenant_id.as_str(), rtc_session_id)
+            .map_err(RtcError::rtc_provider)?
+            .ok_or_else(|| RtcError::recording_artifact_not_found(rtc_session_id))?;
+        let object_storage_plugin_id = self.selected_object_storage_provider_plugin_id(
+            auth.tenant_id.as_str(),
+            artifact.storage_provider.as_deref(),
+        )?;
+        let object_storage_provider =
+            self.object_storage_provider(object_storage_plugin_id.as_str())?;
+        let playback_url = object_storage_provider
+            .signed_download_url(ObjectStorageDownloadUrlRequest {
+                bucket: artifact.bucket.clone(),
+                object_key: artifact.object_key.clone(),
+                expires_in_seconds: DEFAULT_RTC_RECORDING_PLAYBACK_URL_TTL_SECONDS,
+            })
+            .map_err(RtcError::object_storage_provider)?;
+        artifact.storage_provider = Some(object_storage_plugin_id);
+        artifact.playback_url = Some(playback_url);
+        Ok(artifact)
+    }
+
+    pub fn provider_health_snapshot(
+        &self,
+        tenant_id: &str,
+    ) -> Result<ProviderHealthSnapshot, RtcError> {
+        let provider =
+            self.rtc_provider(self.selected_provider_plugin_id(tenant_id, None)?.as_str())?;
+        Ok(provider.provider_health_snapshot())
+    }
+
+    pub fn provider_binding(
+        &self,
+        tenant_id: Option<&str>,
+    ) -> Result<EffectiveProviderBinding, RtcError> {
+        self.provider_registry
+            .effective_binding(ProviderDomain::Rtc, tenant_id)
+            .ok_or_else(|| {
+                RtcError::provider_binding_missing(
+                    "rtc provider binding is missing for the current scope",
+                )
+            })
     }
 
     pub fn invite_session(
@@ -331,6 +498,13 @@ impl RtcRuntime {
 
         match session.state {
             RtcSessionState::Started => {
+                let provider_plugin_id = self.selected_provider_plugin_id(
+                    auth.tenant_id.as_str(),
+                    session.provider_plugin_id.as_deref(),
+                )?;
+                self.rtc_provider(provider_plugin_id.as_str())?
+                    .close_session(auth.tenant_id.as_str(), rtc_session_id)
+                    .map_err(RtcError::rtc_provider)?;
                 session.state = RtcSessionState::Rejected;
                 session.artifact_message_id = request.artifact_message_id;
                 session.ended_at = Some(utc_now_rfc3339_millis());
@@ -385,6 +559,13 @@ impl RtcRuntime {
 
         match session.state {
             RtcSessionState::Started | RtcSessionState::Accepted => {
+                let provider_plugin_id = self.selected_provider_plugin_id(
+                    auth.tenant_id.as_str(),
+                    session.provider_plugin_id.as_deref(),
+                )?;
+                self.rtc_provider(provider_plugin_id.as_str())?
+                    .close_session(auth.tenant_id.as_str(), rtc_session_id)
+                    .map_err(RtcError::rtc_provider)?;
                 session.state = RtcSessionState::Ended;
                 session.artifact_message_id = request.artifact_message_id;
                 session.ended_at = Some(utc_now_rfc3339_millis());
@@ -506,6 +687,113 @@ impl RtcRuntime {
             updated_at: utc_now_rfc3339_millis(),
         }
     }
+
+    fn selected_provider_plugin_id(
+        &self,
+        tenant_id: &str,
+        frozen_plugin_id: Option<&str>,
+    ) -> Result<String, RtcError> {
+        if let Some(plugin_id) = frozen_plugin_id.filter(|value| !value.trim().is_empty()) {
+            return Ok(plugin_id.to_string());
+        }
+
+        let binding = self
+            .provider_registry
+            .effective_binding(ProviderDomain::Rtc, Some(tenant_id))
+            .ok_or_else(|| {
+                RtcError::provider_binding_missing(
+                    "rtc provider binding is missing for the current tenant",
+                )
+            })?;
+        binding
+            .selected_plugin_id
+            .or(binding.default_plugin_id)
+            .ok_or_else(|| {
+                RtcError::provider_binding_missing(
+                    "rtc provider selection is missing for the current tenant",
+                )
+            })
+    }
+
+    fn rtc_provider_for_session(
+        &self,
+        tenant_id: &str,
+        session: &RtcSession,
+    ) -> Result<Arc<dyn RtcProviderPort>, RtcError> {
+        let plugin_id =
+            self.selected_provider_plugin_id(tenant_id, session.provider_plugin_id.as_deref())?;
+        self.rtc_provider(plugin_id.as_str())
+    }
+
+    fn rtc_provider_for_callback(
+        &self,
+        tenant_id: &str,
+        rtc_session_id: &str,
+    ) -> Result<Arc<dyn RtcProviderPort>, RtcError> {
+        self.ensure_session_state(tenant_id, rtc_session_id)?;
+        let scope_key = rtc_scope_key(tenant_id, rtc_session_id);
+        if let Some(session) = self
+            .sessions
+            .lock()
+            .expect("rtc runtime should lock")
+            .get(scope_key.as_str())
+            .cloned()
+        {
+            return self.rtc_provider_for_session(tenant_id, &session);
+        }
+
+        let plugin_id = self.selected_provider_plugin_id(tenant_id, None)?;
+        self.rtc_provider(plugin_id.as_str())
+    }
+
+    fn rtc_provider(&self, plugin_id: &str) -> Result<Arc<dyn RtcProviderPort>, RtcError> {
+        self.rtc_providers.get(plugin_id).cloned().ok_or_else(|| {
+            RtcError::provider_binding_missing(format!(
+                "rtc provider is not installed in runtime: {plugin_id}"
+            ))
+        })
+    }
+
+    fn selected_object_storage_provider_plugin_id(
+        &self,
+        tenant_id: &str,
+        frozen_plugin_id: Option<&str>,
+    ) -> Result<String, RtcError> {
+        if let Some(plugin_id) = frozen_plugin_id.filter(|value| !value.trim().is_empty()) {
+            return Ok(plugin_id.to_string());
+        }
+
+        let binding = self
+            .provider_registry
+            .effective_binding(ProviderDomain::ObjectStorage, Some(tenant_id))
+            .ok_or_else(|| {
+                RtcError::recording_storage_binding_missing(
+                    "object storage provider binding is missing for the current tenant",
+                )
+            })?;
+        binding
+            .selected_plugin_id
+            .or(binding.default_plugin_id)
+            .ok_or_else(|| {
+                RtcError::recording_storage_binding_missing(
+                    "object storage provider selection is missing for the current tenant",
+                )
+            })
+    }
+
+    fn object_storage_provider(
+        &self,
+        plugin_id: &str,
+    ) -> Result<Arc<dyn ObjectStorageProvider>, RtcError> {
+        self.object_storage_providers
+            .get(plugin_id)
+            .cloned()
+            .ok_or_else(|| {
+                RtcError::recording_storage_binding_missing(format!(
+                    "object storage provider is not installed in runtime: {plugin_id}"
+                ))
+            })
+    }
 }
 
 #[derive(Debug)]
@@ -533,6 +821,70 @@ impl RtcError {
                 code: "rtc_store_unsupported",
                 message,
             },
+        }
+    }
+
+    fn rtc_provider(value: ContractError) -> Self {
+        match value {
+            ContractError::Unavailable(message) => Self {
+                status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
+                code: "rtc_provider_unavailable",
+                message,
+            },
+            ContractError::Conflict(message) => Self {
+                status: axum::http::StatusCode::CONFLICT,
+                code: "rtc_provider_conflict",
+                message,
+            },
+            ContractError::UnsupportedCapability(message) => Self {
+                status: axum::http::StatusCode::NOT_IMPLEMENTED,
+                code: "rtc_provider_unsupported",
+                message,
+            },
+        }
+    }
+
+    fn object_storage_provider(value: ContractError) -> Self {
+        match value {
+            ContractError::Unavailable(message) => Self {
+                status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
+                code: "rtc_artifact_storage_unavailable",
+                message,
+            },
+            ContractError::Conflict(message) => Self {
+                status: axum::http::StatusCode::CONFLICT,
+                code: "rtc_artifact_storage_conflict",
+                message,
+            },
+            ContractError::UnsupportedCapability(message) => Self {
+                status: axum::http::StatusCode::NOT_IMPLEMENTED,
+                code: "rtc_artifact_storage_unsupported",
+                message,
+            },
+        }
+    }
+
+    fn provider_binding_missing(message: impl Into<String>) -> Self {
+        Self {
+            status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
+            code: "rtc_provider_binding_missing",
+            message: message.into(),
+        }
+    }
+
+    fn recording_storage_binding_missing(message: impl Into<String>) -> Self {
+        Self {
+            status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
+            code: "rtc_artifact_storage_binding_missing",
+            message: message.into(),
+        }
+    }
+
+    fn recording_artifact_not_found(rtc_session_id: &str) -> Self {
+        Self {
+            status: axum::http::StatusCode::NOT_FOUND,
+            code: "rtc_recording_artifact_not_found",
+            message: format!("rtc recording artifact not found: {rtc_session_id}"),
         }
     }
 
@@ -676,6 +1028,19 @@ pub fn build_app(runtime: Arc<RtcRuntime>) -> Router {
             "/api/v1/rtc/sessions/{rtc_session_id}/signals",
             post(post_signal),
         )
+        .route(
+            "/api/v1/rtc/sessions/{rtc_session_id}/credentials",
+            post(issue_participant_credential),
+        )
+        .route(
+            "/api/v1/rtc/sessions/{rtc_session_id}/artifacts/recording",
+            get(get_recording_artifact),
+        )
+        .route(
+            "/api/v1/rtc/provider-callbacks",
+            post(map_provider_callback),
+        )
+        .route("/api/v1/rtc/provider-health", get(get_provider_health))
         .with_state(AppState { runtime })
 }
 
@@ -786,6 +1151,85 @@ async fn post_signal(
         rtc_session_id.as_str(),
         request,
     )?))
+}
+
+async fn issue_participant_credential(
+    Path(rtc_session_id): Path<String>,
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Json(request): Json<IssueRtcParticipantCredentialRequest>,
+) -> Result<Json<RtcParticipantCredential>, RtcError> {
+    let auth = resolve_auth_context(&headers)?;
+    ensure_standalone_rtc_session_allowed(&state.runtime, &auth, rtc_session_id.as_str())?;
+    Ok(Json(state.runtime.issue_participant_credential(
+        &auth,
+        rtc_session_id.as_str(),
+        request.participant_id.as_str(),
+    )?))
+}
+
+async fn get_recording_artifact(
+    Path(rtc_session_id): Path<String>,
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> Result<Json<RtcRecordingArtifact>, RtcError> {
+    let auth = resolve_auth_context(&headers)?;
+    ensure_standalone_rtc_session_allowed(&state.runtime, &auth, rtc_session_id.as_str())?;
+    Ok(Json(
+        state
+            .runtime
+            .recording_artifact(&auth, rtc_session_id.as_str())?,
+    ))
+}
+
+async fn map_provider_callback(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Json(request): Json<RtcCallbackRequest>,
+) -> Result<Json<RtcCallbackEvent>, RtcError> {
+    let auth = resolve_auth_context(&headers)?;
+    Ok(Json(state.runtime.map_provider_callback(&auth, request)?))
+}
+
+async fn get_provider_health(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> Result<Json<ProviderHealthSnapshot>, RtcError> {
+    let auth = resolve_auth_context(&headers)?;
+    Ok(Json(
+        state
+            .runtime
+            .provider_health_snapshot(auth.tenant_id.as_str())?,
+    ))
+}
+
+fn built_in_object_storage_providers() -> Vec<(String, Arc<dyn ObjectStorageProvider>)> {
+    vec![
+        (
+            ALIYUN_OBJECT_STORAGE_PLUGIN_ID.into(),
+            Arc::new(S3CompatibleObjectStorageProvider::aliyun_default()),
+        ),
+        (
+            TENCENT_OBJECT_STORAGE_PLUGIN_ID.into(),
+            Arc::new(S3CompatibleObjectStorageProvider::tencent_default()),
+        ),
+        (
+            VOLCENGINE_OBJECT_STORAGE_PLUGIN_ID.into(),
+            Arc::new(S3CompatibleObjectStorageProvider::volcengine_default()),
+        ),
+        (
+            AWS_OBJECT_STORAGE_PLUGIN_ID.into(),
+            Arc::new(S3CompatibleObjectStorageProvider::aws_default()),
+        ),
+        (
+            GOOGLE_OBJECT_STORAGE_PLUGIN_ID.into(),
+            Arc::new(S3CompatibleObjectStorageProvider::google_default()),
+        ),
+        (
+            MICROSOFT_OBJECT_STORAGE_PLUGIN_ID.into(),
+            Arc::new(S3CompatibleObjectStorageProvider::microsoft_default()),
+        ),
+    ]
 }
 
 fn rtc_scope_key(tenant_id: &str, rtc_session_id: &str) -> String {

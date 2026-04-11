@@ -1,5 +1,8 @@
 param(
-    [switch]$SkipSmoke
+    [ValidateSet("local-minimal", "local-default")]
+    [string]$ProfileName = "local-minimal",
+    [switch]$SkipSmoke,
+    [string]$SmokeBaseUrl = ""
 )
 
 $ErrorActionPreference = 'Stop'
@@ -7,14 +10,14 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 Set-Location $root
 
-$composeFile = "deployments/docker-compose/local-minimal.yml"
+$composeFile = "deployments/docker-compose/$ProfileName.yml"
 $smokeScript = Join-Path $root "tools\smoke\local_stack_smoke.ps1"
 $composeVersionCommand = "docker compose version"
 $composePsCommand = "docker compose -f $composeFile ps"
 $composeLogsCommand = "docker compose -f $composeFile logs --tail 200"
 
 function Show-ComposeDiagnostics {
-    Write-Warning "Collecting docker compose diagnostics for local-minimal profile."
+    Write-Warning "Collecting docker compose diagnostics for $ProfileName profile."
 
     Write-Host "Running $composePsCommand"
     & docker compose -f $composeFile ps
@@ -27,6 +30,10 @@ function Show-ComposeDiagnostics {
     if ($LASTEXITCODE -ne 0) {
         Write-Warning "docker compose logs did not complete successfully."
     }
+}
+
+if (-not (Test-Path (Join-Path $root $composeFile))) {
+    throw "Missing compose profile: $composeFile"
 }
 
 Write-Host "Checking Docker availability..."
@@ -47,24 +54,29 @@ if ($LASTEXITCODE -ne 0) {
     throw "Docker compose plugin is unavailable. Install the Docker Compose plugin and retry."
 }
 
-Write-Host "Building and starting local-minimal deployment profile..."
+Write-Host "Building and starting $ProfileName deployment profile..."
 & docker compose -f $composeFile up -d --build
 if ($LASTEXITCODE -ne 0) {
     Show-ComposeDiagnostics
-    throw "Docker compose failed for local-minimal profile."
+    throw "Docker compose failed for $ProfileName profile."
 }
 
 if (-not $SkipSmoke) {
     try {
-        & $smokeScript
+        if ([string]::IsNullOrWhiteSpace($SmokeBaseUrl)) {
+            & $smokeScript
+        }
+        else {
+            & $smokeScript -BaseUrl $SmokeBaseUrl
+        }
     }
     catch {
         Show-ComposeDiagnostics
-        throw "Smoke verification failed for local-minimal profile. $($_.Exception.Message)"
+        throw "Smoke verification failed for $ProfileName profile. $($_.Exception.Message)"
     }
 
-    Write-Host "local-minimal profile is ready."
+    Write-Host "$ProfileName profile is ready."
     exit 0
 }
 
-Write-Host "local-minimal profile started without smoke verification."
+Write-Host "$ProfileName profile started without smoke verification."

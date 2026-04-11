@@ -1,0 +1,39 @@
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ContractError {
+    UnsupportedCapability(String),
+    Conflict(String),
+    Unavailable(String),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LeaseGrant {
+    pub scope_id: String,
+    pub owner_node_id: String,
+    pub epoch: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ObjectPutRequest {
+    pub object_key: String,
+    pub content_length: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ObjectDescriptor {
+    pub object_key: String,
+    pub content_length: u64,
+}
+
+pub trait MetadataStore {
+    fn put_snapshot(&self, scope: &str, key: &str, value: &str) -> Result<(), ContractError>;
+
+    fn load_snapshot(&self, scope: &str, key: &str) -> Result<Option<String>, ContractError>;
+}
+
+pub trait LeaseStore {
+    fn acquire(&self, grant: LeaseGrant) -> Result<LeaseGrant, ContractError>;
+}
+
+pub trait ObjectStore {
+    fn put(&self, request: ObjectPutRequest) -> Result<ObjectDescriptor, ContractError>;
+}

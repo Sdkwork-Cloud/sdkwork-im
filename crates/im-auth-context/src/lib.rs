@@ -2,6 +2,7 @@ use std::collections::BTreeSet;
 
 use axum::http::header::AUTHORIZATION;
 use axum::http::{HeaderMap, HeaderValue};
+use craw_chat_ccp_core::{CcpActor, CcpAuthority, CcpSender};
 use hmac::{Hmac, Mac};
 use serde_json::Value;
 use sha2::Sha256;
@@ -78,6 +79,18 @@ impl AuthContext {
         }
 
         false
+    }
+
+    pub fn ccp_authority(&self) -> CcpAuthority {
+        CcpAuthority::new(
+            self.tenant_id.clone(),
+            CcpSender::new(
+                self.actor_id.clone(),
+                self.device_id.clone(),
+                self.session_id.clone(),
+            ),
+            CcpActor::new(self.actor_id.clone(), self.actor_kind.clone()),
+        )
     }
 }
 

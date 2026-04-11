@@ -86,9 +86,14 @@ async fn test_create_complete_and_get_media_asset_over_http() {
     assert_eq!(complete_json["processingState"], "ready");
     assert_eq!(complete_json["bucket"], "local-media");
     assert_eq!(
-        complete_json["resource"]["url"],
-        "https://cdn.example.com/ma_demo/demo.png"
+        complete_json["storageProvider"],
+        "object-storage-volcengine"
     );
+    let download_url = complete_json["resource"]["url"]
+        .as_str()
+        .expect("complete response should include provider download url");
+    assert!(download_url.contains("object-storage-volcengine"));
+    assert!(download_url.contains("expires=3600"));
 
     let get_response = app
         .oneshot(
