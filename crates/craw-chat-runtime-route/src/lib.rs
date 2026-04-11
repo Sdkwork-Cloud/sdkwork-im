@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use serde::{Deserialize, Serialize};
 
@@ -96,11 +96,19 @@ pub struct RouteDirectory {
     nodes: Arc<Mutex<HashMap<String, NodeLifecycleState>>>,
 }
 
+fn lock_route_mutex<'a, T>(mutex: &'a Mutex<T>, label: &'static str) -> MutexGuard<'a, T> {
+    match mutex.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            eprintln!("warning: recovering poisoned mutex in craw-chat-runtime-route: {label}");
+            poisoned.into_inner()
+        }
+    }
+}
+
 impl RouteDirectory {
     pub fn register_node(&self, node_id: &str) {
-        self.nodes
-            .lock()
-            .expect("route nodes should lock")
+        lock_route_mutex(&self.nodes, "nodes")
             .entry(node_id.into())
             .or_insert_with(|| NodeLifecycleState {
                 drain_status: "active".into(),
@@ -126,7 +134,7 @@ impl RouteDirectory {
             request.principal_id.as_str(),
             request.device_id.as_str(),
         );
-        let mut routes = self.routes.lock().expect("route bindings should lock");
+        let mut routes = lock_route_mutex(&self.routes, "routes");
         let previous_owner = routes.get(&key).map(|route| route.owner_node_id.clone());
         let next_epoch = routes
             .get(&key)
@@ -218,7 +226,7 @@ impl RouteDirectory {
         }
 
         let mut migrated = 0;
-        let mut routes = self.routes.lock().expect("route bindings should lock");
+        let mut routes = lock_route_mutex(&self.routes, "routes");
         for route in routes.values_mut() {
             if route.owner_node_id == source_node_id {
                 route.owner_node_id = target_node_id.into();
@@ -257,9 +265,7 @@ impl RouteDirectory {
         principal_id: &str,
         device_id: &str,
     ) -> Option<RouteBinding> {
-        self.routes
-            .lock()
-            .expect("route bindings should lock")
+        lock_route_mutex(&self.routes, "routes")
             .get(route_key(tenant_id, principal_id, device_id).as_str())
             .cloned()
     }
@@ -273,7 +279,7 @@ impl RouteDirectory {
     ) -> Option<RouteBinding> {
         let key = route_key(tenant_id, principal_id, device_id);
         let removed = {
-            let mut routes = self.routes.lock().expect("route bindings should lock");
+            let mut routes = lock_route_mutex(&self.routes, "routes");
             match routes.get(&key) {
                 Some(route) if route.owner_node_id == owner_node_id => routes.remove(&key),
                 _ => None,
@@ -286,10 +292,7 @@ impl RouteDirectory {
     }
 
     pub fn routes_for_node(&self, node_id: &str) -> Vec<RouteBinding> {
-        let mut items = self
-            .routes
-            .lock()
-            .expect("route bindings should lock")
+        let mut items = lock_route_mutex(&self.routes, "routes")
             .values()
             .filter(|route| route.owner_node_id == node_id)
             .cloned()
@@ -308,9 +311,7 @@ impl RouteDirectory {
     }
 
     fn owned_route_count(&self, node_id: &str) -> usize {
-        self.routes
-            .lock()
-            .expect("route bindings should lock")
+        lock_route_mutex(&self.routes, "routes")
             .values()
             .filter(|route| route.owner_node_id == node_id)
             .count()
@@ -344,9 +345,7 @@ impl RouteDirectory {
     }
 
     fn node_state(&self, node_id: &str) -> Result<NodeLifecycleState, RouteRuntimeError> {
-        self.nodes
-            .lock()
-            .expect("route nodes should lock")
+        lock_route_mutex(&self.nodes, "nodes")
             .get(node_id)
             .cloned()
             .ok_or_else(|| RouteRuntimeError {
@@ -362,7 +361,7 @@ impl RouteDirectory {
         drain_status: &str,
         rebalance_state: &str,
     ) -> Result<(), RouteRuntimeError> {
-        let mut nodes = self.nodes.lock().expect("route nodes should lock");
+        let mut nodes = lock_route_mutex(&self.nodes, "nodes");
         let state = nodes.get_mut(node_id).ok_or_else(|| RouteRuntimeError {
             code: "node_not_found",
             message: format!("node not found: {node_id}"),
@@ -376,4 +375,72 @@ impl RouteDirectory {
 
 fn route_key(tenant_id: &str, principal_id: &str, device_id: &str) -> String {
     format!("{tenant_id}:{principal_id}:{device_id}")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::panic::{self, AssertUnwindSafe};
+
+    fn poison_mutex<T>(mutex: &Mutex<T>) {
+        let _ = panic::catch_unwind(AssertUnwindSafe(|| {
+            let _guard = mutex.lock().expect("test poison lock should succeed");
+            panic!("intentional poison for regression coverage");
+        }));
+    }
+
+    #[test]
+    fn test_register_node_recovers_from_poisoned_nodes_lock() {
+        let directory = RouteDirectory::default();
+        poison_mutex(&directory.nodes);
+
+        let result = panic::catch_unwind(AssertUnwindSafe(|| {
+            directory.register_node("node_a");
+        }));
+        assert!(
+            result.is_ok(),
+            "register_node should not panic when node lifecycle store lock is poisoned"
+        );
+        assert!(directory.node_lifecycle("node_a").is_some());
+    }
+
+    #[test]
+    fn test_bind_recovers_from_poisoned_routes_lock() {
+        let directory = RouteDirectory::default();
+        directory.register_node("node_a");
+        poison_mutex(&directory.routes);
+
+        let result = panic::catch_unwind(AssertUnwindSafe(|| {
+            directory.bind(
+                RouteBindingRequest::new("t_demo", "u_demo", "d_pad", "node_a")
+                    .with_session_id(Some("s_demo"))
+                    .with_connection_kind("websocket")
+                    .with_bound_at("2026-04-12T00:00:00.000Z"),
+            )
+        }));
+        assert!(
+            result.is_ok(),
+            "bind should not panic when route binding store lock is poisoned"
+        );
+        let bind_result = result.expect("panic status should be captured");
+        assert!(
+            bind_result.is_ok(),
+            "bind should recover from poisoned route binding store lock"
+        );
+    }
+
+    #[test]
+    fn test_node_lifecycle_recovers_from_poisoned_nodes_lock() {
+        let directory = RouteDirectory::default();
+        directory.register_node("node_a");
+        poison_mutex(&directory.nodes);
+
+        let result = panic::catch_unwind(AssertUnwindSafe(|| directory.node_lifecycle("node_a")));
+        assert!(
+            result.is_ok(),
+            "node_lifecycle should not panic when node lifecycle store lock is poisoned"
+        );
+        let lifecycle = result.expect("panic status should be captured");
+        assert!(lifecycle.is_some());
+    }
 }
