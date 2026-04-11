@@ -30,6 +30,7 @@ use im_adapters_local_memory::MemoryCommitJournal;
 use im_auth_context::{
     AuthContext, AuthContextError, PUBLIC_BEARER_HS256_SECRET_ENV, encode_hs256_bearer_token,
     resolve_auth_context, resolve_public_bearer_auth_context,
+    resolve_public_bearer_required_audience, resolve_public_bearer_required_issuer,
 };
 use im_domain_core::social::{
     BlockScope, DirectChat, DirectChatStatus, ExternalConnection, ExternalConnectionKind,
@@ -132,22 +133,26 @@ impl PublicSharedChannelLinkedMemberSyncTrigger {
 
     fn authorization_header(&self, tenant_id: &str) -> Result<String, String> {
         let now = current_unix_epoch_seconds();
-        let token = encode_hs256_bearer_token(
-            &serde_json::json!({
-                "tenant_id": tenant_id,
-                "sub": PUBLIC_SHARED_CHANNEL_SYNC_ACTOR_ID,
-                "actor_kind": "system",
-                "permissions": [SHARED_CHANNEL_SYNC_PERMISSION],
-                "scope": SHARED_CHANNEL_SYNC_PERMISSION,
-                "iat": now,
-                "nbf": now.saturating_sub(1),
-                "exp": now.saturating_add(300),
-            }),
-            self.public_bearer_secret.as_str(),
-        )
-        .map_err(|error| {
-            format!("failed to encode public bearer token for shared-channel sync: {error}")
-        })?;
+        let mut claims = serde_json::json!({
+            "tenant_id": tenant_id,
+            "sub": PUBLIC_SHARED_CHANNEL_SYNC_ACTOR_ID,
+            "actor_kind": "system",
+            "permissions": [SHARED_CHANNEL_SYNC_PERMISSION],
+            "scope": SHARED_CHANNEL_SYNC_PERMISSION,
+            "iat": now,
+            "nbf": now.saturating_sub(1),
+            "exp": now.saturating_add(300),
+        });
+        if let Some(required_issuer) = resolve_public_bearer_required_issuer() {
+            claims["iss"] = serde_json::json!(required_issuer);
+        }
+        if let Some(required_audience) = resolve_public_bearer_required_audience() {
+            claims["aud"] = serde_json::json!(required_audience);
+        }
+        let token = encode_hs256_bearer_token(&claims, self.public_bearer_secret.as_str())
+            .map_err(|error| {
+                format!("failed to encode public bearer token for shared-channel sync: {error}")
+            })?;
 
         Ok(format!("Bearer {token}"))
     }

@@ -297,7 +297,11 @@ fn test_deployment_profiles_and_templates_document_local_minimal_and_local_defau
         assert!(template_content.contains("CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET="));
         assert!(template_content.contains("CRAW_CHAT_PUBLIC_BEARER_REQUIRE_EXP="));
         assert!(template_content.contains("CRAW_CHAT_PUBLIC_BEARER_MAX_TTL_SECONDS="));
-        assert!(template_content.contains("CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS="));
+        assert!(template_content.contains("CRAW_CHAT_PUBLIC_BEARER_REQUIRED_ISS="));
+        assert!(template_content.contains("CRAW_CHAT_PUBLIC_BEARER_REQUIRED_AUD="));
+        assert!(
+            template_content.contains("CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS=")
+        );
         assert!(
             template_content.contains("CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS=")
         );
@@ -306,6 +310,8 @@ fn test_deployment_profiles_and_templates_document_local_minimal_and_local_defau
     for env_name in [
         "CRAW_CHAT_PUBLIC_BEARER_REQUIRE_EXP",
         "CRAW_CHAT_PUBLIC_BEARER_MAX_TTL_SECONDS",
+        "CRAW_CHAT_PUBLIC_BEARER_REQUIRED_ISS",
+        "CRAW_CHAT_PUBLIC_BEARER_REQUIRED_AUD",
         "CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS",
         "CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS",
         "CRAW_CHAT_ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP",
@@ -327,8 +333,8 @@ fn test_deployment_profiles_and_templates_document_local_minimal_and_local_defau
 }
 
 #[test]
-fn test_security_and_audit_api_docs_cover_public_bearer_shared_sync_and_chain_verification_contracts(
-) {
+fn test_security_and_audit_api_docs_cover_public_bearer_shared_sync_and_chain_verification_contracts()
+ {
     let root = workspace_root();
     let auth_and_errors_doc_path = root
         .join("docs")
@@ -367,8 +373,12 @@ fn test_security_and_audit_api_docs_cover_public_bearer_shared_sync_and_chain_ve
     for token in [
         "CRAW_CHAT_PUBLIC_BEARER_REQUIRE_EXP",
         "CRAW_CHAT_PUBLIC_BEARER_MAX_TTL_SECONDS",
+        "CRAW_CHAT_PUBLIC_BEARER_REQUIRED_ISS",
+        "CRAW_CHAT_PUBLIC_BEARER_REQUIRED_AUD",
         "jwt_exp_required",
         "jwt_ttl_exceeded",
+        "jwt_issuer_invalid",
+        "jwt_audience_invalid",
         "shared_channel_sync_permission_denied",
         "shared_channel_sync_actor_invalid",
         "shared_channel_sync_rate_limited",
@@ -3383,7 +3393,9 @@ fn test_local_minimal_deployment_assets_exist_and_reference_expected_entrypoints
         "#!/usr/bin/env bash"
     );
     assert!(bin_repair_runtime_cmd.contains("_cmd-forward-powershell.cmd"));
-    assert!(!bin_repair_runtime_cmd.contains("powershell -NoProfile -ExecutionPolicy Bypass -File"));
+    assert!(
+        !bin_repair_runtime_cmd.contains("powershell -NoProfile -ExecutionPolicy Bypass -File")
+    );
 
     assert!(bin_restore_runtime_ps1.contains("restore-runtime-dir"));
     assert!(bin_restore_runtime_ps1.contains("ExpectedPreviewFingerprint"));
@@ -3424,8 +3436,10 @@ fn test_local_minimal_deployment_assets_exist_and_reference_expected_entrypoints
         "#!/usr/bin/env bash"
     );
     assert!(bin_preview_restore_runtime_cmd.contains("_cmd-forward-powershell.cmd"));
-    assert!(!bin_preview_restore_runtime_cmd
-        .contains("powershell -NoProfile -ExecutionPolicy Bypass -File"));
+    assert!(
+        !bin_preview_restore_runtime_cmd
+            .contains("powershell -NoProfile -ExecutionPolicy Bypass -File")
+    );
 
     assert!(bin_list_runtime_backups_ps1.contains("list-runtime-backups"));
     assert!(bin_list_runtime_backups_ps1.contains("CRAW_CHAT_RUNTIME_DIR"));
@@ -3444,8 +3458,10 @@ fn test_local_minimal_deployment_assets_exist_and_reference_expected_entrypoints
         "#!/usr/bin/env bash"
     );
     assert!(bin_list_runtime_backups_cmd.contains("_cmd-forward-powershell.cmd"));
-    assert!(!bin_list_runtime_backups_cmd
-        .contains("powershell -NoProfile -ExecutionPolicy Bypass -File"));
+    assert!(
+        !bin_list_runtime_backups_cmd
+            .contains("powershell -NoProfile -ExecutionPolicy Bypass -File")
+    );
 
     assert!(bin_init_config_ps1.contains("CRAW_CHAT_BIND_ADDR"));
     assert!(bin_init_config_ps1.contains("CRAW_CHAT_RUNTIME_DIR"));
@@ -3804,8 +3820,8 @@ fn test_repair_runtime_local_sh_uses_local_default_profile_config_when_requested
 }
 
 #[test]
-fn test_repair_runtime_local_sh_invokes_social_repair_after_generic_repair_when_social_journal_exists(
-) {
+fn test_repair_runtime_local_sh_invokes_social_repair_after_generic_repair_when_social_journal_exists()
+ {
     let root = workspace_root();
     let temp_root = unique_temp_root("repair_runtime_sh_social_repair");
     let bin_dir = temp_root.join("bin");
@@ -5309,8 +5325,8 @@ fn main() {
 }
 
 #[test]
-fn test_start_local_sh_force_kills_background_process_and_clears_pid_file_when_health_check_times_out(
-) {
+fn test_start_local_sh_force_kills_background_process_and_clears_pid_file_when_health_check_times_out()
+ {
     let root = workspace_root();
     let temp_root = unique_temp_root("start_sh_force_kill_cleanup");
     let bin_dir = temp_root.join("bin");

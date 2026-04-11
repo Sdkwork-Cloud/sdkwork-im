@@ -5,8 +5,8 @@ use axum::http::header::AUTHORIZATION;
 use axum::http::{HeaderMap, HeaderValue};
 use im_auth_context::{
     PUBLIC_BEARER_HS256_SECRET_ENV, PUBLIC_BEARER_MAX_TTL_SECONDS_ENV,
-    PUBLIC_BEARER_REQUIRE_EXP_ENV, resolve_auth_context, resolve_bearer_auth_context,
-    resolve_public_bearer_auth_context,
+    PUBLIC_BEARER_REQUIRE_EXP_ENV, PUBLIC_BEARER_REQUIRED_AUD_ENV, PUBLIC_BEARER_REQUIRED_ISS_ENV,
+    resolve_auth_context, resolve_bearer_auth_context, resolve_public_bearer_auth_context,
 };
 
 const TEST_PUBLIC_SECRET: &str = "public-test-secret";
@@ -324,4 +324,83 @@ fn test_resolve_public_bearer_auth_context_rejects_signed_token_exceeding_max_tt
     let error = resolve_public_bearer_auth_context(&headers)
         .expect_err("token with ttl longer than configured maximum should fail");
     assert_eq!(error.code(), "jwt_ttl_exceeded");
+}
+
+#[test]
+fn test_resolve_public_bearer_auth_context_rejects_token_when_required_issuer_is_missing() {
+    let _guard = configure_public_bearer_secret();
+    let _required_issuer = ScopedEnvVar::set(PUBLIC_BEARER_REQUIRED_ISS_ENV, "craw-chat");
+    let token = im_auth_context::encode_hs256_bearer_token(
+        &serde_json::json!({
+            "tenant_id": "t_demo",
+            "sub": "u_demo"
+        }),
+        TEST_PUBLIC_SECRET,
+    )
+    .expect("signed token should encode");
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        AUTHORIZATION,
+        HeaderValue::from_str(format!("Bearer {token}").as_str())
+            .expect("authorization header should be valid"),
+    );
+
+    let error = resolve_public_bearer_auth_context(&headers).expect_err(
+        "token missing iss should fail when CRAW_CHAT_PUBLIC_BEARER_REQUIRED_ISS is configured",
+    );
+    assert_eq!(error.code(), "jwt_issuer_invalid");
+}
+
+#[test]
+fn test_resolve_public_bearer_auth_context_rejects_token_when_required_audience_mismatches() {
+    let _guard = configure_public_bearer_secret();
+    let _required_audience = ScopedEnvVar::set(PUBLIC_BEARER_REQUIRED_AUD_ENV, "craw-chat-public");
+    let token = im_auth_context::encode_hs256_bearer_token(
+        &serde_json::json!({
+            "tenant_id": "t_demo",
+            "sub": "u_demo",
+            "aud": "another-audience"
+        }),
+        TEST_PUBLIC_SECRET,
+    )
+    .expect("signed token should encode");
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        AUTHORIZATION,
+        HeaderValue::from_str(format!("Bearer {token}").as_str())
+            .expect("authorization header should be valid"),
+    );
+
+    let error = resolve_public_bearer_auth_context(&headers).expect_err(
+        "token with mismatched aud should fail when CRAW_CHAT_PUBLIC_BEARER_REQUIRED_AUD is configured",
+    );
+    assert_eq!(error.code(), "jwt_audience_invalid");
+}
+
+#[test]
+fn test_resolve_public_bearer_auth_context_accepts_token_when_required_issuer_and_audience_match() {
+    let _guard = configure_public_bearer_secret();
+    let _required_issuer = ScopedEnvVar::set(PUBLIC_BEARER_REQUIRED_ISS_ENV, "craw-chat");
+    let _required_audience = ScopedEnvVar::set(PUBLIC_BEARER_REQUIRED_AUD_ENV, "craw-chat-public");
+    let token = im_auth_context::encode_hs256_bearer_token(
+        &serde_json::json!({
+            "tenant_id": "t_demo",
+            "sub": "u_demo",
+            "iss": "craw-chat",
+            "aud": ["craw-chat-public", "fallback-audience"]
+        }),
+        TEST_PUBLIC_SECRET,
+    )
+    .expect("signed token should encode");
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        AUTHORIZATION,
+        HeaderValue::from_str(format!("Bearer {token}").as_str())
+            .expect("authorization header should be valid"),
+    );
+
+    let auth = resolve_public_bearer_auth_context(&headers)
+        .expect("token should pass when issuer and audience requirements match");
+    assert_eq!(auth.tenant_id, "t_demo");
+    assert_eq!(auth.actor_id, "u_demo");
 }

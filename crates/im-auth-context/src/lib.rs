@@ -11,6 +11,8 @@ use sha2::Sha256;
 pub const PUBLIC_BEARER_HS256_SECRET_ENV: &str = "CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET";
 pub const PUBLIC_BEARER_REQUIRE_EXP_ENV: &str = "CRAW_CHAT_PUBLIC_BEARER_REQUIRE_EXP";
 pub const PUBLIC_BEARER_MAX_TTL_SECONDS_ENV: &str = "CRAW_CHAT_PUBLIC_BEARER_MAX_TTL_SECONDS";
+pub const PUBLIC_BEARER_REQUIRED_ISS_ENV: &str = "CRAW_CHAT_PUBLIC_BEARER_REQUIRED_ISS";
+pub const PUBLIC_BEARER_REQUIRED_AUD_ENV: &str = "CRAW_CHAT_PUBLIC_BEARER_REQUIRED_AUD";
 const TEMPORAL_CLAIM_CLOCK_SKEW_SECONDS: u64 = 60;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -331,8 +333,60 @@ fn resolve_hs256_bearer_token(token: &str, secret: &[u8]) -> Result<AuthContext,
         AuthContextError::invalid("jwt_claims_invalid", "jwt claims payload is not valid json")
     })?;
     validate_temporal_claims(&claims)?;
+    validate_public_contract_claims(&claims)?;
 
     resolve_bearer_token(token)
+}
+
+fn validate_public_contract_claims(claims: &Value) -> Result<(), AuthContextError> {
+    if let Some(required_issuer) = resolve_public_bearer_required_issuer() {
+        let issuer = claims
+            .get("iss")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| {
+                AuthContextError::invalid(
+                    "jwt_issuer_invalid",
+                    format!(
+                        "public bearer token must include iss claim matching {}",
+                        PUBLIC_BEARER_REQUIRED_ISS_ENV
+                    ),
+                )
+            })?;
+        if issuer != required_issuer {
+            return Err(AuthContextError::invalid(
+                "jwt_issuer_invalid",
+                format!(
+                    "public bearer token issuer must match {}",
+                    PUBLIC_BEARER_REQUIRED_ISS_ENV
+                ),
+            ));
+        }
+    }
+
+    if let Some(required_audience) = resolve_public_bearer_required_audience() {
+        let matches_required_audience = match claims.get("aud") {
+            Some(Value::String(value)) => value.trim() == required_audience,
+            Some(Value::Array(values)) => values
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::trim)
+                .any(|value| value == required_audience),
+            _ => false,
+        };
+        if !matches_required_audience {
+            return Err(AuthContextError::invalid(
+                "jwt_audience_invalid",
+                format!(
+                    "public bearer token audience must match {}",
+                    PUBLIC_BEARER_REQUIRED_AUD_ENV
+                ),
+            ));
+        }
+    }
+
+    Ok(())
 }
 
 fn validate_temporal_claims(claims: &Value) -> Result<(), AuthContextError> {
@@ -457,6 +511,20 @@ fn resolve_public_bearer_max_ttl_seconds() -> Option<u64> {
         .ok()
         .and_then(|value| value.trim().parse::<u64>().ok())
         .filter(|value| *value > 0)
+}
+
+pub fn resolve_public_bearer_required_issuer() -> Option<String> {
+    std::env::var(PUBLIC_BEARER_REQUIRED_ISS_ENV)
+        .ok()
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
+}
+
+pub fn resolve_public_bearer_required_audience() -> Option<String> {
+    std::env::var(PUBLIC_BEARER_REQUIRED_AUD_ENV)
+        .ok()
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
 }
 
 fn resolve_header(headers: &HeaderMap, names: &[&str]) -> Result<String, AuthContextError> {

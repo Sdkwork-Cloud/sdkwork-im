@@ -36,6 +36,8 @@ For public or commercial deployments, keep these enabled and explicit:
 | --- | --- |
 | `CRAW_CHAT_PUBLIC_BEARER_REQUIRE_EXP` | Requires `exp` in public bearer tokens (`1/true/yes/on`). |
 | `CRAW_CHAT_PUBLIC_BEARER_MAX_TTL_SECONDS` | Rejects public bearer tokens whose lifetime exceeds this maximum. |
+| `CRAW_CHAT_PUBLIC_BEARER_REQUIRED_ISS` | Optional strict issuer match. When set, public bearer `iss` must equal this value. |
+| `CRAW_CHAT_PUBLIC_BEARER_REQUIRED_AUD` | Optional strict audience match. When set, public bearer `aud` must include this value. |
 | `CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS` | Per-tenant request ceiling for `/api/v1/conversations/shared-channel-links/sync` inside each process. |
 | `CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS` | Sliding window used by the shared-channel sync per-tenant limiter. |
 | `CRAW_CHAT_ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP` | Emergency local-test override for non-HTTPS shared-channel sync targets. Keep `false` in non-local environments. |
@@ -70,6 +72,8 @@ CRAW_CHAT_RUNTIME_DIR=.runtime/local-minimal
 CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET=replace-with-local-minimal-secret
 CRAW_CHAT_PUBLIC_BEARER_REQUIRE_EXP=true
 CRAW_CHAT_PUBLIC_BEARER_MAX_TTL_SECONDS=900
+CRAW_CHAT_PUBLIC_BEARER_REQUIRED_ISS=
+CRAW_CHAT_PUBLIC_BEARER_REQUIRED_AUD=
 CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS=120
 CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS=60
 CRAW_CHAT_ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP=false
@@ -83,6 +87,8 @@ CRAW_CHAT_RUNTIME_DIR=.runtime/local-minimal
 CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET=replace-with-local-default-secret
 CRAW_CHAT_PUBLIC_BEARER_REQUIRE_EXP=true
 CRAW_CHAT_PUBLIC_BEARER_MAX_TTL_SECONDS=900
+CRAW_CHAT_PUBLIC_BEARER_REQUIRED_ISS=
+CRAW_CHAT_PUBLIC_BEARER_REQUIRED_AUD=
 CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS=120
 CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS=60
 CRAW_CHAT_ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP=false

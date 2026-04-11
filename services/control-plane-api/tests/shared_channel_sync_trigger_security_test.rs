@@ -5,6 +5,7 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::routing::post;
 use axum::{Json, Router};
 use control_plane_api::SharedChannelLinkedMemberSyncRequest;
+use im_auth_context::{PUBLIC_BEARER_REQUIRED_AUD_ENV, PUBLIC_BEARER_REQUIRED_ISS_ENV};
 use serde_json::json;
 use tokio::net::TcpListener;
 
@@ -78,6 +79,44 @@ fn insecure_http_guard() -> MutexGuard<'static, ()> {
         .get_or_init(|| Mutex::new(()))
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+fn public_bearer_contract_guard() -> MutexGuard<'static, ()> {
+    static GUARD: OnceLock<Mutex<()>> = OnceLock::new();
+    GUARD
+        .get_or_init(|| Mutex::new(()))
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+struct ScopedEnvVar {
+    name: &'static str,
+    previous: Option<String>,
+}
+
+impl ScopedEnvVar {
+    fn set(name: &'static str, value: &str) -> Self {
+        let previous = std::env::var(name).ok();
+        unsafe {
+            std::env::set_var(name, value);
+        }
+        Self { name, previous }
+    }
+}
+
+impl Drop for ScopedEnvVar {
+    fn drop(&mut self) {
+        if let Some(previous) = &self.previous {
+            unsafe {
+                std::env::set_var(self.name, previous);
+            }
+            return;
+        }
+
+        unsafe {
+            std::env::remove_var(self.name);
+        }
+    }
 }
 
 fn clear_insecure_http_override() {
@@ -206,6 +245,62 @@ async fn test_public_shared_channel_sync_trigger_embeds_dedicated_permission_cla
             .any(|item| item.as_str() == Some("conversation.shared_channel.sync")),
         "shared-channel sync token should include dedicated sync permission claim"
     );
+
+    server.abort();
+    let _ = server.await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_public_shared_channel_sync_trigger_includes_required_issuer_and_audience_claims_when_configured()
+ {
+    let _guard = public_bearer_contract_guard();
+    let _required_issuer = ScopedEnvVar::set(PUBLIC_BEARER_REQUIRED_ISS_ENV, "craw-chat");
+    let _required_audience = ScopedEnvVar::set(PUBLIC_BEARER_REQUIRED_AUD_ENV, "craw-chat-public");
+    let listener = TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("shared-channel sync test listener should bind");
+    let local_addr = listener
+        .local_addr()
+        .expect("shared-channel sync test listener should expose local addr");
+    let captured = CapturedSyncRequest::default();
+    let app = Router::new()
+        .route(
+            "/api/v1/conversations/shared-channel-links/sync",
+            post(capture_sync_call),
+        )
+        .with_state(captured.clone());
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app)
+            .await
+            .expect("shared-channel sync test server should run");
+    });
+
+    let trigger = control_plane_api::build_public_shared_channel_sync_trigger(
+        format!("http://{local_addr}"),
+        "test-shared-channel-secret",
+    )
+    .expect("shared-channel sync trigger should build against local http target");
+    trigger
+        .trigger(SharedChannelLinkedMemberSyncRequest {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_shared_sync_issuer_audience_claim".into(),
+            shared_channel_policy_id: "scp_issuer_audience_claim".into(),
+            external_connection_id: "ec_issuer_audience_claim".into(),
+            local_actor_id: "u_local_actor".into(),
+            local_actor_kind: "user".into(),
+            external_member_id: "partner::issuer-audience-claim".into(),
+        })
+        .expect("shared-channel sync trigger should dispatch request");
+
+    let authorization = captured
+        .authorization
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .clone()
+        .expect("sync request should include authorization header");
+    let claims = decode_claims_from_bearer(authorization.as_str());
+    assert_eq!(claims["iss"], "craw-chat");
+    assert_eq!(claims["aud"], "craw-chat-public");
 
     server.abort();
     let _ = server.await;

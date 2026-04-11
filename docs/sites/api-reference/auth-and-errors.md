@@ -41,6 +41,9 @@ Public bearer verification also validates temporal claims with a `60s` clock-ske
 - When `CRAW_CHAT_PUBLIC_BEARER_REQUIRE_EXP` is enabled, `exp` is required.
 - When `CRAW_CHAT_PUBLIC_BEARER_MAX_TTL_SECONDS` is set to a positive value, token TTL cannot
   exceed that maximum.
+- When `CRAW_CHAT_PUBLIC_BEARER_REQUIRED_ISS` is non-empty, token `iss` must match exactly.
+- When `CRAW_CHAT_PUBLIC_BEARER_REQUIRED_AUD` is non-empty, token `aud` must include that value
+  (string or array form).
 
 These controls harden public HTTP surfaces against replay windows that are too large for
 commercial traffic.
@@ -85,6 +88,8 @@ networks. They are not the public SDK contract.
 | --- | --- | --- |
 | `401` | `jwt_exp_required` | `exp` is missing while `CRAW_CHAT_PUBLIC_BEARER_REQUIRE_EXP` or `CRAW_CHAT_PUBLIC_BEARER_MAX_TTL_SECONDS` requires it. |
 | `401` | `jwt_ttl_exceeded` | Public bearer lifetime exceeds `CRAW_CHAT_PUBLIC_BEARER_MAX_TTL_SECONDS`. |
+| `401` | `jwt_issuer_invalid` | Public bearer `iss` does not match `CRAW_CHAT_PUBLIC_BEARER_REQUIRED_ISS`. |
+| `401` | `jwt_audience_invalid` | Public bearer `aud` does not satisfy `CRAW_CHAT_PUBLIC_BEARER_REQUIRED_AUD`. |
 | `401` | `jwt_not_yet_valid`, `jwt_expired`, `jwt_issued_at_invalid`, `jwt_temporal_claim_invalid` | Temporal claims are invalid for current wall-clock time. |
 | `403` | `shared_channel_sync_permission_denied` | Missing permission `conversation.shared_channel.sync` for shared-channel sync endpoint. |
 | `403` | `shared_channel_sync_actor_invalid` | Caller actor is not the system actor `control-plane-sync`. |
