@@ -2814,6 +2814,13 @@ impl SocialControlRuntime {
         }
     }
 
+    fn recover_poisoned_social_runtime_lock<T>(poisoned: std::sync::PoisonError<T>) -> T {
+        eprintln!(
+            "control-plane social runtime lock was poisoned by a prior panic; continuing with inner state"
+        );
+        poisoned.into_inner()
+    }
+
     fn from_runtime_dir(runtime_dir: impl AsRef<StdPath>) -> Self {
         let state_dir = runtime_dir.as_ref().join("state");
         let journal_path = state_dir.join(SOCIAL_COMMIT_JOURNAL_FILE_NAME);
@@ -3079,7 +3086,7 @@ impl SocialControlRuntime {
         let pending_state = self
             .state
             .read()
-            .expect("social runtime lock should not be poisoned")
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
             .clone();
         let mut repaired_state = if let Some(journal_path) = self.journal_path.as_deref() {
             Self::replay_state_from_commit_journal(journal_path).map_err(|error| {
@@ -3091,7 +3098,7 @@ impl SocialControlRuntime {
         } else {
             self.state
                 .read()
-                .expect("social runtime lock should not be poisoned")
+                .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
                 .clone()
         };
         repaired_state.merge_pending_shared_channel_sync_requests_from(&pending_state);
@@ -3112,7 +3119,7 @@ impl SocialControlRuntime {
         *self
             .state
             .write()
-            .expect("social runtime lock should not be poisoned") = repaired_state.clone();
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock) = repaired_state.clone();
         Ok(SocialRuntimeRepairResponse {
             status: SocialRuntimeRepairStatus::Repaired,
             journal_authority: matches!(self.state_store, SocialStateStore::File { .. }),
@@ -3134,7 +3141,7 @@ impl SocialControlRuntime {
         let mut state = self
             .state
             .write()
-            .expect("social runtime lock should not be poisoned");
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock);
         let mut next_state = state.clone();
         let now = format_unix_timestamp_millis(current_unix_epoch_millis());
         if !next_state.record_failed_shared_channel_sync_requests(requests, error, now.as_str()) {
@@ -3159,7 +3166,7 @@ impl SocialControlRuntime {
         let state = self
             .state
             .read()
-            .expect("social runtime lock should not be poisoned");
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock);
         let now_epoch_millis = current_unix_epoch_millis();
         let now = format_unix_timestamp_millis(now_epoch_millis);
         let dedup_window_start = format_unix_timestamp_millis(
@@ -3214,7 +3221,7 @@ impl SocialControlRuntime {
         let mut state = self
             .state
             .write()
-            .expect("social runtime lock should not be poisoned");
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock);
         let mut next_state = state.clone();
         let now_epoch_millis = current_unix_epoch_millis();
         let delivered_at = format_unix_timestamp_millis(now_epoch_millis);
@@ -3243,7 +3250,7 @@ impl SocialControlRuntime {
         let current_state = self
             .state
             .read()
-            .expect("social runtime lock should not be poisoned")
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
             .clone();
         let pending_before = current_state.pending_shared_channel_sync_count();
         let dead_letter_before = current_state.dead_letter_shared_channel_sync_count();
@@ -3279,7 +3286,8 @@ impl SocialControlRuntime {
                 *self
                     .state
                     .write()
-                    .expect("social runtime lock should not be poisoned") = next_state.clone();
+                    .unwrap_or_else(Self::recover_poisoned_social_runtime_lock) =
+                    next_state.clone();
             }
             return Ok(SocialSharedChannelSyncRepairResponse {
                 status: SocialSharedChannelSyncRepairStatus::TriggerUnconfigured,
@@ -3324,7 +3332,7 @@ impl SocialControlRuntime {
         *self
             .state
             .write()
-            .expect("social runtime lock should not be poisoned") = next_state.clone();
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock) = next_state.clone();
 
         let pending_after = next_state.pending_shared_channel_sync_count();
         let dead_letter_after = next_state.dead_letter_shared_channel_sync_count();
@@ -3363,7 +3371,7 @@ impl SocialControlRuntime {
         let current_state = self
             .state
             .read()
-            .expect("social runtime lock should not be poisoned")
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
             .clone();
         let pending_before = current_state.pending_shared_channel_sync_count();
         let dead_letter_before = current_state.dead_letter_shared_channel_sync_count();
@@ -3389,7 +3397,7 @@ impl SocialControlRuntime {
         *self
             .state
             .write()
-            .expect("social runtime lock should not be poisoned") = next_state.clone();
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock) = next_state.clone();
 
         Ok(SocialSharedChannelSyncDeadLetterRequeueResponse {
             status: SocialSharedChannelSyncDeadLetterRequeueStatus::Requeued,
@@ -3410,7 +3418,7 @@ impl SocialControlRuntime {
         let current_state = self
             .state
             .read()
-            .expect("social runtime lock should not be poisoned")
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
             .clone();
         let now = format_unix_timestamp_millis(current_unix_epoch_millis());
         let items = current_state
@@ -3444,7 +3452,7 @@ impl SocialControlRuntime {
         let current_state = self
             .state
             .read()
-            .expect("social runtime lock should not be poisoned")
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
             .clone();
         let now = format_unix_timestamp_millis(current_unix_epoch_millis());
         let items = current_state
@@ -3476,7 +3484,7 @@ impl SocialControlRuntime {
         let mut state = self
             .state
             .write()
-            .expect("social runtime lock should not be poisoned");
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock);
         if state.pending_shared_channel_sync_count() == 0 {
             return Ok(0);
         }
@@ -3504,7 +3512,7 @@ impl SocialControlRuntime {
         let current_state = self
             .state
             .read()
-            .expect("social runtime lock should not be poisoned")
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
             .clone();
         let pending_before = current_state.pending_shared_channel_sync_count();
         if pending_before == 0 {
@@ -3550,7 +3558,7 @@ impl SocialControlRuntime {
         let current_state = self
             .state
             .read()
-            .expect("social runtime lock should not be poisoned")
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
             .clone();
         let pending_before = current_state.pending_shared_channel_sync_count();
         let requested = request_keys.len();
@@ -3588,7 +3596,7 @@ impl SocialControlRuntime {
             *self
                 .state
                 .write()
-                .expect("social runtime lock should not be poisoned") = next_state.clone();
+                .unwrap_or_else(Self::recover_poisoned_social_runtime_lock) = next_state.clone();
         }
 
         let status = if claim_result.claimed == 0 && claim_result.conflicted == 0 {
@@ -3626,7 +3634,7 @@ impl SocialControlRuntime {
         let current_state = self
             .state
             .read()
-            .expect("social runtime lock should not be poisoned")
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
             .clone();
         let pending_before = current_state.pending_shared_channel_sync_count();
         let requested = request_keys.len();
@@ -3694,7 +3702,7 @@ impl SocialControlRuntime {
             *self
                 .state
                 .write()
-                .expect("social runtime lock should not be poisoned") = next_state.clone();
+                .unwrap_or_else(Self::recover_poisoned_social_runtime_lock) = next_state.clone();
         }
 
         Ok(SocialSharedChannelSyncPendingReleaseResponse {
@@ -3726,7 +3734,7 @@ impl SocialControlRuntime {
         let current_state = self
             .state
             .read()
-            .expect("social runtime lock should not be poisoned")
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
             .clone();
         let pending_before = current_state.pending_shared_channel_sync_count();
         let requested = request_keys.len();
@@ -3831,7 +3839,7 @@ impl SocialControlRuntime {
             *self
                 .state
                 .write()
-                .expect("social runtime lock should not be poisoned") = next_state.clone();
+                .unwrap_or_else(Self::recover_poisoned_social_runtime_lock) = next_state.clone();
         }
 
         Ok(SocialSharedChannelSyncPendingTakeoverResponse {
@@ -3860,7 +3868,7 @@ impl SocialControlRuntime {
         let current_state = self
             .state
             .read()
-            .expect("social runtime lock should not be poisoned")
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
             .clone();
         let pending_before = current_state.pending_shared_channel_sync_count();
         let dead_letter_before = current_state.dead_letter_shared_channel_sync_count();
@@ -3892,7 +3900,7 @@ impl SocialControlRuntime {
         *self
             .state
             .write()
-            .expect("social runtime lock should not be poisoned") = next_state.clone();
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock) = next_state.clone();
 
         Ok(SocialSharedChannelSyncDeadLetterTargetedRequeueResponse {
             status: if requeued == 0 {
@@ -3924,7 +3932,7 @@ impl SocialControlRuntime {
         let current_state = self
             .state
             .read()
-            .expect("social runtime lock should not be poisoned")
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
             .clone();
         let pending_before = current_state.pending_shared_channel_sync_count();
         let dead_letter_before = current_state.dead_letter_shared_channel_sync_count();
@@ -4008,7 +4016,7 @@ impl SocialControlRuntime {
                 *self
                     .state
                     .write()
-                    .expect("social runtime lock should not be poisoned") = next_state;
+                    .unwrap_or_else(Self::recover_poisoned_social_runtime_lock) = next_state;
             }
             return Ok(SocialSharedChannelSyncTargetedRepublishResponse {
                 status: SocialSharedChannelSyncTargetedRepublishStatus::TriggerUnconfigured,
@@ -4055,7 +4063,7 @@ impl SocialControlRuntime {
         *self
             .state
             .write()
-            .expect("social runtime lock should not be poisoned") = next_state.clone();
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock) = next_state.clone();
 
         let pending_after = next_state.pending_shared_channel_sync_count();
         let dead_letter_after = next_state.dead_letter_shared_channel_sync_count();
@@ -4422,7 +4430,7 @@ impl SocialControlRuntime {
         let mut state = self
             .state
             .write()
-            .expect("social runtime lock should not be poisoned");
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock);
         let mut next_state = state.clone();
         if let Some(replayed) =
             self.replay_committed_social_event(&state, &commit, |existing, persistence| {
@@ -4492,7 +4500,7 @@ impl SocialControlRuntime {
     ) -> Option<StoredExternalConnection> {
         self.state
             .read()
-            .expect("social runtime lock should not be poisoned")
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
             .external_connections
             .get(connection_id)
             .filter(|record| record.external_connection.tenant_id == tenant_id)
@@ -4605,7 +4613,7 @@ impl SocialControlRuntime {
         let mut state = self
             .state
             .write()
-            .expect("social runtime lock should not be poisoned");
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock);
         let mut next_state = state.clone();
         if let Some(replayed) =
             self.replay_committed_social_event(&state, &commit, |existing, persistence| {
@@ -4685,7 +4693,7 @@ impl SocialControlRuntime {
     ) -> Option<StoredExternalMemberLink> {
         self.state
             .read()
-            .expect("social runtime lock should not be poisoned")
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
             .external_member_links
             .get(link_id)
             .filter(|record| record.external_member_link.tenant_id == tenant_id)
@@ -4808,7 +4816,7 @@ impl SocialControlRuntime {
         let mut state = self
             .state
             .write()
-            .expect("social runtime lock should not be poisoned");
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock);
         let mut next_state = state.clone();
         if let Some(replayed) =
             self.replay_committed_social_event(&state, &commit, |existing, persistence| {
@@ -4887,7 +4895,7 @@ impl SocialControlRuntime {
     ) -> Option<StoredSharedChannelPolicy> {
         self.state
             .read()
-            .expect("social runtime lock should not be poisoned")
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
             .shared_channel_policies
             .get(policy_id)
             .filter(|record| record.shared_channel_policy.tenant_id == tenant_id)
@@ -4950,7 +4958,7 @@ impl SocialControlRuntime {
         let mut state = self
             .state
             .write()
-            .expect("social runtime lock should not be poisoned");
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock);
         let mut next_state = state.clone();
         if let Some(replayed) =
             self.replay_committed_social_event(&state, &commit, |existing, persistence| {
@@ -5005,7 +5013,7 @@ impl SocialControlRuntime {
     ) -> Option<StoredFriendRequest> {
         self.state
             .read()
-            .expect("social runtime lock should not be poisoned")
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
             .friend_requests
             .get(request_id)
             .filter(|record| record.friend_request.tenant_id == tenant_id)
@@ -5085,7 +5093,7 @@ impl SocialControlRuntime {
         let mut state = self
             .state
             .write()
-            .expect("social runtime lock should not be poisoned");
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock);
         let mut next_state = state.clone();
         if let Some(replayed) =
             self.replay_committed_social_event(&state, &commit, |existing, persistence| {
@@ -5151,7 +5159,7 @@ impl SocialControlRuntime {
     ) -> Option<StoredFriendship> {
         self.state
             .read()
-            .expect("social runtime lock should not be poisoned")
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
             .friendships
             .get(friendship_id)
             .filter(|record| record.friendship.tenant_id == tenant_id)
@@ -5242,7 +5250,7 @@ impl SocialControlRuntime {
         let mut state = self
             .state
             .write()
-            .expect("social runtime lock should not be poisoned");
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock);
         let mut next_state = state.clone();
         if let Some(replayed) =
             self.replay_committed_social_event(&state, &commit, |existing, persistence| {
@@ -5303,7 +5311,7 @@ impl SocialControlRuntime {
     fn user_block_snapshot(&self, tenant_id: &str, block_id: &str) -> Option<StoredUserBlock> {
         self.state
             .read()
-            .expect("social runtime lock should not be poisoned")
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
             .user_blocks
             .get(block_id)
             .filter(|record| record.user_block.tenant_id == tenant_id)
@@ -5385,7 +5393,7 @@ impl SocialControlRuntime {
         let mut state = self
             .state
             .write()
-            .expect("social runtime lock should not be poisoned");
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock);
         let mut next_state = state.clone();
         if let Some(replayed) =
             self.replay_committed_social_event(&state, &commit, |existing, persistence| {
@@ -5448,7 +5456,7 @@ impl SocialControlRuntime {
     ) -> Option<StoredDirectChat> {
         self.state
             .read()
-            .expect("social runtime lock should not be poisoned")
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
             .direct_chats
             .get(direct_chat_id)
             .filter(|record| record.direct_chat.tenant_id == tenant_id)
