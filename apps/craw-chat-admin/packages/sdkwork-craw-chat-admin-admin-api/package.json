@@ -1,0 +1,17 @@
+{
+  "name": "sdkwork-craw-chat-admin-admin-api",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    }
+  },
+  "dependencies": {
+    "sdkwork-craw-chat-admin-types": "workspace:*"
+  }
+}
