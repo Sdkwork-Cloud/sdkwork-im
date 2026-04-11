@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
+use std::sync::{Arc, Barrier, Mutex, MutexGuard, OnceLock};
 use std::time::Duration;
 
 use axum::extract::State;
@@ -160,6 +160,13 @@ fn clear_insecure_http_override() {
 fn clear_shared_channel_sync_timeout_override() {
     unsafe {
         std::env::remove_var(control_plane_api::SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MILLIS_ENV);
+    }
+}
+
+fn clear_shared_channel_sync_dispatch_overrides() {
+    unsafe {
+        std::env::remove_var(control_plane_api::SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT_ENV);
+        std::env::remove_var(control_plane_api::SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY_ENV);
     }
 }
 
@@ -443,4 +450,94 @@ async fn test_public_shared_channel_sync_trigger_rejects_oversized_response_body
 
     server.abort();
     let _ = server.await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_public_shared_channel_sync_trigger_returns_backpressure_error_when_dispatch_queue_is_full()
+ {
+    let _guard = insecure_http_guard();
+    clear_shared_channel_sync_timeout_override();
+    clear_shared_channel_sync_dispatch_overrides();
+    let _worker_override = ScopedEnvVar::set(
+        control_plane_api::SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT_ENV,
+        "1",
+    );
+    let _queue_override = ScopedEnvVar::set(
+        control_plane_api::SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY_ENV,
+        "1",
+    );
+
+    let listener = TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("shared-channel sync queue backpressure test listener should bind");
+    let local_addr = listener
+        .local_addr()
+        .expect("shared-channel sync queue backpressure test listener should expose local addr");
+    let captured = CapturedSyncRequest::default();
+    let app = Router::new()
+        .route(
+            "/api/v1/conversations/shared-channel-links/sync",
+            post(capture_sync_call_with_delay),
+        )
+        .with_state(captured);
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app)
+            .await
+            .expect("shared-channel sync queue backpressure test server should run");
+    });
+
+    let trigger = control_plane_api::build_public_shared_channel_sync_trigger(
+        format!("http://{local_addr}"),
+        "test-shared-channel-secret",
+    )
+    .expect("shared-channel sync trigger should build against local http target");
+
+    let concurrent_calls = 8usize;
+    let barrier = Arc::new(Barrier::new(concurrent_calls + 1));
+    let mut handles = Vec::with_capacity(concurrent_calls);
+    for idx in 0..concurrent_calls {
+        let barrier = Arc::clone(&barrier);
+        let trigger = Arc::clone(&trigger);
+        handles.push(std::thread::spawn(move || {
+            barrier.wait();
+            trigger.trigger(SharedChannelLinkedMemberSyncRequest {
+                tenant_id: "t_demo".into(),
+                conversation_id: format!("c_shared_sync_backpressure_guard_{idx}"),
+                shared_channel_policy_id: format!("scp_backpressure_guard_{idx}"),
+                external_connection_id: format!("ec_backpressure_guard_{idx}"),
+                local_actor_id: "u_local_actor".into(),
+                local_actor_kind: "user".into(),
+                external_member_id: format!("partner::backpressure-{idx}"),
+            })
+        }));
+    }
+    barrier.wait();
+
+    let mut queue_full_errors = 0usize;
+    let mut other_errors = Vec::new();
+    for handle in handles {
+        let result = handle
+            .join()
+            .expect("shared-channel sync queue backpressure worker thread should join");
+        if let Err(error) = result {
+            if error.contains("dispatch queue is full") {
+                queue_full_errors += 1;
+            } else {
+                other_errors.push(error);
+            }
+        }
+    }
+
+    assert!(
+        other_errors.is_empty(),
+        "backpressure test should only produce queue-full errors, got: {other_errors:?}"
+    );
+    assert!(
+        queue_full_errors > 0,
+        "expected at least one queue-full backpressure error when dispatch queue is constrained"
+    );
+
+    server.abort();
+    let _ = server.await;
+    clear_shared_channel_sync_dispatch_overrides();
 }

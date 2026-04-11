@@ -118,6 +118,12 @@ pub const SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_ENABLED_ENV: &str =
 pub const SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_INTERVAL_MILLIS_ENV: &str =
     "CRAW_CHAT_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_INTERVAL_MILLIS";
 const SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_DEFAULT_INTERVAL_MILLIS: u64 = 30_000;
+pub const SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT_ENV: &str =
+    "CRAW_CHAT_SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT";
+pub const SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY_ENV: &str =
+    "CRAW_CHAT_SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY";
+const SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT_DEFAULT: usize = 4;
+const SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY_DEFAULT: usize = 1024;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SharedChannelSyncStaleReclaimSchedulerConfig {
@@ -148,7 +154,8 @@ struct SharedChannelSyncDispatchTask {
 }
 
 struct PublicSharedChannelLinkedMemberSyncTrigger {
-    dispatch_tx: std::sync::mpsc::Sender<SharedChannelSyncDispatchTask>,
+    dispatch_tx: std::sync::mpsc::SyncSender<SharedChannelSyncDispatchTask>,
+    dispatch_queue_capacity: usize,
 }
 
 impl PublicSharedChannelLinkedMemberSyncTrigger {
@@ -163,37 +170,59 @@ impl PublicSharedChannelLinkedMemberSyncTrigger {
             return Err("shared-channel sync public bearer secret cannot be empty".into());
         }
 
+        let dispatch_queue_capacity = resolve_shared_channel_sync_dispatch_queue_capacity();
         let (dispatch_tx, dispatch_rx) =
-            std::sync::mpsc::channel::<SharedChannelSyncDispatchTask>();
-        std::thread::Builder::new()
-            .name("shared-sync-dispatch-worker".to_owned())
-            .spawn(move || {
-                let runtime = match tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                {
-                    Ok(runtime) => runtime,
-                    Err(error) => {
-                        while let Ok(task) = dispatch_rx.recv() {
-                            let _ = task.response_tx.send(Err(format!(
-                                "failed to build shared-channel sync worker runtime: {error}"
-                            )));
-                        }
-                        return;
-                    }
-                };
-                while let Ok(task) = dispatch_rx.recv() {
-                    let result = runtime.block_on(Self::dispatch_request(
-                        base_url.as_str(),
-                        public_bearer_secret.as_str(),
-                        task.request,
-                    ));
-                    let _ = task.response_tx.send(result);
-                }
-            })
-            .map_err(|error| format!("failed to spawn shared-channel sync worker: {error}"))?;
+            std::sync::mpsc::sync_channel::<SharedChannelSyncDispatchTask>(dispatch_queue_capacity);
+        let dispatch_rx = Arc::new(Mutex::new(dispatch_rx));
+        let worker_count = resolve_shared_channel_sync_dispatch_worker_count();
 
-        Ok(Self { dispatch_tx })
+        for worker_index in 0..worker_count {
+            let dispatch_rx = Arc::clone(&dispatch_rx);
+            let base_url = base_url.clone();
+            let public_bearer_secret = public_bearer_secret.clone();
+            std::thread::Builder::new()
+                .name(format!("shared-sync-dispatch-worker-{worker_index}"))
+                .spawn(move || {
+                    let runtime = match tokio::runtime::Builder::new_current_thread()
+                        .enable_all()
+                        .build()
+                    {
+                        Ok(runtime) => Some(runtime),
+                        Err(error) => {
+                            eprintln!(
+                                "failed to build shared-channel sync worker runtime: {error}"
+                            );
+                            None
+                        }
+                    };
+
+                    loop {
+                        let recv = dispatch_rx
+                            .lock()
+                            .unwrap_or_else(|poisoned| poisoned.into_inner())
+                            .recv();
+                        let Ok(task) = recv else {
+                            break;
+                        };
+                        let result = if let Some(runtime) = runtime.as_ref() {
+                            runtime.block_on(Self::dispatch_request(
+                                base_url.as_str(),
+                                public_bearer_secret.as_str(),
+                                task.request,
+                            ))
+                        } else {
+                            Err("shared-channel sync worker runtime unavailable".to_owned())
+                        };
+                        let _ = task.response_tx.send(result);
+                    }
+                })
+                .map_err(|error| format!("failed to spawn shared-channel sync worker: {error}"))?;
+        }
+
+        Ok(Self {
+            dispatch_tx,
+            dispatch_queue_capacity,
+        })
     }
 
     fn authorization_header(public_bearer_secret: &str, tenant_id: &str) -> Result<String, String> {
@@ -354,6 +383,22 @@ fn resolve_shared_channel_sync_http_timeout() -> Duration {
     Duration::from_millis(timeout_millis)
 }
 
+fn resolve_shared_channel_sync_dispatch_worker_count() -> usize {
+    std::env::var(SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT_ENV)
+        .ok()
+        .and_then(|value| value.trim().parse::<usize>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT_DEFAULT)
+}
+
+fn resolve_shared_channel_sync_dispatch_queue_capacity() -> usize {
+    std::env::var(SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY_ENV)
+        .ok()
+        .and_then(|value| value.trim().parse::<usize>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY_DEFAULT)
+}
+
 fn resolve_shared_channel_sync_stale_reclaim_scheduler_config_from_env()
 -> SharedChannelSyncStaleReclaimSchedulerConfig {
     let enabled = std::env::var(SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_ENABLED_ENV)
@@ -412,12 +457,21 @@ async fn read_shared_channel_sync_response_body_with_limit(
 impl SharedChannelLinkedMemberSyncTrigger for PublicSharedChannelLinkedMemberSyncTrigger {
     fn trigger(&self, request: SharedChannelLinkedMemberSyncRequest) -> Result<(), String> {
         let (response_tx, response_rx) = std::sync::mpsc::channel::<Result<(), String>>();
-        self.dispatch_tx
-            .send(SharedChannelSyncDispatchTask {
-                request,
-                response_tx,
-            })
-            .map_err(|_| "shared-channel sync worker is unavailable".to_owned())?;
+        match self.dispatch_tx.try_send(SharedChannelSyncDispatchTask {
+            request,
+            response_tx,
+        }) {
+            Ok(()) => {}
+            Err(std::sync::mpsc::TrySendError::Full(_)) => {
+                return Err(format!(
+                    "shared-channel sync dispatch queue is full (capacity: {}), retry later",
+                    self.dispatch_queue_capacity
+                ));
+            }
+            Err(std::sync::mpsc::TrySendError::Disconnected(_)) => {
+                return Err("shared-channel sync worker is unavailable".to_owned());
+            }
+        }
         response_rx
             .recv()
             .map_err(|_| "shared-channel sync worker dropped dispatch response".to_owned())?
