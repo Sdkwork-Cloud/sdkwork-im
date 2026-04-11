@@ -182,3 +182,25 @@ fn test_control_plane_repair_social_runtime_dir_cli_reports_transaction_marker_c
 
     let _ = fs::remove_dir_all(runtime_dir);
 }
+
+#[test]
+fn test_control_plane_repair_social_runtime_dir_cli_rejects_missing_runtime_dir_value() {
+    let output = run_control_plane_cli(&["repair-social-runtime-dir", "--runtime-dir"]);
+
+    assert!(
+        !output.status.success(),
+        "repair-social-runtime-dir must fail when --runtime-dir has no value. stdout: {} stderr: {}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("--runtime-dir requires a value"),
+        "cli stderr should explain missing --runtime-dir value. stderr: {stderr}"
+    );
+    assert!(
+        !stderr.to_lowercase().contains("panicked"),
+        "cli must return a controlled error instead of panic. stderr: {stderr}"
+    );
+}
