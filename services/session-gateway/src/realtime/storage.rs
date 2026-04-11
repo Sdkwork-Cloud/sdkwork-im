@@ -7,8 +7,8 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use super::{
-    RealtimeDeliveryRuntime, RealtimeRuntimeError, device_scope_key, normalize_checkpoint_fields,
-    realtime_checkpoint_timestamp, subscriptions_synced_at,
+    RealtimeDeliveryRuntime, RealtimeRuntimeError, device_scope_key, lock_realtime_mutex,
+    normalize_checkpoint_fields, realtime_checkpoint_timestamp, subscriptions_synced_at,
 };
 
 #[derive(Clone, Default)]
@@ -23,26 +23,22 @@ impl RealtimeCheckpointStore for RuntimeMemoryCheckpointStore {
         principal_id: &str,
         device_id: &str,
     ) -> Result<Option<RealtimeCheckpointRecord>, ContractError> {
-        Ok(self
-            .checkpoints
-            .lock()
-            .expect("runtime checkpoint store should lock")
-            .get(device_scope_key(tenant_id, principal_id, device_id).as_str())
-            .cloned())
+        Ok(
+            lock_realtime_mutex(&self.checkpoints, "runtime checkpoint store")
+                .get(device_scope_key(tenant_id, principal_id, device_id).as_str())
+                .cloned(),
+        )
     }
 
     fn save_checkpoint(&self, record: RealtimeCheckpointRecord) -> Result<(), ContractError> {
-        self.checkpoints
-            .lock()
-            .expect("runtime checkpoint store should lock")
-            .insert(
-                device_scope_key(
-                    record.tenant_id.as_str(),
-                    record.principal_id.as_str(),
-                    record.device_id.as_str(),
-                ),
-                record,
-            );
+        lock_realtime_mutex(&self.checkpoints, "runtime checkpoint store").insert(
+            device_scope_key(
+                record.tenant_id.as_str(),
+                record.principal_id.as_str(),
+                record.device_id.as_str(),
+            ),
+            record,
+        );
         Ok(())
     }
 }
@@ -59,26 +55,22 @@ impl RealtimeSubscriptionStore for RuntimeMemorySubscriptionStore {
         principal_id: &str,
         device_id: &str,
     ) -> Result<Option<RealtimeSubscriptionRecord>, ContractError> {
-        Ok(self
-            .subscriptions
-            .lock()
-            .expect("runtime subscription store should lock")
-            .get(device_scope_key(tenant_id, principal_id, device_id).as_str())
-            .cloned())
+        Ok(
+            lock_realtime_mutex(&self.subscriptions, "runtime subscription store")
+                .get(device_scope_key(tenant_id, principal_id, device_id).as_str())
+                .cloned(),
+        )
     }
 
     fn save_subscriptions(&self, record: RealtimeSubscriptionRecord) -> Result<(), ContractError> {
-        self.subscriptions
-            .lock()
-            .expect("runtime subscription store should lock")
-            .insert(
-                device_scope_key(
-                    record.tenant_id.as_str(),
-                    record.principal_id.as_str(),
-                    record.device_id.as_str(),
-                ),
-                record,
-            );
+        lock_realtime_mutex(&self.subscriptions, "runtime subscription store").insert(
+            device_scope_key(
+                record.tenant_id.as_str(),
+                record.principal_id.as_str(),
+                record.device_id.as_str(),
+            ),
+            record,
+        );
         Ok(())
     }
 
@@ -88,12 +80,11 @@ impl RealtimeSubscriptionStore for RuntimeMemorySubscriptionStore {
         principal_id: &str,
         device_id: &str,
     ) -> Result<bool, ContractError> {
-        Ok(self
-            .subscriptions
-            .lock()
-            .expect("runtime subscription store should lock")
-            .remove(device_scope_key(tenant_id, principal_id, device_id).as_str())
-            .is_some())
+        Ok(
+            lock_realtime_mutex(&self.subscriptions, "runtime subscription store")
+                .remove(device_scope_key(tenant_id, principal_id, device_id).as_str())
+                .is_some(),
+        )
     }
 }
 
@@ -135,27 +126,20 @@ impl RealtimeDeliveryRuntime {
         device_id: &str,
     ) -> RealtimeCheckpointRecord {
         let scope_key = device_scope_key(tenant_id, principal_id, device_id);
-        let latest_realtime_seq = self
-            .latest_sequences
-            .lock()
-            .expect("realtime sequence store should lock")
+        let latest_realtime_seq =
+            lock_realtime_mutex(&self.latest_sequences, "realtime sequence store")
+                .get(scope_key.as_str())
+                .copied()
+                .unwrap_or(0);
+        let acked_through_seq = lock_realtime_mutex(&self.acked_sequences, "realtime ack store")
             .get(scope_key.as_str())
             .copied()
             .unwrap_or(0);
-        let acked_through_seq = self
-            .acked_sequences
-            .lock()
-            .expect("realtime ack store should lock")
-            .get(scope_key.as_str())
-            .copied()
-            .unwrap_or(0);
-        let trimmed_through_seq = self
-            .trimmed_sequences
-            .lock()
-            .expect("realtime trim store should lock")
-            .get(scope_key.as_str())
-            .copied()
-            .unwrap_or(0);
+        let trimmed_through_seq =
+            lock_realtime_mutex(&self.trimmed_sequences, "realtime trim store")
+                .get(scope_key.as_str())
+                .copied()
+                .unwrap_or(0);
         let (latest_realtime_seq, acked_through_seq, trimmed_through_seq) =
             normalize_checkpoint_fields(
                 latest_realtime_seq,
@@ -180,10 +164,7 @@ impl RealtimeDeliveryRuntime {
         device_id: &str,
     ) -> Option<RealtimeSubscriptionRecord> {
         let scope_key = device_scope_key(tenant_id, principal_id, device_id);
-        let items = self
-            .subscriptions
-            .lock()
-            .expect("realtime subscription store should lock")
+        let items = lock_realtime_mutex(&self.subscriptions, "realtime subscription store")
             .get(scope_key.as_str())
             .cloned()
             .unwrap_or_default();
@@ -198,5 +179,29 @@ impl RealtimeDeliveryRuntime {
             synced_at: subscriptions_synced_at(items.as_slice()),
             items,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_runtime_checkpoint_store_load_recovers_from_poisoned_lock() {
+        let store = RuntimeMemoryCheckpointStore::default();
+        let _ = std::panic::catch_unwind({
+            let checkpoints = store.checkpoints.clone();
+            move || {
+                let _guard = checkpoints
+                    .lock()
+                    .expect("runtime checkpoint store should lock");
+                panic!("poison runtime checkpoint store lock");
+            }
+        });
+
+        let checkpoint = store
+            .load_checkpoint("t_demo", "u_demo", "d_poison")
+            .expect("poisoned lock should be recovered");
+        assert!(checkpoint.is_none());
     }
 }

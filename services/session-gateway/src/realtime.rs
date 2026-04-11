@@ -2,7 +2,7 @@ use craw_chat_contract_control::{RealtimeCheckpointStore, RealtimeSubscriptionSt
 use craw_chat_contract_core::ContractError;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use im_domain_core::realtime::{
     RealtimeAckState, RealtimeEvent, RealtimeEventWindow, RealtimeSubscription,
@@ -175,10 +175,7 @@ impl RealtimeDeliveryRuntime {
         device_id: &str,
     ) -> Result<(), RealtimeRuntimeError> {
         let scope_key = device_scope_key(tenant_id, principal_id, device_id);
-        let needs_restore = !self
-            .latest_sequences
-            .lock()
-            .expect("realtime sequence store should lock")
+        let needs_restore = !lock_realtime_mutex(&self.latest_sequences, "realtime sequence store")
             .contains_key(scope_key.as_str());
         let restored = if needs_restore {
             self.checkpoint_store
@@ -211,62 +208,51 @@ impl RealtimeDeliveryRuntime {
                 .unwrap_or(false)
         });
 
-        self.windows
-            .lock()
-            .expect("realtime window store should lock")
+        lock_realtime_mutex(&self.windows, "realtime window store")
             .entry(scope_key.clone())
             .or_default();
         if let Some(restored_subscriptions) =
             restored_subscriptions.filter(|record| !record.items.is_empty())
         {
-            self.subscriptions
-                .lock()
-                .expect("realtime subscription store should lock")
+            lock_realtime_mutex(&self.subscriptions, "realtime subscription store")
                 .entry(scope_key.clone())
                 .or_insert(restored_subscriptions.items);
         }
         let latest_seq = {
-            let mut latest_sequences = self
-                .latest_sequences
-                .lock()
-                .expect("realtime sequence store should lock");
+            let mut latest_sequences =
+                lock_realtime_mutex(&self.latest_sequences, "realtime sequence store");
             *latest_sequences
                 .entry(scope_key.clone())
                 .or_insert_with(|| normalized_restored.map(|item| item.0).unwrap_or(0))
         };
-        self.acked_sequences
-            .lock()
-            .expect("realtime ack store should lock")
+        lock_realtime_mutex(&self.acked_sequences, "realtime ack store")
             .entry(scope_key.clone())
             .or_insert_with(|| normalized_restored.map(|item| item.1).unwrap_or(0));
-        self.trimmed_sequences
-            .lock()
-            .expect("realtime trim store should lock")
+        lock_realtime_mutex(&self.trimmed_sequences, "realtime trim store")
             .entry(scope_key.clone())
             .or_insert_with(|| normalized_restored.map(|item| item.2).unwrap_or(0));
-        self.notifiers
-            .lock()
-            .expect("realtime notifier store should lock")
+        lock_realtime_mutex(&self.notifiers, "realtime notifier store")
             .entry(scope_key.clone())
             .or_insert_with(|| {
                 let (sender, _) = watch::channel(latest_seq);
                 sender
             });
         let disconnect_generation = {
-            let mut disconnect_generations = self
-                .disconnect_generations
-                .lock()
-                .expect("realtime disconnect generation store should lock");
+            let mut disconnect_generations = lock_realtime_mutex(
+                &self.disconnect_generations,
+                "realtime disconnect generation store",
+            );
             *disconnect_generations.entry(scope_key.clone()).or_insert(0)
         };
-        self.disconnect_notifiers
-            .lock()
-            .expect("realtime disconnect notifier store should lock")
-            .entry(scope_key)
-            .or_insert_with(|| {
-                let (sender, _) = watch::channel(disconnect_generation);
-                sender
-            });
+        lock_realtime_mutex(
+            &self.disconnect_notifiers,
+            "realtime disconnect notifier store",
+        )
+        .entry(scope_key)
+        .or_insert_with(|| {
+            let (sender, _) = watch::channel(disconnect_generation);
+            sender
+        });
         if checkpoint_needs_normalization {
             self.persist_checkpoint(tenant_id, principal_id, device_id)?;
         }
@@ -282,13 +268,15 @@ impl RealtimeDeliveryRuntime {
     ) -> Result<watch::Receiver<u64>, RealtimeRuntimeError> {
         self.ensure_device_state(tenant_id, principal_id, device_id)?;
         let scope_key = device_scope_key(tenant_id, principal_id, device_id);
-        Ok(self
-            .notifiers
-            .lock()
-            .expect("realtime notifier store should lock")
-            .get(scope_key.as_str())
-            .expect("realtime notifier should exist after ensure")
-            .subscribe())
+        let sender = lock_realtime_mutex(&self.notifiers, "realtime notifier store")
+            .entry(scope_key)
+            .or_insert_with(|| {
+                eprintln!("warn: realtime notifier missing after ensure; reconstructing sender");
+                let (sender, _) = watch::channel(0);
+                sender
+            })
+            .clone();
+        Ok(sender.subscribe())
     }
 
     pub fn subscribe_disconnect_signal(
@@ -299,13 +287,20 @@ impl RealtimeDeliveryRuntime {
     ) -> Result<watch::Receiver<u64>, RealtimeRuntimeError> {
         self.ensure_device_state(tenant_id, principal_id, device_id)?;
         let scope_key = device_scope_key(tenant_id, principal_id, device_id);
-        Ok(self
-            .disconnect_notifiers
-            .lock()
-            .expect("realtime disconnect notifier store should lock")
-            .get(scope_key.as_str())
-            .expect("realtime disconnect notifier should exist after ensure")
-            .subscribe())
+        let sender = lock_realtime_mutex(
+            &self.disconnect_notifiers,
+            "realtime disconnect notifier store",
+        )
+        .entry(scope_key)
+        .or_insert_with(|| {
+            eprintln!(
+                "warn: realtime disconnect notifier missing after ensure; reconstructing sender"
+            );
+            let (sender, _) = watch::channel(0);
+            sender
+        })
+        .clone();
+        Ok(sender.subscribe())
     }
 
     pub fn disconnect_generation(
@@ -315,13 +310,13 @@ impl RealtimeDeliveryRuntime {
         device_id: &str,
     ) -> Result<u64, RealtimeRuntimeError> {
         self.ensure_device_state(tenant_id, principal_id, device_id)?;
-        Ok(self
-            .disconnect_generations
-            .lock()
-            .expect("realtime disconnect generation store should lock")
-            .get(device_scope_key(tenant_id, principal_id, device_id).as_str())
-            .copied()
-            .unwrap_or(0))
+        Ok(lock_realtime_mutex(
+            &self.disconnect_generations,
+            "realtime disconnect generation store",
+        )
+        .get(device_scope_key(tenant_id, principal_id, device_id).as_str())
+        .copied()
+        .unwrap_or(0))
     }
 
     pub fn signal_device_disconnect(
@@ -333,20 +328,20 @@ impl RealtimeDeliveryRuntime {
         self.ensure_device_state(tenant_id, principal_id, device_id)?;
         let scope_key = device_scope_key(tenant_id, principal_id, device_id);
         let next_generation = {
-            let mut disconnect_generations = self
-                .disconnect_generations
-                .lock()
-                .expect("realtime disconnect generation store should lock");
+            let mut disconnect_generations = lock_realtime_mutex(
+                &self.disconnect_generations,
+                "realtime disconnect generation store",
+            );
             let entry = disconnect_generations.entry(scope_key.clone()).or_insert(0);
             *entry += 1;
             *entry
         };
-        if let Some(sender) = self
-            .disconnect_notifiers
-            .lock()
-            .expect("realtime disconnect notifier store should lock")
-            .get(scope_key.as_str())
-            .cloned()
+        if let Some(sender) = lock_realtime_mutex(
+            &self.disconnect_notifiers,
+            "realtime disconnect notifier store",
+        )
+        .get(scope_key.as_str())
+        .cloned()
         {
             let _ = sender.send(next_generation);
         }
@@ -363,27 +358,24 @@ impl RealtimeDeliveryRuntime {
         self.ensure_device_state(tenant_id, principal_id, device_id)?;
         let scope_key = device_scope_key(tenant_id, principal_id, device_id);
         Ok(RealtimeWindowCheckpoint {
-            latest_realtime_seq: self
-                .latest_sequences
-                .lock()
-                .expect("realtime sequence store should lock")
+            latest_realtime_seq: lock_realtime_mutex(
+                &self.latest_sequences,
+                "realtime sequence store",
+            )
+            .get(scope_key.as_str())
+            .copied()
+            .unwrap_or(0),
+            acked_through_seq: lock_realtime_mutex(&self.acked_sequences, "realtime ack store")
                 .get(scope_key.as_str())
                 .copied()
                 .unwrap_or(0),
-            acked_through_seq: self
-                .acked_sequences
-                .lock()
-                .expect("realtime ack store should lock")
-                .get(scope_key.as_str())
-                .copied()
-                .unwrap_or(0),
-            trimmed_through_seq: self
-                .trimmed_sequences
-                .lock()
-                .expect("realtime trim store should lock")
-                .get(scope_key.as_str())
-                .copied()
-                .unwrap_or(0),
+            trimmed_through_seq: lock_realtime_mutex(
+                &self.trimmed_sequences,
+                "realtime trim store",
+            )
+            .get(scope_key.as_str())
+            .copied()
+            .unwrap_or(0),
         })
     }
 
@@ -407,9 +399,7 @@ impl RealtimeDeliveryRuntime {
             .collect::<Vec<_>>();
         let scope_key = device_scope_key(tenant_id, principal_id, device_id);
 
-        self.subscriptions
-            .lock()
-            .expect("realtime subscription store should lock")
+        lock_realtime_mutex(&self.subscriptions, "realtime subscription store")
             .insert(scope_key.clone(), subscriptions.clone());
         self.persist_subscriptions(tenant_id, principal_id, device_id)?;
 
@@ -429,9 +419,7 @@ impl RealtimeDeliveryRuntime {
         device_id: &str,
     ) -> Result<(), RealtimeRuntimeError> {
         let scope_key = device_scope_key(tenant_id, principal_id, device_id);
-        self.subscriptions
-            .lock()
-            .expect("realtime subscription store should lock")
+        lock_realtime_mutex(&self.subscriptions, "realtime subscription store")
             .remove(scope_key.as_str());
         self.persist_subscriptions(tenant_id, principal_id, device_id)
     }
@@ -446,24 +434,16 @@ impl RealtimeDeliveryRuntime {
     ) -> Result<RealtimeEventWindow, RealtimeRuntimeError> {
         self.ensure_device_state(tenant_id, principal_id, device_id)?;
         let scope_key = device_scope_key(tenant_id, principal_id, device_id);
-        let acked_through_seq = self
-            .acked_sequences
-            .lock()
-            .expect("realtime ack store should lock")
+        let acked_through_seq = lock_realtime_mutex(&self.acked_sequences, "realtime ack store")
             .get(scope_key.as_str())
             .copied()
             .unwrap_or(0);
-        let trimmed_through_seq = self
-            .trimmed_sequences
-            .lock()
-            .expect("realtime trim store should lock")
-            .get(scope_key.as_str())
-            .copied()
-            .unwrap_or(0);
-        let windows = self
-            .windows
-            .lock()
-            .expect("realtime window store should lock");
+        let trimmed_through_seq =
+            lock_realtime_mutex(&self.trimmed_sequences, "realtime trim store")
+                .get(scope_key.as_str())
+                .copied()
+                .unwrap_or(0);
+        let windows = lock_realtime_mutex(&self.windows, "realtime window store");
         let total_after = windows
             .get(scope_key.as_str())
             .map(|items| {
@@ -503,19 +483,14 @@ impl RealtimeDeliveryRuntime {
     ) -> Result<RealtimeAckState, RealtimeRuntimeError> {
         self.ensure_device_state(tenant_id, principal_id, device_id)?;
         let scope_key = device_scope_key(tenant_id, principal_id, device_id);
-        let latest_seq = self
-            .latest_sequences
-            .lock()
-            .expect("realtime sequence store should lock")
+        let latest_seq = lock_realtime_mutex(&self.latest_sequences, "realtime sequence store")
             .get(scope_key.as_str())
             .copied()
             .unwrap_or(0);
         let effective_ack = acked_seq.min(latest_seq);
         let acked_through_seq = {
-            let mut acked_sequences = self
-                .acked_sequences
-                .lock()
-                .expect("realtime ack store should lock");
+            let mut acked_sequences =
+                lock_realtime_mutex(&self.acked_sequences, "realtime ack store");
             let entry = acked_sequences.entry(scope_key.clone()).or_insert(0);
             if effective_ack > *entry {
                 *entry = effective_ack;
@@ -524,14 +499,9 @@ impl RealtimeDeliveryRuntime {
         };
 
         let (trimmed_through_seq, retained_event_count) = {
-            let mut windows = self
-                .windows
-                .lock()
-                .expect("realtime window store should lock");
-            let mut trimmed_sequences = self
-                .trimmed_sequences
-                .lock()
-                .expect("realtime trim store should lock");
+            let mut windows = lock_realtime_mutex(&self.windows, "realtime window store");
+            let mut trimmed_sequences =
+                lock_realtime_mutex(&self.trimmed_sequences, "realtime trim store");
             let trimmed_entry = trimmed_sequences.entry(scope_key.clone()).or_insert(0);
             if acked_through_seq > *trimmed_entry {
                 *trimmed_entry = acked_through_seq;
@@ -561,40 +531,24 @@ impl RealtimeDeliveryRuntime {
     ) -> Result<RealtimeDeviceStateSnapshot, RealtimeRuntimeError> {
         self.ensure_device_state(tenant_id, principal_id, device_id)?;
         let scope_key = device_scope_key(tenant_id, principal_id, device_id);
-        let subscriptions = self
-            .subscriptions
-            .lock()
-            .expect("realtime subscription store should lock")
+        let subscriptions = lock_realtime_mutex(&self.subscriptions, "realtime subscription store")
             .remove(scope_key.as_str())
             .unwrap_or_default();
-        let events = self
-            .windows
-            .lock()
-            .expect("realtime window store should lock")
+        let events = lock_realtime_mutex(&self.windows, "realtime window store")
             .remove(scope_key.as_str())
             .unwrap_or_default();
-        let latest_realtime_seq = self
-            .latest_sequences
-            .lock()
-            .expect("realtime sequence store should lock")
+        let latest_realtime_seq =
+            lock_realtime_mutex(&self.latest_sequences, "realtime sequence store")
+                .remove(scope_key.as_str())
+                .unwrap_or(0);
+        let acked_through_seq = lock_realtime_mutex(&self.acked_sequences, "realtime ack store")
             .remove(scope_key.as_str())
             .unwrap_or(0);
-        let acked_through_seq = self
-            .acked_sequences
-            .lock()
-            .expect("realtime ack store should lock")
-            .remove(scope_key.as_str())
-            .unwrap_or(0);
-        let trimmed_through_seq = self
-            .trimmed_sequences
-            .lock()
-            .expect("realtime trim store should lock")
-            .remove(scope_key.as_str())
-            .unwrap_or(0);
-        self.notifiers
-            .lock()
-            .expect("realtime notifier store should lock")
-            .remove(scope_key.as_str());
+        let trimmed_through_seq =
+            lock_realtime_mutex(&self.trimmed_sequences, "realtime trim store")
+                .remove(scope_key.as_str())
+                .unwrap_or(0);
+        lock_realtime_mutex(&self.notifiers, "realtime notifier store").remove(scope_key.as_str());
 
         Ok(RealtimeDeviceStateSnapshot {
             tenant_id: tenant_id.into(),
@@ -632,29 +586,17 @@ impl RealtimeDeliveryRuntime {
             snapshot.device_id.as_str(),
         );
 
-        self.subscriptions
-            .lock()
-            .expect("realtime subscription store should lock")
+        lock_realtime_mutex(&self.subscriptions, "realtime subscription store")
             .insert(scope_key.clone(), snapshot.subscriptions);
-        self.windows
-            .lock()
-            .expect("realtime window store should lock")
+        lock_realtime_mutex(&self.windows, "realtime window store")
             .insert(scope_key.clone(), normalized_events);
-        self.latest_sequences
-            .lock()
-            .expect("realtime sequence store should lock")
+        lock_realtime_mutex(&self.latest_sequences, "realtime sequence store")
             .insert(scope_key.clone(), latest_realtime_seq);
-        self.acked_sequences
-            .lock()
-            .expect("realtime ack store should lock")
+        lock_realtime_mutex(&self.acked_sequences, "realtime ack store")
             .insert(scope_key.clone(), acked_through_seq);
-        self.trimmed_sequences
-            .lock()
-            .expect("realtime trim store should lock")
+        lock_realtime_mutex(&self.trimmed_sequences, "realtime trim store")
             .insert(scope_key.clone(), trimmed_through_seq);
-        self.notifiers
-            .lock()
-            .expect("realtime notifier store should lock")
+        lock_realtime_mutex(&self.notifiers, "realtime notifier store")
             .insert(scope_key, watch::channel(latest_realtime_seq).0);
         self.persist_subscriptions(
             snapshot.tenant_id.as_str(),
@@ -685,10 +627,8 @@ impl RealtimeDeliveryRuntime {
         registered_devices: Vec<String>,
     ) -> Result<usize, RealtimeRuntimeError> {
         let matched_targets = {
-            let subscriptions = self
-                .subscriptions
-                .lock()
-                .expect("realtime subscription store should lock");
+            let subscriptions =
+                lock_realtime_mutex(&self.subscriptions, "realtime subscription store");
             collect_matched_delivery_targets(
                 &subscriptions,
                 tenant_id,
@@ -699,14 +639,9 @@ impl RealtimeDeliveryRuntime {
                 registered_devices,
             )
         };
-        let mut windows = self
-            .windows
-            .lock()
-            .expect("realtime window store should lock");
-        let mut latest_sequences = self
-            .latest_sequences
-            .lock()
-            .expect("realtime sequence store should lock");
+        let mut windows = lock_realtime_mutex(&self.windows, "realtime window store");
+        let mut latest_sequences =
+            lock_realtime_mutex(&self.latest_sequences, "realtime sequence store");
         let mut delivered = 0;
         let mut notified = Vec::new();
         let mut persisted_devices = Vec::new();
@@ -736,10 +671,7 @@ impl RealtimeDeliveryRuntime {
 
         drop(latest_sequences);
         drop(windows);
-        let mut notifiers = self
-            .notifiers
-            .lock()
-            .expect("realtime notifier store should lock");
+        let mut notifiers = lock_realtime_mutex(&self.notifiers, "realtime notifier store");
         for (scope_key, next_seq) in notified {
             let sender = notifiers.entry(scope_key).or_insert_with(|| {
                 let (sender, _) = watch::channel(0);
@@ -753,6 +685,19 @@ impl RealtimeDeliveryRuntime {
         }
 
         Ok(delivered)
+    }
+}
+
+pub(super) fn lock_realtime_mutex<'a, T>(
+    mutex: &'a Mutex<T>,
+    lock_name: &'static str,
+) -> MutexGuard<'a, T> {
+    match mutex.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            eprintln!("warn: recovered poisoned realtime runtime mutex lock={lock_name}");
+            poisoned.into_inner()
+        }
     }
 }
 
@@ -951,6 +896,30 @@ mod tests {
         assert_eq!(persisted.latest_realtime_seq, 3);
         assert_eq!(persisted.acked_through_seq, 3);
         assert_eq!(persisted.trimmed_through_seq, 3);
+    }
+
+    #[test]
+    fn test_ensure_device_state_recovers_from_poisoned_sequence_store_lock() {
+        let runtime = RealtimeDeliveryRuntime::default();
+        let _ = std::panic::catch_unwind({
+            let latest_sequences = runtime.latest_sequences.clone();
+            move || {
+                let _guard = latest_sequences
+                    .lock()
+                    .expect("realtime sequence store should lock");
+                panic!("poison realtime sequence store lock");
+            }
+        });
+
+        runtime
+            .ensure_device_state("t_demo", "u_demo", "d_poison")
+            .expect("poisoned lock should be recovered");
+        let checkpoint = runtime
+            .window_checkpoint("t_demo", "u_demo", "d_poison")
+            .expect("window checkpoint should still be available");
+        assert_eq!(checkpoint.latest_realtime_seq, 0);
+        assert_eq!(checkpoint.acked_through_seq, 0);
+        assert_eq!(checkpoint.trimmed_through_seq, 0);
     }
 
     fn subscription(
