@@ -185,6 +185,80 @@ async fn test_default_local_minimal_profile_rebuild_restores_conversation_domain
 }
 
 #[tokio::test]
+async fn test_default_local_minimal_profile_bootstrap_survives_corrupted_commit_journal() {
+    let runtime_dir = unique_runtime_dir();
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+
+    let app_before = local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
+    let create_before = app_before
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-device-id", "d_phone")
+                .header("x-session-id", "s_phone")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_corrupt_journal_bootstrap",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("seed conversation write should return response");
+    assert_eq!(create_before.status(), StatusCode::OK);
+
+    fs::write(
+        state_file(runtime_dir.as_path(), "commit-journal.json"),
+        "{invalid-journal",
+    )
+    .expect("corrupted commit journal should be writable");
+
+    let app_after = local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
+
+    let health = app_after
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/healthz")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("healthz should return response even when startup journal replay is degraded");
+    assert_eq!(health.status(), StatusCode::OK);
+
+    let create_after = app_after
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-device-id", "d_phone")
+                .header("x-session-id", "s_phone_recovered")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_after_corrupt_journal_bootstrap",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("write after degraded startup should return response");
+    assert_eq!(create_after.status(), StatusCode::SERVICE_UNAVAILABLE);
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
 async fn test_default_local_minimal_profile_restores_projection_queries_from_runtime_dir_snapshots_when_commit_journal_is_missing()
  {
     let runtime_dir = unique_runtime_dir();

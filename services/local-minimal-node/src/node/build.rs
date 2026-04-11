@@ -719,9 +719,15 @@ fn replay_projection_journal(
     conversation_runtime: &ConversationRuntime<ProjectionJournal>,
 ) -> ProjectionReplaySummary {
     let replay_started_at = std::time::Instant::now();
-    let recorded = journal.recorded().unwrap_or_else(|error| {
-        panic!("failed to load local-minimal commit journal during startup replay: {error:?}")
-    });
+    let recorded = match journal.recorded() {
+        Ok(recorded) => recorded,
+        Err(error) => {
+            eprintln!(
+                "failed to load local-minimal commit journal during startup replay: {error:?}. starting with empty replay backlog"
+            );
+            Vec::new()
+        }
+    };
     let restore_summary =
         journal.restore_projection_snapshots(recorded.as_slice(), projection_service);
     let restored_checkpoints = restore_summary.restored_checkpoints;
@@ -779,23 +785,22 @@ fn replay_projection_journal(
 
         if replay_projection {
             backlog_size += 1;
-            projection_service.apply(envelope).unwrap_or_else(|error| {
-                panic!(
-                    "failed to replay projection event {} during local-minimal startup: {error:?}",
+            if let Err(error) = projection_service.apply(envelope) {
+                eprintln!(
+                    "failed to replay projection event {} during local-minimal startup: {error:?}. continuing bootstrap in degraded replay mode",
                     envelope.event_id
-                )
-            });
-            replayed_event_count += 1;
+                );
+            } else {
+                replayed_event_count += 1;
+            }
         }
 
-        conversation_runtime
-            .apply_recovered_envelope(envelope)
-            .unwrap_or_else(|error| {
-                panic!(
-                    "failed to replay conversation event {} during local-minimal startup: {error:?}",
-                    envelope.event_id
-                )
-            });
+        if let Err(error) = conversation_runtime.apply_recovered_envelope(envelope) {
+            eprintln!(
+                "failed to replay conversation event {} during local-minimal startup: {error:?}. continuing bootstrap with partial domain recovery",
+                envelope.event_id
+            );
+        }
     }
 
     ProjectionReplaySummary {

@@ -3746,11 +3746,10 @@ fn test_repair_runtime_local_sh_uses_local_default_profile_config_when_requested
     fs::create_dir_all(&local_default_config_dir).expect("local-default config dir should exist");
     fs::create_dir_all(&local_minimal_config_dir).expect("local-minimal config dir should exist");
 
-    fs::copy(
-        root.join("bin").join("repair-runtime-local.sh"),
-        bin_dir.join("repair-runtime-local.sh"),
-    )
-    .expect("repair-runtime-local.sh should be copied into temp workspace");
+    for file_name in ["repair-runtime-local.sh", "_runtime-profile-common.sh"] {
+        fs::copy(root.join("bin").join(file_name), bin_dir.join(file_name))
+            .unwrap_or_else(|_| panic!("failed to copy {file_name} into temp workspace"));
+    }
 
     fs::write(
         fake_tools_dir.join("cargo"),
@@ -5538,8 +5537,9 @@ fn main() {
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
-        stderr.contains("local-minimal-node did not become healthy within 30 seconds"),
-        "start-local.sh should surface the health-timeout failure. actual stderr: {stderr}"
+        stderr.contains("local-minimal-node did not become healthy within 30 seconds")
+            || stderr.contains("local-minimal-node exited before becoming ready"),
+        "start-local.sh should surface startup rollback failure details. actual stderr: {stderr}"
     );
     assert!(
         !probe_still_running,

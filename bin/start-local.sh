@@ -180,9 +180,10 @@ pid_matches_expected_process() {
   process_name="$(ps -p "$pid" -o args= 2>/dev/null | tr -d '\r' || true)"
   process_name="${process_name#"${process_name%%[![:space:]]*}"}"
   process_path="${process_name%% *}"
+  process_path="${process_path//\\//}"
   process_name="${process_path##*/}"
 
-  [[ -n "$process_name" && "$process_name" == "$EXPECTED_PROCESS_NAME" ]]
+  [[ -n "$process_name" && ( "$process_name" == "$EXPECTED_PROCESS_NAME" || "$process_name" == "${EXPECTED_PROCESS_NAME}.exe" ) ]]
 }
 
 get_running_pid_from_pid_file() {
