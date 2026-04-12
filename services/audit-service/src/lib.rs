@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use axum::extract::State;
 use axum::http::{HeaderMap, Request};
@@ -130,7 +130,7 @@ impl axum::response::IntoResponse for AuditError {
 impl AuditRuntime {
     pub fn record_anchor(&self, auth: &AuthContext, request: RecordAuditAnchor) -> AuditRecord {
         let recorded_at = utc_now_rfc3339_millis();
-        let mut records = self.records.lock().expect("audit runtime should lock");
+        let mut records = self.lock_records("record_anchor");
         let tenant_records = records.entry(auth.tenant_id.clone()).or_default();
         let chain_prev_hash = tenant_records
             .last()
@@ -167,9 +167,7 @@ impl AuditRuntime {
     }
 
     pub fn list_records(&self, auth: &AuthContext) -> Vec<AuditRecord> {
-        self.records
-            .lock()
-            .expect("audit runtime should lock")
+        self.lock_records("list_records")
             .get(auth.tenant_id.as_str())
             .cloned()
             .unwrap_or_default()
@@ -199,6 +197,21 @@ impl AuditRuntime {
             total: items.len(),
             chain_head_hash,
             chain_valid,
+        }
+    }
+
+    fn lock_records(
+        &self,
+        operation: &'static str,
+    ) -> MutexGuard<'_, HashMap<String, Vec<AuditRecord>>> {
+        match self.records.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                eprintln!(
+                    "warning: recovering poisoned audit-service records lock during {operation}"
+                );
+                poisoned.into_inner()
+            }
         }
     }
 }

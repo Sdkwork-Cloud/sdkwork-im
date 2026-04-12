@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, Request};
@@ -254,9 +254,7 @@ impl MediaRuntime {
     ) -> Result<MediaAsset, MediaError> {
         let scope = media_scope_key(auth.tenant_id.as_str(), request.media_asset_id.as_str());
         if let Some(existing) = self
-            .assets
-            .lock()
-            .expect("media runtime should lock")
+            .lock_assets("create_upload")
             .get(scope.as_str())
             .cloned()
         {
@@ -287,9 +285,7 @@ impl MediaRuntime {
             completed_at: None,
         };
 
-        self.assets
-            .lock()
-            .expect("media runtime should lock")
+        self.lock_assets("create_upload")
             .insert(scope, asset.clone());
 
         Ok(asset)
@@ -303,7 +299,7 @@ impl MediaRuntime {
     ) -> Result<MediaAsset, MediaError> {
         let provider_plugin_id = self.selected_provider_plugin_id(auth.tenant_id.as_str(), None)?;
         let provider = self.object_storage_provider(provider_plugin_id.as_str())?;
-        let mut assets = self.assets.lock().expect("media runtime should lock");
+        let mut assets = self.lock_assets("complete_upload");
         let asset = assets
             .get_mut(media_scope_key(auth.tenant_id.as_str(), media_asset_id).as_str())
             .ok_or_else(|| MediaError::not_found(media_asset_id))?;
@@ -369,9 +365,7 @@ impl MediaRuntime {
         media_asset_id: &str,
     ) -> Result<MediaAsset, MediaError> {
         let asset = self
-            .assets
-            .lock()
-            .expect("media runtime should lock")
+            .lock_assets("get_asset")
             .get(media_scope_key(auth.tenant_id.as_str(), media_asset_id).as_str())
             .cloned()
             .ok_or_else(|| MediaError::not_found(media_asset_id))?;
@@ -523,6 +517,18 @@ impl MediaRuntime {
         };
         self.journal.append(envelope)?;
         Ok(())
+    }
+
+    fn lock_assets(&self, operation: &'static str) -> MutexGuard<'_, HashMap<String, MediaAsset>> {
+        match self.assets.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                eprintln!(
+                    "warning: recovering poisoned media-service assets lock during {operation}"
+                );
+                poisoned.into_inner()
+            }
+        }
     }
 }
 

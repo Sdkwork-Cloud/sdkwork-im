@@ -115,8 +115,7 @@ pub(super) struct ProjectionObservabilityState {
 
 impl TimelineProjectionService {
     pub fn projection_plane_observability(&self) -> ProjectionPlaneObservabilityView {
-        super::lock_projection_mutex(&self.observability, "projection observability")
-            .snapshot()
+        super::lock_projection_mutex(&self.observability, "projection observability").snapshot()
     }
 
     pub fn projection_live_lag_items(&self) -> Vec<ProjectionLagItemView> {

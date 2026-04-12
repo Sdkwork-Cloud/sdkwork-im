@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::{Mutex, MutexGuard};
 
 use im_domain_events::CommitEnvelope;
 use im_domain_events::social::{DirectChatBoundPayload, FriendshipActivatedPayload};
@@ -13,9 +14,7 @@ impl TimelineProjectionService {
     pub fn contacts(&self, tenant_id: &str, owner_user_id: &str) -> Vec<ContactView> {
         let scope = contact_runtime_scope(tenant_id, owner_user_id);
         let items = self
-            .contacts
-            .lock()
-            .expect("contact store should lock")
+            .lock_contact_store("contacts")
             .get(scope.as_str())
             .map(|scope_contacts| scope_contacts.values().cloned().collect::<Vec<_>>())
             .unwrap_or_default();
@@ -62,12 +61,10 @@ impl TimelineProjectionService {
             conversation_id: payload.conversation_id.clone(),
             bound_at: payload.bound_at.clone(),
         };
-        self.direct_chat_bindings
-            .lock()
-            .expect("contact direct chat binding store should lock")
+        self.lock_direct_chat_bindings("apply_direct_chat_bound")
             .insert(binding.direct_chat_id.clone(), binding.clone());
 
-        let mut contacts = self.contacts.lock().expect("contact store should lock");
+        let mut contacts = self.lock_contact_store("apply_direct_chat_bound");
         for (scope, scope_contacts) in contacts.iter_mut() {
             let Some((tenant_id, _)) = parse_contact_scope(scope.as_str()) else {
                 continue;
@@ -100,7 +97,7 @@ impl TimelineProjectionService {
     ) {
         let scope = contact_runtime_scope(tenant_id, owner_user_id);
         let key = contact_entry_key("friendship", target_user_id);
-        let mut contacts = self.contacts.lock().expect("contact store should lock");
+        let mut contacts = self.lock_contact_store("upsert_friendship_contact");
         let contact = contacts
             .entry(scope)
             .or_default()
@@ -145,11 +142,27 @@ impl TimelineProjectionService {
     }
 
     fn direct_chat_binding(&self, direct_chat_id: &str) -> Option<ContactDirectChatBindingView> {
-        self.direct_chat_bindings
-            .lock()
-            .expect("contact direct chat binding store should lock")
+        self.lock_direct_chat_bindings("direct_chat_binding")
             .get(direct_chat_id)
             .cloned()
+    }
+
+    fn lock_contact_store(
+        &self,
+        operation: &'static str,
+    ) -> MutexGuard<'_, HashMap<String, HashMap<String, ContactView>>> {
+        lock_contacts_mutex(&self.contacts, "contact store", operation)
+    }
+
+    fn lock_direct_chat_bindings(
+        &self,
+        operation: &'static str,
+    ) -> MutexGuard<'_, HashMap<String, ContactDirectChatBindingView>> {
+        lock_contacts_mutex(
+            &self.direct_chat_bindings,
+            "contact direct chat binding store",
+            operation,
+        )
     }
 }
 
@@ -195,4 +208,20 @@ pub(super) fn parse_contact_scope(scope: &str) -> Option<(&str, &str)> {
 
 fn max_rfc3339<'a>(left: &'a str, right: &'a str) -> &'a str {
     if left >= right { left } else { right }
+}
+
+fn lock_contacts_mutex<'a, T>(
+    mutex: &'a Mutex<T>,
+    lock_name: &'static str,
+    operation: &'static str,
+) -> MutexGuard<'a, T> {
+    match mutex.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            eprintln!(
+                "warning: recovering poisoned projection-service {lock_name} lock during {operation}"
+            );
+            poisoned.into_inner()
+        }
+    }
 }

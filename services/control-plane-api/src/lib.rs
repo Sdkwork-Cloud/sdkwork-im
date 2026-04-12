@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path as StdPath, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, Mutex, MutexGuard, RwLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use audit_service::{AuditRuntime, RecordAuditAnchor};
@@ -2597,12 +2597,11 @@ impl SocialStateStore {
 
     fn load(&self) -> Result<SocialControlState, String> {
         match self {
-            Self::Memory(state) => Ok(state
-                .lock()
-                .expect("social state store should lock")
-                .clone()),
+            Self::Memory(state) => {
+                Ok(lock_social_state_mutex(state, "social-state-store.memory").clone())
+            }
             Self::File { file_path, io_lock } => {
-                let _guard = io_lock.lock().expect("social state store should lock");
+                let _guard = lock_social_state_mutex(io_lock, "social-state-store.file-io");
                 if !file_path.exists() {
                     return Ok(SocialControlState::default());
                 }
@@ -2628,11 +2627,11 @@ impl SocialStateStore {
     fn save(&self, state: &SocialControlState) -> Result<(), String> {
         match self {
             Self::Memory(slot) => {
-                *slot.lock().expect("social state store should lock") = state.clone();
+                *lock_social_state_mutex(slot, "social-state-store.memory") = state.clone();
                 Ok(())
             }
             Self::File { file_path, io_lock } => {
-                let _guard = io_lock.lock().expect("social state store should lock");
+                let _guard = lock_social_state_mutex(io_lock, "social-state-store.file-io");
                 if let Some(parent) = file_path.parent() {
                     fs::create_dir_all(parent).map_err(|error| {
                         format!(
@@ -2650,6 +2649,19 @@ impl SocialStateStore {
                     )
                 })
             }
+        }
+    }
+}
+
+fn lock_social_state_mutex<'a, T>(
+    mutex: &'a Mutex<T>,
+    lock_name: &'static str,
+) -> MutexGuard<'a, T> {
+    match mutex.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            eprintln!("warning: recovering poisoned {lock_name} lock");
+            poisoned.into_inner()
         }
     }
 }
