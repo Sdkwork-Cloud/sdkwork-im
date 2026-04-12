@@ -833,13 +833,13 @@ pub struct InMemoryJournal {
 
 impl InMemoryJournal {
     pub fn recorded(&self) -> Vec<CommitEnvelope> {
-        self.events.lock().expect("journal should lock").clone()
+        lock_runtime_mutex(&self.events, "in-memory-journal.events").clone()
     }
 }
 
 impl CommitJournal for InMemoryJournal {
     fn append(&self, envelope: CommitEnvelope) -> Result<CommitPosition, ContractError> {
-        let mut events = self.events.lock().expect("journal should lock");
+        let mut events = lock_runtime_mutex(&self.events, "in-memory-journal.events");
         events.push(envelope);
         Ok(CommitPosition::new("p0", events.len() as u64))
     }
@@ -893,7 +893,8 @@ where
         let scope_key =
             conversation_scope_key(command.tenant_id.as_str(), command.conversation_id.as_str());
         let (message_seq, message_id, message, retention_class) = {
-            let mut state = self.state.lock().expect("runtime state should lock");
+            let mut state =
+                lock_runtime_mutex(&self.state, "conversation-runtime.state.post_message");
             let (message_seq, message_id, message, retention_class) = {
                 let conversation =
                     state
@@ -1003,7 +1004,8 @@ where
         command: EditMessageCommand,
     ) -> Result<MessageMutationResult, RuntimeError> {
         let (edited, retention_class) = {
-            let mut state = self.state.lock().expect("runtime state should lock");
+            let mut state =
+                lock_runtime_mutex(&self.state, "conversation-runtime.state.edit_message");
             let conversation_id = state
                 .message_locator
                 .conversation_id(command.tenant_id.as_str(), command.message_id.as_str())
@@ -1080,7 +1082,8 @@ where
         command: RecallMessageCommand,
     ) -> Result<MessageMutationResult, RuntimeError> {
         let (recalled, retention_class) = {
-            let mut state = self.state.lock().expect("runtime state should lock");
+            let mut state =
+                lock_runtime_mutex(&self.state, "conversation-runtime.state.recall_message");
             let conversation_id = state
                 .message_locator
                 .conversation_id(command.tenant_id.as_str(), command.message_id.as_str())
@@ -1160,7 +1163,10 @@ where
         command: AddMessageReactionCommand,
     ) -> Result<MessageReactionMutationResult, RuntimeError> {
         let (reaction, changed, retention_class) = {
-            let mut state = self.state.lock().expect("runtime state should lock");
+            let mut state = lock_runtime_mutex(
+                &self.state,
+                "conversation-runtime.state.add_message_reaction",
+            );
             let conversation_id = state
                 .message_locator
                 .conversation_id(command.tenant_id.as_str(), command.message_id.as_str())
@@ -1245,7 +1251,10 @@ where
         command: RemoveMessageReactionCommand,
     ) -> Result<MessageReactionMutationResult, RuntimeError> {
         let (reaction, changed, retention_class) = {
-            let mut state = self.state.lock().expect("runtime state should lock");
+            let mut state = lock_runtime_mutex(
+                &self.state,
+                "conversation-runtime.state.remove_message_reaction",
+            );
             let conversation_id = state
                 .message_locator
                 .conversation_id(command.tenant_id.as_str(), command.message_id.as_str())
@@ -1331,7 +1340,8 @@ where
         command: PinMessageCommand,
     ) -> Result<MessagePinMutationResult, RuntimeError> {
         let (pin, changed, retention_class) = {
-            let mut state = self.state.lock().expect("runtime state should lock");
+            let mut state =
+                lock_runtime_mutex(&self.state, "conversation-runtime.state.pin_message");
             let conversation_id = state
                 .message_locator
                 .conversation_id(command.tenant_id.as_str(), command.message_id.as_str())
@@ -1412,7 +1422,8 @@ where
         command: UnpinMessageCommand,
     ) -> Result<MessagePinMutationResult, RuntimeError> {
         let (pin, changed, retention_class) = {
-            let mut state = self.state.lock().expect("runtime state should lock");
+            let mut state =
+                lock_runtime_mutex(&self.state, "conversation-runtime.state.unpin_message");
             let conversation_id = state
                 .message_locator
                 .conversation_id(command.tenant_id.as_str(), command.message_id.as_str())
@@ -1549,7 +1560,10 @@ where
         capability: &str,
     ) -> Result<(), RuntimeError> {
         let scope_key = conversation_scope_key(tenant_id, conversation_id);
-        let state = self.state.lock().expect("runtime state should lock");
+        let state = lock_runtime_mutex(
+            &self.state,
+            "conversation-runtime.state.ensure_conversation_bound_write_allowed",
+        );
         let conversation = state
             .conversations
             .get(scope_key.as_str())
@@ -1566,7 +1580,10 @@ where
         principal_id: &str,
     ) -> Result<ConversationMember, RuntimeError> {
         let scope_key = conversation_scope_key(tenant_id, conversation_id);
-        let state = self.state.lock().expect("runtime state should lock");
+        let state = lock_runtime_mutex(
+            &self.state,
+            "conversation-runtime.state.require_active_member",
+        );
         let conversation = state
             .conversations
             .get(scope_key.as_str())
@@ -1581,5 +1598,80 @@ where
                     "principal is not active conversation member: {principal_id}"
                 ))
             })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::panic::{self, AssertUnwindSafe};
+
+    fn poison_mutex<T>(mutex: &Mutex<T>) {
+        let _ = panic::catch_unwind(AssertUnwindSafe(|| {
+            let _guard = mutex.lock().expect("test poison lock should succeed");
+            panic!("intentional poison for regression coverage");
+        }));
+    }
+
+    #[test]
+    fn test_in_memory_journal_recorded_recovers_from_poisoned_lock() {
+        let journal = InMemoryJournal::default();
+        poison_mutex(&journal.events);
+
+        let result = panic::catch_unwind(AssertUnwindSafe(|| journal.recorded()));
+        assert!(
+            result.is_ok(),
+            "journal.recorded should not panic when journal lock is poisoned"
+        );
+    }
+
+    #[test]
+    fn test_require_active_member_recovers_from_poisoned_runtime_state_lock() {
+        let runtime = ConversationRuntime::new(InMemoryJournal::default());
+        poison_mutex(&runtime.state);
+
+        let result = panic::catch_unwind(AssertUnwindSafe(|| {
+            runtime.require_active_member("t_demo", "c_demo", "u_demo")
+        }));
+        assert!(
+            result.is_ok(),
+            "require_active_member should not panic when runtime state lock is poisoned"
+        );
+        let member_result = result.expect("panic status should be captured");
+        assert!(member_result.is_err());
+    }
+
+    #[test]
+    fn test_post_message_recovers_from_poisoned_runtime_state_lock() {
+        let runtime = ConversationRuntime::new(InMemoryJournal::default());
+        poison_mutex(&runtime.state);
+
+        let result = panic::catch_unwind(AssertUnwindSafe(|| {
+            runtime.post_message(PostMessageCommand {
+                tenant_id: "t_demo".into(),
+                conversation_id: "c_demo".into(),
+                sender: Sender {
+                    id: "u_demo".into(),
+                    kind: "user".into(),
+                    member_id: None,
+                    device_id: None,
+                    session_id: None,
+                    metadata: BTreeMap::new(),
+                },
+                client_msg_id: None,
+                message_type: MessageType::Standard,
+                body: MessageBody {
+                    summary: Some("hello".into()),
+                    parts: vec![im_domain_core::message::ContentPart::text("hello")],
+                    render_hints: BTreeMap::new(),
+                },
+            })
+        }));
+        assert!(
+            result.is_ok(),
+            "post_message should not panic when runtime state lock is poisoned"
+        );
+        let post_result = result.expect("panic status should be captured");
+        assert!(post_result.is_err());
     }
 }

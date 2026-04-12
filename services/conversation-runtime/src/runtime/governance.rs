@@ -60,7 +60,8 @@ where
         let scope_key =
             conversation_scope_key(command.tenant_id.as_str(), command.conversation_id.as_str());
         let (payload, ordering_seq, actor_kind, applied_at) = {
-            let mut state = self.state.lock().expect("runtime state should lock");
+            let mut state =
+                lock_runtime_mutex(&self.state, "conversation-runtime.state.governance");
             let conversation =
                 state
                     .conversations

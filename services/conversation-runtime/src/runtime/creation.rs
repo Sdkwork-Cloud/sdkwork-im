@@ -76,7 +76,7 @@ where
             created_at.clone(),
             creator_attributes,
         );
-        let mut state = self.state.lock().expect("runtime state should lock");
+        let mut state = lock_runtime_mutex(&self.state, "conversation-runtime.state.creation");
         if state.conversations.contains_key(scope_key.as_str()) {
             return Err(RuntimeError::ConversationAlreadyExists(
                 command.conversation_id,
@@ -217,7 +217,7 @@ where
         );
 
         let thread_members = {
-            let mut state = self.state.lock().expect("runtime state should lock");
+            let mut state = lock_runtime_mutex(&self.state, "conversation-runtime.state.creation");
             if state.conversations.contains_key(scope_key.as_str()) {
                 return Err(RuntimeError::ConversationAlreadyExists(
                     command.conversation_id.clone(),
@@ -536,7 +536,7 @@ where
             ]),
         );
 
-        let mut state = self.state.lock().expect("runtime state should lock");
+        let mut state = lock_runtime_mutex(&self.state, "conversation-runtime.state.creation");
         if state.conversations.contains_key(scope_key.as_str()) {
             return Err(RuntimeError::ConversationAlreadyExists(
                 command.conversation_id,
@@ -732,7 +732,7 @@ where
             ]),
         );
 
-        let mut state = self.state.lock().expect("runtime state should lock");
+        let mut state = lock_runtime_mutex(&self.state, "conversation-runtime.state.creation");
         if state.conversations.contains_key(scope_key.as_str()) {
             return Err(RuntimeError::ConversationAlreadyExists(
                 command.conversation_id,
@@ -919,7 +919,7 @@ where
             subscriber_member_attributes,
         );
 
-        let mut state = self.state.lock().expect("runtime state should lock");
+        let mut state = lock_runtime_mutex(&self.state, "conversation-runtime.state.creation");
         if state.conversations.contains_key(scope_key.as_str()) {
             return Err(RuntimeError::ConversationAlreadyExists(
                 command.conversation_id,
@@ -1143,7 +1143,7 @@ where
             target_member_attributes,
         );
 
-        let mut state = self.state.lock().expect("runtime state should lock");
+        let mut state = lock_runtime_mutex(&self.state, "conversation-runtime.state.creation");
         if state.conversations.contains_key(scope_key.as_str()) {
             return Err(RuntimeError::ConversationAlreadyExists(
                 command.conversation_id,

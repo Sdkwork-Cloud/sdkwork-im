@@ -239,7 +239,8 @@ where
         let scope_key =
             conversation_scope_key(command.tenant_id.as_str(), command.conversation_id.as_str());
         let (member, ordering_seq, retention_class) = {
-            let mut state = self.state.lock().expect("runtime state should lock");
+            let mut state =
+                lock_runtime_mutex(&self.state, "conversation-runtime.state.membership");
             let conversation =
                 state
                     .conversations
@@ -320,7 +321,8 @@ where
         let scope_key =
             conversation_scope_key(command.tenant_id.as_str(), command.conversation_id.as_str());
         let (member, member_epoch, actor_kind, retention_class) = {
-            let mut state = self.state.lock().expect("runtime state should lock");
+            let mut state =
+                lock_runtime_mutex(&self.state, "conversation-runtime.state.membership");
             let conversation =
                 state
                     .conversations
@@ -434,7 +436,8 @@ where
         let scope_key =
             conversation_scope_key(command.tenant_id.as_str(), command.conversation_id.as_str());
         let (member, member_epoch, actor_kind, retention_class) = {
-            let mut state = self.state.lock().expect("runtime state should lock");
+            let mut state =
+                lock_runtime_mutex(&self.state, "conversation-runtime.state.membership");
             let conversation =
                 state
                     .conversations
@@ -514,7 +517,8 @@ where
         let scope_key =
             conversation_scope_key(command.tenant_id.as_str(), command.conversation_id.as_str());
         let (member, member_epoch, actor_kind, retention_class) = {
-            let mut state = self.state.lock().expect("runtime state should lock");
+            let mut state =
+                lock_runtime_mutex(&self.state, "conversation-runtime.state.membership");
             let conversation =
                 state
                     .conversations
@@ -594,7 +598,8 @@ where
         let scope_key =
             conversation_scope_key(command.tenant_id.as_str(), command.conversation_id.as_str());
         let (payload, ordering_seq, actor_kind, retention_class) = {
-            let mut state = self.state.lock().expect("runtime state should lock");
+            let mut state =
+                lock_runtime_mutex(&self.state, "conversation-runtime.state.membership");
             let conversation =
                 state
                     .conversations
@@ -699,7 +704,8 @@ where
         let scope_key =
             conversation_scope_key(command.tenant_id.as_str(), command.conversation_id.as_str());
         let (payload, ordering_seq, actor_kind, retention_class) = {
-            let mut state = self.state.lock().expect("runtime state should lock");
+            let mut state =
+                lock_runtime_mutex(&self.state, "conversation-runtime.state.membership");
             let conversation =
                 state
                     .conversations
@@ -769,7 +775,7 @@ where
         conversation_id: &str,
     ) -> Result<Vec<ConversationMember>, RuntimeError> {
         let scope_key = conversation_scope_key(tenant_id, conversation_id);
-        let state = self.state.lock().expect("runtime state should lock");
+        let state = lock_runtime_mutex(&self.state, "conversation-runtime.state.membership");
         let conversation = state
             .conversations
             .get(scope_key.as_str())
@@ -825,7 +831,8 @@ where
             conversation_scope_key(command.tenant_id.as_str(), command.conversation_id.as_str());
         let mut changed_event: Option<(ConversationReadCursor, String, String)> = None;
         let cursor = {
-            let mut state = self.state.lock().expect("runtime state should lock");
+            let mut state =
+                lock_runtime_mutex(&self.state, "conversation-runtime.state.membership");
             let conversation =
                 state
                     .conversations
@@ -895,7 +902,7 @@ where
         principal_id: &str,
     ) -> Result<ConversationReadCursorView, RuntimeError> {
         let scope_key = conversation_scope_key(tenant_id, conversation_id);
-        let state = self.state.lock().expect("runtime state should lock");
+        let state = lock_runtime_mutex(&self.state, "conversation-runtime.state.membership");
         let conversation = state
             .conversations
             .get(scope_key.as_str())
@@ -924,7 +931,7 @@ where
         principal_id: &str,
     ) -> Result<MessageHistoryResult, RuntimeError> {
         let scope_key = conversation_scope_key(tenant_id, conversation_id);
-        let state = self.state.lock().expect("runtime state should lock");
+        let state = lock_runtime_mutex(&self.state, "conversation-runtime.state.membership");
         let conversation = state
             .conversations
             .get(scope_key.as_str())
