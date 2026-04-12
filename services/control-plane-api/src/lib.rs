@@ -118,6 +118,7 @@ pub const SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_ENABLED_ENV: &str =
     "CRAW_CHAT_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_ENABLED";
 pub const SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_INTERVAL_MILLIS_ENV: &str =
     "CRAW_CHAT_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_INTERVAL_MILLIS";
+const SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_ENABLED_DEFAULT: bool = true;
 const SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_DEFAULT_INTERVAL_MILLIS: u64 = 30_000;
 pub const SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT_ENV: &str =
     "CRAW_CHAT_SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT";
@@ -408,14 +409,10 @@ fn resolve_shared_channel_sync_dispatch_queue_capacity() -> usize {
 
 fn resolve_shared_channel_sync_stale_reclaim_scheduler_config_from_env()
 -> SharedChannelSyncStaleReclaimSchedulerConfig {
-    let enabled = std::env::var(SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_ENABLED_ENV)
-        .ok()
-        .is_some_and(|value| {
-            matches!(
-                value.trim().to_ascii_lowercase().as_str(),
-                "1" | "true" | "yes" | "on"
-            )
-        });
+    let enabled = resolve_env_bool_with_default(
+        SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_ENABLED_ENV,
+        SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_ENABLED_DEFAULT,
+    );
     let interval_millis =
         std::env::var(SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_INTERVAL_MILLIS_ENV)
             .ok()
@@ -425,6 +422,20 @@ fn resolve_shared_channel_sync_stale_reclaim_scheduler_config_from_env()
     SharedChannelSyncStaleReclaimSchedulerConfig {
         enabled,
         interval_millis,
+    }
+}
+
+fn resolve_env_bool_with_default(name: &str, default: bool) -> bool {
+    let Ok(value) = std::env::var(name) else {
+        return default;
+    };
+    match value.trim().to_ascii_lowercase().as_str() {
+        "1" | "true" | "yes" | "on" => true,
+        "0" | "false" | "no" | "off" => false,
+        invalid => {
+            eprintln!("warning: invalid boolean env {name}={invalid}, falling back to default");
+            default
+        }
     }
 }
 
@@ -7527,4 +7538,88 @@ fn validate_required_with_code(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::{Mutex, OnceLock};
+
+    struct ScopedEnvVar {
+        name: &'static str,
+        previous: Option<String>,
+    }
+
+    impl ScopedEnvVar {
+        fn set(name: &'static str, value: &str) -> Self {
+            let previous = std::env::var(name).ok();
+            unsafe {
+                std::env::set_var(name, value);
+            }
+            Self { name, previous }
+        }
+
+        fn remove(name: &'static str) -> Self {
+            let previous = std::env::var(name).ok();
+            unsafe {
+                std::env::remove_var(name);
+            }
+            Self { name, previous }
+        }
+    }
+
+    impl Drop for ScopedEnvVar {
+        fn drop(&mut self) {
+            if let Some(previous) = &self.previous {
+                unsafe {
+                    std::env::set_var(self.name, previous);
+                }
+            } else {
+                unsafe {
+                    std::env::remove_var(self.name);
+                }
+            }
+        }
+    }
+
+    fn scheduler_env_guard() -> std::sync::MutexGuard<'static, ()> {
+        static GUARD: OnceLock<Mutex<()>> = OnceLock::new();
+        GUARD
+            .get_or_init(|| Mutex::new(()))
+            .lock()
+            .expect("scheduler env guard should lock")
+    }
+
+    #[test]
+    fn test_shared_channel_stale_reclaim_scheduler_is_enabled_by_default() {
+        let _guard = scheduler_env_guard();
+        let _enabled =
+            ScopedEnvVar::remove(SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_ENABLED_ENV);
+        let _interval =
+            ScopedEnvVar::remove(SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_INTERVAL_MILLIS_ENV);
+
+        let config = resolve_shared_channel_sync_stale_reclaim_scheduler_config_from_env();
+        assert!(config.enabled);
+        assert_eq!(
+            config.interval_millis,
+            SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_DEFAULT_INTERVAL_MILLIS
+        );
+    }
+
+    #[test]
+    fn test_shared_channel_stale_reclaim_scheduler_can_be_disabled_with_env() {
+        let _guard = scheduler_env_guard();
+        let _enabled = ScopedEnvVar::set(
+            SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_ENABLED_ENV,
+            "false",
+        );
+        let _interval = ScopedEnvVar::set(
+            SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_INTERVAL_MILLIS_ENV,
+            "1200",
+        );
+
+        let config = resolve_shared_channel_sync_stale_reclaim_scheduler_config_from_env();
+        assert!(!config.enabled);
+        assert_eq!(config.interval_millis, 1200);
+    }
 }
