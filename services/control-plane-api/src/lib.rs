@@ -124,8 +124,14 @@ pub const SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT_ENV: &str =
     "CRAW_CHAT_SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT";
 pub const SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY_ENV: &str =
     "CRAW_CHAT_SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY";
+pub const SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_MILLIS_ENV: &str =
+    "CRAW_CHAT_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_MILLIS";
+pub const SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES_ENV: &str =
+    "CRAW_CHAT_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES";
 const SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT_DEFAULT: usize = 4;
 const SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY_DEFAULT: usize = 1024;
+const SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_DEFAULT_MILLIS: u128 = 2_592_000_000;
+const SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES_DEFAULT: usize = 200_000;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SharedChannelSyncStaleReclaimSchedulerConfig {
@@ -405,6 +411,22 @@ fn resolve_shared_channel_sync_dispatch_queue_capacity() -> usize {
         .and_then(|value| value.trim().parse::<usize>().ok())
         .filter(|value| *value > 0)
         .unwrap_or(SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY_DEFAULT)
+}
+
+fn resolve_shared_channel_sync_delivered_ledger_retention_millis() -> u128 {
+    std::env::var(SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_MILLIS_ENV)
+        .ok()
+        .and_then(|value| value.trim().parse::<u128>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_DEFAULT_MILLIS)
+}
+
+fn resolve_shared_channel_sync_delivered_ledger_max_entries() -> usize {
+    std::env::var(SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES_ENV)
+        .ok()
+        .and_then(|value| value.trim().parse::<usize>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES_DEFAULT)
 }
 
 fn resolve_shared_channel_sync_stale_reclaim_scheduler_config_from_env()
@@ -759,6 +781,11 @@ fn current_unix_epoch_millis() -> u128 {
         .as_millis()
 }
 
+fn shared_channel_sync_delivered_ledger_retention_window_start(now_epoch_millis: u128) -> String {
+    let retention_millis = resolve_shared_channel_sync_delivered_ledger_retention_millis();
+    format_unix_timestamp_millis(now_epoch_millis.saturating_sub(retention_millis))
+}
+
 #[derive(Clone, Debug)]
 struct AppliedSharedChannelPolicy {
     shared_channel_policy: SharedChannelPolicy,
@@ -987,6 +1014,9 @@ impl SocialControlState {
             dead_letter_shared_channel_sync_requests: self
                 .dead_letter_shared_channel_sync_requests
                 .len(),
+            delivered_shared_channel_sync_requests: self
+                .delivered_shared_channel_sync_requests
+                .len(),
             recent_shared_channel_sync_deliveries: self.recent_shared_channel_sync_deliveries.len(),
         }
     }
@@ -1072,6 +1102,76 @@ impl SocialControlState {
                 .remove(key.as_str());
         }
         pending_keys.len() + dead_letter_keys.len()
+    }
+
+    fn prune_delivered_shared_channel_sync_requests(
+        &mut self,
+        retention_window_start: &str,
+        max_entries: usize,
+    ) -> usize {
+        if self.delivered_shared_channel_sync_requests.is_empty() {
+            return 0;
+        }
+        let protected_keys = self
+            .pending_shared_channel_sync_requests
+            .keys()
+            .chain(self.dead_letter_shared_channel_sync_requests.keys())
+            .cloned()
+            .collect::<BTreeSet<_>>();
+
+        let stale_keys = self
+            .delivered_shared_channel_sync_requests
+            .iter()
+            .filter(|(key, delivered_at)| {
+                delivered_at.as_str() < retention_window_start
+                    && !protected_keys.contains(key.as_str())
+            })
+            .map(|(key, _)| key.clone())
+            .collect::<Vec<_>>();
+        let mut removed = 0usize;
+        for key in stale_keys {
+            if self
+                .delivered_shared_channel_sync_requests
+                .remove(key.as_str())
+                .is_some()
+            {
+                removed = removed.saturating_add(1);
+            }
+        }
+
+        if self.delivered_shared_channel_sync_requests.len() <= max_entries {
+            return removed;
+        }
+
+        let overflow = self
+            .delivered_shared_channel_sync_requests
+            .len()
+            .saturating_sub(max_entries);
+        if overflow == 0 {
+            return removed;
+        }
+
+        let mut oldest_candidates = self
+            .delivered_shared_channel_sync_requests
+            .iter()
+            .filter(|(key, _)| !protected_keys.contains(key.as_str()))
+            .map(|(key, delivered_at)| (key.clone(), delivered_at.clone()))
+            .collect::<Vec<_>>();
+        oldest_candidates.sort_by(|left, right| {
+            left.1
+                .cmp(&right.1)
+                .then_with(|| left.0.as_str().cmp(right.0.as_str()))
+        });
+        for (key, _) in oldest_candidates.into_iter().take(overflow) {
+            if self
+                .delivered_shared_channel_sync_requests
+                .remove(key.as_str())
+                .is_some()
+            {
+                removed = removed.saturating_add(1);
+            }
+        }
+        removed
     }
 
     fn pending_shared_channel_sync_requests(&self) -> Vec<PendingSharedChannelSyncRequest> {
@@ -2444,6 +2544,7 @@ pub struct SocialAggregateCountsResponse {
     pub shared_channel_policies: usize,
     pub pending_shared_channel_sync_requests: usize,
     pub dead_letter_shared_channel_sync_requests: usize,
+    pub delivered_shared_channel_sync_requests: usize,
     pub recent_shared_channel_sync_deliveries: usize,
 }
 
@@ -3081,6 +3182,13 @@ impl SocialControlRuntime {
                             "shared-channel sync stale reclaim scheduler tick failed: {error:?}"
                         );
                     }
+                    if let Err(error) = runtime.prune_delivered_shared_channel_sync_backlog_if_any(
+                        "failed to persist shared-channel sync delivered-ledger pruning from scheduler",
+                    ) {
+                        eprintln!(
+                            "shared-channel sync delivered-ledger pruning scheduler tick failed: {error:?}"
+                        );
+                    }
                 }
             }) {
             Ok(_) => {}
@@ -3375,6 +3483,9 @@ impl SocialControlRuntime {
             now_epoch_millis
                 .saturating_sub(SHARED_CHANNEL_SYNC_DISPATCH_DELIVERY_DEDUP_WINDOW_MILLIS),
         );
+        let retention_window_start =
+            shared_channel_sync_delivered_ledger_retention_window_start(now_epoch_millis);
+        let max_entries = resolve_shared_channel_sync_delivered_ledger_max_entries();
         let removed_pending = next_state.remove_pending_shared_channel_sync_request(request);
         let removed_dead_letter = next_state
             .dead_letter_shared_channel_sync_requests
@@ -3385,7 +3496,11 @@ impl SocialControlRuntime {
             delivered_at.as_str(),
             dedup_window_start.as_str(),
         );
-        if !removed_pending && !removed_dead_letter && !recorded_delivery {
+        let pruned_delivered = next_state.prune_delivered_shared_channel_sync_requests(
+            retention_window_start.as_str(),
+            max_entries,
+        );
+        if !removed_pending && !removed_dead_letter && !recorded_delivery && pruned_delivered == 0 {
             return;
         }
         if self.state_store.save(&next_state).is_ok() {
@@ -3426,11 +3541,18 @@ impl SocialControlRuntime {
             now_epoch_millis
                 .saturating_sub(SHARED_CHANNEL_SYNC_DISPATCH_DELIVERY_DEDUP_WINDOW_MILLIS),
         );
+        let retention_window_start =
+            shared_channel_sync_delivered_ledger_retention_window_start(now_epoch_millis);
+        let max_entries = resolve_shared_channel_sync_delivered_ledger_max_entries();
         let reclaimed = next_state.reclaim_stale_pending_shared_channel_sync_claims(now.as_str());
         let pruned = next_state.prune_delivered_shared_channel_sync_backlog();
+        let delivered_pruned = next_state.prune_delivered_shared_channel_sync_requests(
+            retention_window_start.as_str(),
+            max_entries,
+        );
 
         let Some(trigger) = trigger else {
-            if reclaimed > 0 || pruned > 0 {
+            if reclaimed > 0 || pruned > 0 || delivered_pruned > 0 {
                 self.state_store.save(&next_state).map_err(|error| {
                     ControlPlaneError::service_unavailable(
                         "social_state_unavailable",
@@ -3487,6 +3609,10 @@ impl SocialControlRuntime {
                 }
             }
         }
+        next_state.prune_delivered_shared_channel_sync_requests(
+            retention_window_start.as_str(),
+            max_entries,
+        );
 
         self.state_store.save(&next_state).map_err(|error| {
             ControlPlaneError::service_unavailable(
@@ -3652,14 +3778,21 @@ impl SocialControlRuntime {
             .state
             .write()
             .unwrap_or_else(Self::recover_poisoned_social_runtime_lock);
-        if state.pending_shared_channel_sync_count() == 0
-            && state.dead_letter_shared_channel_sync_count() == 0
-        {
+        if state.delivered_shared_channel_sync_requests.is_empty() {
             return Ok(0);
         }
 
         let mut next_state = state.clone();
-        let pruned = next_state.prune_delivered_shared_channel_sync_backlog();
+        let now_epoch_millis = current_unix_epoch_millis();
+        let retention_window_start =
+            shared_channel_sync_delivered_ledger_retention_window_start(now_epoch_millis);
+        let max_entries = resolve_shared_channel_sync_delivered_ledger_max_entries();
+        let pruned_backlog = next_state.prune_delivered_shared_channel_sync_backlog();
+        let pruned_delivered = next_state.prune_delivered_shared_channel_sync_requests(
+            retention_window_start.as_str(),
+            max_entries,
+        );
+        let pruned = pruned_backlog.saturating_add(pruned_delivered);
         if pruned == 0 {
             return Ok(0);
         }
@@ -4192,6 +4325,10 @@ impl SocialControlRuntime {
             republish_started_epoch_millis
                 .saturating_sub(SHARED_CHANNEL_SYNC_DISPATCH_DELIVERY_DEDUP_WINDOW_MILLIS),
         );
+        let retention_window_start = shared_channel_sync_delivered_ledger_retention_window_start(
+            republish_started_epoch_millis,
+        );
+        let max_entries = resolve_shared_channel_sync_delivered_ledger_max_entries();
         let mut renewed_stale_same_owner_lease = false;
         for (request_key, pending) in &selected_pending_items {
             if pending.is_owned_by(actor_id, actor_kind)
@@ -4209,7 +4346,11 @@ impl SocialControlRuntime {
         }
 
         let Some(trigger) = trigger else {
-            if renewed_stale_same_owner_lease {
+            let delivered_pruned = next_state.prune_delivered_shared_channel_sync_requests(
+                retention_window_start.as_str(),
+                max_entries,
+            );
+            if renewed_stale_same_owner_lease || delivered_pruned > 0 {
                 self.state_store.save(&next_state).map_err(|error| {
                     ControlPlaneError::service_unavailable(
                         "social_state_unavailable",
@@ -4264,6 +4405,10 @@ impl SocialControlRuntime {
                 }
             }
         }
+        next_state.prune_delivered_shared_channel_sync_requests(
+            retention_window_start.as_str(),
+            max_entries,
+        );
 
         self.state_store.save(&next_state).map_err(|error| {
             ControlPlaneError::service_unavailable(
@@ -5764,7 +5909,7 @@ pub fn format_social_runtime_dir_repair(report: &SocialRuntimeRepairResponse) ->
         report.transaction_marker_cleared
     ));
     lines.push(format!(
-        "aggregate-counts: friendRequests={} friendships={} userBlocks={} directChats={} externalConnections={} externalMemberLinks={} sharedChannelPolicies={} pendingSharedChannelSyncRequests={} deadLetterSharedChannelSyncRequests={} recentSharedChannelSyncDeliveries={}",
+        "aggregate-counts: friendRequests={} friendships={} userBlocks={} directChats={} externalConnections={} externalMemberLinks={} sharedChannelPolicies={} pendingSharedChannelSyncRequests={} deadLetterSharedChannelSyncRequests={} deliveredSharedChannelSyncRequests={} recentSharedChannelSyncDeliveries={}",
         report.aggregate_counts.friend_requests,
         report.aggregate_counts.friendships,
         report.aggregate_counts.user_blocks,
@@ -5774,6 +5919,7 @@ pub fn format_social_runtime_dir_repair(report: &SocialRuntimeRepairResponse) ->
         report.aggregate_counts.shared_channel_policies,
         report.aggregate_counts.pending_shared_channel_sync_requests,
         report.aggregate_counts.dead_letter_shared_channel_sync_requests,
+        report.aggregate_counts.delivered_shared_channel_sync_requests,
         report.aggregate_counts.recent_shared_channel_sync_deliveries
     ));
     lines.join("\n")
@@ -7812,5 +7958,130 @@ mod tests {
         let config = resolve_shared_channel_sync_stale_reclaim_scheduler_config_from_env();
         assert!(!config.enabled);
         assert_eq!(config.interval_millis, 1200);
+    }
+
+    #[test]
+    fn test_shared_channel_delivered_ledger_limits_resolve_from_env() {
+        let _guard = scheduler_env_guard();
+        let _retention =
+            ScopedEnvVar::remove(SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_MILLIS_ENV);
+        let _max_entries = ScopedEnvVar::remove(SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES_ENV);
+
+        assert_eq!(
+            resolve_shared_channel_sync_delivered_ledger_retention_millis(),
+            SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_DEFAULT_MILLIS
+        );
+        assert_eq!(
+            resolve_shared_channel_sync_delivered_ledger_max_entries(),
+            SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES_DEFAULT
+        );
+
+        let _retention =
+            ScopedEnvVar::set(SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_MILLIS_ENV, "12345");
+        let _max_entries =
+            ScopedEnvVar::set(SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES_ENV, "77");
+        assert_eq!(
+            resolve_shared_channel_sync_delivered_ledger_retention_millis(),
+            12345
+        );
+        assert_eq!(resolve_shared_channel_sync_delivered_ledger_max_entries(), 77);
+    }
+
+    #[test]
+    fn test_prune_delivered_shared_channel_sync_requests_respects_protected_keys_and_capacity() {
+        fn request(local_actor_id: &str) -> SharedChannelLinkedMemberSyncRequest {
+            SharedChannelLinkedMemberSyncRequest {
+                tenant_id: "t_demo".to_owned(),
+                conversation_id: "c_partner_ops".to_owned(),
+                shared_channel_policy_id: "scp_demo".to_owned(),
+                external_connection_id: "ec_demo".to_owned(),
+                local_actor_id: local_actor_id.to_owned(),
+                local_actor_kind: "user".to_owned(),
+                external_member_id: format!("partner::{local_actor_id}"),
+            }
+        }
+
+        let mut state = SocialControlState::default();
+        let protected_request = request("actor_protected");
+        let protected_key = shared_channel_sync_request_key(&protected_request);
+        state
+            .pending_shared_channel_sync_requests
+            .insert(
+                protected_key.clone(),
+                PendingSharedChannelSyncRequest {
+                    request: protected_request.clone(),
+                    failure_count: 0,
+                    last_error: String::new(),
+                    owner_actor_id: None,
+                    owner_actor_kind: None,
+                    claimed_at: None,
+                    lease_expires_at: None,
+                },
+            );
+
+        let old_a = request("actor_old_a");
+        let old_b = request("actor_old_b");
+        let fresh = request("actor_fresh");
+        state.delivered_shared_channel_sync_requests.insert(
+            shared_channel_sync_request_key(&old_a),
+            "2026-01-01T00:00:00.000Z".to_owned(),
+        );
+        state.delivered_shared_channel_sync_requests.insert(
+            shared_channel_sync_request_key(&old_b),
+            "2026-01-02T00:00:00.000Z".to_owned(),
+        );
+        state.delivered_shared_channel_sync_requests.insert(
+            protected_key.clone(),
+            "2026-01-03T00:00:00.000Z".to_owned(),
+        );
+        let fresh_key = shared_channel_sync_request_key(&fresh);
+        state.delivered_shared_channel_sync_requests.insert(
+            fresh_key.clone(),
+            "2026-04-12T00:00:00.000Z".to_owned(),
+        );
+
+        let removed_by_age = state.prune_delivered_shared_channel_sync_requests(
+            "2026-02-01T00:00:00.000Z",
+            2,
+        );
+        assert_eq!(removed_by_age, 2);
+        assert!(
+            state
+                .delivered_shared_channel_sync_requests
+                .contains_key(protected_key.as_str())
+        );
+        assert!(
+            state
+                .delivered_shared_channel_sync_requests
+                .contains_key(fresh_key.as_str())
+        );
+        assert_eq!(state.delivered_shared_channel_sync_requests.len(), 2);
+
+        state.pending_shared_channel_sync_requests.clear();
+        state.delivered_shared_channel_sync_requests.clear();
+        let k1 = shared_channel_sync_request_key(&request("actor_cap_1"));
+        let k2 = shared_channel_sync_request_key(&request("actor_cap_2"));
+        let k3 = shared_channel_sync_request_key(&request("actor_cap_3"));
+        state.delivered_shared_channel_sync_requests.insert(
+            k1.clone(),
+            "2026-03-01T00:00:00.000Z".to_owned(),
+        );
+        state.delivered_shared_channel_sync_requests.insert(
+            k2.clone(),
+            "2026-03-02T00:00:00.000Z".to_owned(),
+        );
+        state.delivered_shared_channel_sync_requests.insert(
+            k3.clone(),
+            "2026-03-03T00:00:00.000Z".to_owned(),
+        );
+
+        let removed_by_capacity = state.prune_delivered_shared_channel_sync_requests(
+            "2026-01-01T00:00:00.000Z",
+            2,
+        );
+        assert_eq!(removed_by_capacity, 1);
+        assert!(!state.delivered_shared_channel_sync_requests.contains_key(k1.as_str()));
+        assert!(state.delivered_shared_channel_sync_requests.contains_key(k2.as_str()));
+        assert!(state.delivered_shared_channel_sync_requests.contains_key(k3.as_str()));
     }
 }
