@@ -410,3 +410,10 @@
 - Remaining S07 gap after Loop90:
   - `release-ready exactly-once semantics across downstream fanout boundaries`
   - `formal cross-service idempotency governance and replay-proof delivery SLO contract`
+## Loop 91 Addendum - 2026-04-12
+- shared-channel sync trigger trait 现在支持返回结构化 `delivery proof`（`transport_accepted / applied / already_linked`），不再仅有裸 `Result<(), String>` 语义。
+- 社交控制面持久化状态新增 delivered-proof 账本，并在 replay/repair merge、retention/capacity prune 路径保持一致收敛。
+- 控制面新增 `GET /api/v1/control/social/runtime/delivered-shared-channel-sync` 读取面，operator 可直接看到 `requestKey / deliveredAt / status / proofVersion / target`。
+- Remaining S07 gap after Loop91:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `cross-service idempotency governance still needs strict delivery-state machine (accepted/applied/replayed/failed) with deterministic replay contract`
