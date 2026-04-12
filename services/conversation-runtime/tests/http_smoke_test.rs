@@ -3021,9 +3021,13 @@ async fn test_sync_shared_channel_linked_member_over_http_materializes_linked_hi
     let resync_json: serde_json::Value =
         serde_json::from_slice(&resync_body).expect("resync body should be valid json");
     assert_eq!(resync_json["proofVersion"], "shared_channel_sync_ack.v1");
-    assert_eq!(resync_json["status"], "already_linked");
+    assert_eq!(resync_json["status"], "replayed");
     assert_eq!(
         resync_json["requestKey"],
+        "t_demo|c_history_shared_sync_http|scp_sync_http|ec_sync_http|u_partner_external_sync|user|partner::sync-user"
+    );
+    assert_eq!(
+        resync_json["attributes"]["sharedChannelSyncRequestKey"],
         "t_demo|c_history_shared_sync_http|scp_sync_http|ec_sync_http|u_partner_external_sync|user|partner::sync-user"
     );
 }

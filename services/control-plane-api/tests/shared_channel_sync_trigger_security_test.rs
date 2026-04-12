@@ -5,7 +5,9 @@ use axum::extract::State;
 use axum::http::{HeaderMap, StatusCode};
 use axum::routing::post;
 use axum::{Json, Router};
-use control_plane_api::SharedChannelLinkedMemberSyncRequest;
+use control_plane_api::{
+    SharedChannelLinkedMemberSyncRequest, SharedChannelSyncDeliveryProofStatus,
+};
 use im_auth_context::{PUBLIC_BEARER_REQUIRED_AUD_ENV, PUBLIC_BEARER_REQUIRED_ISS_ENV};
 use serde_json::json;
 use tokio::net::TcpListener;
@@ -110,7 +112,8 @@ async fn capture_sync_call(
             "attributes": {
                 "sharedChannelPolicyId": shared_channel_policy_id,
                 "externalConnectionId": external_connection_id,
-                "externalMemberId": external_member_id
+                "externalMemberId": external_member_id,
+                "sharedChannelSyncRequestKey": request_key
             }
         })),
     )
@@ -154,6 +157,120 @@ async fn capture_sync_call_with_delay(
         .and_then(|value| value.as_str())
         .unwrap_or("missing-external-member-id");
     tokio::time::sleep(Duration::from_millis(200)).await;
+    (
+        StatusCode::OK,
+        Json(json!({
+            "requestKey": request_key,
+            "status": "applied",
+            "proofVersion": "shared_channel_sync_ack.v1",
+            "principalId": principal_id,
+            "principalKind": principal_kind,
+            "role": "guest",
+            "state": "linked",
+            "attributes": {
+                "sharedChannelPolicyId": shared_channel_policy_id,
+                "externalConnectionId": external_connection_id,
+                "externalMemberId": external_member_id,
+                "sharedChannelSyncRequestKey": request_key
+            }
+        })),
+    )
+}
+
+async fn capture_sync_call_with_replayed_ack(
+    State(captured): State<CapturedSyncRequest>,
+    headers: HeaderMap,
+    Json(payload): Json<serde_json::Value>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let authorization = headers
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_owned);
+    *captured
+        .authorization
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner()) = authorization;
+    let request_key = payload
+        .get("requestKey")
+        .and_then(|value| value.as_str())
+        .unwrap_or("missing-request-key");
+    let principal_id = payload
+        .get("localActorId")
+        .and_then(|value| value.as_str())
+        .unwrap_or("missing-principal-id");
+    let principal_kind = payload
+        .get("localActorKind")
+        .and_then(|value| value.as_str())
+        .unwrap_or("missing-principal-kind");
+    let shared_channel_policy_id = payload
+        .get("sharedChannelPolicyId")
+        .and_then(|value| value.as_str())
+        .unwrap_or("missing-policy-id");
+    let external_connection_id = payload
+        .get("externalConnectionId")
+        .and_then(|value| value.as_str())
+        .unwrap_or("missing-connection-id");
+    let external_member_id = payload
+        .get("externalMemberId")
+        .and_then(|value| value.as_str())
+        .unwrap_or("missing-external-member-id");
+    (
+        StatusCode::OK,
+        Json(json!({
+            "requestKey": request_key,
+            "status": "replayed",
+            "proofVersion": "shared_channel_sync_ack.v1",
+            "principalId": principal_id,
+            "principalKind": principal_kind,
+            "role": "guest",
+            "state": "linked",
+            "attributes": {
+                "sharedChannelPolicyId": shared_channel_policy_id,
+                "externalConnectionId": external_connection_id,
+                "externalMemberId": external_member_id,
+                "sharedChannelSyncRequestKey": request_key
+            }
+        })),
+    )
+}
+
+async fn capture_sync_call_without_request_key_commit_fence(
+    State(captured): State<CapturedSyncRequest>,
+    headers: HeaderMap,
+    Json(payload): Json<serde_json::Value>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let authorization = headers
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_owned);
+    *captured
+        .authorization
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner()) = authorization;
+    let request_key = payload
+        .get("requestKey")
+        .and_then(|value| value.as_str())
+        .unwrap_or("missing-request-key");
+    let principal_id = payload
+        .get("localActorId")
+        .and_then(|value| value.as_str())
+        .unwrap_or("missing-principal-id");
+    let principal_kind = payload
+        .get("localActorKind")
+        .and_then(|value| value.as_str())
+        .unwrap_or("missing-principal-kind");
+    let shared_channel_policy_id = payload
+        .get("sharedChannelPolicyId")
+        .and_then(|value| value.as_str())
+        .unwrap_or("missing-policy-id");
+    let external_connection_id = payload
+        .get("externalConnectionId")
+        .and_then(|value| value.as_str())
+        .unwrap_or("missing-connection-id");
+    let external_member_id = payload
+        .get("externalMemberId")
+        .and_then(|value| value.as_str())
+        .unwrap_or("missing-external-member-id");
     (
         StatusCode::OK,
         Json(json!({
@@ -245,7 +362,8 @@ async fn capture_sync_call_with_mismatched_principal_ack(
             "attributes": {
                 "sharedChannelPolicyId": "scp_mismatch",
                 "externalConnectionId": "ec_mismatch",
-                "externalMemberId": "partner::mismatch"
+                "externalMemberId": "partner::mismatch",
+                "sharedChannelSyncRequestKey": request_key
             }
         })),
     )
@@ -851,6 +969,95 @@ async fn test_public_shared_channel_sync_trigger_rejects_ack_with_mismatched_mem
     assert!(
         error.contains("principalId mismatch") || error.contains("attributes"),
         "mismatched member ack failure should mention principal/attributes validation, got: {error}"
+    );
+
+    server.abort();
+    let _ = server.await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_public_shared_channel_sync_trigger_maps_replayed_ack_status() {
+    let listener = TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("shared-channel sync replayed ack test listener should bind");
+    let local_addr = listener
+        .local_addr()
+        .expect("shared-channel sync replayed ack test listener should expose local addr");
+    let captured = CapturedSyncRequest::default();
+    let app = Router::new()
+        .route(
+            "/api/v1/conversations/shared-channel-links/sync",
+            post(capture_sync_call_with_replayed_ack),
+        )
+        .with_state(captured);
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app)
+            .await
+            .expect("shared-channel sync replayed ack test server should run");
+    });
+
+    let trigger = control_plane_api::build_public_shared_channel_sync_trigger(
+        format!("http://{local_addr}"),
+        "test-shared-channel-secret",
+    )
+    .expect("shared-channel sync trigger should build against local http target");
+    let proof = trigger
+        .trigger_with_delivery_proof(SharedChannelLinkedMemberSyncRequest {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_shared_sync_replayed_ack".into(),
+            shared_channel_policy_id: "scp_replayed_ack".into(),
+            external_connection_id: "ec_replayed_ack".into(),
+            local_actor_id: "u_local_actor".into(),
+            local_actor_kind: "user".into(),
+            external_member_id: "partner::replayed-ack".into(),
+        })
+        .expect("shared-channel sync trigger should accept replayed ack contract");
+    assert_eq!(proof.status, SharedChannelSyncDeliveryProofStatus::Replayed);
+
+    server.abort();
+    let _ = server.await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_public_shared_channel_sync_trigger_rejects_ack_without_request_key_commit_fence() {
+    let listener = TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("shared-channel sync commit-fence ack test listener should bind");
+    let local_addr = listener
+        .local_addr()
+        .expect("shared-channel sync commit-fence ack test listener should expose local addr");
+    let captured = CapturedSyncRequest::default();
+    let app = Router::new()
+        .route(
+            "/api/v1/conversations/shared-channel-links/sync",
+            post(capture_sync_call_without_request_key_commit_fence),
+        )
+        .with_state(captured);
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app)
+            .await
+            .expect("shared-channel sync commit-fence ack test server should run");
+    });
+
+    let trigger = control_plane_api::build_public_shared_channel_sync_trigger(
+        format!("http://{local_addr}"),
+        "test-shared-channel-secret",
+    )
+    .expect("shared-channel sync trigger should build against local http target");
+    let error = trigger
+        .trigger(SharedChannelLinkedMemberSyncRequest {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_shared_sync_missing_commit_fence".into(),
+            shared_channel_policy_id: "scp_missing_commit_fence".into(),
+            external_connection_id: "ec_missing_commit_fence".into(),
+            local_actor_id: "u_local_actor".into(),
+            local_actor_kind: "user".into(),
+            external_member_id: "partner::missing-commit-fence".into(),
+        })
+        .expect_err("shared-channel sync trigger should reject applied ack without commit fence");
+    assert!(
+        error.contains("sharedChannelSyncRequestKey"),
+        "missing commit fence failure should mention sharedChannelSyncRequestKey, got: {error}"
     );
 
     server.abort();

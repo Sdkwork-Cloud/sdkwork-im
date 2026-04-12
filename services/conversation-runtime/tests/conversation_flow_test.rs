@@ -4464,6 +4464,15 @@ fn test_sync_shared_channel_linked_member_materializes_runtime_truth_and_survive
             .map(String::as_str),
         Some("partner::runtime-user")
     );
+    assert_eq!(
+        linked_member
+            .attributes
+            .get("sharedChannelSyncRequestKey")
+            .map(String::as_str),
+        Some(
+            "t_demo|c_shared_sync_runtime|scp_runtime|ec_runtime|u_partner_runtime|user|partner::runtime-user"
+        )
+    );
 
     let linked_history = runtime
         .list_messages("t_demo", "c_shared_sync_runtime", "u_partner_runtime")

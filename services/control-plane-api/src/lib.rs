@@ -249,6 +249,7 @@ struct SharedChannelSyncDispatchTask {
 enum SharedChannelSyncAckStatus {
     Applied,
     AlreadyLinked,
+    Replayed,
 }
 
 impl SharedChannelSyncAckStatus {
@@ -256,6 +257,7 @@ impl SharedChannelSyncAckStatus {
         match self {
             Self::Applied => SharedChannelSyncDeliveryProofStatus::Applied,
             Self::AlreadyLinked => SharedChannelSyncDeliveryProofStatus::AlreadyLinked,
+            Self::Replayed => SharedChannelSyncDeliveryProofStatus::Replayed,
         }
     }
 }
@@ -731,6 +733,26 @@ fn validate_shared_channel_sync_ack_response(
         if actual_value != expected_value {
             return Err(format!(
                 "shared-channel sync endpoint {target} ack attributes[{key}] mismatch: expected {expected_value}, got {actual_value}"
+            ));
+        }
+    }
+    if matches!(
+        status,
+        SharedChannelSyncDeliveryProofStatus::Applied
+            | SharedChannelSyncDeliveryProofStatus::Replayed
+    ) {
+        let Some(actual_request_key) = ack
+            .attributes
+            .get("sharedChannelSyncRequestKey")
+            .map(String::as_str)
+        else {
+            return Err(format!(
+                "shared-channel sync endpoint {target} ack attributes missing key sharedChannelSyncRequestKey"
+            ));
+        };
+        if actual_request_key != expected_request_key {
+            return Err(format!(
+                "shared-channel sync endpoint {target} ack attributes[sharedChannelSyncRequestKey] mismatch: expected {expected_request_key}, got {actual_request_key}"
             ));
         }
     }

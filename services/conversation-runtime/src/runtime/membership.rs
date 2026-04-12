@@ -6,6 +6,7 @@ const SHARED_HISTORY_LINK_ATTRIBUTE_KEYS: [&str; 3] = [
     "externalConnectionId",
     "externalMemberId",
 ];
+const SHARED_CHANNEL_SYNC_REQUEST_KEY_ATTRIBUTE: &str = "sharedChannelSyncRequestKey";
 
 fn has_non_empty_shared_history_link_value(
     attributes: &BTreeMap<String, String>,
@@ -39,6 +40,7 @@ fn shared_history_link_attributes(
     shared_channel_policy_id: &str,
     external_connection_id: &str,
     external_member_id: &str,
+    request_key: &str,
 ) -> BTreeMap<String, String> {
     BTreeMap::from([
         (
@@ -47,6 +49,10 @@ fn shared_history_link_attributes(
         ),
         ("externalConnectionId".into(), external_connection_id.into()),
         ("externalMemberId".into(), external_member_id.into()),
+        (
+            SHARED_CHANNEL_SYNC_REQUEST_KEY_ATTRIBUTE.into(),
+            request_key.into(),
+        ),
     ])
 }
 
@@ -72,6 +78,27 @@ fn shared_history_link_matches(
             .get("externalMemberId")
             .map(String::as_str)
             == Some(command.external_member_id.as_str())
+}
+
+fn shared_channel_sync_request_key_fence(member: &ConversationMember) -> Option<&str> {
+    member
+        .attributes
+        .get(SHARED_CHANNEL_SYNC_REQUEST_KEY_ATTRIBUTE)
+        .map(String::as_str)
+        .filter(|request_key| !request_key.trim().is_empty())
+}
+
+fn shared_channel_sync_request_key(command: &SyncSharedChannelLinkedMemberCommand) -> String {
+    format!(
+        "{}|{}|{}|{}|{}|{}|{}",
+        command.tenant_id,
+        command.conversation_id,
+        command.shared_channel_policy_id,
+        command.external_connection_id,
+        command.local_actor_id,
+        command.local_actor_kind,
+        command.external_member_id
+    )
 }
 
 impl<J> ConversationRuntime<J>
@@ -264,10 +291,12 @@ where
             ));
         }
 
+        let request_key = shared_channel_sync_request_key(&command);
         let attributes = shared_history_link_attributes(
             command.shared_channel_policy_id.as_str(),
             command.external_connection_id.as_str(),
             command.external_member_id.as_str(),
+            request_key.as_str(),
         );
         resolve_shared_history_linked_member(&attributes)?;
 
@@ -299,8 +328,15 @@ where
                 .resolve_current_member(command.local_actor_id.as_str())
             {
                 if shared_history_link_matches(&current_member, &command) {
+                    let status = if shared_channel_sync_request_key_fence(&current_member)
+                        == Some(request_key.as_str())
+                    {
+                        SyncSharedChannelLinkedMemberStatus::Replayed
+                    } else {
+                        SyncSharedChannelLinkedMemberStatus::AlreadyLinked
+                    };
                     return Ok(SyncSharedChannelLinkedMemberResult {
-                        status: SyncSharedChannelLinkedMemberStatus::AlreadyLinked,
+                        status,
                         member: current_member,
                     });
                 }

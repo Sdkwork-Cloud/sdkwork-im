@@ -127,6 +127,7 @@ pub struct SyncSharedChannelLinkedMemberCommand {
 pub enum SyncSharedChannelLinkedMemberStatus {
     Applied,
     AlreadyLinked,
+    Replayed,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
