@@ -165,6 +165,8 @@ pub const SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_INTERVAL_MILLIS_ENV: &str 
     "CRAW_CHAT_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_INTERVAL_MILLIS";
 const SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_ENABLED_DEFAULT: bool = true;
 const SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_DEFAULT_INTERVAL_MILLIS: u64 = 30_000;
+const SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_MIN_INTERVAL_MILLIS: u64 = 1_000;
+const SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_MAX_INTERVAL_MILLIS: u64 = 600_000;
 pub const SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT_ENV: &str =
     "CRAW_CHAT_SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT";
 pub const SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY_ENV: &str =
@@ -558,7 +560,11 @@ fn resolve_shared_channel_sync_stale_reclaim_scheduler_config_from_env()
             .ok()
             .and_then(|value| value.trim().parse::<u64>().ok())
             .filter(|value| *value > 0)
-            .unwrap_or(SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_DEFAULT_INTERVAL_MILLIS);
+            .unwrap_or(SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_DEFAULT_INTERVAL_MILLIS)
+            .clamp(
+                SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_MIN_INTERVAL_MILLIS,
+                SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_MAX_INTERVAL_MILLIS,
+            );
     SharedChannelSyncStaleReclaimSchedulerConfig {
         enabled,
         interval_millis,
@@ -8583,6 +8589,30 @@ mod tests {
         let config = resolve_shared_channel_sync_stale_reclaim_scheduler_config_from_env();
         assert!(!config.enabled);
         assert_eq!(config.interval_millis, 1200);
+    }
+
+    #[test]
+    fn test_shared_channel_stale_reclaim_scheduler_interval_is_clamped_to_minimum() {
+        let _guard = scheduler_env_guard();
+        let _interval = ScopedEnvVar::set(
+            SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_INTERVAL_MILLIS_ENV,
+            "1",
+        );
+
+        let config = resolve_shared_channel_sync_stale_reclaim_scheduler_config_from_env();
+        assert_eq!(config.interval_millis, 1_000);
+    }
+
+    #[test]
+    fn test_shared_channel_stale_reclaim_scheduler_interval_is_clamped_to_maximum() {
+        let _guard = scheduler_env_guard();
+        let _interval = ScopedEnvVar::set(
+            SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_INTERVAL_MILLIS_ENV,
+            "99999999",
+        );
+
+        let config = resolve_shared_channel_sync_stale_reclaim_scheduler_config_from_env();
+        assert_eq!(config.interval_millis, 600_000);
     }
 
     #[test]

@@ -449,3 +449,18 @@
 - Remaining S07 gap after Loop94:
   - `release-ready exactly-once semantics across downstream fanout boundaries`
   - `formal cross-service idempotency governance and deterministic replay SLO still needs downstream consumer-side commit fencing (beyond control-plane state visibility)`
+## Loop 95 Addendum - 2026-04-12
+- shared-channel stale reclaim scheduler interval 现在新增强制钳制，`CRAW_CHAT_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_INTERVAL_MILLIS` 会被限制在 `1000..600000`，避免极小间隔导致的高频扫描放大，或极大间隔导致 stale reclaim SLO 漂移。
+- `control-plane-api` 已补齐 interval 下界/上界回归测试，覆盖 `"1" -> 1000` 与 `"99999999" -> 600000` 两条关键防线。
+- deployment env 文档已同步回写 scheduler interval 的 min/max 合同，减少运维侧误解与配置偏差。
+- 本轮门禁证据：
+  - `cargo clippy -p control-plane-api --tests` 通过（仅既有 warning）
+  - `cargo test -p control-plane-api` 通过
+  - `cargo test -p conversation-runtime --tests` 通过
+  - `cargo test -p local-minimal-node --offline --test performance_quant_baseline_test -- --nocapture` 通过
+  - `cargo test -p local-minimal-node --offline --test performance_ha_dr_drill_test -- --nocapture` 通过
+  - `cargo test -p local-minimal-node --offline --test performance_drill_catalog_test` 通过
+  - `cargo audit --no-fetch --stale` 通过
+- Remaining S07 gap after Loop95:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `formal cross-service idempotency governance and deterministic replay SLO still needs downstream consumer-side commit fencing (beyond control-plane state visibility)`

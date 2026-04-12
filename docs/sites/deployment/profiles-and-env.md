@@ -42,7 +42,7 @@ For public or commercial deployments, keep these enabled and explicit:
 | `CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS` | Sliding window used by the shared-channel sync per-tenant limiter. |
 | `CRAW_CHAT_SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MILLIS` | Outbound HTTP timeout (milliseconds) for control-plane shared-channel sync trigger dispatch. |
 | `CRAW_CHAT_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_ENABLED` | Enables periodic stale-claim reclaim for pending shared-channel sync requests (`1/true/yes/on`). |
-| `CRAW_CHAT_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_INTERVAL_MILLIS` | Scheduler tick interval in milliseconds for stale-claim reclaim scans. |
+| `CRAW_CHAT_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_INTERVAL_MILLIS` | Scheduler tick interval in milliseconds for stale-claim reclaim scans (clamped to `1000..600000`). |
 | `CRAW_CHAT_SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT` | Number of background dispatch workers that execute shared-channel sync outbound HTTP requests (capped at 128). |
 | `CRAW_CHAT_SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY` | Bounded in-memory queue capacity for shared-channel sync dispatch tasks (capped at 65,536); full queue returns backpressure errors. |
 | `CRAW_CHAT_ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP` | Emergency local-test override for non-HTTPS shared-channel sync targets. Keep `false` in non-local environments. |
@@ -55,7 +55,7 @@ For public or commercial deployments, keep these enabled and explicit:
 | `CRAW_CHAT_SHARED_CHANNEL_SYNC_TARGET_BASE_URL` | Enables standalone control-plane sync dispatch to conversation-runtime public HTTP route. |
 | `CRAW_CHAT_SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MILLIS` | Caps outbound shared-channel sync request/response wait time to fail fast on transport stalls (max 60,000ms). |
 | `CRAW_CHAT_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_ENABLED` | Turns on automatic stale pending-claim reclaim scans without operator-triggered repair calls. |
-| `CRAW_CHAT_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_INTERVAL_MILLIS` | Controls how often the reclaim scheduler checks pending shared-channel sync leases. |
+| `CRAW_CHAT_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_INTERVAL_MILLIS` | Controls how often the reclaim scheduler checks pending shared-channel sync leases (clamped to `1000..600000`). |
 | `CRAW_CHAT_SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT` | Tunes shared-channel sync dispatch throughput by increasing worker parallelism (max 128). |
 | `CRAW_CHAT_SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY` | Caps dispatch backlog size and enforces backpressure when queue capacity is exhausted (max 65,536). |
 | `CRAW_CHAT_ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP` | Allows `http://` target only for controlled local testing; production should use HTTPS. |
