@@ -122,6 +122,20 @@ pub struct SyncSharedChannelLinkedMemberCommand {
     pub synced_by: String,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SyncSharedChannelLinkedMemberStatus {
+    Applied,
+    AlreadyLinked,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SyncSharedChannelLinkedMemberResult {
+    pub status: SyncSharedChannelLinkedMemberStatus,
+    pub member: ConversationMember,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AcceptAgentHandoffCommand {

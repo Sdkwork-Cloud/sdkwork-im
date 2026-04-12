@@ -2931,6 +2931,11 @@ async fn test_sync_shared_channel_linked_member_over_http_materializes_linked_hi
         .to_bytes();
     let sync_json: serde_json::Value =
         serde_json::from_slice(&sync_body).expect("sync body should be valid json");
+    assert_eq!(sync_json["status"], "applied");
+    assert_eq!(
+        sync_json["requestKey"],
+        "t_demo|c_history_shared_sync_http|scp_sync_http|ec_sync_http|u_partner_external_sync|user|partner::sync-user"
+    );
     assert_eq!(sync_json["principalId"], "u_partner_external_sync");
     assert_eq!(sync_json["principalKind"], "user");
     assert_eq!(sync_json["role"], "guest");

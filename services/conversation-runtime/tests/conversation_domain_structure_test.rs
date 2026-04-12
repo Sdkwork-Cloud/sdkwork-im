@@ -156,7 +156,7 @@ fn test_http_non_message_surface_uses_auth_context_command_constructors() {
     for required_symbol in [
         ".create_conversation_from_auth_context(",
         ".bind_direct_chat_conversation_from_auth_context(",
-        ".sync_shared_channel_linked_member_from_auth_context(",
+        ".sync_shared_channel_linked_member_from_auth_context_with_result(",
         ".create_agent_dialog_from_auth_context(",
         ".create_agent_handoff_from_auth_context(",
         ".create_system_channel_from_auth_context(",
@@ -289,7 +289,7 @@ fn test_http_non_message_surface_uses_runtime_auth_context_entrypoints() {
     for required_symbol in [
         ".create_conversation_from_auth_context(",
         ".bind_direct_chat_conversation_from_auth_context(",
-        ".sync_shared_channel_linked_member_from_auth_context(",
+        ".sync_shared_channel_linked_member_from_auth_context_with_result(",
         ".create_agent_dialog_from_auth_context(",
         ".create_agent_handoff_from_auth_context(",
         ".create_system_channel_from_auth_context(",

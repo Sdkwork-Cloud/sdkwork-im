@@ -143,7 +143,29 @@ where
         local_actor_kind: String,
         external_member_id: String,
     ) -> Result<ConversationMember, RuntimeError> {
-        self.sync_shared_channel_linked_member_with_requester_kind(
+        self.sync_shared_channel_linked_member_from_auth_context_with_result(
+            auth,
+            conversation_id,
+            shared_channel_policy_id,
+            external_connection_id,
+            local_actor_id,
+            local_actor_kind,
+            external_member_id,
+        )
+        .map(|result| result.member)
+    }
+
+    pub fn sync_shared_channel_linked_member_from_auth_context_with_result(
+        &self,
+        auth: &AuthContext,
+        conversation_id: String,
+        shared_channel_policy_id: String,
+        external_connection_id: String,
+        local_actor_id: String,
+        local_actor_kind: String,
+        external_member_id: String,
+    ) -> Result<SyncSharedChannelLinkedMemberResult, RuntimeError> {
+        self.sync_shared_channel_linked_member_with_requester_kind_with_result(
             SyncSharedChannelLinkedMemberCommand::from_auth_context(
                 auth,
                 conversation_id,
@@ -161,7 +183,8 @@ where
         &self,
         command: SyncSharedChannelLinkedMemberCommand,
     ) -> Result<ConversationMember, RuntimeError> {
-        self.sync_shared_channel_linked_member_with_requester_kind(command, "system")
+        self.sync_shared_channel_linked_member_with_requester_kind_with_result(command, "system")
+            .map(|result| result.member)
     }
 
     pub fn add_member(
@@ -191,6 +214,18 @@ where
         command: SyncSharedChannelLinkedMemberCommand,
         requester_kind: &str,
     ) -> Result<ConversationMember, RuntimeError> {
+        self.sync_shared_channel_linked_member_with_requester_kind_with_result(
+            command,
+            requester_kind,
+        )
+        .map(|result| result.member)
+    }
+
+    pub fn sync_shared_channel_linked_member_with_requester_kind_with_result(
+        &self,
+        command: SyncSharedChannelLinkedMemberCommand,
+        requester_kind: &str,
+    ) -> Result<SyncSharedChannelLinkedMemberResult, RuntimeError> {
         policy::ensure_shared_channel_sync_requester_kind(requester_kind)?;
 
         if command.conversation_id.trim().is_empty() {
@@ -264,7 +299,10 @@ where
                 .resolve_current_member(command.local_actor_id.as_str())
             {
                 if shared_history_link_matches(&current_member, &command) {
-                    return Ok(current_member);
+                    return Ok(SyncSharedChannelLinkedMemberResult {
+                        status: SyncSharedChannelLinkedMemberStatus::AlreadyLinked,
+                        member: current_member,
+                    });
                 }
 
                 return Err(RuntimeError::Conflict(format!(
@@ -309,7 +347,10 @@ where
             requester_kind,
         ))?;
 
-        Ok(member)
+        Ok(SyncSharedChannelLinkedMemberResult {
+            status: SyncSharedChannelLinkedMemberStatus::Applied,
+            member,
+        })
     }
 
     fn add_member_with_actor_kind_and_attributes(

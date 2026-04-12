@@ -264,6 +264,7 @@ impl PublicSharedChannelLinkedMemberSyncTrigger {
         request: SharedChannelLinkedMemberSyncRequest,
     ) -> Result<(), String> {
         let timeout = resolve_shared_channel_sync_http_timeout();
+        let request_key = shared_channel_sync_request_key(&request);
         let payload = serde_json::to_vec(&serde_json::json!({
             "conversationId": request.conversation_id,
             "sharedChannelPolicyId": request.shared_channel_policy_id,
@@ -271,6 +272,7 @@ impl PublicSharedChannelLinkedMemberSyncTrigger {
             "localActorId": request.local_actor_id,
             "localActorKind": request.local_actor_kind,
             "externalMemberId": request.external_member_id,
+            "requestKey": request_key.clone(),
         }))
         .map(Bytes::from)
         .map_err(|error| format!("failed to encode shared-channel sync payload: {error}"))?;
@@ -305,6 +307,7 @@ impl PublicSharedChannelLinkedMemberSyncTrigger {
         )
         .await?;
         if status.is_success() {
+            validate_shared_channel_sync_ack_response(body.as_ref(), target.as_str(), request_key.as_str())?;
             return Ok(());
         }
 
@@ -492,6 +495,45 @@ async fn read_shared_channel_sync_response_body_with_limit(
         output.extend_from_slice(data.as_ref());
     }
     Ok(Bytes::from(output))
+}
+
+fn validate_shared_channel_sync_ack_response(
+    body: &[u8],
+    target: &str,
+    expected_request_key: &str,
+) -> Result<(), String> {
+    if body.is_empty() {
+        return Err(format!(
+            "shared-channel sync endpoint {target} returned success without ack payload"
+        ));
+    }
+    let ack: serde_json::Value = serde_json::from_slice(body)
+        .map_err(|error| format!("shared-channel sync endpoint {target} returned invalid ack json: {error}"))?;
+    let ack_request_key = ack
+        .get("requestKey")
+        .and_then(|value| value.as_str())
+        .ok_or_else(|| {
+            format!(
+                "shared-channel sync endpoint {target} ack missing string requestKey field"
+            )
+        })?;
+    if ack_request_key != expected_request_key {
+        return Err(format!(
+            "shared-channel sync endpoint {target} ack requestKey mismatch: expected {expected_request_key}, got {ack_request_key}"
+        ));
+    }
+    let ack_status = ack
+        .get("status")
+        .and_then(|value| value.as_str())
+        .ok_or_else(|| {
+            format!("shared-channel sync endpoint {target} ack missing string status field")
+        })?;
+    if !matches!(ack_status, "applied" | "already_linked") {
+        return Err(format!(
+            "shared-channel sync endpoint {target} ack returned unsupported status {ack_status}"
+        ));
+    }
+    Ok(())
 }
 
 impl SharedChannelLinkedMemberSyncTrigger for PublicSharedChannelLinkedMemberSyncTrigger {

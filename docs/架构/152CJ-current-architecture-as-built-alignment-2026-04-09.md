@@ -388,3 +388,17 @@
 - Remaining S07 gap after Loop88:
   - `release-ready exactly-once semantics`
   - `formal delivery-ack proof contract and downstream idempotency governance`
+## Loop 89 Addendum - 2026-04-12
+- Shared-channel sync now carries explicit `requestKey` in the control-plane -> runtime HTTP payload.
+- Public shared-channel trigger no longer treats raw `2xx` as sufficient success:
+  - response body must include `requestKey`
+  - response `requestKey` must match the dispatched key
+  - response `status` must be `applied` or `already_linked`
+- conversation-runtime shared-channel sync endpoint now returns machine-readable ack surface with:
+  - `requestKey`
+  - `status = applied | already_linked`
+  - flattened member truth payload
+- This closes the previous "transport success without semantic ack proof" gap at the control-plane trigger contract seam.
+- Remaining S07 gap after Loop89:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `formal cross-service idempotency governance and replay-proof delivery SLO contract`

@@ -62,6 +62,7 @@ fn decode_claims_from_bearer(authorization: &str) -> serde_json::Value {
 async fn capture_sync_call(
     State(captured): State<CapturedSyncRequest>,
     headers: HeaderMap,
+    Json(payload): Json<serde_json::Value>,
 ) -> (StatusCode, Json<serde_json::Value>) {
     let authorization = headers
         .get(axum::http::header::AUTHORIZATION)
@@ -71,12 +72,23 @@ async fn capture_sync_call(
         .authorization
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner()) = authorization;
-    (StatusCode::OK, Json(json!({ "status": "ok" })))
+    let request_key = payload
+        .get("requestKey")
+        .and_then(|value| value.as_str())
+        .unwrap_or("missing-request-key");
+    (
+        StatusCode::OK,
+        Json(json!({
+            "requestKey": request_key,
+            "status": "applied"
+        })),
+    )
 }
 
 async fn capture_sync_call_with_delay(
     State(captured): State<CapturedSyncRequest>,
     headers: HeaderMap,
+    Json(payload): Json<serde_json::Value>,
 ) -> (StatusCode, Json<serde_json::Value>) {
     let authorization = headers
         .get(axum::http::header::AUTHORIZATION)
@@ -86,8 +98,18 @@ async fn capture_sync_call_with_delay(
         .authorization
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner()) = authorization;
+    let request_key = payload
+        .get("requestKey")
+        .and_then(|value| value.as_str())
+        .unwrap_or("missing-request-key");
     tokio::time::sleep(Duration::from_millis(200)).await;
-    (StatusCode::OK, Json(json!({ "status": "ok" })))
+    (
+        StatusCode::OK,
+        Json(json!({
+            "requestKey": request_key,
+            "status": "applied"
+        })),
+    )
 }
 
 async fn capture_sync_call_with_large_error_body(
@@ -103,6 +125,27 @@ async fn capture_sync_call_with_large_error_body(
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner()) = authorization;
     (StatusCode::BAD_GATEWAY, "x".repeat(20_000))
+}
+
+async fn capture_sync_call_with_invalid_ack(
+    State(captured): State<CapturedSyncRequest>,
+    headers: HeaderMap,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let authorization = headers
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_owned);
+    *captured
+        .authorization
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner()) = authorization;
+    (
+        StatusCode::OK,
+        Json(json!({
+            "requestKey": "mismatched-key",
+            "status": "ok"
+        })),
+    )
 }
 
 fn insecure_http_guard() -> MutexGuard<'static, ()> {
@@ -540,4 +583,50 @@ async fn test_public_shared_channel_sync_trigger_returns_backpressure_error_when
     server.abort();
     let _ = server.await;
     clear_shared_channel_sync_dispatch_overrides();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_public_shared_channel_sync_trigger_rejects_invalid_ack_contract() {
+    let listener = TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("shared-channel sync invalid ack test listener should bind");
+    let local_addr = listener
+        .local_addr()
+        .expect("shared-channel sync invalid ack test listener should expose local addr");
+    let captured = CapturedSyncRequest::default();
+    let app = Router::new()
+        .route(
+            "/api/v1/conversations/shared-channel-links/sync",
+            post(capture_sync_call_with_invalid_ack),
+        )
+        .with_state(captured);
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app)
+            .await
+            .expect("shared-channel sync invalid ack test server should run");
+    });
+
+    let trigger = control_plane_api::build_public_shared_channel_sync_trigger(
+        format!("http://{local_addr}"),
+        "test-shared-channel-secret",
+    )
+    .expect("shared-channel sync trigger should build against local http target");
+    let error = trigger
+        .trigger(SharedChannelLinkedMemberSyncRequest {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_shared_sync_invalid_ack".into(),
+            shared_channel_policy_id: "scp_invalid_ack".into(),
+            external_connection_id: "ec_invalid_ack".into(),
+            local_actor_id: "u_local_actor".into(),
+            local_actor_kind: "user".into(),
+            external_member_id: "partner::invalid-ack".into(),
+        })
+        .expect_err("shared-channel sync trigger should reject invalid ack contract");
+    assert!(
+        error.contains("ack requestKey mismatch") || error.contains("unsupported status"),
+        "invalid ack failure should mention requestKey/status validation, got: {error}"
+    );
+
+    server.abort();
+    let _ = server.await;
 }

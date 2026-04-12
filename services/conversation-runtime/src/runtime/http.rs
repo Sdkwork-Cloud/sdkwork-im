@@ -136,6 +136,22 @@ fn current_unix_epoch_millis() -> u128 {
         .as_millis()
 }
 
+fn shared_channel_sync_request_key(
+    tenant_id: &str,
+    request: &SyncSharedChannelLinkedMemberRequest,
+) -> String {
+    format!(
+        "{}|{}|{}|{}|{}|{}|{}",
+        tenant_id,
+        request.conversation_id,
+        request.shared_channel_policy_id,
+        request.external_connection_id,
+        request.local_actor_id,
+        request.local_actor_kind,
+        request.external_member_id
+    )
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct HealthResponse {
@@ -235,6 +251,8 @@ struct SyncSharedChannelLinkedMemberRequest {
     local_actor_id: String,
     local_actor_kind: String,
     external_member_id: String,
+    #[serde(default)]
+    request_key: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -270,6 +288,15 @@ struct ChangeConversationMemberRoleRequest {
 #[serde(rename_all = "camelCase")]
 struct ListMembersResponse {
     items: Vec<ConversationMember>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SyncSharedChannelLinkedMemberResponse {
+    request_key: String,
+    status: SyncSharedChannelLinkedMemberStatus,
+    #[serde(flatten)]
+    member: ConversationMember,
 }
 
 #[derive(Debug, Serialize)]
@@ -676,7 +703,7 @@ async fn sync_shared_channel_linked_member(
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<SyncSharedChannelLinkedMemberRequest>,
-) -> Result<Json<ConversationMember>, ApiError> {
+) -> Result<Json<SyncSharedChannelLinkedMemberResponse>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
     if !auth.has_permission(SHARED_CHANNEL_SYNC_PERMISSION) {
         return Err(ApiError::forbidden(
@@ -704,19 +731,40 @@ async fn sync_shared_channel_linked_member(
             "shared channel linked-member sync exceeded per-tenant rate limit",
         ));
     }
-    Ok(Json(
-        state
-            .runtime
-            .sync_shared_channel_linked_member_from_auth_context(
-                &auth,
-                request.conversation_id,
-                request.shared_channel_policy_id,
-                request.external_connection_id,
-                request.local_actor_id,
-                request.local_actor_kind,
-                request.external_member_id,
-            )?,
-    ))
+    let expected_request_key = shared_channel_sync_request_key(auth.tenant_id.as_str(), &request);
+    if let Some(request_key) = request.request_key.as_deref() {
+        if request_key.trim().is_empty() {
+            return Err(ApiError::bad_request(
+                "shared_channel_sync_request_key_invalid",
+                "shared channel linked-member sync requestKey cannot be empty when provided",
+            ));
+        }
+        if request_key != expected_request_key.as_str() {
+            return Err(ApiError::bad_request(
+                "shared_channel_sync_request_key_mismatch",
+                format!(
+                    "shared channel linked-member sync requestKey mismatch: expected {expected_request_key}, got {request_key}"
+                ),
+            ));
+        }
+    }
+    let request_key = request.request_key.clone().unwrap_or(expected_request_key);
+    let sync_result = state
+        .runtime
+        .sync_shared_channel_linked_member_from_auth_context_with_result(
+            &auth,
+            request.conversation_id,
+            request.shared_channel_policy_id,
+            request.external_connection_id,
+            request.local_actor_id,
+            request.local_actor_kind,
+            request.external_member_id,
+        )?;
+    Ok(Json(SyncSharedChannelLinkedMemberResponse {
+        request_key,
+        status: sync_result.status,
+        member: sync_result.member,
+    }))
 }
 
 async fn get_agent_handoff_state(
