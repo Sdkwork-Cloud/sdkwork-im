@@ -302,6 +302,12 @@ fn clear_insecure_http_override() {
     }
 }
 
+fn clear_runtime_profile_override() {
+    unsafe {
+        std::env::remove_var(control_plane_api::SHARED_CHANNEL_SYNC_RUNTIME_PROFILE_ENV);
+    }
+}
+
 fn clear_shared_channel_sync_timeout_override() {
     unsafe {
         std::env::remove_var(control_plane_api::SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MILLIS_ENV);
@@ -364,6 +370,13 @@ fn test_public_shared_channel_sync_trigger_rejects_remote_http_target() {
 fn test_public_shared_channel_sync_trigger_allows_remote_http_when_explicitly_enabled() {
     let _guard = insecure_http_guard();
     clear_insecure_http_override();
+    clear_runtime_profile_override();
+    unsafe {
+        std::env::set_var(
+            control_plane_api::SHARED_CHANNEL_SYNC_RUNTIME_PROFILE_ENV,
+            "local-default",
+        );
+    }
     unsafe {
         std::env::set_var(
             control_plane_api::ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP_ENV,
@@ -375,9 +388,69 @@ fn test_public_shared_channel_sync_trigger_allows_remote_http_when_explicitly_en
         "secret",
     );
     clear_insecure_http_override();
+    clear_runtime_profile_override();
     assert!(
         trigger.is_ok(),
         "explicitly enabled insecure mode should allow non-local http target"
+    );
+}
+
+#[test]
+fn test_public_shared_channel_sync_trigger_rejects_remote_http_override_without_local_runtime_profile()
+ {
+    let _guard = insecure_http_guard();
+    clear_insecure_http_override();
+    clear_runtime_profile_override();
+    unsafe {
+        std::env::set_var(
+            control_plane_api::ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP_ENV,
+            "true",
+        );
+    }
+    let error = match control_plane_api::build_public_shared_channel_sync_trigger(
+        "http://sync.example.com",
+        "secret",
+    ) {
+        Ok(_) => panic!(
+            "remote http override should be rejected unless runtime profile is explicitly local"
+        ),
+        Err(error) => error,
+    };
+    clear_insecure_http_override();
+    clear_runtime_profile_override();
+    assert!(
+        error.contains(control_plane_api::SHARED_CHANNEL_SYNC_RUNTIME_PROFILE_ENV),
+        "error should require local runtime profile for insecure override, got: {error}"
+    );
+}
+
+#[test]
+fn test_public_shared_channel_sync_trigger_rejects_remote_http_override_for_production_profile() {
+    let _guard = insecure_http_guard();
+    clear_insecure_http_override();
+    clear_runtime_profile_override();
+    unsafe {
+        std::env::set_var(
+            control_plane_api::SHARED_CHANNEL_SYNC_RUNTIME_PROFILE_ENV,
+            "production",
+        );
+        std::env::set_var(
+            control_plane_api::ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP_ENV,
+            "true",
+        );
+    }
+    let error = match control_plane_api::build_public_shared_channel_sync_trigger(
+        "http://sync.example.com",
+        "secret",
+    ) {
+        Ok(_) => panic!("production profile must reject remote insecure shared-channel sync http"),
+        Err(error) => error,
+    };
+    clear_insecure_http_override();
+    clear_runtime_profile_override();
+    assert!(
+        error.contains("only allowed for local runtime profiles"),
+        "error should state local-profile restriction, got: {error}"
     );
 }
 

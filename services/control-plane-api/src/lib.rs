@@ -114,7 +114,9 @@ pub trait SharedChannelLinkedMemberSyncTrigger: Send + Sync {
     ) -> Result<SharedChannelSyncDeliveryProof, String> {
         let request_key = shared_channel_sync_request_key(&request);
         self.trigger(request)?;
-        Ok(SharedChannelSyncDeliveryProof::transport_accepted(request_key))
+        Ok(SharedChannelSyncDeliveryProof::transport_accepted(
+            request_key,
+        ))
     }
 }
 
@@ -147,11 +149,13 @@ const SHARED_CHANNEL_SYNC_PENDING_LEASE_WINDOW_MILLIS: u128 = 900_000;
 const SHARED_CHANNEL_SYNC_DISPATCH_DELIVERY_DEDUP_WINDOW_MILLIS: u128 = 300_000;
 pub const ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP_ENV: &str =
     "CRAW_CHAT_ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP";
+pub const SHARED_CHANNEL_SYNC_RUNTIME_PROFILE_ENV: &str = "CRAW_CHAT_RUNTIME_PROFILE";
 pub const SHARED_CHANNEL_SYNC_TARGET_BASE_URL_ENV: &str =
     "CRAW_CHAT_SHARED_CHANNEL_SYNC_TARGET_BASE_URL";
 pub const SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MILLIS_ENV: &str =
     "CRAW_CHAT_SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MILLIS";
 const SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_DEFAULT_MILLIS: u64 = 5_000;
+const SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MAX_MILLIS: u64 = 60_000;
 const SHARED_CHANNEL_SYNC_RESPONSE_BODY_MAX_BYTES: usize = 16 * 1024;
 pub const SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_ENABLED_ENV: &str =
     "CRAW_CHAT_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_ENABLED";
@@ -168,7 +172,9 @@ pub const SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_MILLIS_ENV: &str =
 pub const SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES_ENV: &str =
     "CRAW_CHAT_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES";
 const SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT_DEFAULT: usize = 4;
+const SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT_MAX: usize = 128;
 const SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY_DEFAULT: usize = 1024;
+const SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY_MAX: usize = 65_536;
 const SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_DEFAULT_MILLIS: u128 = 2_592_000_000;
 const SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES_DEFAULT: usize = 200_000;
 const SHARED_CHANNEL_SYNC_ACK_PROOF_VERSION: &str = "shared_channel_sync_ack.v1";
@@ -426,9 +432,23 @@ fn validate_shared_channel_sync_target_base_url(base_url: &str) -> Result<String
                 return Ok(base_url);
             }
             if allow_insecure_shared_channel_sync_http() {
+                let Some(runtime_profile) = resolve_shared_channel_sync_runtime_profile() else {
+                    return Err(format!(
+                        "shared-channel sync remote http override requires explicit local runtime profile via {} (for example: local-minimal or local-default)",
+                        SHARED_CHANNEL_SYNC_RUNTIME_PROFILE_ENV
+                    ));
+                };
+                if !is_local_shared_channel_sync_runtime_profile(runtime_profile.as_str()) {
+                    return Err(format!(
+                        "shared-channel sync remote http override is only allowed for local runtime profiles; got {}={} (allowed: local-minimal, local-default, local, dev, development, test, ci)",
+                        SHARED_CHANNEL_SYNC_RUNTIME_PROFILE_ENV, runtime_profile
+                    ));
+                }
                 eprintln!(
-                    "warning: allowing insecure shared-channel sync target over remote http because {} is enabled",
-                    ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP_ENV
+                    "warning: allowing insecure shared-channel sync target over remote http because {} is enabled for local runtime profile {}={}",
+                    ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP_ENV,
+                    SHARED_CHANNEL_SYNC_RUNTIME_PROFILE_ENV,
+                    runtime_profile
                 );
                 return Ok(base_url);
             }
@@ -459,6 +479,20 @@ fn allow_insecure_shared_channel_sync_http() -> bool {
         })
 }
 
+fn resolve_shared_channel_sync_runtime_profile() -> Option<String> {
+    std::env::var(SHARED_CHANNEL_SYNC_RUNTIME_PROFILE_ENV)
+        .ok()
+        .map(|value| value.trim().to_ascii_lowercase())
+        .filter(|value| !value.is_empty())
+}
+
+fn is_local_shared_channel_sync_runtime_profile(profile: &str) -> bool {
+    matches!(
+        profile,
+        "local-minimal" | "local-default" | "local" | "dev" | "development" | "test" | "ci"
+    )
+}
+
 fn unix_epoch_seconds(now: SystemTime) -> u64 {
     now.duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
 }
@@ -472,7 +506,8 @@ fn resolve_shared_channel_sync_http_timeout() -> Duration {
         .ok()
         .and_then(|value| value.trim().parse::<u64>().ok())
         .filter(|value| *value > 0)
-        .unwrap_or(SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_DEFAULT_MILLIS);
+        .unwrap_or(SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_DEFAULT_MILLIS)
+        .min(SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MAX_MILLIS);
     Duration::from_millis(timeout_millis)
 }
 
@@ -482,6 +517,7 @@ fn resolve_shared_channel_sync_dispatch_worker_count() -> usize {
         .and_then(|value| value.trim().parse::<usize>().ok())
         .filter(|value| *value > 0)
         .unwrap_or(SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT_DEFAULT)
+        .min(SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT_MAX)
 }
 
 fn resolve_shared_channel_sync_dispatch_queue_capacity() -> usize {
@@ -490,6 +526,7 @@ fn resolve_shared_channel_sync_dispatch_queue_capacity() -> usize {
         .and_then(|value| value.trim().parse::<usize>().ok())
         .filter(|value| *value > 0)
         .unwrap_or(SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY_DEFAULT)
+        .min(SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY_MAX)
 }
 
 fn resolve_shared_channel_sync_delivered_ledger_retention_millis() -> u128 {
@@ -629,7 +666,10 @@ fn validate_shared_channel_sync_ack_response(
             "sharedChannelPolicyId",
             request.shared_channel_policy_id.as_str(),
         ),
-        ("externalConnectionId", request.external_connection_id.as_str()),
+        (
+            "externalConnectionId",
+            request.external_connection_id.as_str(),
+        ),
         ("externalMemberId", request.external_member_id.as_str()),
     ];
     for (key, expected_value) in expected_attributes {
@@ -1236,8 +1276,10 @@ impl SocialControlState {
                 .and_modify(|existing| {
                     if proof.delivered_at > existing.delivered_at
                         || (proof.delivered_at == existing.delivered_at
-                            && existing.status == SharedChannelSyncDeliveryProofStatus::TransportAccepted
-                            && proof.status != SharedChannelSyncDeliveryProofStatus::TransportAccepted)
+                            && existing.status
+                                == SharedChannelSyncDeliveryProofStatus::TransportAccepted
+                            && proof.status
+                                != SharedChannelSyncDeliveryProofStatus::TransportAccepted)
                     {
                         *existing = proof.clone();
                     }
@@ -1534,7 +1576,8 @@ impl SocialControlState {
             .is_none_or(|existing| {
                 delivered_proof.delivered_at > existing.delivered_at
                     || (delivered_proof.delivered_at == existing.delivered_at
-                        && existing.status == SharedChannelSyncDeliveryProofStatus::TransportAccepted
+                        && existing.status
+                            == SharedChannelSyncDeliveryProofStatus::TransportAccepted
                         && delivered_proof.status
                             != SharedChannelSyncDeliveryProofStatus::TransportAccepted)
             });
@@ -4054,7 +4097,9 @@ impl SocialControlRuntime {
         }
     }
 
-    fn delivered_shared_channel_sync_inventory(&self) -> SocialSharedChannelSyncDeliveredInventoryResponse {
+    fn delivered_shared_channel_sync_inventory(
+        &self,
+    ) -> SocialSharedChannelSyncDeliveredInventoryResponse {
         let current_state = self
             .state
             .read()
@@ -7430,7 +7475,9 @@ async fn delivered_social_runtime_shared_channel_sync(
     ensure_control_read_access(&auth)?;
 
     Ok(Json(
-        state.social_runtime.delivered_shared_channel_sync_inventory(),
+        state
+            .social_runtime
+            .delivered_shared_channel_sync_inventory(),
     ))
 }
 
@@ -8327,7 +8374,8 @@ mod tests {
         let _guard = scheduler_env_guard();
         let _retention =
             ScopedEnvVar::remove(SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_MILLIS_ENV);
-        let _max_entries = ScopedEnvVar::remove(SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES_ENV);
+        let _max_entries =
+            ScopedEnvVar::remove(SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES_ENV);
 
         assert_eq!(
             resolve_shared_channel_sync_delivered_ledger_retention_millis(),
@@ -8338,15 +8386,44 @@ mod tests {
             SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES_DEFAULT
         );
 
-        let _retention =
-            ScopedEnvVar::set(SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_MILLIS_ENV, "12345");
+        let _retention = ScopedEnvVar::set(
+            SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_MILLIS_ENV,
+            "12345",
+        );
         let _max_entries =
             ScopedEnvVar::set(SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES_ENV, "77");
         assert_eq!(
             resolve_shared_channel_sync_delivered_ledger_retention_millis(),
             12345
         );
-        assert_eq!(resolve_shared_channel_sync_delivered_ledger_max_entries(), 77);
+        assert_eq!(
+            resolve_shared_channel_sync_delivered_ledger_max_entries(),
+            77
+        );
+    }
+
+    #[test]
+    fn test_shared_channel_dispatch_timeout_is_capped_to_safe_upper_bound() {
+        let _guard = scheduler_env_guard();
+        let _timeout = ScopedEnvVar::set(SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MILLIS_ENV, "600000");
+
+        assert_eq!(
+            resolve_shared_channel_sync_http_timeout().as_millis(),
+            60_000
+        );
+    }
+
+    #[test]
+    fn test_shared_channel_dispatch_worker_and_queue_limits_are_capped() {
+        let _guard = scheduler_env_guard();
+        let _workers = ScopedEnvVar::set(SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT_ENV, "1000");
+        let _queue = ScopedEnvVar::set(SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY_ENV, "1000000");
+
+        assert_eq!(resolve_shared_channel_sync_dispatch_worker_count(), 128);
+        assert_eq!(
+            resolve_shared_channel_sync_dispatch_queue_capacity(),
+            65_536
+        );
     }
 
     #[test]
@@ -8366,38 +8443,33 @@ mod tests {
         let mut state = SocialControlState::default();
         let protected_request = request("actor_protected");
         let protected_key = shared_channel_sync_request_key(&protected_request);
-        state
-            .pending_shared_channel_sync_requests
-            .insert(
-                protected_key.clone(),
-                PendingSharedChannelSyncRequest {
-                    request: protected_request.clone(),
-                    failure_count: 0,
-                    last_error: String::new(),
-                    owner_actor_id: None,
-                    owner_actor_kind: None,
-                    claimed_at: None,
-                    lease_expires_at: None,
-                },
-            );
+        state.pending_shared_channel_sync_requests.insert(
+            protected_key.clone(),
+            PendingSharedChannelSyncRequest {
+                request: protected_request.clone(),
+                failure_count: 0,
+                last_error: String::new(),
+                owner_actor_id: None,
+                owner_actor_kind: None,
+                claimed_at: None,
+                lease_expires_at: None,
+            },
+        );
 
         let old_a = request("actor_old_a");
         let old_b = request("actor_old_b");
         let fresh = request("actor_fresh");
         let old_a_key = shared_channel_sync_request_key(&old_a);
         let old_b_key = shared_channel_sync_request_key(&old_b);
-        state.delivered_shared_channel_sync_requests.insert(
-            old_a_key.clone(),
-            "2026-01-01T00:00:00.000Z".to_owned(),
-        );
-        state.delivered_shared_channel_sync_requests.insert(
-            old_b_key.clone(),
-            "2026-01-02T00:00:00.000Z".to_owned(),
-        );
-        state.delivered_shared_channel_sync_requests.insert(
-            protected_key.clone(),
-            "2026-01-03T00:00:00.000Z".to_owned(),
-        );
+        state
+            .delivered_shared_channel_sync_requests
+            .insert(old_a_key.clone(), "2026-01-01T00:00:00.000Z".to_owned());
+        state
+            .delivered_shared_channel_sync_requests
+            .insert(old_b_key.clone(), "2026-01-02T00:00:00.000Z".to_owned());
+        state
+            .delivered_shared_channel_sync_requests
+            .insert(protected_key.clone(), "2026-01-03T00:00:00.000Z".to_owned());
         state.delivered_shared_channel_sync_delivery_proofs.insert(
             old_a_key.clone(),
             StoredSharedChannelSyncDeliveryProof {
@@ -8426,10 +8498,9 @@ mod tests {
             },
         );
         let fresh_key = shared_channel_sync_request_key(&fresh);
-        state.delivered_shared_channel_sync_requests.insert(
-            fresh_key.clone(),
-            "2026-04-12T00:00:00.000Z".to_owned(),
-        );
+        state
+            .delivered_shared_channel_sync_requests
+            .insert(fresh_key.clone(), "2026-04-12T00:00:00.000Z".to_owned());
         state.delivered_shared_channel_sync_delivery_proofs.insert(
             fresh_key.clone(),
             StoredSharedChannelSyncDeliveryProof {
@@ -8440,10 +8511,8 @@ mod tests {
             },
         );
 
-        let removed_by_age = state.prune_delivered_shared_channel_sync_requests(
-            "2026-02-01T00:00:00.000Z",
-            2,
-        );
+        let removed_by_age =
+            state.prune_delivered_shared_channel_sync_requests("2026-02-01T00:00:00.000Z", 2);
         assert_eq!(removed_by_age, 2);
         assert!(
             state
@@ -8484,18 +8553,15 @@ mod tests {
         let k1 = shared_channel_sync_request_key(&request("actor_cap_1"));
         let k2 = shared_channel_sync_request_key(&request("actor_cap_2"));
         let k3 = shared_channel_sync_request_key(&request("actor_cap_3"));
-        state.delivered_shared_channel_sync_requests.insert(
-            k1.clone(),
-            "2026-03-01T00:00:00.000Z".to_owned(),
-        );
-        state.delivered_shared_channel_sync_requests.insert(
-            k2.clone(),
-            "2026-03-02T00:00:00.000Z".to_owned(),
-        );
-        state.delivered_shared_channel_sync_requests.insert(
-            k3.clone(),
-            "2026-03-03T00:00:00.000Z".to_owned(),
-        );
+        state
+            .delivered_shared_channel_sync_requests
+            .insert(k1.clone(), "2026-03-01T00:00:00.000Z".to_owned());
+        state
+            .delivered_shared_channel_sync_requests
+            .insert(k2.clone(), "2026-03-02T00:00:00.000Z".to_owned());
+        state
+            .delivered_shared_channel_sync_requests
+            .insert(k3.clone(), "2026-03-03T00:00:00.000Z".to_owned());
         state.delivered_shared_channel_sync_delivery_proofs.insert(
             k1.clone(),
             StoredSharedChannelSyncDeliveryProof {
@@ -8524,14 +8590,24 @@ mod tests {
             },
         );
 
-        let removed_by_capacity = state.prune_delivered_shared_channel_sync_requests(
-            "2026-01-01T00:00:00.000Z",
-            2,
-        );
+        let removed_by_capacity =
+            state.prune_delivered_shared_channel_sync_requests("2026-01-01T00:00:00.000Z", 2);
         assert_eq!(removed_by_capacity, 1);
-        assert!(!state.delivered_shared_channel_sync_requests.contains_key(k1.as_str()));
-        assert!(state.delivered_shared_channel_sync_requests.contains_key(k2.as_str()));
-        assert!(state.delivered_shared_channel_sync_requests.contains_key(k3.as_str()));
+        assert!(
+            !state
+                .delivered_shared_channel_sync_requests
+                .contains_key(k1.as_str())
+        );
+        assert!(
+            state
+                .delivered_shared_channel_sync_requests
+                .contains_key(k2.as_str())
+        );
+        assert!(
+            state
+                .delivered_shared_channel_sync_requests
+                .contains_key(k3.as_str())
+        );
         assert!(
             !state
                 .delivered_shared_channel_sync_delivery_proofs

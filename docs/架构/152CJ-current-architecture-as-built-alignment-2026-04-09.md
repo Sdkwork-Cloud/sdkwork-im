@@ -423,3 +423,17 @@
 - Remaining S07 gap after Loop92:
   - `release-ready exactly-once semantics across downstream fanout boundaries`
   - `cross-service idempotency governance still needs strict delivery-state machine (accepted/applied/replayed/failed) with deterministic replay contract`
+## Loop 93 Addendum - 2026-04-12
+- shared-channel sync remote `http://` emergency override 不再只靠 `CRAW_CHAT_ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP=true`：当前还要求 `CRAW_CHAT_RUNTIME_PROFILE` 显式为本地 profile（`local-minimal / local-default / local / dev / development / test / ci`），否则拒绝启动该 override。
+- 这意味着 production/profile-unknown 环境即使误开 insecure override 也会被拦截，避免远程明文 HTTP dispatch 在非本地环境被静默放行。
+- shared-channel sync dispatch 参数新增硬上限护栏，防止误配置导致资源放大：
+  - `CRAW_CHAT_SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MILLIS <= 60000`
+  - `CRAW_CHAT_SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT <= 128`
+  - `CRAW_CHAT_SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY <= 65536`
+- 已补齐回归证据：
+  - control-plane-api 新增远程 HTTP override 本地 profile 限制测试（含 production profile 拒绝路径）
+  - control-plane-api 新增 timeout/worker/queue 上限钳制测试
+  - local profile env 模板与 deployment env 文档同步补充 `CRAW_CHAT_RUNTIME_PROFILE` 合同
+- Remaining S07 gap after Loop93:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `cross-service idempotency governance still needs strict delivery-state machine (accepted/applied/replayed/failed) with deterministic replay contract`
