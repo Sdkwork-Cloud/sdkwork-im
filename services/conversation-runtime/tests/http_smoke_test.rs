@@ -2931,6 +2931,7 @@ async fn test_sync_shared_channel_linked_member_over_http_materializes_linked_hi
         .to_bytes();
     let sync_json: serde_json::Value =
         serde_json::from_slice(&sync_body).expect("sync body should be valid json");
+    assert_eq!(sync_json["proofVersion"], "shared_channel_sync_ack.v1");
     assert_eq!(sync_json["status"], "applied");
     assert_eq!(
         sync_json["requestKey"],
@@ -2982,5 +2983,47 @@ async fn test_sync_shared_channel_linked_member_over_http_materializes_linked_hi
     assert_eq!(
         linked_history_json["items"][0]["message"]["body"]["summary"],
         "hello sync"
+    );
+
+    let resync_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/shared-channel-links/sync")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "control-plane-sync")
+                .header("x-actor-kind", "system")
+                .header("x-permissions", "conversation.shared_channel.sync")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_history_shared_sync_http",
+                        "sharedChannelPolicyId":"scp_sync_http",
+                        "externalConnectionId":"ec_sync_http",
+                        "localActorId":"u_partner_external_sync",
+                        "localActorKind":"user",
+                        "externalMemberId":"partner::sync-user",
+                        "requestKey":"t_demo|c_history_shared_sync_http|scp_sync_http|ec_sync_http|u_partner_external_sync|user|partner::sync-user"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("shared channel linked-member resync request should return response");
+    assert_eq!(resync_response.status(), StatusCode::OK);
+    let resync_body = resync_response
+        .into_body()
+        .collect()
+        .await
+        .expect("resync body should collect")
+        .to_bytes();
+    let resync_json: serde_json::Value =
+        serde_json::from_slice(&resync_body).expect("resync body should be valid json");
+    assert_eq!(resync_json["proofVersion"], "shared_channel_sync_ack.v1");
+    assert_eq!(resync_json["status"], "already_linked");
+    assert_eq!(
+        resync_json["requestKey"],
+        "t_demo|c_history_shared_sync_http|scp_sync_http|ec_sync_http|u_partner_external_sync|user|partner::sync-user"
     );
 }

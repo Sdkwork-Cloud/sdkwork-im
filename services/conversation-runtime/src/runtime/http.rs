@@ -129,11 +129,12 @@ fn resolve_positive_env_u64(name: &str, default: u64) -> u64 {
         .unwrap_or(default)
 }
 
+fn unix_epoch_millis(now: SystemTime) -> u128 {
+    now.duration_since(UNIX_EPOCH).unwrap_or_default().as_millis()
+}
+
 fn current_unix_epoch_millis() -> u128 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("system clock should be after unix epoch")
-        .as_millis()
+    unix_epoch_millis(SystemTime::now())
 }
 
 fn shared_channel_sync_request_key(
@@ -293,6 +294,7 @@ struct ListMembersResponse {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct SyncSharedChannelLinkedMemberResponse {
+    proof_version: &'static str,
     request_key: String,
     status: SyncSharedChannelLinkedMemberStatus,
     #[serde(flatten)]
@@ -761,6 +763,7 @@ async fn sync_shared_channel_linked_member(
             request.external_member_id,
         )?;
     Ok(Json(SyncSharedChannelLinkedMemberResponse {
+        proof_version: "shared_channel_sync_ack.v1",
         request_key,
         status: sync_result.status,
         member: sync_result.member,
@@ -1137,4 +1140,24 @@ fn build_message_body(
         parts: resolved_parts,
         render_hints,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+
+    #[test]
+    fn test_unix_epoch_millis_clamps_pre_epoch_time_to_zero() {
+        let before_epoch = UNIX_EPOCH
+            .checked_sub(Duration::from_millis(1))
+            .expect("test pre-epoch timestamp should construct");
+        assert_eq!(unix_epoch_millis(before_epoch), 0);
+    }
+
+    #[test]
+    fn test_unix_epoch_millis_preserves_post_epoch_time() {
+        let after_epoch = UNIX_EPOCH + Duration::from_millis(1_234);
+        assert_eq!(unix_epoch_millis(after_epoch), 1_234);
+    }
 }

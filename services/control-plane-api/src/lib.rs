@@ -132,6 +132,7 @@ const SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT_DEFAULT: usize = 4;
 const SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY_DEFAULT: usize = 1024;
 const SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_DEFAULT_MILLIS: u128 = 2_592_000_000;
 const SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES_DEFAULT: usize = 200_000;
+const SHARED_CHANNEL_SYNC_ACK_PROOF_VERSION: &str = "shared_channel_sync_ack.v1";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SharedChannelSyncStaleReclaimSchedulerConfig {
@@ -159,6 +160,27 @@ impl SharedChannelSyncStaleReclaimSchedulerConfig {
 struct SharedChannelSyncDispatchTask {
     request: SharedChannelLinkedMemberSyncRequest,
     response_tx: std::sync::mpsc::Sender<Result<(), String>>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum SharedChannelSyncAckStatus {
+    Applied,
+    AlreadyLinked,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SharedChannelSyncAckResponse {
+    request_key: String,
+    status: SharedChannelSyncAckStatus,
+    proof_version: Option<String>,
+    principal_id: String,
+    principal_kind: String,
+    role: String,
+    state: String,
+    #[serde(default)]
+    attributes: BTreeMap<String, String>,
 }
 
 struct PublicSharedChannelLinkedMemberSyncTrigger {
@@ -264,6 +286,7 @@ impl PublicSharedChannelLinkedMemberSyncTrigger {
         request: SharedChannelLinkedMemberSyncRequest,
     ) -> Result<(), String> {
         let timeout = resolve_shared_channel_sync_http_timeout();
+        let ack_request = request.clone();
         let request_key = shared_channel_sync_request_key(&request);
         let payload = serde_json::to_vec(&serde_json::json!({
             "conversationId": request.conversation_id,
@@ -307,7 +330,12 @@ impl PublicSharedChannelLinkedMemberSyncTrigger {
         )
         .await?;
         if status.is_success() {
-            validate_shared_channel_sync_ack_response(body.as_ref(), target.as_str(), request_key.as_str())?;
+            validate_shared_channel_sync_ack_response(
+                body.as_ref(),
+                target.as_str(),
+                &ack_request,
+                request_key.as_str(),
+            )?;
             return Ok(());
         }
 
@@ -384,11 +412,12 @@ fn allow_insecure_shared_channel_sync_http() -> bool {
         })
 }
 
+fn unix_epoch_seconds(now: SystemTime) -> u64 {
+    now.duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
+}
+
 fn current_unix_epoch_seconds() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("system clock should be after unix epoch")
-        .as_secs()
+    unix_epoch_seconds(SystemTime::now())
 }
 
 fn resolve_shared_channel_sync_http_timeout() -> Duration {
@@ -500,6 +529,7 @@ async fn read_shared_channel_sync_response_body_with_limit(
 fn validate_shared_channel_sync_ack_response(
     body: &[u8],
     target: &str,
+    request: &SharedChannelLinkedMemberSyncRequest,
     expected_request_key: &str,
 ) -> Result<(), String> {
     if body.is_empty() {
@@ -507,31 +537,67 @@ fn validate_shared_channel_sync_ack_response(
             "shared-channel sync endpoint {target} returned success without ack payload"
         ));
     }
-    let ack: serde_json::Value = serde_json::from_slice(body)
-        .map_err(|error| format!("shared-channel sync endpoint {target} returned invalid ack json: {error}"))?;
-    let ack_request_key = ack
-        .get("requestKey")
-        .and_then(|value| value.as_str())
-        .ok_or_else(|| {
-            format!(
-                "shared-channel sync endpoint {target} ack missing string requestKey field"
-            )
-        })?;
-    if ack_request_key != expected_request_key {
+    let ack: SharedChannelSyncAckResponse = serde_json::from_slice(body).map_err(|error| {
+        format!("shared-channel sync endpoint {target} returned invalid ack json: {error}")
+    })?;
+    if ack.request_key != expected_request_key {
         return Err(format!(
-            "shared-channel sync endpoint {target} ack requestKey mismatch: expected {expected_request_key}, got {ack_request_key}"
+            "shared-channel sync endpoint {target} ack requestKey mismatch: expected {expected_request_key}, got {}",
+            ack.request_key
         ));
     }
-    let ack_status = ack
-        .get("status")
-        .and_then(|value| value.as_str())
-        .ok_or_else(|| {
-            format!("shared-channel sync endpoint {target} ack missing string status field")
-        })?;
-    if !matches!(ack_status, "applied" | "already_linked") {
+    if ack.proof_version.as_deref() != Some(SHARED_CHANNEL_SYNC_ACK_PROOF_VERSION) {
         return Err(format!(
-            "shared-channel sync endpoint {target} ack returned unsupported status {ack_status}"
+            "shared-channel sync endpoint {target} ack proofVersion mismatch: expected {SHARED_CHANNEL_SYNC_ACK_PROOF_VERSION}, got {:?}",
+            ack.proof_version
         ));
+    }
+    match ack.status {
+        SharedChannelSyncAckStatus::Applied | SharedChannelSyncAckStatus::AlreadyLinked => {}
+    }
+    if ack.principal_id != request.local_actor_id {
+        return Err(format!(
+            "shared-channel sync endpoint {target} ack principalId mismatch: expected {}, got {}",
+            request.local_actor_id, ack.principal_id
+        ));
+    }
+    if ack.principal_kind != request.local_actor_kind {
+        return Err(format!(
+            "shared-channel sync endpoint {target} ack principalKind mismatch: expected {}, got {}",
+            request.local_actor_kind, ack.principal_kind
+        ));
+    }
+    if ack.role.as_str() != "guest" {
+        return Err(format!(
+            "shared-channel sync endpoint {target} ack role mismatch: expected guest, got {}",
+            ack.role
+        ));
+    }
+    if ack.state.as_str() != "linked" {
+        return Err(format!(
+            "shared-channel sync endpoint {target} ack state mismatch: expected linked, got {}",
+            ack.state
+        ));
+    }
+    let expected_attributes = [
+        (
+            "sharedChannelPolicyId",
+            request.shared_channel_policy_id.as_str(),
+        ),
+        ("externalConnectionId", request.external_connection_id.as_str()),
+        ("externalMemberId", request.external_member_id.as_str()),
+    ];
+    for (key, expected_value) in expected_attributes {
+        let Some(actual_value) = ack.attributes.get(key).map(String::as_str) else {
+            return Err(format!(
+                "shared-channel sync endpoint {target} ack attributes missing key {key}"
+            ));
+        };
+        if actual_value != expected_value {
+            return Err(format!(
+                "shared-channel sync endpoint {target} ack attributes[{key}] mismatch: expected {expected_value}, got {actual_value}"
+            ));
+        }
     }
     Ok(())
 }
@@ -7967,6 +8033,20 @@ mod tests {
             .get_or_init(|| Mutex::new(()))
             .lock()
             .expect("scheduler env guard should lock")
+    }
+
+    #[test]
+    fn test_unix_epoch_seconds_clamps_pre_epoch_time_to_zero() {
+        let before_epoch = UNIX_EPOCH
+            .checked_sub(std::time::Duration::from_secs(1))
+            .expect("test pre-epoch timestamp should construct");
+        assert_eq!(unix_epoch_seconds(before_epoch), 0);
+    }
+
+    #[test]
+    fn test_unix_epoch_seconds_preserves_post_epoch_time() {
+        let after_epoch = UNIX_EPOCH + std::time::Duration::from_secs(42);
+        assert_eq!(unix_epoch_seconds(after_epoch), 42);
     }
 
     #[test]
