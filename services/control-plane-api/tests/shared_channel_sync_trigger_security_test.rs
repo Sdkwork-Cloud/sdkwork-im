@@ -9,6 +9,7 @@ use control_plane_api::SharedChannelLinkedMemberSyncRequest;
 use im_auth_context::{PUBLIC_BEARER_REQUIRED_AUD_ENV, PUBLIC_BEARER_REQUIRED_ISS_ENV};
 use serde_json::json;
 use tokio::net::TcpListener;
+use tokio::sync::{Mutex as AsyncMutex, MutexGuard as AsyncMutexGuard};
 
 #[derive(Clone, Default)]
 struct CapturedSyncRequest {
@@ -258,12 +259,14 @@ fn insecure_http_guard() -> MutexGuard<'static, ()> {
         .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
-fn public_bearer_contract_guard() -> MutexGuard<'static, ()> {
-    static GUARD: OnceLock<Mutex<()>> = OnceLock::new();
-    GUARD
-        .get_or_init(|| Mutex::new(()))
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
+async fn insecure_http_guard_async() -> AsyncMutexGuard<'static, ()> {
+    static GUARD: OnceLock<AsyncMutex<()>> = OnceLock::new();
+    GUARD.get_or_init(|| AsyncMutex::new(())).lock().await
+}
+
+async fn public_bearer_contract_guard_async() -> AsyncMutexGuard<'static, ()> {
+    static GUARD: OnceLock<AsyncMutex<()>> = OnceLock::new();
+    GUARD.get_or_init(|| AsyncMutex::new(())).lock().await
 }
 
 struct ScopedEnvVar {
@@ -516,7 +519,7 @@ async fn test_public_shared_channel_sync_trigger_embeds_dedicated_permission_cla
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_public_shared_channel_sync_trigger_includes_required_issuer_and_audience_claims_when_configured()
  {
-    let _guard = public_bearer_contract_guard();
+    let _guard = public_bearer_contract_guard_async().await;
     let _required_issuer = ScopedEnvVar::set(PUBLIC_BEARER_REQUIRED_ISS_ENV, "craw-chat");
     let _required_audience = ScopedEnvVar::set(PUBLIC_BEARER_REQUIRED_AUD_ENV, "craw-chat-public");
     let listener = TcpListener::bind("127.0.0.1:0")
@@ -571,7 +574,7 @@ async fn test_public_shared_channel_sync_trigger_includes_required_issuer_and_au
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_public_shared_channel_sync_trigger_fails_fast_when_http_timeout_is_exceeded() {
-    let _guard = insecure_http_guard();
+    let _guard = insecure_http_guard_async().await;
     clear_shared_channel_sync_timeout_override();
     let _timeout_override = ScopedEnvVar::set(
         control_plane_api::SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MILLIS_ENV,
@@ -624,7 +627,7 @@ async fn test_public_shared_channel_sync_trigger_fails_fast_when_http_timeout_is
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_public_shared_channel_sync_trigger_rejects_oversized_response_body() {
-    let _guard = insecure_http_guard();
+    let _guard = insecure_http_guard_async().await;
     clear_shared_channel_sync_timeout_override();
     let listener = TcpListener::bind("127.0.0.1:0")
         .await
@@ -673,7 +676,7 @@ async fn test_public_shared_channel_sync_trigger_rejects_oversized_response_body
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_public_shared_channel_sync_trigger_returns_backpressure_error_when_dispatch_queue_is_full()
  {
-    let _guard = insecure_http_guard();
+    let _guard = insecure_http_guard_async().await;
     clear_shared_channel_sync_timeout_override();
     clear_shared_channel_sync_dispatch_overrides();
     let _worker_override = ScopedEnvVar::set(
