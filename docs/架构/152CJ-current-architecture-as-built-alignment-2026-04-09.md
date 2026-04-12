@@ -606,3 +606,14 @@
 - Remaining S07 gap after Loop104:
   - `release-ready exactly-once semantics across downstream fanout boundaries`
   - `formal cross-service idempotency governance and deterministic replay SLO still needs downstream commit-fence propagation across non-shared-sync consumer categories`
+## Loop 105 Addendum - 2026-04-12
+- Synchronized deployment/operator env surfaces with Loop104 retry-cooldown contract:
+  - `deployments/templates/local-minimal.env.example` now includes `CRAW_CHAT_SHARED_CHANNEL_SYNC_PENDING_RETRY_COOLDOWN_MILLIS`
+  - `deployments/templates/local-default.env.example` now includes the same variable
+  - `docs/sites/deployment/profiles-and-env.md` now documents cooldown semantics and bounds in both hardening table and shared-sync target table
+- This closes a deployment drift risk where runtime supported a safety knob but profile templates/docs omitted it, causing inconsistent operator rollout behavior.
+- Verification evidence in this loop:
+  - `cargo test -p local-minimal-node --offline --test deployment_profile_test test_deployment_profiles_and_templates_document_local_minimal_and_local_default_contracts -- --exact` 通过
+- Remaining S07 gap after Loop105:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `formal cross-service idempotency governance and deterministic replay SLO still needs downstream commit-fence propagation across non-shared-sync consumer categories`
