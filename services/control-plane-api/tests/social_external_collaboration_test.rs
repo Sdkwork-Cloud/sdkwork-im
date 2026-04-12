@@ -59,6 +59,19 @@ fn state_file(runtime_dir: &Path, file_name: &str) -> PathBuf {
     runtime_dir.join("state").join(file_name)
 }
 
+fn shared_channel_sync_request_key(request: &SharedChannelLinkedMemberSyncRequest) -> String {
+    format!(
+        "{}|{}|{}|{}|{}|{}|{}",
+        request.tenant_id,
+        request.conversation_id,
+        request.shared_channel_policy_id,
+        request.external_connection_id,
+        request.local_actor_id,
+        request.local_actor_kind,
+        request.external_member_id
+    )
+}
+
 fn read_social_state_json(runtime_dir: &Path) -> serde_json::Value {
     let body = fs::read_to_string(state_file(runtime_dir, "social-state.json"))
         .expect("social state file should be readable");
@@ -1256,6 +1269,181 @@ async fn test_control_plane_social_external_member_link_idempotent_replay_does_n
         }],
         "idempotent replay of the same external member link event should not enqueue duplicate shared-channel sync dispatches"
     );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_control_plane_social_shared_channel_delivered_ledger_skips_replayed_pending_after_restart()
+ {
+    let runtime_dir = TestRuntimeDir::new("control_plane_shared_channel_delivered_ledger_restart");
+
+    let cluster_seed = Arc::new(RealtimeClusterBridge::default());
+    let ops_runtime_seed = Arc::new(OpsRuntime::new(
+        "node_a",
+        "local-minimal",
+        "127.0.0.1:18090",
+        vec!["session-gateway".into(), "control-plane-api".into()],
+        vec![],
+    ));
+    let audit_runtime_seed = Arc::new(AuditRuntime::default());
+    let trigger_seed = Arc::new(RecordingSharedChannelSyncTrigger::default());
+    let seed_app =
+        control_plane_api::build_control_surface_with_cluster_and_governance_sinks_and_runtime_dir_and_shared_channel_sync_trigger(
+            cluster_seed,
+            ops_runtime_seed,
+            audit_runtime_seed,
+            runtime_dir.path(),
+            trigger_seed.clone(),
+        );
+
+    let _ = seed_app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/control/social/external-connections")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "connectionId":"ec_ledger_restart",
+                        "eventId":"evt_ec_ledger_restart",
+                        "externalTenantId":"t_partner",
+                        "connectionKind":"shared_channel",
+                        "establishedAt":"2026-04-12T12:10:00Z"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("external connection write should return response");
+
+    let _ = seed_app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/control/social/shared-channel-policies")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "policyId":"scp_ledger_restart",
+                        "eventId":"evt_scp_ledger_restart",
+                        "connectionId":"ec_ledger_restart",
+                        "channelId":"ch_partner_ops",
+                        "conversationId":"c_partner_ops",
+                        "policyVersion":2,
+                        "historyVisibility":"shared",
+                        "appliedAt":"2026-04-12T12:11:00Z"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("shared channel policy write should return response");
+
+    let first_bind = seed_app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/control/social/external-member-links")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "linkId":"eml_ledger_restart_alice",
+                        "eventId":"evt_eml_ledger_restart_alice",
+                        "connectionId":"ec_ledger_restart",
+                        "localActorId":"actor_alice",
+                        "localActorKind":"user",
+                        "externalMemberId":"partner::alice",
+                        "linkedAt":"2026-04-12T12:12:00Z"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("first external member link write should return response");
+    assert_eq!(first_bind.status(), StatusCode::OK);
+
+    let first_requests = trigger_seed.snapshot();
+    assert_eq!(first_requests.len(), 1);
+    let first_request = first_requests[0].clone();
+    assert_eq!(first_request.local_actor_id, "actor_alice");
+
+    let request_key = shared_channel_sync_request_key(&first_request);
+    let mut seeded_state = read_social_state_json(runtime_dir.path());
+    seeded_state["pending_shared_channel_sync_requests"][request_key.as_str()] = serde_json::json!({
+        "request": first_request,
+        "failureCount": 1,
+        "lastError": "manually requeued delivered request for regression coverage",
+        "ownerActorId": null,
+        "ownerActorKind": null,
+        "claimedAt": null,
+        "leaseExpiresAt": null
+    });
+    write_social_state_json(runtime_dir.path(), &seeded_state);
+
+    let cluster_restart = Arc::new(RealtimeClusterBridge::default());
+    let ops_runtime_restart = Arc::new(OpsRuntime::new(
+        "node_a",
+        "local-minimal",
+        "127.0.0.1:18090",
+        vec!["session-gateway".into(), "control-plane-api".into()],
+        vec![],
+    ));
+    let audit_runtime_restart = Arc::new(AuditRuntime::default());
+    let trigger_restart = Arc::new(RecordingSharedChannelSyncTrigger::default());
+    let restart_app =
+        control_plane_api::build_control_surface_with_cluster_and_governance_sinks_and_runtime_dir_and_shared_channel_sync_trigger(
+            cluster_restart,
+            ops_runtime_restart,
+            audit_runtime_restart,
+            runtime_dir.path(),
+            trigger_restart.clone(),
+        );
+
+    let second_bind = restart_app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/control/social/external-member-links")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "linkId":"eml_ledger_restart_bob",
+                        "eventId":"evt_eml_ledger_restart_bob",
+                        "connectionId":"ec_ledger_restart",
+                        "localActorId":"actor_bob",
+                        "localActorKind":"user",
+                        "externalMemberId":"partner::bob",
+                        "linkedAt":"2026-04-12T12:13:00Z"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("second external member link write should return response");
+    assert_eq!(second_bind.status(), StatusCode::OK);
+
+    let restarted_requests = trigger_restart.snapshot();
+    assert_eq!(
+        restarted_requests.len(),
+        1,
+        "restart dispatch should only emit the new actor request; delivered replay must be skipped"
+    );
+    assert_eq!(restarted_requests[0].local_actor_id, "actor_bob");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
