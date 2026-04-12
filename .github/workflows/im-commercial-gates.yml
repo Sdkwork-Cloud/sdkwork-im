@@ -40,6 +40,29 @@ jobs:
       - name: Clippy control-plane-api
         run: cargo clippy -p control-plane-api --tests
 
+  performance-smoke:
+    name: Performance Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust Artifacts
+        uses: swatinem/rust-cache@v2
+
+      - name: Step11 Quant Baseline
+        run: cargo test -p local-minimal-node --test performance_quant_baseline_test -- --nocapture
+
+      - name: Step11 HA/DR Drill Baseline
+        run: cargo test -p local-minimal-node --test performance_ha_dr_drill_test -- --nocapture
+
+      - name: Step11 Drill Catalog Contract
+        run: cargo test -p local-minimal-node --test performance_drill_catalog_test -- --nocapture
+
   supply-chain-security:
     name: Supply Chain Security
     runs-on: ubuntu-latest

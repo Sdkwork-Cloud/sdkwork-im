@@ -417,3 +417,9 @@
 - Remaining S07 gap after Loop91:
   - `release-ready exactly-once semantics across downstream fanout boundaries`
   - `cross-service idempotency governance still needs strict delivery-state machine (accepted/applied/replayed/failed) with deterministic replay contract`
+## Loop 92 Addendum - 2026-04-12
+- shared-channel sync ordinary dispatch 成功后的 delivered-state 落盘不再是 silent best-effort：若持久化失败，控制面会显式返回 `shared_channel_sync_delivery_state_unavailable`，避免“已发送但本地静默丢账”的不可观测窗口。
+- 商用闸门 workflow 新增 `performance-smoke` job，默认执行 Step11 的 quant baseline、HA/DR drill baseline 与 drill catalog contract 测试，形成功能/安全/性能三线 CI 基线。
+- Remaining S07 gap after Loop92:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `cross-service idempotency governance still needs strict delivery-state machine (accepted/applied/replayed/failed) with deterministic replay contract`

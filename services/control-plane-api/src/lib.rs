@@ -3741,11 +3741,11 @@ impl SocialControlRuntime {
         queue
     }
 
-    fn clear_pending_shared_channel_sync_request_best_effort(
+    fn clear_pending_shared_channel_sync_request_and_record_delivery(
         &self,
         request: &SharedChannelLinkedMemberSyncRequest,
         proof: Option<&SharedChannelSyncDeliveryProof>,
-    ) {
+    ) -> Result<(), ControlPlaneError> {
         let mut state = self
             .state
             .write()
@@ -3776,11 +3776,19 @@ impl SocialControlRuntime {
             max_entries,
         );
         if !removed_pending && !removed_dead_letter && !recorded_delivery && pruned_delivered == 0 {
-            return;
+            return Ok(());
         }
-        if self.state_store.save(&next_state).is_ok() {
-            *state = next_state;
-        }
+        self.state_store.save(&next_state).map_err(|error| {
+            let request_key = shared_channel_sync_request_key(request);
+            ControlPlaneError::service_unavailable(
+                "social_state_unavailable",
+                format!(
+                    "failed to persist shared-channel sync delivered state for requestKey {request_key}: {error}"
+                ),
+            )
+        })?;
+        *state = next_state;
+        Ok(())
     }
 
     fn repair_shared_channel_sync(
@@ -7894,10 +7902,20 @@ fn dispatch_shared_channel_sync_requests(
             Ok(delivery_proof) => {
                 state
                     .social_runtime
-                    .clear_pending_shared_channel_sync_request_best_effort(
+                    .clear_pending_shared_channel_sync_request_and_record_delivery(
                         request,
                         Some(&delivery_proof),
-                    );
+                    )
+                    .map_err(|error| {
+                        let request_key = shared_channel_sync_request_key(request);
+                        ControlPlaneError::service_unavailable(
+                            "shared_channel_sync_delivery_state_unavailable",
+                            format!(
+                                "shared-channel sync request {request_key} was dispatched but delivered state persistence failed: {}",
+                                error.message
+                            ),
+                        )
+                    })?;
                 record_control_plane_audit(
                     state,
                     auth,
