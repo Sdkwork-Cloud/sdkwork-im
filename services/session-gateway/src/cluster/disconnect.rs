@@ -29,24 +29,20 @@ impl RealtimeDisconnectFenceStore for ClusterMemoryDisconnectFenceStore {
     ) -> Result<Option<RealtimeDisconnectFenceRecord>, ContractError> {
         Ok(self
             .fences
-            .lock()
-            .expect("cluster disconnect fence store should lock")
+            .lock_cluster_disconnect_fences()
             .get(device_scope_key(tenant_id, principal_id, device_id).as_str())
             .cloned())
     }
 
     fn save_fence(&self, record: RealtimeDisconnectFenceRecord) -> Result<(), ContractError> {
-        self.fences
-            .lock()
-            .expect("cluster disconnect fence store should lock")
-            .insert(
-                device_scope_key(
-                    record.tenant_id.as_str(),
-                    record.principal_id.as_str(),
-                    record.device_id.as_str(),
-                ),
-                record,
-            );
+        self.fences.lock_cluster_disconnect_fences().insert(
+            device_scope_key(
+                record.tenant_id.as_str(),
+                record.principal_id.as_str(),
+                record.device_id.as_str(),
+            ),
+            record,
+        );
         Ok(())
     }
 
@@ -58,8 +54,7 @@ impl RealtimeDisconnectFenceStore for ClusterMemoryDisconnectFenceStore {
     ) -> Result<bool, ContractError> {
         Ok(self
             .fences
-            .lock()
-            .expect("cluster disconnect fence store should lock")
+            .lock_cluster_disconnect_fences()
             .remove(device_scope_key(tenant_id, principal_id, device_id).as_str())
             .is_some())
     }
@@ -89,8 +84,7 @@ impl RealtimeClusterBridge {
                 self.disconnect_fence_store_error("persist disconnect fence", owner_node_id, error)
             })?;
         self.disconnect_fences
-            .lock()
-            .expect("realtime cluster disconnect fence store should lock")
+            .lock_cluster_disconnect_fence_cache()
             .insert(scope_key, fence);
         Ok(())
     }
@@ -109,8 +103,7 @@ impl RealtimeClusterBridge {
             })?;
         let removed = self
             .disconnect_fences
-            .lock()
-            .expect("realtime cluster disconnect fence store should lock")
+            .lock_cluster_disconnect_fence_cache()
             .remove(device_scope_key(tenant_id, principal_id, device_id).as_str())
             .is_some();
         Ok(removed || persisted_removed)
@@ -158,8 +151,7 @@ impl RealtimeClusterBridge {
         let scope_key = device_scope_key(tenant_id, principal_id, device_id);
         if let Some(fence) = self
             .disconnect_fences
-            .lock()
-            .expect("realtime cluster disconnect fence store should lock")
+            .lock_cluster_disconnect_fence_cache()
             .get(scope_key.as_str())
             .cloned()
         {
@@ -175,8 +167,7 @@ impl RealtimeClusterBridge {
             .map(RealtimeDisconnectFence::from_record);
         if let Some(fence) = restored.as_ref() {
             self.disconnect_fences
-                .lock()
-                .expect("realtime cluster disconnect fence store should lock")
+                .lock_cluster_disconnect_fence_cache()
                 .insert(scope_key, fence.clone());
         }
         Ok(restored)
@@ -217,5 +208,74 @@ impl RealtimeDisconnectFence {
             owner_node_id: record.owner_node_id,
             disconnected_at: record.disconnected_at,
         }
+    }
+}
+
+trait ClusterDisconnectMutexExt<T> {
+    fn lock_cluster_disconnect_fences(&self) -> std::sync::MutexGuard<'_, T>;
+}
+
+impl<T> ClusterDisconnectMutexExt<T> for Mutex<T> {
+    fn lock_cluster_disconnect_fences(&self) -> std::sync::MutexGuard<'_, T> {
+        super::lock_cluster_mutex(self, "disconnect_fence_store")
+    }
+}
+
+trait ClusterDisconnectCacheMutexExt<T> {
+    fn lock_cluster_disconnect_fence_cache(&self) -> std::sync::MutexGuard<'_, T>;
+}
+
+impl<T> ClusterDisconnectCacheMutexExt<T> for Mutex<T> {
+    fn lock_cluster_disconnect_fence_cache(&self) -> std::sync::MutexGuard<'_, T> {
+        super::lock_cluster_mutex(self, "disconnect_fence_cache")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::panic::{self, AssertUnwindSafe};
+
+    fn poison_mutex<T>(mutex: &Mutex<T>) {
+        let _ = panic::catch_unwind(AssertUnwindSafe(|| {
+            let _guard = mutex.lock().expect("test poison lock should succeed");
+            panic!("intentional poison for regression coverage");
+        }));
+    }
+
+    #[test]
+    fn test_disconnect_fence_store_load_recovers_from_poisoned_lock() {
+        let store = ClusterMemoryDisconnectFenceStore::default();
+        poison_mutex(&store.fences);
+
+        let result = panic::catch_unwind(AssertUnwindSafe(|| {
+            store.load_fence("t_demo", "u_demo", "d_demo")
+        }));
+        assert!(
+            result.is_ok(),
+            "disconnect fence store load should not panic when lock is poisoned"
+        );
+        let load_result = result.expect("panic status should be captured");
+        assert!(load_result.is_ok());
+    }
+
+    #[test]
+    fn test_mark_device_disconnected_recovers_from_poisoned_disconnect_cache_lock() {
+        let cluster = RealtimeClusterBridge::default();
+        cluster.bind_node_runtime(
+            "node_a",
+            std::sync::Arc::new(crate::RealtimeDeliveryRuntime::default()),
+        );
+        poison_mutex(&cluster.disconnect_fences);
+
+        let result = panic::catch_unwind(AssertUnwindSafe(|| {
+            cluster.mark_device_disconnected("t_demo", "u_demo", "d_demo", Some("s_demo"), "node_a")
+        }));
+        assert!(
+            result.is_ok(),
+            "mark_device_disconnected should not panic when disconnect cache lock is poisoned"
+        );
+        let mark_result = result.expect("panic status should be captured");
+        assert!(mark_result.is_ok());
     }
 }
