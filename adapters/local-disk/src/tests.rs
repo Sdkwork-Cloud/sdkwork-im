@@ -370,6 +370,10 @@ fn test_file_rtc_state_store_persists_across_reopen() {
                 conversation_id: Some("c_demo".into()),
                 rtc_mode: "voice".into(),
                 initiator_id: "u_demo".into(),
+                provider_plugin_id: Some("webrtc".into()),
+                provider_session_id: Some("ps_demo".into()),
+                access_endpoint: Some("wss://rtc.example.test/session/ps_demo".into()),
+                provider_region: Some("cn-shanghai".into()),
                 state: im_domain_core::rtc::RtcSessionState::Accepted,
                 signaling_stream_id: Some("st_demo".into()),
                 artifact_message_id: Some("msg_accept".into()),
@@ -411,6 +415,11 @@ fn test_file_rtc_state_store_persists_across_reopen() {
     assert_eq!(
         restored.session.signaling_stream_id.as_deref(),
         Some("st_demo")
+    );
+    assert_eq!(restored.session.provider_plugin_id.as_deref(), Some("webrtc"));
+    assert_eq!(
+        restored.session.access_endpoint.as_deref(),
+        Some("wss://rtc.example.test/session/ps_demo")
     );
     assert_eq!(restored.signals.len(), 1);
     assert_eq!(restored.signals[0].signal_type, "rtc.offer");
