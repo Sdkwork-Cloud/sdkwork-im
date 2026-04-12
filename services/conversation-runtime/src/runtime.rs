@@ -2,7 +2,7 @@ use craw_chat_contract_core::ContractError;
 use craw_chat_contract_message::{CommitJournal, CommitPosition};
 use im_auth_context::AuthContext;
 use std::collections::{BTreeMap, HashMap};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 pub use im_domain_core::conversation::{
     AgentHandoffStateView, ChangeAgentHandoffStatusView, ConversationBusinessBinding,
@@ -798,6 +798,16 @@ struct RuntimeState {
     conversations: HashMap<String, ConversationState>,
     business_index: HashMap<String, String>,
     message_locator: MessageLocatorIndex,
+}
+
+fn lock_runtime_mutex<'a, T>(mutex: &'a Mutex<T>, label: &'static str) -> MutexGuard<'a, T> {
+    match mutex.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            eprintln!("warning: recovering poisoned mutex in conversation-runtime: {label}");
+            poisoned.into_inner()
+        }
+    }
 }
 
 // This internal transition result keeps the full idempotent view and mutation
