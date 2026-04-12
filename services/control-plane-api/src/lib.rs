@@ -179,6 +179,8 @@ pub const SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_MILLIS_ENV: &str =
     "CRAW_CHAT_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_MILLIS";
 pub const SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES_ENV: &str =
     "CRAW_CHAT_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES";
+pub const SHARED_CHANNEL_SYNC_PENDING_RETRY_COOLDOWN_MILLIS_ENV: &str =
+    "CRAW_CHAT_SHARED_CHANNEL_SYNC_PENDING_RETRY_COOLDOWN_MILLIS";
 const SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT_DEFAULT: usize = 4;
 const SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT_MAX: usize = 128;
 const SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY_DEFAULT: usize = 1024;
@@ -187,6 +189,8 @@ const SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_DEFAULT_MILLIS: u128 = 2_59
 const SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_MAX_MILLIS: u128 = 31_536_000_000;
 const SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES_DEFAULT: usize = 200_000;
 const SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES_MAX: usize = 2_000_000;
+const SHARED_CHANNEL_SYNC_PENDING_RETRY_COOLDOWN_DEFAULT_MILLIS: u128 = 0;
+const SHARED_CHANNEL_SYNC_PENDING_RETRY_COOLDOWN_MAX_MILLIS: u128 = 60_000;
 const SHARED_CHANNEL_SYNC_ACK_PROOF_VERSION: &str = "shared_channel_sync_ack.v1";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -584,6 +588,14 @@ fn resolve_shared_channel_sync_delivered_ledger_max_entries() -> usize {
         .filter(|value| *value > 0)
         .unwrap_or(SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES_DEFAULT)
         .min(SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES_MAX)
+}
+
+fn resolve_shared_channel_sync_pending_retry_cooldown_millis() -> u128 {
+    std::env::var(SHARED_CHANNEL_SYNC_PENDING_RETRY_COOLDOWN_MILLIS_ENV)
+        .ok()
+        .and_then(|value| value.trim().parse::<u128>().ok())
+        .unwrap_or(SHARED_CHANNEL_SYNC_PENDING_RETRY_COOLDOWN_DEFAULT_MILLIS)
+        .min(SHARED_CHANNEL_SYNC_PENDING_RETRY_COOLDOWN_MAX_MILLIS)
 }
 
 fn resolve_shared_channel_sync_stale_reclaim_scheduler_config_from_env()
@@ -1052,7 +1064,14 @@ impl PendingSharedChannelSyncRequest {
                 .is_some_and(|lease_expires_at| lease_expires_at > now)
     }
 
-    fn auto_dispatch_eligible(&self, now: &str) -> bool {
+    fn auto_dispatch_eligible(&self, now: &str, retry_window_start: &str) -> bool {
+        if self
+            .last_failed_at
+            .as_deref()
+            .is_some_and(|last_failed_at| last_failed_at > retry_window_start)
+        {
+            return false;
+        }
         !matches!(
             self.lease_status(now),
             SocialSharedChannelSyncLeaseStatus::Active
@@ -3929,6 +3948,9 @@ impl SocialControlRuntime {
             now_epoch_millis
                 .saturating_sub(SHARED_CHANNEL_SYNC_DISPATCH_DELIVERY_DEDUP_WINDOW_MILLIS),
         );
+        let retry_window_start = format_unix_timestamp_millis(now_epoch_millis.saturating_sub(
+            resolve_shared_channel_sync_pending_retry_cooldown_millis(),
+        ));
         let mut queue = Vec::with_capacity(
             state.pending_shared_channel_sync_requests.len()
                 + state.dead_letter_shared_channel_sync_requests.len()
@@ -3944,7 +3966,7 @@ impl SocialControlRuntime {
                 continue;
             }
             let key = shared_channel_sync_request_key(&pending.request);
-            if !pending.auto_dispatch_eligible(now.as_str()) {
+            if !pending.auto_dispatch_eligible(now.as_str(), retry_window_start.as_str()) {
                 blocked.insert(key);
                 continue;
             }
@@ -8814,6 +8836,98 @@ mod tests {
         assert_eq!(
             resolve_shared_channel_sync_dispatch_queue_capacity(),
             65_536
+        );
+    }
+
+    #[test]
+    fn test_shared_channel_pending_retry_cooldown_limits_resolve_from_env() {
+        let _guard = scheduler_env_guard();
+        let _cooldown =
+            ScopedEnvVar::remove(SHARED_CHANNEL_SYNC_PENDING_RETRY_COOLDOWN_MILLIS_ENV);
+        assert_eq!(
+            resolve_shared_channel_sync_pending_retry_cooldown_millis(),
+            SHARED_CHANNEL_SYNC_PENDING_RETRY_COOLDOWN_DEFAULT_MILLIS
+        );
+
+        let _cooldown = ScopedEnvVar::set(
+            SHARED_CHANNEL_SYNC_PENDING_RETRY_COOLDOWN_MILLIS_ENV,
+            "2500",
+        );
+        assert_eq!(
+            resolve_shared_channel_sync_pending_retry_cooldown_millis(),
+            2500
+        );
+
+        let _cooldown = ScopedEnvVar::set(
+            SHARED_CHANNEL_SYNC_PENDING_RETRY_COOLDOWN_MILLIS_ENV,
+            "999999",
+        );
+        assert_eq!(
+            resolve_shared_channel_sync_pending_retry_cooldown_millis(),
+            SHARED_CHANNEL_SYNC_PENDING_RETRY_COOLDOWN_MAX_MILLIS
+        );
+    }
+
+    #[test]
+    fn test_pending_shared_channel_sync_dispatch_queue_defers_recent_failures_until_retry_cooldown()
+     {
+        let _guard = scheduler_env_guard();
+        let _cooldown =
+            ScopedEnvVar::set(SHARED_CHANNEL_SYNC_PENDING_RETRY_COOLDOWN_MILLIS_ENV, "60000");
+        let runtime = SocialControlRuntime::default();
+        let request = SharedChannelLinkedMemberSyncRequest {
+            tenant_id: "t_demo".to_owned(),
+            conversation_id: "c_retry_cooldown".to_owned(),
+            shared_channel_policy_id: "scp_retry_cooldown".to_owned(),
+            external_connection_id: "ec_retry_cooldown".to_owned(),
+            local_actor_id: "u_retry_cooldown".to_owned(),
+            local_actor_kind: "user".to_owned(),
+            external_member_id: "partner::retry-cooldown".to_owned(),
+        };
+        let request_key = shared_channel_sync_request_key(&request);
+        let failed_at = format_unix_timestamp_millis(current_unix_epoch_millis());
+        {
+            let mut state = runtime
+                .state
+                .write()
+                .unwrap_or_else(SocialControlRuntime::recover_poisoned_social_runtime_lock);
+            state.pending_shared_channel_sync_requests.insert(
+                request_key.clone(),
+                PendingSharedChannelSyncRequest {
+                    request: request.clone(),
+                    failure_count: 1,
+                    last_error: "dispatch timeout".to_owned(),
+                    last_failed_at: Some(failed_at),
+                    owner_actor_id: None,
+                    owner_actor_kind: None,
+                    claimed_at: None,
+                    lease_expires_at: None,
+                },
+            );
+        }
+
+        let queue_during_cooldown = runtime.pending_shared_channel_sync_dispatch_queue(&[]);
+        assert!(
+            queue_during_cooldown.is_empty(),
+            "recently failed request should be deferred until retry cooldown elapses"
+        );
+
+        {
+            let mut state = runtime
+                .state
+                .write()
+                .unwrap_or_else(SocialControlRuntime::recover_poisoned_social_runtime_lock);
+            let pending = state
+                .pending_shared_channel_sync_requests
+                .get_mut(request_key.as_str())
+                .expect("pending request should still exist");
+            pending.last_failed_at = Some("1970-01-01T00:00:00.000Z".to_owned());
+        }
+        let queue_after_cooldown = runtime.pending_shared_channel_sync_dispatch_queue(&[]);
+        assert_eq!(
+            queue_after_cooldown,
+            vec![request],
+            "request should re-enter dispatch queue after cooldown window"
         );
     }
 

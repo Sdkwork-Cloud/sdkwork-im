@@ -590,3 +590,19 @@
 - Remaining S07 gap after Loop103:
   - `release-ready exactly-once semantics across downstream fanout boundaries`
   - `formal cross-service idempotency governance and deterministic replay SLO still needs downstream commit-fence propagation across non-shared-sync consumer categories`
+## Loop 104 Addendum - 2026-04-12
+- Added configurable retry-cooldown guard for pending shared-channel sync dispatch queue:
+  - new env `CRAW_CHAT_SHARED_CHANNEL_SYNC_PENDING_RETRY_COOLDOWN_MILLIS` (clamped to `<= 60000`)
+  - queue evaluation now defers pending items whose `lastFailedAt` is still within cooldown window
+  - default cooldown is `0ms` to preserve existing “next healthy ready-pair write flushes backlog” contract, while allowing operators to enable throttle during outage storms
+- Added regression coverage:
+  - `test_shared_channel_pending_retry_cooldown_limits_resolve_from_env`
+  - `test_pending_shared_channel_sync_dispatch_queue_defers_recent_failures_until_retry_cooldown`
+  - existing `test_control_plane_social_shared_channel_pending_backlog_retries_on_next_healthy_ready_pair_write` remains green to lock compatibility
+- Commercial gate evidence in this loop:
+  - `cargo test -p control-plane-api` 通过
+  - `cargo test -p conversation-runtime --tests` 通过
+  - `cargo audit --no-fetch --stale` 通过
+- Remaining S07 gap after Loop104:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `formal cross-service idempotency governance and deterministic replay SLO still needs downstream commit-fence propagation across non-shared-sync consumer categories`
