@@ -617,3 +617,20 @@
 - Remaining S07 gap after Loop105:
   - `release-ready exactly-once semantics across downstream fanout boundaries`
   - `formal cross-service idempotency governance and deterministic replay SLO still needs downstream commit-fence propagation across non-shared-sync consumer categories`
+## Loop 106 Addendum - 2026-04-12
+- Hardened deployment contract regression guard in `deployment_profile_test` to prevent future env-surface drift:
+  - template assertions now explicitly require:
+    - `CRAW_CHAT_RUNTIME_PROFILE`
+    - `CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_BUCKETS`
+    - `CRAW_CHAT_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_JITTER_MILLIS`
+    - `CRAW_CHAT_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_MILLIS`
+    - `CRAW_CHAT_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES`
+    - `CRAW_CHAT_SHARED_CHANNEL_SYNC_PENDING_RETRY_COOLDOWN_MILLIS`
+    - `CRAW_CHAT_ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP`
+  - site deployment doc assertions now also enforce the same env tokens, reducing “runtime supports but docs/templates drift” recurrence risk.
+- Verification evidence in this loop:
+  - `cargo test -p local-minimal-node --offline --test deployment_profile_test test_deployment_profiles_and_templates_document_local_minimal_and_local_default_contracts -- --exact` 通过
+  - `cargo test -p local-minimal-node --offline --test deployment_profile_test` 通过
+- Remaining S07 gap after Loop106:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `formal cross-service idempotency governance and deterministic replay SLO still needs downstream commit-fence propagation across non-shared-sync consumer categories`

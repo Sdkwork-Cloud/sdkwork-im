@@ -294,6 +294,7 @@ fn test_deployment_profiles_and_templates_document_local_minimal_and_local_defau
     for template_content in [&local_minimal_template, &local_default_template] {
         assert!(template_content.contains("CRAW_CHAT_BIND_ADDR="));
         assert!(template_content.contains("CRAW_CHAT_RUNTIME_DIR="));
+        assert!(template_content.contains("CRAW_CHAT_RUNTIME_PROFILE="));
         assert!(template_content.contains("CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET="));
         assert!(template_content.contains("CRAW_CHAT_PUBLIC_BEARER_REQUIRE_EXP="));
         assert!(template_content.contains("CRAW_CHAT_PUBLIC_BEARER_MAX_TTL_SECONDS="));
@@ -305,6 +306,7 @@ fn test_deployment_profiles_and_templates_document_local_minimal_and_local_defau
         assert!(
             template_content.contains("CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS=")
         );
+        assert!(template_content.contains("CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_BUCKETS="));
         assert!(template_content.contains("CRAW_CHAT_SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MILLIS="));
         assert!(
             template_content
@@ -314,10 +316,25 @@ fn test_deployment_profiles_and_templates_document_local_minimal_and_local_defau
             template_content
                 .contains("CRAW_CHAT_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_INTERVAL_MILLIS=")
         );
+        assert!(
+            template_content
+                .contains("CRAW_CHAT_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_JITTER_MILLIS=")
+        );
         assert!(template_content.contains("CRAW_CHAT_SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT="));
         assert!(
             template_content.contains("CRAW_CHAT_SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY=")
         );
+        assert!(
+            template_content.contains("CRAW_CHAT_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_MILLIS=")
+        );
+        assert!(
+            template_content.contains("CRAW_CHAT_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES=")
+        );
+        assert!(
+            template_content
+                .contains("CRAW_CHAT_SHARED_CHANNEL_SYNC_PENDING_RETRY_COOLDOWN_MILLIS=")
+        );
+        assert!(template_content.contains("CRAW_CHAT_ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP="));
     }
 
     for env_name in [
@@ -327,12 +344,18 @@ fn test_deployment_profiles_and_templates_document_local_minimal_and_local_defau
         "CRAW_CHAT_PUBLIC_BEARER_REQUIRED_AUD",
         "CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS",
         "CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS",
+        "CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_BUCKETS",
         "CRAW_CHAT_SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MILLIS",
         "CRAW_CHAT_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_ENABLED",
         "CRAW_CHAT_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_INTERVAL_MILLIS",
+        "CRAW_CHAT_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_JITTER_MILLIS",
         "CRAW_CHAT_SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT",
         "CRAW_CHAT_SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY",
+        "CRAW_CHAT_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_MILLIS",
+        "CRAW_CHAT_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES",
+        "CRAW_CHAT_SHARED_CHANNEL_SYNC_PENDING_RETRY_COOLDOWN_MILLIS",
         "CRAW_CHAT_ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP",
+        "CRAW_CHAT_RUNTIME_PROFILE",
     ] {
         assert!(
             site_profiles_env_doc.contains(env_name),
