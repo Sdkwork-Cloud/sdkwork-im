@@ -42,13 +42,11 @@ impl TimelineProjectionService {
         message_id: &str,
     ) -> Option<MessageInteractionSummaryView> {
         let scope = scope_key(tenant_id, conversation_id);
-        if let Some(view) = self
-            .message_interactions
-            .lock()
-            .expect("message interaction store should lock")
-            .get(scope.as_str())
-            .and_then(|scope_items| scope_items.get(message_id))
-            .map(stored_interaction_to_view)
+        if let Some(view) =
+            super::lock_projection_mutex(&self.message_interactions, "message interaction store")
+                .get(scope.as_str())
+                .and_then(|scope_items| scope_items.get(message_id))
+                .map(stored_interaction_to_view)
         {
             return Some(view);
         }
@@ -71,19 +69,17 @@ impl TimelineProjectionService {
         conversation_id: &str,
     ) -> Vec<MessageInteractionSummaryView> {
         let scope = scope_key(tenant_id, conversation_id);
-        let mut items = self
-            .message_interactions
-            .lock()
-            .expect("message interaction store should lock")
-            .get(scope.as_str())
-            .map(|scope_items| {
-                scope_items
-                    .values()
-                    .filter(|item| item.pin.is_some())
-                    .map(stored_interaction_to_view)
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
+        let mut items =
+            super::lock_projection_mutex(&self.message_interactions, "message interaction store")
+                .get(scope.as_str())
+                .map(|scope_items| {
+                    scope_items
+                        .values()
+                        .filter(|item| item.pin.is_some())
+                        .map(stored_interaction_to_view)
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
         items.sort_by(|left, right| {
             right
                 .pin
@@ -288,9 +284,7 @@ impl TimelineProjectionService {
         conversation_id: &str,
         message_id: &str,
     ) -> Option<u64> {
-        self.entries
-            .lock()
-            .expect("projection store should lock")
+        super::lock_projection_mutex(&self.entries, "projection store")
             .get(scope_key(tenant_id, conversation_id).as_str())
             .and_then(|entries| {
                 entries
@@ -312,10 +306,8 @@ impl TimelineProjectionService {
         F: FnOnce(&mut StoredMessageInteractionSummary) -> bool,
     {
         let scope = scope_key(tenant_id, conversation_id);
-        let mut store = self
-            .message_interactions
-            .lock()
-            .expect("message interaction store should lock");
+        let mut store =
+            super::lock_projection_mutex(&self.message_interactions, "message interaction store");
         let changed = mutate(
             store
                 .entry(scope)
@@ -346,10 +338,8 @@ impl TimelineProjectionService {
         F: FnOnce(&mut StoredMessageInteractionSummary) -> bool,
     {
         let scope = scope_key(tenant_id, conversation_id);
-        let mut store = self
-            .message_interactions
-            .lock()
-            .expect("message interaction store should lock");
+        let mut store =
+            super::lock_projection_mutex(&self.message_interactions, "message interaction store");
         let changed = store
             .get_mut(scope.as_str())
             .and_then(|scope_items| scope_items.get_mut(message_id))
@@ -361,10 +351,8 @@ impl TimelineProjectionService {
 
     fn prune_message_interaction(&self, tenant_id: &str, conversation_id: &str, message_id: &str) {
         let scope = scope_key(tenant_id, conversation_id);
-        let mut store = self
-            .message_interactions
-            .lock()
-            .expect("message interaction store should lock");
+        let mut store =
+            super::lock_projection_mutex(&self.message_interactions, "message interaction store");
         let remove_scope = if let Some(scope_items) = store.get_mut(scope.as_str()) {
             let remove_item = scope_items
                 .get(message_id)

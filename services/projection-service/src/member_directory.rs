@@ -9,10 +9,7 @@ impl TimelineProjectionService {
         tenant_id: &str,
         conversation_id: &str,
     ) -> Vec<ConversationMemberDirectoryEntry> {
-        let mut items = self
-            .members
-            .lock()
-            .expect("member store should lock")
+        let mut items = super::lock_projection_mutex(&self.members, "member store")
             .get(scope_key(tenant_id, conversation_id).as_str())
             .map(|scope_members| {
                 scope_members

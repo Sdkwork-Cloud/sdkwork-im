@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use axum::extract::{Path, State};
@@ -68,10 +68,8 @@ impl SharedChannelSyncRateLimiter {
 
     fn try_acquire(&self, tenant_id: &str) -> bool {
         let now = current_unix_epoch_millis();
-        let mut buckets = self
-            .buckets
-            .lock()
-            .expect("shared-channel sync rate limiter lock should not be poisoned");
+        let mut buckets =
+            lock_shared_channel_rate_limit_mutex(&self.buckets, "shared-channel-sync-rate-limit");
 
         if buckets.len() > SHARED_CHANNEL_SYNC_RATE_LIMIT_SWEEP_THRESHOLD {
             let window_millis = self.window_millis;
@@ -99,6 +97,19 @@ impl SharedChannelSyncRateLimiter {
 
         bucket.request_count = bucket.request_count.saturating_add(1);
         true
+    }
+}
+
+fn lock_shared_channel_rate_limit_mutex<'a, T>(
+    mutex: &'a Mutex<T>,
+    lock_name: &'static str,
+) -> MutexGuard<'a, T> {
+    match mutex.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            eprintln!("warn: recovered poisoned conversation-runtime mutex lock={lock_name}");
+            poisoned.into_inner()
+        }
     }
 }
 

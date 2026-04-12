@@ -82,10 +82,7 @@ impl TimelineProjectionService {
         conversation_id: &str,
     ) -> Result<(), ProjectionAccessError> {
         let scope = super::scope::scope_key(auth.tenant_id.as_str(), conversation_id);
-        let can_read_history = self
-            .members
-            .lock()
-            .expect("member store should lock")
+        let can_read_history = super::lock_projection_mutex(&self.members, "member store")
             .get(scope.as_str())
             .and_then(|scope_members| scope_members.get(auth.actor_id.as_str()))
             .is_some_and(|member| member.can_read_shared_history());
@@ -132,10 +129,7 @@ impl TimelineProjectionService {
         conversation_id: &str,
     ) -> Vec<String> {
         let scope = super::scope::scope_key(tenant_id, conversation_id);
-        let mut principal_ids = self
-            .members
-            .lock()
-            .expect("member store should lock")
+        let mut principal_ids = super::lock_projection_mutex(&self.members, "member store")
             .get(scope.as_str())
             .map(|scope_members| {
                 scope_members

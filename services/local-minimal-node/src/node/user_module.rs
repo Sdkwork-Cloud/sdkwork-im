@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use im_domain_core::message::Sender;
 use im_platform_contracts::{
@@ -194,9 +194,7 @@ impl LocalUserModuleProvider {
     }
 
     fn get_or_default_user(&self, tenant_id: &str, user_id: &str) -> UserModuleUser {
-        self.users
-            .lock()
-            .expect("local user-module store should lock")
+        self.lock_users("get_or_default_user")
             .get(tenant_id)
             .and_then(|users| users.get(user_id))
             .cloned()
@@ -212,13 +210,26 @@ impl LocalUserModuleProvider {
     }
 
     fn upsert_user(&self, user: UserModuleUser) -> UserModuleUser {
-        self.users
-            .lock()
-            .expect("local user-module store should lock")
+        self.lock_users("upsert_user")
             .entry(user.tenant_id.clone())
             .or_default()
             .insert(user.user_id.clone(), user.clone());
         user
+    }
+
+    fn lock_users(
+        &self,
+        operation: &'static str,
+    ) -> MutexGuard<'_, BTreeMap<String, BTreeMap<String, UserModuleUser>>> {
+        match self.users.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                eprintln!(
+                    "warning: recovering poisoned local user-module store lock during {operation}"
+                );
+                poisoned.into_inner()
+            }
+        }
     }
 }
 
@@ -339,9 +350,7 @@ impl ExternalUserModuleProvider {
     }
 
     fn override_user(&self, user: UserModuleUser) -> UserModuleUser {
-        self.overrides
-            .lock()
-            .expect("external user-module override store should lock")
+        self.lock_overrides("override_user")
             .entry(user.tenant_id.clone())
             .or_default()
             .insert(user.user_id.clone(), user.clone());
@@ -349,9 +358,7 @@ impl ExternalUserModuleProvider {
     }
 
     fn override_user_lookup(&self, tenant_id: &str, user_id: &str) -> Option<UserModuleUser> {
-        self.overrides
-            .lock()
-            .expect("external user-module override store should lock")
+        self.lock_overrides("override_user_lookup")
             .get(tenant_id)
             .and_then(|users| users.get(user_id))
             .cloned()
@@ -363,9 +370,7 @@ impl ExternalUserModuleProvider {
         external_system: &str,
         external_principal_id: &str,
     ) -> Option<UserModuleUser> {
-        self.overrides
-            .lock()
-            .expect("external user-module override store should lock")
+        self.lock_overrides("override_user_by_external_principal")
             .get(tenant_id)
             .and_then(|users| {
                 users
@@ -429,6 +434,21 @@ impl ExternalUserModuleProvider {
             disabled: false,
         }
     }
+
+    fn lock_overrides(
+        &self,
+        operation: &'static str,
+    ) -> MutexGuard<'_, BTreeMap<String, BTreeMap<String, UserModuleUser>>> {
+        match self.overrides.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                eprintln!(
+                    "warning: recovering poisoned external user-module override store lock during {operation}"
+                );
+                poisoned.into_inner()
+            }
+        }
+    }
 }
 
 impl UserModuleProvider for LocalUserModuleProvider {
@@ -461,9 +481,7 @@ impl UserModuleProvider for LocalUserModuleProvider {
         keyword: &str,
     ) -> Result<Vec<UserModuleUser>, ContractError> {
         let mut matches = self
-            .users
-            .lock()
-            .expect("local user-module store should lock")
+            .lock_users("search_users")
             .get(tenant_id)
             .map(|items| {
                 items
@@ -578,12 +596,7 @@ impl UserModuleProvider for ExternalUserModuleProvider {
         let catalog = self.load_catalog()?;
         let mut merged = BTreeMap::new();
 
-        if let Some(users) = self
-            .overrides
-            .lock()
-            .expect("external user-module override store should lock")
-            .get(tenant_id)
-        {
+        if let Some(users) = self.lock_overrides("search_users").get(tenant_id) {
             for user in users.values().filter(|user| {
                 user.user_id.contains(keyword)
                     || user.display_name.contains(keyword)
