@@ -47,6 +47,8 @@ For public or commercial deployments, keep these enabled and explicit:
 | `CRAW_CHAT_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_JITTER_MILLIS` | Adds bounded per-tick jitter for stale-claim scheduler sleeps to reduce multi-node synchronized scan spikes (default `250`, clamped to `0..5000`). |
 | `CRAW_CHAT_SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT` | Number of background dispatch workers that execute shared-channel sync outbound HTTP requests (capped at 128). |
 | `CRAW_CHAT_SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY` | Bounded in-memory queue capacity for shared-channel sync dispatch tasks (capped at 65,536); full queue returns backpressure errors. |
+| `CRAW_CHAT_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_MILLIS` | Retention window for delivered shared-channel sync ledger items before prune (default `2592000000`, capped at `31536000000`). |
+| `CRAW_CHAT_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES` | Maximum delivered shared-channel sync ledger entries kept in durable state (default `200000`, capped at `2000000`). |
 | `CRAW_CHAT_ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP` | Emergency local-test override for non-HTTPS shared-channel sync targets. Keep `false` in non-local environments. |
 | `CRAW_CHAT_RUNTIME_PROFILE` | Runtime profile name (`local-minimal`/`local-default`/etc.). Remote `http://` override is only honored for local profiles. |
 
@@ -64,6 +66,8 @@ For public or commercial deployments, keep these enabled and explicit:
 | `CRAW_CHAT_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_JITTER_MILLIS` | Adds bounded jitter to each scheduler sleep tick (`0..5000`, default `250`) to avoid synchronized reclaim spikes in multi-instance deployments. |
 | `CRAW_CHAT_SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT` | Tunes shared-channel sync dispatch throughput by increasing worker parallelism (max 128). |
 | `CRAW_CHAT_SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY` | Caps dispatch backlog size and enforces backpressure when queue capacity is exhausted (max 65,536). |
+| `CRAW_CHAT_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_MILLIS` | Caps delivered-ledger retention duration used by pruning (`0 < value <= 31536000000`, default `2592000000`). |
+| `CRAW_CHAT_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES` | Caps delivered-ledger durable entry count used by pruning (`0 < value <= 2000000`, default `200000`). |
 | `CRAW_CHAT_ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP` | Allows `http://` target only for controlled local testing; production should use HTTPS. |
 | `CRAW_CHAT_RUNTIME_PROFILE` | Must be an explicit local profile (`local-minimal`/`local-default`/`local`/`dev`/`test`/`ci`) before remote `http://` override is accepted. |
 
@@ -102,6 +106,8 @@ CRAW_CHAT_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_INTERVAL_MILLIS=30000
 CRAW_CHAT_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_JITTER_MILLIS=250
 CRAW_CHAT_SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT=4
 CRAW_CHAT_SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY=1024
+CRAW_CHAT_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_MILLIS=2592000000
+CRAW_CHAT_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES=200000
 CRAW_CHAT_ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP=false
 ```
 
@@ -125,6 +131,8 @@ CRAW_CHAT_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_INTERVAL_MILLIS=30000
 CRAW_CHAT_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_JITTER_MILLIS=250
 CRAW_CHAT_SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT=4
 CRAW_CHAT_SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY=1024
+CRAW_CHAT_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_MILLIS=2592000000
+CRAW_CHAT_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES=200000
 CRAW_CHAT_ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP=false
 ```
 

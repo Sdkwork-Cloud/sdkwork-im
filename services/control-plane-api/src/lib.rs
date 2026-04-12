@@ -184,7 +184,9 @@ const SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT_MAX: usize = 128;
 const SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY_DEFAULT: usize = 1024;
 const SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY_MAX: usize = 65_536;
 const SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_DEFAULT_MILLIS: u128 = 2_592_000_000;
+const SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_MAX_MILLIS: u128 = 31_536_000_000;
 const SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES_DEFAULT: usize = 200_000;
+const SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES_MAX: usize = 2_000_000;
 const SHARED_CHANNEL_SYNC_ACK_PROOF_VERSION: &str = "shared_channel_sync_ack.v1";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -570,6 +572,7 @@ fn resolve_shared_channel_sync_delivered_ledger_retention_millis() -> u128 {
         .and_then(|value| value.trim().parse::<u128>().ok())
         .filter(|value| *value > 0)
         .unwrap_or(SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_DEFAULT_MILLIS)
+        .min(SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_MAX_MILLIS)
 }
 
 fn resolve_shared_channel_sync_delivered_ledger_max_entries() -> usize {
@@ -578,6 +581,7 @@ fn resolve_shared_channel_sync_delivered_ledger_max_entries() -> usize {
         .and_then(|value| value.trim().parse::<usize>().ok())
         .filter(|value| *value > 0)
         .unwrap_or(SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES_DEFAULT)
+        .min(SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES_MAX)
 }
 
 fn resolve_shared_channel_sync_stale_reclaim_scheduler_config_from_env()
@@ -8753,6 +8757,23 @@ mod tests {
         assert_eq!(
             resolve_shared_channel_sync_delivered_ledger_max_entries(),
             77
+        );
+
+        let _retention = ScopedEnvVar::set(
+            SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_MILLIS_ENV,
+            "999999999999",
+        );
+        let _max_entries = ScopedEnvVar::set(
+            SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES_ENV,
+            "999999999",
+        );
+        assert_eq!(
+            resolve_shared_channel_sync_delivered_ledger_retention_millis(),
+            SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_MAX_MILLIS
+        );
+        assert_eq!(
+            resolve_shared_channel_sync_delivered_ledger_max_entries(),
+            SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES_MAX
         );
     }
 

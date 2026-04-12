@@ -509,3 +509,18 @@
 - Remaining S07 gap after Loop98:
   - `release-ready exactly-once semantics across downstream fanout boundaries`
   - `formal cross-service idempotency governance and deterministic replay SLO still needs downstream consumer-side commit fencing (beyond control-plane state visibility)`
+## Loop 99 Addendum - 2026-04-12
+- shared-channel delivered-ledger 配置新增上限钳制，避免极端 env 配置放大内存与持久化状态：
+  - `CRAW_CHAT_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_MILLIS <= 31536000000`
+  - `CRAW_CHAT_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES <= 2000000`
+- 上述上限现在由 `resolve_shared_channel_sync_delivered_ledger_*` 路径统一执行，默认值保持 `2592000000 / 200000`，并兼容历史配置（仅在越界时收敛）。
+- 回归测试 `test_shared_channel_delivered_ledger_limits_resolve_from_env` 已补齐越界断言，锁定 `"999999999999" / "999999999"` 会被钳制到安全上限。
+- deployment env 文档与 local profile 模板已同步补充 delivered-ledger 变量，降低运维配置漂移。
+- 本轮门禁证据：
+  - `cargo test -p control-plane-api --lib test_shared_channel_delivered_ledger_limits_resolve_from_env` 通过
+  - `cargo test -p control-plane-api` 通过
+  - `cargo test -p conversation-runtime --tests` 通过
+  - `cargo clippy -p control-plane-api --tests` 通过（仅既有 warning）
+- Remaining S07 gap after Loop99:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `formal cross-service idempotency governance and deterministic replay SLO still needs downstream consumer-side commit fencing (beyond control-plane state visibility)`
