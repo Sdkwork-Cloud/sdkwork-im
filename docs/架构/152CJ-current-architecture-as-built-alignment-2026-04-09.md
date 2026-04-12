@@ -499,3 +499,13 @@
 - Remaining S07 gap after Loop97:
   - `release-ready exactly-once semantics across downstream fanout boundaries`
   - `formal cross-service idempotency governance and deterministic replay SLO still needs downstream consumer-side commit fencing (beyond control-plane state visibility)`
+## Loop 98 Addendum - 2026-04-12
+- stale reclaim scheduler 配置归一化路径已补齐“入口一致性”防线：除了 env 解析钳制外，显式传入 `SharedChannelSyncStaleReclaimSchedulerConfig` 的场景现在也会统一执行 interval min/max 钳制。
+- 这意味着通过 builder 直传极小/极大 interval 的路径不再能绕过 `1000..600000` 合同，避免出现“env 安全、显式配置不安全”的双轨行为。
+- 已新增回归测试 `test_shared_channel_stale_reclaim_scheduler_explicit_config_is_clamped_to_safe_bounds`，覆盖显式配置下的下界/上界钳制。
+- 本轮门禁证据：
+  - `cargo test -p control-plane-api --test social_external_collaboration_test test_control_plane_social_shared_channel_stale_claim_scheduler_reclaims_without_manual_repair -- --exact` 通过
+  - `cargo test -p control-plane-api` 通过
+- Remaining S07 gap after Loop98:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `formal cross-service idempotency governance and deterministic replay SLO still needs downstream consumer-side commit fencing (beyond control-plane state visibility)`

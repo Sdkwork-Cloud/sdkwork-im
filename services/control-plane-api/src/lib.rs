@@ -196,13 +196,18 @@ pub struct SharedChannelSyncStaleReclaimSchedulerConfig {
 
 impl SharedChannelSyncStaleReclaimSchedulerConfig {
     fn with_normalized_values(self) -> Self {
+        let interval_millis = if self.interval_millis == 0 {
+            SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_DEFAULT_INTERVAL_MILLIS
+        } else {
+            self.interval_millis
+        }
+        .clamp(
+            SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_MIN_INTERVAL_MILLIS,
+            SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_MAX_INTERVAL_MILLIS,
+        );
         Self {
             enabled: self.enabled,
-            interval_millis: if self.interval_millis == 0 {
-                SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_DEFAULT_INTERVAL_MILLIS
-            } else {
-                self.interval_millis
-            },
+            interval_millis,
             jitter_millis: self
                 .jitter_millis
                 .min(SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_MAX_JITTER_MILLIS),
@@ -8692,6 +8697,30 @@ mod tests {
         }
         .tick_sleep_duration_at(UNIX_EPOCH + std::time::Duration::from_millis(30_123));
         assert_eq!(without_jitter.as_millis(), 30_000);
+    }
+
+    #[test]
+    fn test_shared_channel_stale_reclaim_scheduler_explicit_config_is_clamped_to_safe_bounds() {
+        let normalized = SharedChannelSyncStaleReclaimSchedulerConfig {
+            enabled: true,
+            interval_millis: 1,
+            jitter_millis: 999_999,
+        }
+        .with_normalized_values();
+        assert_eq!(normalized.interval_millis, 1_000);
+        assert_eq!(
+            normalized.jitter_millis,
+            SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_MAX_JITTER_MILLIS
+        );
+
+        let normalized_high = SharedChannelSyncStaleReclaimSchedulerConfig {
+            enabled: true,
+            interval_millis: 99_999_999,
+            jitter_millis: 20,
+        }
+        .with_normalized_values();
+        assert_eq!(normalized_high.interval_millis, 600_000);
+        assert_eq!(normalized_high.jitter_millis, 20);
     }
 
     #[test]
