@@ -464,3 +464,21 @@
 - Remaining S07 gap after Loop95:
   - `release-ready exactly-once semantics across downstream fanout boundaries`
   - `formal cross-service idempotency governance and deterministic replay SLO still needs downstream consumer-side commit fencing (beyond control-plane state visibility)`
+## Loop 96 Addendum - 2026-04-12
+- `conversation-runtime` shared-channel sync in-process limiter 现已补齐配置护栏与容量上限，避免误配置或租户枚举导致内存放大：
+  - `CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS` 钳制为 `1..10000`
+  - `CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS` 钳制为 `1..3600`
+  - 新增 `CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_BUCKETS`（默认 `10000`，钳制 `1..200000`）用于限制 active tenant buckets
+- 当 limiter bucket 达到上限时，新 tenant 请求会被拒绝（`429` 路径），而已存在 tenant 仍可在其租户预算内被服务，避免“全局硬熔断”误伤活跃租户。
+- `conversation-runtime` 已新增回归测试锁定：
+  - env 越界值会被钳制到安全上限
+  - bucket cap 到达后拒绝新 tenant、保留已存在 tenant 服务能力
+- deployment env 文档与 local profile env 模板已同步补充 `CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_BUCKETS`，并明确 rate-limit 参数上下界合同，减少运行时偏差。
+- 本轮门禁证据：
+  - `cargo test -p conversation-runtime --tests` 通过
+  - 关键新增测试：
+    - `test_shared_channel_sync_rate_limiter_clamps_env_values_to_safe_bounds`
+    - `test_shared_channel_sync_rate_limiter_rejects_new_tenant_when_bucket_cap_is_reached`
+- Remaining S07 gap after Loop96:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `formal cross-service idempotency governance and deterministic replay SLO still needs downstream consumer-side commit fencing (beyond control-plane state visibility)`

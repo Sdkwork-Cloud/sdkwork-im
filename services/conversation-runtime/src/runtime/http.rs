@@ -32,14 +32,21 @@ const SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS_ENV: &str =
     "CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS";
 const SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS_ENV: &str =
     "CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS";
+const SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_BUCKETS_ENV: &str =
+    "CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_BUCKETS";
 const SHARED_CHANNEL_SYNC_RATE_LIMIT_DEFAULT_MAX_REQUESTS: u32 = 120;
 const SHARED_CHANNEL_SYNC_RATE_LIMIT_DEFAULT_WINDOW_SECONDS: u64 = 60;
+const SHARED_CHANNEL_SYNC_RATE_LIMIT_DEFAULT_MAX_BUCKETS: usize = 10_000;
+const SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_ALLOWED_MAX_REQUESTS: u32 = 10_000;
+const SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_ALLOWED_WINDOW_SECONDS: u64 = 3_600;
+const SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_ALLOWED_BUCKETS: usize = 200_000;
 const SHARED_CHANNEL_SYNC_RATE_LIMIT_SWEEP_THRESHOLD: usize = 1024;
 
 #[derive(Clone)]
 struct SharedChannelSyncRateLimiter {
     max_requests: u32,
     window_millis: u128,
+    max_buckets: usize,
     buckets: Arc<Mutex<BTreeMap<String, SharedChannelSyncRateLimitBucket>>>,
 }
 
@@ -51,17 +58,25 @@ struct SharedChannelSyncRateLimitBucket {
 
 impl SharedChannelSyncRateLimiter {
     fn from_env() -> Self {
-        let max_requests = resolve_positive_env_u32(
+        let max_requests = resolve_positive_env_u32_with_upper_bound(
             SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS_ENV,
             SHARED_CHANNEL_SYNC_RATE_LIMIT_DEFAULT_MAX_REQUESTS,
+            SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_ALLOWED_MAX_REQUESTS,
         );
-        let window_seconds = resolve_positive_env_u64(
+        let window_seconds = resolve_positive_env_u64_with_upper_bound(
             SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS_ENV,
             SHARED_CHANNEL_SYNC_RATE_LIMIT_DEFAULT_WINDOW_SECONDS,
+            SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_ALLOWED_WINDOW_SECONDS,
+        );
+        let max_buckets = resolve_positive_env_usize_with_upper_bound(
+            SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_BUCKETS_ENV,
+            SHARED_CHANNEL_SYNC_RATE_LIMIT_DEFAULT_MAX_BUCKETS,
+            SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_ALLOWED_BUCKETS,
         );
         Self {
             max_requests,
             window_millis: (window_seconds as u128) * 1000,
+            max_buckets,
             buckets: Arc::new(Mutex::new(BTreeMap::new())),
         }
     }
@@ -76,6 +91,9 @@ impl SharedChannelSyncRateLimiter {
             buckets.retain(|_, bucket| {
                 now.saturating_sub(bucket.window_started_at_millis) < window_millis
             });
+        }
+        if !buckets.contains_key(tenant_id) && buckets.len() >= self.max_buckets {
+            return false;
         }
 
         let bucket =
@@ -113,24 +131,37 @@ fn lock_shared_channel_rate_limit_mutex<'a, T>(
     }
 }
 
-fn resolve_positive_env_u32(name: &str, default: u32) -> u32 {
+fn resolve_positive_env_u32_with_upper_bound(name: &str, default: u32, max: u32) -> u32 {
     std::env::var(name)
         .ok()
         .and_then(|value| value.trim().parse::<u32>().ok())
         .filter(|value| *value > 0)
         .unwrap_or(default)
+        .clamp(1, max)
 }
 
-fn resolve_positive_env_u64(name: &str, default: u64) -> u64 {
+fn resolve_positive_env_u64_with_upper_bound(name: &str, default: u64, max: u64) -> u64 {
     std::env::var(name)
         .ok()
         .and_then(|value| value.trim().parse::<u64>().ok())
         .filter(|value| *value > 0)
         .unwrap_or(default)
+        .clamp(1, max)
+}
+
+fn resolve_positive_env_usize_with_upper_bound(name: &str, default: usize, max: usize) -> usize {
+    std::env::var(name)
+        .ok()
+        .and_then(|value| value.trim().parse::<usize>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(default)
+        .clamp(1, max)
 }
 
 fn unix_epoch_millis(now: SystemTime) -> u128 {
-    now.duration_since(UNIX_EPOCH).unwrap_or_default().as_millis()
+    now.duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis()
 }
 
 fn current_unix_epoch_millis() -> u128 {
@@ -1145,7 +1176,45 @@ fn build_message_body(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::{Mutex, OnceLock};
     use std::time::Duration;
+
+    struct ScopedEnvVar {
+        name: &'static str,
+        previous: Option<String>,
+    }
+
+    impl ScopedEnvVar {
+        fn set(name: &'static str, value: &str) -> Self {
+            let previous = std::env::var(name).ok();
+            unsafe {
+                std::env::set_var(name, value);
+            }
+            Self { name, previous }
+        }
+    }
+
+    impl Drop for ScopedEnvVar {
+        fn drop(&mut self) {
+            if let Some(previous) = &self.previous {
+                unsafe {
+                    std::env::set_var(self.name, previous);
+                }
+                return;
+            }
+            unsafe {
+                std::env::remove_var(self.name);
+            }
+        }
+    }
+
+    fn rate_limit_env_guard<'a>() -> std::sync::MutexGuard<'a, ()> {
+        static GUARD: OnceLock<Mutex<()>> = OnceLock::new();
+        GUARD
+            .get_or_init(|| Mutex::new(()))
+            .lock()
+            .expect("env lock")
+    }
 
     #[test]
     fn test_unix_epoch_millis_clamps_pre_epoch_time_to_zero() {
@@ -1159,5 +1228,51 @@ mod tests {
     fn test_unix_epoch_millis_preserves_post_epoch_time() {
         let after_epoch = UNIX_EPOCH + Duration::from_millis(1_234);
         assert_eq!(unix_epoch_millis(after_epoch), 1_234);
+    }
+
+    #[test]
+    fn test_shared_channel_sync_rate_limiter_clamps_env_values_to_safe_bounds() {
+        let _guard = rate_limit_env_guard();
+        let _max_requests =
+            ScopedEnvVar::set(SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS_ENV, "999999");
+        let _window_seconds =
+            ScopedEnvVar::set(SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS_ENV, "999999");
+        let _max_buckets =
+            ScopedEnvVar::set(SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_BUCKETS_ENV, "999999");
+
+        let limiter = SharedChannelSyncRateLimiter::from_env();
+        assert_eq!(
+            limiter.max_requests,
+            SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_ALLOWED_MAX_REQUESTS
+        );
+        assert_eq!(
+            limiter.window_millis,
+            (SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_ALLOWED_WINDOW_SECONDS as u128) * 1000
+        );
+        assert_eq!(
+            limiter.max_buckets,
+            SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_ALLOWED_BUCKETS
+        );
+    }
+
+    #[test]
+    fn test_shared_channel_sync_rate_limiter_rejects_new_tenant_when_bucket_cap_is_reached() {
+        let limiter = SharedChannelSyncRateLimiter {
+            max_requests: 2,
+            window_millis: 60_000,
+            max_buckets: 2,
+            buckets: Arc::new(Mutex::new(BTreeMap::new())),
+        };
+
+        assert!(limiter.try_acquire("tenant_a"));
+        assert!(limiter.try_acquire("tenant_b"));
+        assert!(
+            !limiter.try_acquire("tenant_c"),
+            "new tenant should be rejected when rate-limit bucket cap is reached"
+        );
+        assert!(
+            limiter.try_acquire("tenant_a"),
+            "existing tenant should still be serviceable when cap is reached"
+        );
     }
 }
