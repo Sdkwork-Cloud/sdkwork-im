@@ -346,6 +346,63 @@ async fn capture_sync_call_already_linked_without_request_key_commit_fence(
     )
 }
 
+async fn capture_sync_call_already_linked_with_mismatched_request_key_commit_fence(
+    State(captured): State<CapturedSyncRequest>,
+    headers: HeaderMap,
+    Json(payload): Json<serde_json::Value>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let authorization = headers
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_owned);
+    *captured
+        .authorization
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner()) = authorization;
+    let request_key = payload
+        .get("requestKey")
+        .and_then(|value| value.as_str())
+        .unwrap_or("missing-request-key");
+    let principal_id = payload
+        .get("localActorId")
+        .and_then(|value| value.as_str())
+        .unwrap_or("missing-principal-id");
+    let principal_kind = payload
+        .get("localActorKind")
+        .and_then(|value| value.as_str())
+        .unwrap_or("missing-principal-kind");
+    let shared_channel_policy_id = payload
+        .get("sharedChannelPolicyId")
+        .and_then(|value| value.as_str())
+        .unwrap_or("missing-policy-id");
+    let external_connection_id = payload
+        .get("externalConnectionId")
+        .and_then(|value| value.as_str())
+        .unwrap_or("missing-connection-id");
+    let external_member_id = payload
+        .get("externalMemberId")
+        .and_then(|value| value.as_str())
+        .unwrap_or("missing-external-member-id");
+    (
+        StatusCode::OK,
+        Json(json!({
+            "requestKey": request_key,
+            "status": "already_linked",
+            "proofVersion": "shared_channel_sync_ack.v1",
+            "principalId": principal_id,
+            "principalKind": principal_kind,
+            "role": "guest",
+            "state": "linked",
+            "attributes": {
+                "sharedChannelPolicyId": shared_channel_policy_id,
+                "externalConnectionId": external_connection_id,
+                "externalMemberId": external_member_id,
+                "sharedChannelSyncRequestKey": format!("{request_key}-mismatch")
+            }
+        })),
+    )
+}
+
 async fn capture_sync_call_with_large_error_body(
     State(captured): State<CapturedSyncRequest>,
     headers: HeaderMap,
@@ -1163,6 +1220,55 @@ async fn test_public_shared_channel_sync_trigger_rejects_already_linked_ack_with
     assert!(
         error.contains("sharedChannelSyncRequestKey"),
         "missing already-linked commit fence failure should mention sharedChannelSyncRequestKey, got: {error}"
+    );
+
+    server.abort();
+    let _ = server.await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_public_shared_channel_sync_trigger_rejects_already_linked_ack_with_mismatched_request_key_commit_fence()
+ {
+    let listener = TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("shared-channel sync already-linked mismatched commit-fence ack test listener should bind");
+    let local_addr = listener.local_addr().expect(
+        "shared-channel sync already-linked mismatched commit-fence ack test listener should expose local addr",
+    );
+    let captured = CapturedSyncRequest::default();
+    let app = Router::new()
+        .route(
+            "/api/v1/conversations/shared-channel-links/sync",
+            post(capture_sync_call_already_linked_with_mismatched_request_key_commit_fence),
+        )
+        .with_state(captured);
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app)
+            .await
+            .expect("shared-channel sync already-linked mismatched commit-fence ack test server should run");
+    });
+
+    let trigger = control_plane_api::build_public_shared_channel_sync_trigger(
+        format!("http://{local_addr}"),
+        "test-shared-channel-secret",
+    )
+    .expect("shared-channel sync trigger should build against local http target");
+    let error = trigger
+        .trigger(SharedChannelLinkedMemberSyncRequest {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_shared_sync_mismatched_already_linked_commit_fence".into(),
+            shared_channel_policy_id: "scp_mismatched_already_linked_commit_fence".into(),
+            external_connection_id: "ec_mismatched_already_linked_commit_fence".into(),
+            local_actor_id: "u_local_actor".into(),
+            local_actor_kind: "user".into(),
+            external_member_id: "partner::mismatched-already-linked-commit-fence".into(),
+        })
+        .expect_err(
+            "shared-channel sync trigger should reject already_linked ack with mismatched commit fence",
+        );
+    assert!(
+        error.contains("sharedChannelSyncRequestKey"),
+        "mismatched already-linked commit fence failure should mention sharedChannelSyncRequestKey, got: {error}"
     );
 
     server.abort();
