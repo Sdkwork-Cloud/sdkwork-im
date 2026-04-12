@@ -1,0 +1,61 @@
+name: IM Commercial Gates
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: im-commercial-gates-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core-runtime-tests:
+    name: Core Runtime Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Cache Rust Artifacts
+        uses: swatinem/rust-cache@v2
+
+      - name: Test conversation-runtime
+        run: cargo test -p conversation-runtime --tests
+
+      - name: Test control-plane-api
+        run: cargo test -p control-plane-api --tests
+
+      - name: Clippy conversation-runtime
+        run: cargo clippy -p conversation-runtime --tests
+
+      - name: Clippy control-plane-api
+        run: cargo clippy -p control-plane-api --tests
+
+  supply-chain-security:
+    name: Supply Chain Security
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust Artifacts
+        uses: swatinem/rust-cache@v2
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+
+      - name: Cargo audit
+        run: cargo audit --deny warnings

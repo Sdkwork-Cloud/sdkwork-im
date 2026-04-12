@@ -406,6 +406,7 @@
 - control-plane 与 conversation-runtime 的 Unix 时间获取路径都移除了 `pre-epoch -> panic` 行为，系统时钟异常回拨时会降级为 `0`，避免进程因时间异常直接崩溃。
 - 以上时间容错路径已补充单测覆盖（pre-epoch clamp + post-epoch 正常值）。
 - 供应链安全基线已执行 `cargo audit`，并把 `rand` 升级到 `0.9.3`（修复 `RUSTSEC-2026-0097` 告警路径）。
+- 已新增 `.github/workflows/im-commercial-gates.yml`，把核心测试、clippy 与 `cargo audit --deny warnings` 固化为默认 CI 闸门。
 - Remaining S07 gap after Loop90:
   - `release-ready exactly-once semantics across downstream fanout boundaries`
   - `formal cross-service idempotency governance and replay-proof delivery SLO contract`
