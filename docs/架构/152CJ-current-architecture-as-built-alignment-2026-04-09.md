@@ -368,3 +368,23 @@
   - `automatic stale detection / timeout reclaim / scheduler`
   - `release-ready exactly-once semantics`
   - `idle backlog stale-age / SLA policy beyond current operator-triggered and write-triggered normalization seams`
+## Loop 87 Addendum - 2026-04-12
+- The shared-channel stale pending-claim reclaim scheduler is now enabled by default.
+- Runtime operators can still disable it explicitly via `CRAW_CHAT_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_ENABLED=false`.
+- This closes the old "manual-only stale reclaim" path for idle windows where no new writes arrive.
+- Remaining S07 gap after Loop87:
+  - `release-ready exactly-once semantics`
+  - `stale-age / SLA policy beyond current reclaim and lease-normalization seams`
+## Loop 88 Addendum - 2026-04-12
+- Shared-channel sync now persists a durable delivered-request ledger and carries it across replay/repair merge points.
+- Successful dispatch from ordinary path, operator repair, and targeted republish all write the delivered ledger.
+- Delivered ledger growth is now bounded by retention + capacity controls:
+  - `CRAW_CHAT_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_MILLIS`
+  - `CRAW_CHAT_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES`
+- Scheduler and write-triggered normalization now prune both:
+  - delivered-backlog shadow in pending/dead-letter pools
+  - stale / overflow delivered-ledger entries
+- Social aggregate counts now expose `deliveredSharedChannelSyncRequests` for operability.
+- Remaining S07 gap after Loop88:
+  - `release-ready exactly-once semantics`
+  - `formal delivery-ack proof contract and downstream idempotency governance`
