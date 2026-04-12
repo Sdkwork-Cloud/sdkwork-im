@@ -6988,6 +6988,7 @@ async fn test_control_plane_social_shared_channel_stale_claim_scheduler_reclaims
             control_plane_api::SharedChannelSyncStaleReclaimSchedulerConfig {
                 enabled: true,
                 interval_millis: 20,
+                jitter_millis: 0,
             },
         );
 

@@ -482,3 +482,20 @@
 - Remaining S07 gap after Loop96:
   - `release-ready exactly-once semantics across downstream fanout boundaries`
   - `formal cross-service idempotency governance and deterministic replay SLO still needs downstream consumer-side commit fencing (beyond control-plane state visibility)`
+## Loop 97 Addendum - 2026-04-12
+- shared-channel stale reclaim scheduler 现在新增 bounded jitter 配置，降低多实例同频 tick 导致的瞬时扫描峰值与 I/O 脉冲：
+  - 新增 `CRAW_CHAT_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_JITTER_MILLIS`
+  - 默认 `250ms`，钳制 `0..5000ms`
+  - 每轮 sleep 由 `interval + jitter_offset` 组成，`jitter_offset` 为 bounded 偏移，不改变 interval 的主合同上限。
+- `control-plane-api` 已补齐 jitter 回归测试：
+  - 默认配置会解析到 `jitter=250`
+  - env 越界值会被钳制到上限
+  - tick sleep 计算会在 `interval` 基线之上附加受限抖动，`jitter=0` 时保持纯 interval 行为
+- `social_external_collaboration_test` 中显式 scheduler 配置已同步补齐 `jitter_millis` 字段，确保测试路径与运行时合同一致。
+- deployment env 文档与 local profile 模板已回写 jitter 变量，避免运维参数漂移。
+- 本轮门禁证据：
+  - `cargo test -p control-plane-api` 通过
+  - `cargo clippy -p control-plane-api --tests` 通过（仅既有 warning）
+- Remaining S07 gap after Loop97:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `formal cross-service idempotency governance and deterministic replay SLO still needs downstream consumer-side commit fencing (beyond control-plane state visibility)`

@@ -163,10 +163,14 @@ pub const SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_ENABLED_ENV: &str =
     "CRAW_CHAT_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_ENABLED";
 pub const SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_INTERVAL_MILLIS_ENV: &str =
     "CRAW_CHAT_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_INTERVAL_MILLIS";
+pub const SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_JITTER_MILLIS_ENV: &str =
+    "CRAW_CHAT_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_JITTER_MILLIS";
 const SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_ENABLED_DEFAULT: bool = true;
 const SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_DEFAULT_INTERVAL_MILLIS: u64 = 30_000;
 const SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_MIN_INTERVAL_MILLIS: u64 = 1_000;
 const SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_MAX_INTERVAL_MILLIS: u64 = 600_000;
+const SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_DEFAULT_JITTER_MILLIS: u64 = 250;
+const SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_MAX_JITTER_MILLIS: u64 = 5_000;
 pub const SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT_ENV: &str =
     "CRAW_CHAT_SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT";
 pub const SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY_ENV: &str =
@@ -187,10 +191,11 @@ const SHARED_CHANNEL_SYNC_ACK_PROOF_VERSION: &str = "shared_channel_sync_ack.v1"
 pub struct SharedChannelSyncStaleReclaimSchedulerConfig {
     pub enabled: bool,
     pub interval_millis: u64,
+    pub jitter_millis: u64,
 }
 
 impl SharedChannelSyncStaleReclaimSchedulerConfig {
-    fn with_normalized_interval(self) -> Self {
+    fn with_normalized_values(self) -> Self {
         Self {
             enabled: self.enabled,
             interval_millis: if self.interval_millis == 0 {
@@ -198,11 +203,32 @@ impl SharedChannelSyncStaleReclaimSchedulerConfig {
             } else {
                 self.interval_millis
             },
+            jitter_millis: self
+                .jitter_millis
+                .min(SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_MAX_JITTER_MILLIS),
         }
     }
 
-    fn interval(self) -> Duration {
-        Duration::from_millis(self.with_normalized_interval().interval_millis)
+    fn tick_sleep_duration(self) -> Duration {
+        self.tick_sleep_duration_at(SystemTime::now())
+    }
+
+    fn tick_sleep_duration_at(self, now: SystemTime) -> Duration {
+        let normalized = self.with_normalized_values();
+        let jitter_offset_millis = if normalized.jitter_millis == 0 {
+            0
+        } else {
+            let now_millis = now
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis();
+            (now_millis % ((normalized.jitter_millis as u128) + 1)) as u64
+        };
+        Duration::from_millis(
+            normalized
+                .interval_millis
+                .saturating_add(jitter_offset_millis),
+        )
     }
 }
 
@@ -565,9 +591,16 @@ fn resolve_shared_channel_sync_stale_reclaim_scheduler_config_from_env()
                 SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_MIN_INTERVAL_MILLIS,
                 SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_MAX_INTERVAL_MILLIS,
             );
+    let jitter_millis =
+        std::env::var(SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_JITTER_MILLIS_ENV)
+            .ok()
+            .and_then(|value| value.trim().parse::<u64>().ok())
+            .unwrap_or(SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_DEFAULT_JITTER_MILLIS)
+            .min(SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_MAX_JITTER_MILLIS);
     SharedChannelSyncStaleReclaimSchedulerConfig {
         enabled,
         interval_millis,
+        jitter_millis,
     }
 }
 
@@ -3604,7 +3637,7 @@ impl SocialControlRuntime {
         self: &Arc<Self>,
         config: SharedChannelSyncStaleReclaimSchedulerConfig,
     ) {
-        let config = config.with_normalized_interval();
+        let config = config.with_normalized_values();
         if !config.enabled {
             return;
         }
@@ -3617,12 +3650,11 @@ impl SocialControlRuntime {
         }
 
         let runtime = Arc::clone(self);
-        let interval = config.interval();
         match std::thread::Builder::new()
             .name("shared-sync-stale-reclaim".to_owned())
             .spawn(move || {
                 loop {
-                    std::thread::sleep(interval);
+                    std::thread::sleep(config.tick_sleep_duration());
                     if let Err(error) = runtime
                         .reclaim_stale_pending_shared_channel_sync_claims_if_any(
                             "failed to persist stale pending shared-channel sync reclaim from scheduler",
@@ -8565,12 +8597,18 @@ mod tests {
             ScopedEnvVar::remove(SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_ENABLED_ENV);
         let _interval =
             ScopedEnvVar::remove(SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_INTERVAL_MILLIS_ENV);
+        let _jitter =
+            ScopedEnvVar::remove(SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_JITTER_MILLIS_ENV);
 
         let config = resolve_shared_channel_sync_stale_reclaim_scheduler_config_from_env();
         assert!(config.enabled);
         assert_eq!(
             config.interval_millis,
             SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_DEFAULT_INTERVAL_MILLIS
+        );
+        assert_eq!(
+            config.jitter_millis,
+            SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_DEFAULT_JITTER_MILLIS
         );
     }
 
@@ -8585,10 +8623,15 @@ mod tests {
             SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_INTERVAL_MILLIS_ENV,
             "1200",
         );
+        let _jitter = ScopedEnvVar::set(
+            SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_JITTER_MILLIS_ENV,
+            "33",
+        );
 
         let config = resolve_shared_channel_sync_stale_reclaim_scheduler_config_from_env();
         assert!(!config.enabled);
         assert_eq!(config.interval_millis, 1200);
+        assert_eq!(config.jitter_millis, 33);
     }
 
     #[test]
@@ -8613,6 +8656,42 @@ mod tests {
 
         let config = resolve_shared_channel_sync_stale_reclaim_scheduler_config_from_env();
         assert_eq!(config.interval_millis, 600_000);
+    }
+
+    #[test]
+    fn test_shared_channel_stale_reclaim_scheduler_jitter_is_clamped_to_maximum() {
+        let _guard = scheduler_env_guard();
+        let _jitter = ScopedEnvVar::set(
+            SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_JITTER_MILLIS_ENV,
+            "999999",
+        );
+
+        let config = resolve_shared_channel_sync_stale_reclaim_scheduler_config_from_env();
+        assert_eq!(
+            config.jitter_millis,
+            SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_MAX_JITTER_MILLIS
+        );
+    }
+
+    #[test]
+    fn test_shared_channel_stale_reclaim_scheduler_sleep_duration_includes_bounded_jitter() {
+        let config = SharedChannelSyncStaleReclaimSchedulerConfig {
+            enabled: true,
+            interval_millis: 30_000,
+            jitter_millis: 200,
+        };
+        let now = UNIX_EPOCH + std::time::Duration::from_millis(30_123);
+        let expected_jitter = 30_123 % (200 + 1);
+        let with_jitter = config.tick_sleep_duration_at(now);
+        assert_eq!(with_jitter.as_millis(), 30_000 + expected_jitter as u128);
+
+        let without_jitter = SharedChannelSyncStaleReclaimSchedulerConfig {
+            enabled: true,
+            interval_millis: 30_000,
+            jitter_millis: 0,
+        }
+        .tick_sleep_duration_at(UNIX_EPOCH + std::time::Duration::from_millis(30_123));
+        assert_eq!(without_jitter.as_millis(), 30_000);
     }
 
     #[test]
