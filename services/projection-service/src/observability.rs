@@ -115,16 +115,12 @@ pub(super) struct ProjectionObservabilityState {
 
 impl TimelineProjectionService {
     pub fn projection_plane_observability(&self) -> ProjectionPlaneObservabilityView {
-        self.observability
-            .lock()
-            .expect("projection observability should lock")
+        super::lock_projection_mutex(&self.observability, "projection observability")
             .snapshot()
     }
 
     pub fn projection_live_lag_items(&self) -> Vec<ProjectionLagItemView> {
-        self.observability
-            .lock()
-            .expect("projection observability should lock")
+        super::lock_projection_mutex(&self.observability, "projection observability")
             .live_lag_items()
     }
 
@@ -135,9 +131,7 @@ impl TimelineProjectionService {
         scope_id: &str,
         message: impl Into<String>,
     ) {
-        self.observability
-            .lock()
-            .expect("projection observability should lock")
+        super::lock_projection_mutex(&self.observability, "projection observability")
             .record_success(operation, scope_type, scope_id, message.into());
     }
 
@@ -148,9 +142,7 @@ impl TimelineProjectionService {
         scope_id: &str,
         error: &ProjectionError,
     ) {
-        self.observability
-            .lock()
-            .expect("projection observability should lock")
+        super::lock_projection_mutex(&self.observability, "projection observability")
             .record_failure(operation, scope_type, scope_id, error);
     }
 
@@ -160,23 +152,17 @@ impl TimelineProjectionService {
         replayed_event_count: u64,
         duration_ms: u64,
     ) {
-        self.observability
-            .lock()
-            .expect("projection observability should lock")
+        super::lock_projection_mutex(&self.observability, "projection observability")
             .record_replay_metrics(backlog_size, replayed_event_count, duration_ms);
     }
 
     pub fn record_projection_rebuild_duration(&self, duration_ms: u64) {
-        self.observability
-            .lock()
-            .expect("projection observability should lock")
+        super::lock_projection_mutex(&self.observability, "projection observability")
             .record_rebuild_duration(duration_ms);
     }
 
     pub(super) fn record_projection_live_lag_observed(&self, scope_id: &str, current_offset: u64) {
-        self.observability
-            .lock()
-            .expect("projection observability should lock")
+        super::lock_projection_mutex(&self.observability, "projection observability")
             .record_live_lag_observed(scope_id, current_offset);
     }
 
@@ -185,9 +171,7 @@ impl TimelineProjectionService {
         scope_id: &str,
         committed_offset: u64,
     ) {
-        self.observability
-            .lock()
-            .expect("projection observability should lock")
+        super::lock_projection_mutex(&self.observability, "projection observability")
             .record_live_lag_committed(scope_id, committed_offset);
     }
 
@@ -198,9 +182,7 @@ impl TimelineProjectionService {
         timeline_ms: u64,
         inbox_ms: u64,
     ) {
-        self.observability
-            .lock()
-            .expect("projection observability should lock")
+        super::lock_projection_mutex(&self.observability, "projection observability")
             .record_update_delay(source_event_type, scope_id, timeline_ms, inbox_ms);
     }
 }
@@ -432,5 +414,46 @@ fn projection_error_code(error: &ProjectionError) -> &'static str {
         ProjectionError::InvalidSnapshot(_) => "invalid_snapshot",
         ProjectionError::InvalidEvent(_) => "invalid_event",
         ProjectionError::StoreFailure(_) => "store_failure",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::panic::{self, AssertUnwindSafe};
+
+    fn poison_mutex<T>(mutex: &std::sync::Mutex<T>) {
+        let _ = panic::catch_unwind(AssertUnwindSafe(|| {
+            let _guard = mutex.lock().expect("test poison lock should succeed");
+            panic!("intentional poison for regression coverage");
+        }));
+    }
+
+    #[test]
+    fn test_projection_plane_observability_recovers_from_poisoned_lock() {
+        let projection = TimelineProjectionService::default();
+        poison_mutex(&projection.observability);
+
+        let result = panic::catch_unwind(AssertUnwindSafe(|| {
+            projection.projection_plane_observability()
+        }));
+        assert!(
+            result.is_ok(),
+            "projection_plane_observability should not panic when observability lock is poisoned"
+        );
+    }
+
+    #[test]
+    fn test_record_projection_update_delay_recovers_from_poisoned_lock() {
+        let projection = TimelineProjectionService::default();
+        poison_mutex(&projection.observability);
+
+        let result = panic::catch_unwind(AssertUnwindSafe(|| {
+            projection.record_projection_update_delay("message.posted", "t_demo:c_demo", 10, 20)
+        }));
+        assert!(
+            result.is_ok(),
+            "record_projection_update_delay should not panic when observability lock is poisoned"
+        );
     }
 }
