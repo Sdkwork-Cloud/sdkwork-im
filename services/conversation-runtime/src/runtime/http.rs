@@ -86,7 +86,9 @@ impl SharedChannelSyncRateLimiter {
         let mut buckets =
             lock_shared_channel_rate_limit_mutex(&self.buckets, "shared-channel-sync-rate-limit");
 
-        if buckets.len() > SHARED_CHANNEL_SYNC_RATE_LIMIT_SWEEP_THRESHOLD {
+        if buckets.len() > SHARED_CHANNEL_SYNC_RATE_LIMIT_SWEEP_THRESHOLD
+            || buckets.len() >= self.max_buckets
+        {
             let window_millis = self.window_millis;
             buckets.retain(|_, bucket| {
                 now.saturating_sub(bucket.window_started_at_millis) < window_millis
@@ -1273,6 +1275,39 @@ mod tests {
         assert!(
             limiter.try_acquire("tenant_a"),
             "existing tenant should still be serviceable when cap is reached"
+        );
+    }
+
+    #[test]
+    fn test_shared_channel_sync_rate_limiter_prunes_expired_buckets_before_rejecting_new_tenant() {
+        let limiter = SharedChannelSyncRateLimiter {
+            max_requests: 1,
+            window_millis: 1,
+            max_buckets: 2,
+            buckets: Arc::new(Mutex::new(BTreeMap::new())),
+        };
+        {
+            let mut buckets =
+                lock_shared_channel_rate_limit_mutex(&limiter.buckets, "shared-channel-sync-rate-limit");
+            buckets.insert(
+                "tenant_expired_a".into(),
+                SharedChannelSyncRateLimitBucket {
+                    window_started_at_millis: 0,
+                    request_count: 1,
+                },
+            );
+            buckets.insert(
+                "tenant_expired_b".into(),
+                SharedChannelSyncRateLimitBucket {
+                    window_started_at_millis: 0,
+                    request_count: 1,
+                },
+            );
+        }
+
+        assert!(
+            limiter.try_acquire("tenant_new"),
+            "expired buckets should be swept before enforcing max bucket cap"
         );
     }
 }

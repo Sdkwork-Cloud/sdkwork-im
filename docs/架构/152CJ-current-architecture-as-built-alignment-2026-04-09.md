@@ -524,3 +524,17 @@
 - Remaining S07 gap after Loop99:
   - `release-ready exactly-once semantics across downstream fanout boundaries`
   - `formal cross-service idempotency governance and deterministic replay SLO still needs downstream consumer-side commit fencing (beyond control-plane state visibility)`
+## Loop 100 Addendum - 2026-04-12
+- 修复 shared-channel sync in-process rate limiter 的 bucket-cap 与 stale-bucket sweep 协同缺口：
+  - 当 `buckets.len() >= max_buckets` 时，现在会先执行 window-based 过期桶清理，再决定是否拒绝新 tenant。
+  - 该修复避免了 `max_buckets` 低于 sweep threshold（`1024`）时，过期桶无法及时回收导致的新租户长期误拒风险。
+- 新增回归测试 `test_shared_channel_sync_rate_limiter_prunes_expired_buckets_before_rejecting_new_tenant`，锁定“先清理后限流”语义。
+- 这条修复收敛的是 shared-sync 保护面的可用性与公平性，不改变 `S07` 的 exactly-once 主缺口口径。
+- 本轮门禁证据：
+  - `cargo test -p conversation-runtime --lib test_shared_channel_sync_rate_limiter_prunes_expired_buckets_before_rejecting_new_tenant` 通过
+  - `cargo test -p conversation-runtime --tests` 通过
+  - `cargo test -p control-plane-api` 通过
+  - `cargo clippy -p control-plane-api --tests` 通过（仅既有 warning）
+- Remaining S07 gap after Loop100:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `formal cross-service idempotency governance and deterministic replay SLO still needs downstream consumer-side commit fencing (beyond control-plane state visibility)`
