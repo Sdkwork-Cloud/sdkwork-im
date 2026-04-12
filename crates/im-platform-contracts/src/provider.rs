@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::sync::Mutex;
+use std::sync::{Mutex, MutexGuard};
 
 use craw_chat_contract_core::ContractError;
 use im_time::utc_now_rfc3339_millis;
@@ -543,6 +543,32 @@ struct RuntimeProviderPolicyState {
     next_version: u64,
 }
 
+fn lock_provider_registry_state<'a>(
+    state: &'a Mutex<RuntimeProviderPolicyState>,
+) -> MutexGuard<'a, RuntimeProviderPolicyState> {
+    match state.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            eprintln!("warning: recovering poisoned mutex in im-platform-contracts/provider-state");
+            poisoned.into_inner()
+        }
+    }
+}
+
+fn lock_provider_registry_state_mut(
+    state: &mut Mutex<RuntimeProviderPolicyState>,
+) -> &mut RuntimeProviderPolicyState {
+    match state.get_mut() {
+        Ok(value) => value,
+        Err(poisoned) => {
+            eprintln!(
+                "warning: recovering poisoned mutable mutex in im-platform-contracts/provider-state"
+            );
+            poisoned.into_inner()
+        }
+    }
+}
+
 impl RuntimeProviderPolicyState {
     fn current_version(&self) -> u64 {
         self.history
@@ -663,17 +689,12 @@ impl RuntimeProviderRegistry {
     ) -> Self {
         let tenant_id = tenant_id.into();
         let plugin_id = plugin_id.into();
-        self.state
-            .get_mut()
-            .expect("runtime provider registry state should be mutable")
+        lock_provider_registry_state_mut(&mut self.state)
             .tenant_overrides
             .entry(tenant_id.into())
             .or_default()
             .insert(domain, plugin_id);
-        self.state
-            .get_mut()
-            .expect("runtime provider registry state should be mutable")
-            .reset_history_to_current_state();
+        lock_provider_registry_state_mut(&mut self.state).reset_history_to_current_state();
         self
     }
 
@@ -682,15 +703,10 @@ impl RuntimeProviderRegistry {
         domain: ProviderDomain,
         plugin_id: impl Into<String>,
     ) -> Self {
-        self.state
-            .get_mut()
-            .expect("runtime provider registry state should be mutable")
+        lock_provider_registry_state_mut(&mut self.state)
             .deployment_profiles
             .insert(domain, plugin_id.into());
-        self.state
-            .get_mut()
-            .expect("runtime provider registry state should be mutable")
-            .reset_history_to_current_state();
+        lock_provider_registry_state_mut(&mut self.state).reset_history_to_current_state();
         self
     }
 
@@ -742,10 +758,7 @@ impl RuntimeProviderRegistry {
         expected_base_version: Option<u64>,
     ) -> Result<ProviderPolicyCommit, ContractError> {
         self.ensure_valid_plugin_for_domain(plugin_id, domain, tenant_id.is_some())?;
-        let mut state = self
-            .state
-            .lock()
-            .expect("runtime provider registry state should lock");
+        let mut state = lock_provider_registry_state(&self.state);
         state.ensure_expected_base_version(expected_base_version)?;
         let base_snapshot = state.history.last().cloned().ok_or_else(|| {
             ContractError::Unavailable("provider policy history is not initialized".into())
@@ -798,10 +811,7 @@ impl RuntimeProviderRegistry {
     }
 
     pub fn policy_history(&self) -> ProviderPolicyHistory {
-        let state = self
-            .state
-            .lock()
-            .expect("runtime provider registry state should lock");
+        let state = lock_provider_registry_state(&self.state);
         ProviderPolicyHistory {
             current_version: state
                 .history
@@ -817,10 +827,7 @@ impl RuntimeProviderRegistry {
         from_version: u64,
         to_version: u64,
     ) -> Result<ProviderPolicyDiff, ContractError> {
-        let state = self
-            .state
-            .lock()
-            .expect("runtime provider registry state should lock");
+        let state = lock_provider_registry_state(&self.state);
         let from_snapshot = state
             .history
             .iter()
@@ -846,10 +853,7 @@ impl RuntimeProviderRegistry {
         plugin_id: &str,
     ) -> Result<ProviderPolicyPreview, ContractError> {
         self.ensure_valid_plugin_for_domain(plugin_id, domain, tenant_id.is_some())?;
-        let state = self
-            .state
-            .lock()
-            .expect("runtime provider registry state should lock");
+        let state = lock_provider_registry_state(&self.state);
         let base_snapshot = state.history.last().cloned().ok_or_else(|| {
             ContractError::Unavailable("provider policy history is not initialized".into())
         })?;
@@ -888,10 +892,7 @@ impl RuntimeProviderRegistry {
         &self,
         target_version: u64,
     ) -> Result<ProviderPolicySnapshot, ContractError> {
-        let mut state = self
-            .state
-            .lock()
-            .expect("runtime provider registry state should lock");
+        let mut state = lock_provider_registry_state(&self.state);
         let Some(target_snapshot) = state
             .history
             .iter()
@@ -907,9 +908,7 @@ impl RuntimeProviderRegistry {
     }
 
     pub fn tenant_ids_with_overrides(&self) -> Vec<String> {
-        self.state
-            .lock()
-            .expect("runtime provider registry state should lock")
+        lock_provider_registry_state(&self.state)
             .tenant_overrides
             .keys()
             .cloned()
@@ -1138,10 +1137,7 @@ impl ProviderRegistry for RuntimeProviderRegistry {
         domain: ProviderDomain,
         tenant_id: Option<&str>,
     ) -> Option<EffectiveProviderBinding> {
-        let state = self
-            .state
-            .lock()
-            .expect("runtime provider registry state should lock");
+        let state = lock_provider_registry_state(&self.state);
         if let Some(tenant_id) = tenant_id
             && let Some(plugin_id) = state
                 .tenant_overrides
@@ -1442,4 +1438,69 @@ pub trait IotProtocolAdapter: Send + Sync {
     ) -> Result<IotProtocolEnvelope, ContractError>;
     fn encode_downlink(&self, request: IotProtocolEncodeRequest) -> Result<String, ContractError>;
     fn provider_health_snapshot(&self) -> ProviderHealthSnapshot;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::panic::{self, AssertUnwindSafe};
+
+    fn poison_mutex<T>(mutex: &Mutex<T>) {
+        let _ = panic::catch_unwind(AssertUnwindSafe(|| {
+            let _guard = mutex.lock().expect("test poison lock should succeed");
+            panic!("intentional poison for regression coverage");
+        }));
+    }
+
+    #[test]
+    fn test_effective_binding_recovers_from_poisoned_provider_registry_state_lock() {
+        let registry = RuntimeProviderRegistry::platform_default();
+        poison_mutex(&registry.state);
+
+        let result = panic::catch_unwind(AssertUnwindSafe(|| {
+            registry.effective_binding(ProviderDomain::Rtc, None)
+        }));
+        assert!(
+            result.is_ok(),
+            "effective_binding should not panic when provider registry state lock is poisoned"
+        );
+        let binding = result.expect("panic status should be captured");
+        assert!(binding.is_some());
+    }
+
+    #[test]
+    fn test_set_deployment_profile_recovers_from_poisoned_provider_registry_state_lock() {
+        let registry = RuntimeProviderRegistry::platform_default();
+        poison_mutex(&registry.state);
+
+        let result = panic::catch_unwind(AssertUnwindSafe(|| {
+            registry.set_deployment_profile(ProviderDomain::Rtc, "rtc-aliyun")
+        }));
+        assert!(
+            result.is_ok(),
+            "set_deployment_profile should not panic when provider registry state lock is poisoned"
+        );
+        let commit_result = result.expect("panic status should be captured");
+        assert!(commit_result.is_ok());
+    }
+
+    #[test]
+    fn test_with_tenant_override_recovers_from_poisoned_mutable_provider_registry_state() {
+        let registry = RuntimeProviderRegistry::platform_default();
+        poison_mutex(&registry.state);
+
+        let result = panic::catch_unwind(AssertUnwindSafe(|| {
+            registry.with_tenant_override("t_demo", ProviderDomain::Rtc, "rtc-aliyun")
+        }));
+        assert!(
+            result.is_ok(),
+            "with_tenant_override should not panic when provider registry mutable state is poisoned"
+        );
+        let registry = result.expect("panic status should be captured");
+        let binding = registry
+            .effective_binding(ProviderDomain::Rtc, Some("t_demo"))
+            .expect("tenant override binding should exist");
+        assert_eq!(binding.selection_source, "tenant_override");
+        assert_eq!(binding.selected_plugin_id.as_deref(), Some("rtc-aliyun"));
+    }
 }
