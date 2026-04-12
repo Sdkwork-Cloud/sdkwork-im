@@ -81,6 +81,8 @@ pub enum SharedChannelSyncDeliveryProofStatus {
     TransportAccepted,
     Applied,
     AlreadyLinked,
+    Replayed,
+    Failed,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -889,6 +891,8 @@ struct PendingSharedChannelSyncRequest {
     request: SharedChannelLinkedMemberSyncRequest,
     failure_count: u32,
     last_error: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    last_failed_at: Option<String>,
     owner_actor_id: Option<String>,
     owner_actor_kind: Option<String>,
     claimed_at: Option<String>,
@@ -1469,6 +1473,8 @@ impl SocialControlState {
                 dead_letter.request = request.clone();
                 dead_letter.failure_count = dead_letter.failure_count.saturating_add(1);
                 dead_letter.last_error = error.to_owned();
+                dead_letter.last_failed_at = Some(now.to_owned());
+                self.record_failed_shared_channel_sync_delivery_proof(key.as_str(), now);
                 changed = true;
                 continue;
             }
@@ -1481,12 +1487,14 @@ impl SocialControlState {
                     pending.request = request.clone();
                     pending.failure_count = pending.failure_count.saturating_add(1);
                     pending.last_error = error.to_owned();
+                    pending.last_failed_at = Some(now.to_owned());
                     pending.clone()
                 } else {
                     let pending = PendingSharedChannelSyncRequest {
                         request: request.clone(),
                         failure_count: 1,
                         last_error: error.to_owned(),
+                        last_failed_at: Some(now.to_owned()),
                         owner_actor_id: None,
                         owner_actor_kind: None,
                         claimed_at: None,
@@ -1504,9 +1512,39 @@ impl SocialControlState {
                 self.dead_letter_shared_channel_sync_requests
                     .insert(key, dead_letter_request);
             }
+            self.record_failed_shared_channel_sync_delivery_proof(
+                shared_channel_sync_request_key(request).as_str(),
+                now,
+            );
             changed = true;
         }
         changed
+    }
+
+    fn record_failed_shared_channel_sync_delivery_proof(
+        &mut self,
+        request_key: &str,
+        failed_at: &str,
+    ) {
+        let failed_proof = StoredSharedChannelSyncDeliveryProof {
+            delivered_at: failed_at.to_owned(),
+            status: SharedChannelSyncDeliveryProofStatus::Failed,
+            proof_version: Some(SHARED_CHANNEL_SYNC_ACK_PROOF_VERSION.to_owned()),
+            target: None,
+        };
+        let should_update = self
+            .delivered_shared_channel_sync_delivery_proofs
+            .get(request_key)
+            .is_none_or(|existing| {
+                failed_proof.delivered_at > existing.delivered_at
+                    || (failed_proof.delivered_at == existing.delivered_at
+                        && existing.status
+                            == SharedChannelSyncDeliveryProofStatus::TransportAccepted)
+            });
+        if should_update {
+            self.delivered_shared_channel_sync_delivery_proofs
+                .insert(request_key.to_owned(), failed_proof);
+        }
     }
 
     fn is_dead_letter_shared_channel_sync_request(
@@ -1550,6 +1588,7 @@ impl SocialControlState {
         delivered_at: &str,
         dedup_window_start: &str,
         proof: Option<&SharedChannelSyncDeliveryProof>,
+        replayed: bool,
     ) -> bool {
         let key = shared_channel_sync_request_key(request);
         self.delivered_shared_channel_sync_requests
@@ -1561,9 +1600,19 @@ impl SocialControlState {
             })
             .or_insert_with(|| delivered_at.to_owned());
 
-        let proof_record = proof
+        let mut proof_record = proof
             .cloned()
             .unwrap_or_else(|| SharedChannelSyncDeliveryProof::transport_accepted(key.clone()));
+        if replayed
+            && matches!(
+                proof_record.status,
+                SharedChannelSyncDeliveryProofStatus::TransportAccepted
+                    | SharedChannelSyncDeliveryProofStatus::Applied
+                    | SharedChannelSyncDeliveryProofStatus::AlreadyLinked
+            )
+        {
+            proof_record.status = SharedChannelSyncDeliveryProofStatus::Replayed;
+        }
         let delivered_proof = StoredSharedChannelSyncDeliveryProof {
             delivered_at: delivered_at.to_owned(),
             status: proof_record.status,
@@ -2739,6 +2788,12 @@ pub enum SocialSharedChannelSyncDeliveredInventoryStatus {
     Snapshot,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SocialSharedChannelSyncDeliveryStateInventoryStatus {
+    Snapshot,
+}
+
 #[derive(Clone, Copy, Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SocialSharedChannelSyncPendingClaimStatus {
@@ -2865,6 +2920,7 @@ pub struct SocialSharedChannelSyncInventoryItemResponse {
     pub request: SharedChannelLinkedMemberSyncRequest,
     pub failure_count: u32,
     pub last_error: String,
+    pub last_failed_at: Option<String>,
     pub owner_actor_id: Option<String>,
     pub owner_actor_kind: Option<String>,
     pub claimed_at: Option<String>,
@@ -2908,6 +2964,31 @@ pub struct SocialSharedChannelSyncDeliveredInventoryResponse {
     pub items: Vec<SocialSharedChannelSyncDeliveredInventoryItemResponse>,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SocialSharedChannelSyncDeliveryStateInventoryItemResponse {
+    pub request_key: String,
+    pub status: SharedChannelSyncDeliveryProofStatus,
+    pub updated_at: Option<String>,
+    pub proof_version: Option<String>,
+    pub target: Option<String>,
+    pub failure_count: u32,
+    pub last_error: Option<String>,
+    pub pending: bool,
+    pub dead_letter: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SocialSharedChannelSyncDeliveryStateInventoryResponse {
+    pub status: SocialSharedChannelSyncDeliveryStateInventoryStatus,
+    pub delivered_count: usize,
+    pub pending_count: usize,
+    pub dead_letter_count: usize,
+    pub total_count: usize,
+    pub items: Vec<SocialSharedChannelSyncDeliveryStateInventoryItemResponse>,
+}
+
 fn social_shared_channel_sync_inventory_item_response(
     request_key: String,
     request: PendingSharedChannelSyncRequest,
@@ -2926,6 +3007,7 @@ fn social_shared_channel_sync_inventory_item_response(
         request: request.request,
         failure_count: request.failure_count,
         last_error: request.last_error,
+        last_failed_at: request.last_failed_at,
         owner_actor_id: request.owner_actor_id,
         owner_actor_kind: request.owner_actor_kind,
         claimed_at: request.claimed_at,
@@ -2954,6 +3036,53 @@ fn social_shared_channel_sync_delivered_inventory_item_response(
         status: resolved.status,
         proof_version: resolved.proof_version,
         target: resolved.target,
+    }
+}
+
+fn social_shared_channel_sync_delivery_state_item_from_proof(
+    request_key: String,
+    delivered_at: String,
+    proof: Option<StoredSharedChannelSyncDeliveryProof>,
+) -> SocialSharedChannelSyncDeliveryStateInventoryItemResponse {
+    let fallback = StoredSharedChannelSyncDeliveryProof {
+        delivered_at: delivered_at.clone(),
+        status: SharedChannelSyncDeliveryProofStatus::TransportAccepted,
+        proof_version: None,
+        target: None,
+    };
+    let resolved = proof.unwrap_or(fallback);
+    SocialSharedChannelSyncDeliveryStateInventoryItemResponse {
+        request_key,
+        status: resolved.status,
+        updated_at: Some(resolved.delivered_at),
+        proof_version: resolved.proof_version,
+        target: resolved.target,
+        failure_count: 0,
+        last_error: None,
+        pending: false,
+        dead_letter: false,
+    }
+}
+
+fn social_shared_channel_sync_delivery_state_item_from_pending(
+    request_key: String,
+    request: PendingSharedChannelSyncRequest,
+    dead_letter: bool,
+) -> SocialSharedChannelSyncDeliveryStateInventoryItemResponse {
+    SocialSharedChannelSyncDeliveryStateInventoryItemResponse {
+        request_key,
+        status: SharedChannelSyncDeliveryProofStatus::Failed,
+        updated_at: request.last_failed_at,
+        proof_version: Some(SHARED_CHANNEL_SYNC_ACK_PROOF_VERSION.to_owned()),
+        target: None,
+        failure_count: request.failure_count,
+        last_error: if request.last_error.is_empty() {
+            None
+        } else {
+            Some(request.last_error)
+        },
+        pending: !dead_letter,
+        dead_letter,
     }
 }
 
@@ -3813,6 +3942,7 @@ impl SocialControlRuntime {
             delivered_at.as_str(),
             dedup_window_start.as_str(),
             proof,
+            removed_pending || removed_dead_letter,
         );
         let pruned_delivered = next_state.prune_delivered_shared_channel_sync_requests(
             retention_window_start.as_str(),
@@ -3923,6 +4053,7 @@ impl SocialControlRuntime {
                         now.as_str(),
                         dedup_window_start.as_str(),
                         Some(&delivery_proof),
+                        true,
                     );
                     dispatched += 1;
                 }
@@ -4128,6 +4259,72 @@ impl SocialControlRuntime {
         SocialSharedChannelSyncDeliveredInventoryResponse {
             status: SocialSharedChannelSyncDeliveredInventoryStatus::Snapshot,
             delivered_count: items.len(),
+            items,
+        }
+    }
+
+    fn shared_channel_sync_delivery_state_inventory(
+        &self,
+    ) -> SocialSharedChannelSyncDeliveryStateInventoryResponse {
+        let current_state = self
+            .state
+            .read()
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
+            .clone();
+        let delivered_count = current_state.delivered_shared_channel_sync_requests.len();
+        let pending_count = current_state.pending_shared_channel_sync_requests.len();
+        let dead_letter_count = current_state.dead_letter_shared_channel_sync_requests.len();
+        let mut items_by_key =
+            BTreeMap::<String, SocialSharedChannelSyncDeliveryStateInventoryItemResponse>::new();
+        for (request_key, delivered_at) in &current_state.delivered_shared_channel_sync_requests {
+            items_by_key.insert(
+                request_key.clone(),
+                social_shared_channel_sync_delivery_state_item_from_proof(
+                    request_key.clone(),
+                    delivered_at.clone(),
+                    current_state
+                        .delivered_shared_channel_sync_delivery_proofs
+                        .get(request_key.as_str())
+                        .cloned(),
+                ),
+            );
+        }
+        for (request_key, request) in current_state.pending_shared_channel_sync_requests_with_keys()
+        {
+            items_by_key.insert(
+                request_key.clone(),
+                social_shared_channel_sync_delivery_state_item_from_pending(
+                    request_key,
+                    request,
+                    false,
+                ),
+            );
+        }
+        for (request_key, request) in current_state.dead_letter_shared_channel_sync_requests() {
+            items_by_key.insert(
+                request_key.clone(),
+                social_shared_channel_sync_delivery_state_item_from_pending(
+                    request_key,
+                    request,
+                    true,
+                ),
+            );
+        }
+        let mut items = items_by_key.into_values().collect::<Vec<_>>();
+        items.sort_by(|left, right| {
+            right
+                .updated_at
+                .as_deref()
+                .unwrap_or_default()
+                .cmp(left.updated_at.as_deref().unwrap_or_default())
+                .then_with(|| left.request_key.as_str().cmp(right.request_key.as_str()))
+        });
+        SocialSharedChannelSyncDeliveryStateInventoryResponse {
+            status: SocialSharedChannelSyncDeliveryStateInventoryStatus::Snapshot,
+            delivered_count,
+            pending_count,
+            dead_letter_count,
+            total_count: items.len(),
             items,
         }
     }
@@ -4754,6 +4951,7 @@ impl SocialControlRuntime {
                         republish_started_at.as_str(),
                         dedup_window_start.as_str(),
                         Some(&delivery_proof),
+                        true,
                     );
                     dispatched += 1;
                 }
@@ -6682,6 +6880,10 @@ fn build_control_surface_with_state_and_scheduler_config(
             get(delivered_social_runtime_shared_channel_sync),
         )
         .route(
+            "/api/v1/control/social/runtime/delivery-state-shared-channel-sync",
+            get(delivery_state_social_runtime_shared_channel_sync),
+        )
+        .route(
             "/api/v1/control/social/runtime/reclaim-stale-pending-shared-channel-sync",
             post(reclaim_stale_pending_social_runtime_shared_channel_sync),
         )
@@ -7478,6 +7680,20 @@ async fn delivered_social_runtime_shared_channel_sync(
         state
             .social_runtime
             .delivered_shared_channel_sync_inventory(),
+    ))
+}
+
+async fn delivery_state_social_runtime_shared_channel_sync(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> Result<Json<SocialSharedChannelSyncDeliveryStateInventoryResponse>, ControlPlaneError> {
+    let auth = resolve_auth_context(&headers)?;
+    ensure_control_read_access(&auth)?;
+
+    Ok(Json(
+        state
+            .social_runtime
+            .shared_channel_sync_delivery_state_inventory(),
     ))
 }
 
@@ -8427,6 +8643,96 @@ mod tests {
     }
 
     #[test]
+    fn test_shared_channel_failed_delivery_proof_is_recorded_for_pending_requests() {
+        let request = SharedChannelLinkedMemberSyncRequest {
+            tenant_id: "t_demo".to_owned(),
+            conversation_id: "c_fail_record".to_owned(),
+            shared_channel_policy_id: "scp_fail_record".to_owned(),
+            external_connection_id: "ec_fail_record".to_owned(),
+            local_actor_id: "u_fail_record".to_owned(),
+            local_actor_kind: "user".to_owned(),
+            external_member_id: "partner::fail-record".to_owned(),
+        };
+        let failed_at = "2026-04-12T01:02:03.000Z";
+        let mut state = SocialControlState::default();
+        assert!(state.record_failed_shared_channel_sync_requests(
+            std::slice::from_ref(&request),
+            "dispatch_failed",
+            failed_at
+        ));
+
+        let key = shared_channel_sync_request_key(&request);
+        let pending = state
+            .pending_shared_channel_sync_requests
+            .get(key.as_str())
+            .expect("failed request should be tracked in pending backlog");
+        assert_eq!(pending.last_failed_at.as_deref(), Some(failed_at));
+        assert_eq!(pending.failure_count, 1);
+
+        let proof = state
+            .delivered_shared_channel_sync_delivery_proofs
+            .get(key.as_str())
+            .expect("failed delivery should be reflected in delivery proof ledger");
+        assert_eq!(proof.delivered_at, failed_at);
+        assert_eq!(proof.status, SharedChannelSyncDeliveryProofStatus::Failed);
+        assert_eq!(
+            proof.proof_version.as_deref(),
+            Some(SHARED_CHANNEL_SYNC_ACK_PROOF_VERSION)
+        );
+    }
+
+    #[test]
+    fn test_shared_channel_replayed_delivery_status_is_recorded_for_replayed_dispatch() {
+        let request = SharedChannelLinkedMemberSyncRequest {
+            tenant_id: "t_demo".to_owned(),
+            conversation_id: "c_replay_record".to_owned(),
+            shared_channel_policy_id: "scp_replay_record".to_owned(),
+            external_connection_id: "ec_replay_record".to_owned(),
+            local_actor_id: "u_replay_record".to_owned(),
+            local_actor_kind: "user".to_owned(),
+            external_member_id: "partner::replay-record".to_owned(),
+        };
+        let key = shared_channel_sync_request_key(&request);
+        let mut state = SocialControlState::default();
+        state.pending_shared_channel_sync_requests.insert(
+            key.clone(),
+            PendingSharedChannelSyncRequest {
+                request: request.clone(),
+                failure_count: 2,
+                last_error: "timeout".to_owned(),
+                last_failed_at: Some("2026-04-12T01:09:00.000Z".to_owned()),
+                owner_actor_id: None,
+                owner_actor_kind: None,
+                claimed_at: None,
+                lease_expires_at: None,
+            },
+        );
+
+        let proof = SharedChannelSyncDeliveryProof {
+            request_key: key.clone(),
+            status: SharedChannelSyncDeliveryProofStatus::Applied,
+            proof_version: Some(SHARED_CHANNEL_SYNC_ACK_PROOF_VERSION.to_owned()),
+            target: Some("https://runtime.example.com".to_owned()),
+        };
+        assert!(state.record_dispatched_shared_channel_sync_request(
+            &request,
+            "2026-04-12T01:10:00.000Z",
+            "2026-04-12T00:55:00.000Z",
+            Some(&proof),
+            true,
+        ));
+
+        let delivered = state
+            .delivered_shared_channel_sync_delivery_proofs
+            .get(key.as_str())
+            .expect("replayed delivery should be persisted in proof ledger");
+        assert_eq!(
+            delivered.status,
+            SharedChannelSyncDeliveryProofStatus::Replayed
+        );
+    }
+
+    #[test]
     fn test_prune_delivered_shared_channel_sync_requests_respects_protected_keys_and_capacity() {
         fn request(local_actor_id: &str) -> SharedChannelLinkedMemberSyncRequest {
             SharedChannelLinkedMemberSyncRequest {
@@ -8449,6 +8755,7 @@ mod tests {
                 request: protected_request.clone(),
                 failure_count: 0,
                 last_error: String::new(),
+                last_failed_at: None,
                 owner_actor_id: None,
                 owner_actor_kind: None,
                 claimed_at: None,

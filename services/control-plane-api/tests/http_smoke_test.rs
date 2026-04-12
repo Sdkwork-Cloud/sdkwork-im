@@ -71,3 +71,46 @@ async fn test_delivered_shared_channel_sync_inventory_route_returns_snapshot() {
         0
     );
 }
+
+#[tokio::test]
+async fn test_delivery_state_shared_channel_sync_inventory_route_returns_snapshot() {
+    let app = control_plane_api::build_app();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/control/social/runtime/delivery-state-shared-channel-sync")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_control_reader")
+                .header("x-actor-kind", "user")
+                .header("x-permissions", "control.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("request should succeed");
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("body should be valid json");
+    assert_eq!(value["status"], "snapshot");
+    assert_eq!(value["deliveredCount"], 0);
+    assert_eq!(value["pendingCount"], 0);
+    assert_eq!(value["deadLetterCount"], 0);
+    assert_eq!(value["totalCount"], 0);
+    assert_eq!(
+        value["items"]
+            .as_array()
+            .expect("items should be an array")
+            .len(),
+        0
+    );
+}

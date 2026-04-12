@@ -437,3 +437,15 @@
 - Remaining S07 gap after Loop93:
   - `release-ready exactly-once semantics across downstream fanout boundaries`
   - `cross-service idempotency governance still needs strict delivery-state machine (accepted/applied/replayed/failed) with deterministic replay contract`
+## Loop 94 Addendum - 2026-04-12
+- shared-channel sync delivery proof status 扩展到 `replayed / failed`，不再只覆盖 `transport_accepted / applied / already_linked`。
+- control-plane 失败路径现在会在 social durable state 中记录 `failed` delivery proof，并把 pending/dead-letter item 的 `lastFailedAt` 显式持久化。
+- repair 与 targeted republish 的成功路径现在会把已在 backlog 中的请求标记为 `replayed`，使 operator 能区分“首次成功”与“失败后重放成功”。
+- 控制面新增 `GET /api/v1/control/social/runtime/delivery-state-shared-channel-sync`，统一返回 delivered/pending/dead-letter 的 delivery-state 视图（含 `status / updatedAt / failureCount / lastError / pending / deadLetter`）。
+- 回归证据：
+  - `control-plane-api` 新增 `failed/replayed` 状态单测
+  - `http_smoke_test` 新增 delivery-state inventory 路由合同测试
+  - 全量 `cargo test -p control-plane-api` 通过
+- Remaining S07 gap after Loop94:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `formal cross-service idempotency governance and deterministic replay SLO still needs downstream consumer-side commit fencing (beyond control-plane state visibility)`
