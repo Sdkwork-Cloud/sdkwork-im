@@ -556,3 +556,22 @@
 - Remaining S07 gap after Loop101:
   - `release-ready exactly-once semantics across downstream fanout boundaries`
   - `formal cross-service idempotency governance and deterministic replay SLO still needs downstream commit-fence propagation across all consumer types (beyond shared-channel linked-member seam)`
+## Loop 102 Addendum - 2026-04-12
+- Further tightened shared-channel ack contract strictness in control-plane:
+  - all ack statuses now require `attributes.sharedChannelSyncRequestKey` to be present
+  - `applied / replayed` still require strict equality with dispatched `requestKey`
+  - `already_linked` now also fails fast when commit-fence attribute is missing
+- Added compatibility backfill at runtime shared-sync seam:
+  - when legacy linked member truth matches but lacks `sharedChannelSyncRequestKey`, runtime now backfills deterministic request-key fence into the returned member payload for this sync response path
+  - this keeps legacy state compatible with stricter control-plane ack validation while preserving conflict semantics for true key mismatch
+- Regression evidence added in this loop:
+  - `control-plane-api/tests/shared_channel_sync_trigger_security_test.rs` adds `already_linked` missing-commit-fence rejection coverage
+  - full `shared_channel_sync_trigger_security_test` suite passes with 16 tests
+- Commercial gate evidence in this loop:
+  - `cargo test -p conversation-runtime --tests` 通过
+  - `cargo test -p control-plane-api` 通过
+  - `cargo clippy -p control-plane-api --tests` 通过（仅既有 warning）
+  - `cargo audit --no-fetch --stale` 通过
+- Remaining S07 gap after Loop102:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `formal cross-service idempotency governance and deterministic replay SLO still needs downstream commit-fence propagation across non-shared-sync consumer categories`

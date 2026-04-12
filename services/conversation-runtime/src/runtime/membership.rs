@@ -328,7 +328,14 @@ where
                 .resolve_current_member(command.local_actor_id.as_str())
             {
                 if shared_history_link_matches(&current_member, &command) {
-                    let status = if shared_channel_sync_request_key_fence(&current_member)
+                    let mut member = current_member;
+                    if shared_channel_sync_request_key_fence(&member).is_none() {
+                        member.attributes.insert(
+                            SHARED_CHANNEL_SYNC_REQUEST_KEY_ATTRIBUTE.to_owned(),
+                            request_key.clone(),
+                        );
+                    }
+                    let status = if shared_channel_sync_request_key_fence(&member)
                         == Some(request_key.as_str())
                     {
                         SyncSharedChannelLinkedMemberStatus::Replayed
@@ -337,7 +344,7 @@ where
                     };
                     return Ok(SyncSharedChannelLinkedMemberResult {
                         status,
-                        member: current_member,
+                        member,
                     });
                 }
 
