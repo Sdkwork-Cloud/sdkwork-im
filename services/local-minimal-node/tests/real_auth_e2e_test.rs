@@ -151,6 +151,25 @@ fn auth_refresh_sessions_path(runtime_dir: &PathBuf) -> PathBuf {
     runtime_dir.join("state").join("auth-refresh-sessions.json")
 }
 
+fn auth_sidecar_paths(runtime_dir: &PathBuf, prefix: &str) -> Vec<PathBuf> {
+    let state_dir = runtime_dir.join("state");
+    let Ok(entries) = fs::read_dir(&state_dir) else {
+        return Vec::new();
+    };
+
+    let mut paths = entries
+        .filter_map(|entry| entry.ok().map(|entry| entry.path()))
+        .filter(|path| {
+            path.file_name()
+                .and_then(|value| value.to_str())
+                .map(|name| name.starts_with(prefix))
+                .unwrap_or(false)
+        })
+        .collect::<Vec<_>>();
+    paths.sort();
+    paths
+}
+
 fn read_auth_accounts(runtime_dir: &PathBuf) -> Vec<Value> {
     let path = auth_accounts_path(runtime_dir);
     serde_json::from_str(
@@ -236,6 +255,85 @@ async fn test_bootstrap_prunes_expired_refresh_sessions_from_runtime_store() {
         refresh_tokens,
         vec!["rt_active_bootstrap"],
         "bootstrap should evict expired refresh sessions and preserve active ones"
+    );
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
+async fn test_bootstrap_quarantines_invalid_auth_accounts_before_reseeding_defaults() {
+    let (_guard, _secret) = configure_public_bearer_secret().await;
+    let runtime_dir = unique_runtime_dir();
+    let state_dir = runtime_dir.join("state");
+    fs::create_dir_all(&state_dir).expect("runtime state dir should be created");
+    let accounts_path = auth_accounts_path(&runtime_dir);
+    fs::write(&accounts_path, "{invalid-auth-accounts")
+        .expect("invalid auth accounts fixture should be written");
+
+    let _app = local_minimal_node::build_public_app_with_runtime_dir(runtime_dir.as_path());
+
+    let accounts = read_auth_accounts(&runtime_dir);
+    assert!(
+        accounts.iter().any(|account| account["login"] == "u_guest"),
+        "bootstrap should reseed default auth accounts after quarantining invalid content"
+    );
+
+    let invalid_backups = auth_sidecar_paths(&runtime_dir, "auth-accounts.json.invalid-");
+    assert_eq!(
+        invalid_backups.len(),
+        1,
+        "bootstrap should quarantine exactly one invalid auth accounts file"
+    );
+    assert_eq!(
+        fs::read_to_string(&invalid_backups[0]).expect("invalid auth accounts backup should exist"),
+        "{invalid-auth-accounts"
+    );
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
+async fn test_bootstrap_recovers_refresh_sessions_from_pending_tmp_file() {
+    let (_guard, _secret) = configure_public_bearer_secret().await;
+    let runtime_dir = unique_runtime_dir();
+    let state_dir = runtime_dir.join("state");
+    fs::create_dir_all(&state_dir).expect("runtime state dir should be created");
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("system clock should be after unix epoch")
+        .as_secs();
+    let pending_tmp_path = state_dir.join("auth-refresh-sessions.json.tmp");
+    fs::write(
+        &pending_tmp_path,
+        serde_json::to_string_pretty(&vec![json!({
+            "refreshToken": "rt_pending_tmp",
+            "tenantId": "t_demo",
+            "accountId": "acct_demo_guest",
+            "actorId": "u_guest",
+            "clientKind": "im_user",
+            "sessionId": "s_pending_tmp",
+            "deviceId": "d_pending_tmp",
+            "expiresAt": now + 300
+        })])
+        .expect("pending tmp refresh sessions should serialize"),
+    )
+    .expect("pending tmp refresh sessions should be written");
+
+    let _app = local_minimal_node::build_public_app_with_runtime_dir(runtime_dir.as_path());
+
+    let sessions = read_auth_refresh_sessions(&runtime_dir);
+    let refresh_tokens = sessions
+        .iter()
+        .filter_map(|session| session["refreshToken"].as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        refresh_tokens,
+        vec!["rt_pending_tmp"],
+        "bootstrap should promote a pending tmp refresh session file into the live auth store"
+    );
+    assert!(
+        !pending_tmp_path.exists(),
+        "bootstrap should clean up the pending tmp file after promotion"
     );
 
     let _ = fs::remove_dir_all(runtime_dir);

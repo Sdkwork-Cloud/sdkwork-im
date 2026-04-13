@@ -1,4 +1,5 @@
-use std::fs;
+use std::fs::{self, File};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -189,11 +190,15 @@ impl AuthRuntime {
     pub(super) fn new(runtime_dir: Option<PathBuf>) -> Self {
         let (accounts_path, refresh_sessions_path) =
             auth_store_paths(runtime_dir.as_ref().map(PathBuf::as_path));
-        let mut accounts =
-            load_json_file::<Vec<AuthAccountRecord>>(accounts_path.as_deref()).unwrap_or_default();
-        let mut refresh_sessions =
-            load_json_file::<Vec<AuthRefreshSessionRecord>>(refresh_sessions_path.as_deref())
-                .unwrap_or_default();
+        let (accounts_path, mut accounts) = load_managed_auth_store::<AuthAccountRecord>(
+            accounts_path,
+            "auth accounts",
+        );
+        let (refresh_sessions_path, mut refresh_sessions) =
+            load_managed_auth_store::<AuthRefreshSessionRecord>(
+                refresh_sessions_path,
+                "auth refresh sessions",
+            );
         prune_expired_refresh_sessions(&mut refresh_sessions, current_unix_epoch_seconds());
 
         seed_accounts(&mut accounts);
@@ -679,21 +684,64 @@ fn auth_store_paths(runtime_dir: Option<&Path>) -> (Option<PathBuf>, Option<Path
     )
 }
 
-fn load_json_file<T>(path: Option<&Path>) -> Option<T>
+fn load_managed_auth_store<T>(path: Option<PathBuf>, label: &'static str) -> (Option<PathBuf>, Vec<T>)
 where
     T: DeserializeOwned,
 {
-    let path = path?;
-    if !path.is_file() {
-        return None;
+    let Some(path) = path else {
+        return (None, Vec::new());
+    };
+
+    if let Err(error) = recover_pending_json_temp_file(path.as_path()) {
+        eprintln!(
+            "failed to recover pending {label} temp file {}: {error}",
+            path.display()
+        );
+        return (None, Vec::new());
     }
 
-    let content = fs::read_to_string(path).ok()?;
-    serde_json::from_str(&content).map_err(|error| {
-        eprintln!("failed to parse auth store file {}: {error}", path.display());
-        error
-    })
-    .ok()
+    match load_json_file::<Vec<T>>(Some(path.as_path())) {
+        Ok(Some(value)) => (Some(path), value),
+        Ok(None) => (Some(path), Vec::new()),
+        Err(error) => {
+            eprintln!("failed to load {label} {}: {error}", path.display());
+            match quarantine_invalid_json_file(path.as_path()) {
+                Ok(quarantine_path) => {
+                    eprintln!(
+                        "quarantined invalid {label} {} at {}",
+                        path.display(),
+                        quarantine_path.display()
+                    );
+                    (Some(path), Vec::new())
+                }
+                Err(quarantine_error) => {
+                    eprintln!(
+                        "failed to quarantine invalid {label} {}: {quarantine_error}",
+                        path.display()
+                    );
+                    (None, Vec::new())
+                }
+            }
+        }
+    }
+}
+
+fn load_json_file<T>(path: Option<&Path>) -> Result<Option<T>, String>
+where
+    T: DeserializeOwned,
+{
+    let Some(path) = path else {
+        return Ok(None);
+    };
+    if !path.is_file() {
+        return Ok(None);
+    }
+
+    let content = fs::read_to_string(path)
+        .map_err(|error| format!("failed to read {}: {error}", path.display()))?;
+    serde_json::from_str(&content)
+        .map(Some)
+        .map_err(|error| format!("failed to parse {}: {error}", path.display()))
 }
 
 fn persist_store(store: &AuthStore) -> Result<(), String> {
@@ -712,7 +760,96 @@ where
 {
     let content = serde_json::to_string_pretty(value)
         .map_err(|error| format!("failed to serialize {}: {error}", path.display()))?;
-    fs::write(path, content).map_err(|error| format!("failed to write {}: {error}", path.display()))
+    let temp_path = json_temp_path(path);
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|error| format!("failed to prepare {}: {error}", parent.display()))?;
+    }
+    if temp_path.exists() {
+        fs::remove_file(&temp_path).map_err(|error| {
+            format!(
+                "failed to clear stale temp file {}: {error}",
+                temp_path.display()
+            )
+        })?;
+    }
+
+    let mut temp_file = File::create(&temp_path)
+        .map_err(|error| format!("failed to create temp file {}: {error}", temp_path.display()))?;
+    temp_file
+        .write_all(content.as_bytes())
+        .map_err(|error| format!("failed to write temp file {}: {error}", temp_path.display()))?;
+    temp_file
+        .sync_all()
+        .map_err(|error| format!("failed to sync temp file {}: {error}", temp_path.display()))?;
+    drop(temp_file);
+
+    fs::rename(&temp_path, path).map_err(|error| {
+        format!(
+            "failed to replace {} with {}: {error}",
+            path.display(),
+            temp_path.display()
+        )
+    })
+}
+
+fn recover_pending_json_temp_file(path: &Path) -> Result<(), String> {
+    let temp_path = json_temp_path(path);
+    if !temp_path.exists() {
+        return Ok(());
+    }
+
+    if path.exists() {
+        return fs::remove_file(&temp_path).map_err(|error| {
+            format!(
+                "failed to remove stale temp file {}: {error}",
+                temp_path.display()
+            )
+        });
+    }
+
+    fs::rename(&temp_path, path).map_err(|error| {
+        format!(
+            "failed to promote pending temp file {} to {}: {error}",
+            temp_path.display(),
+            path.display()
+        )
+    })
+}
+
+fn quarantine_invalid_json_file(path: &Path) -> Result<PathBuf, String> {
+    let quarantine_path = unique_json_sidecar_path(path, "invalid");
+    fs::rename(path, &quarantine_path).map_err(|error| {
+        format!(
+            "failed to quarantine invalid file {} to {}: {error}",
+            path.display(),
+            quarantine_path.display()
+        )
+    })?;
+    Ok(quarantine_path)
+}
+
+fn json_temp_path(path: &Path) -> PathBuf {
+    let file_name = path
+        .file_name()
+        .map(|value| value.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "auth-store.json".into());
+    path.with_file_name(format!("{file_name}.tmp"))
+}
+
+fn unique_json_sidecar_path(path: &Path, tag: &str) -> PathBuf {
+    let file_name = path
+        .file_name()
+        .map(|value| value.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "auth-store.json".into());
+    let mut attempt = current_unix_epoch_millis();
+    loop {
+        let candidate = path.with_file_name(format!("{file_name}.{tag}-{attempt}"));
+        if !candidate.exists() {
+            return candidate;
+        }
+        attempt += 1;
+    }
 }
 
 fn default_device_id(actor_id: &str) -> String {
@@ -842,6 +979,13 @@ fn current_unix_epoch_seconds() -> u64 {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs()
+}
+
+fn current_unix_epoch_millis() -> u128 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis()
 }
 
 fn generate_secret_token(bytes: usize) -> String {
