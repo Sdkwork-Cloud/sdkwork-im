@@ -5,7 +5,11 @@ base_url=""
 tenant_id="t_demo"
 conversation_id=""
 owner_user_id="u_owner"
+owner_login=""
+owner_password=""
 guest_user_id="u_guest"
+guest_login=""
+guest_password=""
 owner_label="owner"
 guest_label="guest"
 release_flag=""
@@ -13,12 +17,17 @@ skip_start="false"
 scripted_validation="false"
 validation_message=""
 json_output="false"
+owner_auth_user_id=""
+owner_bearer_token=""
+guest_auth_user_id=""
+guest_bearer_token=""
+owner_cli_auth_args=()
+guest_cli_auth_args=()
 
 usage() {
-  cat <<'EOF'
-Usage: bin/open-chat-test.sh [--conversation-id <id>] [--base-url <url>] [--tenant-id <id>] [--owner-user-id <id>] [--guest-user-id <id>] [--owner-label <label>] [--guest-label <label>] [--release] [--skip-start] [--scripted-validation] [--validation-message <text>] [--json]
-Create a local test conversation and either open two terminal windows or run scripted watch/timeline validation.
-EOF
+  printf '%s\n' \
+    "Usage: bin/open-chat-test.sh [--conversation-id <id>] [--base-url <url>] [--tenant-id <id>] [--owner-user-id <id>] [--owner-login <id>] [--owner-password <secret>] [--guest-user-id <id>] [--guest-login <id>] [--guest-password <secret>] [--owner-label <label>] [--guest-label <label>] [--release] [--skip-start] [--scripted-validation] [--validation-message <text>] [--json]" \
+    "Create a local test conversation, authenticate owner and guest through real login, then either open two terminal windows or run scripted watch/timeline validation."
 }
 
 while [[ $# -gt 0 ]]; do
@@ -39,8 +48,24 @@ while [[ $# -gt 0 ]]; do
       owner_user_id="$2"
       shift 2
       ;;
+    --owner-login)
+      owner_login="$2"
+      shift 2
+      ;;
+    --owner-password)
+      owner_password="$2"
+      shift 2
+      ;;
     --guest-user-id)
       guest_user_id="$2"
+      shift 2
+      ;;
+    --guest-login)
+      guest_login="$2"
+      shift 2
+      ;;
+    --guest-password)
+      guest_password="$2"
       shift 2
       ;;
     --owner-label)
@@ -94,7 +119,17 @@ read_config_value() {
   local key="$1"
   local config_file="$script_dir/../.runtime/local-minimal/config/local-minimal.env"
   [[ -f "$config_file" ]] || return 1
-  grep -E "^${key}=" "$config_file" | head -n 1 | cut -d '=' -f 2-
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%$'\r'}"
+    [[ -z "$line" || "$line" == \#* ]] && continue
+    local current_key="${line%%=*}"
+    local current_value="${line#*=}"
+    if [[ "$current_key" == "$key" ]]; then
+      printf '%s\n' "$current_value"
+      return 0
+    fi
+  done < "$config_file"
+  return 1
 }
 
 resolve_base_url() {
@@ -128,6 +163,22 @@ invoke_chat_cli() {
   fi
   args+=("$@")
   "${BASH:-bash}" "$script_dir/chat-cli.sh" "${args[@]}"
+}
+
+capture_chat_cli() {
+  local args=()
+  if [[ -n "$release_flag" ]]; then
+    args+=("$release_flag")
+  fi
+  args+=("$@")
+
+  local output
+  if ! output="$("${BASH:-bash}" "$script_dir/chat-cli.sh" "${args[@]}" 2>&1)"; then
+    printf '%s\n' "$output" >&2
+    return 1
+  fi
+
+  printf '%s' "$output"
 }
 
 open_terminal() {
@@ -243,6 +294,14 @@ file_contains_text() {
   return 1
 }
 
+print_file_to_stderr() {
+  local file_path="$1"
+  [[ -f "$file_path" ]] || return 0
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    printf '%s\n' "$line" >&2
+  done < "$file_path"
+}
+
 cleanup_temp_files() {
   if command -v rm >/dev/null 2>&1; then
     rm -f "$@"
@@ -253,6 +312,146 @@ cleanup_temp_files() {
       : > "$file_path" || true
     fi
   done
+}
+
+normalize_json_text() {
+  local raw_text="$1"
+  local found_json="false"
+  local line
+  local normalized=""
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    if [[ "$found_json" != "true" ]]; then
+      if [[ "$line" == *"{"* ]]; then
+        found_json="true"
+      else
+        continue
+      fi
+    fi
+    normalized+="$line"
+  done <<< "$raw_text"
+
+  normalized="${normalized//$'\r'/}"
+  normalized="${normalized//$'\n'/}"
+  normalized="${normalized//$'\t'/}"
+  normalized="${normalized// /}"
+  printf '%s' "$normalized"
+}
+
+extract_json_string() {
+  local json_text="$1"
+  local key="$2"
+  local compact
+  compact="$(normalize_json_text "$json_text")"
+  local marker="\"${key}\":\""
+  if [[ "$compact" != *"$marker"* ]]; then
+    return 0
+  fi
+
+  local remainder="${compact#*$marker}"
+  printf '%s' "${remainder%%\"*}"
+}
+
+extract_login_user_id() {
+  local json_text="$1"
+  local compact
+  compact="$(normalize_json_text "$json_text")"
+  local user_marker='"user":{'
+  if [[ "$compact" != *"$user_marker"* ]]; then
+    return 0
+  fi
+
+  local user_section="${compact#*$user_marker}"
+  local id_marker='"id":"'
+  if [[ "$user_section" != *"$id_marker"* ]]; then
+    return 0
+  fi
+
+  local remainder="${user_section#*$id_marker}"
+  printf '%s' "${remainder%%\"*}"
+}
+
+resolve_seeded_im_password() {
+  case "$1" in
+    u_owner)
+      printf '%s\n' "Owner#2026"
+      ;;
+    u_guest)
+      printf '%s\n' "Guest#2026"
+      ;;
+    u_demo)
+      printf '%s\n' "Demo#2026"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+resolve_im_login() {
+  local requested_user_id="$1"
+  local requested_login="$2"
+  if [[ -n "$requested_login" ]]; then
+    printf '%s\n' "$requested_login"
+    return 0
+  fi
+
+  printf '%s\n' "$requested_user_id"
+}
+
+resolve_im_password() {
+  local login="$1"
+  local requested_password="$2"
+  if [[ -n "$requested_password" ]]; then
+    printf '%s\n' "$requested_password"
+    return 0
+  fi
+
+  if resolve_seeded_im_password "$login"; then
+    return 0
+  fi
+
+  printf '%s\n' "No password was provided for login '$login'. Supply --owner-password/--guest-password for non-seeded accounts." >&2
+  return 1
+}
+
+login_im_user() {
+  local requested_user_id="$1"
+  local login="$2"
+  local password="$3"
+  local session_id="$4"
+  local device_id="$5"
+  local login_json
+  login_json="$(
+    capture_chat_cli \
+      --base-url "$base_url" \
+      --tenant-id "$tenant_id" \
+      --user-id "$requested_user_id" \
+      --session-id "$session_id" \
+      --device-id "$device_id" \
+      login \
+      --login "$login" \
+      --password "$password" \
+      --client-kind im_user
+  )"
+
+  local access_token
+  access_token="$(extract_json_string "$login_json" "accessToken")"
+  local refresh_token
+  refresh_token="$(extract_json_string "$login_json" "refreshToken")"
+  local resolved_user_id
+  resolved_user_id="$(extract_login_user_id "$login_json")"
+
+  if [[ -z "$access_token" ]]; then
+    printf '%s\n' "login response did not include accessToken for '$login'" >&2
+    return 1
+  fi
+
+  if [[ -z "$resolved_user_id" ]]; then
+    resolved_user_id="$requested_user_id"
+  fi
+
+  printf '%s\t%s\t%s\n' "$resolved_user_id" "$access_token" "$refresh_token"
 }
 
 run_scripted_validation() {
@@ -270,12 +469,8 @@ run_scripted_validation() {
   if [[ -n "$release_flag" ]]; then
     watch_args+=("$release_flag")
   fi
+  watch_args+=("${guest_cli_auth_args[@]}")
   watch_args+=(
-    --base-url "$base_url"
-    --tenant-id "$tenant_id"
-    --user-id "$guest_user_id"
-    --session-id "$guest_session_id"
-    --device-id "$guest_device_id"
     watch
     --conversation-id "$conversation_id"
     --event-type message.posted
@@ -288,11 +483,7 @@ run_scripted_validation() {
   pause_seconds 1
 
   invoke_chat_cli \
-    --base-url "$base_url" \
-    --tenant-id "$tenant_id" \
-    --user-id "$owner_user_id" \
-    --session-id "$owner_session_id" \
-    --device-id "$owner_device_id" \
+    "${owner_cli_auth_args[@]}" \
     send-message \
     --conversation-id "$conversation_id" \
     --summary "$resolved_validation_message" \
@@ -307,8 +498,8 @@ run_scripted_validation() {
 
   if [[ $watch_exit -ne 0 ]]; then
     echo "scripted validation watch failed" >&2
-    cat "$watch_stderr" >&2 || true
-    cat "$watch_stdout" >&2 || true
+    print_file_to_stderr "$watch_stderr"
+    print_file_to_stderr "$watch_stdout"
     cleanup_temp_files "$watch_stdout" "$watch_stderr"
     exit "$watch_exit"
   fi
@@ -322,8 +513,8 @@ run_scripted_validation() {
 
   if [[ ${#watch_frame_types[@]} -eq 0 ]]; then
     echo "scripted validation watch did not produce any frames" >&2
-    cat "$watch_stderr" >&2 || true
-    cat "$watch_stdout" >&2 || true
+    print_file_to_stderr "$watch_stderr"
+    print_file_to_stderr "$watch_stdout"
     cleanup_temp_files "$watch_stdout" "$watch_stderr"
     exit 1
   fi
@@ -331,11 +522,7 @@ run_scripted_validation() {
   local timeline_json
   timeline_json="$(
     invoke_chat_cli \
-      --base-url "$base_url" \
-      --tenant-id "$tenant_id" \
-      --user-id "$guest_user_id" \
-      --session-id "$guest_session_id" \
-      --device-id "$guest_device_id" \
+      "${guest_cli_auth_args[@]}" \
       timeline \
       --conversation-id "$conversation_id"
   )"
@@ -354,8 +541,8 @@ run_scripted_validation() {
     printf '{\n'
     printf '  "mode": "scripted",\n'
     printf '  "conversationId": "%s",\n' "$(json_escape "$conversation_id")"
-    printf '  "ownerUserId": "%s",\n' "$(json_escape "$owner_user_id")"
-    printf '  "guestUserId": "%s",\n' "$(json_escape "$guest_user_id")"
+    printf '  "ownerUserId": "%s",\n' "$(json_escape "$owner_auth_user_id")"
+    printf '  "guestUserId": "%s",\n' "$(json_escape "$guest_auth_user_id")"
     printf '  "validationMessage": "%s",\n' "$(json_escape "$resolved_validation_message")"
     printf '  "watchFrameTypes": '
     print_json_string_array "${watch_frame_types[@]}"
@@ -400,26 +587,60 @@ if ! healthcheck; then
   exit 1
 fi
 
+resolved_owner_login="$(resolve_im_login "$owner_user_id" "$owner_login")"
+resolved_owner_password="$(resolve_im_password "$resolved_owner_login" "$owner_password")"
+resolved_guest_login="$(resolve_im_login "$guest_user_id" "$guest_login")"
+resolved_guest_password="$(resolve_im_password "$resolved_guest_login" "$guest_password")"
+
+owner_login_result="$(
+  login_im_user \
+    "$owner_user_id" \
+    "$resolved_owner_login" \
+    "$resolved_owner_password" \
+    "$owner_session_id" \
+    "$owner_device_id"
+)"
+IFS=$'\t' read -r owner_auth_user_id owner_bearer_token _ <<< "$owner_login_result"
+
+guest_login_result="$(
+  login_im_user \
+    "$guest_user_id" \
+    "$resolved_guest_login" \
+    "$resolved_guest_password" \
+    "$guest_session_id" \
+    "$guest_device_id"
+)"
+IFS=$'\t' read -r guest_auth_user_id guest_bearer_token _ <<< "$guest_login_result"
+
+owner_cli_auth_args=(
+  --base-url "$base_url"
+  --tenant-id "$tenant_id"
+  --user-id "$owner_auth_user_id"
+  --session-id "$owner_session_id"
+  --device-id "$owner_device_id"
+  --bearer-token "$owner_bearer_token"
+)
+guest_cli_auth_args=(
+  --base-url "$base_url"
+  --tenant-id "$tenant_id"
+  --user-id "$guest_auth_user_id"
+  --session-id "$guest_session_id"
+  --device-id "$guest_device_id"
+  --bearer-token "$guest_bearer_token"
+)
+
 invoke_chat_cli \
-  --base-url "$base_url" \
-  --tenant-id "$tenant_id" \
-  --user-id "$owner_user_id" \
-  --session-id "$owner_session_id" \
-  --device-id "$owner_device_id" \
+  "${owner_cli_auth_args[@]}" \
   create-conversation \
   --conversation-id "$conversation_id" \
   --conversation-type group \
   >/dev/null
 
 invoke_chat_cli \
-  --base-url "$base_url" \
-  --tenant-id "$tenant_id" \
-  --user-id "$owner_user_id" \
-  --session-id "$owner_session_id" \
-  --device-id "$owner_device_id" \
+  "${owner_cli_auth_args[@]}" \
   add-member \
   --conversation-id "$conversation_id" \
-  --principal-id "$guest_user_id" \
+  --principal-id "$guest_auth_user_id" \
   --principal-kind user \
   --role member \
   >/dev/null
@@ -429,13 +650,44 @@ if [[ "$scripted_validation" == "true" ]]; then
   exit 0
 fi
 
-owner_command="$(printf '%q ' "$script_dir/chat-window.sh" ${release_flag:+$release_flag} --base-url "$base_url" --tenant-id "$tenant_id" --conversation-id "$conversation_id" --user-id "$owner_user_id" --session-id "$owner_session_id" --device-id "$owner_device_id" --label "$owner_label" --message-prefix "[$owner_label] ")"
-guest_command="$(printf '%q ' "$script_dir/chat-window.sh" ${release_flag:+$release_flag} --base-url "$base_url" --tenant-id "$tenant_id" --conversation-id "$conversation_id" --user-id "$guest_user_id" --session-id "$guest_session_id" --device-id "$guest_device_id" --label "$guest_label" --message-prefix "[$guest_label] ")"
+owner_command_args=("$script_dir/chat-window.sh")
+if [[ -n "$release_flag" ]]; then
+  owner_command_args+=("$release_flag")
+fi
+owner_command_args+=(
+  --base-url "$base_url"
+  --tenant-id "$tenant_id"
+  --conversation-id "$conversation_id"
+  --user-id "$owner_auth_user_id"
+  --session-id "$owner_session_id"
+  --device-id "$owner_device_id"
+  --bearer-token "$owner_bearer_token"
+  --label "$owner_label"
+  --message-prefix "[$owner_label] "
+)
+printf -v owner_command '%q ' "${owner_command_args[@]}"
+
+guest_command_args=("$script_dir/chat-window.sh")
+if [[ -n "$release_flag" ]]; then
+  guest_command_args+=("$release_flag")
+fi
+guest_command_args+=(
+  --base-url "$base_url"
+  --tenant-id "$tenant_id"
+  --conversation-id "$conversation_id"
+  --user-id "$guest_auth_user_id"
+  --session-id "$guest_session_id"
+  --device-id "$guest_device_id"
+  --bearer-token "$guest_bearer_token"
+  --label "$guest_label"
+  --message-prefix "[$guest_label] "
+)
+printf -v guest_command '%q ' "${guest_command_args[@]}"
 
 open_terminal "craw-chat [$owner_label]" "$owner_command"
 open_terminal "craw-chat [$guest_label]" "$guest_command"
 
 echo "Opened two chat windows."
 echo "conversationId: $conversation_id"
-echo "owner: $owner_user_id"
-echo "guest: $guest_user_id"
+echo "owner: $owner_auth_user_id"
+echo "guest: $guest_auth_user_id"

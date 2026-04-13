@@ -1701,7 +1701,7 @@ async fn test_open_chat_test_bash_scripted_validation_emits_json_summary() {
         #[cfg(windows)]
         let status = {
             let bash_invocation = format!(
-                "& '{}' 'bin/open-chat-test.sh' --base-url '{}' --conversation-id 'c_cli_open_chat_scripted_bash_demo' --owner-user-id 'u_owner' --guest-user-id 'u_guest' --skip-start --scripted-validation --validation-message '{}' --json",
+                "& '{}' 'bin/open-chat-test.sh' --base-url '{}' --conversation-id 'c_cli_open_chat_scripted_bash_demo' --owner-user-id 'u_owner' --owner-login 'u_owner' --owner-password 'Owner#2026' --guest-user-id 'u_guest' --guest-login 'u_guest' --guest-password 'Guest#2026' --skip-start --scripted-validation --validation-message '{}' --json",
                 bash_path.display(),
                 base_url,
                 validation_message
@@ -1713,6 +1713,10 @@ async fn test_open_chat_test_bash_scripted_validation_emits_json_summary() {
                 .arg("Bypass")
                 .arg("-Command")
                 .arg(bash_invocation)
+                .env(
+                    im_auth_context::PUBLIC_BEARER_HS256_SECRET_ENV,
+                    "bogus-script-secret",
+                )
                 .stdin(Stdio::null())
                 .stdout(Stdio::from(stdout_file))
                 .stderr(Stdio::from(stderr_file))
@@ -1730,13 +1734,25 @@ async fn test_open_chat_test_bash_scripted_validation_emits_json_summary() {
             .arg("c_cli_open_chat_scripted_bash_demo")
             .arg("--owner-user-id")
             .arg("u_owner")
+            .arg("--owner-login")
+            .arg("u_owner")
+            .arg("--owner-password")
+            .arg("Owner#2026")
             .arg("--guest-user-id")
             .arg("u_guest")
+            .arg("--guest-login")
+            .arg("u_guest")
+            .arg("--guest-password")
+            .arg("Guest#2026")
             .arg("--skip-start")
             .arg("--scripted-validation")
             .arg("--validation-message")
             .arg(validation_message)
             .arg("--json")
+            .env(
+                im_auth_context::PUBLIC_BEARER_HS256_SECRET_ENV,
+                "bogus-script-secret",
+            )
             .stdin(Stdio::null())
             .stdout(Stdio::from(stdout_file))
             .stderr(Stdio::from(stderr_file))

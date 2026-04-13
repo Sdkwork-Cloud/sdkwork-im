@@ -143,6 +143,28 @@ async fn get_json_with_bearer(
         .expect("route should return response")
 }
 
+fn auth_accounts_path(runtime_dir: &PathBuf) -> PathBuf {
+    runtime_dir.join("state").join("auth-accounts.json")
+}
+
+fn read_auth_accounts(runtime_dir: &PathBuf) -> Vec<Value> {
+    let path = auth_accounts_path(runtime_dir);
+    serde_json::from_str(
+        &fs::read_to_string(&path)
+            .unwrap_or_else(|_| panic!("auth accounts file should exist: {}", path.display())),
+    )
+    .expect("auth accounts json should parse")
+}
+
+fn write_auth_accounts(runtime_dir: &PathBuf, accounts: &[Value]) {
+    let path = auth_accounts_path(runtime_dir);
+    fs::write(
+        &path,
+        serde_json::to_string_pretty(accounts).expect("auth accounts should serialize"),
+    )
+    .unwrap_or_else(|_| panic!("auth accounts file should be writable: {}", path.display()));
+}
+
 #[tokio::test]
 async fn test_seeded_im_user_can_log_in_refresh_and_fetch_me_profile() {
     let (_guard, _secret) = configure_public_bearer_secret().await;
@@ -229,6 +251,115 @@ async fn test_seeded_im_user_can_log_in_refresh_and_fetch_me_profile() {
     assert_eq!(stale_refresh.status(), StatusCode::UNAUTHORIZED);
     let stale_refresh_body = read_json(stale_refresh).await;
     assert_eq!(stale_refresh_body["code"], "auth_refresh_invalid");
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
+async fn test_refresh_rejects_disabled_account_loaded_from_runtime_store() {
+    let (_guard, _secret) = configure_public_bearer_secret().await;
+    let runtime_dir = unique_runtime_dir();
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+    let app = local_minimal_node::build_public_app_with_runtime_dir(runtime_dir.as_path());
+
+    let login = post_json(
+        &app,
+        "/api/v1/auth/login",
+        json!({
+            "tenantId": "t_demo",
+            "login": "u_guest",
+            "password": "Guest#2026",
+            "clientKind": "im_user",
+            "deviceId": "d_guest",
+            "sessionId": "s_guest"
+        }),
+    )
+    .await;
+    assert_eq!(login.status(), StatusCode::OK);
+    let login_body = read_json(login).await;
+    let refresh_token = login_body["refreshToken"]
+        .as_str()
+        .expect("refresh token should be present")
+        .to_owned();
+
+    let mut accounts = read_auth_accounts(&runtime_dir);
+    let account = accounts
+        .iter_mut()
+        .find(|candidate| candidate["login"] == "u_guest" && candidate["clientKind"] == "im_user")
+        .expect("seeded guest account should exist");
+    account["disabled"] = Value::Bool(true);
+    write_auth_accounts(&runtime_dir, &accounts);
+
+    let reloaded_app = local_minimal_node::build_public_app_with_runtime_dir(runtime_dir.as_path());
+    let refreshed = post_json(
+        &reloaded_app,
+        "/api/v1/auth/refresh",
+        json!({
+            "refreshToken": refresh_token,
+            "deviceId": "d_guest",
+            "sessionId": "s_guest"
+        }),
+    )
+    .await;
+
+    assert_eq!(refreshed.status(), StatusCode::FORBIDDEN);
+    let refreshed_body = read_json(refreshed).await;
+    assert_eq!(refreshed_body["code"], "auth_account_disabled");
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
+async fn test_me_prefers_token_client_kind_when_actor_ids_collide() {
+    let (_guard, _secret) = configure_public_bearer_secret().await;
+    let runtime_dir = unique_runtime_dir();
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+    let _seeded_app = local_minimal_node::build_public_app_with_runtime_dir(runtime_dir.as_path());
+
+    let mut accounts = read_auth_accounts(&runtime_dir);
+    let guest_account = accounts
+        .iter()
+        .find(|candidate| candidate["login"] == "u_guest" && candidate["clientKind"] == "im_user")
+        .cloned()
+        .expect("seeded guest account should exist");
+    let mut shadow_account = guest_account;
+    shadow_account["accountId"] = Value::String("acct_shadow_guest_portal".into());
+    shadow_account["login"] = Value::String("u_guest_portal_shadow".into());
+    shadow_account["clientKind"] = Value::String("portal_operator".into());
+    shadow_account["name"] = Value::String("Guest Portal Shadow".into());
+    shadow_account["role"] = Value::String("Shadow Portal Operator".into());
+    shadow_account["email"] = Value::String("guest-shadow@nebula-commerce.example".into());
+    shadow_account["permissions"] = json!(["portal.access", "portal.read", "audit.read"]);
+    accounts.insert(0, shadow_account);
+    write_auth_accounts(&runtime_dir, &accounts);
+
+    let app = local_minimal_node::build_public_app_with_runtime_dir(runtime_dir.as_path());
+    let login = post_json(
+        &app,
+        "/api/v1/auth/login",
+        json!({
+            "tenantId": "t_demo",
+            "login": "u_guest",
+            "password": "Guest#2026",
+            "clientKind": "im_user",
+            "deviceId": "d_guest",
+            "sessionId": "s_guest"
+        }),
+    )
+    .await;
+    assert_eq!(login.status(), StatusCode::OK);
+    let login_body = read_json(login).await;
+    let access_token = login_body["accessToken"]
+        .as_str()
+        .expect("access token should be present")
+        .to_owned();
+
+    let me = get_json_with_bearer(&app, "/api/v1/auth/me", access_token.as_str()).await;
+    assert_eq!(me.status(), StatusCode::OK);
+    let me_body = read_json(me).await;
+    assert_eq!(me_body["user"]["id"], "u_guest");
+    assert_eq!(me_body["user"]["clientKind"], "im_user");
+    assert_eq!(me_body["workspace"], Value::Null);
 
     let _ = fs::remove_dir_all(runtime_dir);
 }

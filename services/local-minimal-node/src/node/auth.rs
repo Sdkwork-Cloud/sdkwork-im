@@ -223,12 +223,13 @@ impl AuthRuntime {
             "login is required",
         )?
         .to_owned();
-        let password = required_trimmed(
-            request.password.as_str(),
-            "auth_login_invalid",
-            "password is required",
-        )?
-        .to_owned();
+        if request.password.trim().is_empty() {
+            return Err(ApiError::bad_request(
+                "auth_login_invalid",
+                "password is required",
+            ));
+        }
+        let password = request.password.as_str();
         let client_kind = resolve_client_kind(request.client_kind.as_deref())?;
         let mut store = self.lock_store()?;
 
@@ -255,7 +256,7 @@ impl AuthRuntime {
             ));
         }
 
-        if !verify_password(&account, password.as_str())? {
+        if !verify_password(&account, password)? {
             return Err(ApiError::unauthorized(
                 "auth_login_invalid",
                 "account login or password is invalid",
@@ -346,6 +347,19 @@ impl AuthRuntime {
                 )
             })?;
 
+        if account.disabled {
+            persist_store(&store).map_err(|error| {
+                ApiError::service_unavailable(
+                    "auth_store_unavailable",
+                    format!("failed to persist revoked refresh token state: {error}"),
+                )
+            })?;
+            return Err(ApiError::forbidden(
+                "auth_account_disabled",
+                "account is disabled",
+            ));
+        }
+
         self.issue_session(
             &mut store,
             &account,
@@ -354,13 +368,24 @@ impl AuthRuntime {
         )
     }
 
-    pub(super) fn me(&self, auth: &AuthContext) -> Result<MeResponse, ApiError> {
+    pub(super) fn me(
+        &self,
+        auth: &AuthContext,
+        client_kind_hint: Option<&str>,
+    ) -> Result<MeResponse, ApiError> {
         let store = self.lock_store()?;
         let account = store
             .accounts
             .iter()
             .find(|candidate| {
-                candidate.tenant_id == auth.tenant_id && candidate.actor_id == auth.actor_id
+                candidate.tenant_id == auth.tenant_id
+                    && candidate.actor_id == auth.actor_id
+                    && account_matches_auth_context(candidate, auth, client_kind_hint)
+            })
+            .or_else(|| {
+                store.accounts.iter().find(|candidate| {
+                    candidate.tenant_id == auth.tenant_id && candidate.actor_id == auth.actor_id
+                })
             })
             .cloned()
             .ok_or_else(|| {
@@ -453,7 +478,8 @@ pub(super) async fn me(
     State(state): State<AppState>,
 ) -> Result<Json<MeResponse>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
-    Ok(Json(state.auth_runtime.me(&auth)?))
+    let client_kind_hint = client_kind_from_headers(&headers);
+    Ok(Json(state.auth_runtime.me(&auth, client_kind_hint.as_deref())?))
 }
 
 fn account_user_view(account: &AuthAccountRecord) -> AuthUserView {
@@ -676,6 +702,86 @@ fn optional_trimmed(value: Option<&str>) -> Option<&str> {
     value
         .map(str::trim)
         .filter(|candidate| !candidate.is_empty())
+}
+
+fn account_matches_auth_context(
+    account: &AuthAccountRecord,
+    auth: &AuthContext,
+    client_kind_hint: Option<&str>,
+) -> bool {
+    if account.actor_kind != auth.actor_kind {
+        return false;
+    }
+
+    if let Some(client_kind_hint) = client_kind_hint
+        && account.client_kind != client_kind_hint
+    {
+        return false;
+    }
+
+    if auth.permissions.is_empty() {
+        return true;
+    }
+
+    account.permissions.len() == auth.permissions.len()
+        && account
+            .permissions
+            .iter()
+            .all(|permission| auth.permissions.contains(permission.as_str()))
+}
+
+fn client_kind_from_headers(headers: &HeaderMap) -> Option<String> {
+    let authorization = headers
+        .get(axum::http::header::AUTHORIZATION)?
+        .to_str()
+        .ok()?;
+    let token = authorization
+        .strip_prefix("Bearer ")
+        .or_else(|| authorization.strip_prefix("bearer "))?;
+    let payload_segment = token.split('.').nth(1)?;
+    let payload = decode_base64url_segment(payload_segment).ok()?;
+    let claims: Value = serde_json::from_slice(payload.as_slice()).ok()?;
+    claims
+        .get("client_kind")
+        .or_else(|| claims.get("clientKind"))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned)
+}
+
+fn decode_base64url_segment(input: &str) -> Result<Vec<u8>, String> {
+    let mut output = Vec::with_capacity((input.len() * 3) / 4 + 3);
+    let mut buffer = 0u32;
+    let mut bits = 0u8;
+
+    for byte in input.bytes() {
+        let value = match byte {
+            b'A'..=b'Z' => byte - b'A',
+            b'a'..=b'z' => byte - b'a' + 26,
+            b'0'..=b'9' => byte - b'0' + 52,
+            b'-' => 62,
+            b'_' => 63,
+            b'=' => continue,
+            _ => {
+                return Err("jwt payload segment is not valid base64url".into());
+            }
+        } as u32;
+
+        buffer = (buffer << 6) | value;
+        bits += 6;
+
+        while bits >= 8 {
+            bits -= 8;
+            output.push(((buffer >> bits) & 0xff) as u8);
+        }
+    }
+
+    if bits > 0 && (buffer & ((1 << bits) - 1)) != 0 {
+        return Err("jwt payload segment has invalid trailing bits".into());
+    }
+
+    Ok(output)
 }
 
 fn current_unix_epoch_seconds() -> u64 {

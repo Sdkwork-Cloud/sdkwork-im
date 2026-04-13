@@ -7,15 +7,15 @@ conversation_id=""
 user_id=""
 session_id=""
 device_id=""
+bearer_token=""
 label=""
 message_prefix=""
 release_flag=""
 
 usage() {
-  cat <<'EOF'
-Usage: bin/chat-window.sh --conversation-id <id> --user-id <id> [--base-url <url>] [--tenant-id <id>] [--session-id <id>] [--device-id <id>] [--label <name>] [--message-prefix <prefix>] [--release]
-Open one interactive chat terminal backed by bin/chat-cli.sh chat-session.
-EOF
+  printf '%s\n' \
+    "Usage: bin/chat-window.sh --conversation-id <id> --user-id <id> [--base-url <url>] [--tenant-id <id>] [--session-id <id>] [--device-id <id>] [--bearer-token <token>] [--label <name>] [--message-prefix <prefix>] [--release]" \
+    "Open one interactive chat terminal backed by bin/chat-cli.sh chat-session, optionally with a real bearer token."
 }
 
 while [[ $# -gt 0 ]]; do
@@ -42,6 +42,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --device-id)
       device_id="$2"
+      shift 2
+      ;;
+    --bearer-token)
+      bearer_token="$2"
       shift 2
       ;;
     --label)
@@ -74,7 +78,17 @@ read_config_value() {
   local key="$1"
   local config_file="$script_dir/../.runtime/local-minimal/config/local-minimal.env"
   [[ -f "$config_file" ]] || return 1
-  grep -E "^${key}=" "$config_file" | head -n 1 | cut -d '=' -f 2-
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%$'\r'}"
+    [[ -z "$line" || "$line" == \#* ]] && continue
+    local current_key="${line%%=*}"
+    local current_value="${line#*=}"
+    if [[ "$current_key" == "$key" ]]; then
+      printf '%s\n' "$current_value"
+      return 0
+    fi
+  done < "$config_file"
+  return 1
 }
 
 resolve_base_url() {
@@ -134,6 +148,10 @@ args+=(
   --conversation-id "$conversation_id"
   --label "$label"
 )
+
+if [[ -n "$bearer_token" ]]; then
+  args+=(--bearer-token "$bearer_token")
+fi
 
 if [[ -n "$message_prefix" ]]; then
   args+=(--message-prefix "$message_prefix")

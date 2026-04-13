@@ -1164,6 +1164,13 @@ fn test_step12_open_chat_test_scripts_freeze_scripted_validation_contract() {
             open_chat_test_sh_path.display()
         )
     });
+    let chat_window_sh_path = root.join("bin").join("chat-window.sh");
+    let chat_window_sh = fs::read_to_string(&chat_window_sh_path).unwrap_or_else(|_| {
+        panic!(
+            "missing chat-window bash script: {}",
+            chat_window_sh_path.display()
+        )
+    });
 
     for required_text in ["-ScriptedValidation", "-ValidationMessage", "-Json"] {
         assert!(
@@ -1177,10 +1184,22 @@ fn test_step12_open_chat_test_scripts_freeze_scripted_validation_contract() {
         "--validation-message",
         "--json",
         "watchFrameTypes",
+        "--owner-login",
+        "--owner-password",
+        "--guest-login",
+        "--guest-password",
+        "login",
     ] {
         assert!(
             open_chat_test_sh.contains(required_text),
             "open-chat-test.sh must contain {required_text}"
+        );
+    }
+
+    for required_text in ["--bearer-token", "chat-session"] {
+        assert!(
+            chat_window_sh.contains(required_text),
+            "chat-window.sh must contain {required_text}"
         );
     }
 
@@ -1192,6 +1211,8 @@ fn test_step12_open_chat_test_scripts_freeze_scripted_validation_contract() {
         "realtime.connected",
         "event.window",
         "open-chat-test",
+        "OwnerPassword",
+        "GuestPassword",
     ] {
         assert!(
             doc.contains(required_text),

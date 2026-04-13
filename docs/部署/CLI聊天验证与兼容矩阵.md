@@ -149,19 +149,19 @@ PowerShell:
 PowerShell:
 
 ```powershell
-./bin/open-chat-test.ps1 -ConversationId c_cli_demo -OwnerUserId u_owner -GuestUserId u_guest -ScriptedValidation -ValidationMessage "hello from scripted validation" -Json
+./bin/open-chat-test.ps1 -ConversationId c_cli_demo -OwnerUserId u_owner -OwnerLogin u_owner -OwnerPassword Owner#2026 -GuestUserId u_guest -GuestLogin u_guest -GuestPassword Guest#2026 -ScriptedValidation -ValidationMessage "hello from scripted validation" -Json
 ```
 
 Bash:
 
 ```bash
-./bin/open-chat-test.sh --conversation-id c_cli_demo --owner-user-id u_owner --guest-user-id u_guest --scripted-validation --validation-message "hello from scripted validation" --json
+./bin/open-chat-test.sh --conversation-id c_cli_demo --owner-user-id u_owner --owner-login u_owner --owner-password Owner#2026 --guest-user-id u_guest --guest-login u_guest --guest-password Guest#2026 --scripted-validation --validation-message "hello from scripted validation" --json
 ```
 
 Windows CMD:
 
 ```powershell
-cmd /c .\bin\open-chat-test.cmd --base-url http://127.0.0.1:18090 --conversation-id c_cli_demo --owner-user-id u_owner --guest-user-id u_guest --skip-start --scripted-validation --validation-message "hello from scripted validation" --json
+cmd /c .\bin\open-chat-test.cmd --base-url http://127.0.0.1:18090 --conversation-id c_cli_demo --owner-user-id u_owner --owner-login u_owner --owner-password Owner#2026 --guest-user-id u_guest --guest-login u_guest --guest-password Guest#2026 --skip-start --scripted-validation --validation-message "hello from scripted validation" --json
 ```
 
 scripted mode 当前最小保证：
