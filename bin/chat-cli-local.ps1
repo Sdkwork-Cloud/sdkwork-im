@@ -22,7 +22,57 @@ Set-Location $root
 $profileDir = if ($release) { "release" } else { "debug" }
 $exePath = Join-Path $root "target\$profileDir\craw-chat-cli.exe"
 
-if (-not (Test-Path $exePath)) {
+function Get-ChatCliBuildInputs {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Root
+    )
+
+    @(
+        (Join-Path $Root "Cargo.lock"),
+        (Join-Path $Root "tools\chat-cli\Cargo.toml"),
+        (Join-Path $Root "tools\chat-cli\src")
+    )
+}
+
+function Test-ChatCliExecutableNeedsBuild {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Root,
+        [Parameter(Mandatory = $true)]
+        [string]$ExePath
+    )
+
+    if (-not (Test-Path $ExePath)) {
+        return $true
+    }
+
+    $exeTimestamp = (Get-Item -LiteralPath $ExePath).LastWriteTimeUtc
+    foreach ($inputPath in Get-ChatCliBuildInputs -Root $Root) {
+        if (-not (Test-Path -LiteralPath $inputPath)) {
+            continue
+        }
+
+        $item = Get-Item -LiteralPath $inputPath
+        if ($item.PSIsContainer) {
+            $newerSource = Get-ChildItem -LiteralPath $inputPath -File -Recurse |
+                Where-Object { $_.LastWriteTimeUtc -gt $exeTimestamp } |
+                Select-Object -First 1
+            if ($null -ne $newerSource) {
+                return $true
+            }
+            continue
+        }
+
+        if ($item.LastWriteTimeUtc -gt $exeTimestamp) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
+if (Test-ChatCliExecutableNeedsBuild -Root $root -ExePath $exePath) {
     $cargoArgs = @("build", "-p", "craw-chat-cli")
     if ($release) {
         $cargoArgs += "--release"

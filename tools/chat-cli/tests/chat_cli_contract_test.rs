@@ -1221,6 +1221,97 @@ fn test_step12_open_chat_test_scripts_freeze_scripted_validation_contract() {
     }
 }
 
+#[test]
+fn test_chat_cli_wrappers_rebuild_when_sources_are_newer_than_local_binary() {
+    let root = workspace_root();
+    let chat_cli_local_ps1_path = root.join("bin").join("chat-cli-local.ps1");
+    let chat_cli_local_ps1 = fs::read_to_string(&chat_cli_local_ps1_path).unwrap_or_else(|_| {
+        panic!(
+            "missing chat-cli-local PowerShell wrapper: {}",
+            chat_cli_local_ps1_path.display()
+        )
+    });
+    let chat_cli_local_sh_path = root.join("bin").join("chat-cli-local.sh");
+    let chat_cli_local_sh = fs::read_to_string(&chat_cli_local_sh_path).unwrap_or_else(|_| {
+        panic!(
+            "missing chat-cli-local bash wrapper: {}",
+            chat_cli_local_sh_path.display()
+        )
+    });
+    let chat_window_gui_ps1_path = root.join("bin").join("chat-window-gui.ps1");
+    let chat_window_gui_ps1 = fs::read_to_string(&chat_window_gui_ps1_path).unwrap_or_else(|_| {
+        panic!(
+            "missing chat-window-gui PowerShell launcher: {}",
+            chat_window_gui_ps1_path.display()
+        )
+    });
+
+    for required_text in [
+        "Test-ChatCliExecutableNeedsBuild",
+        "LastWriteTimeUtc",
+        "tools\\chat-cli\\src",
+        "Cargo.lock",
+    ] {
+        assert!(
+            chat_cli_local_ps1.contains(required_text),
+            "chat-cli-local.ps1 must contain stale-binary rebuild guard text {required_text}"
+        );
+    }
+
+    for required_text in [
+        "chat_cli_binary_needs_build",
+        "tools/chat-cli/src",
+        "Cargo.lock",
+        "build -p craw-chat-cli",
+    ] {
+        assert!(
+            chat_cli_local_sh.contains(required_text),
+            "chat-cli-local.sh must contain stale-binary rebuild guard text {required_text}"
+        );
+    }
+
+    for required_text in [
+        "Test-ChatCliExecutableNeedsBuild",
+        "LastWriteTimeUtc",
+        "tools\\chat-cli\\src",
+        "Resolve-ChatCliExecutablePath",
+    ] {
+        assert!(
+            chat_window_gui_ps1.contains(required_text),
+            "chat-window-gui.ps1 must contain stale-binary rebuild guard text {required_text}"
+        );
+    }
+}
+
+#[test]
+fn test_open_chat_test_ps1_contains_managed_runtime_self_heal_guards() {
+    let root = workspace_root();
+    let open_chat_test_ps1_path = root.join("bin").join("open-chat-test.ps1");
+    let open_chat_test_ps1 = fs::read_to_string(&open_chat_test_ps1_path).unwrap_or_else(|_| {
+        panic!(
+            "missing open-chat-test PowerShell script: {}",
+            open_chat_test_ps1_path.display()
+        )
+    });
+
+    for required_text in [
+        "Resolve-LocalMinimalRuntimeDir",
+        "Invoke-RepairLocalRuntime",
+        "Reset-LocalRuntimeState",
+        "Test-IsManagedRuntimeRecoveryCandidate",
+        "Invoke-ManagedScriptedValidationWithRecovery",
+        "chat-cli invocation timed out after",
+        "Managed runtime still failed after repair",
+        "repair-runtime-local.ps1",
+        "scripted-validation-reset-",
+    ] {
+        assert!(
+            open_chat_test_ps1.contains(required_text),
+            "open-chat-test.ps1 must contain managed runtime self-heal guard text {required_text}"
+        );
+    }
+}
+
 #[tokio::test]
 async fn test_chat_cli_timeline_connect_failure_surfaces_actionable_service_unreachable_hint() {
     let base_url = reserve_closed_base_url().await;

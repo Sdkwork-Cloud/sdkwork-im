@@ -38,7 +38,44 @@ if [[ "$release_mode" -eq 1 ]]; then
 fi
 
 binary_path="${ROOT_DIR}/target/${profile_dir}/craw-chat-cli"
-if [[ ! -x "${binary_path}" ]]; then
+chat_cli_build_inputs=(
+  "${ROOT_DIR}/Cargo.lock"
+  "${ROOT_DIR}/tools/chat-cli/Cargo.toml"
+)
+chat_cli_source_roots=(
+  "${ROOT_DIR}/tools/chat-cli/src"
+)
+
+chat_cli_binary_needs_build() {
+  local input_path=""
+  if [[ ! -x "${binary_path}" ]]; then
+    return 0
+  fi
+
+  for input_path in "${chat_cli_build_inputs[@]}"; do
+    if [[ -e "${input_path}" && "${input_path}" -nt "${binary_path}" ]]; then
+      return 0
+    fi
+  done
+
+  for input_path in "${chat_cli_source_roots[@]}"; do
+    [[ -d "${input_path}" ]] || continue
+
+    if ! command -v find >/dev/null 2>&1; then
+      return 0
+    fi
+
+    while IFS= read -r -d '' source_path; do
+      if [[ "${source_path}" -nt "${binary_path}" ]]; then
+        return 0
+      fi
+    done < <(find "${input_path}" -type f -print0)
+  done
+
+  return 1
+}
+
+if chat_cli_binary_needs_build; then
   cargo_args=(build -p craw-chat-cli)
   if [[ "$release_mode" -eq 1 ]]; then
     cargo_args+=(--release)

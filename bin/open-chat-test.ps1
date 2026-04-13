@@ -102,6 +102,16 @@ function Resolve-BaseUrl {
     return "http://$resolvedHost`:$port"
 }
 
+function Resolve-LocalMinimalRuntimeDir {
+    $configFile = Join-Path (Split-Path -Parent $PSScriptRoot) ".runtime\local-minimal\config\local-minimal.env"
+    $configuredRuntimeDir = Read-ConfigValue -ConfigFile $configFile -Key "CRAW_CHAT_RUNTIME_DIR"
+    if (-not [string]::IsNullOrWhiteSpace($configuredRuntimeDir)) {
+        return $configuredRuntimeDir
+    }
+
+    return Join-Path (Split-Path -Parent $PSScriptRoot) ".runtime\local-minimal"
+}
+
 function Resolve-BindAddressFromBaseUrl {
     param(
         [Parameter(Mandatory = $true)]
@@ -194,6 +204,26 @@ function Quote-ProcessArgument {
     return '"' + ($Value -replace '"', '\"') + '"'
 }
 
+function Stop-ProcessTree {
+    param(
+        [Parameter(Mandatory = $true)]
+        [int]$ProcessId
+    )
+
+    try {
+        & taskkill.exe /PID $ProcessId /T /F | Out-Null
+        return
+    }
+    catch {
+    }
+
+    try {
+        Stop-Process -Id $ProcessId -Force -ErrorAction Stop
+    }
+    catch {
+    }
+}
+
 function Invoke-ChatCli {
     param(
         [Parameter(Mandatory = $true)]
@@ -216,7 +246,9 @@ function Invoke-ChatCliCaptured {
     param(
         [Parameter(Mandatory = $true)]
         [string[]]$Arguments,
-        [switch]$AllowEmpty
+        [switch]$AllowEmpty,
+        [ValidateRange(1, 300)]
+        [int]$TimeoutSeconds = 30
     )
 
     $root = Split-Path -Parent $PSScriptRoot
@@ -245,12 +277,28 @@ function Invoke-ChatCliCaptured {
     $process.StartInfo = $startInfo
 
     [void]$process.Start()
-    $stdout = $process.StandardOutput.ReadToEnd()
-    $stderr = $process.StandardError.ReadToEnd()
-    $process.WaitForExit()
+    $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+    $stderrTask = $process.StandardError.ReadToEndAsync()
 
-    if ($process.ExitCode -ne 0) {
-        throw "chat-cli invocation failed with exit code $($process.ExitCode): $($Arguments -join ' ')`n$stderr`n$stdout"
+    if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
+        try {
+            Stop-ProcessTree -ProcessId $process.Id
+            $process.WaitForExit()
+        }
+        catch {
+        }
+        $stdout = $stdoutTask.GetAwaiter().GetResult()
+        $stderr = $stderrTask.GetAwaiter().GetResult()
+        throw "chat-cli invocation timed out after $TimeoutSeconds seconds: $($Arguments -join ' ')`n$stderr`n$stdout"
+    }
+
+    $process.WaitForExit()
+    $stdout = $stdoutTask.GetAwaiter().GetResult()
+    $stderr = $stderrTask.GetAwaiter().GetResult()
+
+    $exitCode = if ($null -eq $process.ExitCode) { 0 } else { [int]$process.ExitCode }
+    if ($exitCode -ne 0) {
+        throw "chat-cli invocation failed with exit code ${exitCode}: $($Arguments -join ' ')`n$stderr`n$stdout"
     }
 
     if ([string]::IsNullOrWhiteSpace($stdout) -and -not $AllowEmpty) {
@@ -267,10 +315,12 @@ function Invoke-ChatCliJson {
     param(
         [Parameter(Mandatory = $true)]
         [string[]]$Arguments,
-        [switch]$AllowEmpty
+        [switch]$AllowEmpty,
+        [ValidateRange(1, 300)]
+        [int]$TimeoutSeconds = 30
     )
 
-    $result = Invoke-ChatCliCaptured -Arguments $Arguments -AllowEmpty:$AllowEmpty
+    $result = Invoke-ChatCliCaptured -Arguments $Arguments -AllowEmpty:$AllowEmpty -TimeoutSeconds $TimeoutSeconds
     if ([string]::IsNullOrWhiteSpace($result.Stdout)) {
         return $null
     }
@@ -558,6 +608,56 @@ function Start-HostedLocalService {
     }
 }
 
+function Invoke-RepairLocalRuntime {
+    if ($Release) {
+        & "$PSScriptRoot\repair-runtime-local.ps1" -ProfileName "local-minimal" -Release | Out-Null
+    }
+    else {
+        & "$PSScriptRoot\repair-runtime-local.ps1" -ProfileName "local-minimal" | Out-Null
+    }
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to repair local-minimal runtime-dir via repair-runtime-local.ps1."
+    }
+}
+
+function Reset-LocalRuntimeState {
+    $runtimeDir = Resolve-LocalMinimalRuntimeDir
+    $stateDir = Join-Path $runtimeDir "state"
+    $backupsDir = Join-Path $runtimeDir "backups"
+    $backupName = "scripted-validation-reset-{0}" -f (Get-Date -Format "yyyyMMddHHmmss")
+    $backupDir = Join-Path $backupsDir $backupName
+    $backupStateDir = Join-Path $backupDir "state"
+
+    New-Item -ItemType Directory -Path $backupsDir -Force | Out-Null
+    if (Test-Path $stateDir) {
+        New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
+        Move-Item -LiteralPath $stateDir -Destination $backupStateDir -Force
+    }
+
+    New-Item -ItemType Directory -Path $stateDir -Force | Out-Null
+    return $backupDir
+}
+
+function Test-IsManagedRuntimeRecoveryCandidate {
+    param(
+        [AllowNull()]
+        [string]$Message
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Message)) {
+        return $false
+    }
+
+    return (
+        $Message -match "chat-cli invocation timed out" -or
+        $Message -match "scripted validation watch did not complete before timeout" -or
+        $Message -match "scripted validation watch did not produce any frames" -or
+        $Message -match "failed while waiting for event\.window or events\.acked" -or
+        $Message -match "unable to connect to craw-chat service" -or
+        $Message -match "Chat service is not healthy"
+    )
+}
+
 function Stop-LocalMinimalNodeListener {
     param(
         [Parameter(Mandatory = $true)]
@@ -595,6 +695,125 @@ function Stop-LocalMinimalNodeListener {
     return $true
 }
 
+function Invoke-ManagedScriptedValidationWorkflow {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ResolvedBaseUrl,
+        [Parameter(Mandatory = $true)]
+        [string]$ResolvedOwnerLogin,
+        [Parameter(Mandatory = $true)]
+        [string]$ResolvedOwnerPassword,
+        [Parameter(Mandatory = $true)]
+        [string]$ResolvedGuestLogin,
+        [Parameter(Mandatory = $true)]
+        [string]$ResolvedGuestPassword
+    )
+
+    $ownerAuth = Invoke-ImUserLoginWithRecovery `
+        -ResolvedBaseUrl $ResolvedBaseUrl `
+        -RequestedUserId $OwnerUserId `
+        -Login $ResolvedOwnerLogin `
+        -Password $ResolvedOwnerPassword `
+        -SessionId $ownerSessionId `
+        -DeviceId $ownerDeviceId
+    $guestAuth = Invoke-ImUserLoginWithRecovery `
+        -ResolvedBaseUrl $ResolvedBaseUrl `
+        -RequestedUserId $GuestUserId `
+        -Login $ResolvedGuestLogin `
+        -Password $ResolvedGuestPassword `
+        -SessionId $guestSessionId `
+        -DeviceId $guestDeviceId
+
+    $ownerCliAuthArgs = @(Get-ChatCliAuthArguments -ResolvedBaseUrl $ResolvedBaseUrl -AuthContext $ownerAuth)
+    $null = Invoke-ChatCliJson -Arguments ($ownerCliAuthArgs + @(
+            "create-conversation",
+            "--conversation-id", $ConversationId,
+            "--conversation-type", "group"
+        ))
+
+    $null = Invoke-ChatCliJson -Arguments ($ownerCliAuthArgs + @(
+            "add-member",
+            "--conversation-id", $ConversationId,
+            "--principal-id", $guestAuth.UserId,
+            "--principal-kind", "user",
+            "--role", "member"
+        ))
+
+    return Invoke-ScriptedValidation `
+        -ResolvedBaseUrl $ResolvedBaseUrl `
+        -ResolvedValidationMessage $resolvedValidationMessage `
+        -OwnerAuth $ownerAuth `
+        -GuestAuth $guestAuth
+}
+
+function Invoke-ManagedScriptedValidationWithRecovery {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ResolvedBaseUrl,
+        [Parameter(Mandatory = $true)]
+        [string]$ResolvedOwnerLogin,
+        [Parameter(Mandatory = $true)]
+        [string]$ResolvedOwnerPassword,
+        [Parameter(Mandatory = $true)]
+        [string]$ResolvedGuestLogin,
+        [Parameter(Mandatory = $true)]
+        [string]$ResolvedGuestPassword
+    )
+
+    try {
+        return Invoke-ManagedScriptedValidationWorkflow `
+            -ResolvedBaseUrl $ResolvedBaseUrl `
+            -ResolvedOwnerLogin $ResolvedOwnerLogin `
+            -ResolvedOwnerPassword $ResolvedOwnerPassword `
+            -ResolvedGuestLogin $ResolvedGuestLogin `
+            -ResolvedGuestPassword $ResolvedGuestPassword
+    }
+    catch {
+        $initialMessage = $_.Exception.Message
+        if ($SkipStart -or -not (Test-IsManagedRuntimeRecoveryCandidate -Message $initialMessage)) {
+            throw
+        }
+
+        Write-Host "Scripted validation failed against managed local runtime. Repairing runtime-dir and restarting local-minimal-node..."
+        $null = Stop-LocalMinimalNodeListener -ResolvedBaseUrl $ResolvedBaseUrl
+        Invoke-RepairLocalRuntime
+        Start-HostedLocalService -ResolvedBaseUrl $ResolvedBaseUrl
+
+        try {
+            return Invoke-ManagedScriptedValidationWorkflow `
+                -ResolvedBaseUrl $ResolvedBaseUrl `
+                -ResolvedOwnerLogin $ResolvedOwnerLogin `
+                -ResolvedOwnerPassword $ResolvedOwnerPassword `
+                -ResolvedGuestLogin $ResolvedGuestLogin `
+                -ResolvedGuestPassword $ResolvedGuestPassword
+        }
+        catch {
+            $repairMessage = $_.Exception.Message
+            if (-not (Test-IsManagedRuntimeRecoveryCandidate -Message $repairMessage)) {
+                throw
+            }
+
+            Write-Host "Managed runtime still failed after repair. Backing up and resetting runtime state before restart..."
+            $null = Stop-LocalMinimalNodeListener -ResolvedBaseUrl $ResolvedBaseUrl
+            $backupDir = Reset-LocalRuntimeState
+            Invoke-RepairLocalRuntime
+            Start-HostedLocalService -ResolvedBaseUrl $ResolvedBaseUrl
+
+            try {
+                return Invoke-ManagedScriptedValidationWorkflow `
+                    -ResolvedBaseUrl $ResolvedBaseUrl `
+                    -ResolvedOwnerLogin $ResolvedOwnerLogin `
+                    -ResolvedOwnerPassword $ResolvedOwnerPassword `
+                    -ResolvedGuestLogin $ResolvedGuestLogin `
+                    -ResolvedGuestPassword $ResolvedGuestPassword
+            }
+            catch {
+                throw "Managed runtime recovery failed after reset. backupDir: $backupDir`n$($_.Exception.Message)"
+            }
+        }
+    }
+}
+
 function Invoke-ImUserLoginWithRecovery {
     param(
         [Parameter(Mandatory = $true)]
@@ -625,8 +844,11 @@ function Invoke-ImUserLoginWithRecovery {
         $signingSecretMissing =
             $message -match "auth_signing_secret_missing" -or
             $message -match "public bearer signing secret is missing"
+        $staleServiceAuthContract =
+            $message -match "auth_context_missing" -or
+            $message -match "authorization bearer token is required"
 
-        if ($SkipStart -or -not $signingSecretMissing) {
+        if ($SkipStart -or (-not $signingSecretMissing -and -not $staleServiceAuthContract)) {
             throw
         }
 
@@ -685,6 +907,27 @@ $resolvedOwnerPassword = Resolve-ImPassword -Login $resolvedOwnerLogin -Requeste
 $resolvedGuestLogin = Resolve-ImLogin -RequestedUserId $GuestUserId -RequestedLogin $GuestLogin
 $resolvedGuestPassword = Resolve-ImPassword -Login $resolvedGuestLogin -RequestedPassword $GuestPassword
 
+if ($ScriptedValidation) {
+    $summary = Invoke-ManagedScriptedValidationWithRecovery `
+        -ResolvedBaseUrl $BaseUrl `
+        -ResolvedOwnerLogin $resolvedOwnerLogin `
+        -ResolvedOwnerPassword $resolvedOwnerPassword `
+        -ResolvedGuestLogin $resolvedGuestLogin `
+        -ResolvedGuestPassword $resolvedGuestPassword
+
+    if ($Json) {
+        $summary | ConvertTo-Json -Depth 8
+    }
+    else {
+        Write-Host "Scripted validation completed."
+        Write-Host "conversationId: $($summary.conversationId)"
+        Write-Host "validationMessage: $($summary.validationMessage)"
+        Write-Host "watchDelivered: $($summary.watchDelivered)"
+        Write-Host "timelineContainsValidationMessage: $($summary.timelineContainsValidationMessage)"
+    }
+    exit 0
+}
+
 $ownerAuth = Invoke-ImUserLoginWithRecovery `
     -ResolvedBaseUrl $BaseUrl `
     -RequestedUserId $OwnerUserId `
@@ -701,41 +944,6 @@ $guestAuth = Invoke-ImUserLoginWithRecovery `
     -DeviceId $guestDeviceId
 
 $ownerCliAuthArgs = @(Get-ChatCliAuthArguments -ResolvedBaseUrl $BaseUrl -AuthContext $ownerAuth)
-$guestCliAuthArgs = @(Get-ChatCliAuthArguments -ResolvedBaseUrl $BaseUrl -AuthContext $guestAuth)
-
-if ($ScriptedValidation) {
-    $null = Invoke-ChatCliJson -Arguments ($ownerCliAuthArgs + @(
-            "create-conversation",
-            "--conversation-id", $ConversationId,
-            "--conversation-type", "group"
-        ))
-
-    $null = Invoke-ChatCliJson -Arguments ($ownerCliAuthArgs + @(
-            "add-member",
-            "--conversation-id", $ConversationId,
-            "--principal-id", $guestAuth.UserId,
-            "--principal-kind", "user",
-            "--role", "member"
-        ))
-
-    $summary = Invoke-ScriptedValidation `
-        -ResolvedBaseUrl $BaseUrl `
-        -ResolvedValidationMessage $resolvedValidationMessage `
-        -OwnerAuth $ownerAuth `
-        -GuestAuth $guestAuth
-
-    if ($Json) {
-        $summary | ConvertTo-Json -Depth 8
-    }
-    else {
-        Write-Host "Scripted validation completed."
-        Write-Host "conversationId: $($summary.conversationId)"
-        Write-Host "validationMessage: $($summary.validationMessage)"
-        Write-Host "watchDelivered: $($summary.watchDelivered)"
-        Write-Host "timelineContainsValidationMessage: $($summary.timelineContainsValidationMessage)"
-    }
-    exit 0
-}
 
 Invoke-ChatCli -Arguments ($ownerCliAuthArgs + @(
         "create-conversation",
