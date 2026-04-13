@@ -467,6 +467,91 @@ async fn test_login_rejects_invalid_password() {
 }
 
 #[tokio::test]
+async fn test_login_rejects_oversized_device_id() {
+    let (_guard, _secret) = configure_public_bearer_secret().await;
+    let runtime_dir = unique_runtime_dir();
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+    let app = local_minimal_node::build_public_app_with_runtime_dir(runtime_dir.as_path());
+
+    let response = post_json(
+        &app,
+        "/api/v1/auth/login",
+        json!({
+            "tenantId": "t_demo",
+            "login": "u_guest",
+            "password": "Guest#2026",
+            "clientKind": "im_user",
+            "deviceId": "d".repeat(257),
+            "sessionId": "s_guest"
+        }),
+    )
+    .await;
+
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let body = read_json(response).await;
+    assert_eq!(body["code"], "payload_too_large");
+    assert!(
+        body["message"]
+            .as_str()
+            .expect("message should be present")
+            .contains("deviceId")
+    );
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
+async fn test_refresh_rejects_oversized_session_id() {
+    let (_guard, _secret) = configure_public_bearer_secret().await;
+    let runtime_dir = unique_runtime_dir();
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+    let app = local_minimal_node::build_public_app_with_runtime_dir(runtime_dir.as_path());
+
+    let login = post_json(
+        &app,
+        "/api/v1/auth/login",
+        json!({
+            "tenantId": "t_demo",
+            "login": "u_guest",
+            "password": "Guest#2026",
+            "clientKind": "im_user",
+            "deviceId": "d_guest",
+            "sessionId": "s_guest"
+        }),
+    )
+    .await;
+    assert_eq!(login.status(), StatusCode::OK);
+    let login_body = read_json(login).await;
+    let refresh_token = login_body["refreshToken"]
+        .as_str()
+        .expect("refresh token should be present")
+        .to_owned();
+
+    let refreshed = post_json(
+        &app,
+        "/api/v1/auth/refresh",
+        json!({
+            "refreshToken": refresh_token,
+            "deviceId": "d_guest",
+            "sessionId": "s".repeat(257)
+        }),
+    )
+    .await;
+
+    assert_eq!(refreshed.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let refreshed_body = read_json(refreshed).await;
+    assert_eq!(refreshed_body["code"], "payload_too_large");
+    assert!(
+        refreshed_body["message"]
+            .as_str()
+            .expect("message should be present")
+            .contains("sessionId")
+    );
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
 async fn test_portal_public_snapshots_are_open_but_workspace_requires_operator_token() {
     let (_guard, _secret) = configure_public_bearer_secret().await;
     let runtime_dir = unique_runtime_dir();

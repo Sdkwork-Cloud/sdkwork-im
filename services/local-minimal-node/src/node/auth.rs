@@ -16,6 +16,7 @@ use super::*;
 const ACCESS_TOKEN_TTL_SECONDS: u64 = 60 * 60;
 const REFRESH_TOKEN_TTL_SECONDS: u64 = 60 * 60 * 24 * 30;
 const PASSWORD_ITERATIONS: u32 = 120_000;
+const AUTH_MAX_BINDING_ID_BYTES: usize = 256;
 const CLIENT_KIND_IM_USER: &str = "im_user";
 const CLIENT_KIND_PORTAL_OPERATOR: &str = "portal_operator";
 const TOKEN_ISSUER: &str = "craw-chat";
@@ -232,6 +233,9 @@ impl AuthRuntime {
         }
         let password = request.password.as_str();
         let client_kind = resolve_client_kind(request.client_kind.as_deref())?;
+        let device_id = validate_optional_auth_binding_id("deviceId", request.device_id.as_deref())?;
+        let session_id =
+            validate_optional_auth_binding_id("sessionId", request.session_id.as_deref())?;
         let mut store = self.lock_store()?;
 
         let account = store
@@ -267,8 +271,8 @@ impl AuthRuntime {
         self.issue_session(
             &mut store,
             &account,
-            request.device_id.as_deref(),
-            request.session_id.as_deref(),
+            device_id,
+            session_id,
         )
     }
 
@@ -279,6 +283,9 @@ impl AuthRuntime {
             "refreshToken is required",
         )?
         .to_owned();
+        let device_id = validate_optional_auth_binding_id("deviceId", request.device_id.as_deref())?;
+        let session_id =
+            validate_optional_auth_binding_id("sessionId", request.session_id.as_deref())?;
         let mut store = self.lock_store()?;
         let now = current_unix_epoch_seconds();
         let pruned_expired_sessions =
@@ -318,7 +325,7 @@ impl AuthRuntime {
             ));
         }
 
-        if let Some(device_id) = request.device_id.as_deref().map(str::trim)
+        if let Some(device_id) = device_id
             && !device_id.is_empty()
             && device_id != session.device_id
         {
@@ -334,7 +341,7 @@ impl AuthRuntime {
             ));
         }
 
-        if let Some(session_id) = request.session_id.as_deref().map(str::trim)
+        if let Some(session_id) = session_id
             && !session_id.is_empty()
             && session_id != session.session_id
         {
@@ -636,6 +643,25 @@ fn prune_expired_refresh_sessions(
     let original_len = refresh_sessions.len();
     refresh_sessions.retain(|session| session.expires_at > now);
     refresh_sessions.len() != original_len
+}
+
+fn validate_optional_auth_binding_id<'a>(
+    field: &'static str,
+    value: Option<&'a str>,
+) -> Result<Option<&'a str>, ApiError> {
+    let value = optional_trimmed(value);
+    if let Some(value) = value {
+        let actual_bytes = value.len();
+        if actual_bytes > AUTH_MAX_BINDING_ID_BYTES {
+            return Err(ApiError::payload_too_large(
+                field,
+                AUTH_MAX_BINDING_ID_BYTES,
+                actual_bytes,
+            ));
+        }
+    }
+
+    Ok(value)
 }
 
 fn auth_store_paths(runtime_dir: Option<&Path>) -> (Option<PathBuf>, Option<PathBuf>) {
