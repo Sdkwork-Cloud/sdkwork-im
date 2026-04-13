@@ -4,9 +4,15 @@ pub(super) async fn create_media_upload(
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<CreateUploadRequest>,
-) -> Result<Json<im_domain_core::media::MediaAsset>, ApiError> {
+) -> Result<Json<MediaUploadMutationResponse>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
-    Ok(Json(state.media_runtime.create_upload(&auth, request)?))
+    let request_key = media_create_upload_request_key(&auth, request.media_asset_id.as_str());
+    Ok(Json(MediaUploadMutationResponse::from_outcome(
+        state
+            .media_runtime
+            .create_upload_with_outcome(&auth, request)?,
+        request_key,
+    )))
 }
 
 pub(super) async fn complete_media_upload(
@@ -14,13 +20,17 @@ pub(super) async fn complete_media_upload(
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<CompleteUploadRequest>,
-) -> Result<Json<im_domain_core::media::MediaAsset>, ApiError> {
+) -> Result<Json<MediaUploadMutationResponse>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
-    Ok(Json(state.media_runtime.complete_upload(
-        &auth,
-        media_asset_id.as_str(),
-        request,
-    )?))
+    let request_key = media_complete_upload_request_key(&auth, media_asset_id.as_str());
+    Ok(Json(MediaUploadMutationResponse::from_outcome(
+        state.media_runtime.complete_upload_with_outcome(
+            &auth,
+            media_asset_id.as_str(),
+            request,
+        )?,
+        request_key,
+    )))
 }
 
 pub(super) async fn get_media(

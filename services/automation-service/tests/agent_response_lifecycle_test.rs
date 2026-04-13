@@ -170,6 +170,526 @@ fn test_agent_response_stream_and_tool_call_lifecycle_are_verifiable() {
     assert_eq!(tool_payload["state"], "completed");
 }
 
+#[test]
+fn test_same_event_type_records_use_distinct_idempotency_keys() {
+    let journal = Arc::new(RecordingJournal::default());
+    let runtime = automation_service::AutomationRuntime::with_journal(journal.clone());
+    let auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_demo".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_user".into()),
+        device_id: None,
+        permissions: BTreeSet::from([
+            "automation.execute".to_string(),
+            "automation.read".to_string(),
+        ]),
+    };
+
+    runtime
+        .request_execution(
+            &auth,
+            automation_service::RequestAutomationExecution {
+                execution_id: "ae_idempotency_key_scope".into(),
+                trigger_type: "agent.manual".into(),
+                target_kind: "conversation".into(),
+                target_ref: "c_demo".into(),
+                input_payload: Some(r#"{"prompt":"hello"}"#.into()),
+            },
+        )
+        .expect("execution request should succeed");
+    runtime
+        .start_agent_response(
+            &auth,
+            automation_service::StartAgentResponseRequest {
+                execution_id: "ae_idempotency_key_scope".into(),
+                stream_id: "st_idempotency_key_scope".into(),
+                stream_type: "agent.response.delta".into(),
+                conversation_id: "c_demo".into(),
+                schema_ref: Some("schema://agent/response.delta".into()),
+                member_id: Some("cm_agent".into()),
+                agent: AgentSubject {
+                    agent_id: "ag_demo".into(),
+                    session_id: Some("s_agent".into()),
+                    metadata: BTreeMap::from([("agentMode".into(), "assistant".into())]),
+                },
+            },
+        )
+        .expect("agent response stream should start");
+    runtime
+        .append_agent_response_delta(
+            &auth,
+            "st_idempotency_key_scope",
+            automation_service::AppendAgentResponseDeltaRequest {
+                frame_seq: 1,
+                frame_type: "delta.text".into(),
+                schema_ref: None,
+                encoding: "json".into(),
+                payload: r#"{"delta":"a"}"#.into(),
+                attributes: BTreeMap::new(),
+            },
+        )
+        .expect("first delta should append");
+    runtime
+        .append_agent_response_delta(
+            &auth,
+            "st_idempotency_key_scope",
+            automation_service::AppendAgentResponseDeltaRequest {
+                frame_seq: 2,
+                frame_type: "delta.text".into(),
+                schema_ref: None,
+                encoding: "json".into(),
+                payload: r#"{"delta":"b"}"#.into(),
+                attributes: BTreeMap::new(),
+            },
+        )
+        .expect("second delta should append");
+    runtime
+        .request_agent_tool_call(
+            &auth,
+            automation_service::RequestAgentToolCallRequest {
+                execution_id: "ae_idempotency_key_scope".into(),
+                tool_call_id: "tc_one".into(),
+                tool_name: "knowledge.search".into(),
+                arguments_payload: r#"{"query":"one"}"#.into(),
+            },
+        )
+        .expect("first tool call should append");
+    runtime
+        .request_agent_tool_call(
+            &auth,
+            automation_service::RequestAgentToolCallRequest {
+                execution_id: "ae_idempotency_key_scope".into(),
+                tool_call_id: "tc_two".into(),
+                tool_name: "knowledge.search".into(),
+                arguments_payload: r#"{"query":"two"}"#.into(),
+            },
+        )
+        .expect("second tool call should append");
+
+    let events = journal.recorded();
+    let delta_keys = events
+        .iter()
+        .filter(|event| event.event_type == "automation.agent_response_delta")
+        .map(|event| {
+            event
+                .idempotency_key
+                .clone()
+                .expect("delta events should include idempotency_key")
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(delta_keys.len(), 2);
+    let delta_key_unique_count = delta_keys.iter().collect::<BTreeSet<_>>().len();
+    assert_eq!(
+        delta_key_unique_count, 2,
+        "delta events with same type must not reuse idempotency_key"
+    );
+
+    let tool_keys = events
+        .iter()
+        .filter(|event| event.event_type == "automation.agent_tool_call_requested")
+        .map(|event| {
+            event
+                .idempotency_key
+                .clone()
+                .expect("tool events should include idempotency_key")
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(tool_keys.len(), 2);
+    let tool_key_unique_count = tool_keys.iter().collect::<BTreeSet<_>>().len();
+    assert_eq!(
+        tool_key_unique_count, 2,
+        "tool request events with same type must not reuse idempotency_key"
+    );
+}
+
+#[test]
+fn test_start_agent_response_rejects_stream_id_reuse_across_executions() {
+    let runtime = automation_service::AutomationRuntime::default();
+    let auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_demo".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_user".into()),
+        device_id: None,
+        permissions: BTreeSet::from([
+            "automation.execute".to_string(),
+            "automation.read".to_string(),
+        ]),
+    };
+
+    runtime
+        .request_execution(
+            &auth,
+            automation_service::RequestAutomationExecution {
+                execution_id: "ae_stream_reuse_1".into(),
+                trigger_type: "agent.manual".into(),
+                target_kind: "conversation".into(),
+                target_ref: "c_demo".into(),
+                input_payload: Some(r#"{"prompt":"first"}"#.into()),
+            },
+        )
+        .expect("first execution request should succeed");
+    runtime
+        .request_execution(
+            &auth,
+            automation_service::RequestAutomationExecution {
+                execution_id: "ae_stream_reuse_2".into(),
+                trigger_type: "agent.manual".into(),
+                target_kind: "conversation".into(),
+                target_ref: "c_demo".into(),
+                input_payload: Some(r#"{"prompt":"second"}"#.into()),
+            },
+        )
+        .expect("second execution request should succeed");
+
+    runtime
+        .start_agent_response(
+            &auth,
+            automation_service::StartAgentResponseRequest {
+                execution_id: "ae_stream_reuse_1".into(),
+                stream_id: "st_reused".into(),
+                stream_type: "agent.response.delta".into(),
+                conversation_id: "c_demo".into(),
+                schema_ref: Some("schema://agent/response.delta".into()),
+                member_id: Some("cm_agent".into()),
+                agent: AgentSubject {
+                    agent_id: "ag_demo".into(),
+                    session_id: Some("s_agent".into()),
+                    metadata: BTreeMap::new(),
+                },
+            },
+        )
+        .expect("first stream start should succeed");
+
+    let reused = runtime
+        .start_agent_response(
+            &auth,
+            automation_service::StartAgentResponseRequest {
+                execution_id: "ae_stream_reuse_2".into(),
+                stream_id: "st_reused".into(),
+                stream_type: "agent.response.delta".into(),
+                conversation_id: "c_demo".into(),
+                schema_ref: Some("schema://agent/response.delta".into()),
+                member_id: Some("cm_agent".into()),
+                agent: AgentSubject {
+                    agent_id: "ag_demo".into(),
+                    session_id: Some("s_agent".into()),
+                    metadata: BTreeMap::new(),
+                },
+            },
+        )
+        .expect_err("stream id reuse across executions must be rejected");
+    let reused_response = reused.into_response();
+    assert_eq!(reused_response.status(), axum::http::StatusCode::CONFLICT);
+}
+
+#[test]
+fn test_agent_response_stream_isolation_across_principal_kind() {
+    let runtime = automation_service::AutomationRuntime::default();
+    let user_auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_demo".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_user".into()),
+        device_id: None,
+        permissions: BTreeSet::from([
+            "automation.execute".to_string(),
+            "automation.read".to_string(),
+        ]),
+    };
+    let system_auth = AuthContext {
+        actor_kind: "system".into(),
+        session_id: Some("s_system".into()),
+        ..user_auth.clone()
+    };
+
+    runtime
+        .request_execution(
+            &user_auth,
+            automation_service::RequestAutomationExecution {
+                execution_id: "ae_stream_kind_isolation".into(),
+                trigger_type: "agent.manual".into(),
+                target_kind: "conversation".into(),
+                target_ref: "c_demo".into(),
+                input_payload: Some(r#"{"prompt":"hello"}"#.into()),
+            },
+        )
+        .expect("user execution should succeed");
+    runtime
+        .start_agent_response(
+            &user_auth,
+            automation_service::StartAgentResponseRequest {
+                execution_id: "ae_stream_kind_isolation".into(),
+                stream_id: "st_kind_isolation".into(),
+                stream_type: "agent.response.delta".into(),
+                conversation_id: "c_demo".into(),
+                schema_ref: Some("schema://agent/response.delta".into()),
+                member_id: Some("cm_agent".into()),
+                agent: AgentSubject {
+                    agent_id: "ag_demo".into(),
+                    session_id: Some("s_agent".into()),
+                    metadata: BTreeMap::new(),
+                },
+            },
+        )
+        .expect("user stream should start");
+
+    let hidden = runtime
+        .append_agent_response_delta(
+            &system_auth,
+            "st_kind_isolation",
+            automation_service::AppendAgentResponseDeltaRequest {
+                frame_seq: 1,
+                frame_type: "delta.text".into(),
+                schema_ref: None,
+                encoding: "json".into(),
+                payload: r#"{"delta":"x"}"#.into(),
+                attributes: BTreeMap::new(),
+            },
+        )
+        .expect_err("different principal_kind should not access stream")
+        .into_response();
+    assert_eq!(hidden.status(), axum::http::StatusCode::NOT_FOUND);
+}
+
+#[test]
+fn test_start_agent_response_rejects_second_stream_for_same_execution() {
+    let runtime = automation_service::AutomationRuntime::default();
+    let auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_demo".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_user".into()),
+        device_id: None,
+        permissions: BTreeSet::from([
+            "automation.execute".to_string(),
+            "automation.read".to_string(),
+        ]),
+    };
+
+    runtime
+        .request_execution(
+            &auth,
+            automation_service::RequestAutomationExecution {
+                execution_id: "ae_single_stream".into(),
+                trigger_type: "agent.manual".into(),
+                target_kind: "conversation".into(),
+                target_ref: "c_demo".into(),
+                input_payload: Some(r#"{"prompt":"hello"}"#.into()),
+            },
+        )
+        .expect("execution should succeed");
+
+    runtime
+        .start_agent_response(
+            &auth,
+            automation_service::StartAgentResponseRequest {
+                execution_id: "ae_single_stream".into(),
+                stream_id: "st_primary".into(),
+                stream_type: "agent.response.delta".into(),
+                conversation_id: "c_demo".into(),
+                schema_ref: Some("schema://agent/response.delta".into()),
+                member_id: Some("cm_agent".into()),
+                agent: AgentSubject {
+                    agent_id: "ag_demo".into(),
+                    session_id: Some("s_agent".into()),
+                    metadata: BTreeMap::new(),
+                },
+            },
+        )
+        .expect("primary stream should start");
+
+    let duplicated = runtime
+        .start_agent_response(
+            &auth,
+            automation_service::StartAgentResponseRequest {
+                execution_id: "ae_single_stream".into(),
+                stream_id: "st_secondary".into(),
+                stream_type: "agent.response.delta".into(),
+                conversation_id: "c_demo".into(),
+                schema_ref: Some("schema://agent/response.delta".into()),
+                member_id: Some("cm_agent".into()),
+                agent: AgentSubject {
+                    agent_id: "ag_demo".into(),
+                    session_id: Some("s_agent".into()),
+                    metadata: BTreeMap::new(),
+                },
+            },
+        )
+        .expect_err("same execution must not accept a second stream");
+    let duplicated_response = duplicated.into_response();
+    assert_eq!(
+        duplicated_response.status(),
+        axum::http::StatusCode::CONFLICT
+    );
+}
+
+#[test]
+fn test_request_tool_call_rejects_when_agent_response_stream_completed() {
+    let runtime = automation_service::AutomationRuntime::default();
+    let auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_demo".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_user".into()),
+        device_id: None,
+        permissions: BTreeSet::from([
+            "automation.execute".to_string(),
+            "automation.read".to_string(),
+        ]),
+    };
+
+    runtime
+        .request_execution(
+            &auth,
+            automation_service::RequestAutomationExecution {
+                execution_id: "ae_tool_after_complete".into(),
+                trigger_type: "agent.manual".into(),
+                target_kind: "conversation".into(),
+                target_ref: "c_demo".into(),
+                input_payload: Some(r#"{"prompt":"hello"}"#.into()),
+            },
+        )
+        .expect("execution should succeed");
+    runtime
+        .start_agent_response(
+            &auth,
+            automation_service::StartAgentResponseRequest {
+                execution_id: "ae_tool_after_complete".into(),
+                stream_id: "st_tool_after_complete".into(),
+                stream_type: "agent.response.delta".into(),
+                conversation_id: "c_demo".into(),
+                schema_ref: Some("schema://agent/response.delta".into()),
+                member_id: Some("cm_agent".into()),
+                agent: AgentSubject {
+                    agent_id: "ag_demo".into(),
+                    session_id: Some("s_agent".into()),
+                    metadata: BTreeMap::new(),
+                },
+            },
+        )
+        .expect("stream should start");
+    runtime
+        .complete_agent_response(
+            &auth,
+            "st_tool_after_complete",
+            automation_service::CompleteAgentResponseRequest {
+                frame_seq: 0,
+                result_message_id: Some("m_done".into()),
+            },
+        )
+        .expect("stream completion should succeed");
+
+    let closed = runtime
+        .request_agent_tool_call(
+            &auth,
+            automation_service::RequestAgentToolCallRequest {
+                execution_id: "ae_tool_after_complete".into(),
+                tool_call_id: "tc_after_complete".into(),
+                tool_name: "knowledge.search".into(),
+                arguments_payload: r#"{"query":"hello"}"#.into(),
+            },
+        )
+        .expect_err("closed stream must reject new tool call")
+        .into_response();
+    assert_eq!(closed.status(), axum::http::StatusCode::BAD_REQUEST);
+}
+
+#[test]
+fn test_complete_agent_response_rejects_when_tool_call_pending() {
+    let runtime = automation_service::AutomationRuntime::default();
+    let auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_demo".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_user".into()),
+        device_id: None,
+        permissions: BTreeSet::from([
+            "automation.execute".to_string(),
+            "automation.read".to_string(),
+        ]),
+    };
+
+    runtime
+        .request_execution(
+            &auth,
+            automation_service::RequestAutomationExecution {
+                execution_id: "ae_pending_tool_guard".into(),
+                trigger_type: "agent.manual".into(),
+                target_kind: "conversation".into(),
+                target_ref: "c_demo".into(),
+                input_payload: Some(r#"{"prompt":"hello"}"#.into()),
+            },
+        )
+        .expect("execution should succeed");
+    runtime
+        .start_agent_response(
+            &auth,
+            automation_service::StartAgentResponseRequest {
+                execution_id: "ae_pending_tool_guard".into(),
+                stream_id: "st_pending_tool_guard".into(),
+                stream_type: "agent.response.delta".into(),
+                conversation_id: "c_demo".into(),
+                schema_ref: Some("schema://agent/response.delta".into()),
+                member_id: Some("cm_agent".into()),
+                agent: AgentSubject {
+                    agent_id: "ag_demo".into(),
+                    session_id: Some("s_agent".into()),
+                    metadata: BTreeMap::new(),
+                },
+            },
+        )
+        .expect("stream should start");
+    runtime
+        .request_agent_tool_call(
+            &auth,
+            automation_service::RequestAgentToolCallRequest {
+                execution_id: "ae_pending_tool_guard".into(),
+                tool_call_id: "tc_pending".into(),
+                tool_name: "knowledge.search".into(),
+                arguments_payload: r#"{"query":"hello"}"#.into(),
+            },
+        )
+        .expect("tool call should be requested");
+
+    let blocked = runtime
+        .complete_agent_response(
+            &auth,
+            "st_pending_tool_guard",
+            automation_service::CompleteAgentResponseRequest {
+                frame_seq: 0,
+                result_message_id: Some("m_done".into()),
+            },
+        )
+        .expect_err("pending tool call must block stream completion")
+        .into_response();
+    assert_eq!(blocked.status(), axum::http::StatusCode::BAD_REQUEST);
+
+    runtime
+        .complete_agent_tool_call(
+            &auth,
+            "ae_pending_tool_guard",
+            "tc_pending",
+            automation_service::CompleteAgentToolCallRequest {
+                result_payload: r#"{"hits":[]}"#.into(),
+            },
+        )
+        .expect("tool call completion should succeed");
+
+    let completed = runtime
+        .complete_agent_response(
+            &auth,
+            "st_pending_tool_guard",
+            automation_service::CompleteAgentResponseRequest {
+                frame_seq: 0,
+                result_message_id: Some("m_done".into()),
+            },
+        )
+        .expect("stream completion should succeed after tool call completion");
+    assert_eq!(completed.state.as_wire_value(), "completed");
+}
+
 #[tokio::test]
 async fn test_restricted_tool_call_requires_operator_override_and_is_auditable() {
     let journal = Arc::new(RecordingJournal::default());
@@ -291,8 +811,932 @@ async fn test_restricted_tool_call_requires_operator_override_and_is_auditable()
         "automation.operator_override"
     );
 
-    let override_payload: serde_json::Value = serde_json::from_str(&events[4].payload)
-        .expect("override payload should be valid json");
+    let override_payload: serde_json::Value =
+        serde_json::from_str(&events[4].payload).expect("override payload should be valid json");
     assert_eq!(override_payload["toolName"], "ops.shutdown");
     assert_eq!(override_payload["operatorOverrideActive"], true);
+}
+
+#[tokio::test]
+async fn test_agent_runtime_rejects_oversized_delta_and_tool_payloads() {
+    let runtime = automation_service::AutomationRuntime::default();
+    let auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_demo".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_user".into()),
+        device_id: None,
+        permissions: BTreeSet::from([
+            "automation.execute".to_string(),
+            "automation.read".to_string(),
+        ]),
+    };
+
+    runtime
+        .request_execution(
+            &auth,
+            automation_service::RequestAutomationExecution {
+                execution_id: "ae_payload_guard".into(),
+                trigger_type: "agent.manual".into(),
+                target_kind: "conversation".into(),
+                target_ref: "c_demo".into(),
+                input_payload: Some(r#"{"prompt":"hello"}"#.into()),
+            },
+        )
+        .expect("execution request should succeed");
+
+    runtime
+        .start_agent_response(
+            &auth,
+            automation_service::StartAgentResponseRequest {
+                execution_id: "ae_payload_guard".into(),
+                stream_id: "st_payload_guard".into(),
+                stream_type: "agent.response.delta".into(),
+                conversation_id: "c_demo".into(),
+                schema_ref: Some("schema://agent/response.delta".into()),
+                member_id: Some("cm_agent".into()),
+                agent: AgentSubject {
+                    agent_id: "ag_demo".into(),
+                    session_id: Some("s_agent".into()),
+                    metadata: BTreeMap::from([
+                        ("agentMode".into(), "assistant".into()),
+                        ("capabilityProfileId".into(), "stable-agent".into()),
+                    ]),
+                },
+            },
+        )
+        .expect("agent response stream should start");
+
+    let oversized_delta = runtime
+        .append_agent_response_delta(
+            &auth,
+            "st_payload_guard",
+            automation_service::AppendAgentResponseDeltaRequest {
+                frame_seq: 1,
+                frame_type: "delta.text".into(),
+                schema_ref: Some("schema://agent/response.delta#chunk".into()),
+                encoding: "json".into(),
+                payload: "x".repeat(262145),
+                attributes: BTreeMap::new(),
+            },
+        )
+        .expect_err("oversized frame payload should be rejected")
+        .into_response();
+    assert_eq!(
+        oversized_delta.status(),
+        axum::http::StatusCode::PAYLOAD_TOO_LARGE
+    );
+    let oversized_delta_body = oversized_delta
+        .into_body()
+        .collect()
+        .await
+        .expect("oversized delta body should collect")
+        .to_bytes();
+    let oversized_delta_json: serde_json::Value = serde_json::from_slice(&oversized_delta_body)
+        .expect("oversized delta body should be valid json");
+    assert_eq!(oversized_delta_json["code"], "payload_too_large");
+
+    let oversized_attributes = runtime
+        .append_agent_response_delta(
+            &auth,
+            "st_payload_guard",
+            automation_service::AppendAgentResponseDeltaRequest {
+                frame_seq: 1,
+                frame_type: "delta.text".into(),
+                schema_ref: Some("schema://agent/response.delta#chunk".into()),
+                encoding: "json".into(),
+                payload: r#"{"delta":"hello"}"#.into(),
+                attributes: BTreeMap::from([("trace".into(), "x".repeat(65537))]),
+            },
+        )
+        .expect_err("oversized delta attributes should be rejected")
+        .into_response();
+    assert_eq!(
+        oversized_attributes.status(),
+        axum::http::StatusCode::PAYLOAD_TOO_LARGE
+    );
+
+    let oversized_tool_arguments = runtime
+        .request_agent_tool_call(
+            &auth,
+            automation_service::RequestAgentToolCallRequest {
+                execution_id: "ae_payload_guard".into(),
+                tool_call_id: "tc_payload_guard_reject".into(),
+                tool_name: "knowledge.search".into(),
+                arguments_payload: "x".repeat(131073),
+            },
+        )
+        .expect_err("oversized tool arguments payload should be rejected")
+        .into_response();
+    assert_eq!(
+        oversized_tool_arguments.status(),
+        axum::http::StatusCode::PAYLOAD_TOO_LARGE
+    );
+
+    runtime
+        .request_agent_tool_call(
+            &auth,
+            automation_service::RequestAgentToolCallRequest {
+                execution_id: "ae_payload_guard".into(),
+                tool_call_id: "tc_payload_guard_complete".into(),
+                tool_name: "knowledge.search".into(),
+                arguments_payload: r#"{"query":"hello"}"#.into(),
+            },
+        )
+        .expect("normal tool request should succeed");
+
+    let oversized_tool_result = runtime
+        .complete_agent_tool_call(
+            &auth,
+            "ae_payload_guard",
+            "tc_payload_guard_complete",
+            automation_service::CompleteAgentToolCallRequest {
+                result_payload: "x".repeat(262145),
+            },
+        )
+        .expect_err("oversized tool result payload should be rejected")
+        .into_response();
+    assert_eq!(
+        oversized_tool_result.status(),
+        axum::http::StatusCode::PAYLOAD_TOO_LARGE
+    );
+}
+
+#[test]
+fn test_append_agent_response_delta_rejects_oversized_stream_id_path() {
+    let runtime = automation_service::AutomationRuntime::default();
+    let auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_demo".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_user".into()),
+        device_id: None,
+        permissions: BTreeSet::from([
+            "automation.execute".to_string(),
+            "automation.read".to_string(),
+        ]),
+    };
+
+    let error = runtime
+        .append_agent_response_delta(
+            &auth,
+            "s".repeat(257).as_str(),
+            automation_service::AppendAgentResponseDeltaRequest {
+                frame_seq: 1,
+                frame_type: "delta.text".into(),
+                schema_ref: Some("schema://agent/response.delta#chunk".into()),
+                encoding: "json".into(),
+                payload: r#"{"delta":"hello"}"#.into(),
+                attributes: BTreeMap::new(),
+            },
+        )
+        .expect_err("oversized stream id should be rejected")
+        .into_response();
+    assert_eq!(error.status(), axum::http::StatusCode::PAYLOAD_TOO_LARGE);
+}
+
+#[test]
+fn test_complete_agent_response_rejects_oversized_stream_id_path() {
+    let runtime = automation_service::AutomationRuntime::default();
+    let auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_demo".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_user".into()),
+        device_id: None,
+        permissions: BTreeSet::from([
+            "automation.execute".to_string(),
+            "automation.read".to_string(),
+        ]),
+    };
+
+    let error = runtime
+        .complete_agent_response(
+            &auth,
+            "s".repeat(257).as_str(),
+            automation_service::CompleteAgentResponseRequest {
+                frame_seq: 1,
+                result_message_id: Some("m_done".into()),
+            },
+        )
+        .expect_err("oversized stream id should be rejected")
+        .into_response();
+    assert_eq!(error.status(), axum::http::StatusCode::PAYLOAD_TOO_LARGE);
+}
+
+#[test]
+fn test_complete_agent_tool_call_rejects_oversized_path_ids() {
+    let runtime = automation_service::AutomationRuntime::default();
+    let auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_demo".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_user".into()),
+        device_id: None,
+        permissions: BTreeSet::from([
+            "automation.execute".to_string(),
+            "automation.read".to_string(),
+        ]),
+    };
+
+    for (field, execution_id, tool_call_id) in [
+        ("executionId", "e".repeat(257), "tc_demo".to_string()),
+        ("toolCallId", "ae_demo".to_string(), "t".repeat(257)),
+    ] {
+        let error = runtime
+            .complete_agent_tool_call(
+                &auth,
+                execution_id.as_str(),
+                tool_call_id.as_str(),
+                automation_service::CompleteAgentToolCallRequest {
+                    result_payload: r#"{"hits":[{"id":"doc_1"}]}"#.into(),
+                },
+            )
+            .expect_err("oversized path id should be rejected")
+            .into_response();
+        assert_eq!(
+            error.status(),
+            axum::http::StatusCode::PAYLOAD_TOO_LARGE,
+            "{field} should be rejected with payload_too_large"
+        );
+    }
+}
+
+#[tokio::test]
+async fn test_agent_runtime_rejects_oversized_delta_contract_fields() {
+    let runtime = automation_service::AutomationRuntime::default();
+    let auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_demo".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_user".into()),
+        device_id: None,
+        permissions: BTreeSet::from([
+            "automation.execute".to_string(),
+            "automation.read".to_string(),
+        ]),
+    };
+
+    runtime
+        .request_execution(
+            &auth,
+            automation_service::RequestAutomationExecution {
+                execution_id: "ae_delta_contract_guard".into(),
+                trigger_type: "agent.manual".into(),
+                target_kind: "conversation".into(),
+                target_ref: "c_demo".into(),
+                input_payload: Some(r#"{"prompt":"hello"}"#.into()),
+            },
+        )
+        .expect("execution request should succeed");
+
+    runtime
+        .start_agent_response(
+            &auth,
+            automation_service::StartAgentResponseRequest {
+                execution_id: "ae_delta_contract_guard".into(),
+                stream_id: "st_delta_contract_guard".into(),
+                stream_type: "agent.response.delta".into(),
+                conversation_id: "c_demo".into(),
+                schema_ref: Some("schema://agent/response.delta".into()),
+                member_id: Some("cm_agent".into()),
+                agent: AgentSubject {
+                    agent_id: "ag_demo".into(),
+                    session_id: Some("s_agent".into()),
+                    metadata: BTreeMap::from([
+                        ("agentMode".into(), "assistant".into()),
+                        ("capabilityProfileId".into(), "stable-agent".into()),
+                    ]),
+                },
+            },
+        )
+        .expect("agent response stream should start");
+
+    let cases = [
+        (
+            "frameType",
+            automation_service::AppendAgentResponseDeltaRequest {
+                frame_seq: 1,
+                frame_type: "f".repeat(65),
+                schema_ref: Some("schema://agent/response.delta#chunk".into()),
+                encoding: "json".into(),
+                payload: r#"{"delta":"hello"}"#.into(),
+                attributes: BTreeMap::new(),
+            },
+        ),
+        (
+            "encoding",
+            automation_service::AppendAgentResponseDeltaRequest {
+                frame_seq: 2,
+                frame_type: "delta.text".into(),
+                schema_ref: Some("schema://agent/response.delta#chunk".into()),
+                encoding: "j".repeat(33),
+                payload: r#"{"delta":"hello"}"#.into(),
+                attributes: BTreeMap::new(),
+            },
+        ),
+        (
+            "schemaRef",
+            automation_service::AppendAgentResponseDeltaRequest {
+                frame_seq: 3,
+                frame_type: "delta.text".into(),
+                schema_ref: Some("s".repeat(257)),
+                encoding: "json".into(),
+                payload: r#"{"delta":"hello"}"#.into(),
+                attributes: BTreeMap::new(),
+            },
+        ),
+    ];
+
+    for (field, request) in cases {
+        let error = runtime.append_agent_response_delta(&auth, "st_delta_contract_guard", request);
+        let error = match error {
+            Ok(frame) => panic!("{field} should be rejected: {frame:?}"),
+            Err(error) => error,
+        };
+        let response = error.into_response();
+        assert_eq!(
+            response.status(),
+            axum::http::StatusCode::PAYLOAD_TOO_LARGE,
+            "{field} should be rejected with payload_too_large"
+        );
+    }
+}
+
+#[test]
+fn test_start_agent_response_rejects_oversized_stream_id() {
+    let runtime = automation_service::AutomationRuntime::default();
+    let auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_demo".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_user".into()),
+        device_id: None,
+        permissions: BTreeSet::from([
+            "automation.execute".to_string(),
+            "automation.read".to_string(),
+        ]),
+    };
+
+    runtime
+        .request_execution(
+            &auth,
+            automation_service::RequestAutomationExecution {
+                execution_id: "ae_oversized_stream_id".into(),
+                trigger_type: "agent.manual".into(),
+                target_kind: "conversation".into(),
+                target_ref: "c_demo".into(),
+                input_payload: Some(r#"{"prompt":"hello"}"#.into()),
+            },
+        )
+        .expect("execution request should succeed");
+
+    let error = runtime
+        .start_agent_response(
+            &auth,
+            automation_service::StartAgentResponseRequest {
+                execution_id: "ae_oversized_stream_id".into(),
+                stream_id: "s".repeat(257),
+                stream_type: "agent.response.delta".into(),
+                conversation_id: "c_demo".into(),
+                schema_ref: Some("schema://agent/response.delta".into()),
+                member_id: Some("cm_agent".into()),
+                agent: AgentSubject {
+                    agent_id: "ag_demo".into(),
+                    session_id: Some("s_agent".into()),
+                    metadata: BTreeMap::from([
+                        ("agentMode".into(), "assistant".into()),
+                        ("capabilityProfileId".into(), "stable-agent".into()),
+                    ]),
+                },
+            },
+        )
+        .expect_err("oversized stream id should be rejected");
+    let response = axum::response::IntoResponse::into_response(error);
+    assert_eq!(response.status(), axum::http::StatusCode::PAYLOAD_TOO_LARGE);
+}
+
+#[test]
+fn test_start_agent_response_rejects_oversized_stream_contract_fields() {
+    let runtime = automation_service::AutomationRuntime::default();
+    let auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_demo".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_user".into()),
+        device_id: None,
+        permissions: BTreeSet::from([
+            "automation.execute".to_string(),
+            "automation.read".to_string(),
+        ]),
+    };
+    let cases = [
+        (
+            "streamType",
+            "ae_oversized_stream_type",
+            "st_oversized_stream_type",
+            "x".repeat(129),
+            "c_demo".to_string(),
+            Some("schema://agent/response.delta".to_string()),
+        ),
+        (
+            "conversationId",
+            "ae_oversized_conversation_id",
+            "st_oversized_conversation_id",
+            "agent.response.delta".to_string(),
+            "c".repeat(257),
+            Some("schema://agent/response.delta".to_string()),
+        ),
+        (
+            "schemaRef",
+            "ae_oversized_schema_ref",
+            "st_oversized_schema_ref",
+            "agent.response.delta".to_string(),
+            "c_demo".to_string(),
+            Some("s".repeat(257)),
+        ),
+    ];
+
+    for (field, execution_id, stream_id, stream_type, conversation_id, schema_ref) in cases {
+        runtime
+            .request_execution(
+                &auth,
+                automation_service::RequestAutomationExecution {
+                    execution_id: execution_id.into(),
+                    trigger_type: "agent.manual".into(),
+                    target_kind: "conversation".into(),
+                    target_ref: "c_demo".into(),
+                    input_payload: Some(r#"{"prompt":"hello"}"#.into()),
+                },
+            )
+            .expect("execution request should succeed");
+
+        let error = runtime
+            .start_agent_response(
+                &auth,
+                automation_service::StartAgentResponseRequest {
+                    execution_id: execution_id.into(),
+                    stream_id: stream_id.into(),
+                    stream_type,
+                    conversation_id,
+                    schema_ref,
+                    member_id: Some("cm_agent".into()),
+                    agent: AgentSubject {
+                        agent_id: "ag_demo".into(),
+                        session_id: Some("s_agent".into()),
+                        metadata: BTreeMap::from([
+                            ("agentMode".into(), "assistant".into()),
+                            ("capabilityProfileId".into(), "stable-agent".into()),
+                        ]),
+                    },
+                },
+            );
+        let error = match error {
+            Ok(session) => panic!("{field} should be rejected: {session:?}"),
+            Err(error) => error,
+        };
+        let response = axum::response::IntoResponse::into_response(error);
+        assert_eq!(
+            response.status(),
+            axum::http::StatusCode::PAYLOAD_TOO_LARGE,
+            "{field} should be rejected with payload_too_large"
+        );
+    }
+}
+
+#[test]
+fn test_start_agent_response_rejects_oversized_member_id() {
+    let runtime = automation_service::AutomationRuntime::default();
+    let auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_demo".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_user".into()),
+        device_id: None,
+        permissions: BTreeSet::from([
+            "automation.execute".to_string(),
+            "automation.read".to_string(),
+        ]),
+    };
+
+    runtime
+        .request_execution(
+            &auth,
+            automation_service::RequestAutomationExecution {
+                execution_id: "ae_oversized_member_id".into(),
+                trigger_type: "agent.manual".into(),
+                target_kind: "conversation".into(),
+                target_ref: "c_demo".into(),
+                input_payload: Some(r#"{"prompt":"hello"}"#.into()),
+            },
+        )
+        .expect("execution request should succeed");
+
+    let error = runtime
+        .start_agent_response(
+            &auth,
+            automation_service::StartAgentResponseRequest {
+                execution_id: "ae_oversized_member_id".into(),
+                stream_id: "st_oversized_member_id".into(),
+                stream_type: "agent.response.delta".into(),
+                conversation_id: "c_demo".into(),
+                schema_ref: Some("schema://agent/response.delta".into()),
+                member_id: Some("m".repeat(257)),
+                agent: AgentSubject {
+                    agent_id: "ag_demo".into(),
+                    session_id: Some("s_agent".into()),
+                    metadata: BTreeMap::from([
+                        ("agentMode".into(), "assistant".into()),
+                        ("capabilityProfileId".into(), "stable-agent".into()),
+                    ]),
+                },
+            },
+        );
+    let error = match error {
+        Ok(session) => panic!("memberId should be rejected: {session:?}"),
+        Err(error) => error,
+    };
+    let response = axum::response::IntoResponse::into_response(error);
+    assert_eq!(response.status(), axum::http::StatusCode::PAYLOAD_TOO_LARGE);
+}
+
+#[test]
+fn test_start_agent_response_rejects_oversized_execution_id() {
+    let runtime = automation_service::AutomationRuntime::default();
+    let auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_demo".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_user".into()),
+        device_id: None,
+        permissions: BTreeSet::from([
+            "automation.execute".to_string(),
+            "automation.read".to_string(),
+        ]),
+    };
+
+    let error = runtime
+        .start_agent_response(
+            &auth,
+            automation_service::StartAgentResponseRequest {
+                execution_id: "e".repeat(257),
+                stream_id: "st_oversized_start_execution_id".into(),
+                stream_type: "agent.response.delta".into(),
+                conversation_id: "c_demo".into(),
+                schema_ref: Some("schema://agent/response.delta".into()),
+                member_id: Some("cm_agent".into()),
+                agent: AgentSubject {
+                    agent_id: "ag_demo".into(),
+                    session_id: Some("s_agent".into()),
+                    metadata: BTreeMap::from([
+                        ("agentMode".into(), "assistant".into()),
+                        ("capabilityProfileId".into(), "stable-agent".into()),
+                    ]),
+                },
+            },
+        )
+        .expect_err("oversized execution id should be rejected");
+    let response = axum::response::IntoResponse::into_response(error);
+    assert_eq!(response.status(), axum::http::StatusCode::PAYLOAD_TOO_LARGE);
+}
+
+#[test]
+fn test_start_agent_response_rejects_oversized_agent_metadata() {
+    let runtime = automation_service::AutomationRuntime::default();
+    let auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_demo".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_user".into()),
+        device_id: None,
+        permissions: BTreeSet::from([
+            "automation.execute".to_string(),
+            "automation.read".to_string(),
+        ]),
+    };
+
+    runtime
+        .request_execution(
+            &auth,
+            automation_service::RequestAutomationExecution {
+                execution_id: "ae_oversized_agent_metadata".into(),
+                trigger_type: "agent.manual".into(),
+                target_kind: "conversation".into(),
+                target_ref: "c_demo".into(),
+                input_payload: Some(r#"{"prompt":"hello"}"#.into()),
+            },
+        )
+        .expect("execution request should succeed");
+
+    let error = runtime
+        .start_agent_response(
+            &auth,
+            automation_service::StartAgentResponseRequest {
+                execution_id: "ae_oversized_agent_metadata".into(),
+                stream_id: "st_oversized_agent_metadata".into(),
+                stream_type: "agent.response.delta".into(),
+                conversation_id: "c_demo".into(),
+                schema_ref: Some("schema://agent/response.delta".into()),
+                member_id: Some("cm_agent".into()),
+                agent: AgentSubject {
+                    agent_id: "ag_demo".into(),
+                    session_id: Some("s_agent".into()),
+                    metadata: BTreeMap::from([("trace".into(), "x".repeat(65_537))]),
+                },
+            },
+        );
+    let error = match error {
+        Ok(session) => panic!("agent.metadata should be rejected: {session:?}"),
+        Err(error) => error,
+    };
+    let response = axum::response::IntoResponse::into_response(error);
+    assert_eq!(response.status(), axum::http::StatusCode::PAYLOAD_TOO_LARGE);
+}
+
+#[test]
+fn test_complete_agent_response_rejects_oversized_result_message_id() {
+    let runtime = automation_service::AutomationRuntime::default();
+    let auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_demo".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_user".into()),
+        device_id: None,
+        permissions: BTreeSet::from([
+            "automation.execute".to_string(),
+            "automation.read".to_string(),
+        ]),
+    };
+
+    runtime
+        .request_execution(
+            &auth,
+            automation_service::RequestAutomationExecution {
+                execution_id: "ae_oversized_result_message_id".into(),
+                trigger_type: "agent.manual".into(),
+                target_kind: "conversation".into(),
+                target_ref: "c_demo".into(),
+                input_payload: Some(r#"{"prompt":"hello"}"#.into()),
+            },
+        )
+        .expect("execution request should succeed");
+
+    runtime
+        .start_agent_response(
+            &auth,
+            automation_service::StartAgentResponseRequest {
+                execution_id: "ae_oversized_result_message_id".into(),
+                stream_id: "st_oversized_result_message_id".into(),
+                stream_type: "agent.response.delta".into(),
+                conversation_id: "c_demo".into(),
+                schema_ref: Some("schema://agent/response.delta".into()),
+                member_id: Some("cm_agent".into()),
+                agent: AgentSubject {
+                    agent_id: "ag_demo".into(),
+                    session_id: Some("s_agent".into()),
+                    metadata: BTreeMap::from([
+                        ("agentMode".into(), "assistant".into()),
+                        ("capabilityProfileId".into(), "stable-agent".into()),
+                    ]),
+                },
+            },
+        )
+        .expect("agent response stream should start");
+
+    let error = runtime
+        .complete_agent_response(
+            &auth,
+            "st_oversized_result_message_id",
+            automation_service::CompleteAgentResponseRequest {
+                frame_seq: 1,
+                result_message_id: Some("m".repeat(257)),
+            },
+        )
+        .expect_err("oversized result message id should be rejected");
+    let response = axum::response::IntoResponse::into_response(error);
+    assert_eq!(response.status(), axum::http::StatusCode::PAYLOAD_TOO_LARGE);
+}
+
+#[test]
+fn test_start_agent_response_rejects_oversized_agent_identity_fields() {
+    for (field, agent_id, session_id) in [
+        ("agent.agent_id", "a".repeat(257), Some("s_agent".to_string())),
+        ("agent.session_id", "ag_demo".to_string(), Some("s".repeat(257))),
+    ] {
+        let runtime = automation_service::AutomationRuntime::default();
+        let auth = AuthContext {
+            tenant_id: "t_demo".into(),
+            actor_id: "u_demo".into(),
+            actor_kind: "user".into(),
+            session_id: Some("s_user".into()),
+            device_id: None,
+            permissions: BTreeSet::from([
+                "automation.execute".to_string(),
+                "automation.read".to_string(),
+            ]),
+        };
+
+        runtime
+            .request_execution(
+                &auth,
+                automation_service::RequestAutomationExecution {
+                    execution_id: format!("ae_{}", field.replace('.', "_")),
+                    trigger_type: "agent.manual".into(),
+                    target_kind: "conversation".into(),
+                    target_ref: "c_demo".into(),
+                    input_payload: Some(r#"{"prompt":"hello"}"#.into()),
+                },
+            )
+            .expect("execution request should succeed");
+
+        let error = runtime.start_agent_response(
+            &auth,
+            automation_service::StartAgentResponseRequest {
+                execution_id: format!("ae_{}", field.replace('.', "_")),
+                stream_id: format!("st_{}", field.replace('.', "_")),
+                stream_type: "agent.response.delta".into(),
+                conversation_id: "c_demo".into(),
+                schema_ref: Some("schema://agent/response.delta".into()),
+                member_id: Some("cm_agent".into()),
+                agent: AgentSubject {
+                    agent_id,
+                    session_id,
+                    metadata: BTreeMap::from([
+                        ("agentMode".into(), "assistant".into()),
+                        ("capabilityProfileId".into(), "stable-agent".into()),
+                    ]),
+                },
+            },
+        );
+        let error = match error {
+            Ok(session) => panic!("{field} should be rejected: {session:?}"),
+            Err(error) => error,
+        };
+        let response = axum::response::IntoResponse::into_response(error);
+        assert_eq!(
+            response.status(),
+            axum::http::StatusCode::PAYLOAD_TOO_LARGE,
+            "{field} should be rejected with payload_too_large"
+        );
+    }
+}
+
+#[test]
+fn test_request_agent_tool_call_rejects_oversized_tool_call_id() {
+    let runtime = automation_service::AutomationRuntime::default();
+    let auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_demo".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_user".into()),
+        device_id: None,
+        permissions: BTreeSet::from([
+            "automation.execute".to_string(),
+            "automation.read".to_string(),
+        ]),
+    };
+
+    runtime
+        .request_execution(
+            &auth,
+            automation_service::RequestAutomationExecution {
+                execution_id: "ae_oversized_tool_call_id".into(),
+                trigger_type: "agent.manual".into(),
+                target_kind: "conversation".into(),
+                target_ref: "c_demo".into(),
+                input_payload: Some(r#"{"prompt":"hello"}"#.into()),
+            },
+        )
+        .expect("execution request should succeed");
+
+    runtime
+        .start_agent_response(
+            &auth,
+            automation_service::StartAgentResponseRequest {
+                execution_id: "ae_oversized_tool_call_id".into(),
+                stream_id: "st_oversized_tool_call_id".into(),
+                stream_type: "agent.response.delta".into(),
+                conversation_id: "c_demo".into(),
+                schema_ref: Some("schema://agent/response.delta".into()),
+                member_id: Some("cm_agent".into()),
+                agent: AgentSubject {
+                    agent_id: "ag_demo".into(),
+                    session_id: Some("s_agent".into()),
+                    metadata: BTreeMap::from([
+                        ("agentMode".into(), "assistant".into()),
+                        ("capabilityProfileId".into(), "stable-agent".into()),
+                    ]),
+                },
+            },
+        )
+        .expect("agent response stream should start");
+
+    let error = runtime
+        .request_agent_tool_call(
+            &auth,
+            automation_service::RequestAgentToolCallRequest {
+                execution_id: "ae_oversized_tool_call_id".into(),
+                tool_call_id: "t".repeat(257),
+                tool_name: "knowledge.search".into(),
+                arguments_payload: r#"{"query":"hello"}"#.into(),
+            },
+        )
+        .expect_err("oversized tool call id should be rejected");
+    let response = axum::response::IntoResponse::into_response(error);
+    assert_eq!(response.status(), axum::http::StatusCode::PAYLOAD_TOO_LARGE);
+}
+
+#[test]
+fn test_request_agent_tool_call_rejects_oversized_execution_id() {
+    let runtime = automation_service::AutomationRuntime::default();
+    let auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_demo".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_user".into()),
+        device_id: None,
+        permissions: BTreeSet::from([
+            "automation.execute".to_string(),
+            "automation.read".to_string(),
+        ]),
+    };
+
+    let error = runtime
+        .request_agent_tool_call(
+            &auth,
+            automation_service::RequestAgentToolCallRequest {
+                execution_id: "e".repeat(257),
+                tool_call_id: "tc_oversized_execution_id".into(),
+                tool_name: "knowledge.search".into(),
+                arguments_payload: r#"{"query":"hello"}"#.into(),
+            },
+        )
+        .expect_err("oversized execution id should be rejected");
+    let response = axum::response::IntoResponse::into_response(error);
+    assert_eq!(response.status(), axum::http::StatusCode::PAYLOAD_TOO_LARGE);
+}
+
+#[test]
+fn test_request_agent_tool_call_rejects_oversized_tool_name() {
+    let runtime = automation_service::AutomationRuntime::default();
+    let auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_demo".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_user".into()),
+        device_id: None,
+        permissions: BTreeSet::from([
+            "automation.execute".to_string(),
+            "automation.read".to_string(),
+        ]),
+    };
+
+    runtime
+        .request_execution(
+            &auth,
+            automation_service::RequestAutomationExecution {
+                execution_id: "ae_oversized_tool_name".into(),
+                trigger_type: "agent.manual".into(),
+                target_kind: "conversation".into(),
+                target_ref: "c_demo".into(),
+                input_payload: Some(r#"{"prompt":"hello"}"#.into()),
+            },
+        )
+        .expect("execution request should succeed");
+
+    runtime
+        .start_agent_response(
+            &auth,
+            automation_service::StartAgentResponseRequest {
+                execution_id: "ae_oversized_tool_name".into(),
+                stream_id: "st_oversized_tool_name".into(),
+                stream_type: "agent.response.delta".into(),
+                conversation_id: "c_demo".into(),
+                schema_ref: Some("schema://agent/response.delta".into()),
+                member_id: Some("cm_agent".into()),
+                agent: AgentSubject {
+                    agent_id: "ag_demo".into(),
+                    session_id: Some("s_agent".into()),
+                    metadata: BTreeMap::from([
+                        ("agentMode".into(), "assistant".into()),
+                        ("capabilityProfileId".into(), "stable-agent".into()),
+                    ]),
+                },
+            },
+        )
+        .expect("agent response stream should start");
+
+    let error = runtime
+        .request_agent_tool_call(
+            &auth,
+            automation_service::RequestAgentToolCallRequest {
+                execution_id: "ae_oversized_tool_name".into(),
+                tool_call_id: "tc_oversized_name".into(),
+                tool_name: "t".repeat(257),
+                arguments_payload: r#"{"query":"hello"}"#.into(),
+            },
+        )
+        .expect_err("oversized tool name should be rejected");
+    let response = axum::response::IntoResponse::into_response(error);
+    assert_eq!(response.status(), axum::http::StatusCode::PAYLOAD_TOO_LARGE);
 }

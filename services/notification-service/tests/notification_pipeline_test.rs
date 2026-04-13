@@ -48,6 +48,7 @@ fn test_request_notification_appends_requested_and_dispatched_events() {
                 category: "message.new".into(),
                 channel: "inapp".into(),
                 recipient_id: "u_target".into(),
+                recipient_kind: None,
                 title: Some("New message".into()),
                 body: Some("hello".into()),
                 payload: Some(r#"{"conversationId":"c_demo"}"#.into()),
@@ -62,6 +63,14 @@ fn test_request_notification_appends_requested_and_dispatched_events() {
     assert_eq!(events.len(), 2);
     assert_eq!(events[0].event_type, "notification.requested");
     assert_eq!(events[1].event_type, "notification.dispatched");
+    assert_eq!(
+        events[0].idempotency_key.as_deref(),
+        Some("ntf_demo:notification.requested:1")
+    );
+    assert_eq!(
+        events[1].idempotency_key.as_deref(),
+        Some("ntf_demo:notification.dispatched:2")
+    );
     assert_eq!(events[0].aggregate_type, AggregateType::Notification);
     assert_eq!(events[0].aggregate_id, "ntf_demo");
     assert_eq!(events[0].actor.actor_id, "u_demo");
@@ -88,7 +97,7 @@ fn test_duplicate_request_notification_is_idempotent_when_payload_matches() {
     };
 
     let first = runtime
-        .request_notification(
+        .request_notification_with_outcome(
             &auth,
             notification_service::RequestNotification {
                 notification_id: "ntf_idempotent".into(),
@@ -97,6 +106,7 @@ fn test_duplicate_request_notification_is_idempotent_when_payload_matches() {
                 category: "message.new".into(),
                 channel: "inapp".into(),
                 recipient_id: "u_target".into(),
+                recipient_kind: None,
                 title: Some("New message".into()),
                 body: Some("hello".into()),
                 payload: Some(r#"{"conversationId":"c_demo"}"#.into()),
@@ -104,7 +114,7 @@ fn test_duplicate_request_notification_is_idempotent_when_payload_matches() {
         )
         .expect("first notification request should succeed");
     let second = runtime
-        .request_notification(
+        .request_notification_with_outcome(
             &auth,
             notification_service::RequestNotification {
                 notification_id: "ntf_idempotent".into(),
@@ -113,6 +123,7 @@ fn test_duplicate_request_notification_is_idempotent_when_payload_matches() {
                 category: "message.new".into(),
                 channel: "inapp".into(),
                 recipient_id: "u_target".into(),
+                recipient_kind: None,
                 title: Some("New message".into()),
                 body: Some("hello".into()),
                 payload: Some(r#"{"conversationId":"c_demo"}"#.into()),
@@ -120,10 +131,79 @@ fn test_duplicate_request_notification_is_idempotent_when_payload_matches() {
         )
         .expect("duplicate notification request should be idempotent");
 
-    assert_eq!(second, first);
+    assert!(first.is_new);
+    assert!(!second.is_new);
+    assert_eq!(first.delivery_status.as_str(), "applied");
+    assert_eq!(second.delivery_status.as_str(), "replayed");
+    assert_eq!(first.request_key, second.request_key);
+    assert!(!first.request_key.is_empty());
+    assert_eq!(second.task, first.task);
 
     let events = journal.recorded();
     assert_eq!(events.len(), 2);
+}
+
+#[test]
+fn test_duplicate_request_notification_across_principals_keeps_stable_request_key() {
+    let journal = Arc::new(RecordingJournal::default());
+    let runtime = notification_service::NotificationRuntime::with_journal(journal);
+    let first_auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_first".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_first".into()),
+        device_id: None,
+        permissions: BTreeSet::new(),
+    };
+    let second_auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_second".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_second".into()),
+        device_id: None,
+        permissions: BTreeSet::new(),
+    };
+
+    let first = runtime
+        .request_notification_with_outcome(
+            &first_auth,
+            notification_service::RequestNotification {
+                notification_id: "ntf_stable_key".into(),
+                source_event_id: "evt_stable_key".into(),
+                source_event_type: "message.posted".into(),
+                category: "message.new".into(),
+                channel: "inapp".into(),
+                recipient_id: "u_target".into(),
+                recipient_kind: None,
+                title: Some("New message".into()),
+                body: Some("hello".into()),
+                payload: Some(r#"{"conversationId":"c_demo"}"#.into()),
+            },
+        )
+        .expect("first notification request should succeed");
+    let replayed = runtime
+        .request_notification_with_outcome(
+            &second_auth,
+            notification_service::RequestNotification {
+                notification_id: "ntf_stable_key".into(),
+                source_event_id: "evt_stable_key".into(),
+                source_event_type: "message.posted".into(),
+                category: "message.new".into(),
+                channel: "inapp".into(),
+                recipient_id: "u_target".into(),
+                recipient_kind: None,
+                title: Some("New message".into()),
+                body: Some("hello".into()),
+                payload: Some(r#"{"conversationId":"c_demo"}"#.into()),
+            },
+        )
+        .expect("cross-principal duplicate should replay");
+
+    assert!(first.is_new);
+    assert!(!replayed.is_new);
+    assert_eq!(first.delivery_status.as_str(), "applied");
+    assert_eq!(replayed.delivery_status.as_str(), "replayed");
+    assert_eq!(replayed.request_key, first.request_key);
 }
 
 #[test]
@@ -149,6 +229,7 @@ fn test_duplicate_request_notification_rejects_conflicting_payload() {
                 category: "message.new".into(),
                 channel: "inapp".into(),
                 recipient_id: "u_target".into(),
+                recipient_kind: None,
                 title: Some("New message".into()),
                 body: Some("hello".into()),
                 payload: Some(r#"{"conversationId":"c_demo"}"#.into()),
@@ -166,6 +247,7 @@ fn test_duplicate_request_notification_rejects_conflicting_payload() {
                 category: "message.new".into(),
                 channel: "inapp".into(),
                 recipient_id: "u_other".into(),
+                recipient_kind: None,
                 title: Some("Changed message".into()),
                 body: Some("different".into()),
                 payload: Some(r#"{"conversationId":"c_other"}"#.into()),
@@ -177,6 +259,76 @@ fn test_duplicate_request_notification_rejects_conflicting_payload() {
 
     let events = journal.recorded();
     assert_eq!(events.len(), 2);
+}
+
+#[test]
+fn test_request_notification_rejects_oversized_payload() {
+    let journal = Arc::new(RecordingJournal::default());
+    let runtime = notification_service::NotificationRuntime::with_journal(journal);
+    let auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_demo".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_demo".into()),
+        device_id: None,
+        permissions: BTreeSet::new(),
+    };
+
+    let oversized_payload = "x".repeat(262145);
+    let error = runtime
+        .request_notification(
+            &auth,
+            notification_service::RequestNotification {
+                notification_id: "ntf_oversized_payload".into(),
+                source_event_id: "evt_notification_oversized".into(),
+                source_event_type: "message.posted".into(),
+                category: "message.new".into(),
+                channel: "inapp".into(),
+                recipient_id: "u_target".into(),
+                recipient_kind: None,
+                title: Some("New message".into()),
+                body: Some("hello".into()),
+                payload: Some(oversized_payload),
+            },
+        )
+        .expect_err("oversized notification payload should be rejected");
+    let response = axum::response::IntoResponse::into_response(error);
+    assert_eq!(response.status(), axum::http::StatusCode::PAYLOAD_TOO_LARGE);
+}
+
+#[test]
+fn test_request_notification_rejects_oversized_notification_id() {
+    let journal = Arc::new(RecordingJournal::default());
+    let runtime = notification_service::NotificationRuntime::with_journal(journal);
+    let auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_demo".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_demo".into()),
+        device_id: None,
+        permissions: BTreeSet::new(),
+    };
+
+    let oversized_notification_id = "n".repeat(513);
+    let error = runtime
+        .request_notification(
+            &auth,
+            notification_service::RequestNotification {
+                notification_id: oversized_notification_id,
+                source_event_id: "evt_notification_oversized_id".into(),
+                source_event_type: "message.posted".into(),
+                category: "message.new".into(),
+                channel: "inapp".into(),
+                recipient_id: "u_target".into(),
+                recipient_kind: None,
+                title: Some("New message".into()),
+                body: Some("hello".into()),
+                payload: Some(r#"{"conversationId":"c_demo"}"#.into()),
+            },
+        )
+        .expect_err("oversized notification id should be rejected");
+    let response = axum::response::IntoResponse::into_response(error);
+    assert_eq!(response.status(), axum::http::StatusCode::PAYLOAD_TOO_LARGE);
 }
 
 #[test]
@@ -201,10 +353,19 @@ fn test_request_notification_fanout_skips_actor_and_creates_notifications_for_ot
                 source_event_type: "message.posted".into(),
                 category: "message.new".into(),
                 channel: "inapp".into(),
-                recipient_ids: BTreeSet::from([
-                    "u_owner".to_string(),
-                    "u_member_a".to_string(),
-                    "u_member_b".to_string(),
+                recipients: BTreeSet::from([
+                    notification_service::NotificationRecipient {
+                        recipient_id: "u_owner".into(),
+                        recipient_kind: "user".into(),
+                    },
+                    notification_service::NotificationRecipient {
+                        recipient_id: "u_member_a".into(),
+                        recipient_kind: "user".into(),
+                    },
+                    notification_service::NotificationRecipient {
+                        recipient_id: "u_member_b".into(),
+                        recipient_kind: "user".into(),
+                    },
                 ]),
                 title: Some("hello".into()),
                 body: Some("hello".into()),
@@ -232,7 +393,7 @@ fn test_request_notification_fanout_skips_actor_and_creates_notifications_for_ot
     assert_eq!(member_a_notifications.len(), 1);
     assert_eq!(
         member_a_notifications[0].notification_id,
-        "ntf_msg_c_demo_1_u_member_a"
+        "ntf_msg_c_demo_1_user_u_member_a"
     );
 
     let member_b_auth = AuthContext {
@@ -245,7 +406,7 @@ fn test_request_notification_fanout_skips_actor_and_creates_notifications_for_ot
     assert_eq!(member_b_notifications.len(), 1);
     assert_eq!(
         member_b_notifications[0].notification_id,
-        "ntf_msg_c_demo_1_u_member_b"
+        "ntf_msg_c_demo_1_user_u_member_b"
     );
 
     let events = journal.recorded();
@@ -391,12 +552,13 @@ fn test_request_message_posted_notifications_resolves_current_active_recipients_
 
     assert_eq!(tasks.len(), 1);
     let task = &tasks[0];
-    assert_eq!(task.notification_id, "ntf_msg_c_demo_1_u_member");
+    assert_eq!(task.notification_id, "ntf_msg_c_demo_1_user_u_member");
     assert_eq!(task.source_event_id, "evt_message_1");
     assert_eq!(task.source_event_type, "message.posted");
     assert_eq!(task.category, "message.new");
     assert_eq!(task.channel, "inapp");
     assert_eq!(task.recipient_id, "u_member");
+    assert_eq!(task.recipient_kind.as_deref(), Some("user"));
     assert_eq!(task.title.as_deref(), Some("hello member"));
     assert_eq!(task.body.as_deref(), Some("hello member"));
     assert_eq!(
@@ -577,7 +739,7 @@ fn test_request_automation_result_notification_targets_requesting_actor_idempote
         .expect("duplicate automation result notification should be idempotent");
 
     assert_eq!(second, first);
-    assert_eq!(first.notification_id, "ntf_automation_ae_demo");
+    assert_eq!(first.notification_id, "ntf_automation_user_ae_demo");
     assert_eq!(first.source_event_type, "automation.execution_completed");
     assert_eq!(first.category, "automation.result");
     assert_eq!(first.channel, "inapp");
@@ -596,4 +758,151 @@ fn test_request_automation_result_notification_targets_requesting_actor_idempote
     assert_eq!(events.len(), 2);
     assert_eq!(events[0].event_type, "notification.requested");
     assert_eq!(events[1].event_type, "notification.dispatched");
+}
+
+#[test]
+fn test_request_automation_result_notification_isolated_by_actor_kind_for_same_execution_id() {
+    let journal = Arc::new(RecordingJournal::default());
+    let runtime = notification_service::NotificationRuntime::with_journal(journal.clone());
+    let user_auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_demo".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_user".into()),
+        device_id: None,
+        permissions: BTreeSet::new(),
+    };
+    let system_auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_demo".into(),
+        actor_kind: "system".into(),
+        session_id: Some("s_system".into()),
+        device_id: None,
+        permissions: BTreeSet::new(),
+    };
+
+    let user_task = runtime
+        .request_automation_result_notification(
+            &user_auth,
+            notification_service::RequestAutomationResultNotification {
+                execution_id: "ae_shared".into(),
+                target_ref: "wf_demo".into(),
+                output_payload: Some(r#"{"status":"ok"}"#.into()),
+            },
+        )
+        .expect("user automation notification should succeed");
+    let system_task = runtime
+        .request_automation_result_notification(
+            &system_auth,
+            notification_service::RequestAutomationResultNotification {
+                execution_id: "ae_shared".into(),
+                target_ref: "wf_demo".into(),
+                output_payload: Some(r#"{"status":"ok"}"#.into()),
+            },
+        )
+        .expect("system automation notification should succeed");
+
+    assert_eq!(user_task.notification_id, "ntf_automation_user_ae_shared");
+    assert_eq!(
+        user_task.source_event_id,
+        "evt_user_ae_shared_automation_execution_completed"
+    );
+    assert_eq!(user_task.recipient_kind.as_deref(), Some("user"));
+    assert_eq!(
+        system_task.notification_id,
+        "ntf_automation_system_ae_shared"
+    );
+    assert_eq!(
+        system_task.source_event_id,
+        "evt_system_ae_shared_automation_execution_completed"
+    );
+    assert_eq!(system_task.recipient_kind.as_deref(), Some("system"));
+
+    let user_notifications = runtime
+        .list_notifications(&user_auth)
+        .expect("user notifications should list");
+    assert_eq!(user_notifications, vec![user_task.clone()]);
+
+    let system_notifications = runtime
+        .list_notifications(&system_auth)
+        .expect("system notifications should list");
+    assert_eq!(system_notifications, vec![system_task.clone()]);
+
+    let events = journal.recorded();
+    assert_eq!(events.len(), 4);
+    assert_eq!(events[0].aggregate_id, "ntf_automation_user_ae_shared");
+    assert_eq!(events[2].aggregate_id, "ntf_automation_system_ae_shared");
+}
+
+#[test]
+fn test_notification_queries_are_isolated_by_actor_kind() {
+    let journal = Arc::new(RecordingJournal::default());
+    let runtime = notification_service::NotificationRuntime::with_journal(journal);
+    let sender_auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_sender".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_sender".into()),
+        device_id: None,
+        permissions: BTreeSet::new(),
+    };
+    let user_auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_demo".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_user".into()),
+        device_id: None,
+        permissions: BTreeSet::new(),
+    };
+    let system_auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_demo".into(),
+        actor_kind: "system".into(),
+        session_id: Some("s_system".into()),
+        device_id: None,
+        permissions: BTreeSet::new(),
+    };
+
+    runtime
+        .request_notification(
+            &sender_auth,
+            notification_service::RequestNotification {
+                notification_id: "ntf_actor_kind_isolation".into(),
+                source_event_id: "evt_actor_kind_isolation".into(),
+                source_event_type: "message.posted".into(),
+                category: "message.new".into(),
+                channel: "inapp".into(),
+                recipient_id: "u_demo".into(),
+                recipient_kind: None,
+                title: Some("New message".into()),
+                body: Some("hello".into()),
+                payload: Some(r#"{"conversationId":"c_demo"}"#.into()),
+            },
+        )
+        .expect("notification request should succeed");
+
+    let user_notifications = runtime
+        .list_notifications(&user_auth)
+        .expect("user notifications should list");
+    assert_eq!(user_notifications.len(), 1);
+    assert_eq!(
+        user_notifications[0].notification_id,
+        "ntf_actor_kind_isolation"
+    );
+
+    let system_notifications = runtime
+        .list_notifications(&system_auth)
+        .expect("system notifications should list");
+    assert!(
+        system_notifications.is_empty(),
+        "a different actor_kind with the same actor_id must not share the inbox"
+    );
+
+    let error = runtime
+        .get_notification(&system_auth, "ntf_actor_kind_isolation")
+        .expect_err(
+            "a different actor_kind with the same actor_id must not fetch the notification",
+        );
+    let response = axum::response::IntoResponse::into_response(error);
+    assert_eq!(response.status(), axum::http::StatusCode::NOT_FOUND);
 }

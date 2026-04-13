@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize};
 pub struct RouteBinding {
     pub tenant_id: String,
     pub principal_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub principal_kind: Option<String>,
     pub device_id: String,
     pub owner_node_id: String,
     pub session_id: Option<String>,
@@ -20,6 +22,7 @@ pub struct RouteBinding {
 pub struct RouteBindingRequest {
     pub tenant_id: String,
     pub principal_id: String,
+    pub principal_kind: Option<String>,
     pub device_id: String,
     pub owner_node_id: String,
     pub session_id: Option<String>,
@@ -32,12 +35,18 @@ impl RouteBindingRequest {
         Self {
             tenant_id: tenant_id.into(),
             principal_id: principal_id.into(),
+            principal_kind: None,
             device_id: device_id.into(),
             owner_node_id: owner_node_id.into(),
             session_id: None,
             connection_kind: "unknown".into(),
             bound_at: String::new(),
         }
+    }
+
+    pub fn with_principal_kind(mut self, principal_kind: Option<&str>) -> Self {
+        self.principal_kind = principal_kind.map(str::to_owned);
+        self
     }
 
     pub fn with_session_id(mut self, session_id: Option<&str>) -> Self {
@@ -132,6 +141,7 @@ impl RouteDirectory {
         let key = route_key(
             request.tenant_id.as_str(),
             request.principal_id.as_str(),
+            request.principal_kind.as_deref(),
             request.device_id.as_str(),
         );
         let mut routes = lock_route_mutex(&self.routes, "routes");
@@ -149,6 +159,7 @@ impl RouteDirectory {
         let binding = RouteBinding {
             tenant_id: request.tenant_id,
             principal_id: request.principal_id,
+            principal_kind: request.principal_kind,
             device_id: request.device_id,
             owner_node_id: request.owner_node_id,
             session_id: request.session_id,
@@ -265,8 +276,18 @@ impl RouteDirectory {
         principal_id: &str,
         device_id: &str,
     ) -> Option<RouteBinding> {
+        self.lookup_for_principal_kind(tenant_id, principal_id, None, device_id)
+    }
+
+    pub fn lookup_for_principal_kind(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: Option<&str>,
+        device_id: &str,
+    ) -> Option<RouteBinding> {
         lock_route_mutex(&self.routes, "routes")
-            .get(route_key(tenant_id, principal_id, device_id).as_str())
+            .get(route_key(tenant_id, principal_id, principal_kind, device_id).as_str())
             .cloned()
     }
 
@@ -277,7 +298,18 @@ impl RouteDirectory {
         device_id: &str,
         owner_node_id: &str,
     ) -> Option<RouteBinding> {
-        let key = route_key(tenant_id, principal_id, device_id);
+        self.release_for_principal_kind(tenant_id, principal_id, None, device_id, owner_node_id)
+    }
+
+    pub fn release_for_principal_kind(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: Option<&str>,
+        device_id: &str,
+        owner_node_id: &str,
+    ) -> Option<RouteBinding> {
+        let key = route_key(tenant_id, principal_id, principal_kind, device_id);
         let removed = {
             let mut routes = lock_route_mutex(&self.routes, "routes");
             match routes.get(&key) {
@@ -373,8 +405,16 @@ impl RouteDirectory {
     }
 }
 
-fn route_key(tenant_id: &str, principal_id: &str, device_id: &str) -> String {
-    format!("{tenant_id}:{principal_id}:{device_id}")
+fn route_key(
+    tenant_id: &str,
+    principal_id: &str,
+    principal_kind: Option<&str>,
+    device_id: &str,
+) -> String {
+    match principal_kind {
+        Some(principal_kind) => format!("{tenant_id}:{principal_kind}:{principal_id}:{device_id}"),
+        None => format!("{tenant_id}:{principal_id}:{device_id}"),
+    }
 }
 
 #[cfg(test)]

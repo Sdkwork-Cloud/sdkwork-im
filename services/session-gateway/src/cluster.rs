@@ -11,6 +11,7 @@ use im_time::utc_now_rfc3339_millis;
 
 use crate::{
     RealtimeDeliveryRuntime,
+    principal_scope::{actor_device_scope_key, typed_device_scope_key},
     realtime::{RealtimeDeviceStateSnapshot, RealtimeRuntimeError},
 };
 
@@ -97,47 +98,135 @@ impl RealtimeClusterBridge {
         session_id: Option<&str>,
         connection_kind: &str,
     ) -> Result<RealtimeDeviceRoute, RealtimeClusterError> {
+        self.bind_device_route_internal(
+            tenant_id,
+            principal_id,
+            None,
+            device_id,
+            owner_node_id,
+            session_id,
+            connection_kind,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn bind_device_route_for_principal_kind(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: &str,
+        device_id: &str,
+        owner_node_id: &str,
+        session_id: Option<&str>,
+        connection_kind: &str,
+    ) -> Result<RealtimeDeviceRoute, RealtimeClusterError> {
+        self.bind_device_route_internal(
+            tenant_id,
+            principal_id,
+            Some(principal_kind),
+            device_id,
+            owner_node_id,
+            session_id,
+            connection_kind,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn bind_device_route_internal(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: Option<&str>,
+        device_id: &str,
+        owner_node_id: &str,
+        session_id: Option<&str>,
+        connection_kind: &str,
+    ) -> Result<RealtimeDeviceRoute, RealtimeClusterError> {
         self.require_known_node(owner_node_id)?;
-        let previous_route = self.resolve_device_route(tenant_id, principal_id, device_id);
+        let previous_route =
+            self.resolve_device_route_internal(tenant_id, principal_id, principal_kind, device_id);
         if let Some(previous_route) = previous_route.as_ref()
             && previous_route.owner_node_id != owner_node_id
         {
             let target_runtime = self.require_runtime(owner_node_id)?;
             match self.require_runtime(previous_route.owner_node_id.as_str()) {
                 Ok(source_runtime) => {
-                    let snapshot: RealtimeDeviceStateSnapshot = source_runtime
-                        .take_device_state(tenant_id, principal_id, device_id)
-                        .map_err(|error| {
-                            self.runtime_store_error(
-                                "take device state for route rebind",
-                                previous_route.owner_node_id.as_str(),
-                                error,
+                    let snapshot: RealtimeDeviceStateSnapshot = match principal_kind {
+                        Some(principal_kind) => source_runtime
+                            .take_device_state_for_principal_kind(
+                                tenant_id,
+                                principal_id,
+                                principal_kind,
+                                device_id,
                             )
-                        })?;
-                    target_runtime
-                        .restore_device_state(snapshot)
-                        .map_err(|error| {
-                            self.runtime_store_error(
-                                "restore device state for route rebind",
-                                owner_node_id,
-                                error,
-                            )
-                        })?;
+                            .map_err(|error| {
+                                self.runtime_store_error(
+                                    "take device state for route rebind",
+                                    previous_route.owner_node_id.as_str(),
+                                    error,
+                                )
+                            })?,
+                        None => source_runtime
+                            .take_device_state(tenant_id, principal_id, device_id)
+                            .map_err(|error| {
+                                self.runtime_store_error(
+                                    "take device state for route rebind",
+                                    previous_route.owner_node_id.as_str(),
+                                    error,
+                                )
+                            })?,
+                    };
+                    match principal_kind {
+                        Some(principal_kind) => target_runtime
+                            .restore_device_state_for_principal_kind(principal_kind, snapshot)
+                            .map_err(|error| {
+                                self.runtime_store_error(
+                                    "restore device state for route rebind",
+                                    owner_node_id,
+                                    error,
+                                )
+                            })?,
+                        None => target_runtime
+                            .restore_device_state(snapshot)
+                            .map_err(|error| {
+                                self.runtime_store_error(
+                                    "restore device state for route rebind",
+                                    owner_node_id,
+                                    error,
+                                )
+                            })?,
+                    };
                 }
                 Err(error) if error.code == "node_runtime_missing" => {
                     // The previous owner runtime is already gone, so in-memory state
                     // cannot be handed off. Keep availability by moving ownership to the
                     // new active node and let the target restore any durable checkpoint
                     // state it knows about.
-                    target_runtime
-                        .ensure_device_state(tenant_id, principal_id, device_id)
-                        .map_err(|error| {
-                            self.runtime_store_error(
-                                "restore durable checkpoint during route rebind",
-                                owner_node_id,
-                                error,
+                    match principal_kind {
+                        Some(principal_kind) => target_runtime
+                            .ensure_device_state_for_principal_kind(
+                                tenant_id,
+                                principal_id,
+                                principal_kind,
+                                device_id,
                             )
-                        })?;
+                            .map_err(|error| {
+                                self.runtime_store_error(
+                                    "restore durable checkpoint during route rebind",
+                                    owner_node_id,
+                                    error,
+                                )
+                            })?,
+                        None => target_runtime
+                            .ensure_device_state(tenant_id, principal_id, device_id)
+                            .map_err(|error| {
+                                self.runtime_store_error(
+                                    "restore durable checkpoint during route rebind",
+                                    owner_node_id,
+                                    error,
+                                )
+                            })?,
+                    };
                 }
                 Err(error) => return Err(error),
             }
@@ -146,6 +235,7 @@ impl RealtimeClusterBridge {
         self.route_directory
             .bind(
                 RouteBindingRequest::new(tenant_id, principal_id, device_id, owner_node_id)
+                    .with_principal_kind(principal_kind)
                     .with_session_id(session_id)
                     .with_connection_kind(connection_kind)
                     .with_bound_at(cluster_timestamp()),
@@ -160,7 +250,43 @@ impl RealtimeClusterBridge {
         device_id: &str,
         session_id: Option<&str>,
     ) -> Result<(), RealtimeClusterError> {
-        let Some(route) = self.resolve_device_route(tenant_id, principal_id, device_id) else {
+        self.ensure_route_session_current_internal(
+            tenant_id,
+            principal_id,
+            None,
+            device_id,
+            session_id,
+        )
+    }
+
+    pub fn ensure_route_session_current_for_principal_kind(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: &str,
+        device_id: &str,
+        session_id: Option<&str>,
+    ) -> Result<(), RealtimeClusterError> {
+        self.ensure_route_session_current_internal(
+            tenant_id,
+            principal_id,
+            Some(principal_kind),
+            device_id,
+            session_id,
+        )
+    }
+
+    fn ensure_route_session_current_internal(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: Option<&str>,
+        device_id: &str,
+        session_id: Option<&str>,
+    ) -> Result<(), RealtimeClusterError> {
+        let Some(route) =
+            self.resolve_device_route_internal(tenant_id, principal_id, principal_kind, device_id)
+        else {
             return Ok(());
         };
         let Some(current_session_id) = route.session_id.as_deref() else {
@@ -197,7 +323,43 @@ impl RealtimeClusterBridge {
         device_id: &str,
         local_node_id: &str,
     ) -> Result<(), RealtimeClusterError> {
-        let Some(route) = self.resolve_device_route(tenant_id, principal_id, device_id) else {
+        self.ensure_device_route_local_internal(
+            tenant_id,
+            principal_id,
+            None,
+            device_id,
+            local_node_id,
+        )
+    }
+
+    pub fn ensure_device_route_local_for_principal_kind(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: &str,
+        device_id: &str,
+        local_node_id: &str,
+    ) -> Result<(), RealtimeClusterError> {
+        self.ensure_device_route_local_internal(
+            tenant_id,
+            principal_id,
+            Some(principal_kind),
+            device_id,
+            local_node_id,
+        )
+    }
+
+    fn ensure_device_route_local_internal(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: Option<&str>,
+        device_id: &str,
+        local_node_id: &str,
+    ) -> Result<(), RealtimeClusterError> {
+        let Some(route) =
+            self.resolve_device_route_internal(tenant_id, principal_id, principal_kind, device_id)
+        else {
             return Ok(());
         };
         if route.owner_node_id == local_node_id {
@@ -234,8 +396,32 @@ impl RealtimeClusterBridge {
         principal_id: &str,
         device_id: &str,
     ) -> Option<RealtimeDeviceRoute> {
-        self.route_directory
-            .lookup(tenant_id, principal_id, device_id)
+        self.resolve_device_route_internal(tenant_id, principal_id, None, device_id)
+    }
+
+    pub fn resolve_device_route_for_principal_kind(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: &str,
+        device_id: &str,
+    ) -> Option<RealtimeDeviceRoute> {
+        self.resolve_device_route_internal(tenant_id, principal_id, Some(principal_kind), device_id)
+    }
+
+    fn resolve_device_route_internal(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: Option<&str>,
+        device_id: &str,
+    ) -> Option<RealtimeDeviceRoute> {
+        self.route_directory.lookup_for_principal_kind(
+            tenant_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        )
     }
 
     pub fn release_device_route(
@@ -245,8 +431,41 @@ impl RealtimeClusterBridge {
         device_id: &str,
         owner_node_id: &str,
     ) -> Option<RealtimeDeviceRoute> {
-        self.route_directory
-            .release(tenant_id, principal_id, device_id, owner_node_id)
+        self.release_device_route_internal(tenant_id, principal_id, None, device_id, owner_node_id)
+    }
+
+    pub fn release_device_route_for_principal_kind(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: &str,
+        device_id: &str,
+        owner_node_id: &str,
+    ) -> Option<RealtimeDeviceRoute> {
+        self.release_device_route_internal(
+            tenant_id,
+            principal_id,
+            Some(principal_kind),
+            device_id,
+            owner_node_id,
+        )
+    }
+
+    fn release_device_route_internal(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: Option<&str>,
+        device_id: &str,
+        owner_node_id: &str,
+    ) -> Option<RealtimeDeviceRoute> {
+        self.route_directory.release_for_principal_kind(
+            tenant_id,
+            principal_id,
+            principal_kind,
+            device_id,
+            owner_node_id,
+        )
     }
 
     pub fn routes_for_node(&self, owner_node_id: &str) -> Vec<RealtimeDeviceRoute> {
@@ -324,28 +543,55 @@ impl RealtimeClusterBridge {
             let target_runtime = self.require_runtime(target_node_id)?;
 
             for route in &routes {
-                let snapshot: RealtimeDeviceStateSnapshot = source_runtime
-                    .take_device_state(
-                        route.tenant_id.as_str(),
-                        route.principal_id.as_str(),
-                        route.device_id.as_str(),
-                    )
-                    .map_err(|error| {
-                        self.runtime_store_error(
-                            "take device state for route migration",
-                            source_node_id,
-                            error,
+                let snapshot: RealtimeDeviceStateSnapshot = match route.principal_kind.as_deref() {
+                    Some(principal_kind) => source_runtime
+                        .take_device_state_for_principal_kind(
+                            route.tenant_id.as_str(),
+                            route.principal_id.as_str(),
+                            principal_kind,
+                            route.device_id.as_str(),
                         )
-                    })?;
-                target_runtime
-                    .restore_device_state(snapshot)
-                    .map_err(|error| {
-                        self.runtime_store_error(
-                            "restore device state for route migration",
-                            target_node_id,
-                            error,
+                        .map_err(|error| {
+                            self.runtime_store_error(
+                                "take device state for route migration",
+                                source_node_id,
+                                error,
+                            )
+                        })?,
+                    None => source_runtime
+                        .take_device_state(
+                            route.tenant_id.as_str(),
+                            route.principal_id.as_str(),
+                            route.device_id.as_str(),
                         )
-                    })?;
+                        .map_err(|error| {
+                            self.runtime_store_error(
+                                "take device state for route migration",
+                                source_node_id,
+                                error,
+                            )
+                        })?,
+                };
+                match route.principal_kind.as_deref() {
+                    Some(principal_kind) => target_runtime
+                        .restore_device_state_for_principal_kind(principal_kind, snapshot)
+                        .map_err(|error| {
+                            self.runtime_store_error(
+                                "restore device state for route migration",
+                                target_node_id,
+                                error,
+                            )
+                        })?,
+                    None => target_runtime
+                        .restore_device_state(snapshot)
+                        .map_err(|error| {
+                            self.runtime_store_error(
+                                "restore device state for route migration",
+                                target_node_id,
+                                error,
+                            )
+                        })?,
+                };
             }
         }
 
@@ -369,7 +615,60 @@ impl RealtimeClusterBridge {
         event_type: &str,
         payload: String,
     ) -> RealtimeRouteDeliveryResult {
-        let route = self.resolve_device_route(tenant_id, principal_id, device_id);
+        self.publish_device_event_internal(
+            origin_node_id,
+            tenant_id,
+            principal_id,
+            None,
+            device_id,
+            scope_type,
+            scope_id,
+            event_type,
+            payload,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn publish_device_event_for_principal_kind(
+        &self,
+        origin_node_id: &str,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: &str,
+        device_id: &str,
+        scope_type: &str,
+        scope_id: &str,
+        event_type: &str,
+        payload: String,
+    ) -> RealtimeRouteDeliveryResult {
+        self.publish_device_event_internal(
+            origin_node_id,
+            tenant_id,
+            principal_id,
+            Some(principal_kind),
+            device_id,
+            scope_type,
+            scope_id,
+            event_type,
+            payload,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn publish_device_event_internal(
+        &self,
+        origin_node_id: &str,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: Option<&str>,
+        device_id: &str,
+        scope_type: &str,
+        scope_id: &str,
+        event_type: &str,
+        payload: String,
+    ) -> RealtimeRouteDeliveryResult {
+        let route =
+            self.resolve_device_route_internal(tenant_id, principal_id, principal_kind, device_id);
         let runtimes = lock_cluster_mutex(&self.node_runtimes, "node_runtimes");
         let (target_node_id, route_state, runtime) = match route {
             Some(route) => {
@@ -395,8 +694,18 @@ impl RealtimeClusterBridge {
         drop(runtimes);
 
         let delivered = runtime
-            .map(|runtime| {
-                runtime.publish_scope_event(
+            .map(|runtime| match principal_kind {
+                Some(principal_kind) => runtime.publish_scope_event_for_principal_kind(
+                    tenant_id,
+                    principal_id,
+                    principal_kind,
+                    scope_type,
+                    scope_id,
+                    event_type,
+                    payload,
+                    vec![device_id.into()],
+                ),
+                None => runtime.publish_scope_event(
                     tenant_id,
                     principal_id,
                     scope_type,
@@ -404,7 +713,7 @@ impl RealtimeClusterBridge {
                     event_type,
                     payload,
                     vec![device_id.into()],
-                )
+                ),
             })
             .map(|result| match result {
                 Ok(delivered) => (route_state.to_string(), delivered),
@@ -487,8 +796,18 @@ impl RealtimeClusterBridge {
     }
 }
 
-fn device_scope_key(tenant_id: &str, principal_id: &str, device_id: &str) -> String {
-    format!("{tenant_id}:{principal_id}:{device_id}")
+fn device_scope_key(
+    tenant_id: &str,
+    principal_id: &str,
+    principal_kind: Option<&str>,
+    device_id: &str,
+) -> String {
+    match principal_kind {
+        Some(principal_kind) => {
+            typed_device_scope_key(tenant_id, principal_id, principal_kind, device_id)
+        }
+        None => actor_device_scope_key(tenant_id, principal_id, device_id),
+    }
 }
 
 fn cluster_timestamp() -> String {

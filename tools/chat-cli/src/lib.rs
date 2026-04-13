@@ -274,7 +274,18 @@ async fn http_request_json(
     let response = client
         .request(request)
         .await
-        .map_err(|error| CliError::runtime(format!("request to {uri} failed: {error}")))?;
+        .map_err(|error| {
+            if error.is_connect() {
+                return CliError::runtime(format!(
+                    "unable to connect to craw-chat service at {} while calling {} {}; verify the service is running and the --base-url is correct: {}",
+                    context.base_url,
+                    method.as_str(),
+                    path,
+                    error
+                ));
+            }
+            CliError::runtime(format!("request to {uri} failed: {error}"))
+        })?;
     let status = response.status();
     let bytes = response
         .into_body()

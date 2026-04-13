@@ -16,6 +16,13 @@ use im_time::utc_now_rfc3339_millis;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
+const AUDIT_RECORD_ID_MAX_BYTES: usize = 256;
+const AUDIT_AGGREGATE_TYPE_MAX_BYTES: usize = 128;
+const AUDIT_AGGREGATE_ID_MAX_BYTES: usize = 256;
+const AUDIT_ACTION_MAX_BYTES: usize = 128;
+const AUDIT_PAYLOAD_MAX_BYTES: usize = 128 * 1024;
+const AUDIT_RECORD_DELIVERY_PROOF_VERSION: &str = "audit.record.delivery-proof.v1";
+
 #[derive(Clone)]
 struct AppState {
     runtime: Arc<AuditRuntime>,
@@ -69,6 +76,44 @@ pub struct RecordAuditAnchor {
     pub payload: Option<String>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AuditRecordMutationOutcome {
+    pub record: AuditRecord,
+    pub applied: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AuditRecordDeliveryStatus {
+    Applied,
+    Replayed,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuditRecordMutationResponse {
+    #[serde(flatten)]
+    pub record: AuditRecord,
+    pub request_key: String,
+    pub delivery_status: AuditRecordDeliveryStatus,
+    pub proof_version: String,
+}
+
+impl AuditRecordMutationResponse {
+    pub fn from_outcome(outcome: AuditRecordMutationOutcome, request_key: String) -> Self {
+        Self {
+            record: outcome.record,
+            request_key,
+            delivery_status: if outcome.applied {
+                AuditRecordDeliveryStatus::Applied
+            } else {
+                AuditRecordDeliveryStatus::Replayed
+            },
+            proof_version: AUDIT_RECORD_DELIVERY_PROOF_VERSION.into(),
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct AuditRuntime {
     records: Mutex<HashMap<String, Vec<AuditRecord>>>,
@@ -105,11 +150,31 @@ impl From<AuthContextError> for AuditError {
 }
 
 impl AuditError {
+    fn conflict(record_id: &str) -> Self {
+        Self {
+            status: axum::http::StatusCode::CONFLICT,
+            code: "audit_record_conflict",
+            message: format!(
+                "audit record request conflicts with existing idempotency key: {record_id}"
+            ),
+        }
+    }
+
     fn forbidden(required_permission: &'static str) -> Self {
         Self {
             status: axum::http::StatusCode::FORBIDDEN,
             code: "permission_denied",
             message: format!("missing required permission: {required_permission}"),
+        }
+    }
+
+    fn payload_too_large(field: &'static str, max_bytes: usize, actual_bytes: usize) -> Self {
+        Self {
+            status: axum::http::StatusCode::PAYLOAD_TOO_LARGE,
+            code: "payload_too_large",
+            message: format!(
+                "payload too large for {field}: max={max_bytes} bytes, actual={actual_bytes} bytes"
+            ),
         }
     }
 }
@@ -128,26 +193,52 @@ impl axum::response::IntoResponse for AuditError {
 }
 
 impl AuditRuntime {
-    pub fn record_anchor(&self, auth: &AuthContext, request: RecordAuditAnchor) -> AuditRecord {
+    pub fn record_anchor(
+        &self,
+        auth: &AuthContext,
+        request: RecordAuditAnchor,
+    ) -> Result<AuditRecord, AuditError> {
+        Ok(self.record_anchor_with_outcome(auth, request)?.record)
+    }
+
+    pub fn record_anchor_with_outcome(
+        &self,
+        auth: &AuthContext,
+        request: RecordAuditAnchor,
+    ) -> Result<AuditRecordMutationOutcome, AuditError> {
+        validate_record_audit_anchor_request(&request)?;
         let recorded_at = utc_now_rfc3339_millis();
         let mut records = self.lock_records("record_anchor");
         let tenant_records = records.entry(auth.tenant_id.clone()).or_default();
+        if let Some(existing) = tenant_records
+            .iter()
+            .find(|record| record.record_id == request.record_id)
+            .cloned()
+        {
+            if audit_record_matches_request(&existing, auth, &request) {
+                return Ok(AuditRecordMutationOutcome {
+                    record: existing,
+                    applied: false,
+                });
+            }
+            return Err(AuditError::conflict(request.record_id.as_str()));
+        }
         let chain_prev_hash = tenant_records
             .last()
             .map(|record| record.chain_hash.clone());
-        let chain_hash = compute_audit_record_chain_hash(
-            auth.tenant_id.as_str(),
-            request.record_id.as_str(),
-            request.aggregate_type.as_str(),
-            request.aggregate_id.as_str(),
-            request.action.as_str(),
-            auth.actor_id.as_str(),
-            auth.actor_kind.as_str(),
-            auth.session_id.as_deref(),
-            request.payload.as_deref(),
-            recorded_at.as_str(),
-            chain_prev_hash.as_deref(),
-        );
+        let chain_hash = compute_audit_record_chain_hash(AuditRecordHashInput {
+            tenant_id: auth.tenant_id.as_str(),
+            record_id: request.record_id.as_str(),
+            aggregate_type: request.aggregate_type.as_str(),
+            aggregate_id: request.aggregate_id.as_str(),
+            action: request.action.as_str(),
+            actor_id: auth.actor_id.as_str(),
+            actor_kind: auth.actor_kind.as_str(),
+            actor_session_id: auth.session_id.as_deref(),
+            payload: request.payload.as_deref(),
+            recorded_at: recorded_at.as_str(),
+            chain_prev_hash: chain_prev_hash.as_deref(),
+        });
         let record = AuditRecord {
             tenant_id: auth.tenant_id.clone(),
             record_id: request.record_id,
@@ -163,7 +254,10 @@ impl AuditRuntime {
             chain_hash,
         };
         tenant_records.push(record.clone());
-        record
+        Ok(AuditRecordMutationOutcome {
+            record,
+            applied: true,
+        })
     }
 
     pub fn list_records(&self, auth: &AuthContext) -> Vec<AuditRecord> {
@@ -216,6 +310,45 @@ impl AuditRuntime {
     }
 }
 
+fn validate_payload_size(
+    field: &'static str,
+    value: &str,
+    max_bytes: usize,
+) -> Result<(), AuditError> {
+    let actual_bytes = value.len();
+    if actual_bytes > max_bytes {
+        return Err(AuditError::payload_too_large(
+            field,
+            max_bytes,
+            actual_bytes,
+        ));
+    }
+    Ok(())
+}
+
+pub fn validate_record_audit_anchor_request(request: &RecordAuditAnchor) -> Result<(), AuditError> {
+    validate_payload_size(
+        "recordId",
+        request.record_id.as_str(),
+        AUDIT_RECORD_ID_MAX_BYTES,
+    )?;
+    validate_payload_size(
+        "aggregateType",
+        request.aggregate_type.as_str(),
+        AUDIT_AGGREGATE_TYPE_MAX_BYTES,
+    )?;
+    validate_payload_size(
+        "aggregateId",
+        request.aggregate_id.as_str(),
+        AUDIT_AGGREGATE_ID_MAX_BYTES,
+    )?;
+    validate_payload_size("action", request.action.as_str(), AUDIT_ACTION_MAX_BYTES)?;
+    if let Some(payload) = request.payload.as_deref() {
+        validate_payload_size("payload", payload, AUDIT_PAYLOAD_MAX_BYTES)?;
+    }
+    Ok(())
+}
+
 pub fn verify_audit_export_bundle_integrity(bundle: &AuditExportBundle) -> bool {
     if bundle.total != bundle.items.len() {
         return false;
@@ -245,19 +378,19 @@ fn verify_audit_records_chain(tenant_id: &str, items: &[AuditRecord]) -> bool {
             return false;
         }
 
-        let expected_hash = compute_audit_record_chain_hash(
-            item.tenant_id.as_str(),
-            item.record_id.as_str(),
-            item.aggregate_type.as_str(),
-            item.aggregate_id.as_str(),
-            item.action.as_str(),
-            item.actor_id.as_str(),
-            item.actor_kind.as_str(),
-            item.actor_session_id.as_deref(),
-            item.payload.as_deref(),
-            item.recorded_at.as_str(),
-            previous_hash,
-        );
+        let expected_hash = compute_audit_record_chain_hash(AuditRecordHashInput {
+            tenant_id: item.tenant_id.as_str(),
+            record_id: item.record_id.as_str(),
+            aggregate_type: item.aggregate_type.as_str(),
+            aggregate_id: item.aggregate_id.as_str(),
+            action: item.action.as_str(),
+            actor_id: item.actor_id.as_str(),
+            actor_kind: item.actor_kind.as_str(),
+            actor_session_id: item.actor_session_id.as_deref(),
+            payload: item.payload.as_deref(),
+            recorded_at: item.recorded_at.as_str(),
+            chain_prev_hash: previous_hash,
+        });
         if item.chain_hash != expected_hash {
             return false;
         }
@@ -268,31 +401,33 @@ fn verify_audit_records_chain(tenant_id: &str, items: &[AuditRecord]) -> bool {
     true
 }
 
-fn compute_audit_record_chain_hash(
-    tenant_id: &str,
-    record_id: &str,
-    aggregate_type: &str,
-    aggregate_id: &str,
-    action: &str,
-    actor_id: &str,
-    actor_kind: &str,
-    actor_session_id: Option<&str>,
-    payload: Option<&str>,
-    recorded_at: &str,
-    chain_prev_hash: Option<&str>,
-) -> String {
+struct AuditRecordHashInput<'a> {
+    tenant_id: &'a str,
+    record_id: &'a str,
+    aggregate_type: &'a str,
+    aggregate_id: &'a str,
+    action: &'a str,
+    actor_id: &'a str,
+    actor_kind: &'a str,
+    actor_session_id: Option<&'a str>,
+    payload: Option<&'a str>,
+    recorded_at: &'a str,
+    chain_prev_hash: Option<&'a str>,
+}
+
+fn compute_audit_record_chain_hash(input: AuditRecordHashInput<'_>) -> String {
     let canonical = serde_json::json!([
-        tenant_id,
-        record_id,
-        aggregate_type,
-        aggregate_id,
-        action,
-        actor_id,
-        actor_kind,
-        actor_session_id.unwrap_or(""),
-        payload.unwrap_or(""),
-        recorded_at,
-        chain_prev_hash.unwrap_or(""),
+        input.tenant_id,
+        input.record_id,
+        input.aggregate_type,
+        input.aggregate_id,
+        input.action,
+        input.actor_id,
+        input.actor_kind,
+        input.actor_session_id.unwrap_or(""),
+        input.payload.unwrap_or(""),
+        input.recorded_at,
+        input.chain_prev_hash.unwrap_or(""),
     ]);
     let canonical_bytes = serde_json::to_vec(&canonical).expect("canonical audit hash payload");
     let digest = Sha256::digest(canonical_bytes.as_slice());
@@ -355,10 +490,15 @@ async fn record_anchor(
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<RecordAuditAnchor>,
-) -> Result<Json<AuditRecord>, AuditError> {
+) -> Result<Json<AuditRecordMutationResponse>, AuditError> {
     let auth = resolve_auth_context(&headers)?;
     ensure_audit_write_access(&auth)?;
-    Ok(Json(state.runtime.record_anchor(&auth, request)))
+    validate_record_audit_anchor_request(&request)?;
+    let request_key = audit_record_request_key(&auth, request.record_id.as_str());
+    Ok(Json(AuditRecordMutationResponse::from_outcome(
+        state.runtime.record_anchor_with_outcome(&auth, request)?,
+        request_key,
+    )))
 }
 
 async fn list_records(
@@ -404,4 +544,23 @@ fn ensure_audit_write_access(auth: &AuthContext) -> Result<(), AuditError> {
     }
 
     Err(AuditError::forbidden("audit.write"))
+}
+
+pub fn audit_record_request_key(auth: &AuthContext, record_id: &str) -> String {
+    format!("{}:audit-record:{}", auth.tenant_id, record_id)
+}
+
+fn audit_record_matches_request(
+    existing: &AuditRecord,
+    auth: &AuthContext,
+    request: &RecordAuditAnchor,
+) -> bool {
+    existing.tenant_id == auth.tenant_id
+        && existing.record_id == request.record_id
+        && existing.aggregate_type == request.aggregate_type
+        && existing.aggregate_id == request.aggregate_id
+        && existing.action == request.action
+        && existing.actor_id == auth.actor_id
+        && existing.actor_kind == auth.actor_kind
+        && existing.payload == request.payload
 }

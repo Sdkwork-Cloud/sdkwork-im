@@ -20,25 +20,33 @@ pub(super) async fn add_member(
     Json(request): Json<AddConversationMemberRequest>,
 ) -> Result<Json<ConversationMember>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
+    let AddConversationMemberRequest {
+        principal_id,
+        principal_kind,
+        role,
+        attributes: request_attributes,
+    } = request;
     let actor_auth =
         access::resolve_conversation_actor_auth_context(&state, &auth, conversation_id.as_str())?;
-    let base_principals = effects::conversation_member_principal_ids_from_auth_context(
+    let base_recipients = effects::conversation_member_principal_recipients_from_auth_context(
         &state,
         &auth,
         conversation_id.as_str(),
     )?;
-    let (principal_kind, attributes) = user_module::resolve_member_principal(
+    let (principal_kind, resolved_attributes) = user_module::resolve_member_principal(
         &state,
         auth.tenant_id.as_str(),
-        request.principal_id.as_str(),
-        request.principal_kind.as_str(),
+        principal_id.as_str(),
+        principal_kind.as_str(),
     )?;
+    let mut attributes = request_attributes;
+    attributes.extend(resolved_attributes);
     let member = state.conversation_runtime.add_member_from_auth_context(
         &auth,
         conversation_id.clone(),
-        request.principal_id,
+        principal_id,
         principal_kind,
-        request.role,
+        role,
         attributes,
     )?;
 
@@ -64,8 +72,11 @@ pub(super) async fn add_member(
             }
         })
         .to_string(),
-        base_principals,
-        BTreeSet::from([member.principal_id.clone()]),
+        base_recipients,
+        BTreeSet::from([NotificationRecipientView {
+            principal_id: member.principal_id.clone(),
+            principal_kind: member.principal_kind.clone(),
+        }]),
     )?;
 
     Ok(Json(member))
@@ -80,7 +91,7 @@ pub(super) async fn remove_member(
     let auth = resolve_auth_context(&headers)?;
     let actor_auth =
         access::resolve_conversation_actor_auth_context(&state, &auth, conversation_id.as_str())?;
-    let base_principals = effects::conversation_member_principal_ids_from_auth_context(
+    let base_recipients = effects::conversation_member_principal_recipients_from_auth_context(
         &state,
         &auth,
         conversation_id.as_str(),
@@ -113,8 +124,11 @@ pub(super) async fn remove_member(
             }
         })
         .to_string(),
-        base_principals,
-        BTreeSet::from([member.principal_id.clone()]),
+        base_recipients,
+        BTreeSet::from([NotificationRecipientView {
+            principal_id: member.principal_id.clone(),
+            principal_kind: member.principal_kind.clone(),
+        }]),
     )?;
 
     Ok(Json(member))
@@ -151,7 +165,7 @@ pub(super) async fn change_conversation_member_role(
     let auth = resolve_auth_context(&headers)?;
     let actor_auth =
         access::resolve_conversation_actor_auth_context(&state, &auth, conversation_id.as_str())?;
-    let base_principals = effects::conversation_member_principal_ids_from_auth_context(
+    let base_recipients = effects::conversation_member_principal_recipients_from_auth_context(
         &state,
         &auth,
         conversation_id.as_str(),
@@ -188,8 +202,11 @@ pub(super) async fn change_conversation_member_role(
             }
         })
         .to_string(),
-        base_principals,
-        BTreeSet::from([change.updated_member.principal_id.clone()]),
+        base_recipients,
+        BTreeSet::from([NotificationRecipientView {
+            principal_id: change.updated_member.principal_id.clone(),
+            principal_kind: change.updated_member.principal_kind.clone(),
+        }]),
     )?;
 
     Ok(Json(change))
@@ -203,7 +220,7 @@ pub(super) async fn leave_conversation(
     let auth = resolve_auth_context(&headers)?;
     let actor_auth =
         access::resolve_conversation_actor_auth_context(&state, &auth, conversation_id.as_str())?;
-    let base_principals = effects::conversation_member_principal_ids_from_auth_context(
+    let base_recipients = effects::conversation_member_principal_recipients_from_auth_context(
         &state,
         &auth,
         conversation_id.as_str(),
@@ -234,8 +251,11 @@ pub(super) async fn leave_conversation(
             }
         })
         .to_string(),
-        base_principals,
-        BTreeSet::from([member.principal_id.clone()]),
+        base_recipients,
+        BTreeSet::from([NotificationRecipientView {
+            principal_id: member.principal_id.clone(),
+            principal_kind: member.principal_kind.clone(),
+        }]),
     )?;
 
     Ok(Json(member))

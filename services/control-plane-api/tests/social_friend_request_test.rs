@@ -12,7 +12,9 @@ use http_body_util::BodyExt;
 use im_adapters_local_disk::FileCommitJournal;
 use im_auth_context::AuthContext;
 use im_domain_core::social::direct_chat_pair_hash;
-use im_domain_events::social::{DirectChatBoundPayload, SocialEventType, social_commit_envelope};
+use im_domain_events::social::{
+    DirectChatBoundPayload, SocialCommitEnvelopeInput, SocialEventType, social_commit_envelope,
+};
 use im_domain_events::{AggregateType, EventActor};
 use im_platform_contracts::CommitJournal;
 use ops_service::OpsRuntime;
@@ -38,6 +40,27 @@ fn state_file(runtime_dir: &Path, file_name: &str) -> PathBuf {
 
 fn social_failpoint_file(runtime_dir: &Path) -> PathBuf {
     state_file(runtime_dir, "social-failpoints.json")
+}
+
+#[cfg(unix)]
+fn make_file_writable(path: &Path) {
+    let mut permissions = fs::metadata(path)
+        .expect("target file should exist")
+        .permissions();
+    use std::os::unix::fs::PermissionsExt;
+
+    permissions.set_mode(permissions.mode() | 0o200);
+    fs::set_permissions(path, permissions).expect("target file should become writable again");
+}
+
+#[cfg(not(unix))]
+#[allow(clippy::permissions_set_readonly_false)]
+fn make_file_writable(path: &Path) {
+    let mut permissions = fs::metadata(path)
+        .expect("target file should exist")
+        .permissions();
+    permissions.set_readonly(false);
+    fs::set_permissions(path, permissions).expect("target file should become writable again");
 }
 
 fn social_tx_marker_file(runtime_dir: &Path) -> PathBuf {
@@ -1640,12 +1663,7 @@ async fn test_control_plane_social_file_runtime_keeps_direct_chat_pair_guard_aft
         "repair_required"
     );
 
-    let mut writable_permissions = fs::metadata(&snapshot_path)
-        .expect("snapshot should still exist")
-        .permissions();
-    writable_permissions.set_readonly(false);
-    fs::set_permissions(&snapshot_path, writable_permissions)
-        .expect("snapshot should become writable again");
+    make_file_writable(&snapshot_path);
 
     let duplicate_response = app
         .oneshot(
@@ -1779,12 +1797,7 @@ async fn test_control_plane_social_file_runtime_replays_same_event_id_after_snap
         "repair_required"
     );
 
-    let mut writable_permissions = fs::metadata(&snapshot_path)
-        .expect("snapshot should still exist")
-        .permissions();
-    writable_permissions.set_readonly(false);
-    fs::set_permissions(&snapshot_path, writable_permissions)
-        .expect("snapshot should become writable again");
+    make_file_writable(&snapshot_path);
 
     let retry_response = app
         .oneshot(
@@ -2261,22 +2274,22 @@ async fn test_control_plane_social_file_runtime_operator_repair_replays_external
     let payload_json =
         serde_json::to_string(&payload).expect("external journal payload should serialize");
     journal
-        .append(social_commit_envelope(
-            "evt_operator_repair_journal_001",
-            "t_demo",
-            AggregateType::DirectChat,
-            payload.direct_chat_id.as_str(),
-            SocialEventType::DirectChatBound,
-            1,
-            EventActor {
+        .append(social_commit_envelope(SocialCommitEnvelopeInput {
+            event_id: "evt_operator_repair_journal_001",
+            tenant_id: "t_demo",
+            aggregate_type: AggregateType::DirectChat,
+            aggregate_id: payload.direct_chat_id.as_str(),
+            event_type: SocialEventType::DirectChatBound,
+            ordering_seq: 1,
+            actor: EventActor {
                 actor_id: "operator_repair".into(),
                 actor_kind: "operator".into(),
                 actor_session_id: None,
             },
-            payload.bound_at.as_str(),
-            payload.bound_at.as_str(),
-            payload_json.as_str(),
-        ))
+            occurred_at: payload.bound_at.as_str(),
+            committed_at: payload.bound_at.as_str(),
+            payload: payload_json.as_str(),
+        }))
         .expect("external journal append should succeed");
 
     let repair_response = app

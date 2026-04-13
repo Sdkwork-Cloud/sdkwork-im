@@ -1,5 +1,5 @@
-mod journal;
 mod iot;
+mod journal;
 mod metadata;
 mod ops;
 mod projection;
@@ -7,8 +7,8 @@ mod realtime;
 mod shared;
 mod state;
 
-pub use journal::{FileCommitJournal, read_commit_journal_file, validate_commit_journal_file};
 pub use iot::{FileDeviceTwinStore, validate_device_twin_store_file};
+pub use journal::{FileCommitJournal, read_commit_journal_file, validate_commit_journal_file};
 pub use metadata::{FileMetadataStore, validate_metadata_store_file};
 pub use ops::{
     FileAutomationExecutionStore, FileNotificationTaskStore,

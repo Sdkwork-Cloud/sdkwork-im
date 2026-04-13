@@ -236,6 +236,7 @@ impl AutomationExecutionStore for NullAutomationStore {
     fn load_execution(
         &self,
         _tenant_id: &str,
+        _principal_kind: &str,
         _principal_id: &str,
         _execution_id: &str,
     ) -> Result<Option<craw_chat_contract_agent::AutomationExecutionRecord>, ContractError> {
@@ -390,7 +391,7 @@ fn test_step03_contract_split_exposes_real_crates_and_keeps_compatibility_facade
         .list_tasks_for_recipient("t_demo", "u_demo")
         .expect("notification listing should succeed");
     automation_store
-        .load_execution("t_demo", "u_demo", "exec_demo")
+        .load_execution("t_demo", "user", "u_demo", "exec_demo")
         .expect("automation load should succeed");
     iot_store
         .save_twin(DeviceTwinRecord {

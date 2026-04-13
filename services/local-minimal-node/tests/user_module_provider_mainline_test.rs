@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use axum::body::Body;
@@ -38,7 +38,7 @@ fn journal_json(runtime_dir: &Path) -> serde_json::Value {
     serde_json::from_str(&journal_content).expect("commit journal should be valid json")
 }
 
-fn event_payload<'a>(journal_json: &'a serde_json::Value, event_type: &str) -> serde_json::Value {
+fn event_payload(journal_json: &serde_json::Value, event_type: &str) -> serde_json::Value {
     let event = journal_json
         .as_array()
         .expect("journal should be an array")
@@ -301,6 +301,216 @@ impl UserModuleProvider for StubExternalUserModuleProvider {
     }
 }
 
+#[derive(Clone)]
+struct OversizedLocalUserModuleProvider;
+
+impl UserModuleProvider for OversizedLocalUserModuleProvider {
+    fn descriptor(&self) -> ProviderPluginDescriptor {
+        ProviderPluginDescriptor::new(
+            "user-module-local",
+            ProviderDomain::UserModule,
+            "local",
+            "Local User Module",
+        )
+        .with_default_selected(true)
+        .with_required_capabilities(["query", "profile", "bind"])
+    }
+
+    fn get_user(
+        &self,
+        tenant_id: &str,
+        user_id: &str,
+    ) -> Result<Option<UserModuleUser>, ContractError> {
+        Ok(Some(UserModuleUser {
+            tenant_id: tenant_id.into(),
+            user_id: user_id.into(),
+            display_name: format!("Local {user_id}"),
+            external_system: None,
+            external_principal_id: None,
+            attributes: BTreeMap::from([("profile".into(), "x".repeat(70 * 1024))]),
+            disabled: false,
+        }))
+    }
+
+    fn batch_get_users(
+        &self,
+        tenant_id: &str,
+        user_ids: &[String],
+    ) -> Result<Vec<UserModuleUser>, ContractError> {
+        user_ids
+            .iter()
+            .map(|user_id| self.get_user(tenant_id, user_id))
+            .collect::<Result<Vec<_>, _>>()
+            .map(|users| users.into_iter().flatten().collect())
+    }
+
+    fn search_users(
+        &self,
+        tenant_id: &str,
+        keyword: &str,
+    ) -> Result<Vec<UserModuleUser>, ContractError> {
+        Ok(self.get_user(tenant_id, keyword)?.into_iter().collect())
+    }
+
+    fn create_or_bind_user(
+        &self,
+        request: UserModuleCreateOrBindRequest,
+    ) -> Result<UserModuleUser, ContractError> {
+        Ok(UserModuleUser {
+            tenant_id: request.tenant_id,
+            user_id: request.user_id,
+            display_name: request.display_name,
+            external_system: request.external_system,
+            external_principal_id: request.external_principal_id,
+            attributes: BTreeMap::from([("bindingMode".into(), "local".into())]),
+            disabled: false,
+        })
+    }
+
+    fn update_user_profile(
+        &self,
+        request: UserModuleUpdateProfileRequest,
+    ) -> Result<UserModuleUser, ContractError> {
+        Ok(UserModuleUser {
+            tenant_id: request.tenant_id,
+            user_id: request.user_id,
+            display_name: request
+                .display_name
+                .unwrap_or_else(|| "Updated Local".into()),
+            external_system: None,
+            external_principal_id: None,
+            attributes: request.attributes,
+            disabled: false,
+        })
+    }
+
+    fn disable_user(&self, _tenant_id: &str, _user_id: &str) -> Result<bool, ContractError> {
+        Ok(true)
+    }
+
+    fn map_external_principal(
+        &self,
+        _tenant_id: &str,
+        _external_system: &str,
+        _external_principal_id: &str,
+    ) -> Result<Option<UserModuleUser>, ContractError> {
+        Ok(None)
+    }
+
+    fn provider_health_snapshot(&self) -> ProviderHealthSnapshot {
+        ProviderHealthSnapshot::healthy("user-module-local", "2026-04-08T00:00:00Z")
+    }
+}
+
+#[derive(Clone, Default)]
+struct EscalatingLocalUserModuleProvider {
+    get_user_calls: Arc<AtomicUsize>,
+}
+
+impl UserModuleProvider for EscalatingLocalUserModuleProvider {
+    fn descriptor(&self) -> ProviderPluginDescriptor {
+        ProviderPluginDescriptor::new(
+            "user-module-local",
+            ProviderDomain::UserModule,
+            "local",
+            "Local User Module",
+        )
+        .with_default_selected(true)
+        .with_required_capabilities(["query", "profile", "bind"])
+    }
+
+    fn get_user(
+        &self,
+        tenant_id: &str,
+        user_id: &str,
+    ) -> Result<Option<UserModuleUser>, ContractError> {
+        let call_index = self.get_user_calls.fetch_add(1, Ordering::Relaxed);
+        let attributes = if call_index == 0 {
+            BTreeMap::from([("department".into(), "platform".into())])
+        } else {
+            BTreeMap::from([("profile".into(), "x".repeat(70 * 1024))])
+        };
+        Ok(Some(UserModuleUser {
+            tenant_id: tenant_id.into(),
+            user_id: user_id.into(),
+            display_name: format!("Local {user_id}"),
+            external_system: None,
+            external_principal_id: None,
+            attributes,
+            disabled: false,
+        }))
+    }
+
+    fn batch_get_users(
+        &self,
+        tenant_id: &str,
+        user_ids: &[String],
+    ) -> Result<Vec<UserModuleUser>, ContractError> {
+        user_ids
+            .iter()
+            .map(|user_id| self.get_user(tenant_id, user_id))
+            .collect::<Result<Vec<_>, _>>()
+            .map(|users| users.into_iter().flatten().collect())
+    }
+
+    fn search_users(
+        &self,
+        tenant_id: &str,
+        keyword: &str,
+    ) -> Result<Vec<UserModuleUser>, ContractError> {
+        Ok(self.get_user(tenant_id, keyword)?.into_iter().collect())
+    }
+
+    fn create_or_bind_user(
+        &self,
+        request: UserModuleCreateOrBindRequest,
+    ) -> Result<UserModuleUser, ContractError> {
+        Ok(UserModuleUser {
+            tenant_id: request.tenant_id,
+            user_id: request.user_id,
+            display_name: request.display_name,
+            external_system: request.external_system,
+            external_principal_id: request.external_principal_id,
+            attributes: BTreeMap::from([("bindingMode".into(), "local".into())]),
+            disabled: false,
+        })
+    }
+
+    fn update_user_profile(
+        &self,
+        request: UserModuleUpdateProfileRequest,
+    ) -> Result<UserModuleUser, ContractError> {
+        Ok(UserModuleUser {
+            tenant_id: request.tenant_id,
+            user_id: request.user_id,
+            display_name: request
+                .display_name
+                .unwrap_or_else(|| "Updated Local".into()),
+            external_system: None,
+            external_principal_id: None,
+            attributes: request.attributes,
+            disabled: false,
+        })
+    }
+
+    fn disable_user(&self, _tenant_id: &str, _user_id: &str) -> Result<bool, ContractError> {
+        Ok(true)
+    }
+
+    fn map_external_principal(
+        &self,
+        _tenant_id: &str,
+        _external_system: &str,
+        _external_principal_id: &str,
+    ) -> Result<Option<UserModuleUser>, ContractError> {
+        Ok(None)
+    }
+
+    fn provider_health_snapshot(&self) -> ProviderHealthSnapshot {
+        ProviderHealthSnapshot::healthy("user-module-local", "2026-04-08T00:00:00Z")
+    }
+}
+
 #[tokio::test]
 async fn test_local_user_module_provider_enriches_user_message_sender_and_member_attributes() {
     let runtime_dir = unique_runtime_dir();
@@ -423,6 +633,206 @@ async fn test_local_user_module_provider_enriches_user_message_sender_and_member
         payload["sender"]["metadata"]["userModulePluginId"],
         "user-module-local"
     );
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
+async fn test_local_user_module_provider_rejects_oversized_creator_attributes_on_create_conversation()
+{
+    let runtime_dir = unique_runtime_dir();
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+    let app = local_minimal_node::build_default_app_with_runtime_dir_and_user_module_provider(
+        runtime_dir.as_path(),
+        Arc::new(OversizedLocalUserModuleProvider),
+    );
+
+    let create_conversation = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-device-id", "d_owner")
+                .header("x-session-id", "s_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_user_module_local_oversized_creator_attributes",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation should return response");
+
+    assert_eq!(create_conversation.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let body = create_conversation
+        .into_body()
+        .collect()
+        .await
+        .expect("create conversation body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["code"], "payload_too_large");
+    assert!(
+        value["message"]
+            .as_str()
+            .expect("message should be present")
+            .contains("creatorAttributes")
+    );
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
+async fn test_local_user_module_provider_rejects_oversized_sender_metadata_on_post_message() {
+    let runtime_dir = unique_runtime_dir();
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+    let app = local_minimal_node::build_default_app_with_runtime_dir_and_user_module_provider(
+        runtime_dir.as_path(),
+        Arc::new(EscalatingLocalUserModuleProvider::default()),
+    );
+
+    let create_conversation = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-device-id", "d_owner")
+                .header("x-session-id", "s_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_user_module_local_oversized_sender_metadata",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation should succeed");
+    assert_eq!(create_conversation.status(), StatusCode::OK);
+
+    let post_message = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_user_module_local_oversized_sender_metadata/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-device-id", "d_owner")
+                .header("x-session-id", "s_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_local_oversized_sender_metadata",
+                        "summary":"hello",
+                        "text":"hello"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("post message should return response");
+
+    assert_eq!(post_message.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let body = post_message
+        .into_body()
+        .collect()
+        .await
+        .expect("post message body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["code"], "payload_too_large");
+    assert!(
+        value["message"]
+            .as_str()
+            .expect("message should be present")
+            .contains("senderMetadata")
+    );
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
+async fn test_local_user_module_provider_merges_add_member_request_attributes() {
+    let runtime_dir = unique_runtime_dir();
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+    let app = local_minimal_node::build_default_app_with_runtime_dir_and_user_module_provider(
+        runtime_dir.as_path(),
+        Arc::new(StubLocalUserModuleProvider),
+    );
+
+    let create_conversation = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-device-id", "d_owner")
+                .header("x-session-id", "s_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_user_module_local_member_request_attributes",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation should succeed");
+    assert_eq!(create_conversation.status(), StatusCode::OK);
+
+    let add_member = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_user_module_local_member_request_attributes/members/add")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-device-id", "d_owner")
+                .header("x-session-id", "s_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "principalId":"u_other_demo",
+                        "principalKind":"user",
+                        "role":"member",
+                        "attributes":{
+                            "project":"apollo"
+                        }
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("add member should succeed");
+    assert_eq!(add_member.status(), StatusCode::OK);
+    let add_member_body = add_member
+        .into_body()
+        .collect()
+        .await
+        .expect("add member body should collect")
+        .to_bytes();
+    let add_member_json: serde_json::Value =
+        serde_json::from_slice(&add_member_body).expect("member response should be valid json");
+    assert_eq!(add_member_json["attributes"]["displayName"], "Local u_other_demo");
+    assert_eq!(add_member_json["attributes"]["department"], "platform");
+    assert_eq!(add_member_json["attributes"]["project"], "apollo");
 
     let _ = fs::remove_dir_all(runtime_dir);
 }

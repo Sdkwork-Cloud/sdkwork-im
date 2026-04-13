@@ -267,7 +267,10 @@ pub(super) fn ensure_current_active_member_target(
 ) -> Result<(), RuntimeError> {
     let active_member_id = conversation
         .roster
-        .resolve_active_member_id(target_member.principal_id.as_str())
+        .resolve_active_member_id_with_kind(
+            target_member.principal_id.as_str(),
+            target_member.principal_kind.as_str(),
+        )
         .ok_or_else(|| RuntimeError::MemberNotFound(target_member.member_id.clone()))?;
     if active_member_id != target_member.member_id.as_str() || !target_member.is_active() {
         return Err(RuntimeError::MemberNotFound(
@@ -640,6 +643,64 @@ pub(super) fn ensure_history_read_allowed(
 
             Err(RuntimeError::PermissionDenied(format!(
                 "principal is not allowed to read conversation history: {principal_id}"
+            )))
+        }
+        _ => Err(RuntimeError::PermissionDenied(format!(
+            "unsupported conversation history visibility: {history_visibility}"
+        ))),
+    }
+}
+
+pub(super) fn ensure_history_read_allowed_with_kind(
+    conversation: &ConversationState,
+    principal_id: &str,
+    principal_kind: &str,
+) -> Result<(), RuntimeError> {
+    let history_visibility = conversation
+        .aggregate
+        .policy()
+        .map(|policy| policy.history_visibility.as_str())
+        .unwrap_or("joined");
+
+    match history_visibility {
+        "world_readable" => Ok(()),
+        "joined" => {
+            if conversation
+                .roster
+                .resolve_active_member_with_kind(principal_id, principal_kind)
+                .is_some()
+            {
+                return Ok(());
+            }
+
+            Err(RuntimeError::PermissionDenied(format!(
+                "principal is not allowed to read conversation history: {principal_kind}:{principal_id}"
+            )))
+        }
+        "invited" => {
+            if conversation
+                .roster
+                .resolve_history_visible_member_with_kind(principal_id, principal_kind)
+                .is_some()
+            {
+                return Ok(());
+            }
+
+            Err(RuntimeError::PermissionDenied(format!(
+                "principal is not allowed to read conversation history: {principal_kind}:{principal_id}"
+            )))
+        }
+        "shared" => {
+            if conversation
+                .roster
+                .resolve_shared_history_visible_member_with_kind(principal_id, principal_kind)
+                .is_some()
+            {
+                return Ok(());
+            }
+
+            Err(RuntimeError::PermissionDenied(format!(
+                "principal is not allowed to read conversation history: {principal_kind}:{principal_id}"
             )))
         }
         _ => Err(RuntimeError::PermissionDenied(format!(

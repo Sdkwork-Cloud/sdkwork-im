@@ -4,10 +4,17 @@ pub(super) async fn create_rtc_session(
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<CreateRtcSessionRequest>,
-) -> Result<Json<im_domain_core::rtc::RtcSession>, ApiError> {
+) -> Result<Json<RtcSessionMutationResponse>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
     access::ensure_rtc_create_access(&state, &auth, &request)?;
-    Ok(Json(state.rtc_runtime.create_session(&auth, request)?))
+    let request_key = rtc_create_request_key(&auth, &request);
+    let outcome = state
+        .rtc_runtime
+        .create_session_with_outcome(&auth, request)?;
+    Ok(Json(RtcSessionMutationResponse::from_outcome(
+        outcome,
+        request_key,
+    )))
 }
 
 pub(super) async fn invite_rtc_session(
@@ -15,7 +22,7 @@ pub(super) async fn invite_rtc_session(
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<InviteRtcSessionRequest>,
-) -> Result<Json<im_domain_core::rtc::RtcSession>, ApiError> {
+) -> Result<Json<RtcSessionMutationResponse>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
     access::ensure_rtc_session_conversation_write_access(
         &state,
@@ -23,6 +30,8 @@ pub(super) async fn invite_rtc_session(
         rtc_session_id.as_str(),
         "rtc.invite",
     )?;
+    let request_key =
+        rtc_session_action_request_key(auth.tenant_id.as_str(), rtc_session_id.as_str(), "invite");
     let outcome =
         state
             .rtc_runtime
@@ -30,7 +39,10 @@ pub(super) async fn invite_rtc_session(
     if outcome.applied {
         effects::emit_rtc_signal_message(&state, &auth, &outcome.session, "rtc.invite")?;
     }
-    Ok(Json(outcome.session))
+    Ok(Json(RtcSessionMutationResponse::from_outcome(
+        outcome,
+        request_key,
+    )))
 }
 
 pub(super) async fn accept_rtc_session(
@@ -38,7 +50,7 @@ pub(super) async fn accept_rtc_session(
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<UpdateRtcSessionRequest>,
-) -> Result<Json<im_domain_core::rtc::RtcSession>, ApiError> {
+) -> Result<Json<RtcSessionMutationResponse>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
     access::ensure_rtc_session_conversation_write_access(
         &state,
@@ -46,6 +58,8 @@ pub(super) async fn accept_rtc_session(
         rtc_session_id.as_str(),
         "rtc.accept",
     )?;
+    let request_key =
+        rtc_session_action_request_key(auth.tenant_id.as_str(), rtc_session_id.as_str(), "accept");
     let outcome =
         state
             .rtc_runtime
@@ -53,7 +67,10 @@ pub(super) async fn accept_rtc_session(
     if outcome.applied {
         effects::emit_rtc_signal_message(&state, &auth, &outcome.session, "rtc.accept")?;
     }
-    Ok(Json(outcome.session))
+    Ok(Json(RtcSessionMutationResponse::from_outcome(
+        outcome,
+        request_key,
+    )))
 }
 
 pub(super) async fn reject_rtc_session(
@@ -61,7 +78,7 @@ pub(super) async fn reject_rtc_session(
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<UpdateRtcSessionRequest>,
-) -> Result<Json<im_domain_core::rtc::RtcSession>, ApiError> {
+) -> Result<Json<RtcSessionMutationResponse>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
     access::ensure_rtc_session_conversation_write_access(
         &state,
@@ -69,6 +86,8 @@ pub(super) async fn reject_rtc_session(
         rtc_session_id.as_str(),
         "rtc.reject",
     )?;
+    let request_key =
+        rtc_session_action_request_key(auth.tenant_id.as_str(), rtc_session_id.as_str(), "reject");
     let outcome =
         state
             .rtc_runtime
@@ -76,7 +95,10 @@ pub(super) async fn reject_rtc_session(
     if outcome.applied {
         effects::emit_rtc_signal_message(&state, &auth, &outcome.session, "rtc.reject")?;
     }
-    Ok(Json(outcome.session))
+    Ok(Json(RtcSessionMutationResponse::from_outcome(
+        outcome,
+        request_key,
+    )))
 }
 
 pub(super) async fn end_rtc_session(
@@ -84,7 +106,7 @@ pub(super) async fn end_rtc_session(
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<UpdateRtcSessionRequest>,
-) -> Result<Json<im_domain_core::rtc::RtcSession>, ApiError> {
+) -> Result<Json<RtcSessionMutationResponse>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
     access::ensure_rtc_session_conversation_write_access(
         &state,
@@ -92,6 +114,8 @@ pub(super) async fn end_rtc_session(
         rtc_session_id.as_str(),
         "rtc.end",
     )?;
+    let request_key =
+        rtc_session_action_request_key(auth.tenant_id.as_str(), rtc_session_id.as_str(), "end");
     let outcome =
         state
             .rtc_runtime
@@ -99,7 +123,10 @@ pub(super) async fn end_rtc_session(
     if outcome.applied {
         effects::emit_rtc_signal_message(&state, &auth, &outcome.session, "rtc.end")?;
     }
-    Ok(Json(outcome.session))
+    Ok(Json(RtcSessionMutationResponse::from_outcome(
+        outcome,
+        request_key,
+    )))
 }
 
 pub(super) async fn post_rtc_signal(

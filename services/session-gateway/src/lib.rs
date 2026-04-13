@@ -24,6 +24,7 @@ mod assembly;
 mod cluster;
 mod device_registration;
 mod presence;
+mod principal_scope;
 mod realtime;
 mod session;
 mod session_state;
@@ -49,6 +50,8 @@ pub use websocket::{
     RealtimeWebsocketMode, SESSION_DISCONNECT_CLOSE_CODE, SESSION_DISCONNECT_CLOSE_REASON,
     serve_realtime_websocket,
 };
+
+const SESSION_GATEWAY_MAX_DEVICE_ID_BYTES: usize = 256;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -93,6 +96,24 @@ impl ApiError {
             message: message.into(),
         }
     }
+
+    fn conflict(code: &'static str, message: impl Into<String>) -> Self {
+        Self {
+            status: axum::http::StatusCode::CONFLICT,
+            code,
+            message: message.into(),
+        }
+    }
+
+    fn payload_too_large(field: &'static str, max_bytes: usize, actual_bytes: usize) -> Self {
+        Self {
+            status: axum::http::StatusCode::PAYLOAD_TOO_LARGE,
+            code: "payload_too_large",
+            message: format!(
+                "payload too large for {field}: max={max_bytes} bytes, actual={actual_bytes} bytes"
+            ),
+        }
+    }
 }
 
 impl From<AuthContextError> for ApiError {
@@ -125,6 +146,8 @@ impl From<RealtimeClusterError> for ApiError {
 impl From<RealtimeRuntimeError> for ApiError {
     fn from(value: RealtimeRuntimeError) -> Self {
         let status = match value.code {
+            "payload_too_large" => axum::http::StatusCode::PAYLOAD_TOO_LARGE,
+            "limit_invalid" => axum::http::StatusCode::BAD_REQUEST,
             "checkpoint_store_unavailable" | "subscription_store_unavailable" => {
                 axum::http::StatusCode::SERVICE_UNAVAILABLE
             }
@@ -301,20 +324,18 @@ async fn sync_realtime_subscriptions(
 ) -> Result<Json<RealtimeSubscriptionSnapshot>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
     let device_id = resolve_requested_device_id(&auth, request.device_id)?;
-    state.prepare_active_device_route(
-        auth.tenant_id.as_str(),
-        auth.actor_id.as_str(),
-        device_id.as_str(),
-        auth.session_id.as_deref(),
-        "http",
-        false,
-    )?;
-    Ok(Json(state.realtime_runtime.sync_subscriptions(
-        auth.tenant_id.as_str(),
-        auth.actor_id.as_str(),
-        device_id.as_str(),
-        request.items,
-    )?))
+    state.prepare_active_device_route(&auth, device_id.as_str(), "http", false)?;
+    Ok(Json(
+        state
+            .realtime_runtime
+            .sync_subscriptions_for_principal_kind(
+                auth.tenant_id.as_str(),
+                auth.actor_id.as_str(),
+                auth.actor_kind.as_str(),
+                device_id.as_str(),
+                request.items,
+            )?,
+    ))
 }
 
 async fn list_realtime_events(
@@ -324,14 +345,7 @@ async fn list_realtime_events(
 ) -> Result<Json<RealtimeEventWindow>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
     let device_id = resolve_requested_device_id(&auth, None)?;
-    state.prepare_active_device_route(
-        auth.tenant_id.as_str(),
-        auth.actor_id.as_str(),
-        device_id.as_str(),
-        auth.session_id.as_deref(),
-        "http_poll",
-        false,
-    )?;
+    state.prepare_active_device_route(&auth, device_id.as_str(), "http_poll", false)?;
     let limit = query.limit.unwrap_or(100);
     if limit == 0 {
         return Err(ApiError::bad_request(
@@ -339,13 +353,17 @@ async fn list_realtime_events(
             "limit must be greater than 0",
         ));
     }
-    Ok(Json(state.realtime_runtime.list_events(
-        auth.tenant_id.as_str(),
-        auth.actor_id.as_str(),
-        device_id.as_str(),
-        query.after_seq.unwrap_or_default(),
-        limit,
-    )?))
+    realtime::validate_realtime_event_limit(limit)?;
+    Ok(Json(
+        state.realtime_runtime.list_events_for_principal_kind(
+            auth.tenant_id.as_str(),
+            auth.actor_id.as_str(),
+            auth.actor_kind.as_str(),
+            device_id.as_str(),
+            query.after_seq.unwrap_or_default(),
+            limit,
+        )?,
+    ))
 }
 
 async fn ack_realtime_events(
@@ -355,17 +373,11 @@ async fn ack_realtime_events(
 ) -> Result<Json<RealtimeAckState>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
     let device_id = resolve_requested_device_id(&auth, request.device_id)?;
-    state.prepare_active_device_route(
+    state.prepare_active_device_route(&auth, device_id.as_str(), "http", false)?;
+    Ok(Json(state.realtime_runtime.ack_events_for_principal_kind(
         auth.tenant_id.as_str(),
         auth.actor_id.as_str(),
-        device_id.as_str(),
-        auth.session_id.as_deref(),
-        "http",
-        false,
-    )?;
-    Ok(Json(state.realtime_runtime.ack_events(
-        auth.tenant_id.as_str(),
-        auth.actor_id.as_str(),
+        auth.actor_kind.as_str(),
         device_id.as_str(),
         request.acked_seq,
     )?))
@@ -466,18 +478,14 @@ impl AppState {
 
     fn register_device(
         &self,
-        tenant_id: &str,
-        principal_id: &str,
+        auth: &AuthContext,
         device_id: &str,
-        session_id: Option<&str>,
         connection_kind: &str,
         allow_session_takeover: bool,
     ) -> Result<(), ApiError> {
         self.device_registration.register_device(
-            tenant_id,
-            principal_id,
+            auth,
             device_id,
-            session_id,
             connection_kind,
             allow_session_takeover,
         )
@@ -485,18 +493,14 @@ impl AppState {
 
     fn prepare_active_device_route(
         &self,
-        tenant_id: &str,
-        principal_id: &str,
+        auth: &AuthContext,
         device_id: &str,
-        session_id: Option<&str>,
         connection_kind: &str,
         allow_session_takeover: bool,
     ) -> Result<(), ApiError> {
         self.device_registration.prepare_active_device_route(
-            tenant_id,
-            principal_id,
+            auth,
             device_id,
-            session_id,
             connection_kind,
             allow_session_takeover,
         )
@@ -504,17 +508,13 @@ impl AppState {
 
     fn disconnect_active_device_route(
         &self,
-        tenant_id: &str,
-        principal_id: &str,
+        auth: &AuthContext,
         device_id: &str,
-        session_id: Option<&str>,
         connection_kind: &str,
     ) -> Result<DisconnectActiveDeviceRouteOutcome, ApiError> {
         self.device_registration.disconnect_active_device_route(
-            tenant_id,
-            principal_id,
+            auth,
             device_id,
-            session_id,
             connection_kind,
         )
     }
@@ -535,6 +535,8 @@ fn resolve_requested_device_id(
 ) -> Result<String, ApiError> {
     match (requested_device_id, auth.device_id.clone()) {
         (Some(requested), Some(bound)) => {
+            validate_device_id(requested.as_str())?;
+            validate_device_id(bound.as_str())?;
             if requested != bound {
                 return Err(ApiError::bad_request(
                     "device_id_mismatch",
@@ -543,13 +545,31 @@ fn resolve_requested_device_id(
             }
             Ok(requested)
         }
-        (Some(requested), None) => Ok(requested),
-        (None, Some(bound)) => Ok(bound),
+        (Some(requested), None) => {
+            validate_device_id(requested.as_str())?;
+            Ok(requested)
+        }
+        (None, Some(bound)) => {
+            validate_device_id(bound.as_str())?;
+            Ok(bound)
+        }
         (None, None) => Err(ApiError::bad_request(
             "device_id_missing",
             "device id must be provided by auth context or request body",
         )),
     }
+}
+
+fn validate_device_id(device_id: &str) -> Result<(), ApiError> {
+    let actual_bytes = device_id.len();
+    if actual_bytes > SESSION_GATEWAY_MAX_DEVICE_ID_BYTES {
+        return Err(ApiError::payload_too_large(
+            "deviceId",
+            SESSION_GATEWAY_MAX_DEVICE_ID_BYTES,
+            actual_bytes,
+        ));
+    }
+    Ok(())
 }
 
 #[cfg(test)]

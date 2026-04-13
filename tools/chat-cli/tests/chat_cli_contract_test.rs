@@ -46,6 +46,17 @@ async fn spawn_server(app: Router) -> (String, tokio::task::JoinHandle<()>) {
     (format!("http://127.0.0.1:{}", address.port()), handle)
 }
 
+async fn reserve_closed_base_url() -> String {
+    let listener = TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("listener should bind");
+    let address = listener
+        .local_addr()
+        .expect("listener should expose local address");
+    drop(listener);
+    format!("http://127.0.0.1:{}", address.port())
+}
+
 fn command_output_json(output: CommandOutput) -> Value {
     match output {
         CommandOutput::Json(value) => value,
@@ -1187,6 +1198,106 @@ fn test_step12_open_chat_test_scripts_freeze_scripted_validation_contract() {
             "Step 12 compatibility doc must contain {required_text}"
         );
     }
+}
+
+#[tokio::test]
+async fn test_chat_cli_timeline_connect_failure_surfaces_actionable_service_unreachable_hint() {
+    let base_url = reserve_closed_base_url().await;
+
+    let error = execute_command(
+        parse_cli_args([
+            "craw-chat-cli",
+            "--base-url",
+            base_url.as_str(),
+            "--tenant-id",
+            "t_demo",
+            "--user-id",
+            "u_guest",
+            "--session-id",
+            "s_guest",
+            "--device-id",
+            "d_guest",
+            "timeline",
+            "--conversation-id",
+            "c_cli_connectivity_demo",
+        ])
+        .expect("timeline args should parse"),
+    )
+    .await
+    .expect_err("timeline against closed port should fail");
+
+    let message = error.to_string();
+    assert!(
+        message.contains("unable to connect to craw-chat service"),
+        "connectivity failure should explain root cause\nmessage:\n{message}"
+    );
+    assert!(
+        message.contains(base_url.as_str()),
+        "connectivity failure should echo the requested base url\nmessage:\n{message}"
+    );
+    assert!(
+        message.contains("verify the service is running"),
+        "connectivity failure should suggest verifying server availability\nmessage:\n{message}"
+    );
+    assert!(
+        message.contains("--base-url"),
+        "connectivity failure should point users at base-url diagnosis\nmessage:\n{message}"
+    );
+}
+
+#[tokio::test]
+async fn test_chat_cli_watch_connect_failure_surfaces_actionable_realtime_unreachable_hint() {
+    let base_url = reserve_closed_base_url().await;
+
+    let error = execute_command(
+        parse_cli_args([
+            "craw-chat-cli",
+            "--base-url",
+            base_url.as_str(),
+            "--tenant-id",
+            "t_demo",
+            "--user-id",
+            "u_guest",
+            "--session-id",
+            "s_guest",
+            "--device-id",
+            "d_guest",
+            "watch",
+            "--conversation-id",
+            "c_cli_connectivity_demo",
+            "--event-type",
+            "message.posted",
+            "--exit-after-events",
+            "1",
+            "--idle-timeout-seconds",
+            "1",
+        ])
+        .expect("watch args should parse"),
+    )
+    .await
+    .expect_err("watch against closed port should fail");
+
+    let message = error.to_string();
+    assert!(
+        message.contains("unable to connect realtime websocket"),
+        "realtime connectivity failure should explain root cause\nmessage:\n{message}"
+    );
+    assert!(
+        message.contains(base_url.as_str()),
+        "realtime connectivity failure should echo the requested base url\nmessage:\n{message}"
+    );
+    assert!(
+        message.contains("/api/v1/realtime/ws"),
+        "realtime connectivity failure should identify the websocket endpoint\nmessage:\n{message}"
+    );
+    assert!(
+        message.contains("verify the service is running"),
+        "realtime connectivity failure should suggest verifying server availability\nmessage:\n{message}"
+    );
+    assert!(
+        message.contains("--base-url"),
+        "realtime connectivity failure should point users at base-url diagnosis\nmessage:\n{message}"
+    );
 }
 
 #[tokio::test]

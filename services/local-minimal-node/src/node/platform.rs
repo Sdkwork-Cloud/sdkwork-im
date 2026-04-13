@@ -4,7 +4,7 @@ pub(super) async fn request_notification(
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<RequestNotification>,
-) -> Result<Json<NotificationTask>, axum::response::Response> {
+) -> Result<Json<NotificationRequestResponse>, axum::response::Response> {
     let is_bearer_request = headers.contains_key(axum::http::header::AUTHORIZATION);
     let auth = resolve_auth_context(&headers)
         .map_err(ApiError::from)
@@ -14,18 +14,22 @@ pub(super) async fn request_notification(
         .request_notification_from_public_api(&auth, request, is_bearer_request)
         .map_err(IntoResponse::into_response)?;
     let is_new = result.is_new;
-    let task = result.task;
+    let task = result.task.clone();
 
     if is_new {
-        state.audit_runtime.record_anchor(
+        let _ = state.audit_runtime.record_anchor(
             &auth,
             RecordAuditAnchor {
-                record_id: format!("audit_{}", task.notification_id),
+                record_id: stable_local_audit_record_id("audit_", task.notification_id.as_str()),
                 aggregate_type: "notification".into(),
-                aggregate_id: task.notification_id.clone(),
+                aggregate_id: stable_local_audit_aggregate_id(
+                    "notification",
+                    task.notification_id.as_str(),
+                ),
                 action: "notification.requested".into(),
                 payload: Some(
                     serde_json::json!({
+                        "notificationId": task.notification_id,
                         "sourceEventType": task.source_event_type,
                         "recipientId": task.recipient_id,
                     })
@@ -35,7 +39,7 @@ pub(super) async fn request_notification(
         );
     }
 
-    Ok(Json(task))
+    Ok(Json(result.into()))
 }
 
 pub(super) async fn list_notifications(
@@ -73,7 +77,8 @@ pub(super) async fn request_automation_execution(
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<RequestAutomationExecution>,
-) -> Result<Json<AutomationExecution>, axum::response::Response> {
+) -> Result<Json<automation_service::AutomationExecutionRequestResponse>, axum::response::Response>
+{
     let auth = resolve_auth_context(&headers)
         .map_err(ApiError::from)
         .map_err(IntoResponse::into_response)?;
@@ -82,13 +87,17 @@ pub(super) async fn request_automation_execution(
         .request_execution_with_outcome(&auth, request)
         .map_err(IntoResponse::into_response)?;
     let is_new = result.is_new;
-    let execution = result.execution;
+    let execution = result.execution.clone();
 
     if is_new {
-        state.audit_runtime.record_anchor(
+        let _ = state.audit_runtime.record_anchor(
             &auth,
             RecordAuditAnchor {
-                record_id: format!("audit_{}", execution.execution_id),
+                record_id: automation_audit_record_id(
+                    auth.actor_kind.as_str(),
+                    "automation.execution_requested",
+                    execution.execution_id.as_str(),
+                ),
                 aggregate_type: "automation_execution".into(),
                 aggregate_id: execution.execution_id.clone(),
                 action: "automation.execution_requested".into(),
@@ -108,7 +117,7 @@ pub(super) async fn request_automation_execution(
             );
     }
 
-    Ok(Json(execution))
+    Ok(Json(result.into()))
 }
 
 pub(super) async fn get_automation_execution(
@@ -295,12 +304,22 @@ pub(super) async fn record_audit_anchor(
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<RecordAuditAnchor>,
-) -> Result<Json<AuditRecord>, axum::response::Response> {
+) -> Result<Json<AuditRecordMutationResponse>, axum::response::Response> {
     let auth = resolve_auth_context(&headers)
         .map_err(ApiError::from)
         .map_err(IntoResponse::into_response)?;
     access::ensure_audit_write_access(&auth).map_err(IntoResponse::into_response)?;
-    Ok(Json(state.audit_runtime.record_anchor(&auth, request)))
+    audit_service::validate_record_audit_anchor_request(&request)
+        .map_err(IntoResponse::into_response)?;
+    let request_key = audit_record_request_key(&auth, request.record_id.as_str());
+    let outcome = state
+        .audit_runtime
+        .record_anchor_with_outcome(&auth, request)
+        .map_err(IntoResponse::into_response)?;
+    Ok(Json(AuditRecordMutationResponse::from_outcome(
+        outcome,
+        request_key,
+    )))
 }
 
 fn record_automation_audit_anchor<T: serde::Serialize>(
@@ -310,16 +329,36 @@ fn record_automation_audit_anchor<T: serde::Serialize>(
     action: &str,
     payload: &T,
 ) {
-    state.audit_runtime.record_anchor(
+    let _ = state.audit_runtime.record_anchor(
         auth,
         RecordAuditAnchor {
-            record_id: format!("audit_{action}_{aggregate_id}"),
+            record_id: automation_audit_record_id(auth.actor_kind.as_str(), action, aggregate_id),
             aggregate_type: "automation_execution".into(),
-            aggregate_id: aggregate_id.into(),
+            aggregate_id: automation_audit_aggregate_id(action, aggregate_id),
             action: action.into(),
             payload: serde_json::to_string(payload).ok(),
         },
     );
+}
+
+fn automation_audit_aggregate_id(action: &str, aggregate_id: &str) -> String {
+    let namespace = match action {
+        "automation.agent_response_started"
+        | "automation.agent_response_delta"
+        | "automation.agent_response_completed" => "automation-stream",
+        "automation.agent_tool_call_requested" | "automation.agent_tool_call_completed" => {
+            "automation-tool-call"
+        }
+        _ => "automation-execution",
+    };
+    stable_local_audit_aggregate_id(namespace, aggregate_id)
+}
+
+fn automation_audit_record_id(actor_kind: &str, action: &str, aggregate_id: &str) -> String {
+    stable_local_audit_record_id(
+        format!("audit_{action}_{actor_kind}_").as_str(),
+        aggregate_id,
+    )
 }
 
 pub(super) async fn list_audit_records(

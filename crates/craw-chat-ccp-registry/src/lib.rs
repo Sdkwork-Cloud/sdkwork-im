@@ -252,16 +252,17 @@ impl EffectiveProtocolSnapshot {
 }
 
 impl ProtocolGovernanceSnapshot {
-    fn from_registry_inputs(
-        protocol_version: impl Into<String>,
-        bindings: &BTreeSet<String>,
-        codecs: &BTreeSet<String>,
-        capability_profile: CapabilityProfile,
-        quota_profile: QuotaProfile,
-        rollout_policy: RolloutPolicy,
-        kill_switch: KillSwitchRule,
-        business_policy_vocabulary: BusinessPolicyVocabulary,
-    ) -> Self {
+    fn from_registry_inputs(inputs: ProtocolGovernanceSnapshotInputs<'_>) -> Self {
+        let ProtocolGovernanceSnapshotInputs {
+            protocol_version,
+            bindings,
+            codecs,
+            capability_profile,
+            quota_profile,
+            rollout_policy,
+            kill_switch,
+            business_policy_vocabulary,
+        } = inputs;
         let effective_snapshot = EffectiveProtocolSnapshot::from_registry_inputs(
             protocol_version,
             bindings,
@@ -281,6 +282,17 @@ impl ProtocolGovernanceSnapshot {
             business_policy_vocabulary,
         }
     }
+}
+
+struct ProtocolGovernanceSnapshotInputs<'a> {
+    protocol_version: String,
+    bindings: &'a BTreeSet<String>,
+    codecs: &'a BTreeSet<String>,
+    capability_profile: CapabilityProfile,
+    quota_profile: QuotaProfile,
+    rollout_policy: RolloutPolicy,
+    kill_switch: KillSwitchRule,
+    business_policy_vocabulary: BusinessPolicyVocabulary,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -479,14 +491,16 @@ impl CcpRegistry {
         let bindings = registry.bindings.clone();
         let codecs = registry.codecs.clone();
         registry.set_governance_snapshot(ProtocolGovernanceSnapshot::from_registry_inputs(
-            protocol_version,
-            &bindings,
-            &codecs,
-            capability_profile,
-            quota_profile,
-            rollout_policy,
-            kill_switch,
-            business_policy_vocabulary,
+            ProtocolGovernanceSnapshotInputs {
+                protocol_version,
+                bindings: &bindings,
+                codecs: &codecs,
+                capability_profile,
+                quota_profile,
+                rollout_policy,
+                kill_switch,
+                business_policy_vocabulary,
+            },
         ));
 
         registry

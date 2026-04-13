@@ -124,7 +124,7 @@ async fn test_default_local_minimal_profile_restores_task_runtime_projections_af
     assert!(
         items
             .iter()
-            .any(|item| item["notificationId"] == "ntf_automation_ae_restart_demo")
+            .any(|item| item["notificationId"] == "ntf_automation_user_ae_restart_demo")
     );
 
     let automation_after_restart = app_after

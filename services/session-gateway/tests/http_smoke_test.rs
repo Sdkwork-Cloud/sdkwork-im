@@ -145,6 +145,220 @@ async fn test_session_resume_rejects_mismatched_bound_device_id() {
 }
 
 #[tokio::test]
+async fn test_presence_snapshot_isolated_by_actor_kind_over_http() {
+    let app = session_gateway::build_app();
+
+    let user_resume = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/sessions/resume")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_dual")
+                .header("x-actor-kind", "user")
+                .header("x-session-id", "s_user")
+                .header("x-device-id", "d_user")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
+                .unwrap(),
+        )
+        .await
+        .expect("user resume should succeed");
+    assert_eq!(user_resume.status(), StatusCode::OK);
+
+    let agent_resume = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/sessions/resume")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_dual")
+                .header("x-actor-kind", "agent")
+                .header("x-session-id", "s_agent")
+                .header("x-device-id", "d_agent")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
+                .unwrap(),
+        )
+        .await
+        .expect("agent resume should succeed");
+    assert_eq!(agent_resume.status(), StatusCode::OK);
+
+    let user_presence = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/presence/me")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_dual")
+                .header("x-actor-kind", "user")
+                .header("x-session-id", "s_user")
+                .header("x-device-id", "d_user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("user presence request should succeed");
+    assert_eq!(user_presence.status(), StatusCode::OK);
+    let user_presence_body = user_presence
+        .into_body()
+        .collect()
+        .await
+        .expect("user presence body should collect")
+        .to_bytes();
+    let user_presence_json: serde_json::Value =
+        serde_json::from_slice(&user_presence_body).expect("user presence should be valid json");
+    let user_devices = user_presence_json["devices"]
+        .as_array()
+        .expect("user devices should be an array");
+    assert_eq!(
+        user_devices.len(),
+        1,
+        "user presence should not include devices from another actor kind sharing the same actor id"
+    );
+    assert_eq!(user_devices[0]["deviceId"], "d_user");
+
+    let agent_presence = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/presence/me")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_dual")
+                .header("x-actor-kind", "agent")
+                .header("x-session-id", "s_agent")
+                .header("x-device-id", "d_agent")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("agent presence request should succeed");
+    assert_eq!(agent_presence.status(), StatusCode::OK);
+    let agent_presence_body = agent_presence
+        .into_body()
+        .collect()
+        .await
+        .expect("agent presence body should collect")
+        .to_bytes();
+    let agent_presence_json: serde_json::Value =
+        serde_json::from_slice(&agent_presence_body).expect("agent presence should be valid json");
+    let agent_devices = agent_presence_json["devices"]
+        .as_array()
+        .expect("agent devices should be an array");
+    assert_eq!(
+        agent_devices.len(),
+        1,
+        "agent presence should not include devices from another actor kind sharing the same actor id"
+    );
+    assert_eq!(agent_devices[0]["deviceId"], "d_agent");
+}
+
+#[tokio::test]
+async fn test_session_resume_rejects_same_device_id_with_different_actor_kind_over_http() {
+    let app = session_gateway::build_app();
+
+    let user_resume = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/sessions/resume")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_dual")
+                .header("x-actor-kind", "user")
+                .header("x-session-id", "s_user")
+                .header("x-device-id", "d_shared")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
+                .unwrap(),
+        )
+        .await
+        .expect("user resume should succeed");
+    assert_eq!(user_resume.status(), StatusCode::OK);
+
+    let agent_resume = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/sessions/resume")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_dual")
+                .header("x-actor-kind", "agent")
+                .header("x-session-id", "s_agent")
+                .header("x-device-id", "d_shared")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
+                .unwrap(),
+        )
+        .await
+        .expect("agent resume should return response");
+
+    assert_eq!(agent_resume.status(), StatusCode::CONFLICT);
+    let agent_resume_body = agent_resume
+        .into_body()
+        .collect()
+        .await
+        .expect("agent resume body should collect")
+        .to_bytes();
+    let agent_resume_json: serde_json::Value =
+        serde_json::from_slice(&agent_resume_body).expect("agent resume should be valid json");
+    assert_eq!(agent_resume_json["code"], "device_scope_conflict");
+}
+
+#[tokio::test]
+async fn test_session_resume_rejects_same_device_id_with_different_principal_over_http() {
+    let app = session_gateway::build_app();
+
+    let first_resume = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/sessions/resume")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner_a")
+                .header("x-actor-kind", "user")
+                .header("x-session-id", "s_owner_a")
+                .header("x-device-id", "d_shared_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
+                .unwrap(),
+        )
+        .await
+        .expect("first owner resume should succeed");
+    assert_eq!(first_resume.status(), StatusCode::OK);
+
+    let conflicting_resume = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/sessions/resume")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner_b")
+                .header("x-actor-kind", "user")
+                .header("x-session-id", "s_owner_b")
+                .header("x-device-id", "d_shared_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
+                .unwrap(),
+        )
+        .await
+        .expect("conflicting owner resume should return response");
+
+    assert_eq!(conflicting_resume.status(), StatusCode::CONFLICT);
+    let body = conflicting_resume
+        .into_body()
+        .collect()
+        .await
+        .expect("conflicting owner resume body should collect")
+        .to_bytes();
+    let json: serde_json::Value =
+        serde_json::from_slice(&body).expect("conflicting owner resume should be valid json");
+    assert_eq!(json["code"], "device_scope_conflict");
+}
+
+#[tokio::test]
 async fn test_presence_heartbeat_and_disconnect_drive_device_offline_transition() {
     let app = session_gateway::build_app();
 
@@ -798,4 +1012,223 @@ async fn test_realtime_ack_endpoint_accepts_empty_window_over_http() {
     assert_eq!(ack_json["ackedThroughSeq"], 0);
     assert_eq!(ack_json["trimmedThroughSeq"], 0);
     assert_eq!(ack_json["retainedEventCount"], 0);
+}
+
+#[tokio::test]
+async fn test_session_resume_rejects_oversized_device_id_over_http() {
+    let app = session_gateway::build_app();
+    let oversized_device_id = "d".repeat(1024);
+    let request_body = serde_json::json!({
+        "deviceId": oversized_device_id,
+        "lastSeenSyncSeq": 0
+    })
+    .to_string();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/sessions/resume")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-session-id", "s_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(request_body))
+                .unwrap(),
+        )
+        .await
+        .expect("resume request should return response");
+
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let json: serde_json::Value = serde_json::from_slice(&body).expect("body should be valid json");
+    assert_eq!(json["code"], "payload_too_large");
+    assert!(
+        json["message"]
+            .as_str()
+            .expect("message should be present")
+            .contains("deviceId")
+    );
+}
+
+#[tokio::test]
+async fn test_realtime_subscription_sync_rejects_oversized_scope_id_over_http() {
+    let app = session_gateway::build_app();
+    let oversized_scope_id = "c".repeat(2048);
+    let request_body = serde_json::json!({
+        "items": [
+            {
+                "scopeType": "conversation",
+                "scopeId": oversized_scope_id,
+                "eventTypes": ["message.posted"]
+            }
+        ]
+    })
+    .to_string();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/realtime/subscriptions/sync")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-session-id", "s_demo")
+                .header("x-device-id", "d_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(request_body))
+                .unwrap(),
+        )
+        .await
+        .expect("subscription sync should return response");
+
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let json: serde_json::Value = serde_json::from_slice(&body).expect("body should be valid json");
+    assert_eq!(json["code"], "payload_too_large");
+    assert!(
+        json["message"]
+            .as_str()
+            .expect("message should be present")
+            .contains("scopeId")
+    );
+}
+
+#[tokio::test]
+async fn test_realtime_event_window_rejects_limit_above_guardrail_over_http() {
+    let app = session_gateway::build_app();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/realtime/events?afterSeq=0&limit=5000")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-session-id", "s_demo")
+                .header("x-device-id", "d_demo")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("event window request should return response");
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let json: serde_json::Value = serde_json::from_slice(&body).expect("body should be valid json");
+    assert_eq!(json["code"], "limit_invalid");
+}
+
+#[tokio::test]
+async fn test_realtime_subscription_sync_rejects_oversized_event_types_payload_over_http() {
+    let app = session_gateway::build_app();
+    let oversized_event_types = (0..300)
+        .map(|index| format!("evt_{index:03}_{}", "x".repeat(64)))
+        .collect::<Vec<_>>();
+    let request_body = serde_json::json!({
+        "items": [
+            {
+                "scopeType": "conversation",
+                "scopeId": "c_demo",
+                "eventTypes": oversized_event_types
+            }
+        ]
+    })
+    .to_string();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/realtime/subscriptions/sync")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-session-id", "s_demo")
+                .header("x-device-id", "d_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(request_body))
+                .unwrap(),
+        )
+        .await
+        .expect("subscription sync should return response");
+
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let json: serde_json::Value = serde_json::from_slice(&body).expect("body should be valid json");
+    assert_eq!(json["code"], "payload_too_large");
+    assert!(
+        json["message"]
+            .as_str()
+            .expect("message should be present")
+            .contains("eventTypes")
+    );
+}
+
+#[tokio::test]
+async fn test_realtime_subscription_sync_rejects_too_many_items_over_http() {
+    let app = session_gateway::build_app();
+    let oversized_items = (0..300)
+        .map(|index| {
+            serde_json::json!({
+                "scopeType": "conversation",
+                "scopeId": format!("c_{index:03}"),
+                "eventTypes": []
+            })
+        })
+        .collect::<Vec<_>>();
+    let request_body = serde_json::json!({
+        "items": oversized_items
+    })
+    .to_string();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/realtime/subscriptions/sync")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-session-id", "s_demo")
+                .header("x-device-id", "d_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(request_body))
+                .unwrap(),
+        )
+        .await
+        .expect("subscription sync should return response");
+
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let json: serde_json::Value = serde_json::from_slice(&body).expect("body should be valid json");
+    assert_eq!(json["code"], "payload_too_large");
+    assert!(
+        json["message"]
+            .as_str()
+            .expect("message should be present")
+            .contains("items")
+    );
 }

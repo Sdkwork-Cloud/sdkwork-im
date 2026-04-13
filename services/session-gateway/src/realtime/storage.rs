@@ -8,7 +8,8 @@ use std::sync::{Arc, Mutex};
 
 use super::{
     RealtimeDeliveryRuntime, RealtimeRuntimeError, device_scope_key, lock_realtime_mutex,
-    normalize_checkpoint_fields, realtime_checkpoint_timestamp, subscriptions_synced_at,
+    normalize_checkpoint_fields, realtime_checkpoint_timestamp, storage_principal_id,
+    subscriptions_synced_at,
 };
 
 #[derive(Clone, Default)]
@@ -25,7 +26,7 @@ impl RealtimeCheckpointStore for RuntimeMemoryCheckpointStore {
     ) -> Result<Option<RealtimeCheckpointRecord>, ContractError> {
         Ok(
             lock_realtime_mutex(&self.checkpoints, "runtime checkpoint store")
-                .get(device_scope_key(tenant_id, principal_id, device_id).as_str())
+                .get(device_scope_key(tenant_id, principal_id, None, device_id).as_str())
                 .cloned(),
         )
     }
@@ -35,6 +36,7 @@ impl RealtimeCheckpointStore for RuntimeMemoryCheckpointStore {
             device_scope_key(
                 record.tenant_id.as_str(),
                 record.principal_id.as_str(),
+                None,
                 record.device_id.as_str(),
             ),
             record,
@@ -57,7 +59,7 @@ impl RealtimeSubscriptionStore for RuntimeMemorySubscriptionStore {
     ) -> Result<Option<RealtimeSubscriptionRecord>, ContractError> {
         Ok(
             lock_realtime_mutex(&self.subscriptions, "runtime subscription store")
-                .get(device_scope_key(tenant_id, principal_id, device_id).as_str())
+                .get(device_scope_key(tenant_id, principal_id, None, device_id).as_str())
                 .cloned(),
         )
     }
@@ -67,6 +69,7 @@ impl RealtimeSubscriptionStore for RuntimeMemorySubscriptionStore {
             device_scope_key(
                 record.tenant_id.as_str(),
                 record.principal_id.as_str(),
+                None,
                 record.device_id.as_str(),
             ),
             record,
@@ -82,38 +85,68 @@ impl RealtimeSubscriptionStore for RuntimeMemorySubscriptionStore {
     ) -> Result<bool, ContractError> {
         Ok(
             lock_realtime_mutex(&self.subscriptions, "runtime subscription store")
-                .remove(device_scope_key(tenant_id, principal_id, device_id).as_str())
+                .remove(device_scope_key(tenant_id, principal_id, None, device_id).as_str())
                 .is_some(),
         )
     }
 }
 
 impl RealtimeDeliveryRuntime {
+    #[cfg(test)]
+    #[allow(dead_code)]
     pub(super) fn persist_checkpoint(
         &self,
         tenant_id: &str,
         principal_id: &str,
         device_id: &str,
     ) -> Result<(), RealtimeRuntimeError> {
+        self.persist_checkpoint_internal(tenant_id, principal_id, None, device_id)
+    }
+
+    pub(super) fn persist_checkpoint_internal(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: Option<&str>,
+        device_id: &str,
+    ) -> Result<(), RealtimeRuntimeError> {
         self.checkpoint_store
-            .save_checkpoint(self.checkpoint_record(tenant_id, principal_id, device_id))
+            .save_checkpoint(self.checkpoint_record(
+                tenant_id,
+                principal_id,
+                principal_kind,
+                device_id,
+            ))
             .map_err(RealtimeRuntimeError::checkpoint_store)
     }
 
+    #[cfg(test)]
+    #[allow(dead_code)]
     pub(super) fn persist_subscriptions(
         &self,
         tenant_id: &str,
         principal_id: &str,
         device_id: &str,
     ) -> Result<(), RealtimeRuntimeError> {
-        match self.subscription_record(tenant_id, principal_id, device_id) {
+        self.persist_subscriptions_internal(tenant_id, principal_id, None, device_id)
+    }
+
+    pub(super) fn persist_subscriptions_internal(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: Option<&str>,
+        device_id: &str,
+    ) -> Result<(), RealtimeRuntimeError> {
+        let stored_principal_id = storage_principal_id(principal_id, principal_kind);
+        match self.subscription_record(tenant_id, principal_id, principal_kind, device_id) {
             Some(record) => self
                 .subscription_store
                 .save_subscriptions(record)
                 .map_err(RealtimeRuntimeError::subscription_store),
             None => self
                 .subscription_store
-                .clear_subscriptions(tenant_id, principal_id, device_id)
+                .clear_subscriptions(tenant_id, stored_principal_id.as_str(), device_id)
                 .map(|_| ())
                 .map_err(RealtimeRuntimeError::subscription_store),
         }
@@ -123,9 +156,10 @@ impl RealtimeDeliveryRuntime {
         &self,
         tenant_id: &str,
         principal_id: &str,
+        principal_kind: Option<&str>,
         device_id: &str,
     ) -> RealtimeCheckpointRecord {
-        let scope_key = device_scope_key(tenant_id, principal_id, device_id);
+        let scope_key = device_scope_key(tenant_id, principal_id, principal_kind, device_id);
         let latest_realtime_seq =
             lock_realtime_mutex(&self.latest_sequences, "realtime sequence store")
                 .get(scope_key.as_str())
@@ -148,7 +182,7 @@ impl RealtimeDeliveryRuntime {
             );
         RealtimeCheckpointRecord {
             tenant_id: tenant_id.into(),
-            principal_id: principal_id.into(),
+            principal_id: storage_principal_id(principal_id, principal_kind),
             device_id: device_id.into(),
             latest_realtime_seq,
             acked_through_seq,
@@ -161,9 +195,10 @@ impl RealtimeDeliveryRuntime {
         &self,
         tenant_id: &str,
         principal_id: &str,
+        principal_kind: Option<&str>,
         device_id: &str,
     ) -> Option<RealtimeSubscriptionRecord> {
-        let scope_key = device_scope_key(tenant_id, principal_id, device_id);
+        let scope_key = device_scope_key(tenant_id, principal_id, principal_kind, device_id);
         let items = lock_realtime_mutex(&self.subscriptions, "realtime subscription store")
             .get(scope_key.as_str())
             .cloned()
@@ -174,7 +209,7 @@ impl RealtimeDeliveryRuntime {
 
         Some(RealtimeSubscriptionRecord {
             tenant_id: tenant_id.into(),
-            principal_id: principal_id.into(),
+            principal_id: storage_principal_id(principal_id, principal_kind),
             device_id: device_id.into(),
             synced_at: subscriptions_synced_at(items.as_slice()),
             items,

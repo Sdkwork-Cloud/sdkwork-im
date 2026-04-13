@@ -31,6 +31,15 @@ fn owner_actor(builder: RequestBuilder) -> RequestBuilder {
         .header("x-session-id", "s_console")
 }
 
+fn system_actor(builder: RequestBuilder) -> RequestBuilder {
+    builder
+        .header("x-tenant-id", "t_demo")
+        .header("x-user-id", "u_owner")
+        .header("x-actor-kind", "system")
+        .header("x-device-id", "d_system_console")
+        .header("x-session-id", "s_system_console")
+}
+
 #[tokio::test]
 async fn test_local_minimal_profile_device_telemetry_uses_device_sender_and_requires_read_capability()
  {
@@ -140,6 +149,87 @@ async fn test_local_minimal_profile_device_telemetry_uses_device_sender_and_requ
     assert_eq!(items[0]["sender"]["id"], "d_sensor");
     assert_eq!(items[0]["scopeKind"], "device");
     assert_eq!(items[0]["scopeId"], "d_sensor");
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_device_stream_rejects_same_actor_id_different_actor_kind() {
+    let app = local_minimal_node::build_default_app();
+
+    let register_response = app
+        .clone()
+        .oneshot(
+            device_actor(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/devices/register"),
+            )
+            .header("content-type", "application/json")
+            .body(Body::from(r#"{}"#))
+            .unwrap(),
+        )
+        .await
+        .expect("device register should return response");
+    assert_eq!(register_response.status(), StatusCode::OK);
+
+    let open_response = app
+        .clone()
+        .oneshot(
+            device_actor(Request::builder().method("POST").uri("/api/v1/streams"))
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                    "streamId":"st_device_telemetry_kind_guard",
+                    "streamType":"device.telemetry",
+                    "scopeKind":"device",
+                    "scopeId":"d_sensor",
+                    "durabilityClass":"durableSession",
+                    "schemaRef":"cc.device.telemetry.v1"
+                }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("open telemetry stream should return response");
+    assert_eq!(open_response.status(), StatusCode::OK);
+
+    let append_response = app
+        .clone()
+        .oneshot(
+            device_actor(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/streams/st_device_telemetry_kind_guard/frames"),
+            )
+            .header("content-type", "application/json")
+            .body(Body::from(
+                r#"{
+                    "frameSeq":1,
+                    "frameType":"telemetry",
+                    "schemaRef":"cc.device.telemetry.v1",
+                    "encoding":"json",
+                    "payload":"{\"temperature\":22.0}"
+                }"#,
+            ))
+            .unwrap(),
+        )
+        .await
+        .expect("append telemetry frame should return response");
+    assert_eq!(append_response.status(), StatusCode::OK);
+
+    let forbidden_list = app
+        .oneshot(
+            system_actor(Request::builder().uri(
+                "/api/v1/streams/st_device_telemetry_kind_guard/frames?afterFrameSeq=0&limit=10",
+            ))
+            .header("x-permissions", "device.telemetry.read")
+            .body(Body::empty())
+            .unwrap(),
+        )
+        .await
+        .expect("cross-kind telemetry list should return response");
+    assert_eq!(forbidden_list.status(), StatusCode::FORBIDDEN);
+    let forbidden_json = json_body(forbidden_list).await;
+    assert_eq!(forbidden_json["code"], "device_permission_denied");
 }
 
 #[tokio::test]
@@ -258,4 +348,48 @@ async fn test_local_minimal_profile_device_command_requires_send_capability_and_
     assert_eq!(items[0]["scopeKind"], "device");
     assert_eq!(items[0]["scopeId"], "d_sensor");
     assert_eq!(items[0]["sender"]["id"], "u_owner");
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_user_actor_cannot_inherit_system_device_command_access() {
+    let app = local_minimal_node::build_default_app();
+
+    let register_response = app
+        .clone()
+        .oneshot(
+            system_actor(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/devices/register"),
+            )
+            .header("content-type", "application/json")
+            .body(Body::from(r#"{}"#))
+            .unwrap(),
+        )
+        .await
+        .expect("system device register should return response");
+    assert_eq!(register_response.status(), StatusCode::OK);
+
+    let forbidden_open = app
+        .oneshot(
+            owner_actor(Request::builder().method("POST").uri("/api/v1/streams"))
+                .header("x-permissions", "device.command.send")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                    "streamId":"st_system_device_command_guard",
+                    "streamType":"device.command",
+                    "scopeKind":"device",
+                    "scopeId":"d_system_console",
+                    "durabilityClass":"durableSession",
+                    "schemaRef":"cc.device.command.v1"
+                }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("cross-kind command open should return response");
+    assert_eq!(forbidden_open.status(), StatusCode::FORBIDDEN);
+    let forbidden_json = json_body(forbidden_open).await;
+    assert_eq!(forbidden_json["code"], "device_permission_denied");
 }

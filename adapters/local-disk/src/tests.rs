@@ -290,6 +290,8 @@ fn test_file_stream_state_store_persists_across_reopen() {
             session: im_domain_core::stream::StreamSession {
                 tenant_id: "t_demo".into(),
                 stream_id: "st_demo".into(),
+                owner_principal_id: Some("u_demo".into()),
+                owner_principal_kind: Some("user".into()),
                 stream_type: "custom.delta.text".into(),
                 scope_kind: "request".into(),
                 scope_id: "req_demo".into(),
@@ -300,6 +302,9 @@ fn test_file_stream_state_store_persists_across_reopen() {
                 last_frame_seq: 1,
                 last_checkpoint_seq: Some(1),
                 result_message_id: None,
+                complete_frame_seq: None,
+                abort_frame_seq: None,
+                abort_reason: None,
                 opened_at: "2026-04-06T00:00:00.000Z".into(),
                 closed_at: None,
                 expires_at: None,
@@ -336,6 +341,14 @@ fn test_file_stream_state_store_persists_across_reopen() {
         .expect("load should succeed")
         .expect("stream state should exist");
     assert_eq!(restored.session.last_frame_seq, 1);
+    assert_eq!(
+        restored.session.owner_principal_id.as_deref(),
+        Some("u_demo")
+    );
+    assert_eq!(
+        restored.session.owner_principal_kind.as_deref(),
+        Some("user")
+    );
     assert_eq!(restored.frames.len(), 1);
     assert_eq!(restored.frames[0].frame_seq, 1);
 
@@ -370,6 +383,7 @@ fn test_file_rtc_state_store_persists_across_reopen() {
                 conversation_id: Some("c_demo".into()),
                 rtc_mode: "voice".into(),
                 initiator_id: "u_demo".into(),
+                initiator_kind: Some("user".into()),
                 provider_plugin_id: Some("webrtc".into()),
                 provider_session_id: Some("ps_demo".into()),
                 access_endpoint: Some("wss://rtc.example.test/session/ps_demo".into()),
@@ -416,7 +430,10 @@ fn test_file_rtc_state_store_persists_across_reopen() {
         restored.session.signaling_stream_id.as_deref(),
         Some("st_demo")
     );
-    assert_eq!(restored.session.provider_plugin_id.as_deref(), Some("webrtc"));
+    assert_eq!(
+        restored.session.provider_plugin_id.as_deref(),
+        Some("webrtc")
+    );
     assert_eq!(
         restored.session.access_endpoint.as_deref(),
         Some("wss://rtc.example.test/session/ps_demo")
@@ -457,6 +474,7 @@ fn test_file_notification_task_store_persists_across_reopen() {
                 category: "message.new".into(),
                 channel: "inapp".into(),
                 recipient_id: "u_demo".into(),
+                recipient_kind: Some("user".into()),
                 status: im_domain_core::notification::NotificationStatus::Dispatched,
                 title: Some("hello".into()),
                 body: Some("world".into()),
@@ -476,6 +494,7 @@ fn test_file_notification_task_store_persists_across_reopen() {
         .expect("notification task should exist");
     assert_eq!(restored.task.notification_id, "ntf_demo");
     assert_eq!(restored.task.recipient_id, "u_demo");
+    assert_eq!(restored.task.recipient_kind.as_deref(), Some("user"));
 
     let listed = reopened
         .list_tasks_for_recipient("t_demo", "u_demo")
@@ -517,7 +536,7 @@ fn test_file_automation_execution_store_persists_across_reopen() {
 
     let reopened = FileAutomationExecutionStore::new(&file_path);
     let restored = reopened
-        .load_execution("t_demo", "u_demo", "ae_demo")
+        .load_execution("t_demo", "user", "u_demo", "ae_demo")
         .expect("load should succeed")
         .expect("automation execution should exist");
     assert_eq!(restored.execution.execution_id, "ae_demo");
@@ -525,6 +544,104 @@ fn test_file_automation_execution_store_persists_across_reopen() {
     assert_eq!(
         restored.execution.state,
         im_domain_core::automation::AutomationExecutionState::Succeeded
+    );
+
+    let _ = fs::remove_file(file_path);
+}
+
+#[test]
+fn test_file_automation_execution_store_isolates_same_actor_id_across_principal_kind() {
+    let file_path = unique_automation_execution_store_file();
+    let store = FileAutomationExecutionStore::new(&file_path);
+    for principal_kind in ["user", "system"] {
+        store
+            .save_execution(AutomationExecutionRecord {
+                tenant_id: "t_demo".into(),
+                principal_id: "u_demo".into(),
+                execution_id: "ae_kind_isolation".into(),
+                execution: im_domain_core::automation::AutomationExecution {
+                    tenant_id: "t_demo".into(),
+                    principal_id: "u_demo".into(),
+                    principal_kind: principal_kind.into(),
+                    execution_id: "ae_kind_isolation".into(),
+                    trigger_type: "webhook.manual".into(),
+                    target_kind: "workflow".into(),
+                    target_ref: "wf_demo".into(),
+                    input_payload: Some("{\"conversationId\":\"c_demo\"}".into()),
+                    output_payload: Some("{\"accepted\":true}".into()),
+                    state: im_domain_core::automation::AutomationExecutionState::Succeeded,
+                    retry_count: 0,
+                    requested_at: "2026-04-06T00:00:00.000Z".into(),
+                    completed_at: Some("2026-04-06T00:00:01.000Z".into()),
+                    failure_reason: None,
+                },
+                updated_at: "2026-04-06T00:00:01.000Z".into(),
+            })
+            .expect("save should succeed");
+    }
+
+    let reopened = FileAutomationExecutionStore::new(&file_path);
+    let user_execution = reopened
+        .load_execution("t_demo", "user", "u_demo", "ae_kind_isolation")
+        .expect("user execution load should succeed")
+        .expect("user execution should exist");
+    let system_execution = reopened
+        .load_execution("t_demo", "system", "u_demo", "ae_kind_isolation")
+        .expect("system execution load should succeed")
+        .expect("system execution should exist");
+    assert_eq!(user_execution.execution.principal_kind, "user");
+    assert_eq!(system_execution.execution.principal_kind, "system");
+
+    let _ = fs::remove_file(file_path);
+}
+
+#[test]
+fn test_file_automation_execution_store_loads_legacy_key_only_for_matching_principal_kind() {
+    let file_path = unique_automation_execution_store_file();
+    let legacy_payload = BTreeMap::from([(
+        "t_demo:u_demo:ae_legacy".to_string(),
+        AutomationExecutionRecord {
+            tenant_id: "t_demo".into(),
+            principal_id: "u_demo".into(),
+            execution_id: "ae_legacy".into(),
+            execution: im_domain_core::automation::AutomationExecution {
+                tenant_id: "t_demo".into(),
+                principal_id: "u_demo".into(),
+                principal_kind: "system".into(),
+                execution_id: "ae_legacy".into(),
+                trigger_type: "webhook.manual".into(),
+                target_kind: "workflow".into(),
+                target_ref: "wf_demo".into(),
+                input_payload: Some("{\"conversationId\":\"c_demo\"}".into()),
+                output_payload: Some("{\"accepted\":true}".into()),
+                state: im_domain_core::automation::AutomationExecutionState::Succeeded,
+                retry_count: 0,
+                requested_at: "2026-04-06T00:00:00.000Z".into(),
+                completed_at: Some("2026-04-06T00:00:01.000Z".into()),
+                failure_reason: None,
+            },
+            updated_at: "2026-04-06T00:00:01.000Z".into(),
+        },
+    )]);
+    fs::write(
+        &file_path,
+        serde_json::to_vec_pretty(&legacy_payload)
+            .expect("legacy automation payload should serialize"),
+    )
+    .expect("legacy automation execution file should be written");
+
+    let reopened = FileAutomationExecutionStore::new(&file_path);
+    let restored = reopened
+        .load_execution("t_demo", "system", "u_demo", "ae_legacy")
+        .expect("legacy system execution load should succeed")
+        .expect("legacy system execution should exist");
+    assert_eq!(restored.execution.principal_kind, "system");
+    assert!(
+        reopened
+            .load_execution("t_demo", "user", "u_demo", "ae_legacy")
+            .expect("legacy user execution load should succeed")
+            .is_none(),
+        "legacy execution must not leak across principal_kind"
     );
 
     let _ = fs::remove_file(file_path);

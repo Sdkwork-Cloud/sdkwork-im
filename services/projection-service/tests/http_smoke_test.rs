@@ -273,6 +273,96 @@ async fn test_timeline_query_returns_projected_messages() {
 }
 
 #[tokio::test]
+async fn test_timeline_query_rejects_same_actor_id_with_different_actor_kind_over_http() {
+    let service = projection_service::TimelineProjectionService::default();
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_actor_kind_member",
+                "t_demo",
+                "conversation.member_joined",
+                "conversation",
+                "c_actor_kind_guard",
+                0,
+            )
+            .with_payload(
+                "conversation.member.v1",
+                r#"{
+                    "tenantId":"t_demo",
+                    "conversationId":"c_actor_kind_guard",
+                    "memberId":"cm_actor_kind_guard_demo",
+                    "principalId":"u_demo",
+                    "principalKind":"user",
+                    "role":"owner",
+                    "state":"joined",
+                    "invitedBy":null,
+                    "joinedAt":"2026-04-13T10:00:00Z",
+                    "removedAt":null,
+                    "attributes":{}
+                }"#,
+            ),
+        )
+        .expect("member projection should succeed");
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_actor_kind_message",
+                "t_demo",
+                "message.posted",
+                "conversation",
+                "c_actor_kind_guard",
+                1,
+            )
+            .with_payload(
+                "message.posted.v1",
+                r#"{
+                    "tenantId":"t_demo",
+                    "conversationId":"c_actor_kind_guard",
+                    "messageId":"msg_actor_kind_guard_1",
+                    "messageSeq":1,
+                    "sender":{"id":"u_demo","kind":"user","memberId":"cm_actor_kind_guard_demo","deviceId":"d_demo","sessionId":"s_demo","metadata":{}},
+                    "messageType":"standard",
+                    "deliveryMode":"discrete",
+                    "clientMsgId":"client_actor_kind_guard_1",
+                    "streamSessionId":null,
+                    "rtcSessionId":null,
+                    "body":{"summary":"guarded","parts":[{"kind":"text","text":"guarded"}],"renderHints":{}},
+                    "attributes":{},
+                    "metadata":{},
+                    "occurredAt":"2026-04-13T10:00:01Z",
+                    "committedAt":"2026-04-13T10:00:01Z"
+                }"#,
+            ),
+        )
+        .expect("message projection should succeed");
+
+    let app = projection_service::build_app(std::sync::Arc::new(service));
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/conversations/c_actor_kind_guard/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "system")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("actor-kind mismatch timeline request should return response");
+
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("response body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["code"], "conversation_permission_denied");
+}
+
+#[tokio::test]
 async fn test_read_cursor_query_returns_projected_cursor_view() {
     let service = projection_service::TimelineProjectionService::default();
     service
@@ -696,6 +786,444 @@ async fn test_device_registration_returns_advancing_registered_at() {
 }
 
 #[tokio::test]
+async fn test_device_registration_rejects_same_device_id_with_different_actor_kind_over_http() {
+    let app = projection_service::build_default_app();
+    let request_body = serde_json::json!({
+        "deviceId": "d_shared_kind_guard"
+    })
+    .to_string();
+
+    let first_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/devices/register")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .header("content-type", "application/json")
+                .body(Body::from(request_body.clone()))
+                .unwrap(),
+        )
+        .await
+        .expect("first device registration should return response");
+    assert_eq!(first_response.status(), StatusCode::OK);
+
+    let conflicting_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/devices/register")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "system")
+                .header("content-type", "application/json")
+                .body(Body::from(request_body))
+                .unwrap(),
+        )
+        .await
+        .expect("cross-kind conflicting registration should return response");
+
+    assert_eq!(conflicting_response.status(), StatusCode::CONFLICT);
+    let body = conflicting_response
+        .into_body()
+        .collect()
+        .await
+        .expect("response body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["code"], "device_scope_conflict");
+}
+
+#[tokio::test]
+async fn test_device_registration_rejects_same_device_id_with_different_principal_over_http() {
+    let app = projection_service::build_default_app();
+    let request_body = serde_json::json!({
+        "deviceId": "d_shared_owner_guard"
+    })
+    .to_string();
+
+    let first_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/devices/register")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner_a")
+                .header("x-actor-kind", "user")
+                .header("content-type", "application/json")
+                .body(Body::from(request_body.clone()))
+                .unwrap(),
+        )
+        .await
+        .expect("first owner device registration should return response");
+    assert_eq!(first_response.status(), StatusCode::OK);
+
+    let conflicting_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/devices/register")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner_b")
+                .header("x-actor-kind", "user")
+                .header("content-type", "application/json")
+                .body(Body::from(request_body))
+                .unwrap(),
+        )
+        .await
+        .expect("cross-principal conflicting registration should return response");
+
+    assert_eq!(conflicting_response.status(), StatusCode::CONFLICT);
+    let body = conflicting_response
+        .into_body()
+        .collect()
+        .await
+        .expect("response body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["code"], "device_scope_conflict");
+}
+
+#[tokio::test]
+async fn test_device_sync_feed_isolated_by_actor_kind_over_http() {
+    let service = std::sync::Arc::new(projection_service::TimelineProjectionService::default());
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_device_feed_member",
+                "t_demo",
+                "conversation.member_joined",
+                "conversation",
+                "c_device_feed_kind_guard",
+                0,
+            )
+            .with_payload(
+                "conversation.member.v1",
+                r#"{
+                    "tenantId":"t_demo",
+                    "conversationId":"c_device_feed_kind_guard",
+                    "memberId":"cm_device_feed_kind_guard_demo",
+                    "principalId":"u_demo",
+                    "principalKind":"user",
+                    "role":"owner",
+                    "state":"joined",
+                    "invitedBy":null,
+                    "joinedAt":"2026-04-13T11:00:00Z",
+                    "removedAt":null,
+                    "attributes":{}
+                }"#,
+            ),
+        )
+        .expect("member projection should succeed");
+
+    let app = projection_service::build_app(service.clone());
+
+    let register_user_device = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/devices/register")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"deviceId":"d_user_kind_guard"}"#))
+                .unwrap(),
+        )
+        .await
+        .expect("user device registration should return response");
+    assert_eq!(register_user_device.status(), StatusCode::OK);
+
+    let register_system_device = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/devices/register")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "system")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"deviceId":"d_system_kind_guard"}"#))
+                .unwrap(),
+        )
+        .await
+        .expect("system device registration should return response");
+    assert_eq!(register_system_device.status(), StatusCode::OK);
+
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_device_feed_message",
+                "t_demo",
+                "message.posted",
+                "conversation",
+                "c_device_feed_kind_guard",
+                1,
+            )
+            .with_payload(
+                "message.posted.v1",
+                r#"{
+                    "tenantId":"t_demo",
+                    "conversationId":"c_device_feed_kind_guard",
+                    "messageId":"msg_device_feed_kind_guard_1",
+                    "messageSeq":1,
+                    "sender":{"id":"u_demo","kind":"user","memberId":"cm_device_feed_kind_guard_demo","deviceId":"d_user_kind_guard","sessionId":"s_demo","metadata":{}},
+                    "messageType":"standard",
+                    "deliveryMode":"discrete",
+                    "clientMsgId":"client_device_feed_kind_guard_1",
+                    "streamSessionId":null,
+                    "rtcSessionId":null,
+                    "body":{"summary":"user-only","parts":[{"kind":"text","text":"user-only"}],"renderHints":{}},
+                    "attributes":{},
+                    "metadata":{},
+                    "occurredAt":"2026-04-13T11:00:01Z",
+                    "committedAt":"2026-04-13T11:00:01Z"
+                }"#,
+            ),
+        )
+        .expect("message projection should succeed");
+
+    let user_feed = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/devices/d_user_kind_guard/sync-feed?afterSeq=0")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("user sync feed request should return response");
+    assert_eq!(user_feed.status(), StatusCode::OK);
+    let user_feed_body = user_feed
+        .into_body()
+        .collect()
+        .await
+        .expect("user sync feed body should collect")
+        .to_bytes();
+    let user_feed_value: serde_json::Value =
+        serde_json::from_slice(&user_feed_body).expect("user sync feed should be valid json");
+    assert_eq!(user_feed_value["items"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        user_feed_value["items"][0]["messageId"],
+        "msg_device_feed_kind_guard_1"
+    );
+
+    let system_feed = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/devices/d_system_kind_guard/sync-feed?afterSeq=0")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "system")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("system sync feed request should return response");
+    assert_eq!(system_feed.status(), StatusCode::OK);
+    let system_feed_body = system_feed
+        .into_body()
+        .collect()
+        .await
+        .expect("system sync feed body should collect")
+        .to_bytes();
+    let system_feed_value: serde_json::Value =
+        serde_json::from_slice(&system_feed_body).expect("system sync feed should be valid json");
+    assert_eq!(system_feed_value["items"].as_array().unwrap().len(), 0);
+}
+
+#[tokio::test]
+async fn test_register_device_rejects_oversized_device_id_over_http() {
+    let app = projection_service::build_default_app();
+    let request_body = serde_json::json!({
+        "deviceId": "d".repeat(2048)
+    })
+    .to_string();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/devices/register")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(request_body))
+                .unwrap(),
+        )
+        .await
+        .expect("oversized device registration should return response");
+
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("response body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["code"], "payload_too_large");
+    assert!(
+        value["message"]
+            .as_str()
+            .expect("message should be present")
+            .contains("deviceId")
+    );
+}
+
+#[tokio::test]
+async fn test_device_sync_feed_rejects_oversized_device_id_over_http() {
+    let service = std::sync::Arc::new(projection_service::TimelineProjectionService::default());
+    let app = projection_service::build_app(service);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/v1/devices/{}/sync-feed?afterSeq=0",
+                    "d".repeat(2048)
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("oversized sync-feed request should return response");
+
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("response body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["code"], "payload_too_large");
+    assert!(
+        value["message"]
+            .as_str()
+            .expect("message should be present")
+            .contains("deviceId")
+    );
+}
+
+#[tokio::test]
+async fn test_timeline_query_rejects_oversized_conversation_id_over_http() {
+    let app = projection_service::build_default_app();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/v1/conversations/{}/messages",
+                    "c".repeat(2048)
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("oversized timeline query should return response");
+
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("response body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["code"], "payload_too_large");
+    assert!(
+        value["message"]
+            .as_str()
+            .expect("message should be present")
+            .contains("conversationId")
+    );
+}
+
+#[tokio::test]
+async fn test_interaction_summary_rejects_oversized_message_id_over_http() {
+    let service = projection_service::TimelineProjectionService::default();
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_member_interaction_limit",
+                "t_demo",
+                "conversation.member_joined",
+                "conversation",
+                "c_limit_interaction",
+                1,
+            )
+            .with_payload(
+                "conversation.member.v1",
+                r#"{
+                    "tenantId":"t_demo",
+                    "conversationId":"c_limit_interaction",
+                    "memberId":"cm_demo",
+                    "principalId":"u_demo",
+                    "principalKind":"user",
+                    "role":"owner",
+                    "state":"joined",
+                    "invitedBy":null,
+                    "joinedAt":"2026-04-12T10:00:00Z",
+                    "removedAt":null,
+                    "attributes":{}
+                }"#,
+            ),
+        )
+        .expect("member projection should succeed");
+
+    let app = projection_service::build_app(std::sync::Arc::new(service));
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/v1/conversations/c_limit_interaction/messages/{}/interaction-summary",
+                    "m".repeat(2048)
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("oversized interaction summary query should return response");
+
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("response body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["code"], "payload_too_large");
+    assert!(
+        value["message"]
+            .as_str()
+            .expect("message should be present")
+            .contains("messageId")
+    );
+}
+
+#[tokio::test]
 async fn test_member_directory_query_returns_projected_members() {
     let service = projection_service::TimelineProjectionService::default();
     service
@@ -854,6 +1382,54 @@ async fn test_contacts_query_returns_friendship_projection_with_direct_chat_enri
     assert_eq!(items[0]["lastInteractionAt"], "2026-04-10T12:05:00Z");
     assert_eq!(items[1]["targetUserId"], "u_cathy");
     assert_eq!(items[1]["conversationId"], serde_json::Value::Null);
+}
+
+#[tokio::test]
+async fn test_contacts_query_rejects_same_actor_id_with_different_actor_kind_over_http() {
+    let service = projection_service::TimelineProjectionService::default();
+    service
+        .apply(&friendship_activated_event(
+            "t_demo",
+            "fs_actor_kind_contacts",
+            "u_alice",
+            "u_bob",
+            Some("dc_actor_kind_contacts"),
+            "2026-04-13T12:00:00Z",
+        ))
+        .expect("friendship projection should succeed");
+    service
+        .apply(&direct_chat_bound_event(
+            "t_demo",
+            "dc_actor_kind_contacts",
+            "c_actor_kind_contacts",
+            "2026-04-13T12:05:00Z",
+        ))
+        .expect("direct chat enrich should succeed");
+
+    let app = projection_service::build_app(std::sync::Arc::new(service));
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/contacts")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "system")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("actor-kind mismatch contacts request should return response");
+
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("response body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["code"], "contact_scope_forbidden");
 }
 
 #[tokio::test]

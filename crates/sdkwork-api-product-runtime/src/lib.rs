@@ -1,11 +1,11 @@
 use anyhow::{Context, Result};
 use axum::{
-    Router,
     body::Body,
     extract::State,
-    http::{HeaderMap, Method, StatusCode, Uri, header},
+    http::{header, HeaderMap, Method, StatusCode, Uri},
     response::Response,
     routing::any,
+    Router,
 };
 use bytes::Bytes;
 use reqwest::Client;
@@ -18,7 +18,7 @@ use tokio::{net::TcpListener, sync::oneshot};
 
 mod admin_sandbox;
 
-use admin_sandbox::{SharedAdminSandboxState, handle_admin_sandbox_request};
+use admin_sandbox::{handle_admin_sandbox_request, SharedAdminSandboxState};
 
 const JSON_CONTENT_TYPE: &str = "application/json; charset=utf-8";
 const ADMIN_BACKEND_NOT_CONFIGURED_MESSAGE: &str = "Admin backend proxy target is not configured. Set SDKWORK_ADMIN_PROXY_TARGET to a compatible /api/admin backend.";
@@ -79,7 +79,8 @@ impl RouterProductRuntime {
             .context("failed to resolve local desktop runtime listener address")?;
         let (shutdown_tx, shutdown_rx) = oneshot::channel();
         let admin_proxy_target = trim_trailing_slash(config.admin_proxy_target);
-        let admin_sandbox = if admin_proxy_target.trim().is_empty() && config.admin_sandbox_enabled {
+        let admin_sandbox = if admin_proxy_target.trim().is_empty() && config.admin_sandbox_enabled
+        {
             Some(SharedAdminSandboxState::seeded())
         } else {
             None
@@ -142,7 +143,9 @@ fn rewrite_admin_proxy_path(uri: &Uri) -> String {
         .path_and_query()
         .map(|value| value.as_str())
         .unwrap_or("/api/admin");
-    let suffix = path_and_query.strip_prefix("/api/admin").unwrap_or_default();
+    let suffix = path_and_query
+        .strip_prefix("/api/admin")
+        .unwrap_or_default();
 
     if suffix.is_empty() {
         return "/admin".to_owned();
@@ -163,14 +166,7 @@ async fn proxy_admin_request(
     body: Bytes,
 ) -> Response {
     if let Some(admin_sandbox) = &state.admin_sandbox {
-        return handle_admin_sandbox_request(
-            admin_sandbox,
-            method,
-            headers,
-            uri,
-            body,
-        )
-        .await;
+        return handle_admin_sandbox_request(admin_sandbox, method, headers, uri, body).await;
     }
 
     if state.admin_proxy_target.trim().is_empty() {
@@ -188,8 +184,7 @@ async fn proxy_admin_request(
     let mut request_builder = state.client.request(method, upstream_url);
 
     for (name, value) in headers.iter() {
-        if *name == header::HOST || *name == header::CONTENT_LENGTH || *name == header::CONNECTION
-        {
+        if *name == header::HOST || *name == header::CONTENT_LENGTH || *name == header::CONNECTION {
             continue;
         }
         request_builder = request_builder.header(name, value);
@@ -281,7 +276,10 @@ mod tests {
         let body_text = String::from_utf8(body.to_vec()).expect("response body should be utf8");
 
         assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
-        assert_eq!(content_type.as_deref(), Some("application/json; charset=utf-8"));
+        assert_eq!(
+            content_type.as_deref(),
+            Some("application/json; charset=utf-8")
+        );
         assert!(body_text.contains("SDKWORK_ADMIN_PROXY_TARGET"));
         assert!(body_text.contains("/api/admin"));
     }

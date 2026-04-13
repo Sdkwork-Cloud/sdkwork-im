@@ -677,7 +677,9 @@ fn read_env_file_value(path: &Path, key: &str) -> Option<String> {
         if trimmed.is_empty() || trimmed.starts_with('#') {
             continue;
         }
-        let (current_key, current_value) = trimmed.split_once('=')?;
+        let Some((current_key, current_value)) = trimmed.split_once('=') else {
+            continue;
+        };
         if current_key.trim() == key {
             let value = current_value.trim();
             if !value.is_empty() {
@@ -856,5 +858,40 @@ impl ArgCursor {
 
     fn remaining(&self) -> &[String] {
         &self.items[self.index..]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::read_env_file_value;
+    use std::fs;
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn temp_env_path(name: &str) -> PathBuf {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system time should be after unix epoch")
+            .as_nanos();
+        std::env::temp_dir().join(format!("craw_chat_cli_{name}_{unique}.env"))
+    }
+
+    #[test]
+    fn test_read_env_file_value_skips_malformed_lines_before_valid_key() {
+        let path = temp_env_path("malformed_env");
+        fs::write(
+            &path,
+            "\
+# comment
+NOT_A_VALID_ENV_LINE
+CRAW_CHAT_BIND_ADDR=127.0.0.1:18124
+",
+        )
+        .expect("temp env file should be written");
+
+        let value = read_env_file_value(path.as_path(), "CRAW_CHAT_BIND_ADDR");
+
+        let _ = fs::remove_file(&path);
+        assert_eq!(value.as_deref(), Some("127.0.0.1:18124"));
     }
 }

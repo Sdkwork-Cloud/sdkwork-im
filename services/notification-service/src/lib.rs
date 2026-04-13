@@ -35,9 +35,16 @@ pub struct RequestNotification {
     pub category: String,
     pub channel: String,
     pub recipient_id: String,
+    pub recipient_kind: Option<String>,
     pub title: Option<String>,
     pub body: Option<String>,
     pub payload: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct NotificationRecipient {
+    pub recipient_id: String,
+    pub recipient_kind: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -47,7 +54,7 @@ pub struct RequestNotificationFanout {
     pub source_event_type: String,
     pub category: String,
     pub channel: String,
-    pub recipient_ids: BTreeSet<String>,
+    pub recipients: BTreeSet<NotificationRecipient>,
     pub title: Option<String>,
     pub body: Option<String>,
     pub payload: Option<String>,
@@ -75,6 +82,49 @@ pub struct RequestMessagePostedNotifications {
 pub struct NotificationRequestResult {
     pub task: NotificationTask,
     pub is_new: bool,
+    pub request_key: String,
+    pub delivery_status: NotificationRequestDeliveryStatus,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum NotificationRequestDeliveryStatus {
+    Accepted,
+    Applied,
+    Replayed,
+    Failed,
+}
+
+impl NotificationRequestDeliveryStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Accepted => "accepted",
+            Self::Applied => "applied",
+            Self::Replayed => "replayed",
+            Self::Failed => "failed",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NotificationRequestResponse {
+    #[serde(flatten)]
+    pub task: NotificationTask,
+    pub request_key: String,
+    pub delivery_status: NotificationRequestDeliveryStatus,
+    pub proof_version: String,
+}
+
+impl From<NotificationRequestResult> for NotificationRequestResponse {
+    fn from(value: NotificationRequestResult) -> Self {
+        Self {
+            task: value.task,
+            request_key: value.request_key,
+            delivery_status: value.delivery_status,
+            proof_version: NOTIFICATION_REQUEST_DELIVERY_PROOF_VERSION.into(),
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -97,6 +147,8 @@ pub struct NotificationRuntime {
     task_store: Arc<dyn NotificationTaskStore>,
     projection_service: Arc<TimelineProjectionService>,
 }
+
+const NOTIFICATION_REQUEST_DELIVERY_PROOF_VERSION: &str = "notification.request.delivery-proof.v1";
 
 #[derive(Default)]
 struct NoopJournal;
@@ -143,6 +195,16 @@ impl NotificationError {
             code: "notification_conflict",
             message: format!(
                 "notification request conflicts with existing notification idempotency key: {notification_id}"
+            ),
+        }
+    }
+
+    fn payload_too_large(field: &'static str, max_bytes: usize, actual_bytes: usize) -> Self {
+        Self {
+            status: axum::http::StatusCode::PAYLOAD_TOO_LARGE,
+            code: "payload_too_large",
+            message: format!(
+                "payload too large for {field}: max={max_bytes} bytes, actual={actual_bytes} bytes"
             ),
         }
     }
@@ -340,16 +402,23 @@ impl NotificationRuntime {
         auth: &AuthContext,
         request: RequestNotification,
     ) -> Result<NotificationRequestResult, NotificationError> {
+        validate_notification_request_payload_size(&request)?;
         self.ensure_notification_task(auth.tenant_id.as_str(), request.notification_id.as_str())?;
+        let request_key =
+            notification_request_key(auth.tenant_id.as_str(), request.notification_id.as_str());
         let notification_key =
             notification_scope_key(auth.tenant_id.as_str(), request.notification_id.as_str());
+        let recipient_kind = resolved_request_recipient_kind(auth, &request);
         let mut tasks = self.tasks.lock_notification();
 
         if let Some(existing) = tasks.get(notification_key.as_str()).cloned() {
-            if notification_matches_request(&existing, &request) {
+            if notification_matches_request(&existing, &request, recipient_kind.as_str()) {
+                let delivery_status = delivery_status_from_notification_status(&existing.status);
                 return Ok(NotificationRequestResult {
                     task: existing,
                     is_new: false,
+                    request_key,
+                    delivery_status,
                 });
             }
 
@@ -369,6 +438,7 @@ impl NotificationRuntime {
             category: request.category.clone(),
             channel: request.channel.clone(),
             recipient_id: request.recipient_id.clone(),
+            recipient_kind: Some(recipient_kind),
             status: NotificationStatus::Requested,
             title: request.title.clone(),
             body: request.body.clone(),
@@ -395,6 +465,8 @@ impl NotificationRuntime {
         Ok(NotificationRequestResult {
             task: dispatched,
             is_new: true,
+            request_key,
+            delivery_status: NotificationRequestDeliveryStatus::Applied,
         })
     }
 
@@ -404,7 +476,13 @@ impl NotificationRuntime {
         request: RequestNotification,
         is_bearer_request: bool,
     ) -> Result<NotificationRequestResult, NotificationError> {
-        ensure_notification_request_access(auth, request.recipient_id.as_str(), is_bearer_request)?;
+        let recipient_kind = resolved_request_recipient_kind(auth, &request);
+        ensure_notification_request_access(
+            auth,
+            request.recipient_id.as_str(),
+            recipient_kind.as_str(),
+            is_bearer_request,
+        )?;
         self.request_notification_with_outcome(auth, request)
     }
 
@@ -415,23 +493,22 @@ impl NotificationRuntime {
     ) -> Result<Vec<NotificationTask>, NotificationError> {
         let mut tasks = Vec::new();
 
-        for recipient_id in request
-            .recipient_ids
-            .into_iter()
-            .filter(|recipient_id| recipient_id.as_str() != auth.actor_id.as_str())
-        {
+        for recipient in request.recipients.into_iter().filter(|recipient| {
+            recipient.recipient_id != auth.actor_id || recipient.recipient_kind != auth.actor_kind
+        }) {
             tasks.push(self.request_notification(
                 auth,
                 RequestNotification {
-                    notification_id: format!(
-                        "ntf_{}_{}",
-                        request.notification_id_seed, recipient_id
+                    notification_id: fanout_notification_id(
+                        request.notification_id_seed.as_str(),
+                        &recipient,
                     ),
                     source_event_id: request.source_event_id.clone(),
                     source_event_type: request.source_event_type.clone(),
                     category: request.category.clone(),
                     channel: request.channel.clone(),
-                    recipient_id,
+                    recipient_id: recipient.recipient_id,
+                    recipient_kind: Some(recipient.recipient_kind),
                     title: request.title.clone(),
                     body: request.body.clone(),
                     payload: request.payload.clone(),
@@ -460,13 +537,17 @@ impl NotificationRuntime {
         } else {
             "message.new"
         };
-        let recipient_ids = self
+        let recipients = self
             .projection_service
-            .message_posted_notification_principal_ids_from_auth_context(
+            .message_posted_notification_recipients_from_auth_context(
                 auth,
                 conversation_id.as_str(),
             )?
             .into_iter()
+            .map(|recipient| NotificationRecipient {
+                recipient_id: recipient.principal_id,
+                recipient_kind: recipient.principal_kind,
+            })
             .collect::<BTreeSet<_>>();
         let notification_id_seed = message_id.clone();
         let payload = serde_json::json!({
@@ -485,7 +566,7 @@ impl NotificationRuntime {
                 source_event_type: "message.posted".into(),
                 category: category.into(),
                 channel: "inapp".into(),
-                recipient_ids,
+                recipients,
                 title: summary.clone(),
                 body: summary,
                 payload: Some(payload),
@@ -501,15 +582,19 @@ impl NotificationRuntime {
         self.request_notification(
             auth,
             RequestNotification {
-                notification_id: format!("ntf_automation_{}", request.execution_id),
-                source_event_id: format!(
-                    "evt_{}_automation_execution_completed",
-                    request.execution_id
+                notification_id: automation_notification_id(
+                    auth.actor_kind.as_str(),
+                    request.execution_id.as_str(),
+                ),
+                source_event_id: automation_notification_source_event_id(
+                    auth.actor_kind.as_str(),
+                    request.execution_id.as_str(),
                 ),
                 source_event_type: "automation.execution_completed".into(),
                 category: "automation.result".into(),
                 channel: "inapp".into(),
                 recipient_id: auth.actor_id.clone(),
+                recipient_kind: Some(auth.actor_kind.clone()),
                 title: Some("Automation completed".into()),
                 body: Some(request.target_ref),
                 payload: request.output_payload,
@@ -528,7 +613,7 @@ impl NotificationRuntime {
             .lock_notification()
             .iter()
             .filter(|(key, task)| {
-                key.starts_with(prefix.as_str()) && task.recipient_id == auth.actor_id
+                key.starts_with(prefix.as_str()) && notification_visible_to_actor(task, auth)
             })
             .map(|(_, task)| task.clone())
             .collect();
@@ -549,7 +634,7 @@ impl NotificationRuntime {
         self.tasks
             .lock_notification()
             .get(notification_scope_key(auth.tenant_id.as_str(), notification_id).as_str())
-            .filter(|task| task.recipient_id == auth.actor_id)
+            .filter(|task| notification_visible_to_actor(task, auth))
             .cloned()
             .ok_or_else(|| NotificationError::not_found(notification_id))
     }
@@ -594,7 +679,10 @@ impl NotificationRuntime {
             ordering_seq,
             causation_id: Some(task.source_event_id.clone()),
             correlation_id: Some(task.source_event_id.clone()),
-            idempotency_key: Some(task.notification_id.clone()),
+            idempotency_key: Some(format!(
+                "{}:{}:{}",
+                task.notification_id, event_type, ordering_seq
+            )),
             actor: EventActor {
                 actor_id: auth.actor_id.clone(),
                 actor_kind: auth.actor_kind.clone(),
@@ -710,14 +798,14 @@ async fn request_notification(
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<RequestNotification>,
-) -> Result<Json<NotificationTask>, NotificationError> {
+) -> Result<Json<NotificationRequestResponse>, NotificationError> {
     let is_bearer_request = headers.contains_key(axum::http::header::AUTHORIZATION);
     let auth = resolve_auth_context(&headers)?;
     Ok(Json(
         state
             .runtime
             .request_notification_from_public_api(&auth, request, is_bearer_request)?
-            .task,
+            .into(),
     ))
 }
 
@@ -752,6 +840,10 @@ fn recipient_scope_key(tenant_id: &str, recipient_id: &str) -> String {
     format!("{tenant_id}:{recipient_id}")
 }
 
+fn notification_request_key(tenant_id: &str, notification_id: &str) -> String {
+    format!("{tenant_id}:{notification_id}")
+}
+
 fn notification_sort_key(task: &NotificationTask) -> (&str, &str) {
     (
         task.dispatched_at
@@ -761,13 +853,31 @@ fn notification_sort_key(task: &NotificationTask) -> (&str, &str) {
     )
 }
 
-fn notification_matches_request(task: &NotificationTask, request: &RequestNotification) -> bool {
+fn delivery_status_from_notification_status(
+    status: &NotificationStatus,
+) -> NotificationRequestDeliveryStatus {
+    match status {
+        NotificationStatus::Requested => NotificationRequestDeliveryStatus::Accepted,
+        NotificationStatus::Dispatched => NotificationRequestDeliveryStatus::Replayed,
+        NotificationStatus::Failed => NotificationRequestDeliveryStatus::Failed,
+    }
+}
+
+fn notification_matches_request(
+    task: &NotificationTask,
+    request: &RequestNotification,
+    recipient_kind: &str,
+) -> bool {
     task.notification_id == request.notification_id.as_str()
         && task.source_event_id == request.source_event_id.as_str()
         && task.source_event_type == request.source_event_type.as_str()
         && task.category == request.category.as_str()
         && task.channel == request.channel.as_str()
         && task.recipient_id == request.recipient_id.as_str()
+        && task
+            .recipient_kind
+            .as_deref()
+            .is_none_or(|task_kind| task_kind == recipient_kind)
         && task.title.as_ref() == request.title.as_ref()
         && task.body.as_ref() == request.body.as_ref()
         && task.payload.as_ref() == request.payload.as_ref()
@@ -776,10 +886,11 @@ fn notification_matches_request(task: &NotificationTask, request: &RequestNotifi
 fn ensure_notification_request_access(
     auth: &AuthContext,
     recipient_id: &str,
+    recipient_kind: &str,
     is_bearer_request: bool,
 ) -> Result<(), NotificationError> {
     if !is_bearer_request
-        || recipient_id == auth.actor_id
+        || (recipient_id == auth.actor_id && recipient_kind == auth.actor_kind.as_str())
         || auth.has_permission("notification.write")
     {
         return Ok(());
@@ -789,6 +900,118 @@ fn ensure_notification_request_access(
         "permission_denied",
         "missing required permission to request notifications for other recipients: notification.write",
     ))
+}
+
+const NOTIFICATION_MAX_TITLE_BYTES: usize = 8 * 1024;
+const NOTIFICATION_MAX_BODY_BYTES: usize = 64 * 1024;
+const NOTIFICATION_MAX_PAYLOAD_BYTES: usize = 256 * 1024;
+const NOTIFICATION_MAX_NOTIFICATION_ID_BYTES: usize = 512;
+const NOTIFICATION_MAX_SOURCE_EVENT_ID_BYTES: usize = 512;
+const NOTIFICATION_MAX_SOURCE_EVENT_TYPE_BYTES: usize = 128;
+const NOTIFICATION_MAX_CATEGORY_BYTES: usize = 128;
+const NOTIFICATION_MAX_CHANNEL_BYTES: usize = 64;
+const NOTIFICATION_MAX_RECIPIENT_ID_BYTES: usize = 256;
+const NOTIFICATION_MAX_RECIPIENT_KIND_BYTES: usize = 64;
+
+fn validate_payload_size(
+    field: &'static str,
+    payload: &str,
+    max_bytes: usize,
+) -> Result<(), NotificationError> {
+    let payload_len = payload.len();
+    if payload_len > max_bytes {
+        return Err(NotificationError::payload_too_large(
+            field,
+            max_bytes,
+            payload_len,
+        ));
+    }
+    Ok(())
+}
+
+fn validate_notification_request_payload_size(
+    request: &RequestNotification,
+) -> Result<(), NotificationError> {
+    validate_payload_size(
+        "notificationId",
+        request.notification_id.as_str(),
+        NOTIFICATION_MAX_NOTIFICATION_ID_BYTES,
+    )?;
+    validate_payload_size(
+        "sourceEventId",
+        request.source_event_id.as_str(),
+        NOTIFICATION_MAX_SOURCE_EVENT_ID_BYTES,
+    )?;
+    validate_payload_size(
+        "sourceEventType",
+        request.source_event_type.as_str(),
+        NOTIFICATION_MAX_SOURCE_EVENT_TYPE_BYTES,
+    )?;
+    validate_payload_size(
+        "category",
+        request.category.as_str(),
+        NOTIFICATION_MAX_CATEGORY_BYTES,
+    )?;
+    validate_payload_size(
+        "channel",
+        request.channel.as_str(),
+        NOTIFICATION_MAX_CHANNEL_BYTES,
+    )?;
+    validate_payload_size(
+        "recipientId",
+        request.recipient_id.as_str(),
+        NOTIFICATION_MAX_RECIPIENT_ID_BYTES,
+    )?;
+    if let Some(recipient_kind) = request.recipient_kind.as_deref() {
+        validate_payload_size(
+            "recipientKind",
+            recipient_kind,
+            NOTIFICATION_MAX_RECIPIENT_KIND_BYTES,
+        )?;
+    }
+    if let Some(title) = request.title.as_deref() {
+        validate_payload_size("title", title, NOTIFICATION_MAX_TITLE_BYTES)?;
+    }
+    if let Some(body) = request.body.as_deref() {
+        validate_payload_size("body", body, NOTIFICATION_MAX_BODY_BYTES)?;
+    }
+    if let Some(payload) = request.payload.as_deref() {
+        validate_payload_size("payload", payload, NOTIFICATION_MAX_PAYLOAD_BYTES)?;
+    }
+    Ok(())
+}
+
+fn notification_visible_to_actor(task: &NotificationTask, auth: &AuthContext) -> bool {
+    task.recipient_id == auth.actor_id
+        && task
+            .recipient_kind
+            .as_deref()
+            .is_none_or(|recipient_kind| recipient_kind == auth.actor_kind.as_str())
+}
+
+fn resolved_request_recipient_kind(auth: &AuthContext, request: &RequestNotification) -> String {
+    request.recipient_kind.clone().unwrap_or_else(|| {
+        if request.recipient_id == auth.actor_id {
+            auth.actor_kind.clone()
+        } else {
+            "user".into()
+        }
+    })
+}
+
+fn fanout_notification_id(notification_id_seed: &str, recipient: &NotificationRecipient) -> String {
+    format!(
+        "ntf_{}_{}_{}",
+        notification_id_seed, recipient.recipient_kind, recipient.recipient_id
+    )
+}
+
+fn automation_notification_id(actor_kind: &str, execution_id: &str) -> String {
+    format!("ntf_automation_{actor_kind}_{execution_id}")
+}
+
+fn automation_notification_source_event_id(actor_kind: &str, execution_id: &str) -> String {
+    format!("evt_{actor_kind}_{execution_id}_automation_execution_completed")
 }
 
 trait NotificationMutexExt<T> {

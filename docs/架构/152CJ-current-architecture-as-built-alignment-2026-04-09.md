@@ -634,3 +634,1489 @@
 - Remaining S07 gap after Loop106:
   - `release-ready exactly-once semantics across downstream fanout boundaries`
   - `formal cross-service idempotency governance and deterministic replay SLO still needs downstream commit-fence propagation across non-shared-sync consumer categories`
+## Loop 107 Addendum - 2026-04-12
+- Hardened shared-sync timestamp comparison semantics in control-plane to prevent non-canonical timestamp values from corrupting lease/cooldown/dedup/delivery-proof behavior:
+  - `PendingSharedChannelSyncRequest` lease and retry-cooldown checks no longer rely on raw string ordering.
+  - non-canonical timestamps are now treated with safe-fallback semantics:
+    - lease/takeover guardrails fail closed to stale (avoid indefinite active-lock poisoning).
+    - retry-cooldown and dedup windows do not trust non-canonical values as fresh.
+  - delivered-ledger/proof merge and inventory sort paths now use canonical-aware recency comparison and can recover from legacy invalid timestamp payloads.
+- Added regression evidence in this loop:
+  - `test_pending_shared_channel_sync_non_canonical_lease_timestamp_is_treated_as_stale`
+  - `test_pending_shared_channel_sync_auto_dispatch_ignores_non_canonical_failure_timestamp`
+  - `test_shared_channel_record_dispatched_overrides_non_canonical_existing_timestamps`
+- Commercial gate evidence in this loop:
+  - `cargo test -p control-plane-api`
+  - `cargo test -p conversation-runtime --tests`
+  - `cargo test -p automation-service --tests`
+  - `cargo test -p local-minimal-node --offline --test deployment_profile_test test_deployment_profiles_and_templates_document_local_minimal_and_local_default_contracts -- --exact`
+  - `cargo test -p local-minimal-node --offline --test performance_quant_baseline_test -- --nocapture`
+  - `cargo test -p local-minimal-node --offline --test performance_ha_dr_drill_test -- --nocapture`
+  - `cargo test -p local-minimal-node --offline --test performance_drill_catalog_test`
+  - `cargo audit --no-fetch --stale -q`
+  - `cargo clippy -p control-plane-api --tests` (warnings only)
+- Remaining S07 gap after Loop107:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `formal cross-service idempotency governance and deterministic replay SLO still needs downstream commit-fence propagation across non-shared-sync consumer categories`
+## Loop 108 Addendum - 2026-04-12
+- Extended non-shared-sync consumer commit-fence semantics in `automation-service` and embedded `local-minimal-node` automation route:
+  - `POST /api/v1/automation/executions` now returns deterministic delivery-proof metadata:
+    - `deliveryStatus`: `accepted | applied | replayed | failed`
+    - `requestKey`: stable tenant/principal/execution scoped fence key
+    - `proofVersion`: `automation.execution.delivery-proof.v1`
+  - duplicate idempotent requests now surface explicit `replayed` instead of silent payload equivalence only.
+  - in-flight duplicate requests now surface `accepted` while the first apply is still committing.
+- Runtime behavior hardening in this loop:
+  - `request_execution_with_outcome` inserts a requested-state in-memory placeholder before journal/store work, enabling deterministic in-flight replay signaling.
+  - lock-hold scope for `executions` is reduced around slow operations (journal/store), lowering hot-path contention risk while preserving conflict rules.
+- Added regression evidence in this loop:
+  - `services/automation-service/tests/automation_execution_test.rs`:
+    - `test_request_execution_with_outcome_exposes_applied_then_replayed_delivery_status`
+    - `test_request_execution_with_outcome_surfaces_accepted_during_inflight_apply`
+  - `services/automation-service/tests/http_smoke_test.rs` now asserts `deliveryStatus/requestKey/proofVersion` contract.
+  - `services/local-minimal-node/tests/task10_capabilities_e2e_test.rs` now asserts embedded automation route surfaces the same delivery-proof contract.
+- Commercial gate evidence in this loop:
+  - `cargo test -p automation-service --tests`
+  - `cargo test -p local-minimal-node --test task10_capabilities_e2e_test test_local_minimal_profile_exposes_notification_automation_audit_and_ops_capabilities -- --exact`
+  - `cargo test -p local-minimal-node --test task10_capabilities_e2e_test test_local_minimal_profile_treats_duplicate_automation_request_as_idempotent -- --exact`
+  - `cargo test -p local-minimal-node --test task_runtime_projection_persistence_test`
+  - `cargo test -p local-minimal-node --test public_auth_e2e_test test_public_app_rejects_unprivileged_bearer_for_automation_execution -- --exact`
+  - `cargo test -p control-plane-api`
+  - `cargo clippy -p automation-service -p local-minimal-node --tests` (warnings only, mostly pre-existing outside touched scope)
+  - `cargo audit --no-fetch --stale -q`
+- Remaining S07 gap after Loop108:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `deterministic failed-state replay and commit-fence governance still needs propagation to additional non-shared-sync consumer categories beyond automation execution path`
+## Loop 109 Addendum - 2026-04-12
+- Added payload-size hardening on automation execution ingress to reduce DoS and memory-pressure risk:
+  - `automation-service` now enforces `inputPayload <= 128 KiB` at runtime boundary.
+  - requests that exceed limit fail fast with `413 payload_too_large` and machine-readable field metadata in the error message.
+  - this guard is enforced before execution journaling and projection writes, reducing oversized-request blast radius.
+- Added regression evidence in this loop:
+  - `services/automation-service/tests/automation_execution_test.rs`:
+    - `test_request_execution_rejects_oversized_input_payload`
+  - `services/automation-service/tests/http_smoke_test.rs`:
+    - `test_request_execution_rejects_oversized_input_payload_over_http`
+- Commercial gate evidence in this loop:
+  - `cargo test -p automation-service --tests`
+  - `cargo test -p local-minimal-node --test task10_capabilities_e2e_test`
+  - `cargo test -p local-minimal-node --test public_auth_e2e_test`
+  - `cargo test -p local-minimal-node --offline --test performance_quant_baseline_test -- --nocapture`
+  - `cargo test -p local-minimal-node --offline --test performance_ha_dr_drill_test -- --nocapture`
+  - `cargo clippy -p automation-service -p local-minimal-node --tests` (warnings only, mostly pre-existing outside touched scope)
+  - `cargo audit --no-fetch --stale -q`
+- Remaining S07 gap after Loop109:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `deterministic failed-state replay and commit-fence governance still needs propagation to additional non-shared-sync consumer categories beyond automation execution path`
+## Loop 110 Addendum - 2026-04-12
+- Hardened automation execution event idempotency-key semantics to avoid cross-event key collisions:
+  - `automation.execution_requested` and `automation.execution_completed` now use event-scoped idempotency keys (`{executionId}:{eventType}`) instead of reusing bare `executionId`.
+  - this removes a provider compatibility risk where deduplicating commit-journal implementations could treat distinct lifecycle events as duplicates.
+- Added regression evidence in this loop:
+  - `services/automation-service/tests/automation_execution_test.rs` now asserts:
+    - requested event idempotency key = `ae_demo:automation.execution_requested`
+    - completed event idempotency key = `ae_demo:automation.execution_completed`
+- Commercial gate evidence in this loop:
+  - `cargo test -p automation-service --tests`
+  - `cargo test -p local-minimal-node --test task10_capabilities_e2e_test`
+  - `cargo test -p local-minimal-node --test public_auth_e2e_test`
+  - `cargo clippy -p automation-service -p local-minimal-node --tests` (warnings only, mostly pre-existing outside touched scope)
+  - `cargo audit --no-fetch --stale -q`
+- Remaining S07 gap after Loop110:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `deterministic failed-state replay and commit-fence governance still needs propagation to additional non-shared-sync consumer categories beyond automation execution path`
+## Loop 111 Addendum - 2026-04-12
+- Added payload-size hardening on agent-response and tool-call paths in `automation-service`:
+  - `append_agent_response_delta` now enforces `payload <= 256 KiB`.
+  - `request_agent_tool_call` now enforces `argumentsPayload <= 128 KiB`.
+  - `complete_agent_tool_call` now enforces `resultPayload <= 256 KiB`.
+  - oversized payloads fail fast with `413 payload_too_large`, using the same machine-readable error envelope as execution input guard.
+- This closes a remaining DoS/memory-pressure surface where non-execution automation APIs previously had unbounded payload acceptance.
+- Added regression evidence in this loop:
+  - `services/automation-service/tests/agent_response_lifecycle_test.rs`:
+    - `test_agent_runtime_rejects_oversized_delta_and_tool_payloads`
+  - `services/automation-service/tests/http_smoke_test.rs`:
+    - `test_append_agent_response_delta_rejects_oversized_payload_over_http`
+- Commercial gate evidence in this loop:
+  - `cargo test -p automation-service --tests`
+  - `cargo test -p local-minimal-node --test task10_capabilities_e2e_test`
+  - `cargo test -p local-minimal-node --test public_auth_e2e_test`
+  - `cargo clippy -p automation-service -p local-minimal-node --tests` (warnings only, mostly pre-existing outside touched scope)
+  - `cargo audit --no-fetch --stale -q`
+- Remaining S07 gap after Loop111:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `deterministic failed-state replay and commit-fence governance still needs propagation to additional non-shared-sync consumer categories beyond automation execution path`
+## Loop 112 Addendum - 2026-04-12
+- Closed a principal-isolation gap in `automation-service` where `actor_id`-only scoping could leak idempotency and visibility behavior across different `principal_kind` values:
+  - `requestKey` now includes `principal_kind` (`tenant:principalKind:principalId:executionId`) to keep delivery-proof fences unambiguous across identity domains.
+  - duplicate `executionId` requests with same `actor_id` but different `principal_kind` now fail fast with `409 automation_execution_conflict` instead of being treated as idempotent replay.
+  - execution lookup paths now fail closed on `principal_kind` mismatch (`404 automation_execution_not_found`) for direct read and downstream execution-bound operations.
+- Added regression evidence in this loop:
+  - `services/automation-service/tests/automation_execution_test.rs`:
+    - `test_request_execution_with_outcome_exposes_applied_then_replayed_delivery_status`
+    - `test_duplicate_execution_id_with_same_actor_id_but_different_principal_kind_is_conflict`
+    - `test_get_execution_hides_same_actor_id_but_different_principal_kind`
+- Commercial gate evidence in this loop:
+  - `cargo test -p automation-service --tests`
+  - `cargo test -p local-minimal-node --test task10_capabilities_e2e_test`
+  - `cargo test -p local-minimal-node --test public_auth_e2e_test`
+  - `cargo clippy -p automation-service -p local-minimal-node --tests` (warnings only, mostly pre-existing outside touched scope)
+  - `cargo audit --no-fetch --stale -q`
+- Remaining S07 gap after Loop112:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `deterministic failed-state replay and commit-fence governance still needs propagation to additional non-shared-sync consumer categories beyond automation execution path`
+## Loop 113 Addendum - 2026-04-12
+- Closed an event-idempotency collision seam in `automation-service` non-lifecycle event stream:
+  - `append_json_event` idempotency keys are now generated as `{executionId}:{eventType}:{orderingSeq}`.
+  - this prevents same-`eventType` multi-event paths (for example repeated `automation.agent_response_delta` frames or multiple `automation.agent_tool_call_requested` events) from sharing one idempotency key.
+  - this eliminates a journal/provider compatibility risk where deduplicating implementations could collapse distinct events within a single execution.
+- Added regression evidence in this loop:
+  - `services/automation-service/tests/agent_response_lifecycle_test.rs`:
+    - `test_same_event_type_records_use_distinct_idempotency_keys`
+- Commercial gate evidence in this loop:
+  - `cargo test -p automation-service --tests`
+  - `cargo test -p local-minimal-node --test task10_capabilities_e2e_test`
+  - `cargo test -p local-minimal-node --test public_auth_e2e_test`
+  - `cargo test -p local-minimal-node --offline --test performance_quant_baseline_test -- --nocapture`
+  - `cargo test -p local-minimal-node --offline --test performance_ha_dr_drill_test -- --nocapture`
+  - `cargo test -p local-minimal-node --offline --test performance_drill_catalog_test`
+  - `cargo clippy -p automation-service -p local-minimal-node --tests` (warnings only, mostly pre-existing outside touched scope)
+  - `cargo audit --no-fetch --stale -q`
+- Remaining S07 gap after Loop113:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `deterministic failed-state replay and commit-fence governance still needs propagation to additional non-shared-sync consumer categories beyond automation execution path`
+## Loop 114 Addendum - 2026-04-12
+- Closed an agent-response stream identity ambiguity in `automation-service`:
+  - `start_agent_response` now rejects `stream_id` reuse within the same tenant + principal scope (including `principal_kind`) even when `execution_id` differs.
+  - this prevents ambiguous routing for `/api/v1/automation/agent-responses/{stream_id}/...` operations, which identify stream state by `stream_id` path segment.
+- Strengthened principal isolation consistency in runtime state matching:
+  - `AgentResponseRuntimeState` now tracks `principal_kind`.
+  - append/complete/tool-call lookup paths now match on tenant + `principal_id` + `principal_kind`.
+  - `agent_response_scope_key` and `agent_tool_call_scope_key` now include `principal_kind`, preventing cross-kind key collisions in runtime maps.
+- Added regression evidence in this loop:
+  - `services/automation-service/tests/agent_response_lifecycle_test.rs`:
+    - `test_start_agent_response_rejects_stream_id_reuse_across_executions`
+- Commercial gate evidence in this loop:
+  - `cargo test -p automation-service --tests`
+  - `cargo test -p local-minimal-node --test task10_capabilities_e2e_test`
+  - `cargo test -p local-minimal-node --test public_auth_e2e_test`
+  - `cargo clippy -p automation-service -p local-minimal-node --tests` (warnings only, mostly pre-existing outside touched scope)
+  - `cargo audit --no-fetch --stale -q`
+- Remaining S07 gap after Loop114:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `deterministic failed-state replay and commit-fence governance still needs propagation to additional non-shared-sync consumer categories beyond automation execution path`
+## Loop 115 Addendum - 2026-04-12
+- Hardened agent-response stream hot-path lookup and scope consistency in `automation-service`:
+  - `agent_response_scope_key` is now stream-identity based (`tenant + principal_kind + principal_id + stream_id`) so append/complete operations can resolve by direct map lookup instead of linear scan over all streams.
+  - this removes an avoidable `O(n)` lookup seam on `/agent-responses/{stream_id}/frames|complete` paths under high stream cardinality.
+- Strengthened stream ownership isolation regression coverage:
+  - added `test_agent_response_stream_isolation_across_principal_kind` to assert cross-`principal_kind` access to an existing stream id is `404`.
+  - existing `test_start_agent_response_rejects_stream_id_reuse_across_executions` remains green to lock unique stream-id semantics within tenant+principal scope.
+- Commercial gate evidence in this loop:
+  - `cargo test -p automation-service --tests`
+  - `cargo test -p local-minimal-node --test task10_capabilities_e2e_test`
+  - `cargo test -p local-minimal-node --test public_auth_e2e_test`
+  - `cargo clippy -p automation-service -p local-minimal-node --tests` (warnings only, mostly pre-existing outside touched scope)
+  - `cargo audit --no-fetch --stale -q`
+- Remaining S07 gap after Loop115:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `deterministic failed-state replay and commit-fence governance still needs propagation to additional non-shared-sync consumer categories beyond automation execution path`
+## Loop 116 Addendum - 2026-04-12
+- Closed a tool-call ownership ambiguity seam in `automation-service` by enforcing single-stream-per-execution semantics:
+  - `start_agent_response` now rejects creating a second stream for the same tenant + principal + execution context.
+  - this makes `request_agent_tool_call` ownership deterministic because tool-call requests are execution-scoped and do not carry `stream_id`.
+- Added regression evidence in this loop:
+  - `services/automation-service/tests/agent_response_lifecycle_test.rs`:
+    - `test_start_agent_response_rejects_second_stream_for_same_execution`
+- Commercial gate evidence in this loop:
+  - `cargo test -p automation-service --tests`
+  - `cargo test -p local-minimal-node --test task10_capabilities_e2e_test`
+  - `cargo test -p local-minimal-node --test public_auth_e2e_test`
+  - `cargo test -p local-minimal-node --offline --test performance_quant_baseline_test -- --nocapture`
+  - `cargo clippy -p automation-service -p local-minimal-node --tests` (warnings only, mostly pre-existing outside touched scope)
+  - `cargo audit --no-fetch --stale -q`
+- Remaining S07 gap after Loop116:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `deterministic failed-state replay and commit-fence governance still needs propagation to additional non-shared-sync consumer categories beyond automation execution path`
+## Loop 117 Addendum - 2026-04-12
+- Added delta-attributes payload hardening in `automation-service` to close a memory-pressure/DoS seam:
+  - `append_agent_response_delta` now enforces a bound on `attributes` total bytes (`key.len + value.len` aggregate) in addition to existing `payload` bound.
+  - oversize `attributes` now fail fast with `413 payload_too_large` using the same machine-readable error envelope as other payload guards.
+- Added regression evidence in this loop:
+  - `services/automation-service/tests/agent_response_lifecycle_test.rs`:
+    - `test_agent_runtime_rejects_oversized_delta_and_tool_payloads` (extended with oversized attributes assertion)
+  - `services/automation-service/tests/http_smoke_test.rs`:
+    - `test_append_agent_response_delta_rejects_oversized_attributes_over_http`
+- Commercial gate evidence in this loop:
+  - `cargo test -p automation-service --tests`
+  - `cargo test -p local-minimal-node --test task10_capabilities_e2e_test`
+  - `cargo test -p local-minimal-node --test public_auth_e2e_test`
+  - `cargo test -p local-minimal-node --offline --test performance_quant_baseline_test -- --nocapture`
+  - `cargo test -p local-minimal-node --offline --test performance_ha_dr_drill_test -- --nocapture`
+  - `cargo clippy -p automation-service -p local-minimal-node --tests` (warnings only, mostly pre-existing outside touched scope)
+  - `cargo audit --no-fetch --stale -q`
+- Remaining S07 gap after Loop117:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `deterministic failed-state replay and commit-fence governance still needs propagation to additional non-shared-sync consumer categories beyond automation execution path`
+## Loop 118 Addendum - 2026-04-12
+- Closed an agent lifecycle state-gap in `automation-service`:
+  - `request_agent_tool_call` now rejects new tool calls when the matched agent-response stream is already `completed/aborted`.
+  - this prevents post-completion tool-call mutation and keeps execution-scoped agent lifecycle deterministic.
+- Added regression evidence in this loop:
+  - `services/automation-service/tests/agent_response_lifecycle_test.rs`:
+    - `test_request_tool_call_rejects_when_agent_response_stream_completed`
+  - `services/automation-service/tests/http_smoke_test.rs`:
+    - `test_request_agent_tool_call_rejects_after_agent_response_completed_over_http`
+- Commercial gate evidence in this loop:
+  - `cargo test -p automation-service --tests`
+  - `cargo test -p local-minimal-node --test task10_capabilities_e2e_test`
+  - `cargo test -p local-minimal-node --test public_auth_e2e_test`
+  - `cargo test -p local-minimal-node --offline --test performance_quant_baseline_test -- --nocapture`
+  - `cargo test -p local-minimal-node --offline --test performance_ha_dr_drill_test -- --nocapture`
+  - `cargo clippy -p automation-service -p local-minimal-node --tests` (warnings only, mostly pre-existing outside touched scope)
+  - `cargo audit --no-fetch --stale -q`
+- Remaining S07 gap after Loop118:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `deterministic failed-state replay and commit-fence governance still needs propagation to additional non-shared-sync consumer categories beyond automation execution path`
+## Loop 119 Addendum - 2026-04-12
+- Closed an agent lifecycle consistency gap in `automation-service`:
+  - `complete_agent_response` now rejects completion when there are still `Requested` tool calls within the same tenant + principal_kind + principal_id + execution scope.
+  - this prevents premature stream closure before tool-call lifecycle reaches a terminal state, keeping execution completion semantics deterministic.
+  - the rejection is machine-readable: `400 agent_response_pending_tool_calls`.
+- Added regression evidence in this loop:
+  - `services/automation-service/tests/agent_response_lifecycle_test.rs`:
+    - `test_complete_agent_response_rejects_when_tool_call_pending`
+  - `services/automation-service/tests/http_smoke_test.rs`:
+    - `test_complete_agent_response_rejects_when_tool_call_pending_over_http`
+- Commercial gate evidence in this loop:
+  - `cargo test -p automation-service --test agent_response_lifecycle_test test_complete_agent_response_rejects_when_tool_call_pending -- --exact`
+  - `cargo test -p automation-service --test http_smoke_test test_complete_agent_response_rejects_when_tool_call_pending_over_http -- --exact`
+  - `cargo test -p automation-service --tests`
+  - `cargo test -p local-minimal-node --test task10_capabilities_e2e_test`
+  - `cargo test -p local-minimal-node --test public_auth_e2e_test`
+  - `cargo clippy -p automation-service -p local-minimal-node --tests` (warnings only, mostly pre-existing outside touched scope)
+  - `cargo audit --no-fetch --stale -q`
+  - `cargo test -p local-minimal-node --offline --test performance_quant_baseline_test -- --nocapture`
+- Remaining S07 gap after Loop119:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `deterministic failed-state replay and commit-fence governance still needs propagation to additional non-shared-sync consumer categories beyond automation execution path`
+## Loop 120 Addendum - 2026-04-12
+- Closed a scripted-validation portability gap in `open-chat-test.sh`/`chat-cli.sh` tooling path:
+  - removed hard dependency on external `dirname` for script path resolution, using Bash parameter expansion fallback.
+  - internal script delegation now explicitly uses current Bash interpreter (`${BASH:-bash}`) instead of relying on shebang path lookup, reducing accidental WSL launcher resolution on Windows environments.
+  - scripted validation flow now has fallback implementations for missing shell utilities in minimal environments:
+    - temporary file allocation no longer depends on `mktemp`.
+    - wait delay no longer depends on `sleep`.
+    - timestamp generation no longer depends on external `date`.
+    - frame extraction and text checks no longer depend on external `sed`/`grep`.
+    - temp cleanup no longer depends on external `rm`.
+  - fixed two redirection defects where `>/dev/null` was detached from command lines, which previously leaked intermediate JSON to stdout and broke scripted JSON summary contract.
+- Added regression hardening in this loop:
+  - `tools/chat-cli/tests/chat_cli_e2e_test.rs` now hardens Bash candidate selection on Windows:
+    - filters out `System32\\bash.exe` fallback path.
+    - probes candidate with executable capability check before acceptance.
+- Commercial gate evidence in this loop:
+  - `cargo test -p craw-chat-cli --test chat_cli_e2e_test test_open_chat_test_bash_scripted_validation_emits_json_summary -- --exact --nocapture` (with isolated target dir)
+  - `cargo test -p craw-chat-cli --tests` (with isolated target dir)
+  - `cargo test --workspace --tests` (with isolated target dir)
+  - `cargo clippy -p craw-chat-cli --tests` (warnings only, mostly pre-existing outside touched scope)
+  - `cargo audit --no-fetch --stale -q`
+- Remaining S07 gap after Loop120:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `deterministic failed-state replay and commit-fence governance still needs propagation to additional non-shared-sync consumer categories beyond automation execution path`
+## Loop 121 Addendum - 2026-04-12
+- Closed a non-shared-sync event idempotency collision seam in `notification-service`:
+  - notification commit envelopes no longer reuse bare `notification_id` as a shared idempotency key across multiple lifecycle events.
+  - `idempotency_key` is now event-scoped and ordering-scoped: `{notification_id}:{event_type}:{ordering_seq}`.
+  - this prevents potential collapse of `notification.requested` and `notification.dispatched` under deduplicating journal/provider implementations.
+- Added regression evidence in this loop:
+  - `services/notification-service/tests/notification_pipeline_test.rs`:
+    - `test_request_notification_appends_requested_and_dispatched_events` now asserts distinct event-level idempotency keys.
+- Commercial gate evidence in this loop:
+  - `cargo test -p notification-service --test notification_pipeline_test test_request_notification_appends_requested_and_dispatched_events -- --exact`
+  - `cargo test -p notification-service --tests`
+  - `cargo test -p local-minimal-node --test task10_capabilities_e2e_test`
+  - `cargo test -p local-minimal-node --test public_auth_e2e_test`
+  - `cargo test -p local-minimal-node --offline --test performance_quant_baseline_test -- --nocapture`
+  - `cargo clippy -p notification-service -p local-minimal-node --tests` (warnings only, mostly pre-existing outside touched scope)
+  - `cargo audit --no-fetch --stale -q`
+- Remaining S07 gap after Loop121:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `deterministic failed-state replay and commit-fence governance still needs propagation to additional non-shared-sync consumer categories beyond automation execution path`
+## Loop 122 Addendum - 2026-04-12
+- Added payload-size hardening on `notification-service` ingress to reduce memory-pressure/DoS risk:
+  - `request_notification` now enforces bounded payload sizes:
+    - `title <= 8 KiB`
+    - `body <= 64 KiB`
+    - `payload <= 256 KiB`
+  - oversized requests now fail fast with machine-readable `413 payload_too_large` error details.
+- Added regression evidence in this loop:
+  - `services/notification-service/tests/notification_pipeline_test.rs`:
+    - `test_request_notification_rejects_oversized_payload`
+  - `services/notification-service/tests/http_smoke_test.rs`:
+    - `test_request_notification_rejects_oversized_payload_over_http`
+- Commercial gate evidence in this loop:
+  - `cargo test -p notification-service --tests`
+  - `cargo test -p automation-service --tests`
+  - `cargo test -p local-minimal-node --test task10_capabilities_e2e_test`
+  - `cargo test -p local-minimal-node --test public_auth_e2e_test`
+  - `cargo test -p local-minimal-node --offline --test performance_quant_baseline_test -- --nocapture`
+  - `cargo clippy -p notification-service -p automation-service -p local-minimal-node --tests` (warnings only, mostly pre-existing outside touched scope)
+  - `cargo audit --no-fetch --stale -q`
+  - `CARGO_TARGET_DIR=D:/ctg CARGO_INCREMENTAL=0 cargo test --workspace --tests -q` (Windows short-path verification)
+- Remaining S07 gap after Loop122:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `deterministic failed-state replay and commit-fence governance still needs propagation to additional non-shared-sync consumer categories beyond automation execution path`
+## Loop 123 Addendum - 2026-04-12
+- Extended non-shared-sync delivery-proof semantics to `notification-service` notification request path:
+  - `POST /api/v1/notifications/requests` now returns deterministic delivery-proof metadata alongside existing notification fields (flattened payload kept for backward compatibility):
+    - `deliveryStatus`: `accepted | applied | replayed | failed`
+    - `requestKey`: stable request fence key
+    - `proofVersion`: `notification.request.delivery-proof.v1`
+  - duplicate idempotent requests with matching payload now surface explicit `replayed` delivery status instead of returning an opaque task-only equivalent response.
+  - `local-minimal-node` notification request route now preserves and returns the same delivery-proof contract from the embedded notification runtime.
+- Added regression evidence in this loop:
+  - `services/notification-service/tests/notification_pipeline_test.rs`:
+    - `test_duplicate_request_notification_is_idempotent_when_payload_matches` now asserts `applied -> replayed` and stable `requestKey`.
+  - `services/notification-service/tests/http_smoke_test.rs`:
+    - `test_duplicate_notification_id_is_idempotent_and_conflicting_retry_is_rejected_over_http` now asserts `deliveryStatus/requestKey/proofVersion`.
+  - `services/local-minimal-node/tests/task10_capabilities_e2e_test.rs`:
+    - `test_local_minimal_profile_treats_duplicate_notification_request_as_idempotent` now asserts the same delivery-proof contract on embedded route.
+- Commercial gate evidence in this loop:
+  - `cargo test -p notification-service --tests`
+  - `cargo test -p local-minimal-node --test task10_capabilities_e2e_test`
+  - `cargo test -p local-minimal-node --test public_auth_e2e_test`
+  - `cargo test -p automation-service --tests`
+  - `cargo clippy -p notification-service -p local-minimal-node -p automation-service --tests` (warnings only, mostly pre-existing outside touched scope)
+  - `cargo audit --no-fetch --stale -q`
+  - `CARGO_TARGET_DIR=D:/ctg-green1 CARGO_INCREMENTAL=0 cargo test --workspace --tests -q`
+- Remaining S07 gap after Loop123:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `deterministic failed-state replay and commit-fence governance still needs propagation to additional non-shared-sync consumer categories beyond automation+notification request paths`
+## Loop 124 Addendum - 2026-04-12
+- Closed a commercial gate reliability seam for Windows toolchain stability:
+  - `.github/workflows/im-commercial-gates.yml` now includes `windows-commercial-smoke` job.
+  - Windows gate runs with explicit short target + non-incremental settings:
+    - `CARGO_TARGET_DIR=D:/ctg`
+    - `CARGO_INCREMENTAL=0`
+  - gate scope covers `notification-service`, `automation-service`, and `local-minimal-node` capability/auth tests plus clippy smoke to reduce path/fingerprint/linker nondeterminism drift risk before release.
+- Evidence in this loop:
+  - Workflow contract added:
+    - `.github/workflows/im-commercial-gates.yml` (`windows-commercial-smoke`)
+  - Local verification baseline retained:
+    - `CARGO_TARGET_DIR=D:/ctg-green1 CARGO_INCREMENTAL=0 cargo test --workspace --tests -q`
+    - `cargo test -p notification-service --tests`
+    - `cargo test -p automation-service --tests`
+    - `cargo test -p local-minimal-node --test task10_capabilities_e2e_test`
+    - `cargo test -p local-minimal-node --test public_auth_e2e_test`
+    - `cargo clippy -p notification-service -p local-minimal-node -p automation-service --tests` (warnings only, mostly pre-existing outside touched scope)
+    - `cargo audit --no-fetch --stale -q`
+- Remaining S07 gap after Loop124:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `deterministic failed-state replay and commit-fence governance still needs propagation to additional non-shared-sync consumer categories beyond automation+notification request paths`
+## Loop 125 Addendum - 2026-04-12
+- Closed a delivery-proof determinism seam in `notification-service` request replay semantics:
+  - before this loop, `requestKey` included caller principal identity while idempotency fence was keyed by `tenant + notificationId`, so the same replayed notification request could return different `requestKey` values when invoked by different principals.
+  - `notification_request_key` is now aligned to the actual idempotency fence (`{tenant}:{notificationId}`), guaranteeing deterministic replay proof for the same notification request key-space.
+  - this keeps replay contract stable across operator/service replays and avoids false divergence in downstream reconciliation tooling.
+- Added regression evidence in this loop:
+  - `services/notification-service/tests/notification_pipeline_test.rs`:
+    - `test_duplicate_request_notification_across_principals_keeps_stable_request_key`
+  - `services/notification-service/tests/http_smoke_test.rs`:
+    - `test_duplicate_notification_request_from_different_principal_keeps_stable_request_key_over_http`
+- Commercial gate evidence in this loop:
+  - `cargo test -p notification-service --tests`
+  - `cargo test -p automation-service --tests`
+  - `cargo test -p local-minimal-node --test task10_capabilities_e2e_test`
+  - `cargo test -p local-minimal-node --test public_auth_e2e_test`
+  - `cargo clippy -p notification-service -p local-minimal-node -p automation-service --tests` (warnings only, mostly pre-existing outside touched scope)
+  - `cargo audit --no-fetch --stale -q`
+  - `CARGO_TARGET_DIR=D:/ctg-green2 CARGO_INCREMENTAL=0 cargo test --workspace --tests -q`
+- Remaining S07 gap after Loop125:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `deterministic failed-state replay and commit-fence governance still needs propagation to additional non-shared-sync consumer categories beyond automation+notification request paths`
+## Loop 126 Addendum - 2026-04-12
+- Added identifier-size hardening on `notification-service` request ingress to close an unbounded-string memory/storage pressure seam:
+  - `request_notification` now enforces explicit size bounds for core request identifiers:
+    - `notificationId <= 512 bytes`
+    - `sourceEventId <= 512 bytes`
+    - `sourceEventType <= 128 bytes`
+    - `category <= 128 bytes`
+    - `channel <= 64 bytes`
+    - `recipientId <= 256 bytes`
+  - oversize identifiers fail fast with machine-readable `413 payload_too_large`.
+  - existing content bounds (`title/body/payload`) remain unchanged and continue to be enforced.
+- Added regression evidence in this loop:
+  - `services/notification-service/tests/notification_pipeline_test.rs`:
+    - `test_request_notification_rejects_oversized_notification_id`
+  - `services/notification-service/tests/http_smoke_test.rs`:
+    - `test_request_notification_rejects_oversized_notification_id_over_http`
+- Commercial gate evidence in this loop:
+  - `cargo test -p notification-service --tests`
+  - `cargo test -p automation-service --tests`
+  - `cargo test -p local-minimal-node --test task10_capabilities_e2e_test`
+  - `cargo test -p local-minimal-node --test public_auth_e2e_test`
+  - `cargo clippy -p notification-service -p local-minimal-node -p automation-service --tests` (warnings only, mostly pre-existing outside touched scope)
+  - `cargo audit --no-fetch --stale -q`
+  - `CARGO_TARGET_DIR=D:/ctg-green3 CARGO_INCREMENTAL=0 cargo test --workspace --tests -q`
+- Remaining S07 gap after Loop126:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `deterministic failed-state replay and commit-fence governance still needs propagation to additional non-shared-sync consumer categories beyond automation+notification request paths`
+## Loop 127 Addendum - 2026-04-12
+- Added identifier-size hardening on `automation-service` execution request ingress to close unbounded-request-key memory/index pressure risk:
+  - `request_execution` now enforces explicit size bounds for execution identifiers:
+    - `executionId <= 256 bytes`
+    - `triggerType <= 128 bytes`
+    - `targetKind <= 128 bytes`
+    - `targetRef <= 512 bytes`
+  - oversize identifier payloads now fail fast with machine-readable `413 payload_too_large`.
+  - existing execution payload bound (`inputPayload <= 128 KiB`) remains unchanged and is still enforced.
+- Added regression evidence in this loop:
+  - `services/automation-service/tests/automation_execution_test.rs`:
+    - `test_request_execution_rejects_oversized_execution_id`
+  - `services/automation-service/tests/http_smoke_test.rs`:
+    - `test_request_execution_rejects_oversized_execution_id_over_http`
+- Commercial gate evidence in this loop:
+  - `cargo test -p automation-service --test automation_execution_test test_request_execution_rejects_oversized_execution_id -- --exact`
+  - `cargo test -p automation-service --test http_smoke_test test_request_execution_rejects_oversized_execution_id_over_http -- --exact`
+  - `cargo test -p automation-service --tests`
+  - `cargo test -p notification-service --tests`
+  - `cargo test -p local-minimal-node --test task10_capabilities_e2e_test`
+  - `cargo test -p local-minimal-node --test public_auth_e2e_test`
+  - `cargo clippy -p automation-service -p notification-service -p local-minimal-node --tests` (warnings only, mostly pre-existing outside touched scope)
+  - `cargo audit --no-fetch --stale -q`
+  - `CARGO_TARGET_DIR=D:/ctg-green127 CARGO_INCREMENTAL=0 cargo test --workspace --tests -q`
+- Remaining S07 gap after Loop127:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `deterministic failed-state replay and commit-fence governance still needs propagation to additional non-shared-sync consumer categories beyond automation+notification request paths`
+## Loop 128 Addendum - 2026-04-12
+- Closed an availability resilience seam in `automation-service` mutex access path:
+  - before this loop, production runtime/store paths used `Mutex::lock().expect(...)`; a single poisoned lock could panic follow-up requests and degrade service availability.
+  - runtime/store lock access now uses recoverable lock handling (`lock_automation`) that converts poisoned locks into guarded recovery path instead of panicking process-facing flows.
+  - this aligns runtime behavior with existing notification-service poison-lock recovery strategy and improves fault-containment under unexpected panic scenarios.
+- Added regression evidence in this loop:
+  - `services/automation-service/src/lib.rs`:
+    - `test_request_execution_recovers_from_poisoned_executions_lock`
+    - `test_runtime_memory_execution_store_load_recovers_from_poisoned_lock`
+- Commercial gate evidence in this loop:
+  - `cargo test -p automation-service --lib tests::test_request_execution_recovers_from_poisoned_executions_lock -- --exact`
+  - `cargo test -p automation-service --lib tests::test_runtime_memory_execution_store_load_recovers_from_poisoned_lock -- --exact`
+  - `cargo test -p automation-service --tests`
+  - `cargo test -p local-minimal-node --test task10_capabilities_e2e_test`
+  - `cargo test -p local-minimal-node --test public_auth_e2e_test`
+  - `cargo clippy -p automation-service --tests` (warnings only, mostly pre-existing outside touched scope)
+  - `cargo audit --no-fetch --stale -q`
+  - `CARGO_TARGET_DIR=D:/ctg-green128 CARGO_INCREMENTAL=0 cargo test --workspace --tests -q`
+- Remaining S07 gap after Loop128:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `deterministic failed-state replay and commit-fence governance still needs propagation to additional non-shared-sync consumer categories beyond automation+notification request paths`
+## Loop 129 Addendum - 2026-04-12
+- Added payload/identifier size hardening on `streaming-service` ingress to close unbounded stream request/frame memory-pressure risk:
+  - `open_stream` now enforces explicit identifier bounds:
+    - `streamId <= 256 bytes`
+    - `streamType <= 128 bytes`
+    - `scopeKind <= 64 bytes`
+    - `scopeId <= 512 bytes`
+    - `schemaRef <= 256 bytes`
+  - `append_frame` now enforces bounded frame content:
+    - `frameType <= 64 bytes`
+    - `encoding <= 32 bytes`
+    - `payload <= 256 KiB`
+    - `attributes total bytes <= 64 KiB`
+  - oversized payloads now fail fast with machine-readable `413 payload_too_large`.
+  - frame window query guard added: `limit` must be `<= 1000`, preventing unbounded per-request scan windows.
+- Added regression evidence in this loop:
+  - `services/streaming-service/tests/http_smoke_test.rs`:
+    - `test_open_stream_rejects_oversized_stream_id_over_http`
+  - `services/streaming-service/tests/stream_lifecycle_test.rs`:
+    - `test_stream_append_rejects_oversized_payload_over_http`
+    - `test_stream_append_rejects_oversized_attributes_over_http`
+    - `test_stream_list_rejects_limit_above_guardrail_over_http`
+- Commercial gate evidence in this loop:
+  - `cargo test -p streaming-service --test http_smoke_test test_open_stream_rejects_oversized_stream_id_over_http -- --exact`
+  - `cargo test -p streaming-service --test stream_lifecycle_test test_stream_append_rejects_oversized_payload_over_http -- --exact`
+  - `cargo test -p streaming-service --test stream_lifecycle_test test_stream_append_rejects_oversized_attributes_over_http -- --exact`
+  - `cargo test -p streaming-service --test stream_lifecycle_test test_stream_list_rejects_limit_above_guardrail_over_http -- --exact`
+  - `cargo test -p streaming-service --tests`
+  - `cargo test -p local-minimal-node --test task10_capabilities_e2e_test`
+  - `cargo test -p local-minimal-node --test public_auth_e2e_test`
+  - `cargo clippy -p streaming-service --tests` (warnings only, mostly pre-existing outside touched scope)
+  - `cargo audit --no-fetch --stale -q`
+  - `CARGO_TARGET_DIR=D:/ctg-green129 CARGO_INCREMENTAL=0 cargo test --workspace --tests -q`
+- Remaining S07 gap after Loop129:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `deterministic failed-state replay and commit-fence governance still needs propagation to additional non-shared-sync consumer categories beyond automation+notification request paths`
+## Loop 130 Addendum - 2026-04-12
+- Added payload/identifier size hardening on `rtc-signaling-service` ingress to close unbounded RTC request/signal memory-pressure risk:
+  - `create_session` now enforces bounded identifiers:
+    - `rtcSessionId <= 256 bytes`
+    - `conversationId <= 512 bytes` (when present)
+    - `rtcMode <= 64 bytes`
+  - `invite/accept/reject/end` request payloads now enforce bounded optional identifiers:
+    - `signalingStreamId <= 256 bytes`
+    - `artifactMessageId <= 256 bytes`
+  - `post_signal` now enforces bounded signal envelope:
+    - `signalType <= 128 bytes`
+    - `schemaRef <= 256 bytes` (when present)
+    - `payload <= 256 KiB`
+    - `signalingStreamId <= 256 bytes` (when present)
+  - `issue_participant_credential` now enforces `participantId <= 256 bytes`.
+  - oversized requests fail fast with machine-readable `413 payload_too_large`.
+- Added regression evidence in this loop:
+  - `services/rtc-signaling-service/tests/http_smoke_test.rs`:
+    - `test_create_rtc_session_rejects_oversized_session_id_over_http`
+  - `services/rtc-signaling-service/tests/rtc_signal_flow_test.rs`:
+    - `test_post_rtc_signal_rejects_oversized_payload_over_http`
+    - `test_post_rtc_signal_rejects_oversized_signal_type_over_http`
+- Commercial gate evidence in this loop:
+  - `cargo test -p rtc-signaling-service --test http_smoke_test test_create_rtc_session_rejects_oversized_session_id_over_http -- --exact`
+  - `cargo test -p rtc-signaling-service --test rtc_signal_flow_test test_post_rtc_signal_rejects_oversized_payload_over_http -- --exact`
+  - `cargo test -p rtc-signaling-service --test rtc_signal_flow_test test_post_rtc_signal_rejects_oversized_signal_type_over_http -- --exact`
+  - `cargo test -p rtc-signaling-service --tests`
+  - `cargo test -p local-minimal-node --test task10_capabilities_e2e_test`
+  - `cargo test -p local-minimal-node --test public_auth_e2e_test`
+  - `cargo clippy -p rtc-signaling-service --tests` (warnings only, mostly pre-existing outside touched scope)
+  - `cargo audit --no-fetch --stale -q`
+  - `CARGO_TARGET_DIR=D:/ctg-green130 CARGO_INCREMENTAL=0 cargo test --workspace --tests -q`
+- Remaining S07 gap after Loop130:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `deterministic failed-state replay and commit-fence governance still needs propagation to additional non-shared-sync consumer categories beyond automation+notification request paths`
+## Loop 131 Addendum - 2026-04-12
+- Added payload/identifier size hardening on `media-service` ingress to close unbounded media metadata/object-storage request memory-pressure risk:
+  - `create_upload` now enforces bounded identifiers and media-resource metadata:
+    - `mediaAssetId <= 256 bytes`
+    - `resource.uuid <= 256 bytes`
+    - `resource.url <= 2048 bytes`
+    - `resource.localFile <= 1024 bytes`
+    - `resource.bytes <= 256 KiB`
+    - `resource.base64 <= 256 KiB`
+    - `resource.mimeType <= 128 bytes`
+    - `resource.name <= 256 bytes`
+    - `resource.extension <= 32 bytes`
+    - `resource.prompt <= 8 KiB`
+    - `resource.tags total bytes <= 16 KiB`
+    - `resource.metadata total bytes <= 64 KiB`
+  - `complete_upload` and media path access now enforce bounded object-storage envelope fields:
+    - `mediaAssetId <= 256 bytes`
+    - `bucket <= 256 bytes`
+    - `objectKey <= 1024 bytes`
+    - `storageProvider <= 128 bytes`
+    - `url <= 2048 bytes`
+    - `checksum <= 256 bytes`
+  - oversized requests now fail fast with machine-readable `413 payload_too_large`.
+  - runtime-level validation also covers the embedded `local-minimal-node` media surface because it shares the same `MediaRuntime`.
+- Added regression evidence in this loop:
+  - `services/media-service/tests/media_asset_test.rs`:
+    - `test_create_upload_rejects_oversized_media_asset_id_over_http`
+    - `test_complete_upload_rejects_oversized_object_key_over_http`
+    - `test_complete_upload_rejects_oversized_path_media_asset_id_over_http`
+- Commercial gate evidence in this loop:
+  - `cargo test -p media-service --test media_asset_test test_create_upload_rejects_oversized_media_asset_id_over_http -- --exact`
+  - `cargo test -p media-service --test media_asset_test test_complete_upload_rejects_oversized_object_key_over_http -- --exact`
+  - `cargo test -p media-service --test media_asset_test test_complete_upload_rejects_oversized_path_media_asset_id_over_http -- --exact`
+  - `cargo test -p media-service --tests`
+  - `cargo test -p local-minimal-node --test media_provider_http_test`
+  - `cargo test -p local-minimal-node --test public_auth_e2e_test`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_runs_end_to_end_flow -- --exact`
+  - `cargo test -p local-minimal-node --test task10_capabilities_e2e_test`
+  - `cargo clippy -p media-service -p local-minimal-node --tests` (warnings only, mostly pre-existing outside touched scope)
+  - `cargo audit --no-fetch --stale -q`
+  - `CARGO_TARGET_DIR=D:/ctg-green131w CARGO_INCREMENTAL=0 cargo test --workspace --tests -q`
+- Remaining S07 gap after Loop131:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `deterministic failed-state replay and commit-fence governance still needs propagation to additional non-shared-sync consumer categories beyond automation+notification request paths`
+## Loop 132 Addendum - 2026-04-12
+- Added payload/identifier size hardening on `session-gateway` ingress to close unbounded device/realtime request memory-pressure risk:
+  - device-bound HTTP/websocket route resolution now enforces `deviceId <= 256 bytes`.
+  - realtime subscription sync now enforces bounded subscription descriptors:
+    - `scopeType <= 64 bytes`
+    - `scopeId <= 512 bytes`
+    - `eventTypes[*] <= 128 bytes`
+  - realtime event window queries now enforce `limit <= 1000`.
+  - oversized identifiers fail fast with machine-readable `413 payload_too_large`; oversized event windows return machine-readable `400 limit_invalid`.
+  - realtime runtime validation closes the same gap for websocket pull/sync flows, not just HTTP handlers.
+- Added regression evidence in this loop:
+  - `services/session-gateway/tests/http_smoke_test.rs`:
+    - `test_session_resume_rejects_oversized_device_id_over_http`
+    - `test_realtime_subscription_sync_rejects_oversized_scope_id_over_http`
+    - `test_realtime_event_window_rejects_limit_above_guardrail_over_http`
+- Commercial gate evidence in this loop:
+  - `cargo test -p session-gateway --test http_smoke_test test_session_resume_rejects_oversized_device_id_over_http -- --exact`
+  - `cargo test -p session-gateway --test http_smoke_test test_realtime_subscription_sync_rejects_oversized_scope_id_over_http -- --exact`
+  - `cargo test -p session-gateway --test http_smoke_test test_realtime_event_window_rejects_limit_above_guardrail_over_http -- --exact`
+  - `cargo test -p session-gateway --tests`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_resumes_session_and_returns_presence_snapshot -- --exact`
+  - `cargo clippy -p session-gateway --tests` (warnings only, mostly pre-existing outside touched scope)
+  - `cargo audit --no-fetch --stale -q`
+  - `CARGO_TARGET_DIR=D:/ctg-green132w CARGO_INCREMENTAL=0 cargo test --workspace --tests -q`
+- Remaining S07 gap after Loop132:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `deterministic failed-state replay and commit-fence governance still needs propagation to additional non-shared-sync consumer categories beyond automation+notification request paths`
+## Loop 133 Addendum - 2026-04-12
+- Added payload/identifier size hardening on `control-plane-api` social write ingress to close unbounded operator-request memory-pressure risk:
+  - social write routes now enforce bounded identifiers/timestamps before runtime lookup or snapshot mutation:
+    - core identifiers such as `requestId / friendshipId / blockId / directChatId / connectionId / linkId / policyId / eventId / requesterUserId / targetUserId / localActorId / externalMemberId / channelId / conversationId <= 256 bytes`
+    - actor-kind descriptors such as `localActorKind <= 64 bytes`
+    - write timestamps such as `requestedAt / establishedAt / effectiveAt / boundAt / linkedAt / appliedAt / expiresAt <= 64 bytes`
+  - bounded optional/social text payloads now fail fast:
+    - `requestMessage <= 8 KiB`
+    - `externalOrgName <= 256 bytes`
+    - `externalDisplayName <= 512 bytes`
+    - `historyVisibility <= 32 bytes`
+  - targeted shared-channel sync operator batches now enforce bounded request-key ingress:
+    - `requestKeys[*] <= 512 bytes`
+    - `requestKeys count <= 1024`
+    - `requestKeys total bytes <= 64 KiB`
+  - oversized requests now fail fast with machine-readable `413 payload_too_large`.
+  - the validation is runtime-level for targeted batch operations, so the same guard now covers `claim / release / takeover / requeue / republish`, not just the HTTP handler tested in this loop.
+  - this also closes an error-ordering seam where oversized `externalDisplayName` previously fell through to `404 external_connection_not_found` before any ingress guard executed.
+- Added regression evidence in this loop:
+  - `services/control-plane-api/tests/http_smoke_test.rs`:
+    - `test_control_plane_social_friend_request_rejects_oversized_request_id_over_http`
+    - `test_control_plane_external_member_link_rejects_oversized_display_name_over_http`
+    - `test_control_plane_targeted_pending_claim_rejects_oversized_request_key_over_http`
+- Commercial gate evidence in this loop:
+  - `cargo test -p control-plane-api --test http_smoke_test test_control_plane_social_friend_request_rejects_oversized_request_id_over_http -- --exact`
+  - `cargo test -p control-plane-api --test http_smoke_test test_control_plane_external_member_link_rejects_oversized_display_name_over_http -- --exact`
+  - `cargo test -p control-plane-api --test http_smoke_test test_control_plane_targeted_pending_claim_rejects_oversized_request_key_over_http -- --exact`
+  - `cargo test -p control-plane-api --tests`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_runs_end_to_end_flow -- --exact`
+  - `cargo clippy -p control-plane-api --tests` (warnings only, mostly pre-existing outside touched scope)
+  - `cargo audit --no-fetch --stale -q`
+  - `CARGO_TARGET_DIR=D:/ctg-green133 CARGO_INCREMENTAL=0 cargo test --workspace --tests -q`
+- Remaining S07 gap after Loop133:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `deterministic failed-state replay and commit-fence governance still needs propagation to additional non-shared-sync consumer categories beyond automation+notification request paths`
+## Loop 134 Addendum - 2026-04-12
+- Added payload/identifier size hardening on `conversation-runtime` ingress to close unbounded conversation/message/membership request memory-pressure risk:
+  - shared/runtime validation now enforces bounded conversation and actor descriptors across creation and mutation flows:
+    - `conversationId <= 256 bytes`
+    - `conversationType / actorKind / requesterKind / senderKind / localActorKind <= 64 bytes`
+    - `policyVersion <= 128 bytes`
+    - `historyVisibility <= 32 bytes`
+    - `retentionPolicyRef <= 256 bytes`
+    - `requestKey <= 2048 bytes`
+    - `clientMsgId <= 256 bytes`
+    - `reactionKey <= 128 bytes`
+    - `handoffReason <= 8 KiB`
+  - conversation policy optional fields now enforce bounded capability metadata:
+    - `capabilityFlags[*] <= 128 bytes`
+    - `capabilityFlags total bytes <= 16 KiB`
+  - message write and edit paths now enforce bounded serialized body size:
+    - `messageBody <= 512 KiB`
+  - oversized requests now fail fast with machine-readable `413 payload_too_large`.
+  - the validation is runtime-level for create/post/edit/recall/reaction/pin/shared-sync/member mutation flows, so the same guard now covers embedded `local-minimal-node` consumers rather than protecting only the standalone HTTP surface.
+- Added regression evidence in this loop:
+  - `services/conversation-runtime/tests/http_smoke_test.rs`:
+    - `test_create_conversation_rejects_oversized_conversation_id_over_http`
+    - `test_post_message_rejects_oversized_text_over_http`
+    - `test_shared_history_sync_rejects_oversized_local_actor_kind_over_http`
+- Commercial gate evidence in this loop:
+  - `cargo test -p conversation-runtime --tests`
+  - `cargo test -p local-minimal-node --test control_plane_social_sync_e2e_test test_local_minimal_profile_control_plane_shared_channel_auto_sync_materializes_runtime_linked_member -- --exact`
+  - `cargo audit --no-fetch --stale -q`
+  - `CARGO_TARGET_DIR=D:/ctg-green134-workspace CARGO_INCREMENTAL=0 cargo test --workspace --tests -q`
+- Remaining S07 gap after Loop134:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `deterministic failed-state replay and commit-fence governance still needs propagation to additional non-shared-sync consumer categories beyond automation+notification request paths`
+## Loop 135 Addendum - 2026-04-12
+- Added payload-size hardening on `audit-service` write ingress to close unbounded audit-record memory/export pressure risk:
+  - audit write requests now enforce bounded identifiers and payload envelope:
+    - `recordId <= 256 bytes`
+    - `aggregateType <= 128 bytes`
+    - `aggregateId <= 256 bytes`
+    - `action <= 128 bytes`
+    - `payload <= 128 KiB`
+  - oversized requests now fail fast with machine-readable `413 payload_too_large`.
+  - validation is exposed as a shared helper and is now reused by both standalone `audit-service` and embedded `local-minimal-node` `/api/v1/audit/records` ingress, so the operator-facing audit write path is hardened consistently across deployment shapes.
+- Added regression evidence in this loop:
+  - `services/audit-service/tests/http_smoke_test.rs`:
+    - `test_record_audit_rejects_oversized_payload_over_http`
+  - `services/local-minimal-node/tests/http_e2e_test.rs`:
+    - `test_local_minimal_profile_rejects_oversized_audit_payload_over_http`
+- Commercial gate evidence in this loop:
+  - `cargo test -p audit-service --test http_smoke_test test_record_audit_rejects_oversized_payload_over_http -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_rejects_oversized_audit_payload_over_http -- --exact`
+  - `cargo test -p audit-service --tests`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_runs_end_to_end_flow -- --exact`
+  - `cargo clippy -p audit-service -p local-minimal-node --tests` (warnings only, mostly pre-existing outside touched scope)
+- Remaining S07 gap after Loop135:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `deterministic failed-state replay and commit-fence governance still needs propagation to additional non-shared-sync consumer categories beyond automation+notification request paths`
+## Loop 136 Addendum - 2026-04-12
+- Added `deviceId` ingress hardening on `projection-service` and embedded `local-minimal-node` device access flows to close another unbounded identifier / memory-pressure seam:
+  - shared projection access validation now enforces `deviceId <= 256 bytes` for:
+    - `/api/v1/devices/register`
+    - `/api/v1/devices/{device_id}/sync-feed`
+    - auth-bound `latest sync seq` and device-scope resolution paths reused by embedded consumers
+  - embedded `local-minimal-node` access validation now enforces the same `deviceId <= 256 bytes` contract across shared device access helpers, not only the standalone register route:
+    - request/body or auth-bound device resolution
+    - shared device-stream registration checks
+    - bound device-actor validation
+    - IoT uplink decoded-device preflight comparison
+  - oversized identifiers now fail fast with machine-readable `413 payload_too_large`.
+  - this closes the previously observed seam where oversized `deviceId` values fell through as successful `200` responses on both standalone projection ingress and embedded local-node device registration.
+- Added regression evidence in this loop:
+  - `services/projection-service/tests/http_smoke_test.rs`:
+    - `test_register_device_rejects_oversized_device_id_over_http`
+    - `test_device_sync_feed_rejects_oversized_device_id_over_http`
+  - `services/local-minimal-node/tests/http_e2e_test.rs`:
+    - `test_local_minimal_profile_rejects_oversized_device_id_on_register_over_http`
+- Commercial gate evidence in this loop:
+  - `cargo test -p projection-service --test http_smoke_test test_register_device_rejects_oversized_device_id_over_http -- --exact`
+  - `cargo test -p projection-service --test http_smoke_test test_device_sync_feed_rejects_oversized_device_id_over_http -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_rejects_oversized_device_id_on_register_over_http -- --exact`
+  - `cargo test -p projection-service --tests`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_runs_end_to_end_flow -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_exposes_device_sync_feed_for_multi_device_resume -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_delivers_realtime_events_to_subscribed_device_window -- --exact`
+  - `cargo clippy --no-deps -p projection-service -p local-minimal-node --tests -- -D warnings`
+- Verification housekeeping completed in this loop so package-local commercial gates can run cleanly:
+  - reduced pre-existing `projection-service` clippy debt in message-interaction fanout and contact snapshot helpers without changing business behavior
+  - reduced pre-existing `local-minimal-node` test-only clippy debt in deployment/profile and user-module test helpers
+- Remaining S07 gap after Loop136:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `deterministic failed-state replay and commit-fence governance still needs propagation to additional non-shared-sync consumer categories beyond automation+notification request paths`
+## Loop 137 Addendum - 2026-04-12
+- Added read-query identifier hardening on `projection-service` so standalone query ingress and embedded `local-minimal-node` projection reads no longer accept oversized conversation/message path identifiers:
+  - shared projection access validation now enforces:
+    - `conversationId <= 256 bytes`
+    - `messageId <= 256 bytes`
+  - the validation is executed before permission lookup or not-found resolution on the affected read paths, correcting the previous error ordering where oversized query identifiers fell through to business responses:
+    - oversized timeline conversation queries previously returned `403 conversation_permission_denied`
+    - oversized interaction-summary message queries previously returned `404 message_interaction_summary_not_found`
+  - hardened standalone projection read routes now include:
+    - `/api/v1/conversations/{conversation_id}/messages`
+    - `/api/v1/conversations/{conversation_id}`
+    - `/api/v1/conversations/{conversation_id}/read-cursor`
+    - `/api/v1/conversations/{conversation_id}/member-directory`
+    - `/api/v1/conversations/{conversation_id}/pins`
+    - `/api/v1/conversations/{conversation_id}/messages/{message_id}/interaction-summary`
+  - embedded `local-minimal-node` timeline / summary / read-cursor routes inherit the same protection because they route through the shared projection access helpers.
+  - oversized identifiers now fail fast with machine-readable `413 payload_too_large`.
+- Added regression evidence in this loop:
+  - `services/projection-service/tests/http_smoke_test.rs`:
+    - `test_timeline_query_rejects_oversized_conversation_id_over_http`
+    - `test_interaction_summary_rejects_oversized_message_id_over_http`
+  - `services/local-minimal-node/tests/http_e2e_test.rs`:
+    - `test_local_minimal_profile_rejects_oversized_conversation_id_on_timeline_query_over_http`
+- Commercial gate evidence in this loop:
+  - `cargo test -p projection-service --test http_smoke_test test_timeline_query_rejects_oversized_conversation_id_over_http -- --exact`
+  - `cargo test -p projection-service --test http_smoke_test test_interaction_summary_rejects_oversized_message_id_over_http -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_rejects_oversized_conversation_id_on_timeline_query_over_http -- --exact`
+  - `cargo test -p projection-service --tests`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_runs_end_to_end_flow -- --exact`
+  - `cargo clippy --no-deps -p projection-service -p local-minimal-node --tests -- -D warnings`
+- Remaining S07 gap after Loop137:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `deterministic failed-state replay and commit-fence governance still needs propagation to additional non-shared-sync consumer categories beyond automation+notification request paths`
+## Loop 138 Addendum - 2026-04-12
+- Closed a deployment-shape feature parity gap between standalone `projection-service` and embedded `local-minimal-node` projection reads:
+  - embedded `local-minimal-node` now exposes the same projected read routes that were previously only available on standalone `projection-service`:
+    - `/api/v1/contacts`
+    - `/api/v1/conversations/{conversation_id}/member-directory`
+    - `/api/v1/conversations/{conversation_id}/pins`
+    - `/api/v1/conversations/{conversation_id}/messages/{message_id}/interaction-summary`
+  - the new local-node handlers delegate directly to shared `projection_service` auth-context access helpers instead of introducing parallel read logic, so permission checks, bounded identifier validation, and data ordering now stay aligned across both deployment shapes.
+  - `interaction-summary` on embedded local-node now preserves the standalone `404 message_interaction_summary_not_found` contract when the projection is absent, rather than failing earlier at missing route resolution.
+- Added regression evidence in this loop:
+  - `services/local-minimal-node/tests/http_e2e_test.rs`:
+    - `test_local_minimal_profile_exposes_projection_read_routes_for_contacts_directory_and_interactions`
+- Commercial gate evidence in this loop:
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_exposes_projection_read_routes_for_contacts_directory_and_interactions -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test`
+  - `cargo clippy --no-deps -p projection-service -p local-minimal-node --tests -- -D warnings`
+- Remaining S07 gap after Loop138:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `deterministic failed-state replay and commit-fence governance still needs propagation to additional non-shared-sync consumer categories beyond automation+notification request paths`
+## Loop 139 Addendum - 2026-04-12
+- Hardened `chat-cli` HTTP command diagnostics so connection failures now surface operator-actionable guidance instead of leaking raw transport jargon:
+  - when an HTTP command cannot establish a TCP connection to the configured service endpoint, the CLI now reports:
+    - the requested `base_url`
+    - the HTTP method and path being attempted
+    - an explicit `unable to connect to craw-chat service` diagnosis
+    - a concrete operator hint to verify the service is running and that `--base-url` is correct
+  - this closes the previously observed usability/supportability gap where failed commands surfaced only opaque transport text such as `client error (Connect)`, forcing operators to infer whether the node was down, the port was wrong, or the base URL was misconfigured.
+- Added regression evidence in this loop:
+  - `tools/chat-cli/tests/chat_cli_contract_test.rs`:
+    - `test_chat_cli_timeline_connect_failure_surfaces_actionable_service_unreachable_hint`
+- Commercial gate evidence in this loop:
+  - `cargo test -p craw-chat-cli --test chat_cli_contract_test test_chat_cli_timeline_connect_failure_surfaces_actionable_service_unreachable_hint -- --exact`
+  - `cargo test -p craw-chat-cli --tests`
+  - `cargo clippy --no-deps -p craw-chat-cli --tests -- -D warnings`
+- Remaining S07 gap after Loop139:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `deterministic failed-state replay and commit-fence governance still needs propagation to additional non-shared-sync consumer categories beyond automation+notification request paths`
+## Loop 140 Addendum - 2026-04-12
+- Hardened `chat-cli` realtime diagnostics so websocket-based operator flows now fail with actionable service-unreachable guidance instead of raw transport `IO error` text:
+  - `watch` / `chat-session` and any other commands using `connect_realtime_socket` now report:
+    - the requested `base_url`
+    - the resolved realtime endpoint `/api/v1/realtime/ws`
+    - an explicit `unable to connect realtime websocket` diagnosis
+    - an operator hint to verify the service is running and that `--base-url` is correct
+  - this closes the remaining supportability gap left after Loop139, where HTTP commands had actionable diagnostics but realtime commands still surfaced opaque low-level connection text.
+- Added regression evidence in this loop:
+  - `tools/chat-cli/tests/chat_cli_contract_test.rs`:
+    - `test_chat_cli_watch_connect_failure_surfaces_actionable_realtime_unreachable_hint`
+- Commercial gate evidence in this loop:
+  - `cargo test -p craw-chat-cli --test chat_cli_contract_test test_chat_cli_watch_connect_failure_surfaces_actionable_realtime_unreachable_hint -- --exact`
+  - `cargo test -p craw-chat-cli --tests`
+  - `cargo clippy --no-deps -p craw-chat-cli --tests -- -D warnings`
+- Remaining S07 gap after Loop140:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `deterministic failed-state replay and commit-fence governance still needs propagation to additional non-shared-sync consumer categories beyond automation+notification request paths`
+## Loop 141 Addendum - 2026-04-12
+- Hardened `chat-cli` local config parsing so malformed lines in `.runtime/local-minimal/config/local-minimal.env` no longer silently disable later valid keys:
+  - `read_env_file_value(...)` now skips malformed non-comment lines instead of aborting the whole scan on the first line that lacks `=`
+  - this closes an operator-facing configuration robustness gap where a stray invalid line could cause later valid settings such as `CRAW_CHAT_BIND_ADDR` to be ignored, leading the CLI to silently fall back to default `base_url` and surface misleading connectivity failures against the wrong endpoint
+  - the fix is intentionally bounded: malformed lines are ignored, while valid later key/value lines remain readable
+- Added regression evidence in this loop:
+  - `tools/chat-cli/src/command.rs`:
+    - `command::tests::test_read_env_file_value_skips_malformed_lines_before_valid_key`
+- Commercial gate evidence in this loop:
+  - `cargo test -p craw-chat-cli command::tests::test_read_env_file_value_skips_malformed_lines_before_valid_key -- --exact`
+  - `cargo test -p craw-chat-cli --tests`
+  - `cargo clippy --no-deps -p craw-chat-cli --tests -- -D warnings`
+- Remaining S07 gap after Loop141:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `deterministic failed-state replay and commit-fence governance still needs propagation to additional non-shared-sync consumer categories beyond automation+notification request paths`
+## Loop 142 Addendum - 2026-04-12
+- Extended non-shared-sync delivery-proof semantics to `rtc-signaling-service` session mutation write paths and embedded `local-minimal-node` RTC routes:
+  - standalone `rtc-signaling-service` write routes now return explicit delivery-proof metadata alongside flattened RTC session fields:
+    - `POST /api/v1/rtc/sessions`
+    - `POST /api/v1/rtc/sessions/{rtc_session_id}/invite`
+    - `POST /api/v1/rtc/sessions/{rtc_session_id}/accept`
+    - `POST /api/v1/rtc/sessions/{rtc_session_id}/reject`
+    - `POST /api/v1/rtc/sessions/{rtc_session_id}/end`
+  - embedded `local-minimal-node` RTC routes now preserve the same contract instead of returning only business state:
+    - `requestKey`
+    - `deliveryStatus`
+    - `proofVersion = rtc.session.delivery-proof.v1`
+  - this closes a real supportability and auditability seam where the RTC runtime already knew whether a write was newly applied or merely replayed (`applied: bool`), and the embedded node already relied on that distinction to suppress duplicate conversation side effects, but external callers still could not prove whether a retry actually mutated state
+  - request-key derivation is intentionally stable per RTC mutation slot:
+    - create requests are scoped by tenant + principal + session id
+    - invite / accept / reject / end requests are scoped by tenant + action + session id
+  - duplicate RTC session create and duplicate RTC lifecycle writes now surface deterministic `replayed` delivery proofs instead of forcing operators to infer idempotency from the returned `state` field alone
+- Added regression evidence in this loop:
+  - `services/rtc-signaling-service/tests/http_smoke_test.rs`:
+    - `test_duplicate_rtc_session_create_is_idempotent_and_conflicting_retry_is_rejected`
+    - `test_rtc_session_updates_are_idempotent_and_conflicting_state_transitions_are_rejected`
+  - `services/local-minimal-node/tests/http_e2e_test.rs`:
+    - `test_local_minimal_profile_treats_duplicate_rtc_session_create_as_idempotent`
+    - `test_local_minimal_profile_suppresses_duplicate_rtc_state_side_effects`
+- Commercial gate evidence in this loop:
+  - `cargo test -p rtc-signaling-service --test http_smoke_test test_duplicate_rtc_session_create_is_idempotent_and_conflicting_retry_is_rejected -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_treats_duplicate_rtc_session_create_as_idempotent -- --exact`
+  - `cargo test -p rtc-signaling-service --tests`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_suppresses_duplicate_rtc_state_side_effects -- --exact`
+  - `cargo test -p local-minimal-node --test rtc_runtime_persistence_test test_default_local_minimal_profile_restores_rtc_runtime_state_after_rebuild -- --exact`
+  - `cargo clippy --no-deps -p rtc-signaling-service -p local-minimal-node --tests -- -D warnings`
+- Remaining S07 gap after Loop142:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `deterministic failed-state replay and commit-fence governance still needs propagation to additional non-shared-sync consumer categories beyond automation+notification+rtc session mutation paths`
+## Loop 143 Addendum - 2026-04-12
+- Closed an embedded streaming exactly-once fanout gap in `local-minimal-node` stream append side effects:
+  - `streaming-service` already treated same-payload same-seq append retries as idempotent by returning the previously persisted frame
+  - but embedded `local-minimal-node` still unconditionally emitted `stream.frame.appended` realtime fanout after every append call, so a duplicated retry produced two downstream realtime events for the same persisted frame
+  - `StreamingRuntime` now exposes an internal append outcome that carries whether the frame was newly applied vs replayed
+  - embedded `local-minimal-node` stream and IoT stream-ingress paths now only publish realtime stream-frame side effects when the append was newly applied
+  - this closes a real `S07` seam on the embedded deployment shape: duplicate append retries no longer amplify into duplicate realtime fanout while preserving the normal first-delivery path
+- Added regression evidence in this loop:
+  - `services/local-minimal-node/tests/http_e2e_test.rs`:
+    - `test_local_minimal_profile_does_not_refanout_duplicate_stream_frame_retry`
+    - `test_local_minimal_profile_fanouts_conversation_stream_frames_to_other_member_subscribers`
+  - `services/streaming-service/tests/stream_lifecycle_test.rs`:
+    - `test_stream_append_enforces_ordering_and_idempotent_retry_rules`
+  - `services/local-minimal-node/tests/iot_protocol_adapter_mainline_test.rs`:
+    - `test_local_minimal_profile_iot_protocol_uplink_enters_device_telemetry_mainline`
+    - `test_local_minimal_profile_iot_protocol_downlink_enters_device_command_mainline`
+- Commercial gate evidence in this loop:
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_does_not_refanout_duplicate_stream_frame_retry -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_fanouts_conversation_stream_frames_to_other_member_subscribers -- --exact`
+  - `cargo test -p streaming-service --test stream_lifecycle_test test_stream_append_enforces_ordering_and_idempotent_retry_rules -- --exact`
+  - `cargo test -p streaming-service --tests`
+  - `cargo test -p local-minimal-node --test iot_protocol_adapter_mainline_test test_local_minimal_profile_iot_protocol_uplink_enters_device_telemetry_mainline -- --exact`
+  - `cargo test -p local-minimal-node --test iot_protocol_adapter_mainline_test test_local_minimal_profile_iot_protocol_downlink_enters_device_command_mainline -- --exact`
+  - `cargo clippy --no-deps -p streaming-service -p local-minimal-node --tests -- -D warnings`
+- Remaining S07 gap after Loop143:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `formal cross-service idempotency governance and deterministic replay still needs propagation beyond automation+notification+rtc session mutation, including additional streaming/media and other non-shared-sync consumer categories`
+## Loop 144 Addendum - 2026-04-12
+- Closed a real media idempotency seam in `media-service` upload completion retries:
+  - `complete_upload(...)` previously re-entered object-storage provider calls even when the asset had already reached `Ready`
+  - the old flow called `put_object(...)` and regenerated `signed_download_url(...)` before checking whether a retry matched the committed asset
+  - when a provider emits time-varying signed URLs, an idempotent retry could therefore fail with `409 media_asset_conflict` even though the bucket/object/checksum intent was identical
+  - the same bug also risked duplicate provider-side side effects on retry because the second request still re-hit provider write/sign surfaces
+  - the runtime now fences idempotent completion retries before any provider call once the asset is already `Ready`, comparing retry intent against the committed asset's canonical storage tuple (`bucket/objectKey/storageProvider/checksum`) and returning the existing asset unchanged
+  - this closes a concrete `S07` class gap on the media write path: same-input retry no longer depends on deterministic presigned URL generation and no longer re-invokes downstream provider surfaces after commit
+- Added regression evidence in this loop:
+  - `services/media-service/tests/provider_integration_test.rs`:
+    - `test_duplicate_complete_upload_retry_uses_existing_asset_without_reinvoking_provider`
+- Commercial gate evidence in this loop:
+  - `cargo test -p media-service --test provider_integration_test test_duplicate_complete_upload_retry_uses_existing_asset_without_reinvoking_provider -- --exact`
+  - `cargo test -p media-service --tests`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_runs_end_to_end_flow -- --exact`
+  - `cargo clippy --no-deps -p media-service -p local-minimal-node --tests -- -D warnings`
+- Remaining S07 gap after Loop144:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `formal cross-service idempotency governance and deterministic replay still needs propagation beyond automation+notification+rtc session mutation, including explicit media/streaming delivery-proof contracts and other non-shared-sync consumer categories`
+## Loop 145 Addendum - 2026-04-12
+- Extended explicit delivery-proof semantics to `media-service` write surfaces and embedded `local-minimal-node` media routes:
+  - standalone media write routes now return the committed asset together with explicit replay-proof metadata:
+    - `POST /api/v1/media/uploads`
+    - `POST /api/v1/media/uploads/{media_asset_id}/complete`
+  - embedded `local-minimal-node` media write routes now preserve the same response contract instead of returning only flattened asset state
+  - new response contract is intentionally aligned with other hardened non-shared-sync seams:
+    - `requestKey`
+    - `deliveryStatus = applied | replayed`
+    - `proofVersion = media.upload.delivery-proof.v1`
+  - create and complete request keys are now deterministic per principal-scoped media mutation slot (`tenant + principal_kind + principal_id + action + media_asset_id`)
+  - this closes a real supportability seam where media create/complete already behaved idempotently on safe retries, but callers and operators still could not prove whether a given write actually mutated state or merely replayed a previously committed asset
+  - together with Loop144, the media path now has both retry-safe downstream fencing and an explicit caller-visible delivery-proof contract
+- Added regression evidence in this loop:
+  - `services/media-service/tests/media_asset_test.rs`:
+    - `test_duplicate_media_upload_requests_expose_delivery_proof_over_http`
+  - `services/local-minimal-node/tests/http_e2e_test.rs`:
+    - `test_local_minimal_profile_treats_duplicate_media_upload_requests_as_idempotent`
+- Commercial gate evidence in this loop:
+  - `cargo test -p media-service --test media_asset_test test_duplicate_media_upload_requests_expose_delivery_proof_over_http -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_treats_duplicate_media_upload_requests_as_idempotent -- --exact`
+  - `cargo test -p media-service --tests`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_runs_end_to_end_flow -- --exact`
+  - `cargo clippy --no-deps -p media-service -p local-minimal-node --tests -- -D warnings`
+- Remaining S07 gap after Loop145:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `formal cross-service idempotency governance and deterministic replay still needs propagation beyond automation+notification+rtc session mutation+media upload, especially across additional streaming and other non-shared-sync consumer categories`
+## Loop 146 Addendum - 2026-04-12
+- Hardened `streaming-service` open/complete write semantics and embedded `local-minimal-node` completion fanout behavior:
+  - standalone stream open and stream complete routes now return explicit delivery-proof metadata together with flattened session state:
+    - `POST /api/v1/streams`
+    - `POST /api/v1/streams/{stream_id}/complete`
+  - embedded `local-minimal-node` stream open and complete routes now preserve the same contract:
+    - `requestKey`
+    - `deliveryStatus = applied | replayed`
+    - `proofVersion = stream.session.delivery-proof.v1`
+  - duplicate `complete` retries are no longer treated as generic `stream_state_invalid` once the first close has already committed; same-input retry now deterministically returns the committed completed session as `replayed`
+  - conflicting close retries after commit now fail as `409 stream_conflict` instead of being indistinguishable from a safe retry
+  - embedded `local-minimal-node` now suppresses duplicate `stream.completed` realtime lifecycle fanout on idempotent retry by publishing lifecycle events only when the completion mutation was newly applied
+  - this closes a concrete commercial reliability seam where a network-lost response after stream completion could cause clients to retry into an error path, while downstream subscribers could also be exposed to duplicate completion lifecycle events if retries were later made replay-safe
+- Added regression evidence in this loop:
+  - `services/streaming-service/tests/stream_lifecycle_test.rs`:
+    - `test_duplicate_open_stream_is_idempotent_and_conflicting_retry_is_rejected`
+    - `test_duplicate_complete_stream_request_is_idempotent_and_conflicting_retry_is_rejected`
+  - `services/local-minimal-node/tests/http_e2e_test.rs`:
+    - `test_local_minimal_profile_treats_duplicate_open_stream_as_idempotent`
+    - `test_local_minimal_profile_does_not_refanout_duplicate_stream_complete_retry`
+    - existing normal-path completion fanout regression still passes
+- Commercial gate evidence in this loop:
+  - `cargo test -p streaming-service --test stream_lifecycle_test test_duplicate_open_stream_is_idempotent_and_conflicting_retry_is_rejected -- --exact`
+  - `cargo test -p streaming-service --test stream_lifecycle_test test_duplicate_complete_stream_request_is_idempotent_and_conflicting_retry_is_rejected -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_does_not_refanout_duplicate_stream_complete_retry -- --exact`
+  - `cargo test -p streaming-service --tests`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_treats_duplicate_open_stream_as_idempotent -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_fanouts_conversation_stream_completion_to_other_member_subscribers -- --exact`
+  - `cargo clippy --no-deps -p streaming-service -p local-minimal-node --tests -- -D warnings`
+- Remaining S07 gap after Loop146:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `formal cross-service idempotency governance and deterministic replay still needs propagation beyond automation+notification+rtc session mutation+media upload, including remaining streaming checkpoint/abort/public-append proof surfaces and other non-shared-sync consumer categories`
+
+### Loop147 Addendum - stream append delivery-proof contract
+
+- Extended explicit delivery-proof semantics to streaming append write surfaces in both standalone `streaming-service` and embedded `local-minimal-node` routes:
+  - `POST /api/v1/streams/{stream_id}/frames` now returns explicit append delivery-proof metadata while preserving the flattened frame payload:
+    - `requestKey = tenant:principalKind:principalId:append:streamId:frameSeq`
+    - `deliveryStatus = applied | replayed`
+    - `proofVersion = stream.frame.delivery-proof.v1`
+  - the contract is produced from the existing append outcome so same-input append retries are now caller-visible as `replayed` instead of being distinguishable only indirectly via state observation
+  - embedded `local-minimal-node` append route now preserves the same proof envelope and continues suppressing duplicate `stream.frame.appended` fanout by publishing only when the append mutation was newly applied
+- Added regression evidence in this loop:
+  - `services/streaming-service/tests/stream_lifecycle_test.rs`:
+    - `test_stream_append_enforces_ordering_and_idempotent_retry_rules`
+  - `services/local-minimal-node/tests/http_e2e_test.rs`:
+    - `test_local_minimal_profile_does_not_refanout_duplicate_stream_frame_retry`
+- Commercial gate evidence in this loop:
+  - `cargo test -p streaming-service --test stream_lifecycle_test test_stream_append_enforces_ordering_and_idempotent_retry_rules -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_does_not_refanout_duplicate_stream_frame_retry -- --exact`
+  - `cargo test -p streaming-service --tests`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_treats_duplicate_open_stream_as_idempotent -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_does_not_refanout_duplicate_stream_complete_retry -- --exact`
+  - `cargo clippy --no-deps -p streaming-service -p local-minimal-node --tests -- -D warnings`
+
+### Loop148 Addendum - stream abort replay-proof closure and duplicate fanout suppression
+
+- Closed a commercial replay seam on stream abort write paths by making abort closure state caller-visible and replay-deterministic:
+  - standalone `POST /api/v1/streams/{stream_id}/abort` and embedded `local-minimal-node` abort route now return the same explicit `StreamSessionMutationResponse` proof envelope used by other stream session writes:
+    - `requestKey = tenant:principalKind:principalId:abort:streamId`
+    - `deliveryStatus = applied | replayed`
+    - `proofVersion = stream.session.delivery-proof.v1`
+  - `StreamSession` now persists `abortFrameSeq` and `abortReason`, allowing abort retries to be matched against the committed close tuple after restart/store restore instead of losing the original reason once the first response is dropped
+  - same-input abort retries now deterministically return the committed aborted session as `replayed`
+  - conflicting abort retries after commit now fail as `409 stream_conflict` instead of collapsing into a generic `stream_state_invalid`
+  - embedded `local-minimal-node` now suppresses duplicate `stream.aborted` realtime lifecycle fanout on idempotent retry by publishing lifecycle events only when the abort mutation was newly applied
+- Added regression evidence in this loop:
+  - `services/streaming-service/tests/stream_lifecycle_test.rs`:
+    - `test_duplicate_abort_stream_request_is_idempotent_and_conflicting_retry_is_rejected`
+  - `services/local-minimal-node/tests/http_e2e_test.rs`:
+    - `test_local_minimal_profile_does_not_refanout_duplicate_stream_abort_retry`
+    - existing `test_local_minimal_profile_fanouts_conversation_stream_abort_to_other_member_subscribers` remains valid for the primary fanout path
+- Commercial gate evidence in this loop:
+  - `cargo test -p streaming-service --test stream_lifecycle_test test_duplicate_abort_stream_request_is_idempotent_and_conflicting_retry_is_rejected -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_does_not_refanout_duplicate_stream_abort_retry -- --exact`
+  - `cargo test -p streaming-service --tests`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_fanouts_conversation_stream_abort_to_other_member_subscribers -- --exact`
+  - `cargo test -p im-domain-core --tests`
+  - `cargo test -p im-adapters-local-disk --tests`
+  - `cargo clippy --no-deps -p streaming-service -p local-minimal-node -p im-domain-core -p im-adapters-local-disk -p automation-service --tests -- -D warnings`
+- Remaining S07 gap after Loop148:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `formal cross-service idempotency governance and deterministic replay still needs propagation beyond automation+notification+rtc session mutation+media upload+stream open/append/complete/abort, including remaining streaming checkpoint proof surfaces and other non-shared-sync consumer categories`
+
+### Loop149 Addendum - stream checkpoint delivery-proof and close-safe replay semantics
+
+- Extended explicit delivery-proof semantics to streaming checkpoint write surfaces in both standalone `streaming-service` and embedded `local-minimal-node` routes:
+  - `POST /api/v1/streams/{stream_id}/checkpoint` now returns explicit `StreamSessionMutationResponse` proof metadata instead of a bare session:
+    - `requestKey = tenant:principalKind:principalId:checkpoint:streamId:frameSeq`
+    - `deliveryStatus = applied | replayed`
+    - `proofVersion = stream.session.delivery-proof.v1`
+  - same-input checkpoint retries are now caller-visible as `replayed` instead of collapsing into state inspection only
+- Closed the checkpoint replay-loss seam introduced by stream close mutations:
+  - `complete` and `abort` no longer overwrite the session's checkpoint fence, so a committed checkpoint can still be recognized after the stream is later completed or aborted
+  - `complete` now persists its own `completeFrameSeq` marker so complete retries remain deterministic without needing to repurpose `lastCheckpointSeq`
+  - this keeps `lastCheckpointSeq` aligned with actual checkpoint history instead of mixing checkpoint and close semantics into a single mutable field
+- Tightened checkpoint mutation governance:
+  - duplicate checkpoint requests replay deterministically even after a later stream close
+  - regressive checkpoint attempts against an already-advanced checkpoint fence now fail as `409 stream_conflict` instead of silently moving the checkpoint backwards
+  - embedded `local-minimal-node` exposes the same proof envelope for checkpoint writes; no lifecycle fanout path was added because checkpoint remains a local session mutation without realtime lifecycle broadcast in the current architecture
+- Added regression evidence in this loop:
+  - `services/streaming-service/tests/stream_lifecycle_test.rs`:
+    - `test_duplicate_checkpoint_stream_request_replays_after_stream_completes`
+  - `services/local-minimal-node/tests/http_e2e_test.rs`:
+    - `test_local_minimal_profile_replays_duplicate_checkpoint_retry_after_complete`
+    - existing `test_local_minimal_profile_does_not_refanout_duplicate_stream_complete_retry` remains green, covering the complete-path replay contract after the checkpoint fence refactor
+- Commercial gate evidence in this loop:
+  - `cargo test -p streaming-service --test stream_lifecycle_test test_duplicate_checkpoint_stream_request_replays_after_stream_completes -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_replays_duplicate_checkpoint_retry_after_complete -- --exact`
+  - `cargo test -p streaming-service --tests`
+  - `cargo test -p im-domain-core --tests`
+  - `cargo test -p im-adapters-local-disk --tests`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_runs_end_to_end_flow -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_does_not_refanout_duplicate_stream_complete_retry -- --exact`
+  - `cargo test -p automation-service --tests`
+  - `cargo clippy --no-deps -p streaming-service -p local-minimal-node -p im-domain-core -p im-adapters-local-disk -p automation-service --tests -- -D warnings`
+- Remaining S07 gap after Loop149:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `formal cross-service idempotency governance and deterministic replay still needs propagation beyond automation+notification+rtc session mutation+media upload+stream open/append/checkpoint/complete/abort, including other non-shared-sync consumer categories and higher-level cross-service policy unification`
+
+### Loop150 Addendum - audit anchor delivery-proof and same-runtime replay fence
+
+- Extended explicit delivery-proof semantics to `audit-service` record anchoring and the embedded `local-minimal-node` audit route:
+  - standalone `POST /api/v1/audit/records` and embedded local route now return explicit proof metadata alongside flattened audit record fields:
+    - `requestKey = tenant:audit-record:recordId`
+    - `deliveryStatus = applied | replayed`
+    - `proofVersion = audit.record.delivery-proof.v1`
+  - duplicate same-input record anchor retries now return the originally committed audit record as `replayed`
+  - conflicting retries that reuse the same `recordId` with different aggregate/action/actor/session/payload tuples now fail as `409 audit_record_conflict`
+- Closed a concrete audit-chain corruption seam in the current runtime:
+  - before this loop, a lost response followed by retry would append a second audit record with a new timestamp and new chain hash, inflating the chain and changing the chain head for what should have been one logical record anchor
+  - the runtime now fences `recordId` within the tenant and reuses the committed record on replay, preventing duplicate chain growth inside a running service instance
+  - embedded automation/notification/platform audit helper callsites were updated to tolerate the new `Result` contract without dropping build hygiene
+- Added regression evidence in this loop:
+  - `services/audit-service/tests/http_smoke_test.rs`:
+    - `test_duplicate_record_anchor_request_is_idempotent_and_conflicting_retry_is_rejected`
+  - `services/local-minimal-node/tests/http_e2e_test.rs`:
+    - `test_local_minimal_profile_treats_duplicate_audit_anchor_as_idempotent`
+- Commercial gate evidence in this loop:
+  - `cargo test -p audit-service --test http_smoke_test test_duplicate_record_anchor_request_is_idempotent_and_conflicting_retry_is_rejected -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_treats_duplicate_audit_anchor_as_idempotent -- --exact`
+  - `cargo test -p audit-service --tests`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_runs_end_to_end_flow -- --exact`
+  - `cargo clippy --no-deps -p audit-service -p local-minimal-node --tests -- -D warnings`
+  - `cargo test -p control-plane-api --test provider_status_contract_test --no-run`
+- Remaining S07 gap after Loop150:
+  - `release-ready exactly-once semantics across downstream fanout boundaries`
+  - `audit-service` record replay is now deterministic within a running instance, but audit storage is still in-memory only, so restart-safe replay/governance for audit anchors remains an explicit commercial hardening gap
+  - `formal cross-service idempotency governance and deterministic replay still needs higher-level policy unification across the remaining non-shared-sync categories`
+
+### Loop151 Addendum - conversation message post delivery-proof and replay-safe embedded fanout
+
+- Extended explicit delivery-proof semantics to conversation message post write surfaces in both standalone `conversation-runtime` and embedded `local-minimal-node` routes:
+  - `POST /api/v1/conversations/{conversation_id}/messages` and the dedicated system-channel publish path now return explicit message mutation proof metadata in addition to the existing message identifiers:
+    - `requestKey = tenant:principalKind:principalId:message:conversationId:clientMsgId` when `clientMsgId` is supplied
+    - `deliveryStatus = applied | replayed`
+    - `proofVersion = conversation.message.delivery-proof.v1`
+  - duplicate same-input retries keyed by the same actor/conversation/`clientMsgId` now deterministically return the originally committed `messageId/messageSeq/eventId` as `replayed`
+  - conflicting retries that reuse the same logical post key with different body or message type now fail as `409 conversation_conflict` instead of silently appending a second logical duplicate message
+- Closed a concrete replay and downstream-fanout seam on the embedded message path:
+  - before this loop, `clientMsgId` was only copied into the journal envelope, not enforced as a runtime replay fence, so a lost response followed by retry would append `msg_*_2`, increment the conversation high watermark, and re-trigger downstream side effects
+  - `conversation-runtime` now keeps a replay fence for posted messages and rebuilds it during journal recovery from `message.posted` envelopes, so rebuilt runtimes preserve the same idempotent retry semantics for keyed message posts
+  - embedded `local-minimal-node` now executes notification fanout, audit anchoring, and realtime `message.posted` publication only when the message mutation was newly `applied`; idempotent retries no longer emit duplicate downstream effects
+- Added regression evidence in this loop:
+  - `services/conversation-runtime/tests/conversation_flow_test.rs`:
+    - `test_duplicate_post_message_is_idempotent_and_conflicting_retry_is_rejected`
+  - `services/conversation-runtime/tests/http_smoke_test.rs`:
+    - `test_duplicate_post_message_request_is_idempotent_and_conflicting_retry_is_rejected_over_http`
+  - `services/local-minimal-node/tests/http_e2e_test.rs`:
+    - `test_local_minimal_profile_does_not_refanout_duplicate_message_post_retry`
+    - existing `test_local_minimal_profile_delivers_realtime_events_to_subscribed_device_window` remains green for the primary `applied` fanout path
+- Commercial gate evidence in this loop:
+  - `cargo test -p conversation-runtime --test conversation_flow_test test_duplicate_post_message_is_idempotent_and_conflicting_retry_is_rejected -- --exact`
+  - `cargo test -p conversation-runtime --test http_smoke_test test_duplicate_post_message_request_is_idempotent_and_conflicting_retry_is_rejected_over_http -- --exact`
+  - `cargo test -p conversation-runtime --tests`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_does_not_refanout_duplicate_message_post_retry -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_runs_end_to_end_flow -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_delivers_realtime_events_to_subscribed_device_window -- --exact`
+  - `cargo clippy --no-deps -p conversation-runtime -p local-minimal-node --tests -- -D warnings`
+- Remaining S07 gap after Loop151:
+  - `release-ready exactly-once semantics across downstream fanout boundaries` still need broader cross-service policy unification beyond the now-hardened message/stream/audit seams
+  - keyed message-post replay is now deterministic when `clientMsgId` is present, but unkeyed message posts still intentionally behave as ordinary non-idempotent writes
+
+### Loop152 Addendum - generic conversation create delivery-proof and replay-safe policy reconciliation
+
+- Extended explicit delivery-proof semantics to the generic conversation creation surface in both standalone `conversation-runtime` and embedded `local-minimal-node` routes:
+  - `POST /api/v1/conversations` now returns explicit create proof metadata in addition to the created conversation identifiers:
+    - `requestKey = tenant:creatorKind:creatorId:create-conversation:conversationId`
+    - `deliveryStatus = applied | replayed`
+    - `proofVersion = conversation.create.delivery-proof.v1`
+  - duplicate same-input generic create retries for supported generic types now deterministically return the originally committed `conversationId/eventId` as `replayed`
+  - conflicting retries that reuse the same `conversationId` with a different generic definition now fail as `409 conversation_conflict` instead of collapsing into `conversation_exists`
+- Closed a partial-failure seam on the standalone generic create + policy path:
+  - when a create request is newly applied, optional policy attachment still executes as before
+  - when a create request is replayed after a lost response, the HTTP surface now reconciles policy safely:
+    - same existing policy => replay succeeds unchanged
+    - no existing policy => the route applies the requested policy now, healing a previous create-applied/policy-lost partial failure
+    - different existing policy => `409 conversation_conflict`
+- Hardened recovery semantics for generic creates:
+  - `conversation-runtime` now persists a generic create replay fence in runtime state and rebuilds it during journal recovery from recovered generic `conversation.created` events for `group` and `direct` conversations
+  - embedded `local-minimal-node` exposes the same caller-visible replay proof on the generic create route because it forwards the runtime `CreateConversationResult` contract unchanged
+- Added regression evidence in this loop:
+  - `services/conversation-runtime/tests/conversation_flow_test.rs`:
+    - `test_duplicate_create_conversation_is_idempotent_and_conflicting_retry_is_rejected`
+  - `services/conversation-runtime/tests/http_smoke_test.rs`:
+    - `test_duplicate_create_conversation_request_is_idempotent_and_conflicting_retry_is_rejected_over_http`
+  - `services/local-minimal-node/tests/http_e2e_test.rs`:
+    - `test_local_minimal_profile_treats_duplicate_create_conversation_as_idempotent`
+- Commercial gate evidence in this loop:
+  - `cargo test -p conversation-runtime --test conversation_flow_test test_duplicate_create_conversation_is_idempotent_and_conflicting_retry_is_rejected -- --exact`
+  - `cargo test -p conversation-runtime --test http_smoke_test test_duplicate_create_conversation_request_is_idempotent_and_conflicting_retry_is_rejected_over_http -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_treats_duplicate_create_conversation_as_idempotent -- --exact`
+  - `cargo test -p conversation-runtime --tests`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_runs_end_to_end_flow -- --exact`
+  - `cargo clippy --no-deps -p conversation-runtime -p local-minimal-node --tests -- -D warnings`
+- Remaining S07 gap after Loop152:
+  - `release-ready exactly-once semantics across downstream fanout boundaries` still need broader cross-service policy unification beyond the now-hardened generic create/message/stream/audit seams
+  - special conversation creation paths still lacked the same explicit replay-proof contract at this point, especially `agent_dialog`, `agent_handoff`, `system_channel`, and `thread`
+
+### Loop153 Addendum - agent dialog create delivery-proof and recovery-safe replay fence
+
+- Extended explicit delivery-proof semantics to agent dialog creation in both standalone `conversation-runtime` and embedded `local-minimal-node` routes:
+  - `POST /api/v1/conversations/agent-dialogs` now returns explicit create proof metadata in addition to the created conversation identifiers:
+    - `requestKey = tenant:requesterKind:requesterId:create-agent-dialog:conversationId`
+    - `deliveryStatus = applied | replayed`
+    - `proofVersion = conversation.create.delivery-proof.v1`
+  - duplicate same-input agent dialog retries keyed by the same requester and `conversationId` now deterministically return the originally committed `conversationId/eventId` as `replayed`
+  - conflicting retries that reuse the same `conversationId` with a different `agentId` now fail as `409 conversation_conflict`
+- Closed the recovery seam on agent dialog creation:
+  - before this loop, agent dialog creation returned a plain `CreateConversationResult::new(...)` and recovery had no dedicated replay fence, so a lost response followed by retry after runtime rebuild collapsed into ordinary conflict handling
+  - `conversation-runtime` now keeps an agent-dialog create replay fence in runtime state and rebuilds it from the enriched `conversation.created` payload plus the recovered actor envelope, preserving deterministic replay after journal reconstruction
+  - embedded `local-minimal-node` exposes the same replay-proof contract because its create route forwards the runtime result directly; no duplicate downstream fanout suppression was needed in this loop because agent dialog creation itself has no extra embedded side-effect fanout path
+- Added regression evidence in this loop:
+  - `services/conversation-runtime/tests/conversation_flow_test.rs`:
+    - `test_duplicate_create_agent_dialog_is_idempotent_and_conflicting_retry_is_rejected`
+  - `services/conversation-runtime/tests/http_smoke_test.rs`:
+    - `test_duplicate_create_agent_dialog_request_is_idempotent_and_conflicting_retry_is_rejected_over_http`
+  - `services/local-minimal-node/tests/http_e2e_test.rs`:
+    - `test_local_minimal_profile_treats_duplicate_agent_dialog_create_as_idempotent`
+- Commercial gate evidence in this loop:
+  - `cargo test -p conversation-runtime --test conversation_flow_test test_duplicate_create_agent_dialog_is_idempotent_and_conflicting_retry_is_rejected -- --exact`
+  - `cargo test -p conversation-runtime --test http_smoke_test test_duplicate_create_agent_dialog_request_is_idempotent_and_conflicting_retry_is_rejected_over_http -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_treats_duplicate_agent_dialog_create_as_idempotent -- --exact`
+  - `cargo test -p conversation-runtime --tests`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_runs_end_to_end_flow -- --exact`
+  - `cargo clippy --no-deps -p conversation-runtime -p local-minimal-node --tests -- -D warnings`
+- Remaining S07 gap after Loop153:
+  - `release-ready exactly-once semantics across downstream fanout boundaries` still need broader cross-service policy unification beyond the now-hardened create/message/stream/audit seams
+  - special create paths `system_channel`, `agent_handoff`, and `thread` still do not expose the same caller-visible replay-proof contract and remain the next bounded conversation-runtime hardening seams
+
+### Loop154 Addendum - system channel create delivery-proof and recovery-safe replay fence
+
+- Extended explicit delivery-proof semantics to system channel creation in both standalone `conversation-runtime` and embedded `local-minimal-node` routes:
+  - `POST /api/v1/conversations/system-channels` now returns explicit create proof metadata in addition to the created conversation identifiers:
+    - `requestKey = tenant:requesterKind:requesterId:create-system-channel:conversationId`
+    - `deliveryStatus = applied | replayed`
+    - `proofVersion = conversation.create.delivery-proof.v1`
+  - duplicate same-input system channel retries keyed by the same requester and `conversationId` now deterministically return the originally committed `conversationId/eventId` as `replayed`
+  - conflicting retries that reuse the same `conversationId` with a different `subscriberId` now fail as `409 conversation_conflict`
+- Closed the recovery seam on system channel creation:
+  - before this loop, system channel creation returned a plain `CreateConversationResult::new(...)` and recovery had no dedicated replay fence, so lost-response retries after runtime rebuild collapsed into ordinary conflict handling
+  - `conversation-runtime` now keeps a system-channel create replay fence in runtime state and rebuilds it from the enriched `conversation.created` payload plus the recovered actor envelope, preserving deterministic replay after journal reconstruction
+  - embedded `local-minimal-node` exposes the same replay-proof contract because its create route forwards the runtime result directly; no additional duplicate fanout suppression was needed in this loop because system channel creation itself does not emit extra embedded side effects
+- Added regression evidence in this loop:
+  - `services/conversation-runtime/tests/conversation_flow_test.rs`:
+    - `test_duplicate_create_system_channel_is_idempotent_and_conflicting_retry_is_rejected`
+  - `services/conversation-runtime/tests/http_smoke_test.rs`:
+    - `test_duplicate_create_system_channel_request_is_idempotent_and_conflicting_retry_is_rejected_over_http`
+  - `services/local-minimal-node/tests/http_e2e_test.rs`:
+    - `test_local_minimal_profile_treats_duplicate_system_channel_create_as_idempotent`
+- Commercial gate evidence in this loop:
+  - `cargo test -p conversation-runtime --test conversation_flow_test test_duplicate_create_system_channel_is_idempotent_and_conflicting_retry_is_rejected -- --exact`
+  - `cargo test -p conversation-runtime --test http_smoke_test test_duplicate_create_system_channel_request_is_idempotent_and_conflicting_retry_is_rejected_over_http -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_treats_duplicate_system_channel_create_as_idempotent -- --exact`
+  - `cargo test -p conversation-runtime --tests`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_runs_end_to_end_flow -- --exact`
+  - `cargo clippy --no-deps -p conversation-runtime -p local-minimal-node --tests -- -D warnings`
+- Remaining S07 gap after Loop154:
+  - `release-ready exactly-once semantics across downstream fanout boundaries` still need broader cross-service policy unification beyond the now-hardened create/message/stream/audit seams
+  - special create paths `agent_handoff` and `thread` still do not expose the same caller-visible replay-proof contract and remain the next bounded conversation-runtime hardening seams
+
+### Loop155 Addendum - agent handoff create delivery-proof and recovery-safe replay fence
+
+- Extended explicit delivery-proof semantics to agent handoff creation in both standalone `conversation-runtime` and embedded `local-minimal-node` routes:
+  - `POST /api/v1/conversations/agent-handoffs` now returns explicit create proof metadata in addition to the created conversation identifiers:
+    - `requestKey = tenant:sourceKind:sourceId:create-agent-handoff:conversationId`
+    - `deliveryStatus = applied | replayed`
+    - `proofVersion = conversation.create.delivery-proof.v1`
+  - duplicate same-input agent handoff retries keyed by the same source actor and `conversationId` now deterministically return the originally committed `conversationId/eventId` as `replayed`
+  - conflicting retries that reuse the same `conversationId` with a different handoff target tuple now fail as `409 conversation_conflict`
+- Closed the recovery seam on agent handoff creation:
+  - before this loop, agent handoff creation returned a plain `CreateConversationResult::new(...)` and recovery had no dedicated replay fence, so lost-response retries after runtime rebuild collapsed into ordinary conflict handling
+  - `conversation-runtime` now keeps an agent-handoff create replay fence in runtime state and rebuilds it from the existing recovered `source/target/handoff` tuple in `conversation.created`, preserving deterministic replay after journal reconstruction
+  - embedded `local-minimal-node` exposes the same replay-proof contract because its create route forwards the runtime result directly; no extra duplicate side-effect suppression was required in this loop because creation itself does not publish separate embedded fanout mutations
+- Added regression evidence in this loop:
+  - `services/conversation-runtime/tests/conversation_flow_test.rs`:
+    - `test_duplicate_create_agent_handoff_is_idempotent_and_conflicting_retry_is_rejected`
+  - `services/conversation-runtime/tests/http_smoke_test.rs`:
+    - `test_duplicate_create_agent_handoff_request_is_idempotent_and_conflicting_retry_is_rejected_over_http`
+  - `services/local-minimal-node/tests/http_e2e_test.rs`:
+    - `test_local_minimal_profile_treats_duplicate_agent_handoff_create_as_idempotent`
+- Commercial gate evidence in this loop:
+  - `cargo test -p conversation-runtime --test conversation_flow_test test_duplicate_create_agent_handoff_is_idempotent_and_conflicting_retry_is_rejected -- --exact`
+  - `cargo test -p conversation-runtime --test http_smoke_test test_duplicate_create_agent_handoff_request_is_idempotent_and_conflicting_retry_is_rejected_over_http -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_treats_duplicate_agent_handoff_create_as_idempotent -- --exact`
+  - `cargo test -p conversation-runtime --tests`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_runs_end_to_end_flow -- --exact`
+  - `cargo clippy --no-deps -p conversation-runtime -p local-minimal-node --tests -- -D warnings`
+- Remaining S07 gap after Loop155:
+  - `release-ready exactly-once semantics across downstream fanout boundaries` still need broader cross-service policy unification beyond the now-hardened create/message/stream/audit seams
+  - special create path `thread` still does not expose the same caller-visible replay-proof contract and remains the next bounded conversation-runtime hardening seam
+
+### Loop156 Addendum - thread create delivery-proof and recovery-safe replay fence
+
+- Extended explicit delivery-proof semantics to thread creation in both standalone `conversation-runtime` and embedded `local-minimal-node` routes:
+  - `POST /api/v1/conversations/threads` now returns explicit create proof metadata in addition to the created conversation identifiers:
+    - `requestKey = tenant:creatorKind:creatorId:create-thread:conversationId`
+    - `deliveryStatus = applied | replayed`
+    - `proofVersion = conversation.create.delivery-proof.v1`
+  - duplicate same-input thread create retries keyed by the same creator actor and `conversationId` now deterministically return the originally committed `conversationId/eventId` as `replayed`
+  - conflicting retries that reuse the same `conversationId` with a different `parentConversationId` or `rootMessageId` now fail as `409 conversation_conflict`
+- Closed the recovery seam on thread creation:
+  - before this loop, thread creation still returned a plain `CreateConversationResult::new(...)` and recovery had no dedicated replay fence, so lost-response retries after runtime rebuild collapsed into ordinary conflict handling
+  - `conversation-runtime` now keeps a thread-create replay fence in runtime state and rebuilds it from the recovered `conversation.created` payload plus actor envelope, using the committed `parentConversationId` and `rootMessageId` tuple to preserve deterministic replay after journal reconstruction
+  - embedded `local-minimal-node` now exposes the same replay-proof contract on `/api/v1/conversations/threads`; this route was added for parity because the minimal profile previously lacked a dedicated thread-create HTTP surface
+- Added regression evidence in this loop:
+  - `services/conversation-runtime/tests/conversation_flow_test.rs`:
+    - `test_duplicate_create_thread_conversation_is_idempotent_and_conflicting_retry_is_rejected`
+  - `services/conversation-runtime/tests/http_smoke_test.rs`:
+    - `test_duplicate_create_thread_conversation_request_is_idempotent_and_conflicting_retry_is_rejected_over_http`
+  - `services/local-minimal-node/tests/http_e2e_test.rs`:
+    - `test_local_minimal_profile_treats_duplicate_thread_create_as_idempotent`
+- Commercial gate evidence in this loop:
+  - `cargo test -p conversation-runtime --test conversation_flow_test test_duplicate_create_thread_conversation_is_idempotent_and_conflicting_retry_is_rejected -- --exact`
+  - `cargo test -p conversation-runtime --test http_smoke_test test_duplicate_create_thread_conversation_request_is_idempotent_and_conflicting_retry_is_rejected_over_http -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_treats_duplicate_thread_create_as_idempotent -- --exact`
+  - `cargo test -p conversation-runtime --tests`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_runs_end_to_end_flow -- --exact`
+  - `cargo clippy --no-deps -p conversation-runtime -p local-minimal-node --tests -- -D warnings`
+- Remaining S07 gap after Loop156:
+  - `release-ready exactly-once semantics across downstream fanout boundaries` still need broader cross-service policy unification beyond the now-hardened create/message/stream/audit seams
+  - conversation create entry points are now caller-visible replay-proof, but direct-chat binding still lacked the same deterministic retry contract and remained the next bounded conversation-runtime hardening seam
+
+### Loop157 Addendum - direct-chat binding delivery-proof and recovery-safe replay fence
+
+- Extended explicit delivery-proof semantics to standalone direct-chat binding in `conversation-runtime`:
+  - `POST /api/v1/conversations/direct-chats/bindings` now returns explicit binding proof metadata in addition to the bound conversation identifiers:
+    - `requestKey = tenant:binderKind:boundBy:bind-direct-chat:conversationId`
+    - `deliveryStatus = applied | replayed`
+    - `proofVersion = conversation.create.delivery-proof.v1`
+  - duplicate same-input binding retries keyed by the same binder actor and `conversationId` now deterministically return the originally committed `conversationId/eventId` as `replayed`
+  - conflicting retries that reuse the same `conversationId` with a different direct-chat participant tuple now fail as `409 conversation_conflict`
+- Closed the recovery seam on direct-chat binding:
+  - before this loop, direct-chat binding still returned a plain `CreateConversationResult::new(...)` and recovery had no dedicated replay fence, so lost-response retries after runtime rebuild collapsed into ordinary conflict handling
+  - `conversation-runtime` now keeps a direct-chat binding replay fence in runtime state and rebuilds it from the recovered `conversation.created` payload plus actor envelope, using the committed direct-chat identity tuple to preserve deterministic replay after journal reconstruction
+  - recovered `conversation.created` envelopes now carry direct-chat payload details, so restart/rebuild logic can distinguish same-input replay from conflicting rebinding attempts without relying on incidental state inspection
+- Added regression evidence in this loop:
+  - `services/conversation-runtime/tests/conversation_flow_test.rs`:
+    - `test_duplicate_bind_direct_chat_conversation_is_idempotent_and_conflicting_retry_is_rejected`
+  - `services/conversation-runtime/tests/http_smoke_test.rs`:
+    - `test_duplicate_bind_direct_chat_conversation_request_is_idempotent_and_conflicting_retry_is_rejected_over_http`
+- Commercial gate evidence in this loop:
+  - `cargo test -p conversation-runtime --test conversation_flow_test test_duplicate_bind_direct_chat_conversation_is_idempotent_and_conflicting_retry_is_rejected -- --exact`
+  - `cargo test -p conversation-runtime --test http_smoke_test test_duplicate_bind_direct_chat_conversation_request_is_idempotent_and_conflicting_retry_is_rejected_over_http -- --exact`
+  - `cargo test -p conversation-runtime --tests`
+  - `cargo test -p rtc-signaling-service --tests`
+  - `cargo test -p media-service --tests`
+  - `cargo test -p streaming-service --tests`
+  - `cargo test -p audit-service --tests`
+  - `cargo test -p notification-service --test http_smoke_test test_duplicate_notification_id_is_idempotent_and_conflicting_retry_is_rejected_over_http -- --exact`
+  - `cargo test -p automation-service --test http_smoke_test test_duplicate_execution_id_is_idempotent_and_conflicting_retry_is_rejected_over_http -- --exact`
+  - `cargo test -p local-minimal-node --test task10_capabilities_e2e_test test_local_minimal_profile_treats_duplicate_notification_request_as_idempotent -- --exact`
+  - `cargo test -p local-minimal-node --test task10_capabilities_e2e_test test_local_minimal_profile_treats_duplicate_automation_request_as_idempotent -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_runs_end_to_end_flow -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_treats_duplicate_direct_chat_binding_as_idempotent -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_does_not_refanout_duplicate_message_post_retry -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_does_not_refanout_duplicate_stream_frame_retry -- --exact`
+  - `cargo test -p rtc-signaling-service --test http_smoke_test test_duplicate_rtc_session_create_is_idempotent_and_conflicting_retry_is_rejected -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_treats_duplicate_rtc_session_create_as_idempotent -- --exact`
+  - `cargo test -p media-service --test provider_integration_test test_duplicate_complete_upload_retry_uses_existing_asset_without_reinvoking_provider -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_treats_duplicate_media_upload_requests_as_idempotent -- --exact`
+  - `cargo test -p streaming-service --test stream_lifecycle_test test_duplicate_open_stream_is_idempotent_and_conflicting_retry_is_rejected -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_treats_duplicate_open_stream_as_idempotent -- --exact`
+  - `cargo test -p streaming-service --test stream_lifecycle_test test_duplicate_complete_stream_request_is_idempotent_and_conflicting_retry_is_rejected -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_does_not_refanout_duplicate_stream_complete_retry -- --exact`
+  - `cargo test -p streaming-service --test stream_lifecycle_test test_duplicate_abort_stream_request_is_idempotent_and_conflicting_retry_is_rejected -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_does_not_refanout_duplicate_stream_abort_retry -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_suppresses_duplicate_rtc_state_side_effects -- --exact`
+  - `cargo test -p streaming-service --test stream_lifecycle_test test_duplicate_checkpoint_stream_request_replays_after_stream_completes -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_replays_duplicate_checkpoint_retry_after_complete -- --exact`
+  - `cargo test -p audit-service --test http_smoke_test test_duplicate_record_anchor_request_is_idempotent_and_conflicting_retry_is_rejected -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_treats_duplicate_audit_anchor_as_idempotent -- --exact`
+  - `cargo clippy --no-deps -p conversation-runtime -p local-minimal-node --tests -- -D warnings`
+  - `cargo clippy -p notification-service -p automation-service -p local-minimal-node --tests -- -D warnings`
+  - `cargo clippy --no-deps -p rtc-signaling-service -p media-service -p streaming-service -p audit-service -p local-minimal-node --tests -- -D warnings`
+- Remaining S07 gap after Loop157:
+  - `release-ready exactly-once semantics across downstream fanout boundaries` still need broader cross-service policy unification beyond the now-hardened conversation create/message/direct-chat binding, stream, and audit seams
+  - `local-minimal-node` 当前已经暴露 dedicated `/api/v1/conversations/direct-chats/bindings` route，并具备对应 replay-proof regression；commercial gate 现已显式纳入 duplicate notification/automation/direct-chat/message/stream exactly-once 回归、standalone `rtc-signaling-service / media-service / streaming-service / audit-service` 整包测试、对应 local-minimal downstream replay/fanout 回归，以及 Windows smoke 与 downstream service strict clippy，剩余缺口应继续收敛到更广泛的 cross-service policy unification，而不是这些已锁定回归是否进入发布门禁
+
+## Loop158 Addendum - 2026-04-13
+- Closed a real audit exactly-once seam on session churn:
+  - `audit-service` previously derived `requestKey = tenant:audit-record:recordId`, but duplicate matching still compared `actor_session_id`
+  - this meant the same actor could lose the first response, reconnect with a new `x-session-id`, retry the same `recordId`, and get `409 audit_record_conflict` instead of a deterministic replay
+  - the runtime now treats audit replay as stable across session rotation for the same actor identity and payload tuple; `actor_session_id` remains persisted as record metadata, but no longer breaks duplicate-match recognition
+  - this brings audit idempotency closer to the broader cross-service delivery-proof policy where transient transport/session churn must not invalidate an already committed request fence
+- Added regression evidence in this loop:
+  - `services/audit-service/tests/http_smoke_test.rs`:
+    - `test_duplicate_record_anchor_request_replays_after_session_rotation`
+  - `services/local-minimal-node/tests/http_e2e_test.rs`:
+    - `test_local_minimal_profile_replays_duplicate_audit_anchor_after_session_rotation`
+- Commercial gate evidence in this loop:
+  - `cargo test -p audit-service --test http_smoke_test test_duplicate_record_anchor_request_replays_after_session_rotation -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_replays_duplicate_audit_anchor_after_session_rotation -- --exact`
+  - `cargo test -p audit-service --tests`
+  - `cargo clippy --no-deps -p audit-service -p local-minimal-node --tests -- -D warnings`
+- Remaining S07 gap after Loop158:
+  - `release-ready exactly-once semantics across downstream fanout boundaries` still need broader cross-service policy unification beyond the now-hardened conversation create/message/direct-chat binding, stream, and audit seams
+  - audit replay is now stable across session rotation for same-actor retries, but higher-level cross-service policy unification and other remaining downstream categories are still not fully `step_closure`
+
+## Loop159 Addendum - 2026-04-13
+- Closed a real RTC exactly-once principal-scope seam on actor-kind boundaries:
+  - `rtc-signaling-service` already exposed `requestKey = tenant:actorKind:actorId:create:rtcSessionId` for create routes, but the persisted `RtcSession` model only remembered `initiator_id`
+  - this meant two principals from different identity domains that reused the same `actor_id` and `rtcSessionId` could be collapsed into a false `replayed` result, even though the fence key promised principal-kind scoping
+  - the runtime now persists `initiatorKind` on new RTC sessions and uses it when evaluating duplicate create replays, so same-`actor_id` retries from a different `actor_kind` deterministically fail as `409 rtc_session_conflict`
+  - runtime-dir RTC preview diff now also treats `initiatorKind` as part of the session contract surface, so drift inspection does not silently ignore identity-domain changes
+  - legacy RTC state remains readable because `initiatorKind` is additive and optional in persisted records; the stricter principal-kind fence applies to newly written sessions
+- Added regression evidence in this loop:
+  - `services/rtc-signaling-service/tests/http_smoke_test.rs`:
+    - `test_duplicate_rtc_session_create_with_same_actor_id_but_different_actor_kind_is_conflict`
+  - `services/local-minimal-node/tests/http_e2e_test.rs`:
+    - `test_local_minimal_profile_rejects_duplicate_rtc_create_from_different_actor_kind`
+- Commercial gate evidence in this loop:
+  - `cargo test -p rtc-signaling-service --test http_smoke_test test_duplicate_rtc_session_create_with_same_actor_id_but_different_actor_kind_is_conflict -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_rejects_duplicate_rtc_create_from_different_actor_kind -- --exact`
+  - `cargo test -p rtc-signaling-service --tests`
+  - `cargo clippy --no-deps -p rtc-signaling-service -p local-minimal-node --tests -- -D warnings`
+- Remaining S07 gap after Loop159:
+  - `release-ready exactly-once semantics across downstream fanout boundaries` still need broader cross-service policy unification beyond the now-hardened conversation create/message/direct-chat binding, RTC create principal-kind fencing, stream, and audit seams
+  - RTC create now honors principal-kind scope for newly persisted sessions, but broader cross-service policy governance remains incomplete and `S07` is still not `step_closure`
+
+## Loop160 Addendum - 2026-04-13
+- Closed a real stream exactly-once principal-scope seam on actor identity boundaries:
+  - `streaming-service` already exposed principal-scoped lifecycle fences:
+    - `open = tenant:actorKind:actorId:open:streamId`
+    - `complete = tenant:actorKind:actorId:complete:streamId`
+    - `abort = tenant:actorKind:actorId:abort:streamId`
+    - `checkpoint = tenant:actorKind:actorId:checkpoint:streamId:frameSeq`
+  - but the persisted `StreamSession` model did not remember the owner principal at all, so duplicate matching could incorrectly return `deliveryStatus = replayed` for a different actor that reused the same `streamId` and payload tuple
+  - the runtime now persists additive `ownerPrincipalId/ownerPrincipalKind` on new stream sessions and uses them when evaluating `open/checkpoint/complete/abort` duplicate replays, so different-actor requests no longer collapse into a false `replayed` result
+  - duplicate cross-actor `open` attempts still fail as `409 stream_conflict`; after Loop161, non-owner `checkpoint/complete/abort` access is surfaced as `404 stream_not_found`
+  - runtime-dir stream preview diff now also treats `ownerPrincipalId/ownerPrincipalKind` as part of the stream session contract surface, so identity drift is no longer silently ignored during restore inspection
+  - legacy stream state remains readable because the new owner fields are additive and optional in persisted records; the stricter principal-scope fence applies to newly written sessions
+- Added regression evidence in this loop:
+  - `services/streaming-service/tests/stream_lifecycle_test.rs`:
+    - `test_duplicate_open_stream_with_different_actor_is_conflict`
+    - `test_duplicate_complete_stream_request_with_different_actor_is_not_found`
+    - `test_duplicate_abort_stream_request_with_different_actor_is_not_found`
+    - `test_duplicate_checkpoint_stream_request_with_different_actor_is_not_found`
+  - `services/local-minimal-node/tests/http_e2e_test.rs`:
+    - `test_local_minimal_profile_rejects_duplicate_open_stream_from_different_actor`
+- Commercial gate evidence in this loop:
+  - `cargo test -p streaming-service --test stream_lifecycle_test test_duplicate_open_stream_with_different_actor_is_conflict -- --exact`
+  - `cargo test -p streaming-service --test stream_lifecycle_test test_duplicate_complete_stream_request_with_different_actor_is_not_found -- --exact`
+  - `cargo test -p streaming-service --test stream_lifecycle_test test_duplicate_abort_stream_request_with_different_actor_is_not_found -- --exact`
+  - `cargo test -p streaming-service --test stream_lifecycle_test test_duplicate_checkpoint_stream_request_with_different_actor_is_not_found -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_rejects_duplicate_open_stream_from_different_actor -- --exact`
+  - `cargo test -p streaming-service --tests`
+  - `cargo clippy --no-deps -p streaming-service -p local-minimal-node --tests -- -D warnings`
+- Remaining S07 gap after Loop160:
+  - `release-ready exactly-once semantics across downstream fanout boundaries` still need broader cross-service policy unification beyond the now-hardened conversation create/message/direct-chat binding, RTC create principal-kind fencing, stream lifecycle principal-scope fencing, and audit seams
+  - stream lifecycle replay now honors principal scope for newly persisted sessions, but broader cross-service policy governance remains incomplete and `S07` is still not `step_closure`
+
+## Loop161 Addendum - 2026-04-13
+- Closed a real request-stream authorization seam on active session access:
+  - after Loop160, stream lifecycle replay already honored principal scope for newly written sessions, but active request-scoped stream access still trusted only `tenant + streamId`
+  - this meant a different actor in the same tenant who knew a request-scoped `streamId` could still append frames or list frames on the live stream and receive `200`, even though the stream session now persisted owner principal metadata
+  - `StreamingRuntime::session(...)` and the live `append/checkpoint/complete/abort/list` paths now enforce owner-principal visibility for request-scoped streams while preserving conversation/device scope sharing rules
+  - the runtime returns `404 stream_not_found` on request-scoped cross-actor access, which avoids turning live stream identifiers into a same-tenant enumeration surface
+  - legacy request-scoped stream records without owner metadata remain readable for compatibility, so the stricter owner-only access rule is guaranteed for newly written sessions; historical records still need broader migration governance if stronger retroactive isolation is required
+- Added regression evidence in this loop:
+  - `services/streaming-service/tests/stream_lifecycle_test.rs`:
+    - `test_request_scoped_stream_append_rejects_different_actor_over_http`
+  - `services/local-minimal-node/tests/http_e2e_test.rs`:
+    - `test_local_minimal_profile_rejects_request_stream_list_from_different_actor`
+- Commercial gate evidence in this loop:
+  - `cargo test -p streaming-service --test stream_lifecycle_test test_request_scoped_stream_append_rejects_different_actor_over_http -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_rejects_request_stream_list_from_different_actor -- --exact`
+  - `cargo test -p streaming-service --tests`
+  - `cargo clippy --no-deps -p streaming-service -p local-minimal-node --tests -- -D warnings`
+- Remaining S07 gap after Loop161:
+  - `release-ready exactly-once semantics across downstream fanout boundaries` still need broader cross-service policy unification beyond the now-hardened conversation create/message/direct-chat binding, RTC create principal-kind fencing, stream lifecycle principal-scope fencing, request-stream owner access fencing, and audit seams
+  - request-scoped stream access is now owner-isolated for newly written sessions, but broader cross-service policy governance remains incomplete and `S07` is still not `step_closure`
+## Loop162 Addendum - 2026-04-13
+- `notification-service` inbox/query identity had collapsed on `recipient_id` only, so a caller presenting the same `actor_id` under a different `actor_kind` could list/get another principal's notifications.
+- Additive fix shipped in code:
+  - `im_domain_core::notification::NotificationTask` now carries optional `recipient_kind`
+  - `notification-service::RequestNotification` now carries optional `recipient_kind`
+  - public notification self-access now compares `actor_id + actor_kind`
+  - notification list/get visibility now compares `recipient_id + recipient_kind`
+  - projection-backed message-posted fanout now resolves typed recipients `{ principal_id, principal_kind }`
+  - fanout-generated notification ids now encode recipient kind to avoid same-id cross-kind collisions
+- Verified evidence:
+  - `cargo test -p notification-service --test notification_pipeline_test test_notification_queries_are_isolated_by_actor_kind -- --exact`
+  - `cargo test -p notification-service --test http_smoke_test test_notification_queries_reject_same_actor_id_with_different_actor_kind_over_http -- --exact`
+  - `cargo test -p projection-service --test timeline_projection_test test_message_posted_notification_recipients_from_auth_context_include_shared_linked_members -- --exact`
+  - `cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_rejects_notification_queries_from_different_actor_kind -- --exact`
+- Compatibility boundary:
+  - legacy persisted notification records without `recipient_kind` remain identity-ambiguous and still replay/query by `recipient_id` alone
+- Remaining S07 gap after Loop162:
+  - notification identity is only release-safe for newly written typed notification records; legacy untyped records still need migration/backfill or journal-authoritative restoration
+  - `S07` remains not `step_closure`
+
+## Loop163 Addendum - 2026-04-13
+- Closed a real projection/read isolation seam on actor-kind boundaries:
+  - `projection-service` conversation read guards had still trusted `actor_id` alone, so a caller presenting the same `actor_id` under a different `actor_kind` could read timeline-style views for another principal
+  - device registration and device-sync fanout had also collapsed on `tenant + actor_id + device_id`, so a different `actor_kind` could reuse the same `deviceId` or receive conversation sync deltas on its own device when the underlying `actor_id` matched
+- Fix shipped in code:
+  - conversation view access (`timeline/summary/read-cursor/member-directory/pins`) now verifies membership visibility on `actor_id + actor_kind`
+  - explicit auth-backed device registrations now persist `principalKind` and reject same-`actor_id` cross-kind reuse of the same `deviceId`
+  - conversation/device-sync fanout now resolves devices through typed recipients `{ principal_id, principal_kind }` instead of untyped principal ids
+  - legacy direct `register_device(...)` calls remain supported as untyped compatibility registrations so older tests/snapshots still restore, but new auth-path writes are kind-scoped
+- Verified evidence:
+  - `cargo test -p projection-service --test http_smoke_test test_timeline_query_rejects_same_actor_id_with_different_actor_kind_over_http -- --exact`
+  - `cargo test -p projection-service --test http_smoke_test test_device_registration_rejects_same_device_id_with_different_actor_kind_over_http -- --exact`
+  - `cargo test -p projection-service --test http_smoke_test test_device_sync_feed_isolated_by_actor_kind_over_http -- --exact`
+  - `cargo test -p projection-service --tests`
+  - `cargo clippy --no-deps -p projection-service --tests -- -D warnings`
+- Compatibility boundary:
+  - legacy untyped device registrations (`principalKind = null`) are still treated as compatibility scopes during fanout/restore because historical snapshots and direct internal helpers did not persist a principal kind
+  - same-`actor_id` multi-kind membership state inside the in-memory conversation member map is still keyed by `principal_id` only, so full release closure still requires typed member-key migration across projection/runtime storage
+- Remaining S07 gap after Loop163:
+  - projection reads and new device-sync writes are now actor-kind isolated, but legacy untyped device registrations and untyped member-map storage still prevent claiming full retroactive closure
+  - `S07` remains not `step_closure`

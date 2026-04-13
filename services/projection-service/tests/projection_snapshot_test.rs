@@ -1,4 +1,5 @@
 use im_adapters_local_memory::{MemoryMetadataStore, MemoryTimelineProjectionStore};
+use im_auth_context::AuthContext;
 use im_domain_core::conversation::{
     MembershipRole, build_conversation_member, build_default_read_cursor,
 };
@@ -665,6 +666,149 @@ fn test_projection_service_restores_device_sync_state_from_projection_snapshot()
     assert_eq!(
         restored.latest_device_sync_seq("t_alpha", "u_member", "d_pad"),
         2
+    );
+}
+
+#[test]
+fn test_projection_service_restores_typed_device_sync_state_for_same_actor_and_device() {
+    let metadata_store = MemoryMetadataStore::default();
+    let timeline_store = MemoryTimelineProjectionStore::default();
+    let service = TimelineProjectionService::default();
+
+    service
+        .apply(&conversation_created_event(
+            "t_alpha",
+            "c_typed_device_sync_restore",
+            "group",
+        ))
+        .expect("conversation projection should succeed");
+    service
+        .apply(&member_joined_event(
+            "t_alpha",
+            "c_typed_device_sync_restore",
+            "u_owner",
+            MembershipRole::Owner,
+        ))
+        .expect("owner join projection should succeed");
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_t_alpha_c_typed_device_sync_restore_u_dual_joined",
+                "t_alpha",
+                "conversation.member_joined",
+                "conversation",
+                "c_typed_device_sync_restore",
+                2,
+            )
+            .with_payload(
+                "conversation.member.v1",
+                r#"{
+                    "tenantId":"t_alpha",
+                    "conversationId":"c_typed_device_sync_restore",
+                    "memberId":"cm_c_typed_device_sync_restore_u_dual_user",
+                    "principalId":"u_dual",
+                    "principalKind":"user",
+                    "role":"member",
+                    "state":"joined",
+                    "invitedBy":"u_owner",
+                    "joinedAt":"2026-04-08T10:00:00Z",
+                    "removedAt":null,
+                    "attributes":{}
+                }"#,
+            ),
+        )
+        .expect("typed user join projection should succeed");
+
+    service.register_device_for_principal_kind("t_alpha", "u_owner", "user", "d_owner");
+    service.register_device_for_principal_kind("t_alpha", "u_dual", "user", "d_shared");
+    service.register_device_for_principal_kind("t_alpha", "u_dual", "agent", "d_shared");
+    service
+        .apply(&message_posted_event(
+            "t_alpha",
+            "c_typed_device_sync_restore",
+            "msg_typed_device_sync_restore_1",
+            1,
+            "u_owner",
+            "typed snapshot summary",
+        ))
+        .expect("message projection should succeed");
+
+    assert!(
+        service
+            .persist_conversation_snapshot(
+                "t_alpha",
+                "c_typed_device_sync_restore",
+                &metadata_store,
+                &timeline_store,
+            )
+            .expect("snapshot should persist"),
+        "snapshot should exist"
+    );
+
+    let restored = TimelineProjectionService::default();
+    assert!(
+        restored
+            .restore_conversation_snapshot(
+                "t_alpha",
+                "c_typed_device_sync_restore",
+                &metadata_store,
+                &timeline_store,
+            )
+            .expect("snapshot should restore"),
+        "snapshot should exist"
+    );
+
+    let user_auth = AuthContext {
+        tenant_id: "t_alpha".into(),
+        actor_id: "u_dual".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_typed_restore_user".into()),
+        device_id: Some("d_shared".into()),
+        permissions: Default::default(),
+    };
+    let agent_auth = AuthContext {
+        tenant_id: "t_alpha".into(),
+        actor_id: "u_dual".into(),
+        actor_kind: "agent".into(),
+        session_id: Some("s_typed_restore_agent".into()),
+        device_id: Some("d_shared".into()),
+        permissions: Default::default(),
+    };
+
+    let user_devices = restored.registered_devices_from_auth_context(&user_auth);
+    assert_eq!(user_devices.len(), 1);
+    assert_eq!(user_devices[0].device_id, "d_shared");
+    assert_eq!(user_devices[0].principal_kind.as_deref(), Some("user"));
+
+    let agent_devices = restored.registered_devices_from_auth_context(&agent_auth);
+    assert_eq!(agent_devices.len(), 1);
+    assert_eq!(agent_devices[0].device_id, "d_shared");
+    assert_eq!(agent_devices[0].principal_kind.as_deref(), Some("agent"));
+
+    let user_feed = restored
+        .device_sync_feed_from_auth_context(&user_auth, "d_shared", Some(0))
+        .expect("restored user feed should remain accessible");
+    assert_eq!(user_feed.len(), 1);
+    assert_eq!(
+        user_feed[0].message_id.as_deref(),
+        Some("msg_typed_device_sync_restore_1")
+    );
+    assert_eq!(
+        restored
+            .latest_device_sync_seq_from_auth_context(&user_auth, "d_shared")
+            .expect("restored user seq should remain accessible"),
+        1
+    );
+
+    let agent_feed = restored
+        .device_sync_feed_from_auth_context(&agent_auth, "d_shared", Some(0))
+        .expect("restored agent feed should remain accessible");
+    assert!(agent_feed.is_empty());
+    assert_eq!(
+        restored
+            .latest_device_sync_seq_from_auth_context(&agent_auth, "d_shared")
+            .expect("restored agent seq should remain accessible"),
+        0
     );
 }
 

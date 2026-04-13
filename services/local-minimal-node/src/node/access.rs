@@ -3,6 +3,7 @@ use super::*;
 const DEVICE_SCOPE_KIND: &str = "device";
 const DEVICE_TELEMETRY_STREAM_TYPE: &str = "device.telemetry";
 const DEVICE_COMMAND_STREAM_TYPE: &str = "device.command";
+const LOCAL_NODE_MAX_DEVICE_ID_BYTES: usize = 256;
 
 pub(super) fn ensure_audit_read_access(auth: &AuthContext) -> Result<(), ApiError> {
     if auth.has_permission("audit.read") {
@@ -50,6 +51,8 @@ pub(super) fn resolve_requested_device_id(
 ) -> Result<String, ApiError> {
     match (requested_device_id, auth.device_id.clone()) {
         (Some(requested), Some(bound)) => {
+            validate_device_id(requested.as_str())?;
+            validate_device_id(bound.as_str())?;
             if requested != bound {
                 return Err(ApiError::bad_request(
                     "device_id_mismatch",
@@ -58,8 +61,14 @@ pub(super) fn resolve_requested_device_id(
             }
             Ok(requested)
         }
-        (Some(requested), None) => Ok(requested),
-        (None, Some(bound)) => Ok(bound),
+        (Some(requested), None) => {
+            validate_device_id(requested.as_str())?;
+            Ok(requested)
+        }
+        (None, Some(bound)) => {
+            validate_device_id(bound.as_str())?;
+            Ok(bound)
+        }
         (None, None) => Err(ApiError::bad_request(
             "device_id_missing",
             "device id must be provided by auth context or request body",
@@ -267,6 +276,8 @@ pub(super) fn ensure_iot_protocol_uplink_decoded_device_matches_preflight(
     expected_device_id: &str,
     decoded_device_id: &str,
 ) -> Result<(), ApiError> {
+    validate_device_id(expected_device_id)?;
+    validate_device_id(decoded_device_id)?;
     if expected_device_id == decoded_device_id {
         return Ok(());
     }
@@ -381,15 +392,45 @@ fn ensure_device_stream_registration(
     auth: &AuthContext,
     device_id: &str,
 ) -> Result<(), ApiError> {
+    validate_device_id(device_id)?;
+
+    if let Some(bound_device_id) = auth.device_id.as_deref() {
+        validate_device_id(bound_device_id)?;
+    }
+
     if auth.device_id.as_deref() == Some(device_id) {
         state.require_registered_device_binding(auth)?;
     }
 
+    if auth.actor_kind == "device" {
+        if auth.device_id.as_deref() == Some(device_id) {
+            return Ok(());
+        }
+
+        return Err(ApiError::forbidden(
+            "device_permission_denied",
+            format!("device is not registered for principal: {device_id}"),
+        ));
+    }
+
+    if auth.actor_kind != "user" {
+        return Err(ApiError::forbidden(
+            "device_permission_denied",
+            format!("device is not registered for principal: {device_id}"),
+        ));
+    }
+
     let owns_device = state
         .projection_service
-        .registered_devices_from_auth_context(auth)
+        .registered_devices(auth.tenant_id.as_str(), auth.actor_id.as_str())
         .into_iter()
-        .any(|item| item.device_id == device_id);
+        .any(|item| {
+            item.device_id == device_id
+                && matches!(
+                    effective_registered_device_kind(item.principal_kind.as_deref()),
+                    "user" | "device"
+                )
+        });
 
     if owns_device {
         return Ok(());
@@ -451,6 +492,8 @@ fn ensure_device_stream_permission(
 }
 
 fn ensure_bound_device_actor(auth: &AuthContext, device_id: &str) -> Result<(), ApiError> {
+    validate_device_id(device_id)?;
+
     if auth.actor_kind != "device" {
         return Err(ApiError::forbidden(
             "device_permission_denied",
@@ -459,16 +502,38 @@ fn ensure_bound_device_actor(auth: &AuthContext, device_id: &str) -> Result<(), 
     }
 
     match auth.device_id.as_deref() {
-        Some(bound_device_id) if bound_device_id == device_id => Ok(()),
-        Some(bound_device_id) => Err(ApiError::bad_request(
-            "device_id_mismatch",
-            format!(
-                "device stream scope does not match auth context device: expected {bound_device_id}, got {device_id}"
-            ),
-        )),
+        Some(bound_device_id) => {
+            validate_device_id(bound_device_id)?;
+            if bound_device_id == device_id {
+                return Ok(());
+            }
+
+            Err(ApiError::bad_request(
+                "device_id_mismatch",
+                format!(
+                    "device stream scope does not match auth context device: expected {bound_device_id}, got {device_id}"
+                ),
+            ))
+        }
         None => Err(ApiError::bad_request(
             "device_id_missing",
             "device stream access requires an auth context device id",
         )),
     }
+}
+
+fn effective_registered_device_kind(principal_kind: Option<&str>) -> &str {
+    principal_kind.unwrap_or("user")
+}
+
+fn validate_device_id(device_id: &str) -> Result<(), ApiError> {
+    let actual_bytes = device_id.len();
+    if actual_bytes > LOCAL_NODE_MAX_DEVICE_ID_BYTES {
+        return Err(ApiError::payload_too_large(
+            "deviceId",
+            LOCAL_NODE_MAX_DEVICE_ID_BYTES,
+            actual_bytes,
+        ));
+    }
+    Ok(())
 }

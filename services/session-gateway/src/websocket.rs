@@ -32,6 +32,8 @@ pub const SESSION_DISCONNECT_CLOSE_CODE: u16 = RUNTIME_LINK_SESSION_DISCONNECT_C
 pub const SESSION_DISCONNECT_CLOSE_REASON: &str = RUNTIME_LINK_SESSION_DISCONNECT_CLOSE_REASON;
 pub const REALTIME_OVERLOAD_CLOSE_CODE: u16 = RUNTIME_LINK_REALTIME_OVERLOAD_CLOSE_CODE;
 pub const REALTIME_OVERLOAD_CLOSE_REASON: &str = RUNTIME_LINK_REALTIME_OVERLOAD_CLOSE_REASON;
+const REALTIME_MAX_WEBSOCKET_FRAME_TYPE_BYTES: usize = 64;
+const REALTIME_MAX_WEBSOCKET_REQUEST_ID_BYTES: usize = 256;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RealtimeWebsocketMode {
@@ -56,6 +58,43 @@ struct ClientFrameEnvelope {
 struct CcpWebsocketRuntime {
     binding: WsBinding,
     codec: JsonEnvelopeCodec,
+}
+
+fn websocket_payload_too_large(
+    field: &'static str,
+    max_bytes: usize,
+    actual_bytes: usize,
+) -> RealtimeRuntimeError {
+    RealtimeRuntimeError {
+        code: "payload_too_large",
+        message: format!(
+            "payload too large for {field}: max={max_bytes} bytes, actual={actual_bytes} bytes"
+        ),
+    }
+}
+
+fn validate_client_request_id(frame: &ClientFrameEnvelope) -> Result<(), RealtimeRuntimeError> {
+    if let Some(request_id) = frame.request_id.as_deref()
+        && request_id.len() > REALTIME_MAX_WEBSOCKET_REQUEST_ID_BYTES
+    {
+        return Err(websocket_payload_too_large(
+            "requestId",
+            REALTIME_MAX_WEBSOCKET_REQUEST_ID_BYTES,
+            request_id.len(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_client_frame_type(frame: &ClientFrameEnvelope) -> Result<(), RealtimeRuntimeError> {
+    if frame.frame_type.len() > REALTIME_MAX_WEBSOCKET_FRAME_TYPE_BYTES {
+        return Err(websocket_payload_too_large(
+            "type",
+            REALTIME_MAX_WEBSOCKET_FRAME_TYPE_BYTES,
+            frame.frame_type.len(),
+        ));
+    }
+    Ok(())
 }
 
 impl CcpWebsocketRuntime {
@@ -169,6 +208,7 @@ pub async fn serve_realtime_websocket(
 ) {
     let tenant_id = auth.tenant_id.clone();
     let principal_id = auth.actor_id.clone();
+    let principal_kind = auth.actor_kind.clone();
     let authority = auth.ccp_authority();
     let route = CcpRoute::for_principal(
         tenant_id.clone(),
@@ -178,18 +218,20 @@ pub async fn serve_realtime_websocket(
     let ccp_runtime = CcpWebsocketRuntime::default();
     let sender_id = authority.sender.sender_id();
     let mut socket = socket;
-    if let Err(error) = runtime.ensure_device_state(
+    if let Err(error) = runtime.ensure_device_state_for_principal_kind(
         tenant_id.as_str(),
         principal_id.as_str(),
+        principal_kind.as_str(),
         device_id.as_str(),
     ) {
         let _ =
             send_initial_runtime_error(&mut socket, wire_mode, &ccp_runtime, &route, &error).await;
         return;
     }
-    let checkpoint = match runtime.window_checkpoint(
+    let checkpoint = match runtime.window_checkpoint_for_principal_kind(
         tenant_id.as_str(),
         principal_id.as_str(),
+        principal_kind.as_str(),
         device_id.as_str(),
     ) {
         Ok(checkpoint) => checkpoint,
@@ -200,9 +242,10 @@ pub async fn serve_realtime_websocket(
             return;
         }
     };
-    let disconnect_generation = match runtime.disconnect_generation(
+    let disconnect_generation = match runtime.disconnect_generation_for_principal_kind(
         tenant_id.as_str(),
         principal_id.as_str(),
+        principal_kind.as_str(),
         device_id.as_str(),
     ) {
         Ok(disconnect_generation) => disconnect_generation,
@@ -217,9 +260,10 @@ pub async fn serve_realtime_websocket(
     let mut resume_after_seq = checkpoint
         .acked_through_seq
         .max(checkpoint.trimmed_through_seq);
-    let mut receiver = match runtime.subscribe_device(
+    let mut receiver = match runtime.subscribe_device_for_principal_kind(
         tenant_id.as_str(),
         principal_id.as_str(),
+        principal_kind.as_str(),
         device_id.as_str(),
     ) {
         Ok(receiver) => receiver,
@@ -230,9 +274,10 @@ pub async fn serve_realtime_websocket(
             return;
         }
     };
-    let mut disconnect_receiver = match runtime.subscribe_disconnect_signal(
+    let mut disconnect_receiver = match runtime.subscribe_disconnect_signal_for_principal_kind(
         tenant_id.as_str(),
         principal_id.as_str(),
+        principal_kind.as_str(),
         device_id.as_str(),
     ) {
         Ok(receiver) => receiver,
@@ -299,9 +344,10 @@ pub async fn serve_realtime_websocket(
     }
 
     if let Some(catchup_plan) = outbound_queue.plan_catchup() {
-        let catchup = match runtime.list_events(
+        let catchup = match runtime.list_events_for_principal_kind(
             auth.tenant_id.as_str(),
             auth.actor_id.as_str(),
+            auth.actor_kind.as_str(),
             device_id.as_str(),
             catchup_plan.after_seq,
             catchup_plan.batch.limit,
@@ -350,12 +396,13 @@ pub async fn serve_realtime_websocket(
                 let push_plan = outbound_queue.observe_latest_realtime_seq(latest_realtime_seq);
                 if !drain_runtime_owned_buffered_push(
                     &mut socket,
-                    runtime.as_ref(),
-                    auth.tenant_id.as_str(),
-                    auth.actor_id.as_str(),
-                    device_id.as_str(),
-                    &mut outbound_queue,
-                    push_plan,
+                        runtime.as_ref(),
+                        auth.tenant_id.as_str(),
+                        auth.actor_id.as_str(),
+                        auth.actor_kind.as_str(),
+                        device_id.as_str(),
+                        &mut outbound_queue,
+                        push_plan,
                     wire_mode,
                     &ccp_runtime,
                     &route,
@@ -369,9 +416,10 @@ pub async fn serve_realtime_websocket(
                 if disconnect_changed.is_err() {
                     break;
                 }
-                let current_disconnect_generation = match runtime.disconnect_generation(
+                let current_disconnect_generation = match runtime.disconnect_generation_for_principal_kind(
                     auth.tenant_id.as_str(),
                     auth.actor_id.as_str(),
+                    auth.actor_kind.as_str(),
                     device_id.as_str(),
                 ) {
                     Ok(disconnect_generation) => disconnect_generation,
@@ -407,9 +455,10 @@ pub async fn serve_realtime_websocket(
                 let Ok(message) = message else {
                     break;
                 };
-                let current_disconnect_generation = match runtime.disconnect_generation(
+                let current_disconnect_generation = match runtime.disconnect_generation_for_principal_kind(
                     auth.tenant_id.as_str(),
                     auth.actor_id.as_str(),
+                    auth.actor_kind.as_str(),
                     device_id.as_str(),
                 ) {
                     Ok(disconnect_generation) => disconnect_generation,
@@ -443,6 +492,7 @@ pub async fn serve_realtime_websocket(
                     &runtime,
                     auth.tenant_id.as_str(),
                     auth.actor_id.as_str(),
+                    auth.actor_kind.as_str(),
                     device_id.as_str(),
                     &mut outbound_queue,
                     message,
@@ -730,6 +780,7 @@ struct BufferedPushDrainDriver<'a> {
     runtime: &'a RealtimeDeliveryRuntime,
     tenant_id: &'a str,
     principal_id: &'a str,
+    principal_kind: &'a str,
     device_id: &'a str,
     wire_mode: RealtimeWebsocketMode,
     ccp_runtime: &'a CcpWebsocketRuntime,
@@ -747,9 +798,10 @@ impl LinkBufferedPushDrainDriver for BufferedPushDrainDriver<'_> {
     ) -> Result<LinkBufferedPushFetchedWindow<Self::Window>, Self::Error> {
         let window = self
             .runtime
-            .list_events(
+            .list_events_for_principal_kind(
                 self.tenant_id,
                 self.principal_id,
+                self.principal_kind,
                 self.device_id,
                 after_seq,
                 limit,
@@ -792,6 +844,7 @@ async fn handle_client_message(
     runtime: &RealtimeDeliveryRuntime,
     tenant_id: &str,
     principal_id: &str,
+    principal_kind: &str,
     device_id: &str,
     outbound_queue: &mut LinkOutboundQueueState,
     message: Message,
@@ -817,12 +870,37 @@ async fn handle_client_message(
                     return true;
                 }
             };
+            if let Err(error) = validate_client_request_id(&frame) {
+                let _ = send_runtime_error(
+                    socket,
+                    wire_mode,
+                    ccp_runtime,
+                    route,
+                    None,
+                    &error,
+                )
+                .await;
+                return true;
+            }
+            if let Err(error) = validate_client_frame_type(&frame) {
+                let _ = send_runtime_error(
+                    socket,
+                    wire_mode,
+                    ccp_runtime,
+                    route,
+                    frame.request_id,
+                    &error,
+                )
+                .await;
+                return true;
+            }
 
             match frame.frame_type.as_str() {
                 "subscriptions.sync" => {
-                    let snapshot = match runtime.sync_subscriptions(
+                    let snapshot = match runtime.sync_subscriptions_for_principal_kind(
                         tenant_id,
                         principal_id,
+                        principal_kind,
                         device_id,
                         frame.items,
                     ) {
@@ -872,27 +950,32 @@ async fn handle_client_message(
                         return true;
                     }
 
-                    let latest_realtime_seq =
-                        match runtime.window_checkpoint(tenant_id, principal_id, device_id) {
-                            Ok(checkpoint) => checkpoint.latest_realtime_seq,
-                            Err(error) => {
-                                let _ = send_runtime_error(
-                                    socket,
-                                    wire_mode,
-                                    ccp_runtime,
-                                    route,
-                                    frame.request_id,
-                                    &error,
-                                )
-                                .await;
-                                return true;
-                            }
-                        };
-                    let pull_plan =
-                        outbound_queue.plan_pull(frame.after_seq, limit, latest_realtime_seq);
-                    let window = match runtime.list_events(
+                    let latest_realtime_seq = match runtime.window_checkpoint_for_principal_kind(
                         tenant_id,
                         principal_id,
+                        principal_kind,
+                        device_id,
+                    ) {
+                        Ok(checkpoint) => checkpoint.latest_realtime_seq,
+                        Err(error) => {
+                            let _ = send_runtime_error(
+                                socket,
+                                wire_mode,
+                                ccp_runtime,
+                                route,
+                                frame.request_id,
+                                &error,
+                            )
+                            .await;
+                            return true;
+                        }
+                    };
+                    let pull_plan =
+                        outbound_queue.plan_pull(frame.after_seq, limit, latest_realtime_seq);
+                    let window = match runtime.list_events_for_principal_kind(
+                        tenant_id,
+                        principal_id,
+                        principal_kind,
                         device_id,
                         pull_plan.after_seq,
                         pull_plan.batch.limit,
@@ -938,6 +1021,7 @@ async fn handle_client_message(
                         runtime,
                         tenant_id,
                         principal_id,
+                        principal_kind,
                         device_id,
                         outbound_queue,
                         recovery_plan,
@@ -966,22 +1050,27 @@ async fn handle_client_message(
                         return true;
                     };
 
-                    let ack =
-                        match runtime.ack_events(tenant_id, principal_id, device_id, acked_seq) {
-                            Ok(ack) => ack,
-                            Err(error) => {
-                                let _ = send_runtime_error(
-                                    socket,
-                                    wire_mode,
-                                    ccp_runtime,
-                                    route,
-                                    frame.request_id,
-                                    &error,
-                                )
-                                .await;
-                                return true;
-                            }
-                        };
+                    let ack = match runtime.ack_events_for_principal_kind(
+                        tenant_id,
+                        principal_id,
+                        principal_kind,
+                        device_id,
+                        acked_seq,
+                    ) {
+                        Ok(ack) => ack,
+                        Err(error) => {
+                            let _ = send_runtime_error(
+                                socket,
+                                wire_mode,
+                                ccp_runtime,
+                                route,
+                                frame.request_id,
+                                &error,
+                            )
+                            .await;
+                            return true;
+                        }
+                    };
                     outbound_queue.record_client_ack(ack.acked_through_seq);
                     let _ = send_business_payload(
                         socket,
@@ -1029,6 +1118,7 @@ async fn drain_runtime_owned_buffered_push(
     runtime: &RealtimeDeliveryRuntime,
     tenant_id: &str,
     principal_id: &str,
+    principal_kind: &str,
     device_id: &str,
     outbound_queue: &mut LinkOutboundQueueState,
     push_plan: Option<LinkBufferedPushPlan>,
@@ -1041,6 +1131,7 @@ async fn drain_runtime_owned_buffered_push(
         runtime,
         tenant_id,
         principal_id,
+        principal_kind,
         device_id,
         wire_mode,
         ccp_runtime,

@@ -13,10 +13,11 @@ where
         auth: &AuthContext,
         conversation_id: &str,
     ) -> Result<AgentHandoffStateView, RuntimeError> {
-        self.get_agent_handoff_state(
+        self.get_agent_handoff_state_with_actor_kind(
             auth.tenant_id.as_str(),
             conversation_id,
             auth.actor_id.as_str(),
+            auth.actor_kind.as_str(),
         )
     }
 
@@ -66,6 +67,30 @@ where
             .get(scope_key.as_str())
             .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.into()))?;
         resolve_active_member(conversation, principal_id)?;
+        policy::ensure_agent_handoff_conversation(conversation)?;
+        conversation
+            .aggregate
+            .handoff_state()
+            .cloned()
+            .ok_or_else(|| {
+                RuntimeError::ConversationTypeInvalid("agent handoff state missing".into())
+            })
+    }
+
+    pub fn get_agent_handoff_state_with_actor_kind(
+        &self,
+        tenant_id: &str,
+        conversation_id: &str,
+        principal_id: &str,
+        principal_kind: &str,
+    ) -> Result<AgentHandoffStateView, RuntimeError> {
+        let scope_key = conversation_scope_key(tenant_id, conversation_id);
+        let state = lock_runtime_mutex(&self.state, "conversation-runtime.state.handoff");
+        let conversation = state
+            .conversations
+            .get(scope_key.as_str())
+            .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.into()))?;
+        resolve_active_member_with_kind(conversation, principal_id, principal_kind)?;
         policy::ensure_agent_handoff_conversation(conversation)?;
         conversation
             .aggregate
@@ -136,7 +161,7 @@ where
             .get_mut(scope_key.as_str())
             .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.into()))?;
         policy::ensure_agent_handoff_conversation(conversation)?;
-        let actor_member = resolve_active_member(conversation, actor_id)?;
+        let actor_member = resolve_active_member_with_kind(conversation, actor_id, actor_kind)?;
         policy::ensure_actor_kind_matches_member(&actor_member, actor_kind)?;
         let actor = build_handoff_actor_view(&actor_member);
         let changed_at = conversation_timestamp();

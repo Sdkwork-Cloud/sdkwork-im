@@ -9,26 +9,31 @@ use im_platform_contracts::{RuntimeProviderRegistry, StaticProviderRegistry};
 use session_gateway::RealtimeClusterBridge;
 use tower::ServiceExt;
 
-async fn request_status(
-    app: Router,
-    method: &str,
-    uri: &str,
-    tenant_id: Option<&str>,
-    user_id: Option<&str>,
-    permission: Option<&str>,
-    body: Option<&str>,
-) -> (StatusCode, String) {
-    let mut request = Request::builder().method(method).uri(uri);
-    if let Some(tenant_id) = tenant_id {
+struct StatusExpectation<'a> {
+    method: &'a str,
+    uri: &'a str,
+    tenant_id: Option<&'a str>,
+    user_id: Option<&'a str>,
+    permission: Option<&'a str>,
+    body: Option<&'a str>,
+    expected_http: StatusCode,
+    expected_status: &'a str,
+}
+
+async fn request_status(app: Router, expectation: &StatusExpectation<'_>) -> (StatusCode, String) {
+    let mut request = Request::builder()
+        .method(expectation.method)
+        .uri(expectation.uri);
+    if let Some(tenant_id) = expectation.tenant_id {
         request = request.header("x-tenant-id", tenant_id);
     }
-    if let Some(user_id) = user_id {
+    if let Some(user_id) = expectation.user_id {
         request = request.header("x-user-id", user_id);
     }
-    if let Some(permission) = permission {
+    if let Some(permission) = expectation.permission {
         request = request.header("x-permissions", permission);
     }
-    if body.is_some() {
+    if expectation.body.is_some() {
         request = request.header("content-type", "application/json");
     }
 
@@ -36,7 +41,9 @@ async fn request_status(
         .oneshot(
             request
                 .body(
-                    body.map(|value| Body::from(value.to_owned()))
+                    expectation
+                        .body
+                        .map(|value| Body::from(value.to_owned()))
                         .unwrap_or_else(Body::empty),
                 )
                 .unwrap(),
@@ -60,26 +67,17 @@ async fn request_status(
     (status_code, status)
 }
 
-async fn assert_status(
-    app: Router,
-    method: &str,
-    uri: &str,
-    tenant_id: Option<&str>,
-    user_id: Option<&str>,
-    permission: Option<&str>,
-    body: Option<&str>,
-    expected_http: StatusCode,
-    expected_status: &str,
-) -> String {
-    let (status_code, status) =
-        request_status(app, method, uri, tenant_id, user_id, permission, body).await;
+async fn assert_status(app: Router, expectation: StatusExpectation<'_>) -> String {
+    let (status_code, status) = request_status(app, &expectation).await;
     assert_eq!(
-        status_code, expected_http,
-        "{method} {uri} should return the expected HTTP status"
+        status_code, expectation.expected_http,
+        "{} {} should return the expected HTTP status",
+        expectation.method, expectation.uri
     );
     assert_eq!(
-        status, expected_status,
-        "{method} {uri} should return the expected top-level provider status"
+        status, expectation.expected_status,
+        "{} {} should return the expected top-level provider status",
+        expectation.method, expectation.uri
     );
     status
 }
@@ -100,182 +98,210 @@ async fn test_provider_control_plane_status_contract_covers_read_write_and_error
     observed.insert(
         assert_status(
             runtime_app.clone(),
-            "GET",
-            "/api/v1/control/provider-registry",
-            Some("t_demo"),
-            Some("u_admin"),
-            Some("control.read"),
-            None,
-            StatusCode::OK,
-            "registry",
+            StatusExpectation {
+                method: "GET",
+                uri: "/api/v1/control/provider-registry",
+                tenant_id: Some("t_demo"),
+                user_id: Some("u_admin"),
+                permission: Some("control.read"),
+                body: None,
+                expected_http: StatusCode::OK,
+                expected_status: "registry",
+            },
         )
         .await,
     );
     observed.insert(
         assert_status(
             runtime_app.clone(),
-            "GET",
-            "/api/v1/control/provider-bindings",
-            Some("t_demo"),
-            Some("u_admin"),
-            Some("control.read"),
-            None,
-            StatusCode::OK,
-            "bindings",
+            StatusExpectation {
+                method: "GET",
+                uri: "/api/v1/control/provider-bindings",
+                tenant_id: Some("t_demo"),
+                user_id: Some("u_admin"),
+                permission: Some("control.read"),
+                body: None,
+                expected_http: StatusCode::OK,
+                expected_status: "bindings",
+            },
         )
         .await,
     );
     observed.insert(
         assert_status(
             runtime_app.clone(),
-            "POST",
-            "/api/v1/control/provider-policies/preview",
-            Some("t_demo"),
-            Some("u_admin"),
-            Some("control.write"),
-            Some(r#"{"domain":"object-storage","pluginId":"object-storage-volcengine"}"#),
-            StatusCode::OK,
-            "preview",
+            StatusExpectation {
+                method: "POST",
+                uri: "/api/v1/control/provider-policies/preview",
+                tenant_id: Some("t_demo"),
+                user_id: Some("u_admin"),
+                permission: Some("control.write"),
+                body: Some(r#"{"domain":"object-storage","pluginId":"object-storage-volcengine"}"#),
+                expected_http: StatusCode::OK,
+                expected_status: "preview",
+            },
         )
         .await,
     );
     observed.insert(
         assert_status(
             runtime_app.clone(),
-            "POST",
-            "/api/v1/control/provider-bindings",
-            Some("t_demo"),
-            Some("u_admin"),
-            Some("control.write"),
-            Some(r#"{"domain":"object-storage","pluginId":"object-storage-volcengine"}"#),
-            StatusCode::OK,
-            "applied",
+            StatusExpectation {
+                method: "POST",
+                uri: "/api/v1/control/provider-bindings",
+                tenant_id: Some("t_demo"),
+                user_id: Some("u_admin"),
+                permission: Some("control.write"),
+                body: Some(r#"{"domain":"object-storage","pluginId":"object-storage-volcengine"}"#),
+                expected_http: StatusCode::OK,
+                expected_status: "applied",
+            },
         )
         .await,
     );
     observed.insert(
         assert_status(
             runtime_app.clone(),
-            "POST",
-            "/api/v1/control/provider-bindings",
-            Some("t_demo"),
-            Some("u_admin"),
-            Some("control.write"),
-            Some(r#"{"domain":"object-storage","pluginId":"object-storage-volcengine","expectedBaseVersion":2}"#),
-            StatusCode::OK,
-            "noop",
+            StatusExpectation {
+                method: "POST",
+                uri: "/api/v1/control/provider-bindings",
+                tenant_id: Some("t_demo"),
+                user_id: Some("u_admin"),
+                permission: Some("control.write"),
+                body: Some(
+                    r#"{"domain":"object-storage","pluginId":"object-storage-volcengine","expectedBaseVersion":2}"#,
+                ),
+                expected_http: StatusCode::OK,
+                expected_status: "noop",
+            },
         )
         .await,
     );
     observed.insert(
         assert_status(
             runtime_app.clone(),
-            "GET",
-            "/api/v1/control/provider-policies",
-            Some("t_demo"),
-            Some("u_admin"),
-            Some("control.read"),
-            None,
-            StatusCode::OK,
-            "history",
+            StatusExpectation {
+                method: "GET",
+                uri: "/api/v1/control/provider-policies",
+                tenant_id: Some("t_demo"),
+                user_id: Some("u_admin"),
+                permission: Some("control.read"),
+                body: None,
+                expected_http: StatusCode::OK,
+                expected_status: "history",
+            },
         )
         .await,
     );
     observed.insert(
         assert_status(
             runtime_app.clone(),
-            "GET",
-            "/api/v1/control/provider-policies/diff?fromVersion=1&toVersion=2",
-            Some("t_demo"),
-            Some("u_admin"),
-            Some("control.read"),
-            None,
-            StatusCode::OK,
-            "diff",
+            StatusExpectation {
+                method: "GET",
+                uri: "/api/v1/control/provider-policies/diff?fromVersion=1&toVersion=2",
+                tenant_id: Some("t_demo"),
+                user_id: Some("u_admin"),
+                permission: Some("control.read"),
+                body: None,
+                expected_http: StatusCode::OK,
+                expected_status: "diff",
+            },
         )
         .await,
     );
     observed.insert(
         assert_status(
             runtime_app.clone(),
-            "POST",
-            "/api/v1/control/provider-policies/rollback",
-            Some("t_demo"),
-            Some("u_admin"),
-            Some("control.write"),
-            Some(r#"{"targetVersion":1}"#),
-            StatusCode::OK,
-            "rolled_back",
+            StatusExpectation {
+                method: "POST",
+                uri: "/api/v1/control/provider-policies/rollback",
+                tenant_id: Some("t_demo"),
+                user_id: Some("u_admin"),
+                permission: Some("control.write"),
+                body: Some(r#"{"targetVersion":1}"#),
+                expected_http: StatusCode::OK,
+                expected_status: "rolled_back",
+            },
         )
         .await,
     );
     observed.insert(
         assert_status(
             runtime_app.clone(),
-            "POST",
-            "/api/v1/control/provider-bindings",
-            Some("t_demo"),
-            Some("u_admin"),
-            Some("control.write"),
-            Some(r#"{"domain":"rtc","pluginId":"object-storage-aws"}"#),
-            StatusCode::BAD_REQUEST,
-            "invalid",
+            StatusExpectation {
+                method: "POST",
+                uri: "/api/v1/control/provider-bindings",
+                tenant_id: Some("t_demo"),
+                user_id: Some("u_admin"),
+                permission: Some("control.write"),
+                body: Some(r#"{"domain":"rtc","pluginId":"object-storage-aws"}"#),
+                expected_http: StatusCode::BAD_REQUEST,
+                expected_status: "invalid",
+            },
         )
         .await,
     );
     observed.insert(
         assert_status(
             runtime_app.clone(),
-            "GET",
-            "/api/v1/control/provider-policies/diff?fromVersion=1&toVersion=9",
-            Some("t_demo"),
-            Some("u_admin"),
-            Some("control.read"),
-            None,
-            StatusCode::CONFLICT,
-            "conflict",
+            StatusExpectation {
+                method: "GET",
+                uri: "/api/v1/control/provider-policies/diff?fromVersion=1&toVersion=9",
+                tenant_id: Some("t_demo"),
+                user_id: Some("u_admin"),
+                permission: Some("control.read"),
+                body: None,
+                expected_http: StatusCode::CONFLICT,
+                expected_status: "conflict",
+            },
         )
         .await,
     );
     observed.insert(
         assert_status(
             static_app.clone(),
-            "POST",
-            "/api/v1/control/provider-policies/preview",
-            Some("t_demo"),
-            Some("u_admin"),
-            Some("control.write"),
-            Some(r#"{"domain":"object-storage","pluginId":"object-storage-volcengine"}"#),
-            StatusCode::SERVICE_UNAVAILABLE,
-            "unavailable",
+            StatusExpectation {
+                method: "POST",
+                uri: "/api/v1/control/provider-policies/preview",
+                tenant_id: Some("t_demo"),
+                user_id: Some("u_admin"),
+                permission: Some("control.write"),
+                body: Some(r#"{"domain":"object-storage","pluginId":"object-storage-volcengine"}"#),
+                expected_http: StatusCode::SERVICE_UNAVAILABLE,
+                expected_status: "unavailable",
+            },
         )
         .await,
     );
     observed.insert(
         assert_status(
             runtime_app.clone(),
-            "GET",
-            "/api/v1/control/provider-registry",
-            Some("t_demo"),
-            Some("u_admin"),
-            None,
-            None,
-            StatusCode::FORBIDDEN,
-            "forbidden",
+            StatusExpectation {
+                method: "GET",
+                uri: "/api/v1/control/provider-registry",
+                tenant_id: Some("t_demo"),
+                user_id: Some("u_admin"),
+                permission: None,
+                body: None,
+                expected_http: StatusCode::FORBIDDEN,
+                expected_status: "forbidden",
+            },
         )
         .await,
     );
     observed.insert(
         assert_status(
             runtime_app,
-            "GET",
-            "/api/v1/control/provider-registry",
-            None,
-            None,
-            None,
-            None,
-            StatusCode::UNAUTHORIZED,
-            "unauthorized",
+            StatusExpectation {
+                method: "GET",
+                uri: "/api/v1/control/provider-registry",
+                tenant_id: None,
+                user_id: None,
+                permission: None,
+                body: None,
+                expected_http: StatusCode::UNAUTHORIZED,
+                expected_status: "unauthorized",
+            },
         )
         .await,
     );

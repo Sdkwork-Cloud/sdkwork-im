@@ -119,10 +119,11 @@ where
         auth: &AuthContext,
         conversation_id: &str,
     ) -> Result<MessageHistoryResult, RuntimeError> {
-        self.list_messages(
+        self.list_messages_with_actor_kind(
             auth.tenant_id.as_str(),
             conversation_id,
             auth.actor_id.as_str(),
+            auth.actor_kind.as_str(),
         )
     }
 
@@ -131,10 +132,11 @@ where
         auth: &AuthContext,
         conversation_id: &str,
     ) -> Result<ConversationReadCursorView, RuntimeError> {
-        self.read_cursor_view(
+        self.read_cursor_view_with_actor_kind(
             auth.tenant_id.as_str(),
             conversation_id,
             auth.actor_id.as_str(),
+            auth.actor_kind.as_str(),
         )
     }
 
@@ -160,6 +162,7 @@ where
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn sync_shared_channel_linked_member_from_auth_context(
         &self,
         auth: &AuthContext,
@@ -182,6 +185,7 @@ where
         .map(|result| result.member)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn sync_shared_channel_linked_member_from_auth_context_with_result(
         &self,
         auth: &AuthContext,
@@ -253,6 +257,42 @@ where
         command: SyncSharedChannelLinkedMemberCommand,
         requester_kind: &str,
     ) -> Result<SyncSharedChannelLinkedMemberResult, RuntimeError> {
+        validate_payload_size(
+            "conversationId",
+            command.conversation_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "sharedChannelPolicyId",
+            command.shared_channel_policy_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "externalConnectionId",
+            command.external_connection_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "localActorId",
+            command.local_actor_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "localActorKind",
+            command.local_actor_kind.as_str(),
+            CONVERSATION_MAX_KIND_BYTES,
+        )?;
+        validate_payload_size(
+            "externalMemberId",
+            command.external_member_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "syncedBy",
+            command.synced_by.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size("requesterKind", requester_kind, CONVERSATION_MAX_KIND_BYTES)?;
         policy::ensure_shared_channel_sync_requester_kind(requester_kind)?;
 
         if command.conversation_id.trim().is_empty() {
@@ -298,6 +338,7 @@ where
             command.external_member_id.as_str(),
             request_key.as_str(),
         );
+        validate_member_attributes_payload_size("memberAttributes", &attributes)?;
         resolve_shared_history_linked_member(&attributes)?;
 
         let scope_key =
@@ -323,10 +364,10 @@ where
                 )));
             }
 
-            if let Some(current_member) = conversation
-                .roster
-                .resolve_current_member(command.local_actor_id.as_str())
-            {
+            if let Some(current_member) = conversation.roster.resolve_current_member_with_kind(
+                command.local_actor_id.as_str(),
+                command.local_actor_kind.as_str(),
+            ) {
                 if shared_history_link_matches(&current_member, &command) {
                     let mut member = current_member;
                     if shared_channel_sync_request_key_fence(&member).is_none() {
@@ -342,10 +383,7 @@ where
                     } else {
                         SyncSharedChannelLinkedMemberStatus::AlreadyLinked
                     };
-                    return Ok(SyncSharedChannelLinkedMemberResult {
-                        status,
-                        member,
-                    });
+                    return Ok(SyncSharedChannelLinkedMemberResult { status, member });
                 }
 
                 return Err(RuntimeError::Conflict(format!(
@@ -402,6 +440,28 @@ where
         actor_kind: &str,
         attributes: BTreeMap<String, String>,
     ) -> Result<ConversationMember, RuntimeError> {
+        validate_payload_size(
+            "conversationId",
+            command.conversation_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "principalId",
+            command.principal_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "principalKind",
+            command.principal_kind.as_str(),
+            CONVERSATION_MAX_KIND_BYTES,
+        )?;
+        validate_payload_size(
+            "invitedBy",
+            command.invited_by.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size("actorKind", actor_kind, CONVERSATION_MAX_KIND_BYTES)?;
+        validate_member_attributes_payload_size("memberAttributes", &attributes)?;
         let scope_key =
             conversation_scope_key(command.tenant_id.as_str(), command.conversation_id.as_str());
         let (member, member_epoch, actor_kind, retention_class) = {
@@ -414,8 +474,11 @@ where
                     .ok_or_else(|| {
                         RuntimeError::ConversationNotFound(command.conversation_id.clone())
                     })?;
-            let invited_by_member =
-                resolve_active_member(conversation, command.invited_by.as_str())?;
+            let invited_by_member = resolve_active_member_with_kind(
+                conversation,
+                command.invited_by.as_str(),
+                actor_kind,
+            )?;
             policy::ensure_actor_kind_matches_member(&invited_by_member, actor_kind)?;
             policy::ensure_member_add_actor_allowed(conversation, &invited_by_member)?;
             let history_visibility = conversation
@@ -426,7 +489,10 @@ where
 
             if conversation
                 .roster
-                .resolve_current_member(command.principal_id.as_str())
+                .resolve_current_member_with_kind(
+                    command.principal_id.as_str(),
+                    command.principal_kind.as_str(),
+                )
                 .is_some()
             {
                 return Err(RuntimeError::MemberAlreadyExists(command.principal_id));
@@ -517,6 +583,22 @@ where
         command: RemoveConversationMemberCommand,
         actor_kind: &str,
     ) -> Result<ConversationMember, RuntimeError> {
+        validate_payload_size(
+            "conversationId",
+            command.conversation_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "memberId",
+            command.member_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "removedBy",
+            command.removed_by.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size("actorKind", actor_kind, CONVERSATION_MAX_KIND_BYTES)?;
         let scope_key =
             conversation_scope_key(command.tenant_id.as_str(), command.conversation_id.as_str());
         let (member, member_epoch, actor_kind, retention_class) = {
@@ -529,8 +611,11 @@ where
                     .ok_or_else(|| {
                         RuntimeError::ConversationNotFound(command.conversation_id.clone())
                     })?;
-            let removed_by_member =
-                resolve_active_member(conversation, command.removed_by.as_str())?;
+            let removed_by_member = resolve_active_member_with_kind(
+                conversation,
+                command.removed_by.as_str(),
+                actor_kind,
+            )?;
             policy::ensure_actor_kind_matches_member(&removed_by_member, actor_kind)?;
 
             let mut member = conversation
@@ -598,6 +683,17 @@ where
         command: LeaveConversationCommand,
         actor_kind: &str,
     ) -> Result<ConversationMember, RuntimeError> {
+        validate_payload_size(
+            "conversationId",
+            command.conversation_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "principalId",
+            command.principal_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size("actorKind", actor_kind, CONVERSATION_MAX_KIND_BYTES)?;
         let scope_key =
             conversation_scope_key(command.tenant_id.as_str(), command.conversation_id.as_str());
         let (member, member_epoch, actor_kind, retention_class) = {
@@ -610,8 +706,11 @@ where
                     .ok_or_else(|| {
                         RuntimeError::ConversationNotFound(command.conversation_id.clone())
                     })?;
-            let leaving_member =
-                resolve_active_member(conversation, command.principal_id.as_str())?;
+            let leaving_member = resolve_active_member_with_kind(
+                conversation,
+                command.principal_id.as_str(),
+                actor_kind,
+            )?;
             policy::ensure_actor_kind_matches_member(&leaving_member, actor_kind)?;
             policy::ensure_member_leave_allowed(conversation, &leaving_member)?;
 
@@ -679,6 +778,22 @@ where
         command: TransferConversationOwnerCommand,
         actor_kind: &str,
     ) -> Result<TransferConversationOwnerResult, RuntimeError> {
+        validate_payload_size(
+            "conversationId",
+            command.conversation_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "targetMemberId",
+            command.target_member_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "transferredBy",
+            command.transferred_by.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size("actorKind", actor_kind, CONVERSATION_MAX_KIND_BYTES)?;
         let scope_key =
             conversation_scope_key(command.tenant_id.as_str(), command.conversation_id.as_str());
         let (payload, ordering_seq, actor_kind, retention_class) = {
@@ -691,8 +806,11 @@ where
                     .ok_or_else(|| {
                         RuntimeError::ConversationNotFound(command.conversation_id.clone())
                     })?;
-            let owner_member =
-                resolve_active_member(conversation, command.transferred_by.as_str())?;
+            let owner_member = resolve_active_member_with_kind(
+                conversation,
+                command.transferred_by.as_str(),
+                actor_kind,
+            )?;
             policy::ensure_actor_kind_matches_member(&owner_member, actor_kind)?;
             let target_member = conversation
                 .roster
@@ -785,6 +903,22 @@ where
         command: ChangeConversationMemberRoleCommand,
         actor_kind: &str,
     ) -> Result<ChangeConversationMemberRoleResult, RuntimeError> {
+        validate_payload_size(
+            "conversationId",
+            command.conversation_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "targetMemberId",
+            command.target_member_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "changedBy",
+            command.changed_by.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size("actorKind", actor_kind, CONVERSATION_MAX_KIND_BYTES)?;
         let scope_key =
             conversation_scope_key(command.tenant_id.as_str(), command.conversation_id.as_str());
         let (payload, ordering_seq, actor_kind, retention_class) = {
@@ -797,7 +931,11 @@ where
                     .ok_or_else(|| {
                         RuntimeError::ConversationNotFound(command.conversation_id.clone())
                     })?;
-            let actor_member = resolve_active_member(conversation, command.changed_by.as_str())?;
+            let actor_member = resolve_active_member_with_kind(
+                conversation,
+                command.changed_by.as_str(),
+                actor_kind,
+            )?;
             policy::ensure_actor_kind_matches_member(&actor_member, actor_kind)?;
             let target_member = conversation
                 .roster
@@ -911,6 +1049,22 @@ where
         command: UpdateReadCursorCommand,
         actor_kind: &str,
     ) -> Result<ConversationReadCursor, RuntimeError> {
+        validate_payload_size(
+            "conversationId",
+            command.conversation_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "principalId",
+            command.principal_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_optional_payload_size(
+            "lastReadMessageId",
+            command.last_read_message_id.as_deref(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size("actorKind", actor_kind, CONVERSATION_MAX_KIND_BYTES)?;
         let scope_key =
             conversation_scope_key(command.tenant_id.as_str(), command.conversation_id.as_str());
         let mut changed_event: Option<(ConversationReadCursor, String, String)> = None;
@@ -932,7 +1086,11 @@ where
                 )));
             }
 
-            let actor_member = resolve_active_member(conversation, command.principal_id.as_str())?;
+            let actor_member = resolve_active_member_with_kind(
+                conversation,
+                command.principal_id.as_str(),
+                actor_kind,
+            )?;
             policy::ensure_actor_kind_matches_member(&actor_member, actor_kind)?;
             let retention_class = conversation_retention_class(conversation);
             let member_id = actor_member.member_id.clone();
@@ -1008,6 +1166,37 @@ where
         ))
     }
 
+    pub fn read_cursor_view_with_actor_kind(
+        &self,
+        tenant_id: &str,
+        conversation_id: &str,
+        principal_id: &str,
+        principal_kind: &str,
+    ) -> Result<ConversationReadCursorView, RuntimeError> {
+        let scope_key = conversation_scope_key(tenant_id, conversation_id);
+        let state = lock_runtime_mutex(&self.state, "conversation-runtime.state.membership");
+        let conversation = state
+            .conversations
+            .get(scope_key.as_str())
+            .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.into()))?;
+        let member_id =
+            resolve_active_member_id_with_kind(conversation, principal_id, principal_kind)?;
+        let cursor = conversation
+            .roster
+            .read_cursors()
+            .get(member_id.as_str())
+            .ok_or_else(|| {
+                RuntimeError::PermissionDenied(format!(
+                    "principal is not active conversation member: {principal_kind}:{principal_id}"
+                ))
+            })?;
+
+        Ok(ConversationReadCursorView::from_cursor(
+            cursor,
+            conversation.message_log.unread_count_since(cursor.read_seq),
+        ))
+    }
+
     pub fn list_messages(
         &self,
         tenant_id: &str,
@@ -1021,6 +1210,27 @@ where
             .get(scope_key.as_str())
             .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.into()))?;
         policy::ensure_history_read_allowed(conversation, principal_id)?;
+
+        Ok(MessageHistoryResult {
+            items: conversation.message_log.messages_in_order(),
+            high_watermark: conversation.message_log.high_watermark(),
+        })
+    }
+
+    pub fn list_messages_with_actor_kind(
+        &self,
+        tenant_id: &str,
+        conversation_id: &str,
+        principal_id: &str,
+        principal_kind: &str,
+    ) -> Result<MessageHistoryResult, RuntimeError> {
+        let scope_key = conversation_scope_key(tenant_id, conversation_id);
+        let state = lock_runtime_mutex(&self.state, "conversation-runtime.state.membership");
+        let conversation = state
+            .conversations
+            .get(scope_key.as_str())
+            .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.into()))?;
+        policy::ensure_history_read_allowed_with_kind(conversation, principal_id, principal_kind)?;
 
         Ok(MessageHistoryResult {
             items: conversation.message_log.messages_in_order(),

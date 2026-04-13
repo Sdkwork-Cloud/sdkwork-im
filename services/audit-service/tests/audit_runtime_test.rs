@@ -16,16 +16,18 @@ fn test_record_anchor_and_export_bundle() {
         permissions: BTreeSet::new(),
     };
 
-    let record = runtime.record_anchor(
-        &auth,
-        audit_service::RecordAuditAnchor {
-            record_id: "audit_demo".into(),
-            aggregate_type: "automation_execution".into(),
-            aggregate_id: "ae_demo".into(),
-            action: "automation.execution_requested".into(),
-            payload: Some(r#"{"targetRef":"wf_demo"}"#.into()),
-        },
-    );
+    let record = runtime
+        .record_anchor(
+            &auth,
+            audit_service::RecordAuditAnchor {
+                record_id: "audit_demo".into(),
+                aggregate_type: "automation_execution".into(),
+                aggregate_id: "ae_demo".into(),
+                action: "automation.execution_requested".into(),
+                payload: Some(r#"{"targetRef":"wf_demo"}"#.into()),
+            },
+        )
+        .expect("record anchor should succeed");
 
     assert_eq!(record.record_id, "audit_demo");
     assert_eq!(record.actor_id, "u_demo");
@@ -49,29 +51,33 @@ fn test_recorded_at_advances_between_distinct_records() {
         permissions: BTreeSet::new(),
     };
 
-    let first = runtime.record_anchor(
-        &auth,
-        audit_service::RecordAuditAnchor {
-            record_id: "audit_time_first".into(),
-            aggregate_type: "notification".into(),
-            aggregate_id: "ntf_time_first".into(),
-            action: "notification.requested".into(),
-            payload: None,
-        },
-    );
+    let first = runtime
+        .record_anchor(
+            &auth,
+            audit_service::RecordAuditAnchor {
+                record_id: "audit_time_first".into(),
+                aggregate_type: "notification".into(),
+                aggregate_id: "ntf_time_first".into(),
+                action: "notification.requested".into(),
+                payload: None,
+            },
+        )
+        .expect("first record should succeed");
 
     sleep(Duration::from_millis(5));
 
-    let second = runtime.record_anchor(
-        &auth,
-        audit_service::RecordAuditAnchor {
-            record_id: "audit_time_second".into(),
-            aggregate_type: "notification".into(),
-            aggregate_id: "ntf_time_second".into(),
-            action: "notification.dispatched".into(),
-            payload: None,
-        },
-    );
+    let second = runtime
+        .record_anchor(
+            &auth,
+            audit_service::RecordAuditAnchor {
+                record_id: "audit_time_second".into(),
+                aggregate_type: "notification".into(),
+                aggregate_id: "ntf_time_second".into(),
+                action: "notification.dispatched".into(),
+                payload: None,
+            },
+        )
+        .expect("second record should succeed");
 
     assert_ne!(
         first.recorded_at, second.recorded_at,
@@ -91,26 +97,30 @@ fn test_export_bundle_includes_verifiable_chain_and_detects_tampering() {
         permissions: BTreeSet::new(),
     };
 
-    runtime.record_anchor(
-        &auth,
-        audit_service::RecordAuditAnchor {
-            record_id: "audit_chain_first".into(),
-            aggregate_type: "notification".into(),
-            aggregate_id: "ntf_chain_first".into(),
-            action: "notification.requested".into(),
-            payload: Some(r#"{"step":"first"}"#.into()),
-        },
-    );
-    runtime.record_anchor(
-        &auth,
-        audit_service::RecordAuditAnchor {
-            record_id: "audit_chain_second".into(),
-            aggregate_type: "notification".into(),
-            aggregate_id: "ntf_chain_second".into(),
-            action: "notification.dispatched".into(),
-            payload: Some(r#"{"step":"second"}"#.into()),
-        },
-    );
+    runtime
+        .record_anchor(
+            &auth,
+            audit_service::RecordAuditAnchor {
+                record_id: "audit_chain_first".into(),
+                aggregate_type: "notification".into(),
+                aggregate_id: "ntf_chain_first".into(),
+                action: "notification.requested".into(),
+                payload: Some(r#"{"step":"first"}"#.into()),
+            },
+        )
+        .expect("first chain record should succeed");
+    runtime
+        .record_anchor(
+            &auth,
+            audit_service::RecordAuditAnchor {
+                record_id: "audit_chain_second".into(),
+                aggregate_type: "notification".into(),
+                aggregate_id: "ntf_chain_second".into(),
+                action: "notification.dispatched".into(),
+                payload: Some(r#"{"step":"second"}"#.into()),
+            },
+        )
+        .expect("second chain record should succeed");
 
     let export = runtime.export_bundle(&auth);
     assert_eq!(export.total, 2);
@@ -133,5 +143,42 @@ fn test_export_bundle_includes_verifiable_chain_and_detects_tampering() {
     assert!(
         !audit_service::verify_audit_export_bundle_integrity(&tampered),
         "tampered bundle should fail integrity verification"
+    );
+}
+
+#[test]
+fn test_runtime_record_anchor_rejects_oversized_payload_consistently_with_http_contract() {
+    let runtime = audit_service::AuditRuntime::default();
+    let auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_demo".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_demo".into()),
+        device_id: None,
+        permissions: BTreeSet::new(),
+    };
+
+    let error = runtime
+        .record_anchor(
+            &auth,
+            audit_service::RecordAuditAnchor {
+                record_id: "audit_runtime_oversized_payload".into(),
+                aggregate_type: "notification".into(),
+                aggregate_id: "ntf_runtime_oversized_payload".into(),
+                action: "notification.requested".into(),
+                payload: Some("x".repeat(200_000)),
+            },
+        )
+        .expect_err("runtime API should reject oversized audit payloads");
+
+    let debug = format!("{error:?}");
+    assert!(
+        debug.contains("payload_too_large"),
+        "runtime API should preserve the audit payload size contract"
+    );
+    assert_eq!(
+        runtime.export_bundle(&auth).total,
+        0,
+        "rejected oversized payload must not append a partial audit record"
     );
 }

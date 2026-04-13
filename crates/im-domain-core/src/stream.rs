@@ -51,6 +51,10 @@ impl StreamSessionState {
 pub struct StreamSession {
     pub tenant_id: String,
     pub stream_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owner_principal_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owner_principal_kind: Option<String>,
     pub stream_type: String,
     pub scope_kind: String,
     pub scope_id: String,
@@ -61,6 +65,12 @@ pub struct StreamSession {
     pub last_frame_seq: u64,
     pub last_checkpoint_seq: Option<u64>,
     pub result_message_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub complete_frame_seq: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub abort_frame_seq: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub abort_reason: Option<String>,
     pub opened_at: String,
     pub closed_at: Option<String>,
     pub expires_at: Option<String>,

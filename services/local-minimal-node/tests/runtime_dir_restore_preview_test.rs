@@ -188,6 +188,8 @@ fn realtime_subscription_snapshot_with_options(
 
 #[derive(Clone, Copy)]
 struct StreamSessionFixture<'a> {
+    owner_principal_id: Option<&'a str>,
+    owner_principal_kind: Option<&'a str>,
     stream_type: &'a str,
     scope_kind: &'a str,
     scope_id: &'a str,
@@ -265,6 +267,8 @@ fn stream_state_snapshot_with_options(entries: &[StreamStateSnapshotEntry<'_>]) 
                 "session": {
                     "tenantId": tenant_id,
                     "streamId": stream_id,
+                    "ownerPrincipalId": session.owner_principal_id,
+                    "ownerPrincipalKind": session.owner_principal_kind,
                     "streamType": session.stream_type,
                     "scopeKind": session.scope_kind,
                     "scopeId": session.scope_id,
@@ -293,6 +297,7 @@ struct RtcSessionFixture<'a> {
     conversation_id: Option<&'a str>,
     rtc_mode: &'a str,
     initiator_id: &'a str,
+    initiator_kind: Option<&'a str>,
     state: &'a str,
     signaling_stream_id: Option<&'a str>,
     artifact_message_id: Option<&'a str>,
@@ -361,6 +366,7 @@ fn rtc_state_snapshot_with_options(entries: &[RtcStateSnapshotEntry<'_>]) -> Str
                     "conversationId": session.conversation_id,
                     "rtcMode": session.rtc_mode,
                     "initiatorId": session.initiator_id,
+                    "initiatorKind": session.initiator_kind,
                     "state": session.state,
                     "signalingStreamId": session.signaling_stream_id,
                     "artifactMessageId": session.artifact_message_id,
@@ -1485,6 +1491,8 @@ fn test_preview_restore_runtime_dir_reports_stream_typed_summary() {
     let _ = local_minimal_node::repair_runtime_dir(runtime_dir.as_path());
 
     let base_session = StreamSessionFixture {
+        owner_principal_id: Some("u_demo"),
+        owner_principal_kind: Some("user"),
         stream_type: "custom.delta.text",
         scope_kind: "conversation",
         scope_id: "c_stream",
@@ -1644,6 +1652,14 @@ fn test_preview_restore_runtime_dir_reports_stream_typed_summary() {
                 "2026-04-06T00:00:10.000Z",
             ),
             (
+                "t_demo:st_owner_changed",
+                "t_demo",
+                "st_owner_changed",
+                StreamSessionFixture { ..base_session },
+                &[frame_one],
+                "2026-04-06T00:00:10.000Z",
+            ),
+            (
                 "t_demo:st_removed",
                 "t_demo",
                 "st_removed",
@@ -1790,6 +1806,17 @@ fn test_preview_restore_runtime_dir_reports_stream_typed_summary() {
                 "2026-04-06T00:00:10.000Z",
             ),
             (
+                "t_demo:st_owner_changed",
+                "t_demo",
+                "st_owner_changed",
+                StreamSessionFixture {
+                    owner_principal_id: Some("u_other_demo"),
+                    ..base_session
+                },
+                &[frame_one],
+                "2026-04-06T00:00:10.000Z",
+            ),
+            (
                 "t_demo:st_added",
                 "t_demo",
                 "st_added",
@@ -1827,7 +1854,10 @@ fn test_preview_restore_runtime_dir_reports_stream_typed_summary() {
     );
     assert_eq!(
         domain_summary.other_modified_keys,
-        vec!["t_demo:st_other_modified".to_string()]
+        vec![
+            "t_demo:st_other_modified".to_string(),
+            "t_demo:st_owner_changed".to_string()
+        ]
     );
     assert_eq!(
         domain_summary.timestamp_only_changed_keys.clone(),
@@ -1872,7 +1902,7 @@ fn test_preview_restore_runtime_dir_reports_stream_typed_summary() {
         domain_summary_json["modifiedFrameKeys"],
         json!(["t_demo:st_frame_modified#frame:2"])
     );
-    assert_eq!(domain_summary_json["unchangedFrameCount"], json!(11));
+    assert_eq!(domain_summary_json["unchangedFrameCount"], json!(12));
     assert_eq!(domain_summary.unchanged_key_count, 1);
 
     let rendered = local_minimal_node::format_runtime_dir_restore_preview(&preview);
@@ -1902,6 +1932,7 @@ fn test_preview_restore_runtime_dir_reports_rtc_typed_summary() {
         conversation_id: Some("c_rtc"),
         rtc_mode: "voice",
         initiator_id: "u_demo",
+        initiator_kind: Some("user"),
         state: "started",
         signaling_stream_id: None,
         artifact_message_id: None,

@@ -110,3 +110,289 @@ async fn test_record_list_and_export_audit_over_http() {
         "verify response should include chain head hash when records exist"
     );
 }
+
+#[tokio::test]
+async fn test_duplicate_record_anchor_request_is_idempotent_and_conflicting_retry_is_rejected() {
+    let app = audit_service::build_default_app();
+
+    let first_record = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/audit/records")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-permissions", "audit.write,audit.read")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "recordId":"audit_http_idempotent",
+                        "aggregateType":"notification",
+                        "aggregateId":"ntf_http_idempotent",
+                        "action":"notification.requested",
+                        "payload":"{\"recipientId\":\"u_target\"}"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("first audit record should succeed");
+    assert_eq!(first_record.status(), StatusCode::OK);
+    let first_record_body = first_record
+        .into_body()
+        .collect()
+        .await
+        .expect("first record body should collect")
+        .to_bytes();
+    let first_record_json: serde_json::Value =
+        serde_json::from_slice(&first_record_body).expect("first record should be valid json");
+    assert_eq!(first_record_json["deliveryStatus"], "applied");
+    assert_eq!(
+        first_record_json["proofVersion"],
+        "audit.record.delivery-proof.v1"
+    );
+
+    let duplicate_record = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/audit/records")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-permissions", "audit.write,audit.read")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "recordId":"audit_http_idempotent",
+                        "aggregateType":"notification",
+                        "aggregateId":"ntf_http_idempotent",
+                        "action":"notification.requested",
+                        "payload":"{\"recipientId\":\"u_target\"}"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("duplicate audit record should return response");
+    assert_eq!(duplicate_record.status(), StatusCode::OK);
+    let duplicate_record_body = duplicate_record
+        .into_body()
+        .collect()
+        .await
+        .expect("duplicate record body should collect")
+        .to_bytes();
+    let duplicate_record_json: serde_json::Value = serde_json::from_slice(&duplicate_record_body)
+        .expect("duplicate record should be valid json");
+    assert_eq!(duplicate_record_json["deliveryStatus"], "replayed");
+    assert_eq!(
+        duplicate_record_json["requestKey"],
+        first_record_json["requestKey"]
+    );
+
+    let list_records = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/audit/records")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-permissions", "audit.write,audit.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("list records should succeed");
+    assert_eq!(list_records.status(), StatusCode::OK);
+    let list_records_body = list_records
+        .into_body()
+        .collect()
+        .await
+        .expect("list records body should collect")
+        .to_bytes();
+    let list_records_json: serde_json::Value =
+        serde_json::from_slice(&list_records_body).expect("list records should be valid json");
+    assert_eq!(list_records_json["items"].as_array().unwrap().len(), 1);
+
+    let conflicting_record = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/audit/records")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-permissions", "audit.write,audit.read")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "recordId":"audit_http_idempotent",
+                        "aggregateType":"notification",
+                        "aggregateId":"ntf_http_idempotent",
+                        "action":"notification.delivered",
+                        "payload":"{\"recipientId\":\"u_target\"}"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("conflicting audit record should return response");
+    assert_eq!(conflicting_record.status(), StatusCode::CONFLICT);
+    let conflicting_record_body = conflicting_record
+        .into_body()
+        .collect()
+        .await
+        .expect("conflicting record body should collect")
+        .to_bytes();
+    let conflicting_record_json: serde_json::Value =
+        serde_json::from_slice(&conflicting_record_body)
+            .expect("conflicting record should be valid json");
+    assert_eq!(conflicting_record_json["code"], "audit_record_conflict");
+}
+
+#[tokio::test]
+async fn test_duplicate_record_anchor_request_replays_after_session_rotation() {
+    let app = audit_service::build_default_app();
+
+    let first_record = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/audit/records")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-session-id", "s_before")
+                .header("x-permissions", "audit.write,audit.read")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "recordId":"audit_http_session_rotation",
+                        "aggregateType":"notification",
+                        "aggregateId":"ntf_http_session_rotation",
+                        "action":"notification.requested",
+                        "payload":"{\"recipientId\":\"u_target\"}"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("first audit record should succeed");
+    assert_eq!(first_record.status(), StatusCode::OK);
+    let first_record_body = first_record
+        .into_body()
+        .collect()
+        .await
+        .expect("first record body should collect")
+        .to_bytes();
+    let first_record_json: serde_json::Value =
+        serde_json::from_slice(&first_record_body).expect("first record should be valid json");
+    assert_eq!(first_record_json["deliveryStatus"], "applied");
+
+    let duplicate_record = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/audit/records")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-session-id", "s_after")
+                .header("x-permissions", "audit.write,audit.read")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "recordId":"audit_http_session_rotation",
+                        "aggregateType":"notification",
+                        "aggregateId":"ntf_http_session_rotation",
+                        "action":"notification.requested",
+                        "payload":"{\"recipientId\":\"u_target\"}"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("duplicate audit record should return response after session rotation");
+    assert_eq!(duplicate_record.status(), StatusCode::OK);
+    let duplicate_record_body = duplicate_record
+        .into_body()
+        .collect()
+        .await
+        .expect("duplicate record body should collect")
+        .to_bytes();
+    let duplicate_record_json: serde_json::Value = serde_json::from_slice(&duplicate_record_body)
+        .expect("duplicate record should be valid json");
+    assert_eq!(duplicate_record_json["deliveryStatus"], "replayed");
+    assert_eq!(
+        duplicate_record_json["requestKey"],
+        first_record_json["requestKey"]
+    );
+
+    let list_records = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/audit/records")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-permissions", "audit.write,audit.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("list records should succeed");
+    assert_eq!(list_records.status(), StatusCode::OK);
+    let list_records_body = list_records
+        .into_body()
+        .collect()
+        .await
+        .expect("list records body should collect")
+        .to_bytes();
+    let list_records_json: serde_json::Value =
+        serde_json::from_slice(&list_records_body).expect("list records should be valid json");
+    assert_eq!(list_records_json["items"].as_array().unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn test_record_audit_rejects_oversized_payload_over_http() {
+    let app = audit_service::build_default_app();
+    let request_body = serde_json::json!({
+        "recordId": "audit_http_oversized_payload",
+        "aggregateType": "notification",
+        "aggregateId": "ntf_http_oversized_payload",
+        "action": "notification.requested",
+        "payload": "x".repeat(200_000)
+    })
+    .to_string();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/audit/records")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-permissions", "audit.write,audit.read")
+                .header("content-type", "application/json")
+                .body(Body::from(request_body))
+                .unwrap(),
+        )
+        .await
+        .expect("oversized audit payload should return response");
+
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("response body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["code"], "payload_too_large");
+    assert!(
+        value["message"]
+            .as_str()
+            .expect("message should be present")
+            .contains("payload")
+    );
+}

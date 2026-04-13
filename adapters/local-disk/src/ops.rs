@@ -8,7 +8,8 @@ use im_platform_contracts::{
 };
 
 use crate::shared::{
-    execution_scope_key, notification_scope_key, read_json_records_or_default, write_json_records,
+    execution_scope_key, legacy_execution_scope_key, notification_scope_key,
+    read_json_records_or_default, write_json_records,
 };
 
 #[derive(Clone, Debug)]
@@ -126,6 +127,7 @@ impl AutomationExecutionStore for FileAutomationExecutionStore {
     fn load_execution(
         &self,
         tenant_id: &str,
+        principal_kind: &str,
         principal_id: &str,
         execution_id: &str,
     ) -> Result<Option<AutomationExecutionRecord>, ContractError> {
@@ -133,9 +135,16 @@ impl AutomationExecutionStore for FileAutomationExecutionStore {
             .io_lock
             .lock()
             .expect("automation execution file store lock should lock");
-        Ok(self
-            .read_records()?
-            .remove(execution_scope_key(tenant_id, principal_id, execution_id).as_str()))
+        let mut records = self.read_records()?;
+        if let Some(record) = records.remove(
+            execution_scope_key(tenant_id, principal_kind, principal_id, execution_id).as_str(),
+        ) {
+            return Ok(Some(record));
+        }
+
+        Ok(records
+            .remove(legacy_execution_scope_key(tenant_id, principal_id, execution_id).as_str())
+            .filter(|record| record.execution.principal_kind == principal_kind))
     }
 
     fn save_execution(&self, record: AutomationExecutionRecord) -> Result<(), ContractError> {
@@ -147,6 +156,7 @@ impl AutomationExecutionStore for FileAutomationExecutionStore {
         records.insert(
             execution_scope_key(
                 record.tenant_id.as_str(),
+                record.execution.principal_kind.as_str(),
                 record.principal_id.as_str(),
                 record.execution_id.as_str(),
             ),

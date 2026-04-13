@@ -2,7 +2,9 @@ use std::collections::BTreeSet;
 use std::sync::{Mutex, MutexGuard};
 
 use im_domain_core::conversation::DeviceSyncFeedEntry;
-use im_domain_core::conversation::{ConversationMember, ConversationReadCursor};
+use im_domain_core::conversation::{
+    ConversationMember, ConversationReadCursor, principal_member_key,
+};
 use im_platform_contracts::{MetadataStore, TimelineProjectionStore};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
@@ -14,6 +16,9 @@ use crate::interactions::{
 };
 use crate::observability::ProjectionSnapshotOperation;
 use crate::projection::ProjectionError;
+use crate::scope::{
+    DeviceFeedScopeKey, DevicePrincipalScopeKey, device_feed_scope_key, device_principal_scope_key,
+};
 use crate::{
     ContactView, ConversationSummaryView, TimelineProjectionService, TimelineViewEntry,
     model::ConversationCatalogEntry,
@@ -41,6 +46,8 @@ const DEVICE_SYNC_CATALOG_SCOPE: &str = "projection-device-sync";
 struct PrincipalSnapshotCatalogEntry {
     tenant_id: String,
     principal_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    principal_kind: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord)]
@@ -48,6 +55,8 @@ struct PrincipalSnapshotCatalogEntry {
 struct DeviceSyncScopeCatalogEntry {
     tenant_id: String,
     principal_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    principal_kind: Option<String>,
     device_id: String,
 }
 
@@ -92,7 +101,11 @@ impl TimelineProjectionService {
                 .get(scope.as_str())
                 .map(|scope_members| scope_members.values().cloned().collect::<Vec<_>>())
                 .unwrap_or_default();
-            members.sort_by(|left, right| left.principal_id.cmp(&right.principal_id));
+            members.sort_by(|left, right| {
+                left.principal_id
+                    .cmp(&right.principal_id)
+                    .then_with(|| left.principal_kind.cmp(&right.principal_kind))
+            });
             let mut read_cursors = self
                 .read_cursors
                 .lock_projection("cursor store")
@@ -215,7 +228,15 @@ impl TimelineProjectionService {
             )?
             .unwrap_or_default()
             .into_iter()
-            .map(|member| (member.principal_id.clone(), member))
+            .map(|member| {
+                (
+                    principal_member_key(
+                        member.principal_id.as_str(),
+                        member.principal_kind.as_str(),
+                    ),
+                    member,
+                )
+            })
             .collect();
             let read_cursors = load_metadata_snapshot::<Vec<ConversationReadCursor>>(
                 metadata_store,
@@ -320,16 +341,12 @@ impl TimelineProjectionService {
             let mut persisted_device_scopes = BTreeSet::new();
             let mut principal_catalog = BTreeSet::new();
             for (runtime_scope, devices) in &registered_device_snapshots {
-                let Some((tenant_id, principal_id)) =
-                    parse_principal_runtime_scope(runtime_scope.as_str())
-                else {
-                    continue;
-                };
                 principal_catalog.insert(PrincipalSnapshotCatalogEntry {
-                    tenant_id: tenant_id.to_owned(),
-                    principal_id: principal_id.to_owned(),
+                    tenant_id: runtime_scope.tenant_id.clone(),
+                    principal_id: runtime_scope.principal_id.clone(),
+                    principal_kind: runtime_scope.principal_kind.clone(),
                 });
-                let snapshot_scope = principal_snapshot_scope(tenant_id, principal_id);
+                let snapshot_scope = device_principal_snapshot_scope(runtime_scope);
                 persist_metadata_snapshot(
                     metadata_store,
                     snapshot_scope.as_str(),
@@ -338,48 +355,30 @@ impl TimelineProjectionService {
                 )?;
 
                 for device in devices {
-                    persisted_device_scopes.insert((
-                        tenant_id.to_owned(),
-                        principal_id.to_owned(),
-                        device.device_id.clone(),
+                    persisted_device_scopes.insert(device_feed_scope_key(
+                        runtime_scope.tenant_id.as_str(),
+                        runtime_scope.principal_id.as_str(),
+                        runtime_scope.principal_kind.as_deref(),
+                        device.device_id.as_str(),
                     ));
                 }
             }
             for runtime_scope in device_sync_feeds.keys() {
-                let Some((tenant_id, principal_id, device_id)) =
-                    parse_device_runtime_scope(runtime_scope.as_str())
-                else {
-                    continue;
-                };
-                persisted_device_scopes.insert((
-                    tenant_id.to_owned(),
-                    principal_id.to_owned(),
-                    device_id.to_owned(),
-                ));
+                persisted_device_scopes.insert(runtime_scope.clone());
             }
             for runtime_scope in device_sync_sequences.keys() {
-                let Some((tenant_id, principal_id, device_id)) =
-                    parse_device_runtime_scope(runtime_scope.as_str())
-                else {
-                    continue;
-                };
-                persisted_device_scopes.insert((
-                    tenant_id.to_owned(),
-                    principal_id.to_owned(),
-                    device_id.to_owned(),
-                ));
+                persisted_device_scopes.insert(runtime_scope.clone());
             }
 
             let principal_catalog = principal_catalog.into_iter().collect::<Vec<_>>();
             let device_scope_catalog = persisted_device_scopes
                 .iter()
-                .map(
-                    |(tenant_id, principal_id, device_id)| DeviceSyncScopeCatalogEntry {
-                        tenant_id: tenant_id.clone(),
-                        principal_id: principal_id.clone(),
-                        device_id: device_id.clone(),
-                    },
-                )
+                .map(|scope| DeviceSyncScopeCatalogEntry {
+                    tenant_id: scope.tenant_id.clone(),
+                    principal_id: scope.principal_id.clone(),
+                    principal_kind: scope.principal_kind.clone(),
+                    device_id: scope.device_id.clone(),
+                })
                 .collect::<Vec<_>>();
             persist_metadata_snapshot(
                 metadata_store,
@@ -394,16 +393,14 @@ impl TimelineProjectionService {
                 &device_scope_catalog,
             )?;
 
-            for (tenant_id, principal_id, device_id) in persisted_device_scopes {
-                let runtime_scope = device_runtime_scope(&tenant_id, &principal_id, &device_id);
-                let snapshot_scope =
-                    device_sync_snapshot_scope(&tenant_id, &principal_id, &device_id);
+            for runtime_scope in persisted_device_scopes {
+                let snapshot_scope = device_sync_snapshot_scope(&runtime_scope);
                 let feed_entries = device_sync_feeds
-                    .get(runtime_scope.as_str())
+                    .get(&runtime_scope)
                     .cloned()
                     .unwrap_or_default();
                 let latest_sync_seq = device_sync_sequences
-                    .get(runtime_scope.as_str())
+                    .get(&runtime_scope)
                     .copied()
                     .unwrap_or_else(|| {
                         feed_entries
@@ -458,7 +455,7 @@ impl TimelineProjectionService {
         &self,
         metadata_store: &dyn MetadataStore,
     ) -> Result<bool, ProjectionError> {
-        let result = (|| {
+        (|| {
             let contacts = self.contacts.lock_projection("contact store").clone();
             let direct_chat_bindings = self
                 .direct_chat_bindings
@@ -505,16 +502,14 @@ impl TimelineProjectionService {
             )?;
 
             Ok(true)
-        })();
-
-        result
+        })()
     }
 
     pub fn restore_contact_snapshot(
         &self,
         metadata_store: &dyn MetadataStore,
     ) -> Result<bool, ProjectionError> {
-        let result = (|| {
+        (|| {
             let owner_catalog = load_metadata_snapshot::<Vec<ContactOwnerCatalogEntry>>(
                 metadata_store,
                 CONTACT_CATALOG_SCOPE,
@@ -559,9 +554,7 @@ impl TimelineProjectionService {
                 );
 
             Ok(true)
-        })();
-
-        result
+        })()
     }
 
     pub fn restore_device_sync_snapshot(
@@ -588,27 +581,26 @@ impl TimelineProjectionService {
 
             let mut restored_device_scopes = BTreeSet::new();
             for principal in principal_catalog {
-                let snapshot_scope = principal_snapshot_scope(
+                let runtime_scope = device_principal_scope_key(
                     principal.tenant_id.as_str(),
                     principal.principal_id.as_str(),
+                    principal.principal_kind.as_deref(),
                 );
+                let snapshot_scope = device_principal_snapshot_scope(&runtime_scope);
                 let devices = load_metadata_snapshot::<Vec<crate::RegisteredDeviceView>>(
                     metadata_store,
                     snapshot_scope.as_str(),
                     REGISTERED_DEVICES_KEY,
                 )?
                 .unwrap_or_default();
-                let runtime_scope = super::principal_scope_key(
-                    principal.tenant_id.as_str(),
-                    principal.principal_id.as_str(),
-                );
                 let device_map = devices
                     .into_iter()
                     .map(|device| {
-                        restored_device_scopes.insert((
-                            principal.tenant_id.clone(),
-                            principal.principal_id.clone(),
-                            device.device_id.clone(),
+                        restored_device_scopes.insert(device_feed_scope_key(
+                            principal.tenant_id.as_str(),
+                            principal.principal_id.as_str(),
+                            principal.principal_kind.as_deref(),
+                            device.device_id.as_str(),
                         ));
                         (device.device_id.clone(), device)
                     })
@@ -619,16 +611,16 @@ impl TimelineProjectionService {
             }
 
             for device_scope in device_scope_catalog {
-                restored_device_scopes.insert((
-                    device_scope.tenant_id,
-                    device_scope.principal_id,
-                    device_scope.device_id,
+                restored_device_scopes.insert(device_feed_scope_key(
+                    device_scope.tenant_id.as_str(),
+                    device_scope.principal_id.as_str(),
+                    device_scope.principal_kind.as_deref(),
+                    device_scope.device_id.as_str(),
                 ));
             }
 
-            for (tenant_id, principal_id, device_id) in restored_device_scopes {
-                let snapshot_scope =
-                    device_sync_snapshot_scope(&tenant_id, &principal_id, &device_id);
+            for runtime_scope in restored_device_scopes {
+                let snapshot_scope = device_sync_snapshot_scope(&runtime_scope);
                 let mut feed_entries = timeline_store
                     .load_timeline(snapshot_scope.as_str())
                     .map_err(ProjectionError::StoreFailure)?
@@ -652,7 +644,6 @@ impl TimelineProjectionService {
                         .max()
                         .unwrap_or_default()
                 });
-                let runtime_scope = device_runtime_scope(&tenant_id, &principal_id, &device_id);
                 self.device_sync_sequences
                     .lock_projection("device sync sequence store")
                     .insert(runtime_scope.clone(), restored_latest_sync_seq);
@@ -692,21 +683,30 @@ fn principal_snapshot_scope(tenant_id: &str, principal_id: &str) -> String {
     format!("{PRINCIPAL_SNAPSHOT_SCOPE_PREFIX}:{tenant_id}:{principal_id}")
 }
 
-fn device_sync_snapshot_scope(tenant_id: &str, principal_id: &str, device_id: &str) -> String {
-    format!("{DEVICE_SYNC_SNAPSHOT_SCOPE_PREFIX}:{tenant_id}:{principal_id}:{device_id}")
+fn device_principal_snapshot_scope(scope: &DevicePrincipalScopeKey) -> String {
+    match scope.principal_kind.as_deref() {
+        Some(principal_kind) => format!(
+            "{PRINCIPAL_SNAPSHOT_SCOPE_PREFIX}:typed:{}:{principal_kind}:{}",
+            scope.tenant_id, scope.principal_id
+        ),
+        None => format!(
+            "{PRINCIPAL_SNAPSHOT_SCOPE_PREFIX}:{}:{}",
+            scope.tenant_id, scope.principal_id
+        ),
+    }
 }
 
-fn parse_principal_runtime_scope(scope: &str) -> Option<(&str, &str)> {
-    scope.split_once(':')
-}
-
-fn parse_device_runtime_scope(scope: &str) -> Option<(&str, &str, &str)> {
-    let mut parts = scope.splitn(3, ':');
-    Some((parts.next()?, parts.next()?, parts.next()?))
-}
-
-fn device_runtime_scope(tenant_id: &str, principal_id: &str, device_id: &str) -> String {
-    super::device_feed_scope_key(tenant_id, principal_id, device_id)
+fn device_sync_snapshot_scope(scope: &DeviceFeedScopeKey) -> String {
+    match scope.principal_kind.as_deref() {
+        Some(principal_kind) => format!(
+            "{DEVICE_SYNC_SNAPSHOT_SCOPE_PREFIX}:typed:{}:{principal_kind}:{}:{}",
+            scope.tenant_id, scope.principal_id, scope.device_id
+        ),
+        None => format!(
+            "{DEVICE_SYNC_SNAPSHOT_SCOPE_PREFIX}:{}:{}:{}",
+            scope.tenant_id, scope.principal_id, scope.device_id
+        ),
+    }
 }
 
 fn persist_metadata_snapshot<T: Serialize>(
@@ -887,6 +887,7 @@ mod tests {
         let device_scope = DeviceSyncScopeCatalogEntry {
             tenant_id: "t_demo".into(),
             principal_id: "u_demo".into(),
+            principal_kind: None,
             device_id: "d_demo".into(),
         };
         persist_metadata_snapshot(
@@ -905,11 +906,12 @@ mod tests {
         .expect("device-sync scope catalog should persist");
         persist_metadata_snapshot(
             &metadata_store,
-            device_sync_snapshot_scope(
+            device_sync_snapshot_scope(&device_feed_scope_key(
                 device_scope.tenant_id.as_str(),
                 device_scope.principal_id.as_str(),
+                device_scope.principal_kind.as_deref(),
                 device_scope.device_id.as_str(),
-            )
+            ))
             .as_str(),
             DEVICE_SYNC_SEQUENCE_KEY,
             &42_u64,

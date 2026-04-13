@@ -74,11 +74,15 @@ fn test_control_plane_registry_freezes_governance_snapshot_for_runtime_consumers
         "capability_flags"
     );
     assert_eq!(
-        governance.business_policy_vocabulary.history_visibility_field,
+        governance
+            .business_policy_vocabulary
+            .history_visibility_field,
         "history_visibility"
     );
     assert_eq!(
-        governance.business_policy_vocabulary.retention_policy_ref_field,
+        governance
+            .business_policy_vocabulary
+            .retention_policy_ref_field,
         "retention_policy_ref"
     );
     assert_eq!(
@@ -88,7 +92,9 @@ fn test_control_plane_registry_freezes_governance_snapshot_for_runtime_consumers
         vec!["joined".to_string(), "world_readable".to_string()]
     );
     assert_eq!(
-        governance.business_policy_vocabulary.retention_policy_scopes,
+        governance
+            .business_policy_vocabulary
+            .retention_policy_scopes,
         vec![
             "tenant".to_string(),
             "space".to_string(),

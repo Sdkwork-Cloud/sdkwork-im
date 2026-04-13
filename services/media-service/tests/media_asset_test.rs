@@ -444,3 +444,319 @@ async fn test_duplicate_complete_upload_rejects_conflicting_storage_target() {
         serde_json::from_slice(&body).expect("conflict body should be valid json");
     assert_eq!(json["code"], "media_asset_conflict");
 }
+
+#[tokio::test]
+async fn test_duplicate_media_upload_requests_expose_delivery_proof_over_http() {
+    let app = media_service::build_default_app();
+
+    let create_request = r#"{
+        "mediaAssetId":"ma_delivery_proof",
+        "resource":{
+            "uuid":"res_delivery_proof",
+            "type":"image",
+            "mimeType":"image/png",
+            "size":42,
+            "name":"proof.png",
+            "extension":"png"
+        }
+    }"#;
+
+    let first_create = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/media/uploads")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(create_request))
+                .unwrap(),
+        )
+        .await
+        .expect("first create should return response");
+    assert_eq!(first_create.status(), StatusCode::OK);
+    let first_create_body = first_create
+        .into_body()
+        .collect()
+        .await
+        .expect("first create body should collect")
+        .to_bytes();
+    let first_create_json: serde_json::Value =
+        serde_json::from_slice(&first_create_body).expect("first create should be valid json");
+    assert_eq!(first_create_json["deliveryStatus"], "applied");
+    assert_eq!(
+        first_create_json["proofVersion"],
+        "media.upload.delivery-proof.v1"
+    );
+
+    let duplicate_create = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/media/uploads")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(create_request))
+                .unwrap(),
+        )
+        .await
+        .expect("duplicate create should return response");
+    assert_eq!(duplicate_create.status(), StatusCode::OK);
+    let duplicate_create_body = duplicate_create
+        .into_body()
+        .collect()
+        .await
+        .expect("duplicate create body should collect")
+        .to_bytes();
+    let duplicate_create_json: serde_json::Value = serde_json::from_slice(&duplicate_create_body)
+        .expect("duplicate create should be valid json");
+    assert_eq!(duplicate_create_json["deliveryStatus"], "replayed");
+    assert_eq!(
+        duplicate_create_json["requestKey"],
+        first_create_json["requestKey"]
+    );
+    assert_eq!(
+        duplicate_create_json["proofVersion"],
+        first_create_json["proofVersion"]
+    );
+
+    let complete_request = r#"{
+        "bucket":"local-media",
+        "objectKey":"tenant/t_demo/ma_delivery_proof/proof.png",
+        "storageProvider":"local",
+        "url":"https://cdn.example.com/ma_delivery_proof/proof.png",
+        "checksum":"sha256:proof"
+    }"#;
+
+    let first_complete = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/media/uploads/ma_delivery_proof/complete")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(complete_request))
+                .unwrap(),
+        )
+        .await
+        .expect("first complete should return response");
+    assert_eq!(first_complete.status(), StatusCode::OK);
+    let first_complete_body = first_complete
+        .into_body()
+        .collect()
+        .await
+        .expect("first complete body should collect")
+        .to_bytes();
+    let first_complete_json: serde_json::Value =
+        serde_json::from_slice(&first_complete_body).expect("first complete should be valid json");
+    assert_eq!(first_complete_json["deliveryStatus"], "applied");
+    assert_eq!(
+        first_complete_json["proofVersion"],
+        "media.upload.delivery-proof.v1"
+    );
+
+    let duplicate_complete = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/media/uploads/ma_delivery_proof/complete")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(complete_request))
+                .unwrap(),
+        )
+        .await
+        .expect("duplicate complete should return response");
+    assert_eq!(duplicate_complete.status(), StatusCode::OK);
+    let duplicate_complete_body = duplicate_complete
+        .into_body()
+        .collect()
+        .await
+        .expect("duplicate complete body should collect")
+        .to_bytes();
+    let duplicate_complete_json: serde_json::Value =
+        serde_json::from_slice(&duplicate_complete_body)
+            .expect("duplicate complete should be valid json");
+    assert_eq!(duplicate_complete_json["deliveryStatus"], "replayed");
+    assert_eq!(
+        duplicate_complete_json["requestKey"],
+        first_complete_json["requestKey"]
+    );
+    assert_eq!(
+        duplicate_complete_json["proofVersion"],
+        first_complete_json["proofVersion"]
+    );
+}
+
+#[tokio::test]
+async fn test_create_upload_rejects_oversized_media_asset_id_over_http() {
+    let app = media_service::build_default_app();
+    let oversized_media_asset_id = "m".repeat(1024);
+    let request_body = serde_json::json!({
+        "mediaAssetId": oversized_media_asset_id,
+        "resource": {
+            "uuid": "res_oversized_media_asset_id",
+            "type": "image",
+            "mimeType": "image/png",
+            "size": 42,
+            "name": "demo.png",
+            "extension": "png"
+        }
+    })
+    .to_string();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/media/uploads")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(request_body))
+                .unwrap(),
+        )
+        .await
+        .expect("create upload should return response");
+
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let json: serde_json::Value = serde_json::from_slice(&body).expect("body should be valid json");
+    assert_eq!(json["code"], "payload_too_large");
+    assert!(
+        json["message"]
+            .as_str()
+            .expect("message should be present")
+            .contains("mediaAssetId")
+    );
+}
+
+#[tokio::test]
+async fn test_complete_upload_rejects_oversized_object_key_over_http() {
+    let app = media_service::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/media/uploads")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "mediaAssetId":"ma_oversized_object_key",
+                        "resource":{
+                            "uuid":"res_oversized_object_key",
+                            "type":"image",
+                            "mimeType":"image/png",
+                            "size":42,
+                            "name":"demo.png",
+                            "extension":"png"
+                        }
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create upload should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let oversized_object_key = format!("tenant/t_demo/{}", "k".repeat(4096));
+    let request_body = serde_json::json!({
+        "bucket": "local-media",
+        "objectKey": oversized_object_key,
+        "storageProvider": "local",
+        "url": "https://cdn.example.com/oversized-object-key/demo.png",
+        "checksum": "sha256:oversized-object-key"
+    })
+    .to_string();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/media/uploads/ma_oversized_object_key/complete")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(request_body))
+                .unwrap(),
+        )
+        .await
+        .expect("complete upload should return response");
+
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let json: serde_json::Value = serde_json::from_slice(&body).expect("body should be valid json");
+    assert_eq!(json["code"], "payload_too_large");
+    assert!(
+        json["message"]
+            .as_str()
+            .expect("message should be present")
+            .contains("objectKey")
+    );
+}
+
+#[tokio::test]
+async fn test_complete_upload_rejects_oversized_path_media_asset_id_over_http() {
+    let app = media_service::build_default_app();
+    let oversized_media_asset_id = "m".repeat(1024);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/v1/media/uploads/{oversized_media_asset_id}/complete"
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "bucket":"local-media",
+                        "objectKey":"tenant/t_demo/ma_oversized_path/demo.png",
+                        "storageProvider":"local",
+                        "url":"https://cdn.example.com/ma_oversized_path/demo.png",
+                        "checksum":"sha256:demo"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("complete upload should return response");
+
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let json: serde_json::Value = serde_json::from_slice(&body).expect("body should be valid json");
+    assert_eq!(json["code"], "payload_too_large");
+    assert!(
+        json["message"]
+            .as_str()
+            .expect("message should be present")
+            .contains("mediaAssetId")
+    );
+}

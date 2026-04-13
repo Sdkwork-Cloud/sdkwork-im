@@ -68,10 +68,13 @@ pub(super) async fn edit_message(
     command.editor = user_module::resolve_sender_from_auth_context(&state, &auth)?;
     let result = state.conversation_runtime.edit_message(command)?;
 
-    state.audit_runtime.record_anchor(
+    let _ = state.audit_runtime.record_anchor(
         &auth,
         RecordAuditAnchor {
-            record_id: format!("audit_message_edited_{}", result.message_id),
+            record_id: stable_local_audit_record_id(
+                "audit_message_edited_",
+                result.message_id.as_str(),
+            ),
             aggregate_type: "conversation".into(),
             aggregate_id: result.conversation_id.clone(),
             action: "message.edited".into(),
@@ -113,10 +116,13 @@ pub(super) async fn recall_message(
     command.recalled_by = user_module::resolve_sender_from_auth_context(&state, &auth)?;
     let result = state.conversation_runtime.recall_message(command)?;
 
-    state.audit_runtime.record_anchor(
+    let _ = state.audit_runtime.record_anchor(
         &auth,
         RecordAuditAnchor {
-            record_id: format!("audit_message_recalled_{}", result.message_id),
+            record_id: stable_local_audit_record_id(
+                "audit_message_recalled_",
+                result.message_id.as_str(),
+            ),
             aggregate_type: "conversation".into(),
             aggregate_id: result.conversation_id.clone(),
             action: "message.recalled".into(),

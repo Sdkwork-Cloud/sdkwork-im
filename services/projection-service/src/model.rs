@@ -108,6 +108,8 @@ pub struct ConversationSummaryView {
 pub struct RegisteredDeviceView {
     pub tenant_id: String,
     pub principal_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub principal_kind: Option<String>,
     pub device_id: String,
     pub registered_at: String,
 }
@@ -115,7 +117,15 @@ pub struct RegisteredDeviceView {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RealtimeFanoutTarget {
     pub principal_id: String,
+    pub principal_kind: Option<String>,
     pub device_id: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NotificationRecipientView {
+    pub principal_id: String,
+    pub principal_kind: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

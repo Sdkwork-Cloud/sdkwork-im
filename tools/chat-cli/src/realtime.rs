@@ -219,9 +219,9 @@ pub(crate) async fn connect_realtime_socket(
         .with_sub_protocol(CCP_WS_SUBPROTOCOL)
         .with_header(AUTHORIZATION.as_str(), authorization.as_str());
 
-    let (mut socket, response) = connect_async(request)
-        .await
-        .map_err(|error| CliError::runtime(format!("failed to connect websocket: {error}")))?;
+    let (mut socket, response) = connect_async(request).await.map_err(|error| {
+        format_realtime_connect_error(context.base_url.as_str(), &ws_url, error)
+    })?;
     let mode = if response
         .headers()
         .get(tokio_tungstenite::tungstenite::http::header::SEC_WEBSOCKET_PROTOCOL)
@@ -240,6 +240,20 @@ pub(crate) async fn connect_realtime_socket(
         mode,
         ccp,
     })
+}
+
+fn format_realtime_connect_error(
+    base_url: &str,
+    ws_url: &str,
+    error: tokio_tungstenite::tungstenite::Error,
+) -> CliError {
+    match error {
+        tokio_tungstenite::tungstenite::Error::Io(io_error) => CliError::runtime(format!(
+            "unable to connect realtime websocket to craw-chat service at {} using {}; verify the service is running and the --base-url is correct: {}",
+            base_url, ws_url, io_error
+        )),
+        other => CliError::runtime(format!("failed to connect websocket: {other}")),
+    }
 }
 
 async fn complete_ccp_handshake(

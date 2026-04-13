@@ -351,6 +351,33 @@ struct UpdateReadCursorRequest {
 
 impl CreateConversationRequest {
     fn conversation_policy(&self) -> Result<Option<ConversationPolicy>, ApiError> {
+        validate_optional_payload_size(
+            "policyVersion",
+            self.policy_version.as_deref(),
+            CONVERSATION_MAX_POLICY_VERSION_BYTES,
+        )
+        .map_err(ApiError::from)?;
+        if let Some(capability_flags) = &self.capability_flags {
+            validate_string_vec_payload_size(
+                "capabilityFlags",
+                capability_flags,
+                CONVERSATION_MAX_CAPABILITY_FLAG_BYTES,
+                CONVERSATION_MAX_CAPABILITY_FLAGS_TOTAL_BYTES,
+            )
+            .map_err(ApiError::from)?;
+        }
+        validate_optional_payload_size(
+            "historyVisibility",
+            self.history_visibility.as_deref(),
+            CONVERSATION_MAX_HISTORY_VISIBILITY_BYTES,
+        )
+        .map_err(ApiError::from)?;
+        validate_optional_payload_size(
+            "retentionPolicyRef",
+            self.retention_policy_ref.as_deref(),
+            CONVERSATION_MAX_RETENTION_POLICY_REF_BYTES,
+        )
+        .map_err(ApiError::from)?;
         if self.policy_version.is_none()
             && self.capability_flags.is_none()
             && self.history_visibility.is_none()
@@ -435,6 +462,11 @@ impl From<RuntimeError> for ApiError {
             RuntimeError::InvalidInput(message) => {
                 Self::bad_request("conversation_request_invalid", message)
             }
+            RuntimeError::PayloadTooLarge(message) => Self {
+                status: axum::http::StatusCode::PAYLOAD_TOO_LARGE,
+                code: "payload_too_large",
+                message,
+            },
             RuntimeError::ConversationNotFound(message) => Self {
                 status: axum::http::StatusCode::NOT_FOUND,
                 code: "conversation_not_found",
@@ -644,11 +676,33 @@ async fn create_conversation(
         request.conversation_type,
     )?;
     if let Some(policy) = policy {
-        state.runtime.apply_conversation_policy_from_auth_context(
-            &auth,
-            result.conversation_id.clone(),
-            policy,
-        )?;
+        if result.is_applied() {
+            state.runtime.apply_conversation_policy_from_auth_context(
+                &auth,
+                result.conversation_id.clone(),
+                policy,
+            )?;
+        } else {
+            match state.runtime.conversation_policy_snapshot(
+                auth.tenant_id.as_str(),
+                result.conversation_id.as_str(),
+            )? {
+                Some(existing) if existing == policy => {}
+                Some(_) => {
+                    return Err(ApiError::from(RuntimeError::Conflict(format!(
+                        "conversation create request conflicts with existing policy for conversation {}",
+                        result.conversation_id
+                    ))));
+                }
+                None => {
+                    state.runtime.apply_conversation_policy_from_auth_context(
+                        &auth,
+                        result.conversation_id.clone(),
+                        policy,
+                    )?;
+                }
+            }
+        }
     }
     Ok(Json(result))
 }
@@ -768,6 +822,12 @@ async fn sync_shared_channel_linked_member(
     }
     let expected_request_key = shared_channel_sync_request_key(auth.tenant_id.as_str(), &request);
     if let Some(request_key) = request.request_key.as_deref() {
+        validate_payload_size(
+            "requestKey",
+            request_key,
+            CONVERSATION_MAX_REQUEST_KEY_BYTES,
+        )
+        .map_err(ApiError::from)?;
         if request_key.trim().is_empty() {
             return Err(ApiError::bad_request(
                 "shared_channel_sync_request_key_invalid",
@@ -1287,8 +1347,10 @@ mod tests {
             buckets: Arc::new(Mutex::new(BTreeMap::new())),
         };
         {
-            let mut buckets =
-                lock_shared_channel_rate_limit_mutex(&limiter.buckets, "shared-channel-sync-rate-limit");
+            let mut buckets = lock_shared_channel_rate_limit_mutex(
+                &limiter.buckets,
+                "shared-channel-sync-rate-limit",
+            );
             buckets.insert(
                 "tenant_expired_a".into(),
                 SharedChannelSyncRateLimitBucket {

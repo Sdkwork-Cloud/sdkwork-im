@@ -325,10 +325,12 @@ fn test_deployment_profiles_and_templates_document_local_minimal_and_local_defau
             template_content.contains("CRAW_CHAT_SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY=")
         );
         assert!(
-            template_content.contains("CRAW_CHAT_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_MILLIS=")
+            template_content
+                .contains("CRAW_CHAT_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_MILLIS=")
         );
         assert!(
-            template_content.contains("CRAW_CHAT_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES=")
+            template_content
+                .contains("CRAW_CHAT_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES=")
         );
         assert!(
             template_content
@@ -1248,20 +1250,19 @@ fn test_local_default_release_bundle_freezes_evidence_slot_size_bytes_contract()
         );
     }
 
-    for expected in ["sizeBytes"] {
-        assert!(
-            artifact_root_readme.contains(expected),
-            "artifact root readme must document {expected}"
-        );
-        assert!(
-            sample_doc.contains(expected),
-            "verification sample must document {expected}"
-        );
-        assert!(
-            template_doc.contains(expected),
-            "execution record template must document {expected}"
-        );
-    }
+    let expected = "sizeBytes";
+    assert!(
+        artifact_root_readme.contains(expected),
+        "artifact root readme must document {expected}"
+    );
+    assert!(
+        sample_doc.contains(expected),
+        "verification sample must document {expected}"
+    );
+    assert!(
+        template_doc.contains(expected),
+        "execution record template must document {expected}"
+    );
 }
 
 #[test]
@@ -1634,20 +1635,19 @@ fn test_local_default_release_bundle_freezes_collection_summary_contract() {
     assert_eq!(collection_summary["pendingSlots"], 6);
     assert_eq!(collection_summary["skippedOptionalSlots"], 0);
 
-    for expected in ["collectionSummary"] {
-        assert!(
-            artifact_root_readme.contains(expected),
-            "artifact root readme must document {expected}"
-        );
-        assert!(
-            sample_doc.contains(expected),
-            "verification sample must document {expected}"
-        );
-        assert!(
-            template_doc.contains(expected),
-            "execution record template must document {expected}"
-        );
-    }
+    let expected = "collectionSummary";
+    assert!(
+        artifact_root_readme.contains(expected),
+        "artifact root readme must document {expected}"
+    );
+    assert!(
+        sample_doc.contains(expected),
+        "verification sample must document {expected}"
+    );
+    assert!(
+        template_doc.contains(expected),
+        "execution record template must document {expected}"
+    );
 }
 
 #[test]

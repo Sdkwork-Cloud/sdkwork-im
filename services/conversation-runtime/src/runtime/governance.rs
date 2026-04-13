@@ -26,6 +26,20 @@ impl<J> ConversationRuntime<J>
 where
     J: CommitJournal,
 {
+    pub fn conversation_policy_snapshot(
+        &self,
+        tenant_id: &str,
+        conversation_id: &str,
+    ) -> Result<Option<ConversationPolicy>, RuntimeError> {
+        let scope_key = conversation_scope_key(tenant_id, conversation_id);
+        let state = lock_runtime_mutex(&self.state, "conversation-runtime.state.governance");
+        let conversation = state
+            .conversations
+            .get(scope_key.as_str())
+            .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.into()))?;
+        Ok(conversation.aggregate.policy().cloned())
+    }
+
     pub fn apply_conversation_policy_from_auth_context(
         &self,
         auth: &AuthContext,
@@ -69,7 +83,11 @@ where
                     .ok_or_else(|| {
                         RuntimeError::ConversationNotFound(command.conversation_id.clone())
                     })?;
-            let actor_member = resolve_active_member(conversation, command.applied_by.as_str())?;
+            let actor_member = resolve_active_member_with_kind(
+                conversation,
+                command.applied_by.as_str(),
+                actor_kind,
+            )?;
             policy::ensure_actor_kind_matches_member(&actor_member, actor_kind)?;
             policy::ensure_conversation_policy_write_allowed(conversation, &actor_member)?;
 

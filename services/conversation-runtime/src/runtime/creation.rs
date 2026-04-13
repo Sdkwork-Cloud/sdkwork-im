@@ -60,7 +60,30 @@ where
         creator_kind: &str,
         creator_attributes: BTreeMap<String, String>,
     ) -> Result<CreateConversationResult, RuntimeError> {
+        validate_payload_size(
+            "conversationId",
+            command.conversation_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "creatorId",
+            command.creator_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "conversationType",
+            command.conversation_type.as_str(),
+            CONVERSATION_MAX_KIND_BYTES,
+        )?;
+        validate_payload_size("creatorKind", creator_kind, CONVERSATION_MAX_KIND_BYTES)?;
+        validate_member_attributes_payload_size("creatorAttributes", &creator_attributes)?;
         policy::ensure_generic_creatable_conversation_type(command.conversation_type.as_str())?;
+        let request_key = generic_conversation_create_request_key(
+            command.tenant_id.as_str(),
+            creator_kind,
+            command.creator_id.as_str(),
+            command.conversation_id.as_str(),
+        );
         let creator_id = command.creator_id.clone();
         let created_at = conversation_timestamp();
         let scope_key =
@@ -77,13 +100,33 @@ where
             creator_attributes,
         );
         let mut state = lock_runtime_mutex(&self.state, "conversation-runtime.state.creation");
-        if state.conversations.contains_key(scope_key.as_str()) {
-            return Err(RuntimeError::ConversationAlreadyExists(
-                command.conversation_id,
-            ));
+        if let Some(existing_conversation) = state.conversations.get(scope_key.as_str()) {
+            if let Some(existing) = existing_conversation.generic_create_request.as_ref() {
+                if generic_conversation_create_replay_matches(existing, &command, creator_kind) {
+                    return Ok(CreateConversationResult::replayed_with_request_key(
+                        command.conversation_id,
+                        existing.event_id.clone(),
+                        request_key,
+                    ));
+                }
+                return Err(RuntimeError::Conflict(format!(
+                    "conversation create request conflicts with existing conversation idempotency key: {request_key}"
+                )));
+            }
+            return Err(RuntimeError::Conflict(format!(
+                "conversation create request conflicts with existing conversation id: {}",
+                command.conversation_id
+            )));
         }
+        let event_id = format!("evt_{}_created", command.conversation_id);
         let mut conversation = ConversationState {
             aggregate: ConversationAggregateState::new(command.conversation_type.clone()),
+            generic_create_request: Some(GenericConversationCreateReplayRecord {
+                creator_id: creator_id.clone(),
+                creator_kind: creator_kind.into(),
+                requested_kind: command.conversation_type.clone(),
+                event_id: event_id.clone(),
+            }),
             ..ConversationState::default()
         };
         let creator_ordering_seq = conversation.aggregate.next_member_epoch();
@@ -95,7 +138,6 @@ where
         state.conversations.insert(scope_key, conversation);
         drop(state);
 
-        let event_id = format!("evt_{}_created", command.conversation_id);
         let envelope = CommitEnvelope {
             event_id: event_id.clone(),
             tenant_id: command.tenant_id.clone(),
@@ -142,10 +184,11 @@ where
             creator_kind,
         ))?;
 
-        Ok(CreateConversationResult {
-            conversation_id: command.conversation_id,
+        Ok(CreateConversationResult::applied_with_request_key(
+            command.conversation_id,
             event_id,
-        })
+            request_key,
+        ))
     }
 
     pub fn create_agent_dialog(
@@ -178,6 +221,33 @@ where
         command: CreateThreadConversationCommand,
         creator_kind: &str,
     ) -> Result<CreateConversationResult, RuntimeError> {
+        validate_payload_size(
+            "conversationId",
+            command.conversation_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "parentConversationId",
+            command.parent_conversation_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "rootMessageId",
+            command.root_message_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "creatorId",
+            command.creator_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size("creatorKind", creator_kind, CONVERSATION_MAX_KIND_BYTES)?;
+        let request_key = thread_conversation_create_request_key(
+            command.tenant_id.as_str(),
+            creator_kind,
+            command.creator_id.as_str(),
+            command.conversation_id.as_str(),
+        );
         if command.conversation_id.trim().is_empty() {
             return Err(RuntimeError::InvalidInput(
                 "thread conversation requires conversation_id".into(),
@@ -215,13 +285,27 @@ where
             business_binding.business_type.as_str(),
             business_binding.business_id.as_str(),
         );
+        let event_id = format!("evt_{}_created", command.conversation_id);
 
         let thread_members = {
             let mut state = lock_runtime_mutex(&self.state, "conversation-runtime.state.creation");
-            if state.conversations.contains_key(scope_key.as_str()) {
-                return Err(RuntimeError::ConversationAlreadyExists(
-                    command.conversation_id.clone(),
-                ));
+            if let Some(existing_conversation) = state.conversations.get(scope_key.as_str()) {
+                if let Some(existing) = existing_conversation.thread_create_request.as_ref() {
+                    if thread_conversation_create_replay_matches(existing, &command, creator_kind) {
+                        return Ok(CreateConversationResult::replayed_with_request_key(
+                            command.conversation_id.clone(),
+                            existing.event_id.clone(),
+                            request_key,
+                        ));
+                    }
+                    return Err(RuntimeError::Conflict(format!(
+                        "thread create request conflicts with existing conversation idempotency key: {request_key}"
+                    )));
+                }
+                return Err(RuntimeError::Conflict(format!(
+                    "thread create request conflicts with existing conversation id: {}",
+                    command.conversation_id
+                )));
             }
             if let Some(existing_conversation_id) =
                 state.business_index.get(business_scope_key.as_str())
@@ -257,8 +341,11 @@ where
                     parent_conversation.aggregate.conversation_type()
                 )));
             }
-            let parent_creator =
-                resolve_active_member(parent_conversation, command.creator_id.as_str())?;
+            let parent_creator = resolve_active_member_with_kind(
+                parent_conversation,
+                command.creator_id.as_str(),
+                creator_kind,
+            )?;
             policy::ensure_actor_kind_matches_member(&parent_creator, creator_kind)?;
             let root_message = parent_conversation
                 .message_log
@@ -272,9 +359,24 @@ where
             }
             let auto_subscribed_root_author = parent_conversation
                 .roster
-                .resolve_active_member(root_message.message.sender.id.as_str())
+                .resolve_active_member_with_kind(
+                    root_message.message.sender.id.as_str(),
+                    root_message.message.sender.kind.as_str(),
+                )
                 .filter(|member| member.principal_id != command.creator_id);
 
+            let thread_owner_attributes = BTreeMap::from([
+                ("threadRole".into(), "owner".into()),
+                (
+                    "parentConversationId".into(),
+                    command.parent_conversation_id.clone(),
+                ),
+                ("rootMessageId".into(), command.root_message_id.clone()),
+            ]);
+            validate_member_attributes_payload_size(
+                "threadOwnerAttributes",
+                &thread_owner_attributes,
+            )?;
             let thread_owner = build_conversation_member_with_attributes(
                 command.tenant_id.as_str(),
                 command.conversation_id.as_str(),
@@ -287,18 +389,18 @@ where
                 MembershipRole::Owner,
                 Some(command.creator_id.clone()),
                 created_at.clone(),
-                BTreeMap::from([
-                    ("threadRole".into(), "owner".into()),
-                    (
-                        "parentConversationId".into(),
-                        command.parent_conversation_id.clone(),
-                    ),
-                    ("rootMessageId".into(), command.root_message_id.clone()),
-                ]),
+                thread_owner_attributes,
             );
 
             let mut thread_conversation = ConversationState {
                 aggregate: ConversationAggregateState::new("thread"),
+                thread_create_request: Some(ThreadConversationCreateReplayRecord {
+                    creator_id: command.creator_id.clone(),
+                    creator_kind: creator_kind.into(),
+                    parent_conversation_id: command.parent_conversation_id.clone(),
+                    root_message_id: command.root_message_id.clone(),
+                    event_id: event_id.clone(),
+                }),
                 ..ConversationState::default()
             };
             thread_conversation
@@ -314,6 +416,18 @@ where
             thread_members.push((thread_owner, owner_ordering_seq));
 
             if let Some(root_author) = auto_subscribed_root_author {
+                let root_author_attributes = BTreeMap::from([
+                    ("threadRole".into(), "root_author".into()),
+                    (
+                        "parentConversationId".into(),
+                        command.parent_conversation_id.clone(),
+                    ),
+                    ("rootMessageId".into(), command.root_message_id.clone()),
+                ]);
+                validate_member_attributes_payload_size(
+                    "rootAuthorAttributes",
+                    &root_author_attributes,
+                )?;
                 let root_author_member = build_conversation_member_with_attributes(
                     command.tenant_id.as_str(),
                     command.conversation_id.as_str(),
@@ -326,14 +440,7 @@ where
                     MembershipRole::Member,
                     Some(command.creator_id.clone()),
                     created_at.clone(),
-                    BTreeMap::from([
-                        ("threadRole".into(), "root_author".into()),
-                        (
-                            "parentConversationId".into(),
-                            command.parent_conversation_id.clone(),
-                        ),
-                        ("rootMessageId".into(), command.root_message_id.clone()),
-                    ]),
+                    root_author_attributes,
                 );
                 let root_author_ordering_seq = thread_conversation.aggregate.next_member_epoch();
                 upsert_member(&mut thread_conversation, root_author_member.clone());
@@ -354,7 +461,6 @@ where
             thread_members
         };
 
-        let event_id = format!("evt_{}_created", command.conversation_id);
         let envelope = CommitEnvelope {
             event_id: event_id.clone(),
             tenant_id: command.tenant_id.clone(),
@@ -407,10 +513,11 @@ where
             ))?;
         }
 
-        Ok(CreateConversationResult {
-            conversation_id: command.conversation_id,
+        Ok(CreateConversationResult::applied_with_request_key(
+            command.conversation_id,
             event_id,
-        })
+            request_key,
+        ))
     }
 
     pub fn bind_direct_chat_conversation(
@@ -420,6 +527,7 @@ where
         self.bind_direct_chat_conversation_with_binder_kind(command, "system")
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn bind_direct_chat_conversation_from_auth_context(
         &self,
         auth: &AuthContext,
@@ -449,7 +557,49 @@ where
         command: BindDirectChatConversationCommand,
         binder_kind: &str,
     ) -> Result<CreateConversationResult, RuntimeError> {
+        validate_payload_size(
+            "conversationId",
+            command.conversation_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "directChatId",
+            command.direct_chat_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "leftActorId",
+            command.left_actor_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "leftActorKind",
+            command.left_actor_kind.as_str(),
+            CONVERSATION_MAX_KIND_BYTES,
+        )?;
+        validate_payload_size(
+            "rightActorId",
+            command.right_actor_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "rightActorKind",
+            command.right_actor_kind.as_str(),
+            CONVERSATION_MAX_KIND_BYTES,
+        )?;
+        validate_payload_size(
+            "boundBy",
+            command.bound_by.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size("binderKind", binder_kind, CONVERSATION_MAX_KIND_BYTES)?;
         policy::ensure_direct_chat_binding_requester_kind(binder_kind)?;
+        let request_key = direct_chat_binding_request_key(
+            command.tenant_id.as_str(),
+            binder_kind,
+            command.bound_by.as_str(),
+            command.conversation_id.as_str(),
+        );
 
         if command.direct_chat_id.trim().is_empty() {
             return Err(RuntimeError::InvalidInput(
@@ -484,7 +634,21 @@ where
             business_binding.business_type.as_str(),
             business_binding.business_id.as_str(),
         );
+        let event_id = format!("evt_{}_created", command.conversation_id);
 
+        let anchor_attributes = BTreeMap::from([
+            (
+                "businessType".into(),
+                business_binding.business_type.clone(),
+            ),
+            ("businessId".into(), business_binding.business_id.clone()),
+            ("directChatId".into(), command.direct_chat_id.clone()),
+            ("pairHash".into(), pair.pair_hash.clone()),
+            ("directChatRole".into(), "anchor".into()),
+            ("peerActorId".into(), pair.right_actor_id.clone()),
+            ("peerActorKind".into(), command.right_actor_kind.clone()),
+        ]);
+        validate_member_attributes_payload_size("directChatAnchorAttributes", &anchor_attributes)?;
         let anchor_member = build_conversation_member_with_attributes(
             command.tenant_id.as_str(),
             command.conversation_id.as_str(),
@@ -497,19 +661,21 @@ where
             MembershipRole::Owner,
             None,
             created_at.clone(),
-            BTreeMap::from([
-                (
-                    "businessType".into(),
-                    business_binding.business_type.clone(),
-                ),
-                ("businessId".into(), business_binding.business_id.clone()),
-                ("directChatId".into(), command.direct_chat_id.clone()),
-                ("pairHash".into(), pair.pair_hash.clone()),
-                ("directChatRole".into(), "anchor".into()),
-                ("peerActorId".into(), pair.right_actor_id.clone()),
-                ("peerActorKind".into(), command.right_actor_kind.clone()),
-            ]),
+            anchor_attributes,
         );
+        let peer_attributes = BTreeMap::from([
+            (
+                "businessType".into(),
+                business_binding.business_type.clone(),
+            ),
+            ("businessId".into(), business_binding.business_id.clone()),
+            ("directChatId".into(), command.direct_chat_id.clone()),
+            ("pairHash".into(), pair.pair_hash.clone()),
+            ("directChatRole".into(), "peer".into()),
+            ("peerActorId".into(), pair.left_actor_id.clone()),
+            ("peerActorKind".into(), command.left_actor_kind.clone()),
+        ]);
+        validate_member_attributes_payload_size("directChatPeerAttributes", &peer_attributes)?;
         let peer_member = build_conversation_member_with_attributes(
             command.tenant_id.as_str(),
             command.conversation_id.as_str(),
@@ -522,25 +688,27 @@ where
             MembershipRole::Member,
             Some(pair.left_actor_id.clone()),
             created_at.clone(),
-            BTreeMap::from([
-                (
-                    "businessType".into(),
-                    business_binding.business_type.clone(),
-                ),
-                ("businessId".into(), business_binding.business_id.clone()),
-                ("directChatId".into(), command.direct_chat_id.clone()),
-                ("pairHash".into(), pair.pair_hash.clone()),
-                ("directChatRole".into(), "peer".into()),
-                ("peerActorId".into(), pair.left_actor_id.clone()),
-                ("peerActorKind".into(), command.left_actor_kind.clone()),
-            ]),
+            peer_attributes,
         );
 
         let mut state = lock_runtime_mutex(&self.state, "conversation-runtime.state.creation");
-        if state.conversations.contains_key(scope_key.as_str()) {
-            return Err(RuntimeError::ConversationAlreadyExists(
-                command.conversation_id,
-            ));
+        if let Some(existing_conversation) = state.conversations.get(scope_key.as_str()) {
+            if let Some(existing) = existing_conversation.direct_chat_binding_request.as_ref() {
+                if direct_chat_binding_replay_matches(existing, &command, binder_kind, &pair) {
+                    return Ok(CreateConversationResult::replayed_with_request_key(
+                        command.conversation_id,
+                        existing.event_id.clone(),
+                        request_key,
+                    ));
+                }
+                return Err(RuntimeError::Conflict(format!(
+                    "direct chat binding request conflicts with existing conversation idempotency key: {request_key}"
+                )));
+            }
+            return Err(RuntimeError::Conflict(format!(
+                "direct chat binding request conflicts with existing conversation id: {}",
+                command.conversation_id
+            )));
         }
         if let Some(existing_conversation_id) =
             state.business_index.get(business_scope_key.as_str())
@@ -555,6 +723,16 @@ where
 
         let mut conversation = ConversationState {
             aggregate: ConversationAggregateState::new("direct"),
+            direct_chat_binding_request: Some(DirectChatBindingReplayRecord {
+                bound_by: command.bound_by.clone(),
+                binder_kind: binder_kind.into(),
+                direct_chat_id: command.direct_chat_id.clone(),
+                anchor_actor_id: pair.left_actor_id.clone(),
+                anchor_actor_kind: command.left_actor_kind.clone(),
+                peer_actor_id: pair.right_actor_id.clone(),
+                peer_actor_kind: command.right_actor_kind.clone(),
+                event_id: event_id.clone(),
+            }),
             ..ConversationState::default()
         };
         conversation
@@ -573,7 +751,6 @@ where
             .insert(business_scope_key, command.conversation_id.clone());
         drop(state);
 
-        let event_id = format!("evt_{}_created", command.conversation_id);
         let envelope = CommitEnvelope {
             event_id: event_id.clone(),
             tenant_id: command.tenant_id.clone(),
@@ -600,10 +777,18 @@ where
             committed_at: created_at.clone(),
             payload_schema: Some("conversation.created.v1".into()),
             payload: json!({
-                "conversationId": command.conversation_id,
+                "conversationId": command.conversation_id.clone(),
                 "conversationType": "direct",
-                "businessType": business_binding.business_type,
-                "businessId": business_binding.business_id
+                "businessType": business_binding.business_type.clone(),
+                "businessId": business_binding.business_id.clone(),
+                "directChat": {
+                    "directChatId": command.direct_chat_id.clone(),
+                    "anchorActorId": pair.left_actor_id.clone(),
+                    "anchorActorKind": command.left_actor_kind.clone(),
+                    "peerActorId": pair.right_actor_id.clone(),
+                    "peerActorKind": command.right_actor_kind.clone(),
+                    "pairHash": pair.pair_hash.clone()
+                }
             })
             .to_string(),
             retention_class: "standard".into(),
@@ -632,10 +817,11 @@ where
             binder_kind,
         ))?;
 
-        Ok(CreateConversationResult {
-            conversation_id: command.conversation_id,
+        Ok(CreateConversationResult::applied_with_request_key(
+            command.conversation_id,
             event_id,
-        })
+            request_key,
+        ))
     }
 
     pub fn create_agent_dialog_from_auth_context(
@@ -684,7 +870,29 @@ where
         requester_kind: &str,
         requester_attributes: BTreeMap<String, String>,
     ) -> Result<CreateConversationResult, RuntimeError> {
+        validate_payload_size(
+            "conversationId",
+            command.conversation_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "requesterId",
+            command.requester_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "agentId",
+            command.agent_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size("requesterKind", requester_kind, CONVERSATION_MAX_KIND_BYTES)?;
         policy::ensure_agent_dialog_requester_kind(requester_kind)?;
+        let request_key = agent_dialog_create_request_key(
+            command.tenant_id.as_str(),
+            requester_kind,
+            command.requester_id.as_str(),
+            command.conversation_id.as_str(),
+        );
 
         if command.agent_id.trim().is_empty() {
             return Err(RuntimeError::PermissionDenied(
@@ -703,6 +911,10 @@ where
         let mut requester_member_attributes =
             BTreeMap::from([("dialogRole".into(), "requester".into())]);
         requester_member_attributes.extend(requester_attributes);
+        validate_member_attributes_payload_size(
+            "requesterAttributes",
+            &requester_member_attributes,
+        )?;
         let requester_member = build_conversation_member_with_attributes(
             command.tenant_id.as_str(),
             command.conversation_id.as_str(),
@@ -717,6 +929,11 @@ where
             created_at.clone(),
             requester_member_attributes,
         );
+        let agent_member_attributes = BTreeMap::from([
+            ("agentId".into(), command.agent_id.clone()),
+            ("dialogRole".into(), "assistant".into()),
+        ]);
+        validate_member_attributes_payload_size("agentAttributes", &agent_member_attributes)?;
         let agent_member = build_conversation_member_with_attributes(
             command.tenant_id.as_str(),
             command.conversation_id.as_str(),
@@ -726,21 +943,38 @@ where
             MembershipRole::Member,
             Some(command.requester_id.clone()),
             created_at.clone(),
-            BTreeMap::from([
-                ("agentId".into(), command.agent_id.clone()),
-                ("dialogRole".into(), "assistant".into()),
-            ]),
+            agent_member_attributes,
         );
 
         let mut state = lock_runtime_mutex(&self.state, "conversation-runtime.state.creation");
-        if state.conversations.contains_key(scope_key.as_str()) {
-            return Err(RuntimeError::ConversationAlreadyExists(
-                command.conversation_id,
-            ));
+        if let Some(existing_conversation) = state.conversations.get(scope_key.as_str()) {
+            if let Some(existing) = existing_conversation.agent_dialog_create_request.as_ref() {
+                if agent_dialog_create_replay_matches(existing, &command, requester_kind) {
+                    return Ok(CreateConversationResult::replayed_with_request_key(
+                        command.conversation_id,
+                        existing.event_id.clone(),
+                        request_key,
+                    ));
+                }
+                return Err(RuntimeError::Conflict(format!(
+                    "agent dialog create request conflicts with existing conversation idempotency key: {request_key}"
+                )));
+            }
+            return Err(RuntimeError::Conflict(format!(
+                "agent dialog create request conflicts with existing conversation id: {}",
+                command.conversation_id
+            )));
         }
 
+        let event_id = format!("evt_{}_created", command.conversation_id);
         let mut conversation = ConversationState {
             aggregate: ConversationAggregateState::new("agent_dialog"),
+            agent_dialog_create_request: Some(AgentDialogCreateReplayRecord {
+                requester_id: command.requester_id.clone(),
+                requester_kind: requester_kind.into(),
+                agent_id: command.agent_id.clone(),
+                event_id: event_id.clone(),
+            }),
             ..ConversationState::default()
         };
         let requester_ordering_seq = conversation.aggregate.next_member_epoch();
@@ -755,7 +989,6 @@ where
         state.conversations.insert(scope_key, conversation);
         drop(state);
 
-        let event_id = format!("evt_{}_created", command.conversation_id);
         let envelope = CommitEnvelope {
             event_id: event_id.clone(),
             tenant_id: command.tenant_id.clone(),
@@ -782,8 +1015,11 @@ where
             committed_at: created_at.clone(),
             payload_schema: Some("conversation.created.v1".into()),
             payload: json!({
-                "conversationId": command.conversation_id,
-                "conversationType": "agent_dialog"
+                "conversationId": command.conversation_id.clone(),
+                "conversationType": "agent_dialog",
+                "agentDialog": {
+                    "agentId": command.agent_id.clone()
+                }
             })
             .to_string(),
             retention_class: "standard".into(),
@@ -812,10 +1048,11 @@ where
             requester_kind,
         ))?;
 
-        Ok(CreateConversationResult {
-            conversation_id: command.conversation_id,
+        Ok(CreateConversationResult::applied_with_request_key(
+            command.conversation_id,
             event_id,
-        })
+            request_key,
+        ))
     }
 
     pub fn create_system_channel(
@@ -871,7 +1108,29 @@ where
         requester_kind: &str,
         subscriber_attributes: BTreeMap<String, String>,
     ) -> Result<CreateConversationResult, RuntimeError> {
+        validate_payload_size(
+            "conversationId",
+            command.conversation_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "requesterId",
+            command.requester_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "subscriberId",
+            command.subscriber_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size("requesterKind", requester_kind, CONVERSATION_MAX_KIND_BYTES)?;
         policy::ensure_system_channel_requester_kind(requester_kind)?;
+        let request_key = system_channel_create_request_key(
+            command.tenant_id.as_str(),
+            requester_kind,
+            command.requester_id.as_str(),
+            command.conversation_id.as_str(),
+        );
 
         if command.subscriber_id.trim().is_empty() {
             return Err(RuntimeError::PermissionDenied(
@@ -887,6 +1146,12 @@ where
         let created_at = conversation_timestamp();
         let scope_key =
             conversation_scope_key(command.tenant_id.as_str(), command.conversation_id.as_str());
+        let publisher_member_attributes =
+            BTreeMap::from([("channelRole".into(), "publisher".into())]);
+        validate_member_attributes_payload_size(
+            "publisherAttributes",
+            &publisher_member_attributes,
+        )?;
         let publisher_member = build_conversation_member_with_attributes(
             command.tenant_id.as_str(),
             command.conversation_id.as_str(),
@@ -899,11 +1164,15 @@ where
             MembershipRole::Owner,
             None,
             created_at.clone(),
-            BTreeMap::from([("channelRole".into(), "publisher".into())]),
+            publisher_member_attributes,
         );
         let mut subscriber_member_attributes =
             BTreeMap::from([("channelRole".into(), "subscriber".into())]);
         subscriber_member_attributes.extend(subscriber_attributes);
+        validate_member_attributes_payload_size(
+            "subscriberAttributes",
+            &subscriber_member_attributes,
+        )?;
         let subscriber_member = build_conversation_member_with_attributes(
             command.tenant_id.as_str(),
             command.conversation_id.as_str(),
@@ -920,14 +1189,34 @@ where
         );
 
         let mut state = lock_runtime_mutex(&self.state, "conversation-runtime.state.creation");
-        if state.conversations.contains_key(scope_key.as_str()) {
-            return Err(RuntimeError::ConversationAlreadyExists(
-                command.conversation_id,
-            ));
+        if let Some(existing_conversation) = state.conversations.get(scope_key.as_str()) {
+            if let Some(existing) = existing_conversation.system_channel_create_request.as_ref() {
+                if system_channel_create_replay_matches(existing, &command, requester_kind) {
+                    return Ok(CreateConversationResult::replayed_with_request_key(
+                        command.conversation_id,
+                        existing.event_id.clone(),
+                        request_key,
+                    ));
+                }
+                return Err(RuntimeError::Conflict(format!(
+                    "system channel create request conflicts with existing conversation idempotency key: {request_key}"
+                )));
+            }
+            return Err(RuntimeError::Conflict(format!(
+                "system channel create request conflicts with existing conversation id: {}",
+                command.conversation_id
+            )));
         }
 
+        let event_id = format!("evt_{}_created", command.conversation_id);
         let mut conversation = ConversationState {
             aggregate: ConversationAggregateState::new("system_channel"),
+            system_channel_create_request: Some(SystemChannelCreateReplayRecord {
+                requester_id: command.requester_id.clone(),
+                requester_kind: requester_kind.into(),
+                subscriber_id: command.subscriber_id.clone(),
+                event_id: event_id.clone(),
+            }),
             ..ConversationState::default()
         };
         let publisher_ordering_seq = conversation.aggregate.next_member_epoch();
@@ -945,7 +1234,6 @@ where
         state.conversations.insert(scope_key, conversation);
         drop(state);
 
-        let event_id = format!("evt_{}_created", command.conversation_id);
         let envelope = CommitEnvelope {
             event_id: event_id.clone(),
             tenant_id: command.tenant_id.clone(),
@@ -972,8 +1260,11 @@ where
             committed_at: created_at.clone(),
             payload_schema: Some("conversation.created.v1".into()),
             payload: json!({
-                "conversationId": command.conversation_id,
-                "conversationType": "system_channel"
+                "conversationId": command.conversation_id.clone(),
+                "conversationType": "system_channel",
+                "systemChannel": {
+                    "subscriberId": command.subscriber_id.clone()
+                }
             })
             .to_string(),
             retention_class: "standard".into(),
@@ -1002,10 +1293,11 @@ where
             requester_kind,
         ))?;
 
-        Ok(CreateConversationResult {
-            conversation_id: command.conversation_id,
+        Ok(CreateConversationResult::applied_with_request_key(
+            command.conversation_id,
             event_id,
-        })
+            request_key,
+        ))
     }
 
     pub fn create_agent_handoff(
@@ -1035,6 +1327,7 @@ where
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn create_agent_handoff_from_auth_context_with_target_attributes(
         &self,
         auth: &AuthContext,
@@ -1077,8 +1370,45 @@ where
         source_kind: &str,
         target_attributes: BTreeMap<String, String>,
     ) -> Result<CreateConversationResult, RuntimeError> {
+        validate_payload_size(
+            "conversationId",
+            command.conversation_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "sourceId",
+            command.source_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "targetId",
+            command.target_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "targetKind",
+            command.target_kind.as_str(),
+            CONVERSATION_MAX_KIND_BYTES,
+        )?;
+        validate_payload_size(
+            "handoffSessionId",
+            command.handoff_session_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_optional_payload_size(
+            "handoffReason",
+            command.handoff_reason.as_deref(),
+            CONVERSATION_MAX_REASON_BYTES,
+        )?;
+        validate_payload_size("sourceKind", source_kind, CONVERSATION_MAX_KIND_BYTES)?;
         policy::ensure_agent_handoff_source_kind(source_kind)?;
         policy::ensure_agent_handoff_target_kind(command.target_kind.as_str())?;
+        let request_key = agent_handoff_create_request_key(
+            command.tenant_id.as_str(),
+            source_kind,
+            command.source_id.as_str(),
+            command.conversation_id.as_str(),
+        );
 
         if command.handoff_session_id.trim().is_empty() {
             return Err(RuntimeError::PermissionDenied(
@@ -1107,6 +1437,7 @@ where
         if let Some(reason) = command.handoff_reason.clone() {
             source_attributes.insert("handoffReason".into(), reason);
         }
+        validate_member_attributes_payload_size("sourceAttributes", &source_attributes)?;
         let source_member = build_conversation_member_with_attributes(
             command.tenant_id.as_str(),
             command.conversation_id.as_str(),
@@ -1131,6 +1462,7 @@ where
             target_member_attributes.insert("handoffReason".into(), reason);
         }
         target_member_attributes.extend(target_attributes);
+        validate_member_attributes_payload_size("targetAttributes", &target_member_attributes)?;
         let target_member = build_conversation_member_with_attributes(
             command.tenant_id.as_str(),
             command.conversation_id.as_str(),
@@ -1144,12 +1476,26 @@ where
         );
 
         let mut state = lock_runtime_mutex(&self.state, "conversation-runtime.state.creation");
-        if state.conversations.contains_key(scope_key.as_str()) {
-            return Err(RuntimeError::ConversationAlreadyExists(
-                command.conversation_id,
-            ));
+        if let Some(existing_conversation) = state.conversations.get(scope_key.as_str()) {
+            if let Some(existing) = existing_conversation.agent_handoff_create_request.as_ref() {
+                if agent_handoff_create_replay_matches(existing, &command, source_kind) {
+                    return Ok(CreateConversationResult::replayed_with_request_key(
+                        command.conversation_id,
+                        existing.event_id.clone(),
+                        request_key,
+                    ));
+                }
+                return Err(RuntimeError::Conflict(format!(
+                    "agent handoff create request conflicts with existing conversation idempotency key: {request_key}"
+                )));
+            }
+            return Err(RuntimeError::Conflict(format!(
+                "agent handoff create request conflicts with existing conversation id: {}",
+                command.conversation_id
+            )));
         }
 
+        let event_id = format!("evt_{}_created", command.conversation_id);
         let mut conversation = ConversationState {
             aggregate: ConversationAggregateState::new_agent_handoff(AgentHandoffStateView {
                 tenant_id: command.tenant_id.clone(),
@@ -1172,6 +1518,15 @@ where
                 closed_at: None,
                 closed_by: None,
             }),
+            agent_handoff_create_request: Some(AgentHandoffCreateReplayRecord {
+                source_id: command.source_id.clone(),
+                source_kind: source_kind.into(),
+                target_id: command.target_id.clone(),
+                target_kind: command.target_kind.clone(),
+                handoff_session_id: command.handoff_session_id.clone(),
+                handoff_reason: command.handoff_reason.clone(),
+                event_id: event_id.clone(),
+            }),
             ..ConversationState::default()
         };
         let source_ordering_seq = conversation.aggregate.next_member_epoch();
@@ -1183,7 +1538,6 @@ where
         state.conversations.insert(scope_key, conversation);
         drop(state);
 
-        let event_id = format!("evt_{}_created", command.conversation_id);
         let envelope = CommitEnvelope {
             event_id: event_id.clone(),
             tenant_id: command.tenant_id.clone(),
@@ -1210,19 +1564,19 @@ where
             committed_at: created_at.clone(),
             payload_schema: Some("conversation.created.v1".into()),
             payload: json!({
-                "conversationId": command.conversation_id,
+                "conversationId": command.conversation_id.clone(),
                 "conversationType": "agent_handoff",
                 "source": {
-                    "id": command.source_id,
+                    "id": command.source_id.clone(),
                     "kind": source_kind
                 },
                 "target": {
-                    "id": command.target_id,
-                    "kind": command.target_kind
+                    "id": command.target_id.clone(),
+                    "kind": command.target_kind.clone()
                 },
                 "handoff": {
-                    "sessionId": command.handoff_session_id,
-                    "reason": command.handoff_reason,
+                    "sessionId": command.handoff_session_id.clone(),
+                    "reason": command.handoff_reason.clone(),
                     "status": "open"
                 }
             })
@@ -1253,9 +1607,10 @@ where
             source_kind,
         ))?;
 
-        Ok(CreateConversationResult {
-            conversation_id: command.conversation_id,
+        Ok(CreateConversationResult::applied_with_request_key(
+            command.conversation_id,
             event_id,
-        })
+            request_key,
+        ))
     }
 }

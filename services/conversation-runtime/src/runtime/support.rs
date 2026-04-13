@@ -55,6 +55,21 @@ pub(super) fn resolve_active_member_id(
         })
 }
 
+pub(super) fn resolve_active_member_id_with_kind(
+    conversation: &ConversationState,
+    principal_id: &str,
+    principal_kind: &str,
+) -> Result<String, RuntimeError> {
+    conversation
+        .roster
+        .resolve_active_member_id_with_kind(principal_id, principal_kind)
+        .ok_or_else(|| {
+            RuntimeError::PermissionDenied(format!(
+                "principal is not active conversation member: {principal_kind}:{principal_id}"
+            ))
+        })
+}
+
 pub(super) fn resolve_active_member(
     conversation: &ConversationState,
     principal_id: &str,
@@ -69,6 +84,21 @@ pub(super) fn resolve_active_member(
         })
 }
 
+pub(super) fn resolve_active_member_with_kind(
+    conversation: &ConversationState,
+    principal_id: &str,
+    principal_kind: &str,
+) -> Result<ConversationMember, RuntimeError> {
+    conversation
+        .roster
+        .resolve_active_member_with_kind(principal_id, principal_kind)
+        .ok_or_else(|| {
+            RuntimeError::PermissionDenied(format!(
+                "principal is not active conversation member: {principal_kind}:{principal_id}"
+            ))
+        })
+}
+
 pub(super) fn upsert_read_cursor(
     conversation: &mut ConversationState,
     cursor: ConversationReadCursor,
@@ -76,6 +106,7 @@ pub(super) fn upsert_read_cursor(
     conversation.roster.upsert_read_cursor(cursor);
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn build_member_envelope(
     tenant_id: &str,
     conversation_id: &str,

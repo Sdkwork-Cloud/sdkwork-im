@@ -24,7 +24,12 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+script_source="${BASH_SOURCE[0]}"
+script_dir="${script_source%/*}"
+if [[ "$script_dir" == "$script_source" ]]; then
+  script_dir="."
+fi
+ROOT_DIR="$(cd -- "$script_dir/.." && pwd)"
 cd "$ROOT_DIR"
 
 profile_dir="debug"

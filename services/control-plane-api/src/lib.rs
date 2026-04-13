@@ -1,7 +1,8 @@
+use std::cmp::Ordering as CmpOrdering;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path as StdPath, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, RwLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -44,7 +45,7 @@ use im_domain_core::social::{
 use im_domain_events::social::{
     DirectChatBoundPayload, ExternalConnectionEstablishedPayload, ExternalMemberLinkBoundPayload,
     FriendRequestSubmittedPayload, FriendshipActivatedPayload, SharedChannelPolicyAppliedPayload,
-    SocialEventType, UserBlockedPayload, social_commit_envelope,
+    SocialCommitEnvelopeInput, SocialEventType, UserBlockedPayload, social_commit_envelope,
 };
 use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
 use im_platform_contracts::{
@@ -62,6 +63,7 @@ use session_gateway::{
     RealtimeClusterBridge, RealtimeClusterError, RealtimeNodeLifecycleView,
     RealtimeRouteMigrationResult,
 };
+use sha2::{Digest, Sha256};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -192,6 +194,17 @@ const SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES_MAX: usize = 2_000_000;
 const SHARED_CHANNEL_SYNC_PENDING_RETRY_COOLDOWN_DEFAULT_MILLIS: u128 = 0;
 const SHARED_CHANNEL_SYNC_PENDING_RETRY_COOLDOWN_MAX_MILLIS: u128 = 60_000;
 const SHARED_CHANNEL_SYNC_ACK_PROOF_VERSION: &str = "shared_channel_sync_ack.v1";
+const CONTROL_PLANE_MAX_ID_BYTES: usize = 256;
+const CONTROL_PLANE_MAX_ACTOR_KIND_BYTES: usize = 64;
+const CONTROL_PLANE_MAX_TIMESTAMP_BYTES: usize = 64;
+const CONTROL_PLANE_MAX_REQUEST_MESSAGE_BYTES: usize = 8 * 1024;
+const CONTROL_PLANE_MAX_HISTORY_VISIBILITY_BYTES: usize = 32;
+const CONTROL_PLANE_MAX_EXTERNAL_ORG_NAME_BYTES: usize = 256;
+const CONTROL_PLANE_MAX_EXTERNAL_DISPLAY_NAME_BYTES: usize = 512;
+const CONTROL_PLANE_MAX_REQUEST_KEY_BYTES: usize = 512;
+const CONTROL_PLANE_MAX_REQUEST_KEYS: usize = 1024;
+const CONTROL_PLANE_MAX_REQUEST_KEYS_TOTAL_BYTES: usize = 64 * 1024;
+static CONTROL_PLANE_AUDIT_RECORD_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SharedChannelSyncStaleReclaimSchedulerConfig {
@@ -1005,7 +1018,9 @@ impl PendingSharedChannelSyncRequest {
             && self
                 .lease_expires_at
                 .as_deref()
-                .is_some_and(|lease_expires_at| lease_expires_at <= claimed_at.as_str());
+                .is_some_and(|lease_expires_at| {
+                    timestamp_at_or_before(lease_expires_at, claimed_at.as_str())
+                });
         if !already_owned
             || self.claimed_at.is_none()
             || self.lease_expires_at.is_none()
@@ -1034,7 +1049,7 @@ impl PendingSharedChannelSyncRequest {
         ) {
             (None, None, _) => SocialSharedChannelSyncLeaseStatus::Unclaimed,
             (Some(_), Some(_), Some(lease_expires_at)) => {
-                if lease_expires_at > now {
+                if timestamp_after(lease_expires_at, now) {
                     SocialSharedChannelSyncLeaseStatus::Active
                 } else {
                     SocialSharedChannelSyncLeaseStatus::Stale
@@ -1053,7 +1068,7 @@ impl PendingSharedChannelSyncRequest {
             && self
                 .lease_expires_at
                 .as_deref()
-                .is_some_and(|lease_expires_at| lease_expires_at <= now)
+                .is_some_and(|lease_expires_at| timestamp_at_or_before(lease_expires_at, now))
     }
 
     fn blocks_foreign_takeover(&self, actor_id: &str, actor_kind: &str, now: &str) -> bool {
@@ -1061,14 +1076,14 @@ impl PendingSharedChannelSyncRequest {
             && self
                 .lease_expires_at
                 .as_deref()
-                .is_some_and(|lease_expires_at| lease_expires_at > now)
+                .is_some_and(|lease_expires_at| timestamp_after(lease_expires_at, now))
     }
 
     fn auto_dispatch_eligible(&self, now: &str, retry_window_start: &str) -> bool {
         if self
             .last_failed_at
             .as_deref()
-            .is_some_and(|last_failed_at| last_failed_at > retry_window_start)
+            .is_some_and(|last_failed_at| timestamp_after(last_failed_at, retry_window_start))
         {
             return false;
         }
@@ -1085,6 +1100,89 @@ fn current_unix_epoch_millis() -> u128 {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis()
+}
+
+fn is_canonical_rfc3339_millis_utc(timestamp: &str) -> bool {
+    let bytes = timestamp.as_bytes();
+    if bytes.len() != 24 {
+        return false;
+    }
+    for index in [4, 7] {
+        if bytes[index] != b'-' {
+            return false;
+        }
+    }
+    if bytes[10] != b'T' || bytes[13] != b':' || bytes[16] != b':' || bytes[19] != b'.' {
+        return false;
+    }
+    if bytes[23] != b'Z' {
+        return false;
+    }
+    for index in [0, 1, 2, 3, 5, 6, 8, 9, 11, 12, 14, 15, 17, 18, 20, 21, 22] {
+        if !bytes[index].is_ascii_digit() {
+            return false;
+        }
+    }
+    true
+}
+
+fn compare_canonical_rfc3339_millis_utc(left: &str, right: &str) -> Option<CmpOrdering> {
+    if !is_canonical_rfc3339_millis_utc(left) || !is_canonical_rfc3339_millis_utc(right) {
+        return None;
+    }
+    Some(left.cmp(right))
+}
+
+fn timestamp_recency_cmp(left: &str, right: &str) -> CmpOrdering {
+    match (
+        is_canonical_rfc3339_millis_utc(left),
+        is_canonical_rfc3339_millis_utc(right),
+    ) {
+        (true, true) => left.cmp(right),
+        (true, false) => CmpOrdering::Greater,
+        (false, true) => CmpOrdering::Less,
+        (false, false) => left.cmp(right),
+    }
+}
+
+fn timestamp_newer_for_recency(candidate: &str, existing: &str) -> bool {
+    matches!(
+        timestamp_recency_cmp(candidate, existing),
+        CmpOrdering::Greater
+    )
+}
+
+fn timestamp_not_before_for_dedup(value: &str, window_start: &str) -> bool {
+    compare_canonical_rfc3339_millis_utc(value, window_start)
+        .is_some_and(|ordering| !matches!(ordering, CmpOrdering::Less))
+}
+
+fn timestamp_before_or_noncanonical_for_retention(value: &str, window_start: &str) -> bool {
+    match compare_canonical_rfc3339_millis_utc(value, window_start) {
+        Some(ordering) => matches!(ordering, CmpOrdering::Less),
+        None => true,
+    }
+}
+
+fn compare_optional_timestamps_desc(left: Option<&str>, right: Option<&str>) -> CmpOrdering {
+    match (left, right) {
+        (Some(left), Some(right)) => timestamp_recency_cmp(right, left),
+        (Some(_), None) => CmpOrdering::Less,
+        (None, Some(_)) => CmpOrdering::Greater,
+        (None, None) => CmpOrdering::Equal,
+    }
+}
+
+fn timestamp_after(left: &str, right: &str) -> bool {
+    compare_canonical_rfc3339_millis_utc(left, right)
+        .is_some_and(|ordering| matches!(ordering, CmpOrdering::Greater))
+}
+
+fn timestamp_at_or_before(left: &str, right: &str) -> bool {
+    match compare_canonical_rfc3339_millis_utc(left, right) {
+        Some(ordering) => !matches!(ordering, CmpOrdering::Greater),
+        None => true,
+    }
 }
 
 fn shared_channel_sync_delivered_ledger_retention_window_start(now_epoch_millis: u128) -> String {
@@ -1348,7 +1446,7 @@ impl SocialControlState {
             self.delivered_shared_channel_sync_requests
                 .entry(key.clone())
                 .and_modify(|existing| {
-                    if delivered_at > existing {
+                    if timestamp_newer_for_recency(delivered_at, existing) {
                         *existing = delivered_at.clone();
                     }
                 })
@@ -1361,12 +1459,13 @@ impl SocialControlState {
             self.delivered_shared_channel_sync_delivery_proofs
                 .entry(key.clone())
                 .and_modify(|existing| {
-                    if proof.delivered_at > existing.delivered_at
-                        || (proof.delivered_at == existing.delivered_at
-                            && existing.status
-                                == SharedChannelSyncDeliveryProofStatus::TransportAccepted
-                            && proof.status
-                                != SharedChannelSyncDeliveryProofStatus::TransportAccepted)
+                    if timestamp_newer_for_recency(
+                        proof.delivered_at.as_str(),
+                        existing.delivered_at.as_str(),
+                    ) || (proof.delivered_at == existing.delivered_at
+                        && existing.status
+                            == SharedChannelSyncDeliveryProofStatus::TransportAccepted
+                        && proof.status != SharedChannelSyncDeliveryProofStatus::TransportAccepted)
                     {
                         *existing = proof.clone();
                     }
@@ -1380,7 +1479,7 @@ impl SocialControlState {
             self.recent_shared_channel_sync_deliveries
                 .entry(key.clone())
                 .and_modify(|existing| {
-                    if delivered_at > existing {
+                    if timestamp_newer_for_recency(delivered_at, existing) {
                         *existing = delivered_at.clone();
                     }
                 })
@@ -1448,8 +1547,10 @@ impl SocialControlState {
             .delivered_shared_channel_sync_requests
             .iter()
             .filter(|(key, delivered_at)| {
-                delivered_at.as_str() < retention_window_start
-                    && !protected_keys.contains(key.as_str())
+                timestamp_before_or_noncanonical_for_retention(
+                    delivered_at.as_str(),
+                    retention_window_start,
+                ) && !protected_keys.contains(key.as_str())
             })
             .map(|(key, _)| key.clone())
             .collect::<Vec<_>>();
@@ -1619,10 +1720,11 @@ impl SocialControlState {
             .delivered_shared_channel_sync_delivery_proofs
             .get(request_key)
             .is_none_or(|existing| {
-                failed_proof.delivered_at > existing.delivered_at
-                    || (failed_proof.delivered_at == existing.delivered_at
-                        && existing.status
-                            == SharedChannelSyncDeliveryProofStatus::TransportAccepted)
+                timestamp_newer_for_recency(
+                    failed_proof.delivered_at.as_str(),
+                    existing.delivered_at.as_str(),
+                ) || (failed_proof.delivered_at == existing.delivered_at
+                    && existing.status == SharedChannelSyncDeliveryProofStatus::TransportAccepted)
             });
         if should_update {
             self.delivered_shared_channel_sync_delivery_proofs
@@ -1662,7 +1764,9 @@ impl SocialControlState {
     ) -> bool {
         self.recent_shared_channel_sync_deliveries
             .get(shared_channel_sync_request_key(request).as_str())
-            .is_some_and(|delivered_at| delivered_at.as_str() >= dedup_window_start)
+            .is_some_and(|delivered_at| {
+                timestamp_not_before_for_dedup(delivered_at.as_str(), dedup_window_start)
+            })
     }
 
     fn record_dispatched_shared_channel_sync_request(
@@ -1677,7 +1781,7 @@ impl SocialControlState {
         self.delivered_shared_channel_sync_requests
             .entry(key.clone())
             .and_modify(|existing| {
-                if delivered_at > existing.as_str() {
+                if timestamp_newer_for_recency(delivered_at, existing.as_str()) {
                     *existing = delivered_at.to_owned();
                 }
             })
@@ -1706,12 +1810,13 @@ impl SocialControlState {
             .delivered_shared_channel_sync_delivery_proofs
             .get(key.as_str())
             .is_none_or(|existing| {
-                delivered_proof.delivered_at > existing.delivered_at
-                    || (delivered_proof.delivered_at == existing.delivered_at
-                        && existing.status
-                            == SharedChannelSyncDeliveryProofStatus::TransportAccepted
-                        && delivered_proof.status
-                            != SharedChannelSyncDeliveryProofStatus::TransportAccepted)
+                timestamp_newer_for_recency(
+                    delivered_proof.delivered_at.as_str(),
+                    existing.delivered_at.as_str(),
+                ) || (delivered_proof.delivered_at == existing.delivered_at
+                    && existing.status == SharedChannelSyncDeliveryProofStatus::TransportAccepted
+                    && delivered_proof.status
+                        != SharedChannelSyncDeliveryProofStatus::TransportAccepted)
             });
         if proof_should_update {
             self.delivered_shared_channel_sync_delivery_proofs
@@ -1720,7 +1825,7 @@ impl SocialControlState {
 
         self.recent_shared_channel_sync_deliveries
             .retain(|_, existing_delivered_at| {
-                existing_delivered_at.as_str() >= dedup_window_start
+                timestamp_not_before_for_dedup(existing_delivered_at.as_str(), dedup_window_start)
             });
         let should_update = self
             .recent_shared_channel_sync_deliveries
@@ -3506,6 +3611,14 @@ fn shared_channel_sync_request_key(request: &SharedChannelLinkedMemberSyncReques
     )
 }
 
+fn shared_channel_sync_audit_aggregate_id(
+    request: &SharedChannelLinkedMemberSyncRequest,
+) -> String {
+    let request_key = shared_channel_sync_request_key(request);
+    let digest = Sha256::digest(request_key.as_bytes());
+    format!("shared-channel-sync:{digest:x}")
+}
+
 fn write_social_transaction_marker(
     marker_path: &StdPath,
     marker: &SocialTransactionMarker,
@@ -3660,13 +3773,13 @@ impl SocialControlRuntime {
                     journal_path.display()
                 );
             }
-            if let Some(marker_path) = tx_marker_path {
-                if let Err(error) = clear_social_transaction_marker(marker_path) {
-                    eprintln!(
-                        "failed to clear social transaction marker after journal replay {}: {error}",
-                        marker_path.display()
-                    );
-                }
+            if let Some(marker_path) = tx_marker_path
+                && let Err(error) = clear_social_transaction_marker(marker_path)
+            {
+                eprintln!(
+                    "failed to clear social transaction marker after journal replay {}: {error}",
+                    marker_path.display()
+                );
             }
             return replayed_state;
         }
@@ -3948,9 +4061,10 @@ impl SocialControlRuntime {
             now_epoch_millis
                 .saturating_sub(SHARED_CHANNEL_SYNC_DISPATCH_DELIVERY_DEDUP_WINDOW_MILLIS),
         );
-        let retry_window_start = format_unix_timestamp_millis(now_epoch_millis.saturating_sub(
-            resolve_shared_channel_sync_pending_retry_cooldown_millis(),
-        ));
+        let retry_window_start = format_unix_timestamp_millis(
+            now_epoch_millis
+                .saturating_sub(resolve_shared_channel_sync_pending_retry_cooldown_millis()),
+        );
         let mut queue = Vec::with_capacity(
             state.pending_shared_channel_sync_requests.len()
                 + state.dead_letter_shared_channel_sync_requests.len()
@@ -4336,9 +4450,7 @@ impl SocialControlRuntime {
             })
             .collect::<Vec<_>>();
         items.sort_by(|left, right| {
-            right
-                .delivered_at
-                .cmp(&left.delivered_at)
+            timestamp_recency_cmp(right.delivered_at.as_str(), left.delivered_at.as_str())
                 .then_with(|| left.request_key.as_str().cmp(right.request_key.as_str()))
         });
         SocialSharedChannelSyncDeliveredInventoryResponse {
@@ -4397,12 +4509,11 @@ impl SocialControlRuntime {
         }
         let mut items = items_by_key.into_values().collect::<Vec<_>>();
         items.sort_by(|left, right| {
-            right
-                .updated_at
-                .as_deref()
-                .unwrap_or_default()
-                .cmp(left.updated_at.as_deref().unwrap_or_default())
-                .then_with(|| left.request_key.as_str().cmp(right.request_key.as_str()))
+            compare_optional_timestamps_desc(
+                left.updated_at.as_deref(),
+                right.updated_at.as_deref(),
+            )
+            .then_with(|| left.request_key.as_str().cmp(right.request_key.as_str()))
         });
         SocialSharedChannelSyncDeliveryStateInventoryResponse {
             status: SocialSharedChannelSyncDeliveryStateInventoryStatus::Snapshot,
@@ -4524,6 +4635,7 @@ impl SocialControlRuntime {
         actor_id: &str,
         actor_kind: &str,
     ) -> Result<SocialSharedChannelSyncPendingClaimResponse, ControlPlaneError> {
+        validate_request_keys_payload("requestKeys", request_keys)?;
         let request_keys = request_keys
             .iter()
             .filter(|key| !key.is_empty())
@@ -4600,6 +4712,7 @@ impl SocialControlRuntime {
         actor_id: &str,
         actor_kind: &str,
     ) -> Result<SocialSharedChannelSyncPendingReleaseResponse, ControlPlaneError> {
+        validate_request_keys_payload("requestKeys", request_keys)?;
         let request_keys = request_keys
             .iter()
             .filter(|key| !key.is_empty())
@@ -4700,6 +4813,7 @@ impl SocialControlRuntime {
         actor_kind: &str,
         allow_legacy_untracked: bool,
     ) -> Result<SocialSharedChannelSyncPendingTakeoverResponse, ControlPlaneError> {
+        validate_request_keys_payload("requestKeys", request_keys)?;
         let request_keys = request_keys
             .iter()
             .filter(|key| !key.is_empty())
@@ -4834,6 +4948,7 @@ impl SocialControlRuntime {
         &self,
         request_keys: &[String],
     ) -> Result<SocialSharedChannelSyncDeadLetterTargetedRequeueResponse, ControlPlaneError> {
+        validate_request_keys_payload("requestKeys", request_keys)?;
         let request_keys = request_keys
             .iter()
             .filter(|key| !key.is_empty())
@@ -4898,6 +5013,7 @@ impl SocialControlRuntime {
         actor_kind: &str,
         trigger: Option<&dyn SharedChannelLinkedMemberSyncTrigger>,
     ) -> Result<SocialSharedChannelSyncTargetedRepublishResponse, ControlPlaneError> {
+        validate_request_keys_payload("requestKeys", request_keys)?;
         let request_keys = request_keys
             .iter()
             .filter(|key| !key.is_empty())
@@ -4978,14 +5094,12 @@ impl SocialControlRuntime {
             if pending.is_owned_by(actor_id, actor_kind)
                 && pending.lease_status(republish_started_at.as_str())
                     == SocialSharedChannelSyncLeaseStatus::Stale
-            {
-                if let Some(selected_pending) = next_state
+                && let Some(selected_pending) = next_state
                     .pending_shared_channel_sync_requests
                     .get_mut(request_key.as_str())
-                {
-                    selected_pending.assign_owner(actor_id, actor_kind);
-                    renewed_stale_same_owner_lease = true;
-                }
+            {
+                selected_pending.assign_owner(actor_id, actor_kind);
+                renewed_stale_same_owner_lease = true;
             }
         }
 
@@ -5263,6 +5377,28 @@ impl ControlPlaneError {
         }
     }
 
+    fn payload_too_large(field: &'static str, max_bytes: usize, actual_bytes: usize) -> Self {
+        Self {
+            status: StatusCode::PAYLOAD_TOO_LARGE,
+            code: "payload_too_large",
+            message: format!(
+                "payload too large for {field}: max={max_bytes} bytes, actual={actual_bytes} bytes"
+            ),
+            details: None,
+        }
+    }
+
+    fn payload_too_many_items(field: &'static str, max_items: usize, actual_items: usize) -> Self {
+        Self {
+            status: StatusCode::PAYLOAD_TOO_LARGE,
+            code: "payload_too_large",
+            message: format!(
+                "payload too large for {field}: max={max_items} items, actual={actual_items} items"
+            ),
+            details: None,
+        }
+    }
+
     fn conflict(code: &'static str, message: impl Into<String>) -> Self {
         Self {
             status: StatusCode::CONFLICT,
@@ -5368,6 +5504,31 @@ impl SocialControlRuntime {
         auth: &AuthContext,
         request: EstablishExternalConnectionRequest,
     ) -> Result<EstablishedExternalConnection, ControlPlaneError> {
+        validate_payload_size(
+            "connectionId",
+            request.connection_id.as_str(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "eventId",
+            request.event_id.as_str(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "externalTenantId",
+            request.external_tenant_id.as_str(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_optional_payload_size(
+            "externalOrgName",
+            request.external_org_name.as_deref(),
+            CONTROL_PLANE_MAX_EXTERNAL_ORG_NAME_BYTES,
+        )?;
+        validate_payload_size(
+            "establishedAt",
+            request.established_at.as_str(),
+            CONTROL_PLANE_MAX_TIMESTAMP_BYTES,
+        )?;
         validate_required_with_code(
             "connectionId",
             request.connection_id.as_str(),
@@ -5404,22 +5565,22 @@ impl SocialControlRuntime {
         };
         let payload_json = serde_json::to_string(&payload)
             .expect("external connection payload should serialize into json");
-        let commit = social_commit_envelope(
-            request.event_id.as_str(),
+        let commit = social_commit_envelope(SocialCommitEnvelopeInput {
+            event_id: request.event_id.as_str(),
             tenant_id,
-            AggregateType::ExternalConnection,
-            request.connection_id.as_str(),
-            SocialEventType::ExternalConnectionEstablished,
-            1,
-            EventActor {
+            aggregate_type: AggregateType::ExternalConnection,
+            aggregate_id: request.connection_id.as_str(),
+            event_type: SocialEventType::ExternalConnectionEstablished,
+            ordering_seq: 1,
+            actor: EventActor {
                 actor_id: auth.actor_id.clone(),
                 actor_kind: auth.actor_kind.clone(),
                 actor_session_id: auth.session_id.clone(),
             },
-            request.established_at.as_str(),
-            request.established_at.as_str(),
-            payload_json.as_str(),
-        );
+            occurred_at: request.established_at.as_str(),
+            committed_at: request.established_at.as_str(),
+            payload: payload_json.as_str(),
+        });
         let external_connection = ExternalConnection {
             tenant_id: tenant_id.into(),
             connection_id: request.connection_id.clone(),
@@ -5517,6 +5678,46 @@ impl SocialControlRuntime {
         auth: &AuthContext,
         request: BindExternalMemberLinkRequest,
     ) -> Result<BoundExternalMemberLink, ControlPlaneError> {
+        validate_payload_size(
+            "linkId",
+            request.link_id.as_str(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "eventId",
+            request.event_id.as_str(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "connectionId",
+            request.connection_id.as_str(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "localActorId",
+            request.local_actor_id.as_str(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "localActorKind",
+            request.local_actor_kind.as_str(),
+            CONTROL_PLANE_MAX_ACTOR_KIND_BYTES,
+        )?;
+        validate_payload_size(
+            "externalMemberId",
+            request.external_member_id.as_str(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_optional_payload_size(
+            "externalDisplayName",
+            request.external_display_name.as_deref(),
+            CONTROL_PLANE_MAX_EXTERNAL_DISPLAY_NAME_BYTES,
+        )?;
+        validate_payload_size(
+            "linkedAt",
+            request.linked_at.as_str(),
+            CONTROL_PLANE_MAX_TIMESTAMP_BYTES,
+        )?;
         validate_required_with_code(
             "linkId",
             request.link_id.as_str(),
@@ -5585,22 +5786,22 @@ impl SocialControlRuntime {
         };
         let payload_json = serde_json::to_string(&payload)
             .expect("external member link payload should serialize into json");
-        let commit = social_commit_envelope(
-            request.event_id.as_str(),
+        let commit = social_commit_envelope(SocialCommitEnvelopeInput {
+            event_id: request.event_id.as_str(),
             tenant_id,
-            AggregateType::ExternalMemberLink,
-            request.link_id.as_str(),
-            SocialEventType::ExternalMemberLinkBound,
-            1,
-            EventActor {
+            aggregate_type: AggregateType::ExternalMemberLink,
+            aggregate_id: request.link_id.as_str(),
+            event_type: SocialEventType::ExternalMemberLinkBound,
+            ordering_seq: 1,
+            actor: EventActor {
                 actor_id: auth.actor_id.clone(),
                 actor_kind: auth.actor_kind.clone(),
                 actor_session_id: auth.session_id.clone(),
             },
-            request.linked_at.as_str(),
-            request.linked_at.as_str(),
-            payload_json.as_str(),
-        );
+            occurred_at: request.linked_at.as_str(),
+            committed_at: request.linked_at.as_str(),
+            payload: payload_json.as_str(),
+        });
         let external_member_link = ExternalMemberLink {
             tenant_id: tenant_id.into(),
             link_id: request.link_id.clone(),
@@ -5710,6 +5911,41 @@ impl SocialControlRuntime {
         auth: &AuthContext,
         request: ApplySharedChannelPolicyRequest,
     ) -> Result<AppliedSharedChannelPolicy, ControlPlaneError> {
+        validate_payload_size(
+            "policyId",
+            request.policy_id.as_str(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "eventId",
+            request.event_id.as_str(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "connectionId",
+            request.connection_id.as_str(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "channelId",
+            request.channel_id.as_str(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_optional_payload_size(
+            "conversationId",
+            request.conversation_id.as_deref(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "historyVisibility",
+            request.history_visibility.as_str(),
+            CONTROL_PLANE_MAX_HISTORY_VISIBILITY_BYTES,
+        )?;
+        validate_payload_size(
+            "appliedAt",
+            request.applied_at.as_str(),
+            CONTROL_PLANE_MAX_TIMESTAMP_BYTES,
+        )?;
         validate_required_with_code(
             "policyId",
             request.policy_id.as_str(),
@@ -5788,22 +6024,22 @@ impl SocialControlRuntime {
         };
         let payload_json = serde_json::to_string(&payload)
             .expect("shared channel policy payload should serialize into json");
-        let commit = social_commit_envelope(
-            request.event_id.as_str(),
+        let commit = social_commit_envelope(SocialCommitEnvelopeInput {
+            event_id: request.event_id.as_str(),
             tenant_id,
-            AggregateType::SharedChannelPolicy,
-            request.policy_id.as_str(),
-            SocialEventType::SharedChannelPolicyApplied,
-            1,
-            EventActor {
+            aggregate_type: AggregateType::SharedChannelPolicy,
+            aggregate_id: request.policy_id.as_str(),
+            event_type: SocialEventType::SharedChannelPolicyApplied,
+            ordering_seq: 1,
+            actor: EventActor {
                 actor_id: auth.actor_id.clone(),
                 actor_kind: auth.actor_kind.clone(),
                 actor_session_id: auth.session_id.clone(),
             },
-            request.applied_at.as_str(),
-            request.applied_at.as_str(),
-            payload_json.as_str(),
-        );
+            occurred_at: request.applied_at.as_str(),
+            committed_at: request.applied_at.as_str(),
+            payload: payload_json.as_str(),
+        });
         let shared_channel_policy = SharedChannelPolicy {
             tenant_id: tenant_id.into(),
             policy_id: request.policy_id.clone(),
@@ -5912,6 +6148,36 @@ impl SocialControlRuntime {
         auth: &AuthContext,
         request: SubmitFriendRequestRequest,
     ) -> Result<SubmittedFriendRequest, ControlPlaneError> {
+        validate_payload_size(
+            "requestId",
+            request.request_id.as_str(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "eventId",
+            request.event_id.as_str(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "requesterUserId",
+            request.requester_user_id.as_str(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "targetUserId",
+            request.target_user_id.as_str(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_optional_payload_size(
+            "requestMessage",
+            request.request_message.as_deref(),
+            CONTROL_PLANE_MAX_REQUEST_MESSAGE_BYTES,
+        )?;
+        validate_payload_size(
+            "requestedAt",
+            request.requested_at.as_str(),
+            CONTROL_PLANE_MAX_TIMESTAMP_BYTES,
+        )?;
         validate_required("requestId", request.request_id.as_str())?;
         validate_required("eventId", request.event_id.as_str())?;
         validate_required("requesterUserId", request.requester_user_id.as_str())?;
@@ -5931,22 +6197,22 @@ impl SocialControlRuntime {
         };
         let payload_json = serde_json::to_string(&payload)
             .expect("friend request payload should serialize into json");
-        let commit = social_commit_envelope(
-            request.event_id.as_str(),
+        let commit = social_commit_envelope(SocialCommitEnvelopeInput {
+            event_id: request.event_id.as_str(),
             tenant_id,
-            AggregateType::FriendRequest,
-            request.request_id.as_str(),
-            SocialEventType::FriendRequestSubmitted,
-            1,
-            EventActor {
+            aggregate_type: AggregateType::FriendRequest,
+            aggregate_id: request.request_id.as_str(),
+            event_type: SocialEventType::FriendRequestSubmitted,
+            ordering_seq: 1,
+            actor: EventActor {
                 actor_id: auth.actor_id.clone(),
                 actor_kind: auth.actor_kind.clone(),
                 actor_session_id: auth.session_id.clone(),
             },
-            request.requested_at.as_str(),
-            request.requested_at.as_str(),
-            payload_json.as_str(),
-        );
+            occurred_at: request.requested_at.as_str(),
+            committed_at: request.requested_at.as_str(),
+            payload: payload_json.as_str(),
+        });
         let friend_request = FriendRequest {
             tenant_id: tenant_id.into(),
             request_id: request.request_id.clone(),
@@ -6030,6 +6296,36 @@ impl SocialControlRuntime {
         auth: &AuthContext,
         request: ActivateFriendshipRequest,
     ) -> Result<ActivatedFriendship, ControlPlaneError> {
+        validate_payload_size(
+            "friendshipId",
+            request.friendship_id.as_str(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "eventId",
+            request.event_id.as_str(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "initiatorUserId",
+            request.initiator_user_id.as_str(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "peerUserId",
+            request.peer_user_id.as_str(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_optional_payload_size(
+            "directChatId",
+            request.direct_chat_id.as_deref(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "establishedAt",
+            request.established_at.as_str(),
+            CONTROL_PLANE_MAX_TIMESTAMP_BYTES,
+        )?;
         validate_required_with_code(
             "friendshipId",
             request.friendship_id.as_str(),
@@ -6067,22 +6363,22 @@ impl SocialControlRuntime {
         };
         let payload_json =
             serde_json::to_string(&payload).expect("friendship payload should serialize into json");
-        let commit = social_commit_envelope(
-            request.event_id.as_str(),
+        let commit = social_commit_envelope(SocialCommitEnvelopeInput {
+            event_id: request.event_id.as_str(),
             tenant_id,
-            AggregateType::Friendship,
-            request.friendship_id.as_str(),
-            SocialEventType::FriendshipActivated,
-            1,
-            EventActor {
+            aggregate_type: AggregateType::Friendship,
+            aggregate_id: request.friendship_id.as_str(),
+            event_type: SocialEventType::FriendshipActivated,
+            ordering_seq: 1,
+            actor: EventActor {
                 actor_id: auth.actor_id.clone(),
                 actor_kind: auth.actor_kind.clone(),
                 actor_session_id: auth.session_id.clone(),
             },
-            request.established_at.as_str(),
-            request.established_at.as_str(),
-            payload_json.as_str(),
-        );
+            occurred_at: request.established_at.as_str(),
+            committed_at: request.established_at.as_str(),
+            payload: payload_json.as_str(),
+        });
         let friendship = Friendship {
             tenant_id: tenant_id.into(),
             friendship_id: request.friendship_id.clone(),
@@ -6176,6 +6472,41 @@ impl SocialControlRuntime {
         auth: &AuthContext,
         request: BlockUserRequest,
     ) -> Result<BlockedUser, ControlPlaneError> {
+        validate_payload_size(
+            "blockId",
+            request.block_id.as_str(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "eventId",
+            request.event_id.as_str(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "blockerUserId",
+            request.blocker_user_id.as_str(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "blockedUserId",
+            request.blocked_user_id.as_str(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_optional_payload_size(
+            "directChatId",
+            request.direct_chat_id.as_deref(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_optional_payload_size(
+            "expiresAt",
+            request.expires_at.as_deref(),
+            CONTROL_PLANE_MAX_TIMESTAMP_BYTES,
+        )?;
+        validate_payload_size(
+            "effectiveAt",
+            request.effective_at.as_str(),
+            CONTROL_PLANE_MAX_TIMESTAMP_BYTES,
+        )?;
         validate_required_with_code("blockId", request.block_id.as_str(), "invalid_user_block")?;
         validate_required_with_code("eventId", request.event_id.as_str(), "invalid_user_block")?;
         validate_required_with_code(
@@ -6222,22 +6553,22 @@ impl SocialControlRuntime {
         };
         let payload_json =
             serde_json::to_string(&payload).expect("user block payload should serialize into json");
-        let commit = social_commit_envelope(
-            request.event_id.as_str(),
+        let commit = social_commit_envelope(SocialCommitEnvelopeInput {
+            event_id: request.event_id.as_str(),
             tenant_id,
-            AggregateType::UserBlock,
-            request.block_id.as_str(),
-            SocialEventType::UserBlocked,
-            1,
-            EventActor {
+            aggregate_type: AggregateType::UserBlock,
+            aggregate_id: request.block_id.as_str(),
+            event_type: SocialEventType::UserBlocked,
+            ordering_seq: 1,
+            actor: EventActor {
                 actor_id: auth.actor_id.clone(),
                 actor_kind: auth.actor_kind.clone(),
                 actor_session_id: auth.session_id.clone(),
             },
-            request.effective_at.as_str(),
-            request.effective_at.as_str(),
-            payload_json.as_str(),
-        );
+            occurred_at: request.effective_at.as_str(),
+            committed_at: request.effective_at.as_str(),
+            payload: payload_json.as_str(),
+        });
         let user_block = UserBlock {
             tenant_id: tenant_id.into(),
             block_id: request.block_id.clone(),
@@ -6328,6 +6659,36 @@ impl SocialControlRuntime {
         auth: &AuthContext,
         request: BindDirectChatRequest,
     ) -> Result<BoundDirectChat, ControlPlaneError> {
+        validate_payload_size(
+            "directChatId",
+            request.direct_chat_id.as_str(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "eventId",
+            request.event_id.as_str(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "leftActorId",
+            request.left_actor_id.as_str(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "rightActorId",
+            request.right_actor_id.as_str(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "conversationId",
+            request.conversation_id.as_str(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "boundAt",
+            request.bound_at.as_str(),
+            CONTROL_PLANE_MAX_TIMESTAMP_BYTES,
+        )?;
         validate_required_with_code(
             "directChatId",
             request.direct_chat_id.as_str(),
@@ -6366,22 +6727,22 @@ impl SocialControlRuntime {
         };
         let payload_json = serde_json::to_string(&payload)
             .expect("direct chat payload should serialize into json");
-        let commit = social_commit_envelope(
-            request.event_id.as_str(),
+        let commit = social_commit_envelope(SocialCommitEnvelopeInput {
+            event_id: request.event_id.as_str(),
             tenant_id,
-            AggregateType::DirectChat,
-            request.direct_chat_id.as_str(),
-            SocialEventType::DirectChatBound,
-            1,
-            EventActor {
+            aggregate_type: AggregateType::DirectChat,
+            aggregate_id: request.direct_chat_id.as_str(),
+            event_type: SocialEventType::DirectChatBound,
+            ordering_seq: 1,
+            actor: EventActor {
                 actor_id: auth.actor_id.clone(),
                 actor_kind: auth.actor_kind.clone(),
                 actor_session_id: auth.session_id.clone(),
             },
-            request.bound_at.as_str(),
-            request.bound_at.as_str(),
-            payload_json.as_str(),
-        );
+            occurred_at: request.bound_at.as_str(),
+            committed_at: request.bound_at.as_str(),
+            payload: payload_json.as_str(),
+        });
         let direct_chat = DirectChat {
             tenant_id: tenant_id.into(),
             direct_chat_id: request.direct_chat_id.clone(),
@@ -7096,8 +7457,9 @@ async fn provider_bindings_snapshot(
 ) -> Result<Json<ProviderBindingsResponse>, ControlPlaneError> {
     let auth = resolve_auth_context(&headers)?;
     ensure_control_read_access(&auth)?;
+    let tenant_id = validate_optional_tenant_id(query.tenant_id)?;
 
-    let response = provider_bindings_response(state.provider_registry.as_ref(), query.tenant_id);
+    let response = provider_bindings_response(state.provider_registry.as_ref(), tenant_id);
     mirror_provider_bindings_into_ops_runtime(&state, &response);
 
     Ok(Json(response))
@@ -7110,6 +7472,7 @@ async fn upsert_provider_binding_policy(
 ) -> Result<Json<ProviderBindingCommitResponse>, ControlPlaneError> {
     let auth = resolve_auth_context(&headers)?;
     ensure_control_write_access(&auth)?;
+    let tenant_id = validate_optional_tenant_id(request.tenant_id.clone())?;
     let provider_registry = state.provider_registry_runtime.as_ref().ok_or_else(|| {
         ControlPlaneError::service_unavailable(
             "provider_policy_write_unavailable",
@@ -7118,7 +7481,7 @@ async fn upsert_provider_binding_policy(
     })?;
 
     let (action, aggregate_id, selection_source, commit) =
-        if let Some(tenant_id) = request.tenant_id.as_deref() {
+        if let Some(tenant_id) = tenant_id.as_deref() {
             let commit = provider_registry.commit_upsert(
                 Some(tenant_id),
                 request.domain,
@@ -7152,7 +7515,7 @@ async fn upsert_provider_binding_policy(
     if commit.applied {
         mirror_all_provider_bindings_into_ops_runtime(&state, provider_registry.as_ref());
     }
-    let response = provider_bindings_response(state.provider_registry.as_ref(), request.tenant_id);
+    let response = provider_bindings_response(state.provider_registry.as_ref(), tenant_id);
     if commit.applied {
         record_control_plane_audit(
             &state,
@@ -7165,6 +7528,7 @@ async fn upsert_provider_binding_policy(
                 "domain": provider_domain_name(request.domain),
                 "pluginId": request.plugin_id,
                 "expectedBaseVersion": request.expected_base_version,
+                "currentVersion": commit.current_version,
                 "selectionSource": selection_source
             }),
         );
@@ -7219,6 +7583,7 @@ async fn provider_policy_preview(
 ) -> Result<Json<ProviderPolicyPreview>, ControlPlaneError> {
     let auth = resolve_auth_context(&headers)?;
     ensure_control_write_access(&auth)?;
+    let tenant_id = validate_optional_tenant_id(request.tenant_id.clone())?;
     let provider_registry = state.provider_registry_runtime.as_ref().ok_or_else(|| {
         ControlPlaneError::service_unavailable(
             "provider_policy_preview_unavailable",
@@ -7227,7 +7592,7 @@ async fn provider_policy_preview(
     })?;
 
     Ok(Json(provider_registry.preview_upsert(
-        request.tenant_id.as_deref(),
+        tenant_id.as_deref(),
         request.domain,
         request.plugin_id.as_str(),
     )?))
@@ -8269,12 +8634,7 @@ fn dispatch_shared_channel_sync_requests(
                     auth,
                     "control.shared_channel_linked_member_sync_triggered",
                     "shared_channel_sync",
-                    format!(
-                        "{}:{}:{}",
-                        request.shared_channel_policy_id,
-                        request.conversation_id,
-                        request.local_actor_id
-                    ),
+                    shared_channel_sync_audit_aggregate_id(request),
                     serde_json::to_value(request)
                         .expect("shared channel sync request should serialize into audit payload"),
                 );
@@ -8311,10 +8671,10 @@ fn record_control_plane_audit(
     let Some(governance_loop) = &state.governance_loop else {
         return;
     };
-    let record_id = format!("{aggregate_type}:{aggregate_id}:{action}");
+    let record_id = control_plane_audit_record_id();
     let payload =
         serde_json::to_string(&payload).expect("control plane audit payload should serialize");
-    governance_loop.audit_runtime.record_anchor(
+    if let Err(error) = governance_loop.audit_runtime.record_anchor(
         auth,
         RecordAuditAnchor {
             record_id,
@@ -8323,7 +8683,20 @@ fn record_control_plane_audit(
             action: action.into(),
             payload: Some(payload),
         },
-    );
+    ) {
+        eprintln!(
+            "warning: control-plane audit write failed for {aggregate_type}/{action}: {error:?}"
+        );
+    }
+}
+
+fn control_plane_audit_record_id() -> String {
+    let recorded_nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("system clock should be after unix epoch")
+        .as_nanos();
+    let sequence = CONTROL_PLANE_AUDIT_RECORD_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+    format!("control-audit-{recorded_nanos:x}-{sequence:x}")
 }
 
 fn provider_bindings_response(
@@ -8556,6 +8929,81 @@ fn provider_domain_name(domain: ProviderDomain) -> &'static str {
 
 fn validate_required(field: &'static str, value: &str) -> Result<(), ControlPlaneError> {
     validate_required_with_code(field, value, "invalid_friend_request")
+}
+
+fn validate_optional_tenant_id(
+    tenant_id: Option<String>,
+) -> Result<Option<String>, ControlPlaneError> {
+    if let Some(tenant_id) = tenant_id {
+        validate_required_with_code("tenantId", tenant_id.as_str(), "invalid_provider_policy")?;
+        validate_payload_size("tenantId", tenant_id.as_str(), CONTROL_PLANE_MAX_ID_BYTES)?;
+        return Ok(Some(tenant_id));
+    }
+
+    Ok(None)
+}
+
+fn validate_payload_size(
+    field: &'static str,
+    value: &str,
+    max_bytes: usize,
+) -> Result<(), ControlPlaneError> {
+    let actual_bytes = value.len();
+    if actual_bytes > max_bytes {
+        return Err(ControlPlaneError::payload_too_large(
+            field,
+            max_bytes,
+            actual_bytes,
+        ));
+    }
+
+    Ok(())
+}
+
+fn validate_optional_payload_size(
+    field: &'static str,
+    value: Option<&str>,
+    max_bytes: usize,
+) -> Result<(), ControlPlaneError> {
+    if let Some(value) = value {
+        validate_payload_size(field, value, max_bytes)?;
+    }
+
+    Ok(())
+}
+
+fn validate_request_keys_payload(
+    field: &'static str,
+    request_keys: &[String],
+) -> Result<(), ControlPlaneError> {
+    if request_keys.len() > CONTROL_PLANE_MAX_REQUEST_KEYS {
+        return Err(ControlPlaneError::payload_too_many_items(
+            field,
+            CONTROL_PLANE_MAX_REQUEST_KEYS,
+            request_keys.len(),
+        ));
+    }
+
+    let total_bytes = request_keys.iter().fold(0usize, |total, request_key| {
+        total.saturating_add(request_key.len())
+    });
+    if total_bytes > CONTROL_PLANE_MAX_REQUEST_KEYS_TOTAL_BYTES {
+        return Err(ControlPlaneError::payload_too_large(
+            field,
+            CONTROL_PLANE_MAX_REQUEST_KEYS_TOTAL_BYTES,
+            total_bytes,
+        ));
+    }
+
+    for request_key in request_keys {
+        validate_payload_size(
+            field,
+            request_key.as_str(),
+            CONTROL_PLANE_MAX_REQUEST_KEY_BYTES,
+        )?;
+    }
+
+    Ok(())
 }
 
 fn validate_required_with_code(
@@ -8842,8 +9290,7 @@ mod tests {
     #[test]
     fn test_shared_channel_pending_retry_cooldown_limits_resolve_from_env() {
         let _guard = scheduler_env_guard();
-        let _cooldown =
-            ScopedEnvVar::remove(SHARED_CHANNEL_SYNC_PENDING_RETRY_COOLDOWN_MILLIS_ENV);
+        let _cooldown = ScopedEnvVar::remove(SHARED_CHANNEL_SYNC_PENDING_RETRY_COOLDOWN_MILLIS_ENV);
         assert_eq!(
             resolve_shared_channel_sync_pending_retry_cooldown_millis(),
             SHARED_CHANNEL_SYNC_PENDING_RETRY_COOLDOWN_DEFAULT_MILLIS
@@ -8870,10 +9317,12 @@ mod tests {
 
     #[test]
     fn test_pending_shared_channel_sync_dispatch_queue_defers_recent_failures_until_retry_cooldown()
-     {
+    {
         let _guard = scheduler_env_guard();
-        let _cooldown =
-            ScopedEnvVar::set(SHARED_CHANNEL_SYNC_PENDING_RETRY_COOLDOWN_MILLIS_ENV, "60000");
+        let _cooldown = ScopedEnvVar::set(
+            SHARED_CHANNEL_SYNC_PENDING_RETRY_COOLDOWN_MILLIS_ENV,
+            "60000",
+        );
         let runtime = SocialControlRuntime::default();
         let request = SharedChannelLinkedMemberSyncRequest {
             tenant_id: "t_demo".to_owned(),
@@ -8928,6 +9377,61 @@ mod tests {
             queue_after_cooldown,
             vec![request],
             "request should re-enter dispatch queue after cooldown window"
+        );
+    }
+
+    #[test]
+    fn test_pending_shared_channel_sync_non_canonical_lease_timestamp_is_treated_as_stale() {
+        let pending = PendingSharedChannelSyncRequest {
+            request: SharedChannelLinkedMemberSyncRequest {
+                tenant_id: "t_demo".to_owned(),
+                conversation_id: "c_non_canonical_lease".to_owned(),
+                shared_channel_policy_id: "scp_non_canonical_lease".to_owned(),
+                external_connection_id: "ec_non_canonical_lease".to_owned(),
+                local_actor_id: "u_non_canonical_lease".to_owned(),
+                local_actor_kind: "user".to_owned(),
+                external_member_id: "partner::non-canonical-lease".to_owned(),
+            },
+            failure_count: 0,
+            last_error: String::new(),
+            last_failed_at: None,
+            owner_actor_id: Some("operator_a".to_owned()),
+            owner_actor_kind: Some("system".to_owned()),
+            claimed_at: Some("2026-04-12T04:00:00.000Z".to_owned()),
+            lease_expires_at: Some("2026-04-12T12:00:00+08:00".to_owned()),
+        };
+        let now = "2026-04-12T05:00:00.000Z";
+        assert_eq!(
+            pending.lease_status(now),
+            SocialSharedChannelSyncLeaseStatus::Stale
+        );
+        assert!(pending.takeover_eligible_for("operator_b", "system", now));
+        assert!(!pending.blocks_foreign_takeover("operator_b", "system", now));
+    }
+
+    #[test]
+    fn test_pending_shared_channel_sync_auto_dispatch_ignores_non_canonical_failure_timestamp() {
+        let pending = PendingSharedChannelSyncRequest {
+            request: SharedChannelLinkedMemberSyncRequest {
+                tenant_id: "t_demo".to_owned(),
+                conversation_id: "c_non_canonical_failure".to_owned(),
+                shared_channel_policy_id: "scp_non_canonical_failure".to_owned(),
+                external_connection_id: "ec_non_canonical_failure".to_owned(),
+                local_actor_id: "u_non_canonical_failure".to_owned(),
+                local_actor_kind: "user".to_owned(),
+                external_member_id: "partner::non-canonical-failure".to_owned(),
+            },
+            failure_count: 1,
+            last_error: "dispatch timeout".to_owned(),
+            last_failed_at: Some("2026-04-12T12:00:00+08:00".to_owned()),
+            owner_actor_id: None,
+            owner_actor_kind: None,
+            claimed_at: None,
+            lease_expires_at: None,
+        };
+        assert!(
+            pending.auto_dispatch_eligible("2026-04-12T05:00:00.000Z", "2026-04-12T04:30:00.000Z"),
+            "non-canonical failure timestamp must not block retry dispatch queue"
         );
     }
 
@@ -9018,6 +9522,68 @@ mod tests {
         assert_eq!(
             delivered.status,
             SharedChannelSyncDeliveryProofStatus::Replayed
+        );
+    }
+
+    #[test]
+    fn test_shared_channel_record_dispatched_overrides_non_canonical_existing_timestamps() {
+        let request = SharedChannelLinkedMemberSyncRequest {
+            tenant_id: "t_demo".to_owned(),
+            conversation_id: "c_invalid_timestamp_recover".to_owned(),
+            shared_channel_policy_id: "scp_invalid_timestamp_recover".to_owned(),
+            external_connection_id: "ec_invalid_timestamp_recover".to_owned(),
+            local_actor_id: "u_invalid_timestamp_recover".to_owned(),
+            local_actor_kind: "user".to_owned(),
+            external_member_id: "partner::invalid-timestamp-recover".to_owned(),
+        };
+        let key = shared_channel_sync_request_key(&request);
+        let mut state = SocialControlState::default();
+        state
+            .delivered_shared_channel_sync_requests
+            .insert(key.clone(), "zzzz-invalid".to_owned());
+        state.delivered_shared_channel_sync_delivery_proofs.insert(
+            key.clone(),
+            StoredSharedChannelSyncDeliveryProof {
+                delivered_at: "zzzz-invalid".to_owned(),
+                status: SharedChannelSyncDeliveryProofStatus::Failed,
+                proof_version: Some(SHARED_CHANNEL_SYNC_ACK_PROOF_VERSION.to_owned()),
+                target: Some("https://invalid.example.com".to_owned()),
+            },
+        );
+
+        let proof = SharedChannelSyncDeliveryProof {
+            request_key: key.clone(),
+            status: SharedChannelSyncDeliveryProofStatus::Applied,
+            proof_version: Some(SHARED_CHANNEL_SYNC_ACK_PROOF_VERSION.to_owned()),
+            target: Some("https://runtime.example.com".to_owned()),
+        };
+        assert!(state.record_dispatched_shared_channel_sync_request(
+            &request,
+            "2026-04-12T01:20:00.000Z",
+            "2026-04-12T01:00:00.000Z",
+            Some(&proof),
+            false,
+        ));
+
+        assert_eq!(
+            state
+                .delivered_shared_channel_sync_requests
+                .get(key.as_str())
+                .expect("delivered ledger item should exist"),
+            "2026-04-12T01:20:00.000Z"
+        );
+        let stored_proof = state
+            .delivered_shared_channel_sync_delivery_proofs
+            .get(key.as_str())
+            .expect("delivery proof should exist");
+        assert_eq!(stored_proof.delivered_at, "2026-04-12T01:20:00.000Z");
+        assert_eq!(
+            stored_proof.status,
+            SharedChannelSyncDeliveryProofStatus::Applied
+        );
+        assert_eq!(
+            stored_proof.target.as_deref(),
+            Some("https://runtime.example.com")
         );
     }
 

@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use im_auth_context::AuthContext;
+
 use super::ApiError;
 use super::cluster::RealtimeClusterBridge;
 use super::presence::SessionPresenceRuntime;
@@ -50,148 +52,173 @@ impl SessionDeviceRegistration {
 
     pub(crate) fn register_device(
         &self,
-        tenant_id: &str,
-        principal_id: &str,
+        auth: &AuthContext,
         device_id: &str,
-        session_id: Option<&str>,
         connection_kind: &str,
         allow_session_takeover: bool,
     ) -> Result<(), ApiError> {
-        if !allow_session_takeover {
-            self.realtime_cluster.ensure_device_resume_not_required(
-                tenant_id,
-                principal_id,
-                device_id,
-            )?;
-            self.presence_runtime.ensure_device_resume_not_required(
-                tenant_id,
-                principal_id,
-                device_id,
-            )?;
-        }
-        self.ensure_device_access_registered(tenant_id, principal_id, device_id, session_id)?;
-        self.presence_runtime
-            .register_device(tenant_id, principal_id, device_id)?;
-        self.realtime_runtime
-            .ensure_device_state(tenant_id, principal_id, device_id)?;
         self.session_state
-            .register_device(tenant_id, principal_id, device_id);
-        self.realtime_cluster.bind_device_route(
+            .ensure_device_kind_available(auth, device_id)?;
+        let tenant_id = auth.tenant_id.as_str();
+        let principal_id = auth.actor_id.as_str();
+        let principal_kind = auth.actor_kind.as_str();
+        let session_id = auth.session_id.as_deref();
+        if !allow_session_takeover {
+            self.realtime_cluster
+                .ensure_device_resume_not_required_for_principal_kind(
+                    tenant_id,
+                    principal_id,
+                    principal_kind,
+                    device_id,
+                )?;
+            self.presence_runtime
+                .ensure_device_resume_not_required(auth, device_id)?;
+        }
+        self.ensure_device_access_registered(auth, device_id, session_id)?;
+        self.presence_runtime
+            .register_device(auth, device_id)?;
+        self.realtime_runtime
+            .ensure_device_state_for_principal_kind(
+                tenant_id,
+                principal_id,
+                principal_kind,
+                device_id,
+            )?;
+        self.session_state.register_device(auth, device_id);
+        self.realtime_cluster.bind_device_route_for_principal_kind(
             tenant_id,
             principal_id,
+            principal_kind,
             device_id,
             self.node_id.as_str(),
             session_id,
             connection_kind,
         )?;
         if allow_session_takeover {
-            self.realtime_cluster.clear_device_disconnect_fence(
-                tenant_id,
-                principal_id,
-                device_id,
-            )?;
+            self.realtime_cluster
+                .clear_device_disconnect_fence_for_principal_kind(
+                    tenant_id,
+                    principal_id,
+                    principal_kind,
+                    device_id,
+                )?;
         }
         Ok(())
     }
 
     pub(crate) fn prepare_active_device_route(
         &self,
-        tenant_id: &str,
-        principal_id: &str,
+        auth: &AuthContext,
         device_id: &str,
-        session_id: Option<&str>,
         connection_kind: &str,
         allow_session_takeover: bool,
     ) -> Result<(), ApiError> {
-        self.ensure_route_session_current(tenant_id, principal_id, device_id, session_id)?;
-        self.register_device(
-            tenant_id,
-            principal_id,
-            device_id,
-            session_id,
-            connection_kind,
-            allow_session_takeover,
-        )?;
+        self.session_state
+            .ensure_device_kind_available(auth, device_id)?;
+        self.ensure_route_session_current(auth, device_id, auth.session_id.as_deref())?;
+        self.register_device(auth, device_id, connection_kind, allow_session_takeover)?;
         Ok(())
     }
 
     pub(crate) fn disconnect_active_device_route(
         &self,
-        tenant_id: &str,
-        principal_id: &str,
+        auth: &AuthContext,
         device_id: &str,
-        session_id: Option<&str>,
         connection_kind: &str,
     ) -> Result<DisconnectActiveDeviceRouteOutcome, ApiError> {
-        if self.realtime_cluster.disconnect_fence_matches_session(
-            tenant_id,
-            principal_id,
-            device_id,
-            session_id,
-        )? {
+        self.session_state
+            .ensure_device_kind_available(auth, device_id)?;
+        let tenant_id = auth.tenant_id.as_str();
+        let principal_id = auth.actor_id.as_str();
+        let principal_kind = auth.actor_kind.as_str();
+        let session_id = auth.session_id.as_deref();
+        if self
+            .realtime_cluster
+            .disconnect_fence_matches_session_for_principal_kind(
+                tenant_id,
+                principal_id,
+                principal_kind,
+                device_id,
+                session_id,
+            )?
+        {
             self.realtime_runtime
-                .signal_device_disconnect(tenant_id, principal_id, device_id)?;
+                .signal_device_disconnect_for_principal_kind(
+                    tenant_id,
+                    principal_id,
+                    principal_kind,
+                    device_id,
+                )?;
             return Ok(DisconnectActiveDeviceRouteOutcome::FenceMatchedSession);
         }
 
-        self.prepare_active_device_route(
-            tenant_id,
-            principal_id,
-            device_id,
-            session_id,
-            connection_kind,
-            false,
-        )?;
+        self.prepare_active_device_route(auth, device_id, connection_kind, false)?;
         self.realtime_runtime
-            .clear_device_subscriptions(tenant_id, principal_id, device_id)?;
-        let _ = self.realtime_cluster.release_device_route(
-            tenant_id,
-            principal_id,
-            device_id,
-            self.node_id.as_str(),
-        );
-        self.realtime_cluster.mark_device_disconnected(
-            tenant_id,
-            principal_id,
-            device_id,
-            session_id,
-            self.node_id.as_str(),
-        )?;
+            .clear_device_subscriptions_for_principal_kind(
+                tenant_id,
+                principal_id,
+                principal_kind,
+                device_id,
+            )?;
+        let _ = self
+            .realtime_cluster
+            .release_device_route_for_principal_kind(
+                tenant_id,
+                principal_id,
+                principal_kind,
+                device_id,
+                self.node_id.as_str(),
+            );
+        self.realtime_cluster
+            .mark_device_disconnected_for_principal_kind(
+                tenant_id,
+                principal_id,
+                principal_kind,
+                device_id,
+                session_id,
+                self.node_id.as_str(),
+            )?;
         self.realtime_runtime
-            .signal_device_disconnect(tenant_id, principal_id, device_id)?;
+            .signal_device_disconnect_for_principal_kind(
+                tenant_id,
+                principal_id,
+                principal_kind,
+                device_id,
+            )?;
         Ok(DisconnectActiveDeviceRouteOutcome::DeviceDisconnected)
     }
 
     fn ensure_route_session_current(
         &self,
-        tenant_id: &str,
-        principal_id: &str,
+        auth: &AuthContext,
         device_id: &str,
         session_id: Option<&str>,
     ) -> Result<(), ApiError> {
-        self.realtime_cluster.ensure_route_session_current(
-            tenant_id,
-            principal_id,
-            device_id,
-            session_id,
-        )?;
+        let tenant_id = auth.tenant_id.as_str();
+        let principal_id = auth.actor_id.as_str();
+        self.realtime_cluster
+            .ensure_route_session_current_for_principal_kind(
+                tenant_id,
+                principal_id,
+                auth.actor_kind.as_str(),
+                device_id,
+                session_id,
+            )?;
         Ok(())
     }
 
     fn ensure_device_access_registered(
         &self,
-        tenant_id: &str,
-        principal_id: &str,
+        auth: &AuthContext,
         device_id: &str,
         session_id: Option<&str>,
     ) -> Result<(), ApiError> {
-        if self
-            .session_state
-            .has_registered_device(tenant_id, principal_id, device_id)
-        {
+        if self.session_state.has_registered_device(auth, device_id) {
             return Ok(());
         }
 
+        let tenant_id = auth.tenant_id.as_str();
+        let principal_id = auth.actor_id.as_str();
         self.device_access_provider
             .register_device(DeviceAccessRegistrationRequest {
                 tenant_id: tenant_id.into(),

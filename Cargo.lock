@@ -204,6 +204,7 @@ dependencies = [
  "serde",
  "serde_json",
  "session-gateway",
+ "sha2",
  "tokio",
  "tower",
 ]
@@ -223,6 +224,7 @@ dependencies = [
  "im-time",
  "serde",
  "serde_json",
+ "sha2",
  "tokio",
  "tower",
 ]
@@ -872,6 +874,7 @@ dependencies = [
 name = "im-adapters-local-memory"
 version = "0.1.0"
 dependencies = [
+ "im-domain-core",
  "im-domain-events",
  "im-platform-contracts",
 ]
@@ -1013,6 +1016,7 @@ dependencies = [
  "serde",
  "serde_json",
  "session-gateway",
+ "sha2",
  "streaming-service",
  "tokio",
  "tokio-tungstenite",

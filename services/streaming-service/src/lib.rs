@@ -27,6 +27,21 @@ use serde::{Deserialize, Serialize};
 
 const DEVICE_SCOPE_KIND: &str = "device";
 const DEVICE_TELEMETRY_STREAM_TYPE: &str = "device.telemetry";
+const STREAM_SESSION_DELIVERY_PROOF_VERSION: &str = "stream.session.delivery-proof.v1";
+const STREAM_FRAME_DELIVERY_PROOF_VERSION: &str = "stream.frame.delivery-proof.v1";
+const STREAM_MAX_STREAM_ID_BYTES: usize = 256;
+const STREAM_MAX_STREAM_TYPE_BYTES: usize = 128;
+const STREAM_MAX_SCOPE_KIND_BYTES: usize = 64;
+const STREAM_MAX_SCOPE_ID_BYTES: usize = 512;
+const STREAM_MAX_DURABILITY_CLASS_BYTES: usize = 64;
+const STREAM_MAX_SCHEMA_REF_BYTES: usize = 256;
+const STREAM_MAX_FRAME_TYPE_BYTES: usize = 64;
+const STREAM_MAX_FRAME_ENCODING_BYTES: usize = 32;
+const STREAM_MAX_FRAME_PAYLOAD_BYTES: usize = 256 * 1024;
+const STREAM_MAX_FRAME_ATTRIBUTES_BYTES: usize = 64 * 1024;
+const STREAM_MAX_RESULT_MESSAGE_ID_BYTES: usize = 256;
+const STREAM_MAX_ABORT_REASON_BYTES: usize = 8 * 1024;
+const STREAM_FRAME_LIST_MAX_LIMIT: usize = 1000;
 
 #[derive(Clone)]
 struct AppState {
@@ -37,6 +52,82 @@ pub struct StreamingRuntime {
     sessions: Mutex<HashMap<String, StreamSession>>,
     frames: Mutex<HashMap<String, Vec<StreamFrame>>>,
     state_store: Arc<dyn StreamStateStore>,
+}
+
+#[derive(Clone, Debug)]
+pub struct AppendStreamFrameOutcome {
+    pub frame: StreamFrame,
+    pub applied: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StreamFrameDeliveryStatus {
+    Applied,
+    Replayed,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StreamFrameMutationResponse {
+    #[serde(flatten)]
+    pub frame: StreamFrame,
+    pub request_key: String,
+    pub delivery_status: StreamFrameDeliveryStatus,
+    pub proof_version: String,
+}
+
+impl StreamFrameMutationResponse {
+    pub fn from_outcome(outcome: AppendStreamFrameOutcome, request_key: String) -> Self {
+        Self {
+            frame: outcome.frame,
+            request_key,
+            delivery_status: if outcome.applied {
+                StreamFrameDeliveryStatus::Applied
+            } else {
+                StreamFrameDeliveryStatus::Replayed
+            },
+            proof_version: STREAM_FRAME_DELIVERY_PROOF_VERSION.into(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StreamSessionMutationOutcome {
+    pub session: StreamSession,
+    pub applied: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StreamSessionDeliveryStatus {
+    Applied,
+    Replayed,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StreamSessionMutationResponse {
+    #[serde(flatten)]
+    pub session: StreamSession,
+    pub request_key: String,
+    pub delivery_status: StreamSessionDeliveryStatus,
+    pub proof_version: String,
+}
+
+impl StreamSessionMutationResponse {
+    pub fn from_outcome(outcome: StreamSessionMutationOutcome, request_key: String) -> Self {
+        Self {
+            session: outcome.session,
+            request_key,
+            delivery_status: if outcome.applied {
+                StreamSessionDeliveryStatus::Applied
+            } else {
+                StreamSessionDeliveryStatus::Replayed
+            },
+            proof_version: STREAM_SESSION_DELIVERY_PROOF_VERSION.into(),
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -134,6 +225,16 @@ impl StreamingError {
         }
     }
 
+    fn payload_too_large(field: &'static str, max_bytes: usize, actual_bytes: usize) -> Self {
+        Self {
+            status: axum::http::StatusCode::PAYLOAD_TOO_LARGE,
+            code: "payload_too_large",
+            message: format!(
+                "payload too large for {field}: max={max_bytes} bytes, actual={actual_bytes} bytes"
+            ),
+        }
+    }
+
     fn stream_store(value: ContractError) -> Self {
         match value {
             ContractError::Unavailable(message) => Self {
@@ -178,6 +279,7 @@ impl StreamingRuntime {
     }
 
     fn ensure_stream_state(&self, tenant_id: &str, stream_id: &str) -> Result<(), StreamingError> {
+        validate_stream_id(stream_id)?;
         let scope_key = stream_scope_key(tenant_id, stream_id);
         let needs_restore =
             !lock_stream_mutex(&self.sessions, "stream runtime").contains_key(scope_key.as_str());
@@ -207,14 +309,16 @@ impl StreamingRuntime {
         stream_id: &str,
     ) -> Result<StreamSession, StreamingError> {
         self.ensure_stream_state(auth.tenant_id.as_str(), stream_id)?;
-        lock_stream_mutex(&self.sessions, "stream runtime")
+        let session = lock_stream_mutex(&self.sessions, "stream runtime")
             .get(stream_scope_key(auth.tenant_id.as_str(), stream_id).as_str())
             .cloned()
             .ok_or_else(|| StreamingError {
                 status: axum::http::StatusCode::NOT_FOUND,
                 code: "stream_not_found",
                 message: format!("stream not found: {stream_id}"),
-            })
+            })?;
+        ensure_stream_session_actor_access(&session, auth, stream_id)?;
+        Ok(session)
     }
 
     pub fn open_stream(
@@ -222,6 +326,15 @@ impl StreamingRuntime {
         auth: &AuthContext,
         request: OpenStreamRequest,
     ) -> Result<StreamSession, StreamingError> {
+        Ok(self.open_stream_with_outcome(auth, request)?.session)
+    }
+
+    pub fn open_stream_with_outcome(
+        &self,
+        auth: &AuthContext,
+        request: OpenStreamRequest,
+    ) -> Result<StreamSessionMutationOutcome, StreamingError> {
+        validate_open_stream_request_payload_size(&request)?;
         let durability_class = match request.durability_class.as_str() {
             "transient" => StreamDurabilityClass::Transient,
             "durableSession" => StreamDurabilityClass::DurableSession,
@@ -239,12 +352,15 @@ impl StreamingRuntime {
         self.ensure_stream_state(auth.tenant_id.as_str(), request.stream_id.as_str())?;
         let mut sessions = lock_stream_mutex(&self.sessions, "stream runtime");
         if let Some(existing) = sessions.get(scope_key.as_str()).cloned() {
-            if stream_session_matches_open_request(&existing, &request, &durability_class) {
+            if stream_session_matches_open_request(&existing, auth, &request, &durability_class) {
                 drop(sessions);
                 lock_stream_mutex(&self.frames, "stream runtime")
                     .entry(scope_key)
                     .or_default();
-                return Ok(existing);
+                return Ok(StreamSessionMutationOutcome {
+                    session: existing,
+                    applied: false,
+                });
             }
 
             return Err(StreamingError::conflict(request.stream_id.as_str()));
@@ -254,6 +370,8 @@ impl StreamingRuntime {
         let session = StreamSession {
             tenant_id: auth.tenant_id.clone(),
             stream_id: request.stream_id.clone(),
+            owner_principal_id: Some(auth.actor_id.clone()),
+            owner_principal_kind: Some(auth.actor_kind.clone()),
             stream_type: request.stream_type,
             scope_kind: request.scope_kind,
             scope_id: request.scope_id,
@@ -264,6 +382,9 @@ impl StreamingRuntime {
             last_frame_seq: 0,
             last_checkpoint_seq: None,
             result_message_id: None,
+            complete_frame_seq: None,
+            abort_frame_seq: None,
+            abort_reason: None,
             opened_at,
             closed_at: None,
             expires_at: None,
@@ -276,7 +397,10 @@ impl StreamingRuntime {
             .or_default();
         self.persist_state(auth.tenant_id.as_str(), request.stream_id.as_str())?;
 
-        Ok(session)
+        Ok(StreamSessionMutationOutcome {
+            session,
+            applied: true,
+        })
     }
 
     pub fn append_frame(
@@ -285,6 +409,18 @@ impl StreamingRuntime {
         stream_id: &str,
         request: AppendStreamFrameRequest,
     ) -> Result<StreamFrame, StreamingError> {
+        Ok(self
+            .append_frame_with_outcome(auth, stream_id, request)?
+            .frame)
+    }
+
+    pub fn append_frame_with_outcome(
+        &self,
+        auth: &AuthContext,
+        stream_id: &str,
+        request: AppendStreamFrameRequest,
+    ) -> Result<AppendStreamFrameOutcome, StreamingError> {
+        validate_append_frame_request_payload_size(&request)?;
         if request.frame_seq == 0 {
             return Err(StreamingError {
                 status: axum::http::StatusCode::BAD_REQUEST,
@@ -303,6 +439,7 @@ impl StreamingRuntime {
                 code: "stream_not_found",
                 message: format!("stream not found: {stream_id}"),
             })?;
+        ensure_stream_session_actor_access(session, auth, stream_id)?;
 
         if matches!(
             session.state,
@@ -331,7 +468,10 @@ impl StreamingRuntime {
                 && existing.sender == sender
                 && existing.attributes == request.attributes;
             if is_same_retry {
-                return Ok(existing.clone());
+                return Ok(AppendStreamFrameOutcome {
+                    frame: existing.clone(),
+                    applied: false,
+                });
             }
             return Err(StreamingError {
                 status: axum::http::StatusCode::CONFLICT,
@@ -376,7 +516,10 @@ impl StreamingRuntime {
         drop(sessions);
         self.persist_state(auth.tenant_id.as_str(), stream_id)?;
 
-        Ok(frame)
+        Ok(AppendStreamFrameOutcome {
+            frame,
+            applied: true,
+        })
     }
 
     pub fn checkpoint_stream(
@@ -385,6 +528,17 @@ impl StreamingRuntime {
         stream_id: &str,
         request: CheckpointStreamRequest,
     ) -> Result<StreamSession, StreamingError> {
+        Ok(self
+            .checkpoint_stream_with_outcome(auth, stream_id, request)?
+            .session)
+    }
+
+    pub fn checkpoint_stream_with_outcome(
+        &self,
+        auth: &AuthContext,
+        stream_id: &str,
+        request: CheckpointStreamRequest,
+    ) -> Result<StreamSessionMutationOutcome, StreamingError> {
         self.ensure_stream_state(auth.tenant_id.as_str(), stream_id)?;
         let mut sessions = lock_stream_mutex(&self.sessions, "stream runtime");
         let session = sessions
@@ -394,6 +548,17 @@ impl StreamingRuntime {
                 code: "stream_not_found",
                 message: format!("stream not found: {stream_id}"),
             })?;
+        ensure_stream_session_actor_access(session, auth, stream_id)?;
+
+        if session.last_checkpoint_seq == Some(request.frame_seq) {
+            if stream_checkpoint_matches_request(session, auth, &request) {
+                return Ok(StreamSessionMutationOutcome {
+                    session: session.clone(),
+                    applied: false,
+                });
+            }
+            return Err(StreamingError::conflict(stream_id));
+        }
 
         if matches!(
             session.state,
@@ -404,6 +569,13 @@ impl StreamingRuntime {
                 code: "stream_state_invalid",
                 message: format!("stream is already closed: {stream_id}"),
             });
+        }
+
+        if session
+            .last_checkpoint_seq
+            .is_some_and(|last_checkpoint_seq| request.frame_seq < last_checkpoint_seq)
+        {
+            return Err(StreamingError::conflict(stream_id));
         }
 
         session.last_frame_seq = session.last_frame_seq.max(request.frame_seq);
@@ -413,7 +585,10 @@ impl StreamingRuntime {
         drop(sessions);
         self.persist_state(auth.tenant_id.as_str(), stream_id)?;
 
-        Ok(session)
+        Ok(StreamSessionMutationOutcome {
+            session,
+            applied: true,
+        })
     }
 
     pub fn complete_stream(
@@ -422,6 +597,18 @@ impl StreamingRuntime {
         stream_id: &str,
         request: CompleteStreamRequest,
     ) -> Result<StreamSession, StreamingError> {
+        Ok(self
+            .complete_stream_with_outcome(auth, stream_id, request)?
+            .session)
+    }
+
+    pub fn complete_stream_with_outcome(
+        &self,
+        auth: &AuthContext,
+        stream_id: &str,
+        request: CompleteStreamRequest,
+    ) -> Result<StreamSessionMutationOutcome, StreamingError> {
+        validate_complete_stream_request_payload_size(&request)?;
         self.ensure_stream_state(auth.tenant_id.as_str(), stream_id)?;
         let mut sessions = lock_stream_mutex(&self.sessions, "stream runtime");
         let session = sessions
@@ -431,11 +618,19 @@ impl StreamingRuntime {
                 code: "stream_not_found",
                 message: format!("stream not found: {stream_id}"),
             })?;
+        ensure_stream_session_actor_access(session, auth, stream_id)?;
 
-        if matches!(
-            session.state,
-            StreamSessionState::Completed | StreamSessionState::Aborted
-        ) {
+        if session.state == StreamSessionState::Completed {
+            if stream_completion_matches_request(session, auth, &request) {
+                return Ok(StreamSessionMutationOutcome {
+                    session: session.clone(),
+                    applied: false,
+                });
+            }
+            return Err(StreamingError::conflict(stream_id));
+        }
+
+        if session.state == StreamSessionState::Aborted {
             return Err(StreamingError {
                 status: axum::http::StatusCode::BAD_REQUEST,
                 code: "stream_state_invalid",
@@ -444,15 +639,18 @@ impl StreamingRuntime {
         }
 
         session.last_frame_seq = session.last_frame_seq.max(request.frame_seq);
-        session.last_checkpoint_seq = Some(request.frame_seq);
         session.result_message_id = request.result_message_id;
+        session.complete_frame_seq = Some(request.frame_seq);
         session.state = StreamSessionState::Completed;
         session.closed_at = Some(utc_now_rfc3339_millis());
         let session = session.clone();
         drop(sessions);
         self.persist_state(auth.tenant_id.as_str(), stream_id)?;
 
-        Ok(session)
+        Ok(StreamSessionMutationOutcome {
+            session,
+            applied: true,
+        })
     }
 
     pub fn abort_stream(
@@ -461,6 +659,18 @@ impl StreamingRuntime {
         stream_id: &str,
         request: AbortStreamRequest,
     ) -> Result<StreamSession, StreamingError> {
+        Ok(self
+            .abort_stream_with_outcome(auth, stream_id, request)?
+            .session)
+    }
+
+    pub fn abort_stream_with_outcome(
+        &self,
+        auth: &AuthContext,
+        stream_id: &str,
+        request: AbortStreamRequest,
+    ) -> Result<StreamSessionMutationOutcome, StreamingError> {
+        validate_abort_stream_request_payload_size(&request)?;
         self.ensure_stream_state(auth.tenant_id.as_str(), stream_id)?;
         let mut sessions = lock_stream_mutex(&self.sessions, "stream runtime");
         let session = sessions
@@ -470,11 +680,19 @@ impl StreamingRuntime {
                 code: "stream_not_found",
                 message: format!("stream not found: {stream_id}"),
             })?;
+        ensure_stream_session_actor_access(session, auth, stream_id)?;
 
-        if matches!(
-            session.state,
-            StreamSessionState::Completed | StreamSessionState::Aborted
-        ) {
+        if session.state == StreamSessionState::Aborted {
+            if stream_abort_matches_request(session, auth, &request) {
+                return Ok(StreamSessionMutationOutcome {
+                    session: session.clone(),
+                    applied: false,
+                });
+            }
+            return Err(StreamingError::conflict(stream_id));
+        }
+
+        if session.state == StreamSessionState::Completed {
             return Err(StreamingError {
                 status: axum::http::StatusCode::BAD_REQUEST,
                 code: "stream_state_invalid",
@@ -484,16 +702,19 @@ impl StreamingRuntime {
 
         if let Some(frame_seq) = request.frame_seq {
             session.last_frame_seq = session.last_frame_seq.max(frame_seq);
-            session.last_checkpoint_seq = Some(frame_seq);
         }
-        let _reason = request.reason;
         session.state = StreamSessionState::Aborted;
+        session.abort_frame_seq = request.frame_seq;
+        session.abort_reason = request.reason;
         session.closed_at = Some(utc_now_rfc3339_millis());
         let session = session.clone();
         drop(sessions);
         self.persist_state(auth.tenant_id.as_str(), stream_id)?;
 
-        Ok(session)
+        Ok(StreamSessionMutationOutcome {
+            session,
+            applied: true,
+        })
     }
 
     pub fn list_frames(
@@ -512,15 +733,27 @@ impl StreamingRuntime {
                 message: "limit must be greater than 0".into(),
             });
         }
+        if limit > STREAM_FRAME_LIST_MAX_LIMIT {
+            return Err(StreamingError {
+                status: axum::http::StatusCode::BAD_REQUEST,
+                code: "invalid_limit",
+                message: format!(
+                    "limit must be less than or equal to {STREAM_FRAME_LIST_MAX_LIMIT}"
+                ),
+            });
+        }
 
         let scope_key = stream_scope_key(auth.tenant_id.as_str(), stream_id);
-        if !lock_stream_mutex(&self.sessions, "stream runtime").contains_key(scope_key.as_str()) {
-            return Err(StreamingError {
+        let sessions = lock_stream_mutex(&self.sessions, "stream runtime");
+        let session = sessions
+            .get(scope_key.as_str())
+            .ok_or_else(|| StreamingError {
                 status: axum::http::StatusCode::NOT_FOUND,
                 code: "stream_not_found",
                 message: format!("stream not found: {stream_id}"),
-            });
-        }
+            })?;
+        ensure_stream_session_actor_access(session, auth, stream_id)?;
+        drop(sessions);
 
         let frames = lock_stream_mutex(&self.frames, "stream runtime");
         let items: Vec<StreamFrame> = frames
@@ -692,10 +925,14 @@ async fn open_stream(
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<OpenStreamRequest>,
-) -> Result<Json<StreamSession>, StreamingError> {
+) -> Result<Json<StreamSessionMutationResponse>, StreamingError> {
     let auth = resolve_auth_context(&headers)?;
     ensure_standalone_stream_open_allowed(&request)?;
-    Ok(Json(state.runtime.open_stream(&auth, request)?))
+    let request_key = stream_open_request_key(&auth, request.stream_id.as_str());
+    Ok(Json(StreamSessionMutationResponse::from_outcome(
+        state.runtime.open_stream_with_outcome(&auth, request)?,
+        request_key,
+    )))
 }
 
 async fn checkpoint_stream(
@@ -703,14 +940,16 @@ async fn checkpoint_stream(
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<CheckpointStreamRequest>,
-) -> Result<Json<StreamSession>, StreamingError> {
+) -> Result<Json<StreamSessionMutationResponse>, StreamingError> {
     let auth = resolve_auth_context(&headers)?;
     ensure_standalone_stream_session_allowed(&state.runtime, &auth, stream_id.as_str())?;
-    Ok(Json(state.runtime.checkpoint_stream(
-        &auth,
-        stream_id.as_str(),
-        request,
-    )?))
+    let request_key = stream_checkpoint_request_key(&auth, stream_id.as_str(), request.frame_seq);
+    Ok(Json(StreamSessionMutationResponse::from_outcome(
+        state
+            .runtime
+            .checkpoint_stream_with_outcome(&auth, stream_id.as_str(), request)?,
+        request_key,
+    )))
 }
 
 async fn append_stream_frame(
@@ -718,14 +957,16 @@ async fn append_stream_frame(
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<AppendStreamFrameRequest>,
-) -> Result<Json<StreamFrame>, StreamingError> {
+) -> Result<Json<StreamFrameMutationResponse>, StreamingError> {
     let auth = resolve_auth_context(&headers)?;
     ensure_standalone_stream_session_allowed(&state.runtime, &auth, stream_id.as_str())?;
-    Ok(Json(state.runtime.append_frame(
-        &auth,
-        stream_id.as_str(),
-        request,
-    )?))
+    let request_key = stream_append_request_key(&auth, stream_id.as_str(), request.frame_seq);
+    Ok(Json(StreamFrameMutationResponse::from_outcome(
+        state
+            .runtime
+            .append_frame_with_outcome(&auth, stream_id.as_str(), request)?,
+        request_key,
+    )))
 }
 
 async fn list_stream_frames(
@@ -748,14 +989,16 @@ async fn complete_stream(
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<CompleteStreamRequest>,
-) -> Result<Json<StreamSession>, StreamingError> {
+) -> Result<Json<StreamSessionMutationResponse>, StreamingError> {
     let auth = resolve_auth_context(&headers)?;
     ensure_standalone_stream_session_allowed(&state.runtime, &auth, stream_id.as_str())?;
-    Ok(Json(state.runtime.complete_stream(
-        &auth,
-        stream_id.as_str(),
-        request,
-    )?))
+    let request_key = stream_complete_request_key(&auth, stream_id.as_str());
+    Ok(Json(StreamSessionMutationResponse::from_outcome(
+        state
+            .runtime
+            .complete_stream_with_outcome(&auth, stream_id.as_str(), request)?,
+        request_key,
+    )))
 }
 
 async fn abort_stream(
@@ -763,14 +1006,124 @@ async fn abort_stream(
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<AbortStreamRequest>,
-) -> Result<Json<StreamSession>, StreamingError> {
+) -> Result<Json<StreamSessionMutationResponse>, StreamingError> {
     let auth = resolve_auth_context(&headers)?;
     ensure_standalone_stream_session_allowed(&state.runtime, &auth, stream_id.as_str())?;
-    Ok(Json(state.runtime.abort_stream(
-        &auth,
-        stream_id.as_str(),
-        request,
-    )?))
+    let request_key = stream_abort_request_key(&auth, stream_id.as_str());
+    Ok(Json(StreamSessionMutationResponse::from_outcome(
+        state
+            .runtime
+            .abort_stream_with_outcome(&auth, stream_id.as_str(), request)?,
+        request_key,
+    )))
+}
+
+fn validate_payload_size(
+    field: &'static str,
+    payload: &str,
+    max_bytes: usize,
+) -> Result<(), StreamingError> {
+    let payload_len = payload.len();
+    if payload_len > max_bytes {
+        return Err(StreamingError::payload_too_large(
+            field,
+            max_bytes,
+            payload_len,
+        ));
+    }
+    Ok(())
+}
+
+fn validate_stream_id(stream_id: &str) -> Result<(), StreamingError> {
+    validate_payload_size("streamId", stream_id, STREAM_MAX_STREAM_ID_BYTES)
+}
+
+fn validate_open_stream_request_payload_size(
+    request: &OpenStreamRequest,
+) -> Result<(), StreamingError> {
+    validate_stream_id(request.stream_id.as_str())?;
+    validate_payload_size(
+        "streamType",
+        request.stream_type.as_str(),
+        STREAM_MAX_STREAM_TYPE_BYTES,
+    )?;
+    validate_payload_size(
+        "scopeKind",
+        request.scope_kind.as_str(),
+        STREAM_MAX_SCOPE_KIND_BYTES,
+    )?;
+    validate_payload_size(
+        "scopeId",
+        request.scope_id.as_str(),
+        STREAM_MAX_SCOPE_ID_BYTES,
+    )?;
+    validate_payload_size(
+        "durabilityClass",
+        request.durability_class.as_str(),
+        STREAM_MAX_DURABILITY_CLASS_BYTES,
+    )?;
+    if let Some(schema_ref) = request.schema_ref.as_deref() {
+        validate_payload_size("schemaRef", schema_ref, STREAM_MAX_SCHEMA_REF_BYTES)?;
+    }
+    Ok(())
+}
+
+fn validate_append_frame_request_payload_size(
+    request: &AppendStreamFrameRequest,
+) -> Result<(), StreamingError> {
+    validate_payload_size(
+        "frameType",
+        request.frame_type.as_str(),
+        STREAM_MAX_FRAME_TYPE_BYTES,
+    )?;
+    validate_payload_size(
+        "encoding",
+        request.encoding.as_str(),
+        STREAM_MAX_FRAME_ENCODING_BYTES,
+    )?;
+    validate_payload_size(
+        "payload",
+        request.payload.as_str(),
+        STREAM_MAX_FRAME_PAYLOAD_BYTES,
+    )?;
+    if let Some(schema_ref) = request.schema_ref.as_deref() {
+        validate_payload_size("schemaRef", schema_ref, STREAM_MAX_SCHEMA_REF_BYTES)?;
+    }
+    let attributes_bytes = request
+        .attributes
+        .iter()
+        .map(|(key, value)| key.len() + value.len())
+        .sum::<usize>();
+    if attributes_bytes > STREAM_MAX_FRAME_ATTRIBUTES_BYTES {
+        return Err(StreamingError::payload_too_large(
+            "attributes",
+            STREAM_MAX_FRAME_ATTRIBUTES_BYTES,
+            attributes_bytes,
+        ));
+    }
+    Ok(())
+}
+
+fn validate_complete_stream_request_payload_size(
+    request: &CompleteStreamRequest,
+) -> Result<(), StreamingError> {
+    if let Some(result_message_id) = request.result_message_id.as_deref() {
+        validate_payload_size(
+            "resultMessageId",
+            result_message_id,
+            STREAM_MAX_RESULT_MESSAGE_ID_BYTES,
+        )?;
+    }
+    Ok(())
+}
+
+fn validate_abort_stream_request_payload_size(
+    request: &AbortStreamRequest,
+) -> Result<(), StreamingError> {
+    if let Some(reason) = request.reason.as_deref() {
+        validate_payload_size("reason", reason, STREAM_MAX_ABORT_REASON_BYTES)?;
+    }
+    Ok(())
 }
 
 fn lock_stream_mutex<'a, T>(mutex: &'a Mutex<T>, lock_name: &'static str) -> MutexGuard<'a, T> {
@@ -785,6 +1138,45 @@ fn lock_stream_mutex<'a, T>(mutex: &'a Mutex<T>, lock_name: &'static str) -> Mut
 
 fn stream_scope_key(tenant_id: &str, stream_id: &str) -> String {
     format!("{tenant_id}:{stream_id}")
+}
+
+pub fn stream_open_request_key(auth: &AuthContext, stream_id: &str) -> String {
+    format!(
+        "{}:{}:{}:open:{}",
+        auth.tenant_id, auth.actor_kind, auth.actor_id, stream_id
+    )
+}
+
+pub fn stream_complete_request_key(auth: &AuthContext, stream_id: &str) -> String {
+    format!(
+        "{}:{}:{}:complete:{}",
+        auth.tenant_id, auth.actor_kind, auth.actor_id, stream_id
+    )
+}
+
+pub fn stream_checkpoint_request_key(
+    auth: &AuthContext,
+    stream_id: &str,
+    frame_seq: u64,
+) -> String {
+    format!(
+        "{}:{}:{}:checkpoint:{}:{}",
+        auth.tenant_id, auth.actor_kind, auth.actor_id, stream_id, frame_seq
+    )
+}
+
+pub fn stream_abort_request_key(auth: &AuthContext, stream_id: &str) -> String {
+    format!(
+        "{}:{}:{}:abort:{}",
+        auth.tenant_id, auth.actor_kind, auth.actor_id, stream_id
+    )
+}
+
+pub fn stream_append_request_key(auth: &AuthContext, stream_id: &str, frame_seq: u64) -> String {
+    format!(
+        "{}:{}:{}:append:{}:{}",
+        auth.tenant_id, auth.actor_kind, auth.actor_id, stream_id, frame_seq
+    )
 }
 
 fn ensure_standalone_stream_open_allowed(
@@ -830,15 +1222,78 @@ fn conversation_gateway_required(message: &str) -> StreamingError {
 
 fn stream_session_matches_open_request(
     session: &StreamSession,
+    auth: &AuthContext,
     request: &OpenStreamRequest,
     durability_class: &StreamDurabilityClass,
 ) -> bool {
-    session.stream_id == request.stream_id.as_str()
+    stream_session_matches_owner_principal(session, auth)
+        && session.stream_id == request.stream_id.as_str()
         && session.stream_type == request.stream_type.as_str()
         && session.scope_kind == request.scope_kind.as_str()
         && session.scope_id == request.scope_id.as_str()
         && session.durability_class == *durability_class
         && session.schema_ref.as_ref() == request.schema_ref.as_ref()
+}
+
+fn stream_checkpoint_matches_request(
+    session: &StreamSession,
+    auth: &AuthContext,
+    request: &CheckpointStreamRequest,
+) -> bool {
+    stream_session_matches_owner_principal(session, auth)
+        && session.last_checkpoint_seq == Some(request.frame_seq)
+}
+
+fn stream_completion_matches_request(
+    session: &StreamSession,
+    auth: &AuthContext,
+    request: &CompleteStreamRequest,
+) -> bool {
+    stream_session_matches_owner_principal(session, auth)
+        && session.state == StreamSessionState::Completed
+        && session.complete_frame_seq == Some(request.frame_seq)
+        && session.result_message_id == request.result_message_id
+}
+
+fn stream_abort_matches_request(
+    session: &StreamSession,
+    auth: &AuthContext,
+    request: &AbortStreamRequest,
+) -> bool {
+    stream_session_matches_owner_principal(session, auth)
+        && session.state == StreamSessionState::Aborted
+        && session.abort_frame_seq == request.frame_seq
+        && session.abort_reason == request.reason
+}
+
+fn stream_session_matches_owner_principal(session: &StreamSession, auth: &AuthContext) -> bool {
+    session
+        .owner_principal_id
+        .as_deref()
+        .is_none_or(|owner_principal_id| owner_principal_id == auth.actor_id.as_str())
+        && session
+            .owner_principal_kind
+            .as_deref()
+            .is_none_or(|owner_principal_kind| owner_principal_kind == auth.actor_kind.as_str())
+}
+
+fn ensure_stream_session_actor_access(
+    session: &StreamSession,
+    auth: &AuthContext,
+    stream_id: &str,
+) -> Result<(), StreamingError> {
+    if session.scope_kind != "conversation"
+        && session.scope_kind != DEVICE_SCOPE_KIND
+        && !stream_session_matches_owner_principal(session, auth)
+    {
+        return Err(StreamingError {
+            status: axum::http::StatusCode::NOT_FOUND,
+            code: "stream_not_found",
+            message: format!("stream not found: {stream_id}"),
+        });
+    }
+
+    Ok(())
 }
 
 fn resolve_stream_frame_sender(auth: &AuthContext, session: &StreamSession) -> Sender {

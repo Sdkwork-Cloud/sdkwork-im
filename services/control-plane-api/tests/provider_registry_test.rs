@@ -1235,3 +1235,63 @@ async fn test_control_plane_returns_conflict_status_for_unknown_provider_policy_
         );
     }
 }
+
+#[tokio::test]
+async fn test_control_plane_rejects_provider_policy_diff_with_reversed_version_range() {
+    let app = control_plane_api::build_app_with_cluster_and_runtime_provider_registry(
+        Arc::new(RealtimeClusterBridge::default()),
+        Arc::new(RuntimeProviderRegistry::platform_default()),
+    );
+
+    let deployment_write = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/control/provider-bindings")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"domain":"object-storage","pluginId":"object-storage-volcengine"}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("deployment write should return a response");
+    assert_eq!(deployment_write.status(), StatusCode::OK);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/control/provider-policies/diff?fromVersion=2&toVersion=1")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("reversed diff request should return a response");
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("reversed diff body should collect")
+        .to_bytes();
+    let json: serde_json::Value =
+        serde_json::from_slice(&body).expect("reversed diff body should be valid json");
+    assert_eq!(json["status"], "invalid");
+    assert_eq!(json["code"], "invalid_provider_policy");
+    assert!(
+        json["message"]
+            .as_str()
+            .expect("reversed diff error message should be present")
+            .contains("fromVersion must not exceed toVersion"),
+        "reversed diff should explain the invalid version range"
+    );
+}

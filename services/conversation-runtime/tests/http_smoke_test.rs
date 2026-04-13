@@ -64,6 +64,277 @@ async fn test_create_conversation_and_post_message_over_http() {
 }
 
 #[tokio::test]
+async fn test_duplicate_create_conversation_request_is_idempotent_and_conflicting_retry_is_rejected_over_http()
+ {
+    let app = conversation_runtime::build_default_app();
+
+    let first_create = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_create_retry_http",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("first create should return response");
+    assert_eq!(first_create.status(), StatusCode::OK);
+    let first_create_body = first_create
+        .into_body()
+        .collect()
+        .await
+        .expect("first create body should collect")
+        .to_bytes();
+    let first_create_json: serde_json::Value =
+        serde_json::from_slice(&first_create_body).expect("first create should be valid json");
+    assert_eq!(first_create_json["deliveryStatus"], "applied");
+    assert_eq!(
+        first_create_json["proofVersion"],
+        "conversation.create.delivery-proof.v1"
+    );
+    assert_eq!(
+        first_create_json["requestKey"],
+        "t_demo:user:u_demo:create-conversation:c_create_retry_http"
+    );
+
+    let duplicate_create = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_create_retry_http",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("duplicate create should return response");
+    assert_eq!(duplicate_create.status(), StatusCode::OK);
+    let duplicate_create_body = duplicate_create
+        .into_body()
+        .collect()
+        .await
+        .expect("duplicate create body should collect")
+        .to_bytes();
+    let duplicate_create_json: serde_json::Value = serde_json::from_slice(&duplicate_create_body)
+        .expect("duplicate create should be valid json");
+    assert_eq!(duplicate_create_json["deliveryStatus"], "replayed");
+    assert_eq!(
+        duplicate_create_json["requestKey"],
+        first_create_json["requestKey"]
+    );
+    assert_eq!(
+        duplicate_create_json["eventId"],
+        first_create_json["eventId"]
+    );
+
+    let conflicting_retry = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_create_retry_http",
+                        "conversationType":"direct"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("conflicting create should return response");
+    assert_eq!(conflicting_retry.status(), StatusCode::CONFLICT);
+    let conflicting_retry_body = conflicting_retry
+        .into_body()
+        .collect()
+        .await
+        .expect("conflicting create body should collect")
+        .to_bytes();
+    let conflicting_retry_json: serde_json::Value = serde_json::from_slice(&conflicting_retry_body)
+        .expect("conflicting create should be valid json");
+    assert_eq!(conflicting_retry_json["code"], "conversation_conflict");
+}
+
+#[tokio::test]
+async fn test_duplicate_post_message_request_is_idempotent_and_conflicting_retry_is_rejected_over_http()
+ {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_http_post_retry",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let first_post = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_http_post_retry/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_http_post_retry",
+                        "summary":"hello",
+                        "text":"hello"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("first post should succeed");
+    assert_eq!(first_post.status(), StatusCode::OK);
+    let first_post_body = first_post
+        .into_body()
+        .collect()
+        .await
+        .expect("first post body should collect")
+        .to_bytes();
+    let first_post_json: serde_json::Value =
+        serde_json::from_slice(&first_post_body).expect("first post should be valid json");
+    assert_eq!(first_post_json["deliveryStatus"], "applied");
+    assert_eq!(
+        first_post_json["proofVersion"],
+        "conversation.message.delivery-proof.v1"
+    );
+
+    let duplicate_post = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_http_post_retry/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_http_post_retry",
+                        "summary":"hello",
+                        "text":"hello"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("duplicate post should return response");
+    assert_eq!(duplicate_post.status(), StatusCode::OK);
+    let duplicate_post_body = duplicate_post
+        .into_body()
+        .collect()
+        .await
+        .expect("duplicate post body should collect")
+        .to_bytes();
+    let duplicate_post_json: serde_json::Value =
+        serde_json::from_slice(&duplicate_post_body).expect("duplicate post should be valid json");
+    assert_eq!(duplicate_post_json["deliveryStatus"], "replayed");
+    assert_eq!(
+        duplicate_post_json["requestKey"],
+        first_post_json["requestKey"]
+    );
+    assert_eq!(
+        duplicate_post_json["messageId"],
+        first_post_json["messageId"]
+    );
+    assert_eq!(
+        duplicate_post_json["messageSeq"],
+        first_post_json["messageSeq"]
+    );
+    assert_eq!(duplicate_post_json["eventId"], first_post_json["eventId"]);
+
+    let history = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/conversations/c_http_post_retry/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("history request should succeed");
+    assert_eq!(history.status(), StatusCode::OK);
+    let history_body = history
+        .into_body()
+        .collect()
+        .await
+        .expect("history body should collect")
+        .to_bytes();
+    let history_json: serde_json::Value =
+        serde_json::from_slice(&history_body).expect("history should be valid json");
+    assert_eq!(history_json["highWatermark"], 1);
+    assert_eq!(history_json["items"].as_array().unwrap().len(), 1);
+
+    let conflicting_retry = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_http_post_retry/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_http_post_retry",
+                        "summary":"hello conflict",
+                        "text":"hello conflict"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("conflicting retry should return response");
+    assert_eq!(conflicting_retry.status(), StatusCode::CONFLICT);
+    let conflicting_retry_body = conflicting_retry
+        .into_body()
+        .collect()
+        .await
+        .expect("conflicting retry body should collect")
+        .to_bytes();
+    let conflicting_retry_json: serde_json::Value = serde_json::from_slice(&conflicting_retry_body)
+        .expect("conflicting retry should be valid json");
+    assert_eq!(conflicting_retry_json["code"], "conversation_conflict");
+}
+
+#[tokio::test]
 async fn test_create_conversation_rejects_unknown_type_over_http() {
     let app = conversation_runtime::build_default_app();
 
@@ -96,6 +367,47 @@ async fn test_create_conversation_rejects_unknown_type_over_http() {
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
     assert_eq!(value["code"], "conversation_type_invalid");
+}
+
+#[tokio::test]
+async fn test_create_conversation_rejects_oversized_conversation_id_over_http() {
+    let app = conversation_runtime::build_default_app();
+    let request_body = serde_json::json!({
+        "conversationId": "c".repeat(2048),
+        "conversationType": "group"
+    })
+    .to_string();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(request_body))
+                .unwrap(),
+        )
+        .await
+        .expect("oversized create conversation should return response");
+
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["code"], "payload_too_large");
+    assert!(
+        value["message"]
+            .as_str()
+            .expect("message should be present")
+            .contains("conversationId")
+    );
 }
 
 #[tokio::test]
@@ -259,6 +571,117 @@ async fn test_create_agent_dialog_over_http() {
 }
 
 #[tokio::test]
+async fn test_duplicate_create_agent_dialog_request_is_idempotent_and_conflicting_retry_is_rejected_over_http()
+ {
+    let app = conversation_runtime::build_default_app();
+
+    let first_create = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/agent-dialogs")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_agent_dialog_retry_http",
+                        "agentId":"ag_demo"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("first agent dialog create should return response");
+    assert_eq!(first_create.status(), StatusCode::OK);
+    let first_create_body = first_create
+        .into_body()
+        .collect()
+        .await
+        .expect("first agent dialog create body should collect")
+        .to_bytes();
+    let first_create_json: serde_json::Value = serde_json::from_slice(&first_create_body)
+        .expect("first agent dialog create should be valid json");
+    assert_eq!(first_create_json["deliveryStatus"], "applied");
+    assert_eq!(
+        first_create_json["proofVersion"],
+        "conversation.create.delivery-proof.v1"
+    );
+    assert_eq!(
+        first_create_json["requestKey"],
+        "t_demo:user:u_demo:create-agent-dialog:c_agent_dialog_retry_http"
+    );
+
+    let duplicate_create = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/agent-dialogs")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_agent_dialog_retry_http",
+                        "agentId":"ag_demo"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("duplicate agent dialog create should return response");
+    assert_eq!(duplicate_create.status(), StatusCode::OK);
+    let duplicate_create_body = duplicate_create
+        .into_body()
+        .collect()
+        .await
+        .expect("duplicate agent dialog create body should collect")
+        .to_bytes();
+    let duplicate_create_json: serde_json::Value = serde_json::from_slice(&duplicate_create_body)
+        .expect("duplicate agent dialog create should be valid json");
+    assert_eq!(duplicate_create_json["deliveryStatus"], "replayed");
+    assert_eq!(
+        duplicate_create_json["requestKey"],
+        first_create_json["requestKey"]
+    );
+    assert_eq!(
+        duplicate_create_json["eventId"],
+        first_create_json["eventId"]
+    );
+
+    let conflicting_retry = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/agent-dialogs")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_agent_dialog_retry_http",
+                        "agentId":"ag_other"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("conflicting agent dialog create should return response");
+    assert_eq!(conflicting_retry.status(), StatusCode::CONFLICT);
+    let conflicting_retry_body = conflicting_retry
+        .into_body()
+        .collect()
+        .await
+        .expect("conflicting agent dialog create body should collect")
+        .to_bytes();
+    let conflicting_retry_json: serde_json::Value = serde_json::from_slice(&conflicting_retry_body)
+        .expect("conflicting agent dialog create should be valid json");
+    assert_eq!(conflicting_retry_json["code"], "conversation_conflict");
+}
+
+#[tokio::test]
 async fn test_create_agent_dialog_rejects_non_user_actor_over_http() {
     let app = conversation_runtime::build_default_app();
 
@@ -397,6 +820,129 @@ async fn test_create_agent_handoff_rejects_non_agent_actor_over_http() {
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
     assert_eq!(value["code"], "conversation_permission_denied");
+}
+
+#[tokio::test]
+async fn test_duplicate_create_agent_handoff_request_is_idempotent_and_conflicting_retry_is_rejected_over_http()
+ {
+    let app = conversation_runtime::build_default_app();
+
+    let first_create = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/agent-handoffs")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "ag_source")
+                .header("x-actor-kind", "agent")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_agent_handoff_retry_http",
+                        "targetId":"u_demo",
+                        "targetKind":"user",
+                        "handoffSessionId":"hs_retry_http",
+                        "handoffReason":"manual_escalation"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("first agent handoff create should return response");
+    assert_eq!(first_create.status(), StatusCode::OK);
+    let first_create_body = first_create
+        .into_body()
+        .collect()
+        .await
+        .expect("first agent handoff create body should collect")
+        .to_bytes();
+    let first_create_json: serde_json::Value = serde_json::from_slice(&first_create_body)
+        .expect("first agent handoff create should be valid json");
+    assert_eq!(first_create_json["deliveryStatus"], "applied");
+    assert_eq!(
+        first_create_json["proofVersion"],
+        "conversation.create.delivery-proof.v1"
+    );
+    assert_eq!(
+        first_create_json["requestKey"],
+        "t_demo:agent:ag_source:create-agent-handoff:c_agent_handoff_retry_http"
+    );
+
+    let duplicate_create = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/agent-handoffs")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "ag_source")
+                .header("x-actor-kind", "agent")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_agent_handoff_retry_http",
+                        "targetId":"u_demo",
+                        "targetKind":"user",
+                        "handoffSessionId":"hs_retry_http",
+                        "handoffReason":"manual_escalation"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("duplicate agent handoff create should return response");
+    assert_eq!(duplicate_create.status(), StatusCode::OK);
+    let duplicate_create_body = duplicate_create
+        .into_body()
+        .collect()
+        .await
+        .expect("duplicate agent handoff create body should collect")
+        .to_bytes();
+    let duplicate_create_json: serde_json::Value = serde_json::from_slice(&duplicate_create_body)
+        .expect("duplicate agent handoff create should be valid json");
+    assert_eq!(duplicate_create_json["deliveryStatus"], "replayed");
+    assert_eq!(
+        duplicate_create_json["requestKey"],
+        first_create_json["requestKey"]
+    );
+    assert_eq!(
+        duplicate_create_json["eventId"],
+        first_create_json["eventId"]
+    );
+
+    let conflicting_retry = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/agent-handoffs")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "ag_source")
+                .header("x-actor-kind", "agent")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_agent_handoff_retry_http",
+                        "targetId":"u_other",
+                        "targetKind":"user",
+                        "handoffSessionId":"hs_retry_http",
+                        "handoffReason":"manual_escalation"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("conflicting agent handoff create should return response");
+    assert_eq!(conflicting_retry.status(), StatusCode::CONFLICT);
+    let conflicting_retry_body = conflicting_retry
+        .into_body()
+        .collect()
+        .await
+        .expect("conflicting agent handoff create body should collect")
+        .to_bytes();
+    let conflicting_retry_json: serde_json::Value = serde_json::from_slice(&conflicting_retry_body)
+        .expect("conflicting agent handoff create should be valid json");
+    assert_eq!(conflicting_retry_json["code"], "conversation_conflict");
 }
 
 #[tokio::test]
@@ -757,6 +1303,120 @@ async fn test_create_system_channel_rejects_non_system_actor_over_http() {
 }
 
 #[tokio::test]
+async fn test_duplicate_create_system_channel_request_is_idempotent_and_conflicting_retry_is_rejected_over_http()
+ {
+    let app = conversation_runtime::build_default_app();
+
+    let first_create = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/system-channels")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "svc_ops")
+                .header("x-actor-kind", "system")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_system_channel_retry_http",
+                        "subscriberId":"u_demo"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("first system channel create should return response");
+    assert_eq!(first_create.status(), StatusCode::OK);
+    let first_create_body = first_create
+        .into_body()
+        .collect()
+        .await
+        .expect("first system channel create body should collect")
+        .to_bytes();
+    let first_create_json: serde_json::Value = serde_json::from_slice(&first_create_body)
+        .expect("first system channel create should be valid json");
+    assert_eq!(first_create_json["deliveryStatus"], "applied");
+    assert_eq!(
+        first_create_json["proofVersion"],
+        "conversation.create.delivery-proof.v1"
+    );
+    assert_eq!(
+        first_create_json["requestKey"],
+        "t_demo:system:svc_ops:create-system-channel:c_system_channel_retry_http"
+    );
+
+    let duplicate_create = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/system-channels")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "svc_ops")
+                .header("x-actor-kind", "system")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_system_channel_retry_http",
+                        "subscriberId":"u_demo"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("duplicate system channel create should return response");
+    assert_eq!(duplicate_create.status(), StatusCode::OK);
+    let duplicate_create_body = duplicate_create
+        .into_body()
+        .collect()
+        .await
+        .expect("duplicate system channel create body should collect")
+        .to_bytes();
+    let duplicate_create_json: serde_json::Value = serde_json::from_slice(&duplicate_create_body)
+        .expect("duplicate system channel create should be valid json");
+    assert_eq!(duplicate_create_json["deliveryStatus"], "replayed");
+    assert_eq!(
+        duplicate_create_json["requestKey"],
+        first_create_json["requestKey"]
+    );
+    assert_eq!(
+        duplicate_create_json["eventId"],
+        first_create_json["eventId"]
+    );
+
+    let conflicting_retry = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/system-channels")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "svc_ops")
+                .header("x-actor-kind", "system")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_system_channel_retry_http",
+                        "subscriberId":"u_other"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("conflicting system channel create should return response");
+    assert_eq!(conflicting_retry.status(), StatusCode::CONFLICT);
+    let conflicting_retry_body = conflicting_retry
+        .into_body()
+        .collect()
+        .await
+        .expect("conflicting system channel create body should collect")
+        .to_bytes();
+    let conflicting_retry_json: serde_json::Value = serde_json::from_slice(&conflicting_retry_body)
+        .expect("conflicting system channel create should be valid json");
+    assert_eq!(conflicting_retry_json["code"], "conversation_conflict");
+}
+
+#[tokio::test]
 async fn test_system_channel_subscriber_cannot_post_over_http() {
     let app = conversation_runtime::build_default_app();
 
@@ -1034,6 +1694,201 @@ async fn test_post_message_accepts_structured_parts_over_http() {
 
     assert_eq!(value["messageSeq"], 1);
     assert_eq!(value["messageId"], "msg_c_media_http_1");
+}
+
+#[tokio::test]
+async fn test_post_message_rejects_oversized_text_over_http() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_http_oversized_text",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation request should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let request_body = serde_json::json!({
+        "clientMsgId": "client_http_oversized_text",
+        "summary": "oversized text payload",
+        "text": "x".repeat(600_000)
+    })
+    .to_string();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_http_oversized_text/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(request_body))
+                .unwrap(),
+        )
+        .await
+        .expect("oversized post message should return response");
+
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["code"], "payload_too_large");
+    assert!(
+        value["message"]
+            .as_str()
+            .expect("message should be present")
+            .contains("messageBody")
+    );
+}
+
+#[tokio::test]
+async fn test_post_message_rejects_oversized_sender_session_id_over_http() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_http_oversized_sender_session",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation request should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_http_oversized_sender_session/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-session-id", "s".repeat(257))
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_http_oversized_sender_session",
+                        "summary":"oversized sender session",
+                        "text":"hello"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("oversized sender session post should return response");
+
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["code"], "payload_too_large");
+    assert!(
+        value["message"]
+            .as_str()
+            .expect("message should be present")
+            .contains("senderSessionId")
+    );
+}
+
+#[tokio::test]
+async fn test_add_member_rejects_oversized_attributes_over_http() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_member_attributes_http",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation request should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let oversized_request = serde_json::json!({
+        "principalId": "u_member",
+        "principalKind": "user",
+        "role": "member",
+        "attributes": {
+            "profile": "x".repeat(70 * 1024)
+        }
+    })
+    .to_string();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_member_attributes_http/members/add")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(oversized_request))
+                .unwrap(),
+        )
+        .await
+        .expect("oversized add member request should return response");
+
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["code"], "payload_too_large");
+    assert!(
+        value["message"]
+            .as_str()
+            .expect("message should be present")
+            .contains("memberAttributes")
+    );
 }
 
 #[tokio::test]
@@ -2341,6 +3196,129 @@ async fn test_bind_direct_chat_conversation_over_http_and_query_binding() {
 }
 
 #[tokio::test]
+async fn test_duplicate_bind_direct_chat_conversation_request_is_idempotent_and_conflicting_retry_is_rejected_over_http()
+ {
+    let app = conversation_runtime::build_default_app();
+
+    let first_bind = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/direct-chats/bindings")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "svc_control")
+                .header("x-actor-kind", "system")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_direct_retry_http",
+                        "directChatId":"dc_retry_http",
+                        "leftActorId":"actor_a",
+                        "leftActorKind":"user",
+                        "rightActorId":"actor_b",
+                        "rightActorKind":"user"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("first direct chat binding should return response");
+    assert_eq!(first_bind.status(), StatusCode::OK);
+    let first_bind_body = first_bind
+        .into_body()
+        .collect()
+        .await
+        .expect("first bind body should collect")
+        .to_bytes();
+    let first_bind_json: serde_json::Value =
+        serde_json::from_slice(&first_bind_body).expect("first bind should be valid json");
+    assert_eq!(first_bind_json["deliveryStatus"], "applied");
+    assert_eq!(
+        first_bind_json["proofVersion"],
+        "conversation.create.delivery-proof.v1"
+    );
+    assert_eq!(
+        first_bind_json["requestKey"],
+        "t_demo:system:svc_control:bind-direct-chat:c_direct_retry_http"
+    );
+
+    let duplicate_bind = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/direct-chats/bindings")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "svc_control")
+                .header("x-actor-kind", "system")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_direct_retry_http",
+                        "directChatId":"dc_retry_http",
+                        "leftActorId":"actor_a",
+                        "leftActorKind":"user",
+                        "rightActorId":"actor_b",
+                        "rightActorKind":"user"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("duplicate direct chat binding should return response");
+    assert_eq!(duplicate_bind.status(), StatusCode::OK);
+    let duplicate_bind_body = duplicate_bind
+        .into_body()
+        .collect()
+        .await
+        .expect("duplicate bind body should collect")
+        .to_bytes();
+    let duplicate_bind_json: serde_json::Value =
+        serde_json::from_slice(&duplicate_bind_body).expect("duplicate bind should be valid json");
+    assert_eq!(duplicate_bind_json["deliveryStatus"], "replayed");
+    assert_eq!(
+        duplicate_bind_json["requestKey"],
+        first_bind_json["requestKey"]
+    );
+    assert_eq!(duplicate_bind_json["eventId"], first_bind_json["eventId"]);
+
+    let conflicting_bind = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/direct-chats/bindings")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "svc_control")
+                .header("x-actor-kind", "system")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_direct_retry_http",
+                        "directChatId":"dc_other_http",
+                        "leftActorId":"actor_a",
+                        "leftActorKind":"user",
+                        "rightActorId":"actor_b",
+                        "rightActorKind":"user"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("conflicting direct chat binding should return response");
+    assert_eq!(conflicting_bind.status(), StatusCode::CONFLICT);
+    let conflicting_bind_body = conflicting_bind
+        .into_body()
+        .collect()
+        .await
+        .expect("conflicting bind body should collect")
+        .to_bytes();
+    let conflicting_bind_json: serde_json::Value = serde_json::from_slice(&conflicting_bind_body)
+        .expect("conflicting bind should be valid json");
+    assert_eq!(conflicting_bind_json["code"], "conversation_conflict");
+}
+
+#[tokio::test]
 async fn test_create_thread_conversation_over_http_and_query_binding() {
     let app = conversation_runtime::build_default_app();
 
@@ -2486,6 +3464,204 @@ async fn test_create_thread_conversation_over_http_and_query_binding() {
         members_json["items"][0]["attributes"]["threadRole"],
         "owner"
     );
+}
+
+#[tokio::test]
+async fn test_duplicate_create_thread_conversation_request_is_idempotent_and_conflicting_retry_is_rejected_over_http()
+ {
+    let app = conversation_runtime::build_default_app();
+
+    let create_parent_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_parent_thread_retry_http",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create parent conversation request should return response");
+    assert_eq!(create_parent_response.status(), StatusCode::OK);
+
+    let first_root_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_parent_thread_retry_http/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_thread_retry_http_root_1",
+                        "summary":"root-1",
+                        "text":"root-1"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("first root message request should return response");
+    assert_eq!(first_root_response.status(), StatusCode::OK);
+    let first_root_body = first_root_response
+        .into_body()
+        .collect()
+        .await
+        .expect("first root body should collect")
+        .to_bytes();
+    let first_root_json: serde_json::Value =
+        serde_json::from_slice(&first_root_body).expect("first root response should be valid json");
+
+    let second_root_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_parent_thread_retry_http/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_thread_retry_http_root_2",
+                        "summary":"root-2",
+                        "text":"root-2"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("second root message request should return response");
+    assert_eq!(second_root_response.status(), StatusCode::OK);
+    let second_root_body = second_root_response
+        .into_body()
+        .collect()
+        .await
+        .expect("second root body should collect")
+        .to_bytes();
+    let second_root_json: serde_json::Value = serde_json::from_slice(&second_root_body)
+        .expect("second root response should be valid json");
+
+    let first_create = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/threads")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(format!(
+                    r#"{{
+                        "conversationId":"c_thread_retry_http",
+                        "parentConversationId":"c_parent_thread_retry_http",
+                        "rootMessageId":"{}"
+                    }}"#,
+                    first_root_json["messageId"].as_str().unwrap()
+                )))
+                .unwrap(),
+        )
+        .await
+        .expect("first thread create should return response");
+    assert_eq!(first_create.status(), StatusCode::OK);
+    let first_create_body = first_create
+        .into_body()
+        .collect()
+        .await
+        .expect("first thread create body should collect")
+        .to_bytes();
+    let first_create_json: serde_json::Value = serde_json::from_slice(&first_create_body)
+        .expect("first thread create should be valid json");
+    assert_eq!(first_create_json["deliveryStatus"], "applied");
+    assert_eq!(
+        first_create_json["proofVersion"],
+        "conversation.create.delivery-proof.v1"
+    );
+    assert_eq!(
+        first_create_json["requestKey"],
+        "t_demo:user:u_owner:create-thread:c_thread_retry_http"
+    );
+
+    let duplicate_create = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/threads")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(format!(
+                    r#"{{
+                        "conversationId":"c_thread_retry_http",
+                        "parentConversationId":"c_parent_thread_retry_http",
+                        "rootMessageId":"{}"
+                    }}"#,
+                    first_root_json["messageId"].as_str().unwrap()
+                )))
+                .unwrap(),
+        )
+        .await
+        .expect("duplicate thread create should return response");
+    assert_eq!(duplicate_create.status(), StatusCode::OK);
+    let duplicate_create_body = duplicate_create
+        .into_body()
+        .collect()
+        .await
+        .expect("duplicate thread create body should collect")
+        .to_bytes();
+    let duplicate_create_json: serde_json::Value = serde_json::from_slice(&duplicate_create_body)
+        .expect("duplicate thread create should be valid json");
+    assert_eq!(duplicate_create_json["deliveryStatus"], "replayed");
+    assert_eq!(
+        duplicate_create_json["requestKey"],
+        first_create_json["requestKey"]
+    );
+    assert_eq!(
+        duplicate_create_json["eventId"],
+        first_create_json["eventId"]
+    );
+
+    let conflicting_retry = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/threads")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(format!(
+                    r#"{{
+                        "conversationId":"c_thread_retry_http",
+                        "parentConversationId":"c_parent_thread_retry_http",
+                        "rootMessageId":"{}"
+                    }}"#,
+                    second_root_json["messageId"].as_str().unwrap()
+                )))
+                .unwrap(),
+        )
+        .await
+        .expect("conflicting thread create should return response");
+    assert_eq!(conflicting_retry.status(), StatusCode::CONFLICT);
+    let conflicting_retry_body = conflicting_retry
+        .into_body()
+        .collect()
+        .await
+        .expect("conflicting thread create body should collect")
+        .to_bytes();
+    let conflicting_retry_json: serde_json::Value = serde_json::from_slice(&conflicting_retry_body)
+        .expect("conflicting thread create should be valid json");
+    assert_eq!(conflicting_retry_json["code"], "conversation_conflict");
 }
 
 #[tokio::test]
@@ -3029,5 +4205,77 @@ async fn test_sync_shared_channel_linked_member_over_http_materializes_linked_hi
     assert_eq!(
         resync_json["attributes"]["sharedChannelSyncRequestKey"],
         "t_demo|c_history_shared_sync_http|scp_sync_http|ec_sync_http|u_partner_external_sync|user|partner::sync-user"
+    );
+}
+
+#[tokio::test]
+async fn test_shared_history_sync_rejects_oversized_local_actor_kind_over_http() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_history_shared_sync_oversized_kind",
+                        "conversationType":"group",
+                        "policyVersion":"group.policy.v1",
+                        "historyVisibility":"shared",
+                        "retentionPolicyRef":"tenant.standard"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create shared-history conversation request should return response");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let request_body = serde_json::json!({
+        "conversationId":"c_history_shared_sync_oversized_kind",
+        "sharedChannelPolicyId":"scp_sync_http_oversized_kind",
+        "externalConnectionId":"ec_sync_http_oversized_kind",
+        "localActorId":"u_partner_external_sync_oversized_kind",
+        "localActorKind":"k".repeat(2048),
+        "externalMemberId":"partner::sync-user-oversized-kind"
+    })
+    .to_string();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/shared-channel-links/sync")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "control-plane-sync")
+                .header("x-actor-kind", "system")
+                .header("x-permissions", "conversation.shared_channel.sync")
+                .header("content-type", "application/json")
+                .body(Body::from(request_body))
+                .unwrap(),
+        )
+        .await
+        .expect("oversized shared history sync should return response");
+
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["code"], "payload_too_large");
+    assert!(
+        value["message"]
+            .as_str()
+            .expect("message should be present")
+            .contains("localActorKind")
     );
 }

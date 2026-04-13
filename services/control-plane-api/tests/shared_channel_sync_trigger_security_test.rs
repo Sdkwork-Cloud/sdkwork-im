@@ -1229,9 +1229,9 @@ async fn test_public_shared_channel_sync_trigger_rejects_already_linked_ack_with
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_public_shared_channel_sync_trigger_rejects_already_linked_ack_with_mismatched_request_key_commit_fence()
  {
-    let listener = TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("shared-channel sync already-linked mismatched commit-fence ack test listener should bind");
+    let listener = TcpListener::bind("127.0.0.1:0").await.expect(
+        "shared-channel sync already-linked mismatched commit-fence ack test listener should bind",
+    );
     let local_addr = listener.local_addr().expect(
         "shared-channel sync already-linked mismatched commit-fence ack test listener should expose local addr",
     );
@@ -1243,9 +1243,9 @@ async fn test_public_shared_channel_sync_trigger_rejects_already_linked_ack_with
         )
         .with_state(captured);
     let server = tokio::spawn(async move {
-        axum::serve(listener, app)
-            .await
-            .expect("shared-channel sync already-linked mismatched commit-fence ack test server should run");
+        axum::serve(listener, app).await.expect(
+            "shared-channel sync already-linked mismatched commit-fence ack test server should run",
+        );
     });
 
     let trigger = control_plane_api::build_public_shared_channel_sync_trigger(

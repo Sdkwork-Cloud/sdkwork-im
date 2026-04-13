@@ -121,6 +121,13 @@ async fn test_local_minimal_profile_exposes_notification_automation_audit_and_op
     let automation_json: serde_json::Value =
         serde_json::from_slice(&automation_body).expect("automation body should be valid json");
     assert_eq!(automation_json["state"], "succeeded");
+    assert_eq!(automation_json["deliveryStatus"], "applied");
+    assert!(
+        !automation_json["requestKey"]
+            .as_str()
+            .expect("automation request key should be present")
+            .is_empty()
+    );
 
     let notifications_after_automation = app
         .clone()
@@ -244,6 +251,15 @@ async fn test_local_minimal_profile_treats_duplicate_automation_request_as_idemp
         .await
         .expect("first automation request should return response");
     assert_eq!(first_response.status(), StatusCode::OK);
+    let first_body = first_response
+        .into_body()
+        .collect()
+        .await
+        .expect("first automation body should collect")
+        .to_bytes();
+    let first_json: serde_json::Value =
+        serde_json::from_slice(&first_body).expect("first automation body should be valid json");
+    assert_eq!(first_json["deliveryStatus"], "applied");
 
     let second_response = app
         .clone()
@@ -272,6 +288,16 @@ async fn test_local_minimal_profile_treats_duplicate_automation_request_as_idemp
         .await
         .expect("idempotent automation request should return response");
     assert_eq!(second_response.status(), StatusCode::OK);
+    let second_body = second_response
+        .into_body()
+        .collect()
+        .await
+        .expect("idempotent automation body should collect")
+        .to_bytes();
+    let second_json: serde_json::Value = serde_json::from_slice(&second_body)
+        .expect("idempotent automation body should be valid json");
+    assert_eq!(second_json["deliveryStatus"], "replayed");
+    assert_eq!(second_json["requestKey"], first_json["requestKey"]);
 
     let notifications = app
         .clone()
@@ -303,7 +329,7 @@ async fn test_local_minimal_profile_treats_duplicate_automation_request_as_idemp
     );
     assert_eq!(
         notifications_json["items"][0]["notificationId"],
-        "ntf_automation_ae_local_idempotent"
+        "ntf_automation_user_ae_local_idempotent"
     );
 
     let audit_export = app
@@ -366,6 +392,324 @@ async fn test_local_minimal_profile_treats_duplicate_automation_request_as_idemp
     let conflicting_json: serde_json::Value =
         serde_json::from_slice(&conflicting_body).expect("conflicting body should be valid json");
     assert_eq!(conflicting_json["code"], "automation_execution_conflict");
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_isolates_automation_notifications_by_actor_kind() {
+    let app = local_minimal_node::build_default_app();
+
+    let user_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/automation/executions")
+                .header("x-permissions", "automation.execute automation.read")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "executionId":"ae_local_actor_kind",
+                        "triggerType":"webhook.manual",
+                        "targetKind":"workflow",
+                        "targetRef":"wf_task10_demo",
+                        "inputPayload":"{\"conversationId\":\"c_task10_demo\"}"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("user automation request should return response");
+    assert_eq!(user_response.status(), StatusCode::OK);
+    let user_body = user_response
+        .into_body()
+        .collect()
+        .await
+        .expect("user automation body should collect")
+        .to_bytes();
+    let user_json: serde_json::Value =
+        serde_json::from_slice(&user_body).expect("user automation body should be valid json");
+    assert_eq!(user_json["deliveryStatus"], "applied");
+
+    let system_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/automation/executions")
+                .header("x-permissions", "automation.execute automation.read")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "system")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "executionId":"ae_local_actor_kind",
+                        "triggerType":"webhook.manual",
+                        "targetKind":"workflow",
+                        "targetRef":"wf_task10_demo",
+                        "inputPayload":"{\"conversationId\":\"c_task10_demo\"}"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("system automation request should return response");
+    assert_eq!(system_response.status(), StatusCode::OK);
+    let system_body = system_response
+        .into_body()
+        .collect()
+        .await
+        .expect("system automation body should collect")
+        .to_bytes();
+    let system_json: serde_json::Value =
+        serde_json::from_slice(&system_body).expect("system automation body should be valid json");
+    assert_eq!(system_json["deliveryStatus"], "applied");
+
+    let user_notifications = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/notifications")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("user notifications query should return response");
+    assert_eq!(user_notifications.status(), StatusCode::OK);
+    let user_notifications_body = user_notifications
+        .into_body()
+        .collect()
+        .await
+        .expect("user notifications body should collect")
+        .to_bytes();
+    let user_notifications_json: serde_json::Value =
+        serde_json::from_slice(&user_notifications_body)
+            .expect("user notifications body should be valid json");
+    assert_eq!(
+        user_notifications_json["items"]
+            .as_array()
+            .expect("user items should be array")
+            .len(),
+        1
+    );
+    assert_eq!(
+        user_notifications_json["items"][0]["notificationId"],
+        "ntf_automation_user_ae_local_actor_kind"
+    );
+
+    let system_notifications = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/notifications")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "system")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("system notifications query should return response");
+    assert_eq!(system_notifications.status(), StatusCode::OK);
+    let system_notifications_body = system_notifications
+        .into_body()
+        .collect()
+        .await
+        .expect("system notifications body should collect")
+        .to_bytes();
+    let system_notifications_json: serde_json::Value =
+        serde_json::from_slice(&system_notifications_body)
+            .expect("system notifications body should be valid json");
+    assert_eq!(
+        system_notifications_json["items"]
+            .as_array()
+            .expect("system items should be array")
+            .len(),
+        1
+    );
+    assert_eq!(
+        system_notifications_json["items"][0]["notificationId"],
+        "ntf_automation_system_ae_local_actor_kind"
+    );
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_records_automation_audit_per_actor_kind() {
+    let app = local_minimal_node::build_default_app();
+
+    let user_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/automation/executions")
+                .header(
+                    "x-permissions",
+                    "automation.execute automation.read audit.read",
+                )
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "executionId":"ae_local_audit_actor_kind",
+                        "triggerType":"webhook.manual",
+                        "targetKind":"workflow",
+                        "targetRef":"wf_task10_demo",
+                        "inputPayload":"{\"conversationId\":\"c_task10_demo\"}"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("user automation request should return response");
+    assert_eq!(user_response.status(), StatusCode::OK);
+    let user_json = json_body(user_response).await;
+    assert_eq!(user_json["deliveryStatus"], "applied");
+
+    let system_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/automation/executions")
+                .header(
+                    "x-permissions",
+                    "automation.execute automation.read audit.read",
+                )
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "system")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "executionId":"ae_local_audit_actor_kind",
+                        "triggerType":"webhook.manual",
+                        "targetKind":"workflow",
+                        "targetRef":"wf_task10_demo",
+                        "inputPayload":"{\"conversationId\":\"c_task10_demo\"}"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("system automation request should return response");
+    assert_eq!(system_response.status(), StatusCode::OK);
+    let system_json = json_body(system_response).await;
+    assert_eq!(system_json["deliveryStatus"], "applied");
+
+    let audit_export = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/audit/export")
+                .header("x-permissions", "audit.read")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("audit export should return response");
+    assert_eq!(audit_export.status(), StatusCode::OK);
+    let audit_json = json_body(audit_export).await;
+
+    let automation_items = audit_json["items"]
+        .as_array()
+        .expect("audit items should be array")
+        .iter()
+        .filter(|item| {
+            item["aggregateId"] == "ae_local_audit_actor_kind"
+                && item["action"] == "automation.execution_requested"
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+
+    assert_eq!(automation_items.len(), 2);
+    let actor_kinds = automation_items
+        .iter()
+        .map(|item| {
+            item["actorKind"]
+                .as_str()
+                .expect("actorKind should be string")
+        })
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(
+        actor_kinds,
+        std::collections::BTreeSet::from(["system", "user"])
+    );
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_preserves_automation_audit_for_max_length_execution_ids() {
+    let app = local_minimal_node::build_default_app();
+    let execution_id = format!("ae_{}", "a".repeat(253));
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/automation/executions")
+                .header(
+                    "x-permissions",
+                    "automation.execute automation.read audit.read",
+                )
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "executionId": execution_id,
+                        "triggerType": "webhook.manual",
+                        "targetKind": "workflow",
+                        "targetRef": "wf_task10_demo",
+                        "inputPayload": "{\"conversationId\":\"c_task10_demo\"}",
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("automation request should return response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let execution_json = json_body(response).await;
+    assert_eq!(execution_json["deliveryStatus"], "applied");
+    assert_eq!(execution_json["executionId"], execution_id);
+
+    let audit_export = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/audit/export")
+                .header("x-permissions", "audit.read")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("audit export should return response");
+    assert_eq!(audit_export.status(), StatusCode::OK);
+    let audit_json = json_body(audit_export).await;
+
+    let automation_item = audit_json["items"]
+        .as_array()
+        .expect("audit items should be array")
+        .iter()
+        .find(|item| {
+            item["aggregateId"] == execution_id
+                && item["action"] == "automation.execution_requested"
+        })
+        .expect("automation execution audit should be recorded for legal max-length execution ids");
+    assert_eq!(automation_item["actorKind"], "user");
 }
 
 #[tokio::test]
@@ -564,6 +908,844 @@ async fn test_local_minimal_profile_exposes_agent_response_and_tool_call_lifecyc
         items
             .iter()
             .any(|item| item["action"] == "automation.agent_response_completed")
+    );
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_preserves_agent_response_audit_for_max_length_stream_ids() {
+    let app = local_minimal_node::build_default_app();
+    let stream_id = format!("st_{}", "s".repeat(253));
+
+    let create_execution = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/automation/executions")
+                .header("authorization", AUTOMATION_BEARER)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "executionId":"ae_local_agent_long_stream",
+                        "triggerType":"agent.manual",
+                        "targetKind":"conversation",
+                        "targetRef":"c_task10_demo",
+                        "inputPayload":"{\"prompt\":\"hello\"}"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("automation request should return response");
+    assert_eq!(create_execution.status(), StatusCode::OK);
+
+    let start_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/automation/agent-responses")
+                .header("authorization", AUTOMATION_BEARER)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "executionId": "ae_local_agent_long_stream",
+                        "streamId": stream_id,
+                        "streamType": "agent.response.delta",
+                        "conversationId": "c_task10_demo",
+                        "schemaRef": "schema://agent/response.delta",
+                        "memberId": "cm_agent",
+                        "agent": {
+                            "agent_id": "ag_demo",
+                            "session_id": "s_agent",
+                            "metadata": {
+                                "agentMode": "assistant",
+                                "capabilityProfileId": "stable-agent"
+                            }
+                        }
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("agent response start should return response");
+    assert_eq!(start_response.status(), StatusCode::OK);
+    let start_json = json_body(start_response).await;
+    assert_eq!(start_json["streamId"], stream_id);
+    assert_eq!(start_json["state"], "opened");
+
+    let audit_export = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/audit/export")
+                .header("authorization", PRIVILEGED_BEARER)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("audit export should return response");
+    assert_eq!(audit_export.status(), StatusCode::OK);
+    let audit_json = json_body(audit_export).await;
+    let started_audit = audit_json["items"]
+        .as_array()
+        .expect("audit items should be array")
+        .iter()
+        .find(|item| {
+            item["action"] == "automation.agent_response_started"
+                && item["payload"].as_str().is_some_and(|payload| {
+                    serde_json::from_str::<serde_json::Value>(payload)
+                        .ok()
+                        .and_then(|value| value["streamId"].as_str().map(|id| id == stream_id))
+                        .unwrap_or(false)
+                })
+        })
+        .expect("agent response audit should be recorded for max-length stream ids");
+    let started_payload: serde_json::Value = serde_json::from_str(
+        started_audit["payload"]
+            .as_str()
+            .expect("payload should be present"),
+    )
+    .expect("started audit payload should be valid json");
+    assert_eq!(started_payload["streamId"], stream_id);
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_rejects_oversized_get_execution_path_id() {
+    let app = local_minimal_node::build_default_app();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/v1/automation/executions/{}", "e".repeat(257)))
+                .header("authorization", AUTOMATION_BEARER)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("oversized execution lookup should return response");
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let error_json = json_body(response).await;
+    assert_eq!(error_json["code"], "payload_too_large");
+    assert!(
+        error_json["message"]
+            .as_str()
+            .expect("message should be present")
+            .contains("executionId")
+    );
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_rejects_oversized_agent_response_stream_id() {
+    let app = local_minimal_node::build_default_app();
+
+    let create_execution = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/automation/executions")
+                .header("authorization", AUTOMATION_BEARER)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "executionId":"ae_local_agent_oversized_stream",
+                        "triggerType":"agent.manual",
+                        "targetKind":"conversation",
+                        "targetRef":"c_task10_demo",
+                        "inputPayload":"{\"prompt\":\"hello\"}"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("automation request should return response");
+    assert_eq!(create_execution.status(), StatusCode::OK);
+
+    let start_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/automation/agent-responses")
+                .header("authorization", AUTOMATION_BEARER)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "executionId": "ae_local_agent_oversized_stream",
+                        "streamId": "s".repeat(257),
+                        "streamType": "agent.response.delta",
+                        "conversationId": "c_task10_demo",
+                        "schemaRef": "schema://agent/response.delta",
+                        "memberId": "cm_agent",
+                        "agent": {
+                            "agent_id": "ag_demo",
+                            "session_id": "s_agent",
+                            "metadata": {
+                                "agentMode": "assistant",
+                                "capabilityProfileId": "stable-agent"
+                            }
+                        }
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("oversized agent response start should return response");
+    assert_eq!(start_response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let error_json = json_body(start_response).await;
+    assert_eq!(error_json["code"], "payload_too_large");
+    assert!(
+        error_json["message"]
+            .as_str()
+            .expect("message should be present")
+            .contains("streamId")
+    );
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_rejects_oversized_agent_response_member_id() {
+    let app = local_minimal_node::build_default_app();
+
+    let create_execution = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/automation/executions")
+                .header("authorization", AUTOMATION_BEARER)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "executionId":"ae_local_agent_oversized_member",
+                        "triggerType":"agent.manual",
+                        "targetKind":"conversation",
+                        "targetRef":"c_task10_demo",
+                        "inputPayload":"{\"prompt\":\"hello\"}"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("automation request should return response");
+    assert_eq!(create_execution.status(), StatusCode::OK);
+
+    let start_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/automation/agent-responses")
+                .header("authorization", AUTOMATION_BEARER)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "executionId": "ae_local_agent_oversized_member",
+                        "streamId": "st_local_agent_oversized_member",
+                        "streamType": "agent.response.delta",
+                        "conversationId": "c_task10_demo",
+                        "schemaRef": "schema://agent/response.delta",
+                        "memberId": "m".repeat(257),
+                        "agent": {
+                            "agent_id": "ag_demo",
+                            "session_id": "s_agent",
+                            "metadata": {
+                                "agentMode": "assistant",
+                                "capabilityProfileId": "stable-agent"
+                            }
+                        }
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("oversized member id start should return response");
+    assert_eq!(start_response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let error_json = json_body(start_response).await;
+    assert_eq!(error_json["code"], "payload_too_large");
+    assert!(
+        error_json["message"]
+            .as_str()
+            .expect("message should be present")
+            .contains("memberId")
+    );
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_rejects_oversized_agent_response_execution_id() {
+    let app = local_minimal_node::build_default_app();
+
+    let start_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/automation/agent-responses")
+                .header("authorization", AUTOMATION_BEARER)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "executionId": "e".repeat(257),
+                        "streamId": "st_local_oversized_start_execution_id",
+                        "streamType": "agent.response.delta",
+                        "conversationId": "c_task10_demo",
+                        "schemaRef": "schema://agent/response.delta",
+                        "memberId": "cm_agent",
+                        "agent": {
+                            "agent_id": "ag_demo",
+                            "session_id": "s_agent",
+                            "metadata": {
+                                "agentMode": "assistant",
+                                "capabilityProfileId": "stable-agent"
+                            }
+                        }
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("oversized execution id start should return response");
+    assert_eq!(start_response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let error_json = json_body(start_response).await;
+    assert_eq!(error_json["code"], "payload_too_large");
+    assert!(
+        error_json["message"]
+            .as_str()
+            .expect("message should be present")
+            .contains("executionId")
+    );
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_rejects_oversized_agent_response_stream_path_ids() {
+    let app = local_minimal_node::build_default_app();
+
+    let append_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/v1/automation/agent-responses/{}/frames",
+                    "s".repeat(257)
+                ))
+                .header("authorization", AUTOMATION_BEARER)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "frameSeq": 1,
+                        "frameType": "delta.text",
+                        "schemaRef": "schema://agent/response.delta#chunk",
+                        "encoding": "json",
+                        "payload": "{\"delta\":\"hello\"}",
+                        "attributes": {}
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("oversized stream path append should return response");
+    assert_eq!(append_response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+
+    let complete_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/v1/automation/agent-responses/{}/complete",
+                    "s".repeat(257)
+                ))
+                .header("authorization", AUTOMATION_BEARER)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "frameSeq": 1,
+                        "resultMessageId": "m_done"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("oversized stream path complete should return response");
+    assert_eq!(complete_response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_rejects_oversized_agent_metadata() {
+    let app = local_minimal_node::build_default_app();
+
+    let create_execution = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/automation/executions")
+                .header("authorization", AUTOMATION_BEARER)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "executionId":"ae_local_oversized_agent_metadata",
+                        "triggerType":"agent.manual",
+                        "targetKind":"conversation",
+                        "targetRef":"c_task10_demo",
+                        "inputPayload":"{\"prompt\":\"hello\"}"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("automation request should return response");
+    assert_eq!(create_execution.status(), StatusCode::OK);
+
+    let start_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/automation/agent-responses")
+                .header("authorization", AUTOMATION_BEARER)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "executionId": "ae_local_oversized_agent_metadata",
+                        "streamId": "st_local_oversized_agent_metadata",
+                        "streamType": "agent.response.delta",
+                        "conversationId": "c_task10_demo",
+                        "schemaRef": "schema://agent/response.delta",
+                        "memberId": "cm_agent",
+                        "agent": {
+                            "agent_id": "ag_demo",
+                            "session_id": "s_agent",
+                            "metadata": {
+                                "trace": "x".repeat(65_537)
+                            }
+                        }
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("oversized agent metadata start should return response");
+    assert_eq!(start_response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let error_json = json_body(start_response).await;
+    assert_eq!(error_json["code"], "payload_too_large");
+    assert!(
+        error_json["message"]
+            .as_str()
+            .expect("message should be present")
+            .contains("agent.metadata")
+    );
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_rejects_oversized_agent_result_message_id() {
+    let app = local_minimal_node::build_default_app();
+
+    let create_execution = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/automation/executions")
+                .header("authorization", AUTOMATION_BEARER)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "executionId":"ae_local_oversized_result_message_id",
+                        "triggerType":"agent.manual",
+                        "targetKind":"conversation",
+                        "targetRef":"c_task10_demo",
+                        "inputPayload":"{\"prompt\":\"hello\"}"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("automation request should return response");
+    assert_eq!(create_execution.status(), StatusCode::OK);
+
+    let start_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/automation/agent-responses")
+                .header("authorization", AUTOMATION_BEARER)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "executionId":"ae_local_oversized_result_message_id",
+                        "streamId":"st_local_oversized_result_message_id",
+                        "streamType":"agent.response.delta",
+                        "conversationId":"c_task10_demo",
+                        "schemaRef":"schema://agent/response.delta",
+                        "memberId":"cm_agent",
+                        "agent":{
+                            "agent_id":"ag_demo",
+                            "session_id":"s_agent",
+                            "metadata":{
+                                "agentMode":"assistant",
+                                "capabilityProfileId":"stable-agent"
+                            }
+                        }
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("agent response start should return response");
+    assert_eq!(start_response.status(), StatusCode::OK);
+
+    let complete_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/automation/agent-responses/st_local_oversized_result_message_id/complete")
+                .header("authorization", AUTOMATION_BEARER)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "frameSeq": 1,
+                        "resultMessageId": "m".repeat(257)
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("oversized result message id request should return response");
+    assert_eq!(complete_response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let error_json = json_body(complete_response).await;
+    assert_eq!(error_json["code"], "payload_too_large");
+    assert!(
+        error_json["message"]
+            .as_str()
+            .expect("message should be present")
+            .contains("resultMessageId")
+    );
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_rejects_oversized_agent_identity_fields() {
+    for (field, agent_id, session_id) in [
+        ("agent.agent_id", serde_json::Value::String("a".repeat(257)), serde_json::Value::String("s_agent".into())),
+        ("agent.session_id", serde_json::Value::String("ag_demo".into()), serde_json::Value::String("s".repeat(257))),
+    ] {
+        let app = local_minimal_node::build_default_app();
+
+        let create_execution = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/automation/executions")
+                    .header("authorization", AUTOMATION_BEARER)
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({
+                            "executionId": format!("ae_local_{}", field.replace('.', "_")),
+                            "triggerType":"agent.manual",
+                            "targetKind":"conversation",
+                            "targetRef":"c_task10_demo",
+                            "inputPayload":"{\"prompt\":\"hello\"}"
+                        })
+                        .to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .expect("automation request should return response");
+        assert_eq!(create_execution.status(), StatusCode::OK);
+
+        let start_response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/automation/agent-responses")
+                    .header("authorization", AUTOMATION_BEARER)
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({
+                            "executionId": format!("ae_local_{}", field.replace('.', "_")),
+                            "streamId": format!("st_local_{}", field.replace('.', "_")),
+                            "streamType": "agent.response.delta",
+                            "conversationId": "c_task10_demo",
+                            "schemaRef": "schema://agent/response.delta",
+                            "memberId": "cm_agent",
+                            "agent": {
+                                "agent_id": agent_id,
+                                "session_id": session_id,
+                                "metadata": {
+                                    "agentMode": "assistant",
+                                    "capabilityProfileId": "stable-agent"
+                                }
+                            }
+                        })
+                        .to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .expect("oversized agent identity start should return response");
+        assert_eq!(
+            start_response.status(),
+            StatusCode::PAYLOAD_TOO_LARGE,
+            "{field} should be rejected with payload_too_large"
+        );
+    }
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_rejects_oversized_agent_tool_call_id() {
+    let app = local_minimal_node::build_default_app();
+
+    let create_execution = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/automation/executions")
+                .header("authorization", AUTOMATION_BEARER)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "executionId":"ae_local_oversized_tool_call_id",
+                        "triggerType":"agent.manual",
+                        "targetKind":"conversation",
+                        "targetRef":"c_task10_demo",
+                        "inputPayload":"{\"prompt\":\"hello\"}"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("automation request should return response");
+    assert_eq!(create_execution.status(), StatusCode::OK);
+
+    let start_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/automation/agent-responses")
+                .header("authorization", AUTOMATION_BEARER)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "executionId":"ae_local_oversized_tool_call_id",
+                        "streamId":"st_local_oversized_tool_call_id",
+                        "streamType":"agent.response.delta",
+                        "conversationId":"c_task10_demo",
+                        "schemaRef":"schema://agent/response.delta",
+                        "memberId":"cm_agent",
+                        "agent":{
+                            "agent_id":"ag_demo",
+                            "session_id":"s_agent",
+                            "metadata":{
+                                "agentMode":"assistant",
+                                "capabilityProfileId":"stable-agent"
+                            }
+                        }
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("agent response start should return response");
+    assert_eq!(start_response.status(), StatusCode::OK);
+
+    let tool_call_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/automation/agent-tool-calls")
+                .header("authorization", AUTOMATION_BEARER)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "executionId": "ae_local_oversized_tool_call_id",
+                        "toolCallId": "t".repeat(257),
+                        "toolName": "knowledge.search",
+                        "argumentsPayload": "{\"query\":\"hello\"}"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("oversized tool call request should return response");
+    assert_eq!(tool_call_response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let error_json = json_body(tool_call_response).await;
+    assert_eq!(error_json["code"], "payload_too_large");
+    assert!(
+        error_json["message"]
+            .as_str()
+            .expect("message should be present")
+            .contains("toolCallId")
+    );
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_rejects_oversized_agent_tool_call_execution_id() {
+    let app = local_minimal_node::build_default_app();
+
+    let tool_call_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/automation/agent-tool-calls")
+                .header("authorization", AUTOMATION_BEARER)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "executionId": "e".repeat(257),
+                        "toolCallId": "tc_local_oversized_execution_id",
+                        "toolName": "knowledge.search",
+                        "argumentsPayload": "{\"query\":\"hello\"}"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("oversized execution id request should return response");
+    assert_eq!(tool_call_response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let error_json = json_body(tool_call_response).await;
+    assert_eq!(error_json["code"], "payload_too_large");
+    assert!(
+        error_json["message"]
+            .as_str()
+            .expect("message should be present")
+            .contains("executionId")
+    );
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_rejects_oversized_complete_agent_tool_call_path_ids() {
+    let app = local_minimal_node::build_default_app();
+
+    for (field, execution_id, tool_call_id) in [
+        ("executionId", "e".repeat(257), "tc_local_demo".to_string()),
+        ("toolCallId", "ae_local_demo".to_string(), "t".repeat(257)),
+    ] {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(format!(
+                        "/api/v1/automation/executions/{}/agent-tool-calls/{}/complete",
+                        execution_id, tool_call_id
+                    ))
+                    .header("authorization", AUTOMATION_BEARER)
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({
+                            "resultPayload": "{\"hits\":[{\"id\":\"doc_1\"}]}"
+                        })
+                        .to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .expect("oversized path id request should return response");
+        assert_eq!(
+            response.status(),
+            StatusCode::PAYLOAD_TOO_LARGE,
+            "{field} should be rejected with payload_too_large"
+        );
+    }
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_rejects_oversized_agent_tool_name() {
+    let app = local_minimal_node::build_default_app();
+
+    let create_execution = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/automation/executions")
+                .header("authorization", AUTOMATION_BEARER)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "executionId":"ae_local_oversized_tool_name",
+                        "triggerType":"agent.manual",
+                        "targetKind":"conversation",
+                        "targetRef":"c_task10_demo",
+                        "inputPayload":"{\"prompt\":\"hello\"}"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("automation request should return response");
+    assert_eq!(create_execution.status(), StatusCode::OK);
+
+    let start_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/automation/agent-responses")
+                .header("authorization", AUTOMATION_BEARER)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "executionId":"ae_local_oversized_tool_name",
+                        "streamId":"st_local_oversized_tool_name",
+                        "streamType":"agent.response.delta",
+                        "conversationId":"c_task10_demo",
+                        "schemaRef":"schema://agent/response.delta",
+                        "memberId":"cm_agent",
+                        "agent":{
+                            "agent_id":"ag_demo",
+                            "session_id":"s_agent",
+                            "metadata":{
+                                "agentMode":"assistant",
+                                "capabilityProfileId":"stable-agent"
+                            }
+                        }
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("agent response start should return response");
+    assert_eq!(start_response.status(), StatusCode::OK);
+
+    let tool_call_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/automation/agent-tool-calls")
+                .header("authorization", AUTOMATION_BEARER)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "executionId": "ae_local_oversized_tool_name",
+                        "toolCallId": "tc_local_oversized_name",
+                        "toolName": "t".repeat(257),
+                        "argumentsPayload": "{\"query\":\"hello\"}"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("oversized tool name request should return response");
+    assert_eq!(tool_call_response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let error_json = json_body(tool_call_response).await;
+    assert_eq!(error_json["code"], "payload_too_large");
+    assert!(
+        error_json["message"]
+            .as_str()
+            .expect("message should be present")
+            .contains("toolName")
     );
 }
 
@@ -767,6 +1949,25 @@ async fn test_local_minimal_profile_treats_duplicate_notification_request_as_ide
         .await
         .expect("first notification request should return response");
     assert_eq!(first_response.status(), StatusCode::OK);
+    let first_body = first_response
+        .into_body()
+        .collect()
+        .await
+        .expect("first notification body should collect")
+        .to_bytes();
+    let first_json: serde_json::Value =
+        serde_json::from_slice(&first_body).expect("first notification body should be valid json");
+    assert_eq!(first_json["deliveryStatus"], "applied");
+    assert!(
+        !first_json["requestKey"]
+            .as_str()
+            .expect("requestKey should be string")
+            .is_empty()
+    );
+    assert_eq!(
+        first_json["proofVersion"],
+        "notification.request.delivery-proof.v1"
+    );
 
     let second_response = app
         .clone()
@@ -796,6 +1997,17 @@ async fn test_local_minimal_profile_treats_duplicate_notification_request_as_ide
         .await
         .expect("idempotent notification request should return response");
     assert_eq!(second_response.status(), StatusCode::OK);
+    let second_body = second_response
+        .into_body()
+        .collect()
+        .await
+        .expect("second notification body should collect")
+        .to_bytes();
+    let second_json: serde_json::Value = serde_json::from_slice(&second_body)
+        .expect("second notification body should be valid json");
+    assert_eq!(second_json["deliveryStatus"], "replayed");
+    assert_eq!(second_json["requestKey"], first_json["requestKey"]);
+    assert_eq!(second_json["proofVersion"], first_json["proofVersion"]);
 
     let notifications = app
         .clone()

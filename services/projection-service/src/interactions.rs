@@ -34,6 +34,16 @@ pub(super) struct StoredMessageInteractionSummary {
     pub(super) pin: Option<StoredMessagePinSummary>,
 }
 
+struct MessageInteractionFanoutContext {
+    tenant_id: String,
+    conversation_id: String,
+    message_id: String,
+    message_seq: u64,
+    actor: RealtimeFanoutTarget,
+    summary: Option<String>,
+    occurred_at: String,
+}
+
 impl TimelineProjectionService {
     pub fn message_interaction_summary(
         &self,
@@ -117,16 +127,19 @@ impl TimelineProjectionService {
 
         self.fan_out_message_interaction_to_device_sync_feeds(
             event,
-            reaction.tenant_id.as_str(),
-            reaction.conversation_id.as_str(),
-            reaction.message_id.as_str(),
-            reaction.message_seq,
-            RealtimeFanoutTarget {
-                principal_id: reaction.reacted_by.id.clone(),
-                device_id: reaction.reacted_by.device_id.clone().unwrap_or_default(),
+            MessageInteractionFanoutContext {
+                tenant_id: reaction.tenant_id.clone(),
+                conversation_id: reaction.conversation_id.clone(),
+                message_id: reaction.message_id.clone(),
+                message_seq: reaction.message_seq,
+                actor: RealtimeFanoutTarget {
+                    principal_id: reaction.reacted_by.id.clone(),
+                    principal_kind: Some(reaction.reacted_by.kind.clone()),
+                    device_id: reaction.reacted_by.device_id.clone().unwrap_or_default(),
+                },
+                summary: Some(format!("reacted with {}", reaction.reaction_key)),
+                occurred_at: reaction.reacted_at.clone(),
             },
-            Some(format!("reacted with {}", reaction.reaction_key)),
-            reaction.reacted_at.as_str(),
         );
         self.record_projection_update_delay_for_scope(
             "message.reaction_added",
@@ -168,16 +181,19 @@ impl TimelineProjectionService {
 
         self.fan_out_message_interaction_to_device_sync_feeds(
             event,
-            reaction.tenant_id.as_str(),
-            reaction.conversation_id.as_str(),
-            reaction.message_id.as_str(),
-            reaction.message_seq,
-            RealtimeFanoutTarget {
-                principal_id: reaction.removed_by.id.clone(),
-                device_id: reaction.removed_by.device_id.clone().unwrap_or_default(),
+            MessageInteractionFanoutContext {
+                tenant_id: reaction.tenant_id.clone(),
+                conversation_id: reaction.conversation_id.clone(),
+                message_id: reaction.message_id.clone(),
+                message_seq: reaction.message_seq,
+                actor: RealtimeFanoutTarget {
+                    principal_id: reaction.removed_by.id.clone(),
+                    principal_kind: Some(reaction.removed_by.kind.clone()),
+                    device_id: reaction.removed_by.device_id.clone().unwrap_or_default(),
+                },
+                summary: Some(format!("removed reaction {}", reaction.reaction_key)),
+                occurred_at: reaction.removed_at.clone(),
             },
-            Some(format!("removed reaction {}", reaction.reaction_key)),
-            reaction.removed_at.as_str(),
         );
         self.record_projection_update_delay_for_scope(
             "message.reaction_removed",
@@ -222,16 +238,19 @@ impl TimelineProjectionService {
 
         self.fan_out_message_interaction_to_device_sync_feeds(
             event,
-            pin.tenant_id.as_str(),
-            pin.conversation_id.as_str(),
-            pin.message_id.as_str(),
-            pin.message_seq,
-            RealtimeFanoutTarget {
-                principal_id: pin.pinned_by.id.clone(),
-                device_id: pin.pinned_by.device_id.clone().unwrap_or_default(),
+            MessageInteractionFanoutContext {
+                tenant_id: pin.tenant_id.clone(),
+                conversation_id: pin.conversation_id.clone(),
+                message_id: pin.message_id.clone(),
+                message_seq: pin.message_seq,
+                actor: RealtimeFanoutTarget {
+                    principal_id: pin.pinned_by.id.clone(),
+                    principal_kind: Some(pin.pinned_by.kind.clone()),
+                    device_id: pin.pinned_by.device_id.clone().unwrap_or_default(),
+                },
+                summary: Some("pinned message".into()),
+                occurred_at: pin.pinned_at.clone(),
             },
-            Some("pinned message".into()),
-            pin.pinned_at.as_str(),
         );
         self.record_projection_update_delay_for_scope(
             "message.pin_added",
@@ -259,16 +278,19 @@ impl TimelineProjectionService {
 
         self.fan_out_message_interaction_to_device_sync_feeds(
             event,
-            pin.tenant_id.as_str(),
-            pin.conversation_id.as_str(),
-            pin.message_id.as_str(),
-            pin.message_seq,
-            RealtimeFanoutTarget {
-                principal_id: pin.unpinned_by.id.clone(),
-                device_id: pin.unpinned_by.device_id.clone().unwrap_or_default(),
+            MessageInteractionFanoutContext {
+                tenant_id: pin.tenant_id.clone(),
+                conversation_id: pin.conversation_id.clone(),
+                message_id: pin.message_id.clone(),
+                message_seq: pin.message_seq,
+                actor: RealtimeFanoutTarget {
+                    principal_id: pin.unpinned_by.id.clone(),
+                    principal_kind: Some(pin.unpinned_by.kind.clone()),
+                    device_id: pin.unpinned_by.device_id.clone().unwrap_or_default(),
+                },
+                summary: Some("unpinned message".into()),
+                occurred_at: pin.unpinned_at.clone(),
             },
-            Some("unpinned message".into()),
-            pin.unpinned_at.as_str(),
         );
         self.record_projection_update_delay_for_scope(
             "message.pin_removed",
@@ -372,20 +394,23 @@ impl TimelineProjectionService {
     fn fan_out_message_interaction_to_device_sync_feeds(
         &self,
         event: &CommitEnvelope,
-        tenant_id: &str,
-        conversation_id: &str,
-        message_id: &str,
-        message_seq: u64,
-        actor: RealtimeFanoutTarget,
-        summary: Option<String>,
-        occurred_at: &str,
+        context: MessageInteractionFanoutContext,
     ) {
+        let MessageInteractionFanoutContext {
+            tenant_id,
+            conversation_id,
+            message_id,
+            message_seq,
+            actor,
+            summary,
+            occurred_at,
+        } = context;
         let draft = DeviceSyncEntryDraft {
-            tenant_id: tenant_id.into(),
+            tenant_id: tenant_id.clone(),
             origin_event_id: event.event_id.clone(),
             origin_event_type: event.event_type.clone(),
-            conversation_id: Some(conversation_id.into()),
-            message_id: Some(message_id.into()),
+            conversation_id: Some(conversation_id.clone()),
+            message_id: Some(message_id),
             message_seq: Some(message_seq),
             member_id: None,
             read_seq: None,
@@ -400,13 +425,16 @@ impl TimelineProjectionService {
             summary,
             payload_schema: event.payload_schema.clone(),
             payload: Some(event.payload.clone()),
-            occurred_at: occurred_at.into(),
+            occurred_at,
         };
 
         for target in self.device_sync_fanout_targets_for_conversation(
-            tenant_id,
-            conversation_id,
-            vec![actor.principal_id],
+            tenant_id.as_str(),
+            conversation_id.as_str(),
+            vec![crate::NotificationRecipientView {
+                principal_id: actor.principal_id,
+                principal_kind: event.actor.actor_kind.clone(),
+            }],
         ) {
             self.append_device_sync_draft(&target, &draft);
         }

@@ -17,14 +17,7 @@ pub(crate) fn prepare_realtime_websocket_route(
 ) -> Result<RealtimeWebsocketRouteContext, ApiError> {
     let auth = resolve_auth_context(headers)?;
     let device_id = resolve_requested_device_id(&auth, None)?;
-    state.prepare_active_device_route(
-        auth.tenant_id.as_str(),
-        auth.actor_id.as_str(),
-        device_id.as_str(),
-        auth.session_id.as_deref(),
-        "websocket",
-        false,
-    )?;
+    state.prepare_active_device_route(&auth, device_id.as_str(), "websocket", false)?;
     Ok(RealtimeWebsocketRouteContext {
         auth,
         device_id,

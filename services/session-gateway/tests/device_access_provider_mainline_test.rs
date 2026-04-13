@@ -156,3 +156,60 @@ async fn test_session_resume_and_heartbeat_call_injected_device_access_provider_
         }
     );
 }
+
+#[tokio::test]
+async fn test_conflicting_session_resume_does_not_call_provider_for_second_owner() {
+    let provider = RecordingDeviceAccessProvider::default();
+    let app = session_gateway::build_app_with_device_access_provider(Arc::new(provider.clone()));
+
+    let first_resume = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/sessions/resume")
+                .header("x-tenant-id", "t_device_provider")
+                .header("x-user-id", "u_owner_a")
+                .header("x-actor-kind", "user")
+                .header("x-session-id", "s_owner_a")
+                .header("x-device-id", "d_conflict_provider")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
+                .unwrap(),
+        )
+        .await
+        .expect("first owner resume should succeed");
+    assert_eq!(first_resume.status(), StatusCode::OK);
+
+    let conflicting_resume = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/sessions/resume")
+                .header("x-tenant-id", "t_device_provider")
+                .header("x-user-id", "u_owner_b")
+                .header("x-actor-kind", "user")
+                .header("x-session-id", "s_owner_b")
+                .header("x-device-id", "d_conflict_provider")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
+                .unwrap(),
+        )
+        .await
+        .expect("conflicting owner resume should return response");
+    assert_eq!(conflicting_resume.status(), StatusCode::CONFLICT);
+
+    let body = conflicting_resume
+        .into_body()
+        .collect()
+        .await
+        .expect("conflicting owner resume body should collect")
+        .to_bytes();
+    let json: serde_json::Value =
+        serde_json::from_slice(&body).expect("conflicting owner resume should be valid json");
+    assert_eq!(json["code"], "device_scope_conflict");
+
+    let recorded = provider.recorded_state();
+    assert_eq!(recorded.register_requests.len(), 1);
+    assert_eq!(recorded.bind_owner_requests.len(), 1);
+}

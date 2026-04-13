@@ -1,13 +1,13 @@
 use axum::{
     body::Body,
-    http::{HeaderMap, Method, StatusCode, Uri, header},
+    http::{header, HeaderMap, Method, StatusCode, Uri},
     response::{IntoResponse, Response},
     Json,
 };
 use bytes::Bytes;
 use serde::Deserialize;
-use serde_json::{Value, json};
-use std::sync::{Arc, Mutex};
+use serde_json::{json, Value};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 const ADMIN_SANDBOX_SEED_JSON: &str =
     include_str!("../../../apps/craw-chat-admin/dev/admin-sandbox-seed.json");
@@ -34,10 +34,24 @@ struct AdminSandboxSeed {
     store: std::collections::BTreeMap<String, Value>,
 }
 
+type SandboxErrorResponse = Box<Response>;
+
 impl SharedAdminSandboxState {
     pub fn seeded() -> Self {
         Self {
             inner: Arc::new(Mutex::new(AdminSandboxState::seeded())),
+        }
+    }
+
+    fn lock(&self, operation: &'static str) -> MutexGuard<'_, AdminSandboxState> {
+        match self.inner.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                eprintln!(
+                    "warning: recovering poisoned sdkwork admin sandbox state lock during {operation}"
+                );
+                poisoned.into_inner()
+            }
         }
     }
 }
@@ -105,13 +119,16 @@ fn admin_api_segments(uri: &Uri) -> Vec<String> {
         .collect()
 }
 
-fn parse_body(body: &Bytes) -> Result<Value, Response> {
+fn parse_body(body: &Bytes) -> Result<Value, SandboxErrorResponse> {
     if body.is_empty() {
         return Ok(json!({}));
     }
 
     serde_json::from_slice(body).map_err(|_| {
-        json_error_response(StatusCode::BAD_REQUEST, "Admin sandbox request body must be valid JSON.")
+        Box::new(json_error_response(
+            StatusCode::BAD_REQUEST,
+            "Admin sandbox request body must be valid JSON.",
+        ))
     })
 }
 
@@ -126,7 +143,8 @@ fn array_ref<'a>(store: &'a Value, key: &str) -> &'a Vec<Value> {
 }
 
 fn array_mut<'a>(store: &'a mut Value, key: &str) -> &'a mut Vec<Value> {
-    store.get_mut(key)
+    store
+        .get_mut(key)
         .and_then(Value::as_array_mut)
         .expect("sandbox mutable array should exist")
 }
@@ -144,37 +162,40 @@ fn auth_token(store: &Value) -> Option<&str> {
 }
 
 fn auth_user(store: &Value) -> Value {
-    store.pointer("/authSession/user").cloned().unwrap_or(Value::Null)
+    store
+        .pointer("/authSession/user")
+        .cloned()
+        .unwrap_or(Value::Null)
 }
 
 fn sandbox_password(store: &Value) -> Option<&str> {
     store.get("sandboxPassword").and_then(Value::as_str)
 }
 
-fn require_session(store: &Value, headers: &HeaderMap) -> Result<Value, Response> {
+fn require_session(store: &Value, headers: &HeaderMap) -> Result<Value, SandboxErrorResponse> {
     let header_value = headers
         .get(header::AUTHORIZATION)
         .and_then(|value| value.to_str().ok())
         .unwrap_or_default();
     let Some(expected_token) = auth_token(store) else {
-        return Err(json_error_response(
+        return Err(Box::new(json_error_response(
             StatusCode::UNAUTHORIZED,
             "Admin sandbox session token not found.",
-        ));
+        )));
     };
 
     let Some(token) = header_value.strip_prefix("Bearer ").map(str::trim) else {
-        return Err(json_error_response(
+        return Err(Box::new(json_error_response(
             StatusCode::UNAUTHORIZED,
             "Admin sandbox session token not found.",
-        ));
+        )));
     };
 
     if token != expected_token {
-        return Err(json_error_response(
+        return Err(Box::new(json_error_response(
             StatusCode::UNAUTHORIZED,
             "Admin sandbox session token is invalid.",
-        ));
+        )));
     }
 
     Ok(auth_user(store))
@@ -271,7 +292,7 @@ fn upsert_record<F>(records: &mut Vec<Value>, mut predicate: F, next_record: Val
 where
     F: FnMut(&Value) -> bool,
 {
-    if let Some(index) = records.iter().position(|record| predicate(record)) {
+    if let Some(index) = records.iter().position(&mut predicate) {
         records[index] = next_record.clone();
         return records[index].clone();
     }
@@ -346,7 +367,12 @@ fn merge_objects(base: &Value, overlay: &Value) -> Value {
     }
 }
 
-fn existing_record_by_key(store: &Value, store_key: &str, field: &str, needle: &str) -> Option<Value> {
+fn existing_record_by_key(
+    store: &Value,
+    store_key: &str,
+    field: &str,
+    needle: &str,
+) -> Option<Value> {
     array_ref(store, store_key)
         .iter()
         .find(|record| string_field(record, field) == Some(needle))
@@ -375,7 +401,11 @@ fn save_operator_user(state: &mut AdminSandboxState, input: &Value) -> Value {
         .to_owned();
     let saved = {
         let records = array_mut(&mut state.store, "operatorUsers");
-        upsert_record(records, |user| string_field(user, "id") == Some(operator_id.as_str()), record)
+        upsert_record(
+            records,
+            |user| string_field(user, "id") == Some(operator_id.as_str()),
+            record,
+        )
     };
 
     let current_user_id = string_field(&auth_user(&state.store), "id").map(str::to_owned);
@@ -412,15 +442,23 @@ fn save_portal_user(state: &mut AdminSandboxState, input: &Value) -> Value {
         .expect("portal record should include an id")
         .to_owned();
     let records = array_mut(&mut state.store, "portalUsers");
-    upsert_record(records, |user| string_field(user, "id") == Some(portal_id.as_str()), record)
+    upsert_record(
+        records,
+        |user| string_field(user, "id") == Some(portal_id.as_str()),
+        record,
+    )
 }
 
 fn save_marketing_campaign(state: &mut AdminSandboxState, input: &Value) -> Value {
     let campaign_id = string_field(input, "marketing_campaign_id")
         .unwrap_or_default()
         .to_owned();
-    let existing =
-        existing_record_by_key(&state.store, "marketingCampaigns", "marketing_campaign_id", &campaign_id);
+    let existing = existing_record_by_key(
+        &state.store,
+        "marketingCampaigns",
+        "marketing_campaign_id",
+        &campaign_id,
+    );
     let created_at_ms = existing
         .as_ref()
         .and_then(|record| record.get("created_at_ms").cloned())
@@ -452,7 +490,11 @@ fn save_tenant(state: &mut AdminSandboxState, input: &Value) -> Value {
         "name": string_field(input, "name").unwrap_or_default(),
     });
     let records = array_mut(&mut state.store, "tenants");
-    upsert_record(records, |tenant| string_field(tenant, "id") == Some(tenant_id.as_str()), record)
+    upsert_record(
+        records,
+        |tenant| string_field(tenant, "id") == Some(tenant_id.as_str()),
+        record,
+    )
 }
 
 fn save_project(state: &mut AdminSandboxState, input: &Value) -> Value {
@@ -487,7 +529,11 @@ fn save_api_key_group(
         .and_then(|record| record.get("created_at_ms").cloned())
         .unwrap_or_else(|| json!(state.next_timestamp()));
     let active = bool_field(input, "active")
-        .or_else(|| existing.as_ref().and_then(|record| bool_field(record, "active")))
+        .or_else(|| {
+            existing
+                .as_ref()
+                .and_then(|record| bool_field(record, "active"))
+        })
         .unwrap_or(true);
     let record = json!({
         "group_id": group_id,
@@ -519,7 +565,8 @@ fn save_api_key_group(
 fn save_routing_profile(state: &mut AdminSandboxState, input: &Value) -> Value {
     let profile_id =
         trimmed_string_field(input, "profile_id").unwrap_or_else(|| state.next_id("routing"));
-    let existing = existing_record_by_key(&state.store, "routingProfiles", "profile_id", &profile_id);
+    let existing =
+        existing_record_by_key(&state.store, "routingProfiles", "profile_id", &profile_id);
     let name = string_field(input, "name").unwrap_or_default();
     let slug = trimmed_string_field(input, "slug").unwrap_or_else(|| slugify(name));
     let created_at_ms = existing
@@ -527,10 +574,18 @@ fn save_routing_profile(state: &mut AdminSandboxState, input: &Value) -> Value {
         .and_then(|record| record.get("created_at_ms").cloned())
         .unwrap_or_else(|| json!(state.next_timestamp()));
     let active = bool_field(input, "active")
-        .or_else(|| existing.as_ref().and_then(|record| bool_field(record, "active")))
+        .or_else(|| {
+            existing
+                .as_ref()
+                .and_then(|record| bool_field(record, "active"))
+        })
         .unwrap_or(true);
     let require_healthy = bool_field(input, "require_healthy")
-        .or_else(|| existing.as_ref().and_then(|record| bool_field(record, "require_healthy")))
+        .or_else(|| {
+            existing
+                .as_ref()
+                .and_then(|record| bool_field(record, "require_healthy"))
+        })
         .unwrap_or(true);
     let record = json!({
         "profile_id": profile_id,
@@ -652,13 +707,18 @@ fn save_channel(state: &mut AdminSandboxState, input: &Value) -> Value {
 
 fn build_provider_catalog_record(existing: Option<&Value>, input: &Value) -> Value {
     let provider_id = string_field(input, "id").unwrap_or_default();
-    let extension_id = trimmed_string_field(input, "extension_id")
-        .or_else(|| existing.and_then(|record| string_field(record, "extension_id").map(str::to_owned)));
+    let extension_id = trimmed_string_field(input, "extension_id").or_else(|| {
+        existing.and_then(|record| string_field(record, "extension_id").map(str::to_owned))
+    });
     let protocol_kind = trimmed_string_field(input, "protocol_kind")
-        .or_else(|| existing.and_then(|record| string_field(record, "protocol_kind").map(str::to_owned)))
+        .or_else(|| {
+            existing.and_then(|record| string_field(record, "protocol_kind").map(str::to_owned))
+        })
         .unwrap_or_else(|| "openai".to_owned());
     let adapter_kind = trimmed_string_field(input, "adapter_kind")
-        .or_else(|| existing.and_then(|record| string_field(record, "adapter_kind").map(str::to_owned)))
+        .or_else(|| {
+            existing.and_then(|record| string_field(record, "adapter_kind").map(str::to_owned))
+        })
         .unwrap_or_else(|| "openai-compatible".to_owned());
     let channel_bindings = input
         .get("channel_bindings")
@@ -763,9 +823,15 @@ fn build_credential_record(input: &Value) -> Value {
 
 fn save_credential(state: &mut AdminSandboxState, input: &Value) -> Value {
     let record = build_credential_record(input);
-    let tenant_id = string_field(&record, "tenant_id").unwrap_or_default().to_owned();
-    let provider_id = string_field(&record, "provider_id").unwrap_or_default().to_owned();
-    let key_reference = string_field(&record, "key_reference").unwrap_or_default().to_owned();
+    let tenant_id = string_field(&record, "tenant_id")
+        .unwrap_or_default()
+        .to_owned();
+    let provider_id = string_field(&record, "provider_id")
+        .unwrap_or_default()
+        .to_owned();
+    let key_reference = string_field(&record, "key_reference")
+        .unwrap_or_default()
+        .to_owned();
     {
         let records = array_mut(&mut state.store, "credentials");
         upsert_record(
@@ -783,8 +849,12 @@ fn save_credential(state: &mut AdminSandboxState, input: &Value) -> Value {
 }
 
 fn save_model(state: &mut AdminSandboxState, input: &Value) -> Value {
-    let external_name = string_field(input, "external_name").unwrap_or_default().to_owned();
-    let provider_id = string_field(input, "provider_id").unwrap_or_default().to_owned();
+    let external_name = string_field(input, "external_name")
+        .unwrap_or_default()
+        .to_owned();
+    let provider_id = string_field(input, "provider_id")
+        .unwrap_or_default()
+        .to_owned();
     let record = json!({
         "external_name": external_name,
         "provider_id": provider_id,
@@ -804,8 +874,12 @@ fn save_model(state: &mut AdminSandboxState, input: &Value) -> Value {
 }
 
 fn save_channel_model(state: &mut AdminSandboxState, input: &Value) -> Value {
-    let channel_id = string_field(input, "channel_id").unwrap_or_default().to_owned();
-    let model_id = string_field(input, "model_id").unwrap_or_default().to_owned();
+    let channel_id = string_field(input, "channel_id")
+        .unwrap_or_default()
+        .to_owned();
+    let model_id = string_field(input, "model_id")
+        .unwrap_or_default()
+        .to_owned();
     let record = json!({
         "channel_id": channel_id,
         "model_id": model_id,
@@ -827,8 +901,12 @@ fn save_channel_model(state: &mut AdminSandboxState, input: &Value) -> Value {
 }
 
 fn save_model_price(state: &mut AdminSandboxState, input: &Value) -> Value {
-    let channel_id = string_field(input, "channel_id").unwrap_or_default().to_owned();
-    let model_id = string_field(input, "model_id").unwrap_or_default().to_owned();
+    let channel_id = string_field(input, "channel_id")
+        .unwrap_or_default()
+        .to_owned();
+    let model_id = string_field(input, "model_id")
+        .unwrap_or_default()
+        .to_owned();
     let proxy_provider_id = string_field(input, "proxy_provider_id")
         .unwrap_or_default()
         .to_owned();
@@ -879,14 +957,17 @@ fn build_rate_limit_window(state: &mut AdminSandboxState, policy: &Value) -> Val
         "window_start_ms": window_start_ms,
         "window_end_ms": window_start_ms + window_seconds * 1000,
         "updated_at_ms": window_start_ms,
-        "enabled": policy.get("enabled").cloned().unwrap_or_else(|| json!(true)),
+        "enabled": policy.get("enabled").cloned().unwrap_or(Value::Bool(true)),
         "exceeded": false,
     })
 }
 
 fn save_rate_limit_policy(state: &mut AdminSandboxState, input: &Value) -> Value {
-    let policy_id = string_field(input, "policy_id").unwrap_or_default().to_owned();
-    let existing = existing_record_by_key(&state.store, "rateLimitPolicies", "policy_id", &policy_id);
+    let policy_id = string_field(input, "policy_id")
+        .unwrap_or_default()
+        .to_owned();
+    let existing =
+        existing_record_by_key(&state.store, "rateLimitPolicies", "policy_id", &policy_id);
     let created_at_ms = existing
         .as_ref()
         .and_then(|record| record.get("created_at_ms").cloned())
@@ -901,7 +982,7 @@ fn save_rate_limit_policy(state: &mut AdminSandboxState, input: &Value) -> Value
         "window_seconds": input.get("window_seconds").cloned().unwrap_or_else(|| json!(60)),
         "burst_requests": value_or_null(input, "burst_requests"),
         "limit_requests": input.get("requests_per_window").cloned().unwrap_or_else(|| json!(0)),
-        "enabled": input.get("enabled").cloned().unwrap_or_else(|| json!(true)),
+        "enabled": input.get("enabled").cloned().unwrap_or(Value::Bool(true)),
         "notes": string_or_null(input, "notes"),
         "created_at_ms": created_at_ms,
         "updated_at_ms": json!(state.next_timestamp()),
@@ -932,9 +1013,7 @@ fn save_runtime_reload(state: &mut AdminSandboxState, input: &Value) -> Value {
         let statuses = array_mut(&mut state.store, "runtimeStatuses");
         for status in statuses.iter_mut() {
             if bool_field(status, "healthy") == Some(true) {
-                status["message"] = json!(format!(
-                    "Sandbox reload completed at {reloaded_at_ms}."
-                ));
+                status["message"] = json!(format!("Sandbox reload completed at {reloaded_at_ms}."));
             }
         }
         let runtime_count = statuses.len();
@@ -1057,7 +1136,11 @@ fn update_api_key_group_status(
     object_response(updated_group)
 }
 
-fn update_api_key_status(state: &mut AdminSandboxState, hashed_key: &str, active: bool) -> Response {
+fn update_api_key_status(
+    state: &mut AdminSandboxState,
+    hashed_key: &str,
+    active: bool,
+) -> Response {
     let updated_api_key = {
         let records = array_mut(&mut state.store, "apiKeys");
         let Some(index) = find_index_by(records, "hashed_key", hashed_key) else {
@@ -1171,20 +1254,18 @@ pub async fn handle_admin_sandbox_request(
     let segments = admin_api_segments(&uri);
     let segment_refs = segments.iter().map(String::as_str).collect::<Vec<_>>();
 
-    let mut guard = state.inner.lock().expect("sandbox state mutex should lock");
+    let mut guard = state.lock("handle_admin_sandbox_request");
 
     if method == Method::POST && segment_refs.as_slice() == ["auth", "login"] {
-        let Ok(input) = parse_body(&body) else {
-            return json_error_response(
-                StatusCode::BAD_REQUEST,
-                "Admin sandbox request body must be valid JSON.",
-            );
+        let input = match parse_body(&body) {
+            Ok(input) => input,
+            Err(response) => return *response,
         };
         return login_user(&mut guard, &input);
     }
 
     if let Err(response) = require_session(&guard.store, &headers) {
-        return response;
+        return *response;
     }
 
     if method == Method::GET {
@@ -1208,7 +1289,9 @@ pub async fn handle_admin_sandbox_request(
             ["channel-models"] => return list_response(&guard.store, "channelModels"),
             ["model-prices"] => return list_response(&guard.store, "modelPrices"),
             ["usage", "records"] => return list_response(&guard.store, "usageRecords"),
-            ["usage", "summary"] => return object_response(store_value(&guard.store, "usageSummary").clone()),
+            ["usage", "summary"] => {
+                return object_response(store_value(&guard.store, "usageSummary").clone())
+            }
             ["billing", "summary"] => {
                 return object_response(store_value(&guard.store, "billingSummary").clone())
             }
@@ -1217,32 +1300,44 @@ pub async fn handle_admin_sandbox_request(
                 return object_response(store_value(&guard.store, "billingEventSummary").clone())
             }
             ["routing", "decision-logs"] => return list_response(&guard.store, "routingLogs"),
-            ["gateway", "rate-limit-policies"] => return list_response(&guard.store, "rateLimitPolicies"),
-            ["gateway", "rate-limit-windows"] => return list_response(&guard.store, "rateLimitWindows"),
-            ["routing", "health-snapshots"] => return list_response(&guard.store, "providerHealth"),
-            ["extensions", "runtime-statuses"] => return list_response(&guard.store, "runtimeStatuses"),
+            ["gateway", "rate-limit-policies"] => {
+                return list_response(&guard.store, "rateLimitPolicies")
+            }
+            ["gateway", "rate-limit-windows"] => {
+                return list_response(&guard.store, "rateLimitWindows")
+            }
+            ["routing", "health-snapshots"] => {
+                return list_response(&guard.store, "providerHealth")
+            }
+            ["extensions", "runtime-statuses"] => {
+                return list_response(&guard.store, "runtimeStatuses")
+            }
             _ => {}
         }
     }
 
-    let Ok(input) = parse_body(&body) else {
-        return json_error_response(
-            StatusCode::BAD_REQUEST,
-            "Admin sandbox request body must be valid JSON.",
-        );
+    let input = match parse_body(&body) {
+        Ok(input) => input,
+        Err(response) => return *response,
     };
 
     if method == Method::POST {
         match segment_refs.as_slice() {
-            ["users", "operators"] => return object_response(save_operator_user(&mut guard, &input)),
+            ["users", "operators"] => {
+                return object_response(save_operator_user(&mut guard, &input))
+            }
             ["users", "portal"] => return object_response(save_portal_user(&mut guard, &input)),
             ["marketing", "campaigns"] => {
                 return object_response(save_marketing_campaign(&mut guard, &input))
             }
             ["tenants"] => return object_response(save_tenant(&mut guard, &input)),
             ["projects"] => return object_response(save_project(&mut guard, &input)),
-            ["api-key-groups"] => return object_response(save_api_key_group(&mut guard, &input, None)),
-            ["routing", "profiles"] => return object_response(save_routing_profile(&mut guard, &input)),
+            ["api-key-groups"] => {
+                return object_response(save_api_key_group(&mut guard, &input, None))
+            }
+            ["routing", "profiles"] => {
+                return object_response(save_routing_profile(&mut guard, &input))
+            }
             ["api-keys"] => return object_response(create_api_key_record(&mut guard, &input)),
             ["channels"] => return object_response(save_channel(&mut guard, &input)),
             ["providers"] => return object_response(save_provider(&mut guard, &input)),
@@ -1306,30 +1401,24 @@ pub async fn handle_admin_sandbox_request(
     }
 
     if method == Method::PATCH {
-        match segment_refs.as_slice() {
-            ["api-key-groups", group_id] => {
-                let Some(existing_group) =
-                    existing_record_by_key(&guard.store, "apiKeyGroups", "group_id", group_id)
-                else {
-                    return json_error_response(StatusCode::NOT_FOUND, "API key group not found.");
-                };
-                let merged_input = merge_objects(&existing_group, &input);
-                return object_response(save_api_key_group(
-                    &mut guard,
-                    &merged_input,
-                    Some(group_id),
-                ));
-            }
-            _ => {}
+        if let ["api-key-groups", group_id] = segment_refs.as_slice() {
+            let Some(existing_group) =
+                existing_record_by_key(&guard.store, "apiKeyGroups", "group_id", group_id)
+            else {
+                return json_error_response(StatusCode::NOT_FOUND, "API key group not found.");
+            };
+            let merged_input = merge_objects(&existing_group, &input);
+            return object_response(save_api_key_group(
+                &mut guard,
+                &merged_input,
+                Some(group_id),
+            ));
         }
     }
 
     if method == Method::PUT {
-        match segment_refs.as_slice() {
-            ["api-keys", hashed_key] => {
-                return object_response(save_api_key_update(&mut guard, hashed_key, &input))
-            }
-            _ => {}
+        if let ["api-keys", hashed_key] = segment_refs.as_slice() {
+            return object_response(save_api_key_update(&mut guard, hashed_key, &input));
         }
     }
 
@@ -1352,18 +1441,27 @@ pub async fn handle_admin_sandbox_request(
                 return empty_response(StatusCode::NO_CONTENT);
             }
             ["api-key-groups", group_id] => {
-                remove_by(array_mut(&mut guard.store, "apiKeyGroups"), "group_id", group_id);
+                remove_by(
+                    array_mut(&mut guard.store, "apiKeyGroups"),
+                    "group_id",
+                    group_id,
+                );
                 return empty_response(StatusCode::NO_CONTENT);
             }
             ["api-keys", hashed_key] => {
-                remove_by(array_mut(&mut guard.store, "apiKeys"), "hashed_key", hashed_key);
+                remove_by(
+                    array_mut(&mut guard.store, "apiKeys"),
+                    "hashed_key",
+                    hashed_key,
+                );
                 return empty_response(StatusCode::NO_CONTENT);
             }
             ["channels", channel_id] => {
                 remove_by(array_mut(&mut guard.store, "channels"), "id", channel_id);
-                remove_where(array_mut(&mut guard.store, "channelModels"), |channel_model| {
-                    string_field(channel_model, "channel_id") == Some(channel_id)
-                });
+                remove_where(
+                    array_mut(&mut guard.store, "channelModels"),
+                    |channel_model| string_field(channel_model, "channel_id") == Some(channel_id),
+                );
                 remove_where(array_mut(&mut guard.store, "modelPrices"), |model_price| {
                     string_field(model_price, "channel_id") == Some(channel_id)
                 });
@@ -1387,10 +1485,13 @@ pub async fn handle_admin_sandbox_request(
                 return empty_response(StatusCode::NO_CONTENT);
             }
             ["channel-models", channel_id, "models", model_id] => {
-                remove_where(array_mut(&mut guard.store, "channelModels"), |channel_model| {
-                    string_field(channel_model, "channel_id") == Some(channel_id)
-                        && string_field(channel_model, "model_id") == Some(model_id)
-                });
+                remove_where(
+                    array_mut(&mut guard.store, "channelModels"),
+                    |channel_model| {
+                        string_field(channel_model, "channel_id") == Some(channel_id)
+                            && string_field(channel_model, "model_id") == Some(model_id)
+                    },
+                );
                 return empty_response(StatusCode::NO_CONTENT);
             }
             ["model-prices", channel_id, "models", model_id, "providers", provider_id] => {
@@ -1419,7 +1520,7 @@ pub async fn handle_admin_sandbox_request(
 mod tests {
     use super::*;
     use axum::body::to_bytes;
-    use serde_json::{Value, json};
+    use serde_json::{json, Value};
 
     fn authorization_headers(token: Option<&str>) -> HeaderMap {
         let mut headers = HeaderMap::new();
@@ -1445,7 +1546,8 @@ mod tests {
             state,
             method,
             authorization_headers(token),
-            Uri::from_maybe_shared(path.to_owned()).expect("sandbox request uri should parse"),
+            Uri::from_maybe_shared(Bytes::copy_from_slice(path.as_bytes()))
+                .expect("sandbox request uri should parse"),
             body.map_or_else(Bytes::new, |payload| Bytes::from(payload.to_string())),
         )
         .await;
@@ -1481,7 +1583,12 @@ mod tests {
 
         assert_eq!(status, StatusCode::OK);
         payload
-            .and_then(|value| value.get("token").and_then(Value::as_str).map(str::to_owned))
+            .and_then(|value| {
+                value
+                    .get("token")
+                    .and_then(Value::as_str)
+                    .map(str::to_owned)
+            })
             .expect("sandbox login should return a token")
     }
 

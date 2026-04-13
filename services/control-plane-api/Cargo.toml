@@ -23,6 +23,7 @@ ops-service = { path = "../ops-service" }
 serde.workspace = true
 serde_json.workspace = true
 session-gateway = { path = "../session-gateway" }
+sha2 = "0.10"
 tokio.workspace = true
 
 [dev-dependencies]

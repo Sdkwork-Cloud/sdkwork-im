@@ -5,7 +5,10 @@ use std::path::{Path as StdPath, PathBuf};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use audit_service::{AuditExportBundle, AuditRecord, AuditRuntime, RecordAuditAnchor};
+use audit_service::{
+    AuditExportBundle, AuditRecordMutationResponse, AuditRuntime, RecordAuditAnchor,
+    audit_record_request_key,
+};
 use automation_service::{AutomationExecution, AutomationRuntime, RequestAutomationExecution};
 use axum::extract::ws::WebSocketUpgrade;
 use axum::extract::{Path, Query, State};
@@ -55,17 +58,26 @@ use im_platform_contracts::{
     RealtimeSubscriptionRecord, RtcStateRecord, StaticProviderRegistry, StreamStateRecord,
     UserModuleProvider,
 };
-use media_service::{CompleteUploadRequest, CreateUploadRequest, MediaRuntime};
-use notification_service::{NotificationRuntime, NotificationTask, RequestNotification};
+use media_service::{
+    CompleteUploadRequest, CreateUploadRequest, MediaRuntime, MediaUploadMutationResponse,
+    media_complete_upload_request_key, media_create_upload_request_key,
+};
+use notification_service::{
+    NotificationRequestResponse, NotificationRuntime, NotificationTask, RequestNotification,
+};
 use ops_service::{
     ClusterView, DiagnosticBundle, LagItem, LagView, OpsHealthResponse, OpsRuntime,
     ProviderBindingDriftView, ProviderBindingItemView, ProviderBindingSnapshotView,
     ProviderBindingsView, RouteOwnershipView, RuntimeDirInspectionItem, RuntimeDirInspectionView,
 };
-use projection_service::{ProjectionAccessError, TimelineProjectionService};
+use projection_service::{
+    ContactView, ConversationMemberDirectoryEntry, MessageInteractionSummaryView,
+    NotificationRecipientView, ProjectionAccessError, TimelineProjectionService,
+};
 use rtc_signaling_service::{
     CreateRtcSessionRequest, InviteRtcSessionRequest, IssueRtcParticipantCredentialRequest,
-    PostRtcSignalRequest, RtcRuntime, UpdateRtcSessionRequest,
+    PostRtcSignalRequest, RtcRuntime, RtcSessionMutationResponse, UpdateRtcSessionRequest,
+    rtc_create_request_key, rtc_session_action_request_key,
 };
 use serde::{Deserialize, Serialize};
 use session_gateway::{
@@ -73,9 +85,13 @@ use session_gateway::{
     RealtimeClusterError, RealtimeDeliveryRuntime, RealtimePlaneAssembly, RealtimeRuntimeError,
     SessionPresenceRuntime, SyncRealtimeSubscriptionsRequest, serve_realtime_websocket,
 };
+use sha2::{Digest, Sha256};
 use streaming_service::{
     AbortStreamRequest, AppendStreamFrameRequest, CheckpointStreamRequest, CompleteStreamRequest,
-    ListStreamFramesQuery, OpenStreamRequest, StreamFrameWindow, StreamingRuntime,
+    ListStreamFramesQuery, OpenStreamRequest, StreamFrameMutationResponse, StreamFrameWindow,
+    StreamSessionMutationResponse, StreamingRuntime, stream_abort_request_key,
+    stream_append_request_key, stream_checkpoint_request_key, stream_complete_request_key,
+    stream_open_request_key,
 };
 
 mod access;
@@ -172,6 +188,39 @@ struct ProjectionSnapshotRestoreSummary {
 const PROJECTION_METADATA_FILE_NAME: &str = "projection-metadata.json";
 const PROJECTION_TIMELINE_FILE_NAME: &str = "projection-timeline.json";
 const PROJECTION_SNAPSHOT_CHECKPOINT_KEY: &str = "conversation-snapshot-checkpoint";
+const LOCAL_NODE_AUDIT_AGGREGATE_ID_MAX_BYTES: usize = 256;
+const LOCAL_NODE_AUDIT_RECORD_ID_MAX_BYTES: usize = 256;
+
+fn stable_local_audit_aggregate_id(namespace: &str, business_id: &str) -> String {
+    if business_id.len() <= LOCAL_NODE_AUDIT_AGGREGATE_ID_MAX_BYTES {
+        return business_id.into();
+    }
+
+    let digest = Sha256::digest(business_id.as_bytes());
+    let bounded_aggregate_id = format!("{namespace}:{digest:x}");
+    debug_assert!(bounded_aggregate_id.len() <= LOCAL_NODE_AUDIT_AGGREGATE_ID_MAX_BYTES);
+    bounded_aggregate_id
+}
+
+fn stable_local_audit_record_id(prefix: &str, business_id: &str) -> String {
+    let raw_record_id = format!("{prefix}{business_id}");
+    if raw_record_id.len() <= LOCAL_NODE_AUDIT_RECORD_ID_MAX_BYTES {
+        return raw_record_id;
+    }
+
+    let digest = Sha256::digest(business_id.as_bytes());
+    let digest_component = format!("sha256_{digest:x}");
+    let max_prefix_bytes =
+        LOCAL_NODE_AUDIT_RECORD_ID_MAX_BYTES.saturating_sub(digest_component.len());
+    let prefix = if prefix.len() > max_prefix_bytes {
+        &prefix[..max_prefix_bytes]
+    } else {
+        prefix
+    };
+    let bounded_record_id = format!("{prefix}{digest_component}");
+    debug_assert!(bounded_record_id.len() <= LOCAL_NODE_AUDIT_RECORD_ID_MAX_BYTES);
+    bounded_record_id
+}
 
 impl AppState {
     #[rustfmt::skip]
@@ -181,19 +230,15 @@ impl AppState {
 
     fn bind_device_registration(
         &self,
-        tenant_id: &str,
-        principal_id: &str,
+        auth: &AuthContext,
         device_id: &str,
-        session_id: Option<&str>,
         connection_kind: &str,
         allow_session_takeover: bool,
     ) -> Result<projection_service::RegisteredDeviceView, ApiError> {
         self.device_registration.bind_registered_device(
             self,
-            tenant_id,
-            principal_id,
+            auth,
             device_id,
-            session_id,
             connection_kind,
             allow_session_takeover,
         )
@@ -201,36 +246,28 @@ impl AppState {
 
     fn prepare_active_device_route(
         &self,
-        tenant_id: &str,
-        principal_id: &str,
+        auth: &AuthContext,
         device_id: &str,
-        session_id: Option<&str>,
         connection_kind: &str,
     ) -> Result<projection_service::RegisteredDeviceView, ApiError> {
         self.device_registration.prepare_active_device_route(
             self,
-            tenant_id,
-            principal_id,
+            auth,
             device_id,
-            session_id,
             connection_kind,
         )
     }
 
     fn disconnect_active_device_route(
         &self,
-        tenant_id: &str,
-        principal_id: &str,
+        auth: &AuthContext,
         device_id: &str,
-        session_id: Option<&str>,
         connection_kind: &str,
     ) -> Result<DisconnectActiveDeviceRouteOutcome, ApiError> {
         self.device_registration.disconnect_active_device_route(
             self,
-            tenant_id,
-            principal_id,
+            auth,
             device_id,
-            session_id,
             connection_kind,
         )
     }
@@ -584,10 +621,31 @@ struct CreateSystemChannelRequest {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+struct CreateThreadConversationRequest {
+    conversation_id: String,
+    parent_conversation_id: String,
+    root_message_id: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BindDirectChatConversationRequest {
+    conversation_id: String,
+    direct_chat_id: String,
+    left_actor_id: String,
+    left_actor_kind: String,
+    right_actor_id: String,
+    right_actor_kind: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct AddConversationMemberRequest {
     principal_id: String,
     principal_kind: String,
     role: MembershipRole,
+    #[serde(default)]
+    attributes: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -619,6 +677,24 @@ struct ListMembersResponse {
 #[serde(rename_all = "camelCase")]
 struct InboxResponse {
     items: Vec<ConversationInboxEntry>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ContactsResponse {
+    items: Vec<ContactView>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MemberDirectoryResponse {
+    items: Vec<ConversationMemberDirectoryEntry>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PinnedMessagesResponse {
+    items: Vec<MessageInteractionSummaryView>,
 }
 
 #[derive(Debug, Serialize)]
@@ -701,6 +777,16 @@ impl ApiError {
             message: message.into(),
         }
     }
+
+    fn payload_too_large(field: &'static str, max_bytes: usize, actual_bytes: usize) -> Self {
+        Self {
+            status: axum::http::StatusCode::PAYLOAD_TOO_LARGE,
+            code: "payload_too_large",
+            message: format!(
+                "payload too large for {field}: max={max_bytes} bytes, actual={actual_bytes} bytes"
+            ),
+        }
+    }
 }
 
 impl From<conversation_runtime::RuntimeError> for ApiError {
@@ -719,6 +805,11 @@ impl From<conversation_runtime::RuntimeError> for ApiError {
             conversation_runtime::RuntimeError::InvalidInput(message) => Self {
                 status: axum::http::StatusCode::BAD_REQUEST,
                 code: "conversation_request_invalid",
+                message,
+            },
+            conversation_runtime::RuntimeError::PayloadTooLarge(message) => Self {
+                status: axum::http::StatusCode::PAYLOAD_TOO_LARGE,
+                code: "payload_too_large",
                 message,
             },
             conversation_runtime::RuntimeError::ConversationNotFound(message) => Self {
@@ -837,6 +928,8 @@ impl From<RealtimeClusterError> for ApiError {
 impl From<RealtimeRuntimeError> for ApiError {
     fn from(value: RealtimeRuntimeError) -> Self {
         let status = match value.code {
+            "payload_too_large" => axum::http::StatusCode::PAYLOAD_TOO_LARGE,
+            "limit_invalid" => axum::http::StatusCode::BAD_REQUEST,
             "checkpoint_store_unavailable" | "subscription_store_unavailable" => {
                 axum::http::StatusCode::SERVICE_UNAVAILABLE
             }

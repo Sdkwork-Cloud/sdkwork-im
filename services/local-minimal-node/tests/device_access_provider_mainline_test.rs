@@ -165,3 +165,67 @@ async fn test_device_register_route_calls_injected_device_access_provider() {
 
     let _ = fs::remove_dir_all(runtime_dir);
 }
+
+#[tokio::test]
+async fn test_conflicting_device_register_does_not_call_provider_for_second_owner() {
+    let runtime_dir = unique_runtime_dir();
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+    let provider = RecordingDeviceAccessProvider::default();
+    let app = local_minimal_node::build_default_app_with_runtime_dir_and_device_access_provider(
+        runtime_dir.as_path(),
+        Arc::new(provider.clone()),
+    );
+
+    let first_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/devices/register")
+                .header("x-tenant-id", "t_device_provider")
+                .header("x-user-id", "u_owner_a")
+                .header("x-actor-kind", "device")
+                .header("x-device-id", "d_conflict_provider")
+                .header("x-session-id", "s_owner_a")
+                .header("content-type", "application/json")
+                .body(Body::from("{}"))
+                .unwrap(),
+        )
+        .await
+        .expect("first owner device register request should succeed");
+    assert_eq!(first_response.status(), StatusCode::OK);
+
+    let conflicting_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/devices/register")
+                .header("x-tenant-id", "t_device_provider")
+                .header("x-user-id", "u_owner_b")
+                .header("x-actor-kind", "device")
+                .header("x-device-id", "d_conflict_provider")
+                .header("x-session-id", "s_owner_b")
+                .header("content-type", "application/json")
+                .body(Body::from("{}"))
+                .unwrap(),
+        )
+        .await
+        .expect("conflicting device register request should return response");
+    assert_eq!(conflicting_response.status(), StatusCode::CONFLICT);
+
+    let body = conflicting_response
+        .into_body()
+        .collect()
+        .await
+        .expect("conflicting register body should collect")
+        .to_bytes();
+    let json: serde_json::Value =
+        serde_json::from_slice(&body).expect("conflicting register response should be valid json");
+    assert_eq!(json["code"], "device_scope_conflict");
+
+    let recorded = provider.recorded_state();
+    assert_eq!(recorded.register_requests.len(), 1);
+    assert_eq!(recorded.bind_owner_requests.len(), 1);
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}

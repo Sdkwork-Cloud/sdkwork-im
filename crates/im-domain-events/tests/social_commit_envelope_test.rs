@@ -2,7 +2,8 @@ use im_domain_events::{
     AggregateType, CommitEnvelope, EventActor,
     social::{
         DirectChatBoundPayload, ExternalMemberLinkBoundPayload, FriendRequestSubmittedPayload,
-        FriendshipActivatedPayload, SocialEventType, UserBlockedPayload, social_commit_envelope,
+        FriendshipActivatedPayload, SocialCommitEnvelopeInput, SocialEventType, UserBlockedPayload,
+        social_commit_envelope,
     },
 };
 use serde_json::Value;
@@ -117,22 +118,22 @@ fn test_social_commit_envelope_builds_social_defaults() {
     })
     .expect("payload should serialize");
 
-    let envelope = social_commit_envelope(
-        "evt_demo",
-        "t_demo",
-        AggregateType::Friendship,
-        "fs_demo",
-        SocialEventType::FriendshipActivated,
-        7,
-        EventActor {
+    let envelope = social_commit_envelope(SocialCommitEnvelopeInput {
+        event_id: "evt_demo",
+        tenant_id: "t_demo",
+        aggregate_type: AggregateType::Friendship,
+        aggregate_id: "fs_demo",
+        event_type: SocialEventType::FriendshipActivated,
+        ordering_seq: 7,
+        actor: EventActor {
             actor_id: "user_a".into(),
             actor_kind: "user".into(),
             actor_session_id: Some("s_demo".into()),
         },
-        "2026-04-10T10:01:00Z",
-        "2026-04-10T10:01:01Z",
-        &payload,
-    );
+        occurred_at: "2026-04-10T10:01:00Z",
+        committed_at: "2026-04-10T10:01:01Z",
+        payload: &payload,
+    });
 
     assert_eq!(envelope.aggregate_type, AggregateType::Friendship);
     assert_eq!(envelope.event_type, "friendship.activated");

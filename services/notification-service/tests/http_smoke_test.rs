@@ -138,6 +138,112 @@ async fn test_request_and_query_notifications_over_http() {
 }
 
 #[tokio::test]
+async fn test_notification_queries_reject_same_actor_id_with_different_actor_kind_over_http() {
+    let app = notification_service::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/notifications/requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_sender")
+                .header("x-actor-kind", "user")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "notificationId":"ntf_http_actor_kind_isolation",
+                        "sourceEventId":"evt_http_actor_kind_isolation",
+                        "sourceEventType":"message.posted",
+                        "category":"message.new",
+                        "channel":"inapp",
+                        "recipientId":"u_demo",
+                        "title":"New message",
+                        "body":"hello",
+                        "payload":"{\"conversationId\":\"c_demo\"}"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("request notification should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let recipient_list_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/notifications")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("recipient list notifications should succeed");
+    assert_eq!(recipient_list_response.status(), StatusCode::OK);
+    let recipient_list_body = recipient_list_response
+        .into_body()
+        .collect()
+        .await
+        .expect("recipient list body should collect")
+        .to_bytes();
+    let recipient_list_json: serde_json::Value =
+        serde_json::from_slice(&recipient_list_body).expect("recipient list should be valid json");
+    assert_eq!(
+        recipient_list_json["items"][0]["notificationId"],
+        "ntf_http_actor_kind_isolation"
+    );
+
+    let cross_kind_list_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/notifications")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "system")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("cross-kind list notifications should succeed");
+    assert_eq!(cross_kind_list_response.status(), StatusCode::OK);
+    let cross_kind_list_body = cross_kind_list_response
+        .into_body()
+        .collect()
+        .await
+        .expect("cross-kind list body should collect")
+        .to_bytes();
+    let cross_kind_list_json: serde_json::Value = serde_json::from_slice(&cross_kind_list_body)
+        .expect("cross-kind list should be valid json");
+    assert_eq!(
+        cross_kind_list_json["items"]
+            .as_array()
+            .expect("items should be an array")
+            .len(),
+        0,
+        "a different actor_kind with the same actor_id must not share the inbox"
+    );
+
+    let cross_kind_get_response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/notifications/ntf_http_actor_kind_isolation")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "system")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("cross-kind get notification should succeed");
+    assert_eq!(cross_kind_get_response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
 async fn test_duplicate_notification_id_is_idempotent_and_conflicting_retry_is_rejected_over_http()
 {
     let app = notification_service::build_default_app();
@@ -177,6 +283,17 @@ async fn test_duplicate_notification_id_is_idempotent_and_conflicting_retry_is_r
         .to_bytes();
     let first_json: serde_json::Value =
         serde_json::from_slice(&first_body).expect("first body should be valid json");
+    assert_eq!(first_json["deliveryStatus"], "applied");
+    assert_eq!(
+        first_json["proofVersion"],
+        "notification.request.delivery-proof.v1"
+    );
+    assert!(
+        !first_json["requestKey"]
+            .as_str()
+            .expect("requestKey should be string")
+            .is_empty()
+    );
 
     let idempotent_response = app
         .clone()
@@ -213,7 +330,11 @@ async fn test_duplicate_notification_id_is_idempotent_and_conflicting_retry_is_r
         .to_bytes();
     let idempotent_json: serde_json::Value =
         serde_json::from_slice(&idempotent_body).expect("idempotent body should be valid json");
-    assert_eq!(idempotent_json, first_json);
+    assert_eq!(idempotent_json["notificationId"], "ntf_http_idempotent");
+    assert_eq!(idempotent_json["status"], "dispatched");
+    assert_eq!(idempotent_json["deliveryStatus"], "replayed");
+    assert_eq!(idempotent_json["requestKey"], first_json["requestKey"]);
+    assert_eq!(idempotent_json["proofVersion"], first_json["proofVersion"]);
 
     let conflicting_response = app
         .oneshot(
@@ -250,6 +371,152 @@ async fn test_duplicate_notification_id_is_idempotent_and_conflicting_retry_is_r
     let conflicting_json: serde_json::Value =
         serde_json::from_slice(&conflicting_body).expect("conflicting body should be valid json");
     assert_eq!(conflicting_json["code"], "notification_conflict");
+}
+
+#[tokio::test]
+async fn test_duplicate_notification_request_from_different_principal_keeps_stable_request_key_over_http()
+ {
+    let app = notification_service::build_default_app();
+
+    let first_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/notifications/requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_first")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "notificationId":"ntf_http_stable_request_key",
+                        "sourceEventId":"evt_http_stable_request_key",
+                        "sourceEventType":"message.posted",
+                        "category":"message.new",
+                        "channel":"inapp",
+                        "recipientId":"u_target",
+                        "title":"New message",
+                        "body":"hello",
+                        "payload":"{\"conversationId\":\"c_demo\"}"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("first request should return response");
+    assert_eq!(first_response.status(), StatusCode::OK);
+    let first_body = first_response
+        .into_body()
+        .collect()
+        .await
+        .expect("first body should collect")
+        .to_bytes();
+    let first_json: serde_json::Value =
+        serde_json::from_slice(&first_body).expect("first body should be valid json");
+    assert_eq!(first_json["deliveryStatus"], "applied");
+
+    let replayed_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/notifications/requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_second")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "notificationId":"ntf_http_stable_request_key",
+                        "sourceEventId":"evt_http_stable_request_key",
+                        "sourceEventType":"message.posted",
+                        "category":"message.new",
+                        "channel":"inapp",
+                        "recipientId":"u_target",
+                        "title":"New message",
+                        "body":"hello",
+                        "payload":"{\"conversationId\":\"c_demo\"}"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("replayed request should return response");
+    assert_eq!(replayed_response.status(), StatusCode::OK);
+    let replayed_body = replayed_response
+        .into_body()
+        .collect()
+        .await
+        .expect("replayed body should collect")
+        .to_bytes();
+    let replayed_json: serde_json::Value =
+        serde_json::from_slice(&replayed_body).expect("replayed body should be valid json");
+    assert_eq!(replayed_json["deliveryStatus"], "replayed");
+    assert_eq!(replayed_json["requestKey"], first_json["requestKey"]);
+}
+
+#[tokio::test]
+async fn test_request_notification_rejects_oversized_payload_over_http() {
+    let app = notification_service::build_default_app();
+
+    let oversized_payload = "x".repeat(262145);
+    let request_body = serde_json::json!({
+        "notificationId":"ntf_http_oversized_payload",
+        "sourceEventId":"evt_http_oversized_payload",
+        "sourceEventType":"message.posted",
+        "category":"message.new",
+        "channel":"inapp",
+        "recipientId":"u_demo",
+        "title":"New message",
+        "body":"hello",
+        "payload": oversized_payload
+    })
+    .to_string();
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/notifications/requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(request_body))
+                .unwrap(),
+        )
+        .await
+        .expect("oversized notification request should return response");
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+}
+
+#[tokio::test]
+async fn test_request_notification_rejects_oversized_notification_id_over_http() {
+    let app = notification_service::build_default_app();
+
+    let oversized_notification_id = "n".repeat(513);
+    let request_body = serde_json::json!({
+        "notificationId": oversized_notification_id,
+        "sourceEventId":"evt_http_oversized_id",
+        "sourceEventType":"message.posted",
+        "category":"message.new",
+        "channel":"inapp",
+        "recipientId":"u_demo",
+        "title":"New message",
+        "body":"hello",
+        "payload":"{\"conversationId\":\"c_demo\"}"
+    })
+    .to_string();
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/notifications/requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(request_body))
+                .unwrap(),
+        )
+        .await
+        .expect("oversized notification id request should return response");
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
 }
 
 #[tokio::test]

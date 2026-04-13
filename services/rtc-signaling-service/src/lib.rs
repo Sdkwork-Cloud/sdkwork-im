@@ -35,6 +35,16 @@ use im_time::utc_now_rfc3339_millis;
 use serde::{Deserialize, Serialize};
 
 const DEFAULT_RTC_RECORDING_PLAYBACK_URL_TTL_SECONDS: u32 = 3600;
+const RTC_MAX_SESSION_ID_BYTES: usize = 256;
+const RTC_MAX_CONVERSATION_ID_BYTES: usize = 512;
+const RTC_MAX_MODE_BYTES: usize = 64;
+const RTC_MAX_SIGNALING_STREAM_ID_BYTES: usize = 256;
+const RTC_MAX_ARTIFACT_MESSAGE_ID_BYTES: usize = 256;
+const RTC_MAX_SIGNAL_TYPE_BYTES: usize = 128;
+const RTC_MAX_SIGNAL_SCHEMA_REF_BYTES: usize = 256;
+const RTC_MAX_SIGNAL_PAYLOAD_BYTES: usize = 256 * 1024;
+const RTC_MAX_PARTICIPANT_ID_BYTES: usize = 256;
+const RTC_SESSION_DELIVERY_PROOF_VERSION: &str = "rtc.session.delivery-proof.v1";
 
 fn lock_rtc_mutex<'a, T>(mutex: &'a Mutex<T>, label: &'static str) -> MutexGuard<'a, T> {
     match mutex.lock() {
@@ -106,6 +116,38 @@ pub struct PostRtcSignalRequest {
 #[serde(rename_all = "camelCase")]
 pub struct IssueRtcParticipantCredentialRequest {
     pub participant_id: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RtcSessionDeliveryStatus {
+    Applied,
+    Replayed,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RtcSessionMutationResponse {
+    #[serde(flatten)]
+    pub session: RtcSession,
+    pub request_key: String,
+    pub delivery_status: RtcSessionDeliveryStatus,
+    pub proof_version: String,
+}
+
+impl RtcSessionMutationResponse {
+    pub fn from_outcome(outcome: RtcSessionMutationOutcome, request_key: String) -> Self {
+        Self {
+            session: outcome.session,
+            request_key,
+            delivery_status: if outcome.applied {
+                RtcSessionDeliveryStatus::Applied
+            } else {
+                RtcSessionDeliveryStatus::Replayed
+            },
+            proof_version: RTC_SESSION_DELIVERY_PROOF_VERSION.into(),
+        }
+    }
 }
 
 impl RtcRuntime {
@@ -211,12 +253,24 @@ impl RtcRuntime {
         auth: &AuthContext,
         request: CreateRtcSessionRequest,
     ) -> Result<RtcSession, RtcError> {
+        Ok(self.create_session_with_outcome(auth, request)?.session)
+    }
+
+    pub fn create_session_with_outcome(
+        &self,
+        auth: &AuthContext,
+        request: CreateRtcSessionRequest,
+    ) -> Result<RtcSessionMutationOutcome, RtcError> {
+        validate_create_rtc_session_request_payload_size(&request)?;
         let scope_key = rtc_scope_key(auth.tenant_id.as_str(), request.rtc_session_id.as_str());
         self.ensure_session_state(auth.tenant_id.as_str(), request.rtc_session_id.as_str())?;
         let mut sessions = lock_rtc_mutex(&self.sessions, "sessions");
         if let Some(existing) = sessions.get(scope_key.as_str()).cloned() {
             if rtc_session_matches_create_request(&existing, auth, &request) {
-                return Ok(existing);
+                return Ok(RtcSessionMutationOutcome {
+                    session: existing,
+                    applied: false,
+                });
             }
 
             return Err(RtcError::conflict(request.rtc_session_id.as_str()));
@@ -240,6 +294,7 @@ impl RtcRuntime {
             conversation_id: request.conversation_id,
             rtc_mode: request.rtc_mode,
             initiator_id: auth.actor_id.clone(),
+            initiator_kind: Some(auth.actor_kind.clone()),
             provider_plugin_id: Some(provider_plugin_id),
             provider_session_id: Some(provider_session.provider_session_id),
             access_endpoint: provider_session.access_endpoint,
@@ -261,7 +316,10 @@ impl RtcRuntime {
             .or_default();
         self.persist_state(auth.tenant_id.as_str(), request.rtc_session_id.as_str())?;
 
-        Ok(session)
+        Ok(RtcSessionMutationOutcome {
+            session,
+            applied: true,
+        })
     }
 
     pub fn issue_participant_credential(
@@ -270,6 +328,11 @@ impl RtcRuntime {
         rtc_session_id: &str,
         participant_id: &str,
     ) -> Result<RtcParticipantCredential, RtcError> {
+        validate_payload_size(
+            "participantId",
+            participant_id,
+            RTC_MAX_PARTICIPANT_ID_BYTES,
+        )?;
         let session = self.session(auth, rtc_session_id)?;
         let provider = self.rtc_provider_for_session(auth.tenant_id.as_str(), &session)?;
         provider
@@ -282,6 +345,7 @@ impl RtcRuntime {
         auth: &AuthContext,
         request: RtcCallbackRequest,
     ) -> Result<RtcCallbackEvent, RtcError> {
+        validate_rtc_callback_request_payload_size(&request)?;
         let provider = self
             .rtc_provider_for_callback(auth.tenant_id.as_str(), request.rtc_session_id.as_str())?;
         provider
@@ -357,6 +421,7 @@ impl RtcRuntime {
         rtc_session_id: &str,
         request: InviteRtcSessionRequest,
     ) -> Result<RtcSessionMutationOutcome, RtcError> {
+        validate_invite_rtc_session_request_payload_size(&request)?;
         self.ensure_session_state(auth.tenant_id.as_str(), rtc_session_id)?;
         let mut sessions = lock_rtc_mutex(&self.sessions, "sessions");
         let session = sessions
@@ -428,6 +493,7 @@ impl RtcRuntime {
         rtc_session_id: &str,
         request: UpdateRtcSessionRequest,
     ) -> Result<RtcSessionMutationOutcome, RtcError> {
+        validate_update_rtc_session_request_payload_size(&request)?;
         self.ensure_session_state(auth.tenant_id.as_str(), rtc_session_id)?;
         let mut sessions = lock_rtc_mutex(&self.sessions, "sessions");
         let session = sessions
@@ -481,6 +547,7 @@ impl RtcRuntime {
         rtc_session_id: &str,
         request: UpdateRtcSessionRequest,
     ) -> Result<RtcSessionMutationOutcome, RtcError> {
+        validate_update_rtc_session_request_payload_size(&request)?;
         self.ensure_session_state(auth.tenant_id.as_str(), rtc_session_id)?;
         let mut sessions = lock_rtc_mutex(&self.sessions, "sessions");
         let session = sessions
@@ -542,6 +609,7 @@ impl RtcRuntime {
         rtc_session_id: &str,
         request: UpdateRtcSessionRequest,
     ) -> Result<RtcSessionMutationOutcome, RtcError> {
+        validate_update_rtc_session_request_payload_size(&request)?;
         self.ensure_session_state(auth.tenant_id.as_str(), rtc_session_id)?;
         let mut sessions = lock_rtc_mutex(&self.sessions, "sessions");
         let session = sessions
@@ -592,6 +660,7 @@ impl RtcRuntime {
         rtc_session_id: &str,
         request: PostRtcSignalRequest,
     ) -> Result<RtcSignalEvent, RtcError> {
+        validate_post_rtc_signal_request_payload_size(&request)?;
         self.ensure_session_state(auth.tenant_id.as_str(), rtc_session_id)?;
         let mut sessions = lock_rtc_mutex(&self.sessions, "sessions");
         let session = sessions
@@ -906,6 +975,16 @@ impl RtcError {
         }
     }
 
+    fn payload_too_large(field: &'static str, max_bytes: usize, actual_bytes: usize) -> Self {
+        Self {
+            status: axum::http::StatusCode::PAYLOAD_TOO_LARGE,
+            code: "payload_too_large",
+            message: format!(
+                "payload too large for {field}: max={max_bytes} bytes, actual={actual_bytes} bytes"
+            ),
+        }
+    }
+
     pub fn status(&self) -> axum::http::StatusCode {
         self.status
     }
@@ -1056,10 +1135,15 @@ async fn create_session(
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<CreateRtcSessionRequest>,
-) -> Result<Json<RtcSession>, RtcError> {
+) -> Result<Json<RtcSessionMutationResponse>, RtcError> {
     let auth = resolve_auth_context(&headers)?;
     ensure_standalone_rtc_create_allowed(&request)?;
-    Ok(Json(state.runtime.create_session(&auth, request)?))
+    let request_key = rtc_create_request_key(&auth, &request);
+    let outcome = state.runtime.create_session_with_outcome(&auth, request)?;
+    Ok(Json(RtcSessionMutationResponse::from_outcome(
+        outcome,
+        request_key,
+    )))
 }
 
 async fn invite_session(
@@ -1067,14 +1151,19 @@ async fn invite_session(
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<InviteRtcSessionRequest>,
-) -> Result<Json<RtcSession>, RtcError> {
+) -> Result<Json<RtcSessionMutationResponse>, RtcError> {
     let auth = resolve_auth_context(&headers)?;
     ensure_standalone_rtc_session_allowed(&state.runtime, &auth, rtc_session_id.as_str())?;
-    Ok(Json(state.runtime.invite_session(
-        &auth,
-        rtc_session_id.as_str(),
-        request,
-    )?))
+    let request_key =
+        rtc_session_action_request_key(auth.tenant_id.as_str(), rtc_session_id.as_str(), "invite");
+    let outcome =
+        state
+            .runtime
+            .invite_session_with_outcome(&auth, rtc_session_id.as_str(), request)?;
+    Ok(Json(RtcSessionMutationResponse::from_outcome(
+        outcome,
+        request_key,
+    )))
 }
 
 async fn accept_session(
@@ -1082,14 +1171,19 @@ async fn accept_session(
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<UpdateRtcSessionRequest>,
-) -> Result<Json<RtcSession>, RtcError> {
+) -> Result<Json<RtcSessionMutationResponse>, RtcError> {
     let auth = resolve_auth_context(&headers)?;
     ensure_standalone_rtc_session_allowed(&state.runtime, &auth, rtc_session_id.as_str())?;
-    Ok(Json(state.runtime.accept_session(
-        &auth,
-        rtc_session_id.as_str(),
-        request,
-    )?))
+    let request_key =
+        rtc_session_action_request_key(auth.tenant_id.as_str(), rtc_session_id.as_str(), "accept");
+    let outcome =
+        state
+            .runtime
+            .accept_session_with_outcome(&auth, rtc_session_id.as_str(), request)?;
+    Ok(Json(RtcSessionMutationResponse::from_outcome(
+        outcome,
+        request_key,
+    )))
 }
 
 async fn reject_session(
@@ -1097,14 +1191,19 @@ async fn reject_session(
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<UpdateRtcSessionRequest>,
-) -> Result<Json<RtcSession>, RtcError> {
+) -> Result<Json<RtcSessionMutationResponse>, RtcError> {
     let auth = resolve_auth_context(&headers)?;
     ensure_standalone_rtc_session_allowed(&state.runtime, &auth, rtc_session_id.as_str())?;
-    Ok(Json(state.runtime.reject_session(
-        &auth,
-        rtc_session_id.as_str(),
-        request,
-    )?))
+    let request_key =
+        rtc_session_action_request_key(auth.tenant_id.as_str(), rtc_session_id.as_str(), "reject");
+    let outcome =
+        state
+            .runtime
+            .reject_session_with_outcome(&auth, rtc_session_id.as_str(), request)?;
+    Ok(Json(RtcSessionMutationResponse::from_outcome(
+        outcome,
+        request_key,
+    )))
 }
 
 async fn end_session(
@@ -1112,14 +1211,19 @@ async fn end_session(
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<UpdateRtcSessionRequest>,
-) -> Result<Json<RtcSession>, RtcError> {
+) -> Result<Json<RtcSessionMutationResponse>, RtcError> {
     let auth = resolve_auth_context(&headers)?;
     ensure_standalone_rtc_session_allowed(&state.runtime, &auth, rtc_session_id.as_str())?;
-    Ok(Json(state.runtime.end_session(
-        &auth,
-        rtc_session_id.as_str(),
-        request,
-    )?))
+    let request_key =
+        rtc_session_action_request_key(auth.tenant_id.as_str(), rtc_session_id.as_str(), "end");
+    let outcome =
+        state
+            .runtime
+            .end_session_with_outcome(&auth, rtc_session_id.as_str(), request)?;
+    Ok(Json(RtcSessionMutationResponse::from_outcome(
+        outcome,
+        request_key,
+    )))
 }
 
 async fn post_signal(
@@ -1187,6 +1291,108 @@ async fn get_provider_health(
     ))
 }
 
+fn validate_payload_size(
+    field: &'static str,
+    payload: &str,
+    max_bytes: usize,
+) -> Result<(), RtcError> {
+    let payload_len = payload.len();
+    if payload_len > max_bytes {
+        return Err(RtcError::payload_too_large(field, max_bytes, payload_len));
+    }
+    Ok(())
+}
+
+fn validate_create_rtc_session_request_payload_size(
+    request: &CreateRtcSessionRequest,
+) -> Result<(), RtcError> {
+    validate_payload_size(
+        "rtcSessionId",
+        request.rtc_session_id.as_str(),
+        RTC_MAX_SESSION_ID_BYTES,
+    )?;
+    if let Some(conversation_id) = request.conversation_id.as_deref() {
+        validate_payload_size(
+            "conversationId",
+            conversation_id,
+            RTC_MAX_CONVERSATION_ID_BYTES,
+        )?;
+    }
+    validate_payload_size("rtcMode", request.rtc_mode.as_str(), RTC_MAX_MODE_BYTES)?;
+    Ok(())
+}
+
+fn validate_invite_rtc_session_request_payload_size(
+    request: &InviteRtcSessionRequest,
+) -> Result<(), RtcError> {
+    if let Some(signaling_stream_id) = request.signaling_stream_id.as_deref() {
+        validate_payload_size(
+            "signalingStreamId",
+            signaling_stream_id,
+            RTC_MAX_SIGNALING_STREAM_ID_BYTES,
+        )?;
+    }
+    Ok(())
+}
+
+fn validate_update_rtc_session_request_payload_size(
+    request: &UpdateRtcSessionRequest,
+) -> Result<(), RtcError> {
+    if let Some(artifact_message_id) = request.artifact_message_id.as_deref() {
+        validate_payload_size(
+            "artifactMessageId",
+            artifact_message_id,
+            RTC_MAX_ARTIFACT_MESSAGE_ID_BYTES,
+        )?;
+    }
+    Ok(())
+}
+
+fn validate_post_rtc_signal_request_payload_size(
+    request: &PostRtcSignalRequest,
+) -> Result<(), RtcError> {
+    validate_payload_size(
+        "signalType",
+        request.signal_type.as_str(),
+        RTC_MAX_SIGNAL_TYPE_BYTES,
+    )?;
+    if let Some(schema_ref) = request.schema_ref.as_deref() {
+        validate_payload_size("schemaRef", schema_ref, RTC_MAX_SIGNAL_SCHEMA_REF_BYTES)?;
+    }
+    validate_payload_size(
+        "payload",
+        request.payload.as_str(),
+        RTC_MAX_SIGNAL_PAYLOAD_BYTES,
+    )?;
+    if let Some(signaling_stream_id) = request.signaling_stream_id.as_deref() {
+        validate_payload_size(
+            "signalingStreamId",
+            signaling_stream_id,
+            RTC_MAX_SIGNALING_STREAM_ID_BYTES,
+        )?;
+    }
+    Ok(())
+}
+
+fn validate_rtc_callback_request_payload_size(request: &RtcCallbackRequest) -> Result<(), RtcError> {
+    validate_payload_size(
+        "rtcSessionId",
+        request.rtc_session_id.as_str(),
+        RTC_MAX_SESSION_ID_BYTES,
+    )?;
+    validate_payload_size(
+        "callbackType",
+        request.callback_type.as_str(),
+        RTC_MAX_SIGNAL_TYPE_BYTES,
+    )?;
+    validate_payload_size(
+        "payloadJson",
+        request.payload_json.as_str(),
+        RTC_MAX_SIGNAL_PAYLOAD_BYTES,
+    )?;
+    Ok(())
+}
+
 fn built_in_object_storage_providers() -> Vec<(String, Arc<dyn ObjectStorageProvider>)> {
     vec![
         (
@@ -1218,6 +1424,21 @@ fn built_in_object_storage_providers() -> Vec<(String, Arc<dyn ObjectStorageProv
 
 fn rtc_scope_key(tenant_id: &str, rtc_session_id: &str) -> String {
     format!("{tenant_id}:{rtc_session_id}")
+}
+
+pub fn rtc_create_request_key(auth: &AuthContext, request: &CreateRtcSessionRequest) -> String {
+    format!(
+        "{}:{}:{}:create:{}",
+        auth.tenant_id, auth.actor_kind, auth.actor_id, request.rtc_session_id
+    )
+}
+
+pub fn rtc_session_action_request_key(
+    tenant_id: &str,
+    rtc_session_id: &str,
+    action: &str,
+) -> String {
+    format!("{tenant_id}:{action}:{rtc_session_id}")
 }
 
 fn ensure_standalone_rtc_create_allowed(request: &CreateRtcSessionRequest) -> Result<(), RtcError> {
@@ -1260,6 +1481,10 @@ fn rtc_session_matches_create_request(
 ) -> bool {
     session.rtc_session_id == request.rtc_session_id.as_str()
         && session.initiator_id == auth.actor_id.as_str()
+        && session
+            .initiator_kind
+            .as_deref()
+            .is_none_or(|initiator_kind| initiator_kind == auth.actor_kind.as_str())
         && session.conversation_id.as_ref() == request.conversation_id.as_ref()
         && session.rtc_mode == request.rtc_mode.as_str()
 }

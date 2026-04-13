@@ -1,7 +1,8 @@
 use im_auth_context::AuthContext;
 use im_domain_core::conversation::MembershipRole;
 use projection_service::{
-    MessageReactionCountView, RealtimeFanoutTarget, TimelineProjectionService, TimelineViewEntry,
+    MessageReactionCountView, NotificationRecipientView, RealtimeFanoutTarget,
+    TimelineProjectionService, TimelineViewEntry,
 };
 use std::thread::sleep;
 use std::time::Duration;
@@ -1032,14 +1033,17 @@ fn test_realtime_fanout_targets_for_principals_return_registered_principal_devic
         vec![
             RealtimeFanoutTarget {
                 principal_id: "u_a".into(),
+                principal_kind: None,
                 device_id: "d_pad".into(),
             },
             RealtimeFanoutTarget {
                 principal_id: "u_a".into(),
+                principal_kind: None,
                 device_id: "d_watch".into(),
             },
             RealtimeFanoutTarget {
                 principal_id: "u_b".into(),
+                principal_kind: None,
                 device_id: "d_phone".into(),
             },
         ]
@@ -1114,7 +1118,10 @@ fn test_device_sync_fanout_targets_for_conversation_include_active_members_and_f
     let targets = service.device_sync_fanout_targets_for_conversation(
         "t_demo",
         "c_sync_targets",
-        vec!["u_removed".to_string()],
+        vec![NotificationRecipientView {
+            principal_id: "u_removed".into(),
+            principal_kind: "user".into(),
+        }],
     );
 
     assert_eq!(
@@ -1122,18 +1129,22 @@ fn test_device_sync_fanout_targets_for_conversation_include_active_members_and_f
         vec![
             RealtimeFanoutTarget {
                 principal_id: "u_member".into(),
+                principal_kind: Some("user".into()),
                 device_id: "d_watch".into(),
             },
             RealtimeFanoutTarget {
                 principal_id: "u_owner".into(),
+                principal_kind: Some("user".into()),
                 device_id: "d_pad".into(),
             },
             RealtimeFanoutTarget {
                 principal_id: "u_owner".into(),
+                principal_kind: Some("user".into()),
                 device_id: "d_phone".into(),
             },
             RealtimeFanoutTarget {
                 principal_id: "u_removed".into(),
+                principal_kind: Some("user".into()),
                 device_id: "d_removed".into(),
             },
         ]
@@ -1241,8 +1252,7 @@ fn test_active_conversation_principal_ids_from_auth_context_returns_current_acti
 }
 
 #[test]
-fn test_message_posted_notification_principal_ids_from_auth_context_includes_shared_linked_members()
-{
+fn test_message_posted_notification_recipients_from_auth_context_include_shared_linked_members() {
     let service = TimelineProjectionService::default();
 
     let owner_joined = im_domain_events::CommitEnvelope::minimal(
@@ -1345,16 +1355,408 @@ fn test_message_posted_notification_principal_ids_from_auth_context_includes_sha
     );
     assert_eq!(
         service
-            .message_posted_notification_principal_ids_from_auth_context(
+            .message_posted_notification_recipients_from_auth_context(
                 &auth,
-                "c_notification_targets",
+                "c_notification_targets"
             )
             .expect("active member should resolve shared notification principal ids"),
         vec![
-            "u_member".to_string(),
-            "u_owner".to_string(),
-            "u_shared_external".to_string()
+            projection_service::NotificationRecipientView {
+                principal_id: "u_member".into(),
+                principal_kind: "user".into(),
+            },
+            projection_service::NotificationRecipientView {
+                principal_id: "u_owner".into(),
+                principal_kind: "user".into(),
+            },
+            projection_service::NotificationRecipientView {
+                principal_id: "u_shared_external".into(),
+                principal_kind: "external_user".into(),
+            }
         ]
+    );
+}
+
+#[test]
+fn test_member_directory_and_notification_recipients_preserve_same_actor_id_across_principal_kinds()
+{
+    let service = TimelineProjectionService::default();
+
+    let owner_joined = im_domain_events::CommitEnvelope::minimal(
+        "evt_typed_member_directory_owner",
+        "t_demo",
+        "conversation.member_joined",
+        "conversation",
+        "c_typed_member_directory",
+        1,
+    )
+    .with_payload(
+        "conversation.member.v1",
+        r#"{
+            "tenantId":"t_demo",
+            "conversationId":"c_typed_member_directory",
+            "memberId":"cm_typed_member_directory_owner",
+            "principalId":"u_dual",
+            "principalKind":"user",
+            "role":"owner",
+            "state":"joined",
+            "invitedBy":null,
+            "joinedAt":"2026-04-07T11:00:00Z",
+            "removedAt":null,
+            "attributes":{}
+        }"#,
+    );
+    let agent_joined = im_domain_events::CommitEnvelope::minimal(
+        "evt_typed_member_directory_agent",
+        "t_demo",
+        "conversation.member_joined",
+        "conversation",
+        "c_typed_member_directory",
+        2,
+    )
+    .with_payload(
+        "conversation.member.v1",
+        r#"{
+            "tenantId":"t_demo",
+            "conversationId":"c_typed_member_directory",
+            "memberId":"cm_typed_member_directory_agent",
+            "principalId":"u_dual",
+            "principalKind":"agent",
+            "role":"member",
+            "state":"joined",
+            "invitedBy":"u_dual",
+            "joinedAt":"2026-04-07T11:01:00Z",
+            "removedAt":null,
+            "attributes":{}
+        }"#,
+    );
+
+    for event in [owner_joined, agent_joined] {
+        service
+            .apply(&event)
+            .expect("typed member projection should succeed");
+    }
+
+    let auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_dual".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_dual_user".into()),
+        device_id: Some("d_dual_user".into()),
+        permissions: Default::default(),
+    };
+
+    let directory = service
+        .member_directory_from_auth_context(&auth, "c_typed_member_directory")
+        .expect("typed user member should still access directory");
+    assert_eq!(directory.len(), 2);
+    assert!(directory.iter().any(|member| {
+        member.principal_id == "u_dual"
+            && member.principal_kind == "user"
+            && member.role == MembershipRole::Owner
+    }));
+    assert!(directory.iter().any(|member| {
+        member.principal_id == "u_dual"
+            && member.principal_kind == "agent"
+            && member.role == MembershipRole::Member
+    }));
+
+    assert_eq!(
+        service
+            .message_posted_notification_recipients_from_auth_context(
+                &auth,
+                "c_typed_member_directory",
+            )
+            .expect("typed user member should still resolve typed recipients"),
+        vec![
+            NotificationRecipientView {
+                principal_id: "u_dual".into(),
+                principal_kind: "agent".into(),
+            },
+            NotificationRecipientView {
+                principal_id: "u_dual".into(),
+                principal_kind: "user".into(),
+            }
+        ]
+    );
+}
+
+#[test]
+fn test_typed_realtime_recipients_exclude_non_member_devices_sharing_same_actor_id() {
+    let service = TimelineProjectionService::default();
+
+    let owner_joined = im_domain_events::CommitEnvelope::minimal(
+        "evt_typed_realtime_targets_owner",
+        "t_demo",
+        "conversation.member_joined",
+        "conversation",
+        "c_typed_realtime_targets",
+        1,
+    )
+    .with_payload(
+        "conversation.member.v1",
+        r#"{
+            "tenantId":"t_demo",
+            "conversationId":"c_typed_realtime_targets",
+            "memberId":"cm_typed_realtime_targets_owner",
+            "principalId":"u_owner",
+            "principalKind":"user",
+            "role":"owner",
+            "state":"joined",
+            "invitedBy":null,
+            "joinedAt":"2026-04-07T12:00:00Z",
+            "removedAt":null,
+            "attributes":{}
+        }"#,
+    );
+    let member_joined = im_domain_events::CommitEnvelope::minimal(
+        "evt_typed_realtime_targets_member",
+        "t_demo",
+        "conversation.member_joined",
+        "conversation",
+        "c_typed_realtime_targets",
+        2,
+    )
+    .with_payload(
+        "conversation.member.v1",
+        r#"{
+            "tenantId":"t_demo",
+            "conversationId":"c_typed_realtime_targets",
+            "memberId":"cm_typed_realtime_targets_member",
+            "principalId":"u_dual",
+            "principalKind":"user",
+            "role":"member",
+            "state":"joined",
+            "invitedBy":"u_owner",
+            "joinedAt":"2026-04-07T12:01:00Z",
+            "removedAt":null,
+            "attributes":{}
+        }"#,
+    );
+
+    for event in [owner_joined, member_joined] {
+        service
+            .apply(&event)
+            .expect("typed realtime target projection should succeed");
+    }
+
+    service.register_device_for_principal_kind("t_demo", "u_owner", "user", "d_owner");
+    service.register_device_for_principal_kind("t_demo", "u_dual", "user", "d_dual_user");
+    service.register_device_for_principal_kind("t_demo", "u_dual", "agent", "d_dual_agent");
+
+    let auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_owner".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_owner".into()),
+        device_id: Some("d_owner".into()),
+        permissions: Default::default(),
+    };
+
+    let recipients = service
+        .active_conversation_principal_recipients_from_auth_context(
+            &auth,
+            "c_typed_realtime_targets",
+        )
+        .expect("owner should resolve typed realtime recipients");
+    assert_eq!(
+        recipients,
+        vec![
+            NotificationRecipientView {
+                principal_id: "u_dual".into(),
+                principal_kind: "user".into(),
+            },
+            NotificationRecipientView {
+                principal_id: "u_owner".into(),
+                principal_kind: "user".into(),
+            }
+        ]
+    );
+
+    assert_eq!(
+        service.realtime_fanout_targets_for_recipients_from_auth_context(&auth, recipients),
+        vec![
+            RealtimeFanoutTarget {
+                principal_id: "u_dual".into(),
+                principal_kind: Some("user".into()),
+                device_id: "d_dual_user".into(),
+            },
+            RealtimeFanoutTarget {
+                principal_id: "u_owner".into(),
+                principal_kind: Some("user".into()),
+                device_id: "d_owner".into(),
+            }
+        ]
+    );
+}
+
+#[test]
+fn test_device_sync_state_isolated_for_same_actor_and_device_across_principal_kinds() {
+    let service = TimelineProjectionService::default();
+
+    let owner_joined = im_domain_events::CommitEnvelope::minimal(
+        "evt_typed_device_scope_owner",
+        "t_demo",
+        "conversation.member_joined",
+        "conversation",
+        "c_typed_device_scope",
+        1,
+    )
+    .with_payload(
+        "conversation.member.v1",
+        r#"{
+            "tenantId":"t_demo",
+            "conversationId":"c_typed_device_scope",
+            "memberId":"cm_typed_device_scope_owner",
+            "principalId":"u_owner",
+            "principalKind":"user",
+            "role":"owner",
+            "state":"joined",
+            "invitedBy":null,
+            "joinedAt":"2026-04-07T13:00:00Z",
+            "removedAt":null,
+            "attributes":{}
+        }"#,
+    );
+    let user_member_joined = im_domain_events::CommitEnvelope::minimal(
+        "evt_typed_device_scope_user_member",
+        "t_demo",
+        "conversation.member_joined",
+        "conversation",
+        "c_typed_device_scope",
+        2,
+    )
+    .with_payload(
+        "conversation.member.v1",
+        r#"{
+            "tenantId":"t_demo",
+            "conversationId":"c_typed_device_scope",
+            "memberId":"cm_typed_device_scope_user_member",
+            "principalId":"u_dual",
+            "principalKind":"user",
+            "role":"member",
+            "state":"joined",
+            "invitedBy":"u_owner",
+            "joinedAt":"2026-04-07T13:01:00Z",
+            "removedAt":null,
+            "attributes":{}
+        }"#,
+    );
+
+    for event in [owner_joined, user_member_joined] {
+        service
+            .apply(&event)
+            .expect("typed device scope projection should succeed");
+    }
+
+    service.register_device_for_principal_kind("t_demo", "u_owner", "user", "d_owner");
+    service.register_device_for_principal_kind("t_demo", "u_dual", "user", "d_shared");
+    service.register_device_for_principal_kind("t_demo", "u_dual", "agent", "d_shared");
+
+    let user_auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_dual".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_typed_device_scope_user".into()),
+        device_id: Some("d_shared".into()),
+        permissions: Default::default(),
+    };
+    let agent_auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_dual".into(),
+        actor_kind: "agent".into(),
+        session_id: Some("s_typed_device_scope_agent".into()),
+        device_id: Some("d_shared".into()),
+        permissions: Default::default(),
+    };
+
+    let user_devices = service.registered_devices_from_auth_context(&user_auth);
+    assert_eq!(user_devices.len(), 1);
+    assert_eq!(user_devices[0].device_id, "d_shared");
+    assert_eq!(user_devices[0].principal_kind.as_deref(), Some("user"));
+
+    let agent_devices = service.registered_devices_from_auth_context(&agent_auth);
+    assert_eq!(agent_devices.len(), 1);
+    assert_eq!(agent_devices[0].device_id, "d_shared");
+    assert_eq!(agent_devices[0].principal_kind.as_deref(), Some("agent"));
+
+    assert_eq!(
+        service.device_sync_fanout_targets_for_conversation(
+            "t_demo",
+            "c_typed_device_scope",
+            vec![],
+        ),
+        vec![
+            RealtimeFanoutTarget {
+                principal_id: "u_dual".into(),
+                principal_kind: Some("user".into()),
+                device_id: "d_shared".into(),
+            },
+            RealtimeFanoutTarget {
+                principal_id: "u_owner".into(),
+                principal_kind: Some("user".into()),
+                device_id: "d_owner".into(),
+            },
+        ]
+    );
+
+    let message_posted = im_domain_events::CommitEnvelope::minimal(
+        "evt_typed_device_scope_message",
+        "t_demo",
+        "message.posted",
+        "conversation",
+        "c_typed_device_scope",
+        3,
+    )
+    .with_payload(
+        "message.posted.v1",
+        r#"{
+            "tenantId":"t_demo",
+            "conversationId":"c_typed_device_scope",
+            "messageId":"msg_typed_device_scope_1",
+            "messageSeq":1,
+            "sender":{"id":"u_owner","kind":"user","memberId":"cm_typed_device_scope_owner","deviceId":"d_owner","sessionId":"s_typed_device_scope_owner","metadata":{}},
+            "messageType":"standard",
+            "deliveryMode":"discrete",
+            "clientMsgId":"client_typed_device_scope_1",
+            "streamSessionId":null,
+            "rtcSessionId":null,
+            "body":{"summary":"typed-device-scope","parts":[{"kind":"text","text":"typed-device-scope"}],"renderHints":{}},
+            "attributes":{},
+            "metadata":{},
+            "occurredAt":"2026-04-07T13:02:00Z",
+            "committedAt":"2026-04-07T13:02:00Z"
+        }"#,
+    );
+
+    service
+        .apply(&message_posted)
+        .expect("typed device scope message projection should succeed");
+
+    let user_feed = service
+        .device_sync_feed_from_auth_context(&user_auth, "d_shared", Some(0))
+        .expect("user feed should remain accessible");
+    assert_eq!(user_feed.len(), 1);
+    assert_eq!(
+        user_feed[0].message_id.as_deref(),
+        Some("msg_typed_device_scope_1")
+    );
+    assert_eq!(
+        service
+            .latest_device_sync_seq_from_auth_context(&user_auth, "d_shared")
+            .expect("user seq should remain accessible"),
+        1
+    );
+
+    let agent_feed = service
+        .device_sync_feed_from_auth_context(&agent_auth, "d_shared", Some(0))
+        .expect("agent feed should remain accessible");
+    assert!(agent_feed.is_empty());
+    assert_eq!(
+        service
+            .latest_device_sync_seq_from_auth_context(&agent_auth, "d_shared")
+            .expect("agent seq should remain accessible"),
+        0
     );
 }
 

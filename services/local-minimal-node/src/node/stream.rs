@@ -4,10 +4,16 @@ pub(super) async fn open_stream(
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<OpenStreamRequest>,
-) -> Result<Json<im_domain_core::stream::StreamSession>, ApiError> {
+) -> Result<Json<StreamSessionMutationResponse>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
     access::ensure_stream_open_access(&state, &auth, &request)?;
-    Ok(Json(state.streaming_runtime.open_stream(&auth, request)?))
+    let request_key = stream_open_request_key(&auth, request.stream_id.as_str());
+    Ok(Json(StreamSessionMutationResponse::from_outcome(
+        state
+            .streaming_runtime
+            .open_stream_with_outcome(&auth, request)?,
+        request_key,
+    )))
 }
 
 pub(super) async fn checkpoint_stream(
@@ -15,7 +21,7 @@ pub(super) async fn checkpoint_stream(
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<CheckpointStreamRequest>,
-) -> Result<Json<im_domain_core::stream::StreamSession>, ApiError> {
+) -> Result<Json<StreamSessionMutationResponse>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
     access::ensure_stream_session_write_access(
         &state,
@@ -23,11 +29,15 @@ pub(super) async fn checkpoint_stream(
         stream_id.as_str(),
         "stream.checkpoint",
     )?;
-    Ok(Json(state.streaming_runtime.checkpoint_stream(
-        &auth,
-        stream_id.as_str(),
-        request,
-    )?))
+    let request_key = stream_checkpoint_request_key(&auth, stream_id.as_str(), request.frame_seq);
+    Ok(Json(StreamSessionMutationResponse::from_outcome(
+        state.streaming_runtime.checkpoint_stream_with_outcome(
+            &auth,
+            stream_id.as_str(),
+            request,
+        )?,
+        request_key,
+    )))
 }
 
 pub(super) async fn append_stream_frame(
@@ -35,14 +45,21 @@ pub(super) async fn append_stream_frame(
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<AppendStreamFrameRequest>,
-) -> Result<Json<im_domain_core::stream::StreamFrame>, ApiError> {
+) -> Result<Json<StreamFrameMutationResponse>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
     access::ensure_stream_session_write_access(&state, &auth, stream_id.as_str(), "stream.append")?;
-    let frame = state
-        .streaming_runtime
-        .append_frame(&auth, stream_id.as_str(), request)?;
-    effects::publish_realtime_stream_frame_event(&state, &auth, &frame)?;
-    Ok(Json(frame))
+    let request_key = stream_append_request_key(&auth, stream_id.as_str(), request.frame_seq);
+    let outcome =
+        state
+            .streaming_runtime
+            .append_frame_with_outcome(&auth, stream_id.as_str(), request)?;
+    if outcome.applied {
+        effects::publish_realtime_stream_frame_event(&state, &auth, &outcome.frame)?;
+    }
+    Ok(Json(StreamFrameMutationResponse::from_outcome(
+        outcome,
+        request_key,
+    )))
 }
 
 pub(super) async fn list_stream_frames(
@@ -65,7 +82,7 @@ pub(super) async fn complete_stream(
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<CompleteStreamRequest>,
-) -> Result<Json<im_domain_core::stream::StreamSession>, ApiError> {
+) -> Result<Json<StreamSessionMutationResponse>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
     access::ensure_stream_session_write_access(
         &state,
@@ -73,17 +90,24 @@ pub(super) async fn complete_stream(
         stream_id.as_str(),
         "stream.complete",
     )?;
-    let session = state
-        .streaming_runtime
-        .complete_stream(&auth, stream_id.as_str(), request)?;
-    effects::publish_realtime_stream_lifecycle_event(
-        &state,
-        &auth,
-        &session,
-        "stream.completed",
-        None,
-    )?;
-    Ok(Json(session))
+    let request_key = stream_complete_request_key(&auth, stream_id.as_str());
+    let outcome =
+        state
+            .streaming_runtime
+            .complete_stream_with_outcome(&auth, stream_id.as_str(), request)?;
+    if outcome.applied {
+        effects::publish_realtime_stream_lifecycle_event(
+            &state,
+            &auth,
+            &outcome.session,
+            "stream.completed",
+            None,
+        )?;
+    }
+    Ok(Json(StreamSessionMutationResponse::from_outcome(
+        outcome,
+        request_key,
+    )))
 }
 
 pub(super) async fn abort_stream(
@@ -91,19 +115,25 @@ pub(super) async fn abort_stream(
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<AbortStreamRequest>,
-) -> Result<Json<im_domain_core::stream::StreamSession>, ApiError> {
+) -> Result<Json<StreamSessionMutationResponse>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
     access::ensure_stream_session_write_access(&state, &auth, stream_id.as_str(), "stream.abort")?;
-    let abort_reason = request.reason.clone();
-    let session = state
-        .streaming_runtime
-        .abort_stream(&auth, stream_id.as_str(), request)?;
-    effects::publish_realtime_stream_lifecycle_event(
-        &state,
-        &auth,
-        &session,
-        "stream.aborted",
-        abort_reason,
-    )?;
-    Ok(Json(session))
+    let request_key = stream_abort_request_key(&auth, stream_id.as_str());
+    let outcome =
+        state
+            .streaming_runtime
+            .abort_stream_with_outcome(&auth, stream_id.as_str(), request)?;
+    if outcome.applied {
+        effects::publish_realtime_stream_lifecycle_event(
+            &state,
+            &auth,
+            &outcome.session,
+            "stream.aborted",
+            outcome.session.abort_reason.clone(),
+        )?;
+    }
+    Ok(Json(StreamSessionMutationResponse::from_outcome(
+        outcome,
+        request_key,
+    )))
 }

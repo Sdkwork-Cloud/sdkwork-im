@@ -6,9 +6,37 @@ struct RecoveredConversationCreatedPayload {
     conversation_type: String,
     business_type: Option<String>,
     business_id: Option<String>,
+    parent_conversation_id: Option<String>,
+    root_message_id: Option<String>,
+    direct_chat: Option<RecoveredDirectChatBindingPayload>,
+    agent_dialog: Option<RecoveredAgentDialogCreatePayload>,
+    system_channel: Option<RecoveredSystemChannelCreatePayload>,
     source: Option<ChangeAgentHandoffStatusView>,
     target: Option<ChangeAgentHandoffStatusView>,
     handoff: Option<RecoveredConversationHandoffPayload>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RecoveredAgentDialogCreatePayload {
+    agent_id: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RecoveredSystemChannelCreatePayload {
+    subscriber_id: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RecoveredDirectChatBindingPayload {
+    direct_chat_id: String,
+    anchor_actor_id: String,
+    anchor_actor_kind: String,
+    peer_actor_id: String,
+    peer_actor_kind: String,
+    pair_hash: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -17,6 +45,139 @@ struct RecoveredConversationHandoffPayload {
     session_id: String,
     reason: Option<String>,
     status: String,
+}
+
+fn generic_create_replay_record_from_recovered_payload(
+    payload: &RecoveredConversationCreatedPayload,
+    envelope: &CommitEnvelope,
+) -> Option<GenericConversationCreateReplayRecord> {
+    if payload.business_type.is_some()
+        || payload.business_id.is_some()
+        || payload.source.is_some()
+        || payload.target.is_some()
+        || payload.handoff.is_some()
+    {
+        return None;
+    }
+
+    match payload.conversation_type.as_str() {
+        "group" | "direct" => Some(GenericConversationCreateReplayRecord {
+            creator_id: envelope.actor.actor_id.clone(),
+            creator_kind: envelope.actor.actor_kind.clone(),
+            requested_kind: payload.conversation_type.clone(),
+            event_id: envelope.event_id.clone(),
+        }),
+        _ => None,
+    }
+}
+
+fn agent_dialog_create_replay_record_from_recovered_payload(
+    payload: &RecoveredConversationCreatedPayload,
+    envelope: &CommitEnvelope,
+) -> Option<AgentDialogCreateReplayRecord> {
+    match (
+        payload.conversation_type.as_str(),
+        payload.agent_dialog.as_ref(),
+    ) {
+        ("agent_dialog", Some(agent_dialog)) => Some(AgentDialogCreateReplayRecord {
+            requester_id: envelope.actor.actor_id.clone(),
+            requester_kind: envelope.actor.actor_kind.clone(),
+            agent_id: agent_dialog.agent_id.clone(),
+            event_id: envelope.event_id.clone(),
+        }),
+        _ => None,
+    }
+}
+
+fn system_channel_create_replay_record_from_recovered_payload(
+    payload: &RecoveredConversationCreatedPayload,
+    envelope: &CommitEnvelope,
+) -> Option<SystemChannelCreateReplayRecord> {
+    match (
+        payload.conversation_type.as_str(),
+        payload.system_channel.as_ref(),
+    ) {
+        ("system_channel", Some(system_channel)) => Some(SystemChannelCreateReplayRecord {
+            requester_id: envelope.actor.actor_id.clone(),
+            requester_kind: envelope.actor.actor_kind.clone(),
+            subscriber_id: system_channel.subscriber_id.clone(),
+            event_id: envelope.event_id.clone(),
+        }),
+        _ => None,
+    }
+}
+
+fn agent_handoff_create_replay_record_from_recovered_payload(
+    payload: &RecoveredConversationCreatedPayload,
+    envelope: &CommitEnvelope,
+) -> Option<AgentHandoffCreateReplayRecord> {
+    match (
+        payload.conversation_type.as_str(),
+        payload.source.as_ref(),
+        payload.target.as_ref(),
+        payload.handoff.as_ref(),
+    ) {
+        ("agent_handoff", Some(source), Some(target), Some(handoff)) => {
+            Some(AgentHandoffCreateReplayRecord {
+                source_id: source.id.clone(),
+                source_kind: source.kind.clone(),
+                target_id: target.id.clone(),
+                target_kind: target.kind.clone(),
+                handoff_session_id: handoff.session_id.clone(),
+                handoff_reason: handoff.reason.clone(),
+                event_id: envelope.event_id.clone(),
+            })
+        }
+        _ => None,
+    }
+}
+
+fn thread_create_replay_record_from_recovered_payload(
+    payload: &RecoveredConversationCreatedPayload,
+    envelope: &CommitEnvelope,
+) -> Option<ThreadConversationCreateReplayRecord> {
+    match (
+        payload.conversation_type.as_str(),
+        payload.parent_conversation_id.as_ref(),
+        payload.root_message_id.as_ref(),
+    ) {
+        ("thread", Some(parent_conversation_id), Some(root_message_id)) => {
+            Some(ThreadConversationCreateReplayRecord {
+                creator_id: envelope.actor.actor_id.clone(),
+                creator_kind: envelope.actor.actor_kind.clone(),
+                parent_conversation_id: parent_conversation_id.clone(),
+                root_message_id: root_message_id.clone(),
+                event_id: envelope.event_id.clone(),
+            })
+        }
+        _ => None,
+    }
+}
+
+fn direct_chat_binding_replay_record_from_recovered_payload(
+    payload: &RecoveredConversationCreatedPayload,
+    envelope: &CommitEnvelope,
+) -> Option<DirectChatBindingReplayRecord> {
+    match (
+        payload.conversation_type.as_str(),
+        payload.business_type.as_deref(),
+        payload.business_id.as_ref(),
+        payload.direct_chat.as_ref(),
+    ) {
+        ("direct", Some("direct_chat"), Some(_business_id), Some(direct_chat)) => {
+            Some(DirectChatBindingReplayRecord {
+                bound_by: envelope.actor.actor_id.clone(),
+                binder_kind: envelope.actor.actor_kind.clone(),
+                direct_chat_id: direct_chat.direct_chat_id.clone(),
+                anchor_actor_id: direct_chat.anchor_actor_id.clone(),
+                anchor_actor_kind: direct_chat.anchor_actor_kind.clone(),
+                peer_actor_id: direct_chat.peer_actor_id.clone(),
+                peer_actor_kind: direct_chat.peer_actor_kind.clone(),
+                event_id: envelope.event_id.clone(),
+            })
+        }
+        _ => None,
+    }
 }
 
 impl<J> ConversationRuntime<J>
@@ -63,7 +224,7 @@ where
                     envelope.event_id
                 ))
             })?;
-        let business_binding = match (payload.business_type, payload.business_id) {
+        let business_binding = match (payload.business_type.clone(), payload.business_id.clone()) {
             (Some(business_type), Some(business_id)) => Some(ConversationBusinessBinding {
                 business_type,
                 business_id,
@@ -82,21 +243,104 @@ where
         });
         if let (Some(binding), Some(business_scope_key)) =
             (business_binding.as_ref(), business_scope_key.as_ref())
-        {
-            if let Some(existing_conversation_id) =
+            && let Some(existing_conversation_id) =
                 state.business_index.get(business_scope_key.as_str())
-                && existing_conversation_id != envelope.scope_id.as_str()
-            {
-                return Err(RuntimeError::Conflict(format!(
-                    "replayed business binding {}/{} already mapped to conversation {existing_conversation_id}",
-                    binding.business_type, binding.business_id
-                )));
-            }
+            && existing_conversation_id != envelope.scope_id.as_str()
+        {
+            return Err(RuntimeError::Conflict(format!(
+                "replayed business binding {}/{} already mapped to conversation {existing_conversation_id}",
+                binding.business_type, binding.business_id
+            )));
         }
 
         {
+            let generic_create_record =
+                generic_create_replay_record_from_recovered_payload(&payload, envelope);
+            let agent_dialog_create_record =
+                agent_dialog_create_replay_record_from_recovered_payload(&payload, envelope);
+            let system_channel_create_record =
+                system_channel_create_replay_record_from_recovered_payload(&payload, envelope);
+            let agent_handoff_create_record =
+                agent_handoff_create_replay_record_from_recovered_payload(&payload, envelope);
+            let thread_create_record =
+                thread_create_replay_record_from_recovered_payload(&payload, envelope);
+            let direct_chat_binding_record =
+                direct_chat_binding_replay_record_from_recovered_payload(&payload, envelope);
             let conversation = state.conversations.entry(scope_key).or_default();
-            conversation.aggregate = ConversationAggregateState::new(payload.conversation_type);
+            conversation.aggregate =
+                ConversationAggregateState::new(payload.conversation_type.clone());
+            if let Some(record) = generic_create_record {
+                if let Some(existing) = conversation.generic_create_request.as_ref() {
+                    if existing != &record {
+                        return Err(RuntimeError::Conflict(format!(
+                            "replayed generic create request for conversation {} conflicts with existing replay fence",
+                            envelope.scope_id
+                        )));
+                    }
+                } else {
+                    conversation.generic_create_request = Some(record);
+                }
+            }
+            if let Some(record) = agent_dialog_create_record {
+                if let Some(existing) = conversation.agent_dialog_create_request.as_ref() {
+                    if existing != &record {
+                        return Err(RuntimeError::Conflict(format!(
+                            "replayed agent dialog create request for conversation {} conflicts with existing replay fence",
+                            envelope.scope_id
+                        )));
+                    }
+                } else {
+                    conversation.agent_dialog_create_request = Some(record);
+                }
+            }
+            if let Some(record) = system_channel_create_record {
+                if let Some(existing) = conversation.system_channel_create_request.as_ref() {
+                    if existing != &record {
+                        return Err(RuntimeError::Conflict(format!(
+                            "replayed system channel create request for conversation {} conflicts with existing replay fence",
+                            envelope.scope_id
+                        )));
+                    }
+                } else {
+                    conversation.system_channel_create_request = Some(record);
+                }
+            }
+            if let Some(record) = agent_handoff_create_record {
+                if let Some(existing) = conversation.agent_handoff_create_request.as_ref() {
+                    if existing != &record {
+                        return Err(RuntimeError::Conflict(format!(
+                            "replayed agent handoff create request for conversation {} conflicts with existing replay fence",
+                            envelope.scope_id
+                        )));
+                    }
+                } else {
+                    conversation.agent_handoff_create_request = Some(record);
+                }
+            }
+            if let Some(record) = thread_create_record {
+                if let Some(existing) = conversation.thread_create_request.as_ref() {
+                    if existing != &record {
+                        return Err(RuntimeError::Conflict(format!(
+                            "replayed thread create request for conversation {} conflicts with existing replay fence",
+                            envelope.scope_id
+                        )));
+                    }
+                } else {
+                    conversation.thread_create_request = Some(record);
+                }
+            }
+            if let Some(record) = direct_chat_binding_record {
+                if let Some(existing) = conversation.direct_chat_binding_request.as_ref() {
+                    if existing != &record {
+                        return Err(RuntimeError::Conflict(format!(
+                            "replayed direct chat binding request for conversation {} conflicts with existing replay fence",
+                            envelope.scope_id
+                        )));
+                    }
+                } else {
+                    conversation.direct_chat_binding_request = Some(record);
+                }
+            }
             if let Some(binding) = business_binding.clone() {
                 conversation
                     .aggregate
@@ -369,6 +613,29 @@ where
                         ))
                     })?;
             conversation.message_log.store_posted(message.clone());
+            if let Some(request_key) = post_message_request_key_from_message(&message) {
+                let replay_record = PostedMessageReplayRecord {
+                    sender_id: message.sender.id.clone(),
+                    sender_kind: message.sender.kind.clone(),
+                    message_type: message.message_type.clone(),
+                    body: message.body.clone(),
+                    message_id: message.message_id.clone(),
+                };
+                if let Some(existing) = conversation
+                    .posted_message_requests
+                    .get(request_key.as_str())
+                {
+                    if existing != &replay_record {
+                        return Err(RuntimeError::Conflict(format!(
+                            "cannot replay message.posted with conflicting idempotency key {request_key}"
+                        )));
+                    }
+                } else {
+                    conversation
+                        .posted_message_requests
+                        .insert(request_key, replay_record);
+                }
+            }
         }
         state.message_locator.register_message(&message);
         Ok(())
@@ -599,6 +866,11 @@ mod tests {
             conversation_type: "group".into(),
             business_type: None,
             business_id: None,
+            parent_conversation_id: None,
+            root_message_id: None,
+            direct_chat: None,
+            agent_dialog: None,
+            system_channel: None,
             source: None,
             target: None,
             handoff: None,

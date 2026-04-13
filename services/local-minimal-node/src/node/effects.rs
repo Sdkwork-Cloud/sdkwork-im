@@ -74,6 +74,10 @@ fn finalize_post_message_with_side_effects(
     summary: Option<String>,
     result: PostMessageResult,
 ) -> Result<PostMessageResult, ApiError> {
+    if !result.is_applied() {
+        return Ok(result);
+    }
+
     let conversation_scope_id = conversation_id.clone();
 
     fanout_message_notifications(
@@ -87,10 +91,10 @@ fn finalize_post_message_with_side_effects(
         summary.clone(),
     );
 
-    state.audit_runtime.record_anchor(
+    let _ = state.audit_runtime.record_anchor(
         auth,
         RecordAuditAnchor {
-            record_id: format!("audit_{}", result.message_id),
+            record_id: stable_local_audit_record_id("audit_", result.message_id.as_str()),
             aggregate_type: "conversation".into(),
             aggregate_id: conversation_id,
             action: "message.posted".into(),
@@ -158,12 +162,12 @@ pub(super) fn publish_realtime_conversation_message_event(
     event_type: &str,
     payload: String,
 ) -> Result<(), ApiError> {
-    let principals =
-        conversation_member_principal_ids_from_auth_context(state, auth, conversation_id)?;
-    publish_realtime_event_to_principals(
+    let recipients =
+        conversation_member_principal_recipients_from_auth_context(state, auth, conversation_id)?;
+    publish_realtime_event_to_recipients(
         state,
         auth,
-        principals,
+        recipients,
         "conversation",
         conversation_id,
         event_type,
@@ -179,15 +183,15 @@ pub(super) fn publish_realtime_membership_event(
     conversation_id: &str,
     event_type: &str,
     payload: String,
-    base_principals: BTreeSet<String>,
-    additional_principals: BTreeSet<String>,
+    base_recipients: BTreeSet<NotificationRecipientView>,
+    additional_recipients: BTreeSet<NotificationRecipientView>,
 ) -> Result<(), ApiError> {
-    let mut principals = base_principals;
-    principals.extend(additional_principals);
-    publish_realtime_event_to_principals(
+    let mut recipients = base_recipients;
+    recipients.extend(additional_recipients);
+    publish_realtime_event_to_recipients(
         state,
         auth,
-        principals,
+        recipients,
         "conversation",
         conversation_id,
         event_type,
@@ -205,16 +209,16 @@ pub(super) fn publish_realtime_agent_handoff_status_changed_event(
 ) -> Result<(), ApiError> {
     let changed_at = handoff_lifecycle_changed_at(current_state)
         .expect("agent handoff lifecycle state should expose a changed timestamp");
-    let principals = conversation_member_principal_ids_from_auth_context(
+    let recipients = conversation_member_principal_recipients_from_auth_context(
         state,
         auth,
         current_state.conversation_id.as_str(),
     )?;
 
-    publish_realtime_event_to_principals(
+    publish_realtime_event_to_recipients(
         state,
         auth,
-        principals,
+        recipients,
         "conversation",
         current_state.conversation_id.as_str(),
         "conversation.agent_handoff_status_changed",
@@ -241,17 +245,17 @@ pub(super) fn publish_realtime_stream_frame_event(
     auth: &AuthContext,
     frame: &im_domain_core::stream::StreamFrame,
 ) -> Result<(), ApiError> {
-    let principals = stream_target_principal_ids(
+    let recipients = stream_target_principal_recipients(
         state,
         auth,
         frame.scope_kind.as_str(),
         frame.scope_id.as_str(),
     )?;
 
-    publish_realtime_event_to_principals(
+    publish_realtime_event_to_recipients(
         state,
         auth,
-        principals,
+        recipients,
         "stream",
         frame.stream_id.as_str(),
         "stream.frame.appended",
@@ -276,17 +280,17 @@ pub(super) fn publish_realtime_stream_lifecycle_event(
     event_type: &str,
     reason: Option<String>,
 ) -> Result<(), ApiError> {
-    let principals = stream_target_principal_ids(
+    let recipients = stream_target_principal_recipients(
         state,
         auth,
         session.scope_kind.as_str(),
         session.scope_id.as_str(),
     )?;
 
-    publish_realtime_event_to_principals(
+    publish_realtime_event_to_recipients(
         state,
         auth,
-        principals,
+        recipients,
         "stream",
         session.stream_id.as_str(),
         event_type,
@@ -308,35 +312,38 @@ pub(super) fn publish_realtime_stream_lifecycle_event(
     Ok(())
 }
 
-fn stream_target_principal_ids(
+fn stream_target_principal_recipients(
     state: &AppState,
     auth: &AuthContext,
     scope_kind: &str,
     scope_id: &str,
-) -> Result<BTreeSet<String>, ApiError> {
+) -> Result<BTreeSet<NotificationRecipientView>, ApiError> {
     if scope_kind == "conversation" {
-        conversation_member_principal_ids_from_auth_context(state, auth, scope_id)
+        conversation_member_principal_recipients_from_auth_context(state, auth, scope_id)
     } else {
-        Ok(BTreeSet::from([auth.actor_id.clone()]))
+        Ok(BTreeSet::from([NotificationRecipientView {
+            principal_id: auth.actor_id.clone(),
+            principal_kind: auth.actor_kind.clone(),
+        }]))
     }
 }
 
-pub(super) fn conversation_member_principal_ids_from_auth_context(
+pub(super) fn conversation_member_principal_recipients_from_auth_context(
     state: &AppState,
     auth: &AuthContext,
     conversation_id: &str,
-) -> Result<BTreeSet<String>, ApiError> {
+) -> Result<BTreeSet<NotificationRecipientView>, ApiError> {
     Ok(state
         .projection_service
-        .active_conversation_principal_ids_from_auth_context(auth, conversation_id)?
+        .active_conversation_principal_recipients_from_auth_context(auth, conversation_id)?
         .into_iter()
         .collect::<BTreeSet<_>>())
 }
 
-fn publish_realtime_event_to_principals(
+fn publish_realtime_event_to_recipients(
     state: &AppState,
     auth: &AuthContext,
-    principal_ids: BTreeSet<String>,
+    recipients: BTreeSet<NotificationRecipientView>,
     scope_type: &str,
     scope_id: &str,
     event_type: &str,
@@ -344,18 +351,33 @@ fn publish_realtime_event_to_principals(
 ) {
     for target in state
         .projection_service
-        .realtime_fanout_targets_from_auth_context(auth, principal_ids)
+        .realtime_fanout_targets_for_recipients_from_auth_context(auth, recipients)
     {
-        let _ = state.realtime_cluster.publish_device_event(
-            state.node_id.as_str(),
-            auth.tenant_id.as_str(),
-            target.principal_id.as_str(),
-            target.device_id.as_str(),
-            scope_type,
-            scope_id,
-            event_type,
-            payload.clone(),
-        );
+        let _ = match target.principal_kind.as_deref() {
+            Some(principal_kind) => state
+                .realtime_cluster
+                .publish_device_event_for_principal_kind(
+                    state.node_id.as_str(),
+                    auth.tenant_id.as_str(),
+                    target.principal_id.as_str(),
+                    principal_kind,
+                    target.device_id.as_str(),
+                    scope_type,
+                    scope_id,
+                    event_type,
+                    payload.clone(),
+                ),
+            None => state.realtime_cluster.publish_device_event(
+                state.node_id.as_str(),
+                auth.tenant_id.as_str(),
+                target.principal_id.as_str(),
+                target.device_id.as_str(),
+                scope_type,
+                scope_id,
+                event_type,
+                payload.clone(),
+            ),
+        };
     }
 }
 
@@ -485,7 +507,7 @@ pub(super) fn record_membership_audit(
     action: &str,
     member: &ConversationMember,
 ) {
-    state.audit_runtime.record_anchor(
+    let _ = state.audit_runtime.record_anchor(
         auth,
         RecordAuditAnchor {
             record_id: format!("audit_{}_{}", action.replace('.', "_"), member.member_id),
@@ -512,7 +534,7 @@ pub(super) fn record_owner_transfer_audit(
     conversation_id: &str,
     transfer: &TransferConversationOwnerResult,
 ) {
-    state.audit_runtime.record_anchor(
+    let _ = state.audit_runtime.record_anchor(
         auth,
         RecordAuditAnchor {
             record_id: format!(
@@ -544,7 +566,7 @@ pub(super) fn record_member_role_change_audit(
     conversation_id: &str,
     change: &ChangeConversationMemberRoleResult,
 ) {
-    state.audit_runtime.record_anchor(
+    let _ = state.audit_runtime.record_anchor(
         auth,
         RecordAuditAnchor {
             record_id: format!("audit_{}", change.event_id),

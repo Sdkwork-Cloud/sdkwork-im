@@ -414,3 +414,106 @@ async fn test_rtc_runtime_timestamps_advance_between_session_and_signal_mutation
     assert!(first_occurred_at < second_occurred_at);
     assert!(second_occurred_at < ended_at);
 }
+
+#[tokio::test]
+async fn test_post_rtc_signal_rejects_oversized_payload_over_http() {
+    let app = rtc_signaling_service::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/rtc/sessions")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-device-id", "d_demo")
+                .header("x-session-id", "s_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "rtcSessionId":"rtc_signal_oversized_payload",
+                        "rtcMode":"voice"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create session should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let oversized_payload = "x".repeat(262145);
+    let request_body = serde_json::json!({
+        "signalType":"rtc.offer",
+        "schemaRef":"webrtc.offer.v1",
+        "payload": oversized_payload
+    })
+    .to_string();
+    let signal_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/rtc/sessions/rtc_signal_oversized_payload/signals")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-device-id", "d_demo")
+                .header("x-session-id", "s_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(request_body))
+                .unwrap(),
+        )
+        .await
+        .expect("oversized signal payload request should return response");
+    assert_eq!(signal_response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+}
+
+#[tokio::test]
+async fn test_post_rtc_signal_rejects_oversized_signal_type_over_http() {
+    let app = rtc_signaling_service::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/rtc/sessions")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-device-id", "d_demo")
+                .header("x-session-id", "s_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "rtcSessionId":"rtc_signal_oversized_type",
+                        "rtcMode":"voice"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create session should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let request_body = serde_json::json!({
+        "signalType": "s".repeat(129),
+        "schemaRef":"webrtc.offer.v1",
+        "payload": "{\"sdp\":\"demo\"}"
+    })
+    .to_string();
+    let signal_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/rtc/sessions/rtc_signal_oversized_type/signals")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-device-id", "d_demo")
+                .header("x-session-id", "s_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(request_body))
+                .unwrap(),
+        )
+        .await
+        .expect("oversized signal type request should return response");
+    assert_eq!(signal_response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+}

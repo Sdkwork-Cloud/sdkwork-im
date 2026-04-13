@@ -1,10 +1,13 @@
 use im_adapters_local_memory::{
-    MemoryCommitJournal, MemoryMetadataStore, MemoryRealtimeCheckpointStore,
-    MemoryRealtimeDisconnectFenceStore, MemoryTimelineProjectionStore,
+    MemoryAutomationExecutionStore, MemoryCommitJournal, MemoryMetadataStore,
+    MemoryRealtimeCheckpointStore, MemoryRealtimeDisconnectFenceStore,
+    MemoryTimelineProjectionStore,
 };
+use im_domain_core::automation::{AutomationExecution, AutomationExecutionState};
 use im_platform_contracts::{
-    CommitJournal, MetadataStore, RealtimeCheckpointRecord, RealtimeCheckpointStore,
-    RealtimeDisconnectFenceRecord, RealtimeDisconnectFenceStore, TimelineProjectionStore,
+    AutomationExecutionRecord, AutomationExecutionStore, CommitJournal, MetadataStore,
+    RealtimeCheckpointRecord, RealtimeCheckpointStore, RealtimeDisconnectFenceRecord,
+    RealtimeDisconnectFenceStore, TimelineProjectionStore,
 };
 
 #[test]
@@ -168,4 +171,47 @@ fn test_memory_realtime_disconnect_fence_store_overwrites_and_clears_same_device
             .expect("fence load should succeed")
             .is_none()
     );
+}
+
+#[test]
+fn test_memory_automation_execution_store_isolates_same_actor_id_across_principal_kind() {
+    let store = MemoryAutomationExecutionStore::default();
+
+    for principal_kind in ["user", "system"] {
+        store
+            .save_execution(AutomationExecutionRecord {
+                tenant_id: "t_demo".into(),
+                principal_id: "u_demo".into(),
+                execution_id: "ae_kind_isolation".into(),
+                execution: AutomationExecution {
+                    tenant_id: "t_demo".into(),
+                    principal_id: "u_demo".into(),
+                    principal_kind: principal_kind.into(),
+                    execution_id: "ae_kind_isolation".into(),
+                    trigger_type: "webhook.manual".into(),
+                    target_kind: "workflow".into(),
+                    target_ref: "wf_demo".into(),
+                    input_payload: Some("{\"conversationId\":\"c_demo\"}".into()),
+                    output_payload: Some("{\"accepted\":true}".into()),
+                    state: AutomationExecutionState::Succeeded,
+                    retry_count: 0,
+                    requested_at: "2026-04-06T00:00:00.000Z".into(),
+                    completed_at: Some("2026-04-06T00:00:01.000Z".into()),
+                    failure_reason: None,
+                },
+                updated_at: "2026-04-06T00:00:01.000Z".into(),
+            })
+            .expect("save should succeed");
+    }
+
+    let user_execution = store
+        .load_execution("t_demo", "user", "u_demo", "ae_kind_isolation")
+        .expect("user execution load should succeed")
+        .expect("user execution should exist");
+    let system_execution = store
+        .load_execution("t_demo", "system", "u_demo", "ae_kind_isolation")
+        .expect("system execution load should succeed")
+        .expect("system execution should exist");
+    assert_eq!(user_execution.execution.principal_kind, "user");
+    assert_eq!(system_execution.execution.principal_kind, "system");
 }

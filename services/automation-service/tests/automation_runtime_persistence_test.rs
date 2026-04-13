@@ -62,3 +62,67 @@ fn test_runtime_restores_automation_projection_on_rebuild_with_shared_store() {
     assert_eq!(execution.execution_id, "ae_rebuild");
     assert_eq!(execution.state.as_str(), "succeeded");
 }
+
+#[test]
+fn test_runtime_restores_principal_kind_isolated_executions_on_rebuild_with_shared_store() {
+    let journal = Arc::new(RecordingJournal::default());
+    let execution_store = Arc::new(MemoryAutomationExecutionStore::default());
+    let user_auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_demo".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_user".into()),
+        device_id: None,
+        permissions: BTreeSet::from([
+            "automation.execute".to_string(),
+            "automation.read".to_string(),
+        ]),
+    };
+    let system_auth = AuthContext {
+        actor_kind: "system".into(),
+        session_id: Some("s_system".into()),
+        ..user_auth.clone()
+    };
+
+    let runtime_before = automation_service::AutomationRuntime::with_journal_and_store(
+        journal.clone(),
+        execution_store.clone(),
+    );
+
+    runtime_before
+        .request_execution(
+            &user_auth,
+            automation_service::RequestAutomationExecution {
+                execution_id: "ae_rebuild_kind_isolation".into(),
+                trigger_type: "webhook.manual".into(),
+                target_kind: "workflow".into(),
+                target_ref: "wf_rebuild".into(),
+                input_payload: Some(r#"{"conversationId":"c_demo"}"#.into()),
+            },
+        )
+        .expect("user execution request should succeed");
+    runtime_before
+        .request_execution(
+            &system_auth,
+            automation_service::RequestAutomationExecution {
+                execution_id: "ae_rebuild_kind_isolation".into(),
+                trigger_type: "webhook.manual".into(),
+                target_kind: "workflow".into(),
+                target_ref: "wf_rebuild".into(),
+                input_payload: Some(r#"{"conversationId":"c_demo"}"#.into()),
+            },
+        )
+        .expect("system execution request should succeed");
+
+    let runtime_after =
+        automation_service::AutomationRuntime::with_journal_and_store(journal, execution_store);
+
+    let user_execution = runtime_after
+        .get_execution(&user_auth, "ae_rebuild_kind_isolation")
+        .expect("user execution should restore after rebuild");
+    let system_execution = runtime_after
+        .get_execution(&system_auth, "ae_rebuild_kind_isolation")
+        .expect("system execution should restore after rebuild");
+    assert_eq!(user_execution.principal_kind, "user");
+    assert_eq!(system_execution.principal_kind, "system");
+}

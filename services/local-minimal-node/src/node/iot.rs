@@ -85,7 +85,7 @@ pub(super) async fn ingest_iot_protocol_uplink(
         },
     )?;
 
-    let frame = state.streaming_runtime.append_frame(
+    let outcome = state.streaming_runtime.append_frame_with_outcome(
         &auth,
         session.stream_id.as_str(),
         AppendStreamFrameRequest {
@@ -97,9 +97,11 @@ pub(super) async fn ingest_iot_protocol_uplink(
             attributes: envelope.attributes,
         },
     )?;
-    effects::publish_realtime_stream_frame_event(&state, &auth, &frame)?;
+    if outcome.applied {
+        effects::publish_realtime_stream_frame_event(&state, &auth, &outcome.frame)?;
+    }
 
-    Ok(Json(frame))
+    Ok(Json(outcome.frame))
 }
 
 pub(super) async fn ingest_iot_protocol_downlink(
@@ -132,7 +134,7 @@ pub(super) async fn ingest_iot_protocol_downlink(
         },
     )?;
 
-    let frame = state.streaming_runtime.append_frame(
+    let outcome = state.streaming_runtime.append_frame_with_outcome(
         &auth,
         session.stream_id.as_str(),
         AppendStreamFrameRequest {
@@ -144,10 +146,12 @@ pub(super) async fn ingest_iot_protocol_downlink(
             attributes: BTreeMap::new(),
         },
     )?;
-    effects::publish_realtime_stream_frame_event(&state, &auth, &frame)?;
+    if outcome.applied {
+        effects::publish_realtime_stream_frame_event(&state, &auth, &outcome.frame)?;
+    }
 
     Ok(Json(IotProtocolDownlinkResponse {
-        frame,
+        frame: outcome.frame,
         protocol_payload,
     }))
 }

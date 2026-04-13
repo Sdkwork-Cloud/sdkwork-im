@@ -127,18 +127,32 @@ pub struct DirectChatBoundPayload {
     pub bound_at: String,
 }
 
-pub fn social_commit_envelope(
-    event_id: &str,
-    tenant_id: &str,
-    aggregate_type: AggregateType,
-    aggregate_id: &str,
-    event_type: SocialEventType,
-    ordering_seq: u64,
-    actor: EventActor,
-    occurred_at: &str,
-    committed_at: &str,
-    payload: &str,
-) -> CommitEnvelope {
+pub struct SocialCommitEnvelopeInput<'a> {
+    pub event_id: &'a str,
+    pub tenant_id: &'a str,
+    pub aggregate_type: AggregateType,
+    pub aggregate_id: &'a str,
+    pub event_type: SocialEventType,
+    pub ordering_seq: u64,
+    pub actor: EventActor,
+    pub occurred_at: &'a str,
+    pub committed_at: &'a str,
+    pub payload: &'a str,
+}
+
+pub fn social_commit_envelope(input: SocialCommitEnvelopeInput<'_>) -> CommitEnvelope {
+    let SocialCommitEnvelopeInput {
+        event_id,
+        tenant_id,
+        aggregate_type,
+        aggregate_id,
+        event_type,
+        ordering_seq,
+        actor,
+        occurred_at,
+        committed_at,
+        payload,
+    } = input;
     let scope_type = aggregate_type.as_wire_value();
     CommitEnvelope {
         event_id: event_id.into(),

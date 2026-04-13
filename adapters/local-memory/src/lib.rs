@@ -430,13 +430,16 @@ impl MemoryAutomationExecutionStore {
     pub fn execution(
         &self,
         tenant_id: &str,
+        principal_kind: &str,
         principal_id: &str,
         execution_id: &str,
     ) -> Option<AutomationExecutionRecord> {
         self.executions
             .lock()
             .expect("automation execution store should lock")
-            .get(execution_scope_key(tenant_id, principal_id, execution_id).as_str())
+            .get(
+                execution_scope_key(tenant_id, principal_kind, principal_id, execution_id).as_str(),
+            )
             .cloned()
     }
 }
@@ -445,10 +448,11 @@ impl AutomationExecutionStore for MemoryAutomationExecutionStore {
     fn load_execution(
         &self,
         tenant_id: &str,
+        principal_kind: &str,
         principal_id: &str,
         execution_id: &str,
     ) -> Result<Option<AutomationExecutionRecord>, ContractError> {
-        Ok(self.execution(tenant_id, principal_id, execution_id))
+        Ok(self.execution(tenant_id, principal_kind, principal_id, execution_id))
     }
 
     fn save_execution(&self, record: AutomationExecutionRecord) -> Result<(), ContractError> {
@@ -458,6 +462,7 @@ impl AutomationExecutionStore for MemoryAutomationExecutionStore {
             .insert(
                 execution_scope_key(
                     record.tenant_id.as_str(),
+                    record.execution.principal_kind.as_str(),
                     record.principal_id.as_str(),
                     record.execution_id.as_str(),
                 ),
@@ -594,6 +599,11 @@ fn notification_scope_key(tenant_id: &str, notification_id: &str) -> String {
     format!("{tenant_id}:{notification_id}")
 }
 
-fn execution_scope_key(tenant_id: &str, principal_id: &str, execution_id: &str) -> String {
-    format!("{tenant_id}:{principal_id}:{execution_id}")
+fn execution_scope_key(
+    tenant_id: &str,
+    principal_kind: &str,
+    principal_id: &str,
+    execution_id: &str,
+) -> String {
+    format!("{tenant_id}:{principal_kind}:{principal_id}:{execution_id}")
 }

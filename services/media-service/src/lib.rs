@@ -30,6 +30,23 @@ use im_time::utc_now_rfc3339_millis;
 use serde::{Deserialize, Serialize};
 
 const DEFAULT_MEDIA_DOWNLOAD_URL_TTL_SECONDS: u32 = 3600;
+const MEDIA_UPLOAD_DELIVERY_PROOF_VERSION: &str = "media.upload.delivery-proof.v1";
+const MEDIA_MAX_ASSET_ID_BYTES: usize = 256;
+const MEDIA_MAX_BUCKET_BYTES: usize = 256;
+const MEDIA_MAX_OBJECT_KEY_BYTES: usize = 1024;
+const MEDIA_MAX_STORAGE_PROVIDER_BYTES: usize = 128;
+const MEDIA_MAX_URL_BYTES: usize = 2048;
+const MEDIA_MAX_CHECKSUM_BYTES: usize = 256;
+const MEDIA_MAX_RESOURCE_UUID_BYTES: usize = 256;
+const MEDIA_MAX_RESOURCE_LOCAL_FILE_BYTES: usize = 1024;
+const MEDIA_MAX_RESOURCE_INLINE_BYTES: usize = 256 * 1024;
+const MEDIA_MAX_RESOURCE_BASE64_BYTES: usize = 256 * 1024;
+const MEDIA_MAX_RESOURCE_MIME_TYPE_BYTES: usize = 128;
+const MEDIA_MAX_RESOURCE_NAME_BYTES: usize = 256;
+const MEDIA_MAX_RESOURCE_EXTENSION_BYTES: usize = 32;
+const MEDIA_MAX_RESOURCE_PROMPT_BYTES: usize = 8 * 1024;
+const MEDIA_MAX_RESOURCE_TAGS_BYTES: usize = 16 * 1024;
+const MEDIA_MAX_RESOURCE_METADATA_BYTES: usize = 64 * 1024;
 
 #[derive(Clone)]
 struct AppState {
@@ -88,6 +105,44 @@ pub struct MediaDownloadUrlResponse {
     pub storage_provider: String,
     pub download_url: String,
     pub expires_in_seconds: u32,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MediaUploadMutationOutcome {
+    pub asset: MediaAsset,
+    pub applied: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MediaUploadDeliveryStatus {
+    Applied,
+    Replayed,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MediaUploadMutationResponse {
+    #[serde(flatten)]
+    pub asset: MediaAsset,
+    pub request_key: String,
+    pub delivery_status: MediaUploadDeliveryStatus,
+    pub proof_version: String,
+}
+
+impl MediaUploadMutationResponse {
+    pub fn from_outcome(outcome: MediaUploadMutationOutcome, request_key: String) -> Self {
+        Self {
+            asset: outcome.asset,
+            request_key,
+            delivery_status: if outcome.applied {
+                MediaUploadDeliveryStatus::Applied
+            } else {
+                MediaUploadDeliveryStatus::Replayed
+            },
+            proof_version: MEDIA_UPLOAD_DELIVERY_PROOF_VERSION.into(),
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -149,6 +204,16 @@ impl MediaError {
         }
     }
 
+    fn invalid_expires_in_seconds(expires_in_seconds: u32) -> Self {
+        Self {
+            status: axum::http::StatusCode::BAD_REQUEST,
+            code: "invalid_expires_in_seconds",
+            message: format!(
+                "expiresInSeconds must be greater than zero: {expires_in_seconds}"
+            ),
+        }
+    }
+
     fn provider_binding_missing(message: impl Into<String>) -> Self {
         Self {
             status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
@@ -174,6 +239,16 @@ impl MediaError {
                 code: "media_provider_unsupported",
                 message,
             },
+        }
+    }
+
+    fn payload_too_large(field: &'static str, max_bytes: usize, actual_bytes: usize) -> Self {
+        Self {
+            status: axum::http::StatusCode::PAYLOAD_TOO_LARGE,
+            code: "payload_too_large",
+            message: format!(
+                "payload too large for {field}: max={max_bytes} bytes, actual={actual_bytes} bytes"
+            ),
         }
     }
 }
@@ -252,6 +327,15 @@ impl MediaRuntime {
         auth: &AuthContext,
         request: CreateUploadRequest,
     ) -> Result<MediaAsset, MediaError> {
+        Ok(self.create_upload_with_outcome(auth, request)?.asset)
+    }
+
+    pub fn create_upload_with_outcome(
+        &self,
+        auth: &AuthContext,
+        request: CreateUploadRequest,
+    ) -> Result<MediaUploadMutationOutcome, MediaError> {
+        validate_create_upload_request_payload_size(&request)?;
         let scope = media_scope_key(auth.tenant_id.as_str(), request.media_asset_id.as_str());
         if let Some(existing) = self
             .lock_assets("create_upload")
@@ -260,7 +344,10 @@ impl MediaRuntime {
         {
             if is_asset_owner(&existing, auth) {
                 if create_upload_matches_existing(&existing, &request) {
-                    return Ok(existing);
+                    return Ok(MediaUploadMutationOutcome {
+                        asset: existing,
+                        applied: false,
+                    });
                 }
 
                 return Err(MediaError::conflict(request.media_asset_id.as_str()));
@@ -288,7 +375,10 @@ impl MediaRuntime {
         self.lock_assets("create_upload")
             .insert(scope, asset.clone());
 
-        Ok(asset)
+        Ok(MediaUploadMutationOutcome {
+            asset,
+            applied: true,
+        })
     }
 
     pub fn complete_upload(
@@ -297,6 +387,19 @@ impl MediaRuntime {
         media_asset_id: &str,
         request: CompleteUploadRequest,
     ) -> Result<MediaAsset, MediaError> {
+        Ok(self
+            .complete_upload_with_outcome(auth, media_asset_id, request)?
+            .asset)
+    }
+
+    pub fn complete_upload_with_outcome(
+        &self,
+        auth: &AuthContext,
+        media_asset_id: &str,
+        request: CompleteUploadRequest,
+    ) -> Result<MediaUploadMutationOutcome, MediaError> {
+        validate_media_asset_id(media_asset_id)?;
+        validate_complete_upload_request_payload_size(&request)?;
         let provider_plugin_id = self.selected_provider_plugin_id(auth.tenant_id.as_str(), None)?;
         let provider = self.object_storage_provider(provider_plugin_id.as_str())?;
         let mut assets = self.lock_assets("complete_upload");
@@ -305,6 +408,23 @@ impl MediaRuntime {
             .ok_or_else(|| MediaError::not_found(media_asset_id))?;
         if !is_asset_owner(asset, auth) {
             return Err(MediaError::not_found(media_asset_id));
+        }
+
+        if asset.processing_state == MediaProcessingState::Ready {
+            if complete_upload_request_matches_existing(
+                asset,
+                request.bucket.as_str(),
+                request.object_key.as_str(),
+                provider_plugin_id.as_str(),
+                request.checksum.as_ref(),
+            ) {
+                return Ok(MediaUploadMutationOutcome {
+                    asset: asset.clone(),
+                    applied: false,
+                });
+            }
+
+            return Err(MediaError::conflict(media_asset_id));
         }
 
         let object_descriptor = provider
@@ -324,21 +444,6 @@ impl MediaRuntime {
             })
             .map_err(MediaError::object_storage_provider)?;
 
-        if asset.processing_state == MediaProcessingState::Ready {
-            if complete_upload_matches_existing(
-                asset,
-                object_descriptor.bucket.as_str(),
-                object_descriptor.object_key.as_str(),
-                provider_plugin_id.as_str(),
-                request.checksum.as_ref(),
-                signed_url.as_str(),
-            ) {
-                return Ok(asset.clone());
-            }
-
-            return Err(MediaError::conflict(media_asset_id));
-        }
-
         let should_emit_event = asset.processing_state != MediaProcessingState::Ready;
 
         let completed_at = utc_now_rfc3339_millis();
@@ -356,7 +461,10 @@ impl MediaRuntime {
             self.append_media_asset_created(auth, &completed_asset)?;
         }
 
-        Ok(completed_asset)
+        Ok(MediaUploadMutationOutcome {
+            asset: completed_asset,
+            applied: true,
+        })
     }
 
     pub fn get_asset(
@@ -364,6 +472,7 @@ impl MediaRuntime {
         auth: &AuthContext,
         media_asset_id: &str,
     ) -> Result<MediaAsset, MediaError> {
+        validate_media_asset_id(media_asset_id)?;
         let asset = self
             .lock_assets("get_asset")
             .get(media_scope_key(auth.tenant_id.as_str(), media_asset_id).as_str())
@@ -381,6 +490,8 @@ impl MediaRuntime {
         media_asset_id: &str,
         expires_in_seconds: u32,
     ) -> Result<MediaDownloadUrlResponse, MediaError> {
+        validate_media_asset_id(media_asset_id)?;
+        validate_download_url_expires_in_seconds(expires_in_seconds)?;
         let asset = self.get_asset(auth, media_asset_id)?;
         if asset.processing_state != MediaProcessingState::Ready {
             return Err(MediaError::not_ready(media_asset_id));
@@ -586,9 +697,13 @@ async fn create_upload(
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<CreateUploadRequest>,
-) -> Result<Json<MediaAsset>, MediaError> {
+) -> Result<Json<MediaUploadMutationResponse>, MediaError> {
     let auth = resolve_auth_context(&headers)?;
-    Ok(Json(state.runtime.create_upload(&auth, request)?))
+    let request_key = media_create_upload_request_key(&auth, request.media_asset_id.as_str());
+    Ok(Json(MediaUploadMutationResponse::from_outcome(
+        state.runtime.create_upload_with_outcome(&auth, request)?,
+        request_key,
+    )))
 }
 
 async fn complete_upload(
@@ -596,13 +711,16 @@ async fn complete_upload(
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<CompleteUploadRequest>,
-) -> Result<Json<MediaAsset>, MediaError> {
+) -> Result<Json<MediaUploadMutationResponse>, MediaError> {
     let auth = resolve_auth_context(&headers)?;
-    Ok(Json(state.runtime.complete_upload(
-        &auth,
-        media_asset_id.as_str(),
-        request,
-    )?))
+    validate_media_asset_id(media_asset_id.as_str())?;
+    let request_key = media_complete_upload_request_key(&auth, media_asset_id.as_str());
+    Ok(Json(MediaUploadMutationResponse::from_outcome(
+        state
+            .runtime
+            .complete_upload_with_outcome(&auth, media_asset_id.as_str(), request)?,
+        request_key,
+    )))
 }
 
 async fn get_media(
@@ -611,6 +729,7 @@ async fn get_media(
     State(state): State<AppState>,
 ) -> Result<Json<MediaAsset>, MediaError> {
     let auth = resolve_auth_context(&headers)?;
+    validate_media_asset_id(media_asset_id.as_str())?;
     Ok(Json(
         state.runtime.get_asset(&auth, media_asset_id.as_str())?,
     ))
@@ -623,6 +742,7 @@ async fn get_download_url(
     State(state): State<AppState>,
 ) -> Result<Json<MediaDownloadUrlResponse>, MediaError> {
     let auth = resolve_auth_context(&headers)?;
+    validate_media_asset_id(media_asset_id.as_str())?;
     Ok(Json(
         state.runtime.download_url(
             &auth,
@@ -675,8 +795,163 @@ fn built_in_object_storage_providers() -> Vec<(String, Arc<dyn ObjectStorageProv
     ]
 }
 
+fn validate_payload_size(
+    field: &'static str,
+    payload: &str,
+    max_bytes: usize,
+) -> Result<(), MediaError> {
+    let payload_len = payload.len();
+    if payload_len > max_bytes {
+        return Err(MediaError::payload_too_large(field, max_bytes, payload_len));
+    }
+    Ok(())
+}
+
+fn validate_optional_payload_size(
+    field: &'static str,
+    payload: Option<&str>,
+    max_bytes: usize,
+) -> Result<(), MediaError> {
+    if let Some(payload) = payload {
+        validate_payload_size(field, payload, max_bytes)?;
+    }
+    Ok(())
+}
+
+fn validate_map_payload_size(
+    field: &'static str,
+    payload: Option<&std::collections::BTreeMap<String, String>>,
+    max_bytes: usize,
+) -> Result<(), MediaError> {
+    let payload_len = payload
+        .into_iter()
+        .flat_map(|entries| entries.iter())
+        .map(|(key, value)| key.len() + value.len())
+        .sum::<usize>();
+    if payload_len > max_bytes {
+        return Err(MediaError::payload_too_large(field, max_bytes, payload_len));
+    }
+    Ok(())
+}
+
+fn validate_media_asset_id(media_asset_id: &str) -> Result<(), MediaError> {
+    validate_payload_size("mediaAssetId", media_asset_id, MEDIA_MAX_ASSET_ID_BYTES)
+}
+
+fn validate_download_url_expires_in_seconds(expires_in_seconds: u32) -> Result<(), MediaError> {
+    if expires_in_seconds == 0 {
+        return Err(MediaError::invalid_expires_in_seconds(expires_in_seconds));
+    }
+    Ok(())
+}
+
+fn validate_media_resource_payload_size(resource: &MediaResource) -> Result<(), MediaError> {
+    validate_optional_payload_size(
+        "resource.uuid",
+        resource.uuid.as_deref(),
+        MEDIA_MAX_RESOURCE_UUID_BYTES,
+    )?;
+    validate_optional_payload_size("resource.url", resource.url.as_deref(), MEDIA_MAX_URL_BYTES)?;
+    if let Some(bytes) = resource.bytes.as_ref() {
+        let payload_len = bytes.len();
+        if payload_len > MEDIA_MAX_RESOURCE_INLINE_BYTES {
+            return Err(MediaError::payload_too_large(
+                "resource.bytes",
+                MEDIA_MAX_RESOURCE_INLINE_BYTES,
+                payload_len,
+            ));
+        }
+    }
+    validate_optional_payload_size(
+        "resource.localFile",
+        resource.local_file.as_deref(),
+        MEDIA_MAX_RESOURCE_LOCAL_FILE_BYTES,
+    )?;
+    validate_optional_payload_size(
+        "resource.base64",
+        resource.base64.as_deref(),
+        MEDIA_MAX_RESOURCE_BASE64_BYTES,
+    )?;
+    validate_optional_payload_size(
+        "resource.mimeType",
+        resource.mime_type.as_deref(),
+        MEDIA_MAX_RESOURCE_MIME_TYPE_BYTES,
+    )?;
+    validate_optional_payload_size(
+        "resource.name",
+        resource.name.as_deref(),
+        MEDIA_MAX_RESOURCE_NAME_BYTES,
+    )?;
+    validate_optional_payload_size(
+        "resource.extension",
+        resource.extension.as_deref(),
+        MEDIA_MAX_RESOURCE_EXTENSION_BYTES,
+    )?;
+    validate_map_payload_size(
+        "resource.tags",
+        resource.tags.as_ref(),
+        MEDIA_MAX_RESOURCE_TAGS_BYTES,
+    )?;
+    validate_map_payload_size(
+        "resource.metadata",
+        resource.metadata.as_ref(),
+        MEDIA_MAX_RESOURCE_METADATA_BYTES,
+    )?;
+    validate_optional_payload_size(
+        "resource.prompt",
+        resource.prompt.as_deref(),
+        MEDIA_MAX_RESOURCE_PROMPT_BYTES,
+    )?;
+    Ok(())
+}
+
+fn validate_create_upload_request_payload_size(
+    request: &CreateUploadRequest,
+) -> Result<(), MediaError> {
+    validate_media_asset_id(request.media_asset_id.as_str())?;
+    validate_media_resource_payload_size(&request.resource)?;
+    Ok(())
+}
+
+fn validate_complete_upload_request_payload_size(
+    request: &CompleteUploadRequest,
+) -> Result<(), MediaError> {
+    validate_payload_size("bucket", request.bucket.as_str(), MEDIA_MAX_BUCKET_BYTES)?;
+    validate_payload_size(
+        "objectKey",
+        request.object_key.as_str(),
+        MEDIA_MAX_OBJECT_KEY_BYTES,
+    )?;
+    validate_optional_payload_size(
+        "storageProvider",
+        request.storage_provider.as_deref(),
+        MEDIA_MAX_STORAGE_PROVIDER_BYTES,
+    )?;
+    validate_payload_size("url", request.url.as_str(), MEDIA_MAX_URL_BYTES)?;
+    validate_optional_payload_size(
+        "checksum",
+        request.checksum.as_deref(),
+        MEDIA_MAX_CHECKSUM_BYTES,
+    )?;
+    Ok(())
+}
+
 fn media_scope_key(tenant_id: &str, media_asset_id: &str) -> String {
     format!("{tenant_id}:{media_asset_id}")
+}
+
+pub fn media_create_upload_request_key(auth: &AuthContext, media_asset_id: &str) -> String {
+    format!(
+        "{}:{}:{}:create:{}",
+        auth.tenant_id, auth.actor_kind, auth.actor_id, media_asset_id
+    )
+}
+
+pub fn media_complete_upload_request_key(auth: &AuthContext, media_asset_id: &str) -> String {
+    format!(
+        "{}:{}:{}:complete:{}",
+        auth.tenant_id, auth.actor_kind, auth.actor_id, media_asset_id
+    )
 }
 
 fn is_asset_owner(asset: &MediaAsset, auth: &AuthContext) -> bool {
@@ -687,17 +962,15 @@ fn create_upload_matches_existing(asset: &MediaAsset, request: &CreateUploadRequ
     asset.resource == request.resource
 }
 
-fn complete_upload_matches_existing(
+fn complete_upload_request_matches_existing(
     asset: &MediaAsset,
     bucket: &str,
     object_key: &str,
     storage_provider: &str,
     checksum: Option<&String>,
-    download_url: &str,
 ) -> bool {
     asset.bucket.as_deref() == Some(bucket)
         && asset.object_key.as_deref() == Some(object_key)
         && asset.storage_provider.as_deref() == Some(storage_provider)
         && asset.checksum.as_ref() == checksum
-        && asset.resource.url.as_deref() == Some(download_url)
 }

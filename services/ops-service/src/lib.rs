@@ -310,20 +310,11 @@ pub struct ProviderBindingDriftItemView {
     pub drift_kind: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProviderBindingDriftView {
     pub baseline_tenant_id: Option<String>,
     pub items: Vec<ProviderBindingDriftItemView>,
-}
-
-impl Default for ProviderBindingDriftView {
-    fn default() -> Self {
-        Self {
-            baseline_tenant_id: None,
-            items: Vec::new(),
-        }
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]

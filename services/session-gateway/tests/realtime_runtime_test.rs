@@ -181,6 +181,125 @@ fn test_runtime_restores_persisted_subscriptions_on_rebuild_without_resync() {
 }
 
 #[test]
+fn test_sync_subscriptions_rejects_oversized_event_types_payload() {
+    let runtime = RealtimeDeliveryRuntime::default();
+    let oversized_event_types = (0..300)
+        .map(|index| format!("evt_{index:03}_{}", "x".repeat(64)))
+        .collect::<Vec<_>>();
+
+    let error = runtime
+        .sync_subscriptions(
+            "t_demo",
+            "u_demo",
+            "d_pad",
+            vec![RealtimeSubscriptionItemInput {
+                scope_type: "conversation".into(),
+                scope_id: "c_demo".into(),
+                event_types: oversized_event_types,
+            }],
+        )
+        .expect_err("oversized eventTypes payload should be rejected");
+
+    assert_eq!(error.code, "payload_too_large");
+    assert!(
+        error.message.contains("eventTypes"),
+        "error should point to eventTypes payload guard, got: {}",
+        error.message
+    );
+}
+
+#[test]
+fn test_sync_subscriptions_rejects_too_many_subscription_items() {
+    let runtime = RealtimeDeliveryRuntime::default();
+    let oversized_items = (0..300)
+        .map(|index| RealtimeSubscriptionItemInput {
+            scope_type: "conversation".into(),
+            scope_id: format!("c_{index:03}"),
+            event_types: Vec::new(),
+        })
+        .collect::<Vec<_>>();
+
+    let error = runtime
+        .sync_subscriptions("t_demo", "u_demo", "d_pad", oversized_items)
+        .expect_err("too many subscription items should be rejected");
+
+    assert_eq!(error.code, "payload_too_large");
+    assert!(
+        error.message.contains("items"),
+        "error should point to items payload guard, got: {}",
+        error.message
+    );
+}
+
+#[test]
+fn test_runtime_isolates_same_actor_id_across_principal_kinds() {
+    let runtime = RealtimeDeliveryRuntime::default();
+    expect_ok(runtime.sync_subscriptions_for_principal_kind(
+        "t_demo",
+        "u_demo",
+        "user",
+        "d_pad",
+        vec![RealtimeSubscriptionItemInput {
+            scope_type: "conversation".into(),
+            scope_id: "c_user".into(),
+            event_types: vec!["message.posted".into()],
+        }],
+    ));
+    expect_ok(runtime.sync_subscriptions_for_principal_kind(
+        "t_demo",
+        "u_demo",
+        "agent",
+        "d_pad",
+        vec![RealtimeSubscriptionItemInput {
+            scope_type: "conversation".into(),
+            scope_id: "c_agent".into(),
+            event_types: vec!["message.posted".into()],
+        }],
+    ));
+
+    let user_delivered = expect_ok(runtime.publish_scope_event_for_principal_kind(
+        "t_demo",
+        "u_demo",
+        "user",
+        "conversation",
+        "c_user",
+        "message.posted",
+        r#"{"messageId":"msg_user"}"#.into(),
+        vec!["d_pad".into()],
+    ));
+    let agent_delivered = expect_ok(runtime.publish_scope_event_for_principal_kind(
+        "t_demo",
+        "u_demo",
+        "agent",
+        "conversation",
+        "c_agent",
+        "message.posted",
+        r#"{"messageId":"msg_agent"}"#.into(),
+        vec!["d_pad".into()],
+    ));
+
+    assert_eq!(user_delivered, 1);
+    assert_eq!(agent_delivered, 1);
+
+    let user_window = expect_ok(
+        runtime.list_events_for_principal_kind("t_demo", "u_demo", "user", "d_pad", 0, 10),
+    );
+    let agent_window = expect_ok(
+        runtime.list_events_for_principal_kind("t_demo", "u_demo", "agent", "d_pad", 0, 10),
+    );
+
+    assert_eq!(user_window.items.len(), 1);
+    assert_eq!(user_window.items[0].scope_id, "c_user");
+    assert_eq!(user_window.items[0].payload, r#"{"messageId":"msg_user"}"#);
+    assert_eq!(agent_window.items.len(), 1);
+    assert_eq!(agent_window.items[0].scope_id, "c_agent");
+    assert_eq!(
+        agent_window.items[0].payload,
+        r#"{"messageId":"msg_agent"}"#
+    );
+}
+
+#[test]
 fn test_runtime_clamps_invalid_checkpoint_invariants_on_restore() {
     let checkpoint_store = Arc::new(MemoryRealtimeCheckpointStore::default());
     checkpoint_store

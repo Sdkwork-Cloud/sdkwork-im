@@ -463,6 +463,109 @@ async fn test_control_plane_provider_policy_rollback_refreshes_ops_runtime_and_a
 }
 
 #[tokio::test]
+async fn test_control_plane_repeated_provider_policy_updates_append_distinct_audit_records() {
+    let cluster = Arc::new(RealtimeClusterBridge::default());
+    let ops_runtime = Arc::new(OpsRuntime::new(
+        "node_a",
+        "local-minimal",
+        "127.0.0.1:18090",
+        vec!["session-gateway".into(), "control-plane-api".into()],
+        vec!["conversation:c_demo".into()],
+    ));
+    let audit_runtime = Arc::new(AuditRuntime::default());
+    let provider_registry = Arc::new(RuntimeProviderRegistry::platform_default());
+
+    let app =
+        control_plane_api::build_app_with_cluster_runtime_provider_registry_and_governance_sinks(
+            cluster,
+            provider_registry,
+            ops_runtime.clone(),
+            audit_runtime.clone(),
+        );
+
+    let first_write = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/control/provider-bindings")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"domain":"object-storage","pluginId":"object-storage-volcengine"}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("first provider policy write should return response");
+    assert_eq!(first_write.status(), StatusCode::OK);
+
+    let second_write = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/control/provider-bindings")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"domain":"object-storage","pluginId":"object-storage-aws"}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("second provider policy write should return response");
+    assert_eq!(second_write.status(), StatusCode::OK);
+
+    let provider_bindings = ops_runtime.provider_bindings_view();
+    assert_eq!(provider_bindings.items.len(), 1);
+    assert!(
+        provider_bindings.items[0]
+            .effective_bindings
+            .iter()
+            .any(|binding| binding.domain == "object-storage"
+                && binding.selected_plugin_id.as_deref() == Some("object-storage-aws")
+                && binding.selection_source == "deployment_profile")
+    );
+
+    let audit_auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_admin".into(),
+        actor_kind: "admin".into(),
+        session_id: None,
+        device_id: None,
+        permissions: BTreeSet::new(),
+    };
+    let audit_export = audit_runtime.export_bundle(&audit_auth);
+    assert_eq!(audit_export.total, 2);
+    assert_eq!(
+        audit_export.items[0].action,
+        "control.provider_deployment_profile_updated"
+    );
+    assert_eq!(
+        audit_export.items[1].action,
+        "control.provider_deployment_profile_updated"
+    );
+    assert!(
+        audit_export.items[0]
+            .payload
+            .as_deref()
+            .expect("first deployment policy audit should include payload")
+            .contains("\"pluginId\":\"object-storage-volcengine\"")
+    );
+    assert!(
+        audit_export.items[1]
+            .payload
+            .as_deref()
+            .expect("second deployment policy audit should include payload")
+            .contains("\"pluginId\":\"object-storage-aws\"")
+    );
+}
+
+#[tokio::test]
 async fn test_control_plane_noop_provider_policy_write_does_not_append_audit() {
     let cluster = Arc::new(RealtimeClusterBridge::default());
     let ops_runtime = Arc::new(OpsRuntime::new(
@@ -742,4 +845,312 @@ async fn test_control_plane_stale_provider_policy_confirm_write_does_not_touch_o
         audit_export.items[0].action,
         "control.provider_deployment_profile_updated"
     );
+}
+
+#[tokio::test]
+async fn test_control_plane_rejects_empty_tenant_provider_bindings_query_without_polluting_ops_runtime()
+{
+    let cluster = Arc::new(RealtimeClusterBridge::default());
+    let ops_runtime = Arc::new(OpsRuntime::new(
+        "node_a",
+        "local-minimal",
+        "127.0.0.1:18090",
+        vec!["session-gateway".into(), "control-plane-api".into()],
+        vec!["conversation:c_demo".into()],
+    ));
+    let audit_runtime = Arc::new(AuditRuntime::default());
+    let provider_registry = Arc::new(
+        StaticProviderRegistry::platform_default()
+            .with_deployment_profile(ProviderDomain::ObjectStorage, "object-storage-volcengine"),
+    );
+
+    let app = control_plane_api::build_app_with_cluster_provider_registry_and_governance_sinks(
+        cluster,
+        provider_registry,
+        ops_runtime.clone(),
+        audit_runtime,
+    );
+
+    let global_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/control/provider-bindings")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("global provider bindings request should return response");
+    assert_eq!(global_response.status(), StatusCode::OK);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/control/provider-bindings?tenantId=")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("empty tenant provider bindings request should return response");
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("empty tenant provider bindings body should collect")
+        .to_bytes();
+    let json: serde_json::Value =
+        serde_json::from_slice(&body).expect("empty tenant provider bindings body should be json");
+    assert_eq!(json["status"], "invalid");
+    assert_eq!(json["code"], "invalid_provider_policy");
+    assert!(
+        json["message"]
+            .as_str()
+            .expect("empty tenant query error message should be present")
+            .contains("tenantId cannot be empty"),
+        "empty tenant query should explain why the tenant id is invalid"
+    );
+
+    let provider_bindings = ops_runtime.provider_bindings_view();
+    assert_eq!(provider_bindings.items.len(), 1);
+    assert_eq!(provider_bindings.items[0].tenant_id, None);
+}
+
+#[tokio::test]
+async fn test_control_plane_rejects_empty_tenant_provider_policy_write_without_mutating_ops_or_audit()
+{
+    let cluster = Arc::new(RealtimeClusterBridge::default());
+    let ops_runtime = Arc::new(OpsRuntime::new(
+        "node_a",
+        "local-minimal",
+        "127.0.0.1:18090",
+        vec!["session-gateway".into(), "control-plane-api".into()],
+        vec!["conversation:c_demo".into()],
+    ));
+    let audit_runtime = Arc::new(AuditRuntime::default());
+    let provider_registry = Arc::new(RuntimeProviderRegistry::platform_default());
+
+    let app =
+        control_plane_api::build_app_with_cluster_runtime_provider_registry_and_governance_sinks(
+            cluster,
+            provider_registry,
+            ops_runtime.clone(),
+            audit_runtime.clone(),
+        );
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/control/provider-bindings")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"tenantId":"","domain":"rtc","pluginId":"rtc-aliyun"}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("empty tenant provider policy write should return response");
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("empty tenant provider policy body should collect")
+        .to_bytes();
+    let json: serde_json::Value =
+        serde_json::from_slice(&body).expect("empty tenant provider policy body should be json");
+    assert_eq!(json["status"], "invalid");
+    assert_eq!(json["code"], "invalid_provider_policy");
+    assert!(
+        json["message"]
+            .as_str()
+            .expect("empty tenant write error message should be present")
+            .contains("tenantId cannot be empty"),
+        "empty tenant provider policy write should explain why the tenant id is invalid"
+    );
+
+    assert!(
+        ops_runtime.provider_bindings_view().items.is_empty(),
+        "invalid tenant writes must not mutate ops provider bindings"
+    );
+
+    let audit_auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_admin".into(),
+        actor_kind: "admin".into(),
+        session_id: None,
+        device_id: None,
+        permissions: BTreeSet::new(),
+    };
+    let audit_export = audit_runtime.export_bundle(&audit_auth);
+    assert_eq!(audit_export.total, 0);
+}
+
+#[tokio::test]
+async fn test_control_plane_rejects_oversized_tenant_provider_bindings_query_without_polluting_ops_runtime()
+{
+    let cluster = Arc::new(RealtimeClusterBridge::default());
+    let ops_runtime = Arc::new(OpsRuntime::new(
+        "node_a",
+        "local-minimal",
+        "127.0.0.1:18090",
+        vec!["session-gateway".into(), "control-plane-api".into()],
+        vec!["conversation:c_demo".into()],
+    ));
+    let audit_runtime = Arc::new(AuditRuntime::default());
+    let provider_registry = Arc::new(
+        StaticProviderRegistry::platform_default()
+            .with_deployment_profile(ProviderDomain::ObjectStorage, "object-storage-volcengine"),
+    );
+    let tenant_id = "t".repeat(257);
+
+    let app = control_plane_api::build_app_with_cluster_provider_registry_and_governance_sinks(
+        cluster,
+        provider_registry,
+        ops_runtime.clone(),
+        audit_runtime,
+    );
+
+    let global_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/control/provider-bindings")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("global provider bindings request should return response");
+    assert_eq!(global_response.status(), StatusCode::OK);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/v1/control/provider-bindings?tenantId={tenant_id}"))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("oversized tenant provider bindings request should return response");
+
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("oversized tenant provider bindings body should collect")
+        .to_bytes();
+    let json: serde_json::Value = serde_json::from_slice(&body)
+        .expect("oversized tenant provider bindings body should be json");
+    assert_eq!(json["status"], "invalid");
+    assert_eq!(json["code"], "payload_too_large");
+    assert!(
+        json["message"]
+            .as_str()
+            .expect("oversized tenant query error message should be present")
+            .contains("tenantId"),
+        "oversized tenant query should identify the rejected field"
+    );
+
+    let provider_bindings = ops_runtime.provider_bindings_view();
+    assert_eq!(provider_bindings.items.len(), 1);
+    assert_eq!(provider_bindings.items[0].tenant_id, None);
+}
+
+#[tokio::test]
+async fn test_control_plane_rejects_oversized_tenant_provider_policy_write_without_mutating_ops_or_audit()
+{
+    let cluster = Arc::new(RealtimeClusterBridge::default());
+    let ops_runtime = Arc::new(OpsRuntime::new(
+        "node_a",
+        "local-minimal",
+        "127.0.0.1:18090",
+        vec!["session-gateway".into(), "control-plane-api".into()],
+        vec!["conversation:c_demo".into()],
+    ));
+    let audit_runtime = Arc::new(AuditRuntime::default());
+    let provider_registry = Arc::new(RuntimeProviderRegistry::platform_default());
+    let tenant_id = "t".repeat(257);
+
+    let app =
+        control_plane_api::build_app_with_cluster_runtime_provider_registry_and_governance_sinks(
+            cluster,
+            provider_registry,
+            ops_runtime.clone(),
+            audit_runtime.clone(),
+        );
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/control/provider-bindings")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(format!(
+                    r#"{{"tenantId":"{tenant_id}","domain":"rtc","pluginId":"rtc-aliyun"}}"#
+                )))
+                .unwrap(),
+        )
+        .await
+        .expect("oversized tenant provider policy write should return response");
+
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("oversized tenant provider policy body should collect")
+        .to_bytes();
+    let json: serde_json::Value =
+        serde_json::from_slice(&body).expect("oversized tenant provider policy body should be json");
+    assert_eq!(json["status"], "invalid");
+    assert_eq!(json["code"], "payload_too_large");
+    assert!(
+        json["message"]
+            .as_str()
+            .expect("oversized tenant write error message should be present")
+            .contains("tenantId"),
+        "oversized tenant write should identify the rejected field"
+    );
+
+    assert!(
+        ops_runtime.provider_bindings_view().items.is_empty(),
+        "oversized tenant writes must not mutate ops provider bindings"
+    );
+
+    let audit_auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_admin".into(),
+        actor_kind: "admin".into(),
+        session_id: None,
+        device_id: None,
+        permissions: BTreeSet::new(),
+    };
+    let audit_export = audit_runtime.export_bundle(&audit_auth);
+    assert_eq!(audit_export.total, 0);
 }

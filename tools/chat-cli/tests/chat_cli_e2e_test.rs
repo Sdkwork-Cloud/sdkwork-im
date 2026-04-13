@@ -32,14 +32,47 @@ fn resolve_usable_bash() -> Option<PathBuf> {
     {
         candidates.push(PathBuf::from(r"C:\Program Files\Git\usr\bin\bash.exe"));
         candidates.push(PathBuf::from(r"C:\Program Files\Git\bin\bash.exe"));
+        if let Ok(output) = Command::new("where").arg("bash").output()
+            && output.status.success()
+        {
+            for line in String::from_utf8_lossy(&output.stdout).lines() {
+                let trimmed = line.trim();
+                if trimmed.is_empty() {
+                    continue;
+                }
+                if trimmed
+                    .to_ascii_lowercase()
+                    .contains(r"\windows\system32\bash.exe")
+                {
+                    continue;
+                }
+                candidates.push(PathBuf::from(trimmed));
+            }
+        }
     }
+    #[cfg(not(windows))]
     candidates.push(PathBuf::from("bash"));
 
+    const BASH_PROBE_SENTINEL: &str = "craw_chat_cli_bash_probe_ok";
+    const BASH_PROBE_SCRIPT: &str = "command -v grep >/dev/null 2>&1 && command -v sed >/dev/null 2>&1 && command -v mktemp >/dev/null 2>&1 && printf craw_chat_cli_bash_probe_ok";
+
     candidates.into_iter().find(|candidate| {
-        Command::new(candidate)
+        let version_ok = Command::new(candidate)
             .arg("--version")
             .output()
             .map(|output| output.status.success())
+            .unwrap_or(false);
+        if !version_ok {
+            return false;
+        }
+
+        Command::new(candidate)
+            .arg("-lc")
+            .arg(BASH_PROBE_SCRIPT)
+            .output()
+            .map(|output| {
+                output.status.success() && output.stdout.starts_with(BASH_PROBE_SENTINEL.as_bytes())
+            })
             .unwrap_or(false)
     })
 }
@@ -1442,13 +1475,17 @@ async fn test_chat_window_gui_cmd_wrapper_preserves_exclamation_mark_in_label() 
                  $diag = $env:CHAT_WINDOW_GUI_DIAG; \
                  Remove-Item -LiteralPath $diag -ErrorAction SilentlyContinue; \
                  $text = $null; \
-                 $proc = Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', $wrapper, '-ConversationId', 'c_gui_cmd_bang_demo', '-UserId', 'u_guest', '-Label', 'guest!', '-DiagnosticsFile', $diag -PassThru -WindowStyle Hidden; \
+                 $proc = Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', $wrapper, '-ConversationId', 'c_gui_cmd_bang_demo', '-UserId', 'u_guest', '-Label', 'guest!', '--skip-connect', '-DiagnosticsFile', $diag -PassThru -WindowStyle Hidden; \
                  for ($i = 0; $i -lt 40; $i++) { \
                    Start-Sleep -Milliseconds 250; \
                    if (Test-Path $diag) { \
                      $text = Get-Content -Raw -LiteralPath $diag; \
                      if ($text -like '*script start*') { break } \
                    } \
+                 }; \
+                 if ($null -ne $text -and $text -like '*script start*') { \
+                   Start-Sleep -Milliseconds 3000; \
+                   if (Test-Path $diag) { $text = Get-Content -Raw -LiteralPath $diag } \
                  }; \
                  if ($proc -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }; \
                  if ($null -eq $text) { exit 2 }; \
@@ -1477,6 +1514,13 @@ async fn test_chat_window_gui_cmd_wrapper_preserves_exclamation_mark_in_label() 
     assert!(
         diagnostics_text.contains("script start label=guest! conversation=c_gui_cmd_bang_demo"),
         "chat-window-gui.cmd must preserve ! in -Label across the Windows wrapper boundary\ndiagnostics:\n{}\nstdout:\n{}\nstderr:\n{}",
+        diagnostics_text,
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        !diagnostics_text.contains("timeline refresh failed"),
+        "chat-window-gui.cmd launch-only diagnostics must not perform eager network refreshes\ndiagnostics:\n{}\nstdout:\n{}\nstderr:\n{}",
         diagnostics_text,
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
@@ -1514,13 +1558,17 @@ async fn test_chat_window_gui_cmd_wrapper_accepts_gnu_style_named_flags_for_laun
                  $diag = $env:CHAT_WINDOW_GUI_DIAG; \
                  Remove-Item -LiteralPath $diag -ErrorAction SilentlyContinue; \
                  $text = $null; \
-                 $proc = Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', $wrapper, '--conversation-id', 'c_gui_cmd_gnu_demo', '--user-id', 'u_guest', '--label', 'guest-gnu', '-DiagnosticsFile', $diag -PassThru -WindowStyle Hidden; \
+                 $proc = Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', $wrapper, '--conversation-id', 'c_gui_cmd_gnu_demo', '--user-id', 'u_guest', '--label', 'guest-gnu', '--skip-connect', '-DiagnosticsFile', $diag -PassThru -WindowStyle Hidden; \
                  for ($i = 0; $i -lt 40; $i++) { \
                    Start-Sleep -Milliseconds 250; \
                    if (Test-Path $diag) { \
                      $text = Get-Content -Raw -LiteralPath $diag; \
                      if ($text -like '*script start*') { break } \
                    } \
+                 }; \
+                 if ($null -ne $text -and $text -like '*script start*') { \
+                   Start-Sleep -Milliseconds 3000; \
+                   if (Test-Path $diag) { $text = Get-Content -Raw -LiteralPath $diag } \
                  }; \
                  if ($proc -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }; \
                  if ($null -eq $text) { exit 2 }; \
@@ -1549,6 +1597,13 @@ async fn test_chat_window_gui_cmd_wrapper_accepts_gnu_style_named_flags_for_laun
     assert!(
         diagnostics_text.contains("script start label=guest-gnu conversation=c_gui_cmd_gnu_demo"),
         "chat-window-gui.cmd must preserve the GNU-style launch contract for conversation, user, and label\ndiagnostics:\n{}\nstdout:\n{}\nstderr:\n{}",
+        diagnostics_text,
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        !diagnostics_text.contains("timeline refresh failed"),
+        "chat-window-gui.cmd GNU-style launch diagnostics must not perform eager network refreshes\ndiagnostics:\n{}\nstdout:\n{}\nstderr:\n{}",
         diagnostics_text,
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)

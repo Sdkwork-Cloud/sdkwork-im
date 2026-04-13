@@ -454,7 +454,9 @@ fn test_local_minimal_node_device_registration_owner_moves_out_of_access_impl() 
         "self.session_presence_runtime",
         "self.realtime_runtime",
         "self.projection_service",
-        "self.realtime_cluster.bind_device_route(",
+        ".ensure_device_registration_allowed_from_auth_context(",
+        ".register_device_from_auth_context(",
+        "self.realtime_cluster.bind_device_route_for_principal_kind(",
         "platform::refresh_node_operational_view(",
     ] {
         assert!(
@@ -462,6 +464,11 @@ fn test_local_minimal_node_device_registration_owner_moves_out_of_access_impl() 
             "services/local-minimal-node/src/node/device_registration.rs should host device registration owner implementation: {required_symbol}"
         );
     }
+
+    assert!(
+        !owner_source.contains("projection_service.register_device("),
+        "services/local-minimal-node/src/node/device_registration.rs should not keep projection-service legacy device registration once actor-kind-aware registration owns that seam"
+    );
 }
 
 #[test]
@@ -548,10 +555,10 @@ fn test_local_minimal_node_disconnect_lifecycle_owner_moves_out_of_session_entry
     for required_symbol in [
         "pub(crate) enum DisconnectActiveDeviceRouteOutcome",
         "pub(crate) fn disconnect_active_device_route(",
-        "disconnect_fence_matches_session(",
-        "clear_device_subscriptions(",
-        "release_device_route(",
-        "mark_device_disconnected(",
+        "disconnect_fence_matches_session_for_principal_kind(",
+        "clear_device_subscriptions_for_principal_kind(",
+        "release_device_route_for_principal_kind(",
+        "mark_device_disconnected_for_principal_kind(",
         "platform::refresh_node_operational_view(",
     ] {
         assert!(
@@ -566,11 +573,12 @@ fn test_local_minimal_node_effects_member_fanout_uses_projection_auth_context_en
     let effects_source = include_str!("../src/node/effects.rs");
 
     assert!(
-        effects_source.contains(".active_conversation_principal_ids_from_auth_context("),
-        "services/local-minimal-node/src/node/effects.rs should consume projection-service auth-context active-principal seam for notification/realtime recipient resolution"
+        effects_source.contains(".active_conversation_principal_recipients_from_auth_context("),
+        "services/local-minimal-node/src/node/effects.rs should consume projection-service auth-context active-recipient seam for notification/realtime recipient resolution"
     );
 
     for forbidden_symbol in [
+        ".active_conversation_principal_ids_from_auth_context(",
         ".list_members_from_auth_context(",
         ".list_members(auth.tenant_id.as_str(), conversation_id)",
         ".list_members(tenant_id, conversation_id)",
@@ -587,11 +595,12 @@ fn test_local_minimal_node_effects_use_projection_owned_realtime_fanout_target_s
     let effects_source = include_str!("../src/node/effects.rs");
 
     assert!(
-        effects_source.contains(".realtime_fanout_targets_from_auth_context("),
-        "services/local-minimal-node/src/node/effects.rs should consume projection-service's auth-context realtime fanout target seam for principal-to-device resolution"
+        effects_source.contains(".realtime_fanout_targets_for_recipients_from_auth_context("),
+        "services/local-minimal-node/src/node/effects.rs should consume projection-service's typed auth-context realtime fanout target seam for principal-to-device resolution"
     );
 
     for forbidden_symbol in [
+        ".realtime_fanout_targets_from_auth_context(",
         ".registered_devices(tenant_id, principal_id.as_str())",
         ".map(|item| item.device_id)",
         ".realtime_fanout_targets_for_principals(tenant_id, principal_ids)",

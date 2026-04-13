@@ -6,6 +6,7 @@ use im_time::utc_now_rfc3339_millis;
 use serde::{Deserialize, Serialize};
 
 pub const PROVIDER_REGISTRY_INTERFACE_VERSION: &str = "provider-registry/v1";
+const PROVIDER_POLICY_MAX_TENANT_ID_BYTES: usize = 256;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -681,6 +682,23 @@ impl RuntimeProviderRegistry {
         StaticProviderRegistry::platform_default().into_runtime()
     }
 
+    fn validate_tenant_override_id(tenant_id: Option<&str>) -> Result<(), ContractError> {
+        if let Some(tenant_id) = tenant_id {
+            if tenant_id.trim().is_empty() {
+                return Err(ContractError::UnsupportedCapability(
+                    "tenantId cannot be empty".into(),
+                ));
+            }
+            if tenant_id.len() > PROVIDER_POLICY_MAX_TENANT_ID_BYTES {
+                return Err(ContractError::UnsupportedCapability(format!(
+                    "tenantId must be at most {PROVIDER_POLICY_MAX_TENANT_ID_BYTES} bytes",
+                )));
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn with_tenant_override(
         mut self,
         tenant_id: impl Into<String>,
@@ -691,7 +709,7 @@ impl RuntimeProviderRegistry {
         let plugin_id = plugin_id.into();
         lock_provider_registry_state_mut(&mut self.state)
             .tenant_overrides
-            .entry(tenant_id.into())
+            .entry(tenant_id)
             .or_default()
             .insert(domain, plugin_id);
         lock_provider_registry_state_mut(&mut self.state).reset_history_to_current_state();
@@ -757,6 +775,7 @@ impl RuntimeProviderRegistry {
         plugin_id: &str,
         expected_base_version: Option<u64>,
     ) -> Result<ProviderPolicyCommit, ContractError> {
+        Self::validate_tenant_override_id(tenant_id)?;
         self.ensure_valid_plugin_for_domain(plugin_id, domain, tenant_id.is_some())?;
         let mut state = lock_provider_registry_state(&self.state);
         state.ensure_expected_base_version(expected_base_version)?;
@@ -827,6 +846,12 @@ impl RuntimeProviderRegistry {
         from_version: u64,
         to_version: u64,
     ) -> Result<ProviderPolicyDiff, ContractError> {
+        if from_version > to_version {
+            return Err(ContractError::UnsupportedCapability(
+                "fromVersion must not exceed toVersion".into(),
+            ));
+        }
+
         let state = lock_provider_registry_state(&self.state);
         let from_snapshot = state
             .history
@@ -852,6 +877,7 @@ impl RuntimeProviderRegistry {
         domain: ProviderDomain,
         plugin_id: &str,
     ) -> Result<ProviderPolicyPreview, ContractError> {
+        Self::validate_tenant_override_id(tenant_id)?;
         self.ensure_valid_plugin_for_domain(plugin_id, domain, tenant_id.is_some())?;
         let state = lock_provider_registry_state(&self.state);
         let base_snapshot = state.history.last().cloned().ok_or_else(|| {

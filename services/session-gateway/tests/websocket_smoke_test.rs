@@ -230,6 +230,126 @@ async fn test_realtime_websocket_binds_http_control_semantics() {
 }
 
 #[tokio::test]
+async fn test_realtime_websocket_rejects_oversized_request_id() {
+    let app = session_gateway::build_app();
+    let (address, handle) = spawn_server(app).await;
+    let mut request = format!("ws://{address}/api/v1/realtime/ws")
+        .into_client_request()
+        .expect("websocket request should build");
+    request.headers_mut().insert(
+        "x-tenant-id",
+        "t_demo".parse().expect("tenant header should parse"),
+    );
+    request.headers_mut().insert(
+        "x-user-id",
+        "u_demo".parse().expect("user header should parse"),
+    );
+    request.headers_mut().insert(
+        "x-session-id",
+        "s_pad".parse().expect("session header should parse"),
+    );
+    request.headers_mut().insert(
+        "x-device-id",
+        "d_pad".parse().expect("device header should parse"),
+    );
+
+    let (mut socket, _) = connect_async(request)
+        .await
+        .expect("websocket connection should succeed");
+
+    let _connected = next_text_json(&mut socket).await;
+
+    socket
+        .send(Message::Text(
+            json!({
+                "type":"events.pull",
+                "requestId":"r".repeat(1024),
+                "afterSeq":0,
+                "limit":10
+            })
+            .to_string()
+            .into(),
+        ))
+        .await
+        .expect("oversized request id frame should send");
+
+    let error = next_text_json(&mut socket).await;
+    assert_eq!(error["type"], "error");
+    assert!(error["requestId"].is_null());
+    assert_eq!(error["code"], "payload_too_large");
+    assert!(
+        error["message"]
+            .as_str()
+            .expect("message should be a string")
+            .contains("requestId"),
+        "error should point to requestId payload guard, got: {error:?}"
+    );
+
+    let _ = socket.close(None).await;
+    handle.abort();
+    let _ = handle.await;
+}
+
+#[tokio::test]
+async fn test_realtime_websocket_rejects_oversized_frame_type() {
+    let app = session_gateway::build_app();
+    let (address, handle) = spawn_server(app).await;
+    let mut request = format!("ws://{address}/api/v1/realtime/ws")
+        .into_client_request()
+        .expect("websocket request should build");
+    request.headers_mut().insert(
+        "x-tenant-id",
+        "t_demo".parse().expect("tenant header should parse"),
+    );
+    request.headers_mut().insert(
+        "x-user-id",
+        "u_demo".parse().expect("user header should parse"),
+    );
+    request.headers_mut().insert(
+        "x-session-id",
+        "s_pad".parse().expect("session header should parse"),
+    );
+    request.headers_mut().insert(
+        "x-device-id",
+        "d_pad".parse().expect("device header should parse"),
+    );
+
+    let (mut socket, _) = connect_async(request)
+        .await
+        .expect("websocket connection should succeed");
+
+    let _connected = next_text_json(&mut socket).await;
+
+    socket
+        .send(Message::Text(
+            json!({
+                "type":"x".repeat(1024),
+                "requestId":"req_oversized_type_1"
+            })
+            .to_string()
+            .into(),
+        ))
+        .await
+        .expect("oversized frame type should send");
+
+    let error = next_text_json(&mut socket).await;
+    assert_eq!(error["type"], "error");
+    assert_eq!(error["requestId"], "req_oversized_type_1");
+    assert_eq!(error["code"], "payload_too_large");
+    assert!(
+        error["message"]
+            .as_str()
+            .expect("message should be a string")
+            .contains("type"),
+        "error should point to type payload guard, got: {error:?}"
+    );
+
+    let _ = socket.close(None).await;
+    handle.abort();
+    let _ = handle.await;
+}
+
+#[tokio::test]
 async fn test_realtime_websocket_negotiates_ccp_subprotocol_and_wraps_business_frames() {
     let app = session_gateway::build_app();
     let (address, handle) = spawn_server(app).await;
@@ -638,12 +758,13 @@ async fn test_realtime_websocket_sends_ccp_goaway_before_disconnect_close() {
 async fn test_realtime_websocket_uses_runtime_link_queue_owner_limits_for_catchup_and_pull() {
     let runtime = Arc::new(session_gateway::RealtimeDeliveryRuntime::default());
     runtime
-        .ensure_device_state("t_demo", "u_demo", "d_pad")
+        .ensure_device_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
         .expect("device state should initialize");
     runtime
-        .sync_subscriptions(
+        .sync_subscriptions_for_principal_kind(
             "t_demo",
             "u_demo",
+            "user",
             "d_pad",
             vec![session_gateway::RealtimeSubscriptionItemInput {
                 scope_type: "conversation".into(),
@@ -654,9 +775,10 @@ async fn test_realtime_websocket_uses_runtime_link_queue_owner_limits_for_catchu
         .expect("subscription seed should succeed");
     for index in 1..=520 {
         runtime
-            .publish_scope_event(
+            .publish_scope_event_for_principal_kind(
                 "t_demo",
                 "u_demo",
+                "user",
                 "conversation",
                 "c_demo",
                 "message.posted",
@@ -741,12 +863,13 @@ async fn test_realtime_websocket_degrades_live_push_to_pull_only_when_runtime_li
  {
     let runtime = Arc::new(session_gateway::RealtimeDeliveryRuntime::default());
     runtime
-        .ensure_device_state("t_demo", "u_demo", "d_pad")
+        .ensure_device_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
         .expect("device state should initialize");
     runtime
-        .sync_subscriptions(
+        .sync_subscriptions_for_principal_kind(
             "t_demo",
             "u_demo",
+            "user",
             "d_pad",
             vec![session_gateway::RealtimeSubscriptionItemInput {
                 scope_type: "conversation".into(),
@@ -757,9 +880,10 @@ async fn test_realtime_websocket_degrades_live_push_to_pull_only_when_runtime_li
         .expect("subscription seed should succeed");
     for index in 1..=900 {
         runtime
-            .publish_scope_event(
+            .publish_scope_event_for_principal_kind(
                 "t_demo",
                 "u_demo",
+                "user",
                 "conversation",
                 "c_demo",
                 "message.posted",
@@ -812,9 +936,10 @@ async fn test_realtime_websocket_degrades_live_push_to_pull_only_when_runtime_li
     assert_eq!(catchup["window"]["nextAfterSeq"], 128);
 
     runtime
-        .publish_scope_event(
+        .publish_scope_event_for_principal_kind(
             "t_demo",
             "u_demo",
+            "user",
             "conversation",
             "c_demo",
             "message.posted",
@@ -864,12 +989,13 @@ async fn test_realtime_websocket_degrades_live_push_to_pull_only_when_runtime_li
 async fn test_realtime_websocket_clamps_stale_pull_replay_when_backlog_is_still_over_hard_limit() {
     let runtime = Arc::new(session_gateway::RealtimeDeliveryRuntime::default());
     runtime
-        .ensure_device_state("t_demo", "u_demo", "d_pad")
+        .ensure_device_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
         .expect("device state should initialize");
     runtime
-        .sync_subscriptions(
+        .sync_subscriptions_for_principal_kind(
             "t_demo",
             "u_demo",
+            "user",
             "d_pad",
             vec![session_gateway::RealtimeSubscriptionItemInput {
                 scope_type: "conversation".into(),
@@ -880,9 +1006,10 @@ async fn test_realtime_websocket_clamps_stale_pull_replay_when_backlog_is_still_
         .expect("subscription seed should succeed");
     for index in 1..=900 {
         runtime
-            .publish_scope_event(
+            .publish_scope_event_for_principal_kind(
                 "t_demo",
                 "u_demo",
+                "user",
                 "conversation",
                 "c_demo",
                 "message.posted",
@@ -968,12 +1095,13 @@ async fn test_realtime_websocket_recovers_buffered_push_after_pull_reduces_backl
  {
     let runtime = Arc::new(session_gateway::RealtimeDeliveryRuntime::default());
     runtime
-        .ensure_device_state("t_demo", "u_demo", "d_pad")
+        .ensure_device_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
         .expect("device state should initialize");
     runtime
-        .sync_subscriptions(
+        .sync_subscriptions_for_principal_kind(
             "t_demo",
             "u_demo",
+            "user",
             "d_pad",
             vec![session_gateway::RealtimeSubscriptionItemInput {
                 scope_type: "conversation".into(),
@@ -984,9 +1112,10 @@ async fn test_realtime_websocket_recovers_buffered_push_after_pull_reduces_backl
         .expect("subscription seed should succeed");
     for index in 1..=700 {
         runtime
-            .publish_scope_event(
+            .publish_scope_event_for_principal_kind(
                 "t_demo",
                 "u_demo",
+                "user",
                 "conversation",
                 "c_demo",
                 "message.posted",
@@ -1078,12 +1207,13 @@ async fn test_realtime_websocket_recovers_buffered_push_after_pull_reduces_backl
 async fn test_realtime_websocket_closes_when_runtime_link_detects_extreme_overload_backlog() {
     let runtime = Arc::new(session_gateway::RealtimeDeliveryRuntime::default());
     runtime
-        .ensure_device_state("t_demo", "u_demo", "d_pad")
+        .ensure_device_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
         .expect("device state should initialize");
     runtime
-        .sync_subscriptions(
+        .sync_subscriptions_for_principal_kind(
             "t_demo",
             "u_demo",
+            "user",
             "d_pad",
             vec![session_gateway::RealtimeSubscriptionItemInput {
                 scope_type: "conversation".into(),
@@ -1094,9 +1224,10 @@ async fn test_realtime_websocket_closes_when_runtime_link_detects_extreme_overlo
         .expect("subscription seed should succeed");
     for index in 1..=1200 {
         runtime
-            .publish_scope_event(
+            .publish_scope_event_for_principal_kind(
                 "t_demo",
                 "u_demo",
+                "user",
                 "conversation",
                 "c_demo",
                 "message.posted",
@@ -1149,9 +1280,10 @@ async fn test_realtime_websocket_closes_when_runtime_link_detects_extreme_overlo
     assert_eq!(catchup["window"]["nextAfterSeq"], 128);
 
     runtime
-        .publish_scope_event(
+        .publish_scope_event_for_principal_kind(
             "t_demo",
             "u_demo",
+            "user",
             "conversation",
             "c_demo",
             "message.posted",

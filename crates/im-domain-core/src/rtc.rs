@@ -29,6 +29,8 @@ pub struct RtcSession {
     pub conversation_id: Option<String>,
     pub rtc_mode: String,
     pub initiator_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub initiator_kind: Option<String>,
     pub provider_plugin_id: Option<String>,
     pub provider_session_id: Option<String>,
     pub access_endpoint: Option<String>,

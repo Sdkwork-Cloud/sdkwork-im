@@ -607,8 +607,11 @@ pub(super) fn summarize_stream_state_restore_preview_change(
         );
         let result_message_changed =
             source_entry.session.result_message_id != target_entry.session.result_message_id;
-        let session_contract_changed = source_entry.session.stream_type
-            != target_entry.session.stream_type
+        let session_contract_changed = source_entry.session.owner_principal_id
+            != target_entry.session.owner_principal_id
+            || source_entry.session.owner_principal_kind
+                != target_entry.session.owner_principal_kind
+            || source_entry.session.stream_type != target_entry.session.stream_type
             || source_entry.session.scope_kind != target_entry.session.scope_kind
             || source_entry.session.scope_id != target_entry.session.scope_id
             || source_entry.session.durability_class != target_entry.session.durability_class
@@ -804,7 +807,8 @@ pub(super) fn summarize_rtc_state_restore_preview_change(
         let session_contract_changed = source_entry.session.conversation_id
             != target_entry.session.conversation_id
             || source_entry.session.rtc_mode != target_entry.session.rtc_mode
-            || source_entry.session.initiator_id != target_entry.session.initiator_id;
+            || source_entry.session.initiator_id != target_entry.session.initiator_id
+            || source_entry.session.initiator_kind != target_entry.session.initiator_kind;
 
         if state_changed {
             rtc_state_changed_keys.push(key.clone());

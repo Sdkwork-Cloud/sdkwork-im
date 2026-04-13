@@ -253,6 +253,10 @@ pub fn build_default_read_cursor(member: &ConversationMember) -> ConversationRea
     }
 }
 
+pub fn principal_member_key(principal_id: &str, principal_kind: &str) -> String {
+    format!("{principal_kind}:{principal_id}")
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ConversationRoster {
     members: BTreeMap<String, ConversationMember>,
@@ -289,13 +293,18 @@ impl ConversationRoster {
     }
 
     pub fn upsert_member(&mut self, member: ConversationMember) {
-        self.principal_members
-            .insert(member.principal_id.clone(), member.member_id.clone());
+        self.principal_members.insert(
+            principal_member_key(member.principal_id.as_str(), member.principal_kind.as_str()),
+            member.member_id.clone(),
+        );
         self.members.insert(member.member_id.clone(), member);
     }
 
     pub fn deactivate_member(&mut self, member: ConversationMember) {
-        self.principal_members.remove(member.principal_id.as_str());
+        self.principal_members.remove(
+            principal_member_key(member.principal_id.as_str(), member.principal_kind.as_str())
+                .as_str(),
+        );
         self.members.insert(member.member_id.clone(), member);
     }
 
@@ -316,6 +325,19 @@ impl ConversationRoster {
         Some(member.member_id)
     }
 
+    pub fn resolve_active_member_id_with_kind(
+        &self,
+        principal_id: &str,
+        principal_kind: &str,
+    ) -> Option<String> {
+        let member = self.resolve_current_member_with_kind(principal_id, principal_kind)?;
+        if !member.is_active() {
+            return None;
+        }
+
+        Some(member.member_id)
+    }
+
     pub fn resolve_active_member(&self, principal_id: &str) -> Option<ConversationMember> {
         let member = self.resolve_current_member(principal_id)?;
         if !member.is_active() {
@@ -325,8 +347,42 @@ impl ConversationRoster {
         Some(member)
     }
 
+    pub fn resolve_active_member_with_kind(
+        &self,
+        principal_id: &str,
+        principal_kind: &str,
+    ) -> Option<ConversationMember> {
+        let member = self.resolve_current_member_with_kind(principal_id, principal_kind)?;
+        if !member.is_active() {
+            return None;
+        }
+
+        Some(member)
+    }
+
     pub fn resolve_current_member(&self, principal_id: &str) -> Option<ConversationMember> {
-        let member_id = self.principal_members.get(principal_id)?;
+        let mut matches = self
+            .principal_members
+            .values()
+            .filter_map(|member_id| self.members.get(member_id.as_str()))
+            .filter(|member| member.principal_id == principal_id)
+            .cloned();
+        let member = matches.next()?;
+        if matches.next().is_some() {
+            return None;
+        }
+
+        Some(member)
+    }
+
+    pub fn resolve_current_member_with_kind(
+        &self,
+        principal_id: &str,
+        principal_kind: &str,
+    ) -> Option<ConversationMember> {
+        let member_id = self
+            .principal_members
+            .get(principal_member_key(principal_id, principal_kind).as_str())?;
         self.members.get(member_id.as_str()).cloned()
     }
 
@@ -339,11 +395,37 @@ impl ConversationRoster {
         Some(member)
     }
 
+    pub fn resolve_history_visible_member_with_kind(
+        &self,
+        principal_id: &str,
+        principal_kind: &str,
+    ) -> Option<ConversationMember> {
+        let member = self.resolve_current_member_with_kind(principal_id, principal_kind)?;
+        if !member.can_read_invited_history() {
+            return None;
+        }
+
+        Some(member)
+    }
+
     pub fn resolve_shared_history_visible_member(
         &self,
         principal_id: &str,
     ) -> Option<ConversationMember> {
         let member = self.resolve_current_member(principal_id)?;
+        if !member.can_read_shared_history() {
+            return None;
+        }
+
+        Some(member)
+    }
+
+    pub fn resolve_shared_history_visible_member_with_kind(
+        &self,
+        principal_id: &str,
+        principal_kind: &str,
+    ) -> Option<ConversationMember> {
+        let member = self.resolve_current_member_with_kind(principal_id, principal_kind)?;
         if !member.can_read_shared_history() {
             return None;
         }

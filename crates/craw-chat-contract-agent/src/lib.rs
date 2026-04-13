@@ -53,6 +53,7 @@ pub trait AutomationExecutionStore: Send + Sync {
     fn load_execution(
         &self,
         tenant_id: &str,
+        principal_kind: &str,
         principal_id: &str,
         execution_id: &str,
     ) -> Result<Option<AutomationExecutionRecord>, ContractError>;

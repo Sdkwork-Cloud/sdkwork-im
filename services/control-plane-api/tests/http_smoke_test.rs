@@ -114,3 +114,134 @@ async fn test_delivery_state_shared_channel_sync_inventory_route_returns_snapsho
         0
     );
 }
+
+#[tokio::test]
+async fn test_control_plane_social_friend_request_rejects_oversized_request_id_over_http() {
+    let app = control_plane_api::build_app();
+    let request_body = serde_json::json!({
+        "requestId": "r".repeat(2048),
+        "eventId": "evt_oversized_friend_request",
+        "requesterUserId": "u_alice",
+        "targetUserId": "u_bob",
+        "requestedAt": "2026-04-10T10:00:00Z"
+    })
+    .to_string();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/control/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(request_body))
+                .unwrap(),
+        )
+        .await
+        .expect("friend request should return response");
+
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let json: serde_json::Value = serde_json::from_slice(&body).expect("body should be valid json");
+    assert_eq!(json["code"], "payload_too_large");
+    assert!(
+        json["message"]
+            .as_str()
+            .expect("message should be present")
+            .contains("requestId")
+    );
+}
+
+#[tokio::test]
+async fn test_control_plane_external_member_link_rejects_oversized_display_name_over_http() {
+    let app = control_plane_api::build_app();
+    let request_body = serde_json::json!({
+        "linkId": "link_oversized_display_name",
+        "eventId": "evt_oversized_display_name",
+        "connectionId": "conn_oversized_display_name",
+        "localActorId": "u_alice",
+        "localActorKind": "user",
+        "externalMemberId": "ext_bob",
+        "externalDisplayName": "d".repeat(4096),
+        "linkedAt": "2026-04-10T10:00:00Z"
+    })
+    .to_string();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/control/social/external-member-links")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(request_body))
+                .unwrap(),
+        )
+        .await
+        .expect("external member link request should return response");
+
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let json: serde_json::Value = serde_json::from_slice(&body).expect("body should be valid json");
+    assert_eq!(json["code"], "payload_too_large");
+    assert!(
+        json["message"]
+            .as_str()
+            .expect("message should be present")
+            .contains("externalDisplayName")
+    );
+}
+
+#[tokio::test]
+async fn test_control_plane_targeted_pending_claim_rejects_oversized_request_key_over_http() {
+    let app = control_plane_api::build_app();
+    let request_body = serde_json::json!({
+        "requestKeys": ["k".repeat(4096)]
+    })
+    .to_string();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/control/social/runtime/claim-pending-shared-channel-sync-targeted")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(request_body))
+                .unwrap(),
+        )
+        .await
+        .expect("targeted pending claim should return response");
+
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let json: serde_json::Value = serde_json::from_slice(&body).expect("body should be valid json");
+    assert_eq!(json["code"], "payload_too_large");
+    assert!(
+        json["message"]
+            .as_str()
+            .expect("message should be present")
+            .contains("requestKeys")
+    );
+}

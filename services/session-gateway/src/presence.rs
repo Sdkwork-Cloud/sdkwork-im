@@ -10,6 +10,8 @@ use im_domain_core::session::{
 };
 use im_time::utc_now_rfc3339_millis;
 
+use crate::principal_scope::{typed_principal_id, typed_principal_scope_key};
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct PresenceRuntimeEntry {
     view: DevicePresenceView,
@@ -119,21 +121,18 @@ impl SessionPresenceRuntime {
 
     pub fn register_device(
         &self,
-        tenant_id: &str,
-        principal_id: &str,
+        auth: &AuthContext,
         device_id: &str,
     ) -> Result<(), PresenceRuntimeError> {
-        self.ensure_device_entry(tenant_id, principal_id, device_id)
-            .map(|_| ())
+        self.ensure_device_entry(auth, device_id).map(|_| ())
     }
 
     pub fn ensure_device_resume_not_required(
         &self,
-        tenant_id: &str,
-        principal_id: &str,
+        auth: &AuthContext,
         device_id: &str,
     ) -> Result<(), PresenceRuntimeError> {
-        let entry = self.ensure_device_entry(tenant_id, principal_id, device_id)?;
+        let entry = self.ensure_device_entry(auth, device_id)?;
         if entry.resume_required {
             return Err(PresenceRuntimeError::reconnect_required(device_id));
         }
@@ -148,14 +147,14 @@ impl SessionPresenceRuntime {
         latest_sync_seq: u64,
         registered_devices: Vec<String>,
     ) -> Result<SessionResumeView, PresenceRuntimeError> {
-        self.ensure_device_entry(
-            auth.tenant_id.as_str(),
-            auth.actor_id.as_str(),
-            device_id.as_str(),
-        )?;
+        self.ensure_device_entry(auth, device_id.as_str())?;
         let resumed_at = session_timestamp();
         let updated_entry = {
-            let scope = principal_scope_key(auth.tenant_id.as_str(), auth.actor_id.as_str());
+            let scope = typed_principal_scope_key(
+                auth.tenant_id.as_str(),
+                auth.actor_id.as_str(),
+                auth.actor_kind.as_str(),
+            );
             let mut entries = lock_presence_mutex(&self.entries, "presence store");
             let scope_entries = entries.entry(scope).or_default();
             let entry =
@@ -173,14 +172,13 @@ impl SessionPresenceRuntime {
             entry.resume_required = false;
             entry.clone()
         };
-        self.persist_entry(updated_entry, resumed_at.clone())?;
-
-        let presence = self.presence_snapshot(
-            auth.tenant_id.as_str(),
-            auth.actor_id.as_str(),
-            Some(device_id.clone()),
-            registered_devices,
+        self.persist_entry(
+            updated_entry,
+            resumed_at.clone(),
+            typed_principal_id(auth.actor_id.as_str(), auth.actor_kind.as_str()).as_str(),
         )?;
+
+        let presence = self.presence_snapshot(auth, Some(device_id.clone()), registered_devices)?;
         let resume = decide_resume(last_seen_sync_seq, latest_sync_seq);
 
         Ok(SessionResumeView {
@@ -199,13 +197,16 @@ impl SessionPresenceRuntime {
 
     pub fn presence_snapshot(
         &self,
-        tenant_id: &str,
-        principal_id: &str,
+        auth: &AuthContext,
         current_device_id: Option<String>,
         registered_devices: Vec<String>,
     ) -> Result<PresenceSnapshotView, PresenceRuntimeError> {
-        self.ensure_principal_state(tenant_id, principal_id)?;
-        let scope = principal_scope_key(tenant_id, principal_id);
+        self.ensure_principal_state(auth)?;
+        let scope = typed_principal_scope_key(
+            auth.tenant_id.as_str(),
+            auth.actor_id.as_str(),
+            auth.actor_kind.as_str(),
+        );
         let stored_devices = lock_presence_mutex(&self.entries, "presence store")
             .get(scope.as_str())
             .cloned()
@@ -229,7 +230,11 @@ impl SessionPresenceRuntime {
                     .get(device_id.as_str())
                     .map(|entry| entry.view.clone())
                     .unwrap_or_else(|| {
-                        empty_presence_view_for_scope(tenant_id, principal_id, &device_id)
+                        empty_presence_view_for_scope(
+                            auth.tenant_id.as_str(),
+                            auth.actor_id.as_str(),
+                            &device_id,
+                        )
                     })
             })
             .collect::<Vec<_>>();
@@ -249,8 +254,8 @@ impl SessionPresenceRuntime {
         });
 
         Ok(PresenceSnapshotView {
-            tenant_id: tenant_id.into(),
-            principal_id: principal_id.into(),
+            tenant_id: auth.tenant_id.clone(),
+            principal_id: auth.actor_id.clone(),
             current_device_id,
             devices,
         })
@@ -263,11 +268,7 @@ impl SessionPresenceRuntime {
         latest_sync_seq: u64,
         registered_devices: Vec<String>,
     ) -> Result<PresenceSnapshotView, PresenceRuntimeError> {
-        self.ensure_device_resume_not_required(
-            auth.tenant_id.as_str(),
-            auth.actor_id.as_str(),
-            device_id.as_str(),
-        )?;
+        self.ensure_device_resume_not_required(auth, device_id.as_str())?;
         let observed_at = session_timestamp().to_owned();
         self.update_presence_entry(
             auth,
@@ -279,12 +280,7 @@ impl SessionPresenceRuntime {
             false,
             false,
         )?;
-        self.presence_snapshot(
-            auth.tenant_id.as_str(),
-            auth.actor_id.as_str(),
-            Some(device_id),
-            registered_devices,
-        )
+        self.presence_snapshot(auth, Some(device_id), registered_devices)
     }
 
     pub fn disconnect(
@@ -293,13 +289,16 @@ impl SessionPresenceRuntime {
         device_id: String,
         registered_devices: Vec<String>,
     ) -> Result<PresenceSnapshotView, PresenceRuntimeError> {
-        self.ensure_device_entry(
-            auth.tenant_id.as_str(),
-            auth.actor_id.as_str(),
-            device_id.as_str(),
-        )?;
+        self.ensure_device_entry(auth, device_id.as_str())?;
         let latest_sync_seq = lock_presence_mutex(&self.entries, "presence store")
-            .get(principal_scope_key(auth.tenant_id.as_str(), auth.actor_id.as_str()).as_str())
+            .get(
+                typed_principal_scope_key(
+                    auth.tenant_id.as_str(),
+                    auth.actor_id.as_str(),
+                    auth.actor_kind.as_str(),
+                )
+                .as_str(),
+            )
             .and_then(|scope_entries| scope_entries.get(device_id.as_str()))
             .map(|entry| entry.view.last_sync_seq)
             .unwrap_or_default();
@@ -313,20 +312,17 @@ impl SessionPresenceRuntime {
             false,
             true,
         )?;
-        self.presence_snapshot(
-            auth.tenant_id.as_str(),
-            auth.actor_id.as_str(),
-            Some(device_id),
-            registered_devices,
-        )
+        self.presence_snapshot(auth, Some(device_id), registered_devices)
     }
 
-    fn ensure_principal_state(
-        &self,
-        tenant_id: &str,
-        principal_id: &str,
-    ) -> Result<(), PresenceRuntimeError> {
-        let scope_key = principal_scope_key(tenant_id, principal_id);
+    fn ensure_principal_state(&self, auth: &AuthContext) -> Result<(), PresenceRuntimeError> {
+        let stored_principal_id =
+            typed_principal_id(auth.actor_id.as_str(), auth.actor_kind.as_str());
+        let scope_key = typed_principal_scope_key(
+            auth.tenant_id.as_str(),
+            auth.actor_id.as_str(),
+            auth.actor_kind.as_str(),
+        );
         if lock_presence_mutex(&self.restored_principals, "presence runtime")
             .contains(scope_key.as_str())
         {
@@ -335,7 +331,7 @@ impl SessionPresenceRuntime {
 
         let restored = self
             .state_store
-            .list_states_for_principal(tenant_id, principal_id)
+            .list_states_for_principal(auth.tenant_id.as_str(), stored_principal_id.as_str())
             .map_err(PresenceRuntimeError::presence_store)?;
         let mut normalized_records = Vec::new();
         let mut runtime_entries = Vec::new();
@@ -366,14 +362,20 @@ impl SessionPresenceRuntime {
 
     fn ensure_device_entry(
         &self,
-        tenant_id: &str,
-        principal_id: &str,
+        auth: &AuthContext,
         device_id: &str,
     ) -> Result<PresenceRuntimeEntry, PresenceRuntimeError> {
-        self.ensure_principal_state(tenant_id, principal_id)?;
+        self.ensure_principal_state(auth)?;
 
         if let Some(entry) = lock_presence_mutex(&self.entries, "presence store")
-            .get(principal_scope_key(tenant_id, principal_id).as_str())
+            .get(
+                typed_principal_scope_key(
+                    auth.tenant_id.as_str(),
+                    auth.actor_id.as_str(),
+                    auth.actor_kind.as_str(),
+                )
+                .as_str(),
+            )
             .and_then(|scope_entries| scope_entries.get(device_id))
             .cloned()
         {
@@ -381,17 +383,25 @@ impl SessionPresenceRuntime {
         }
 
         let entry = PresenceRuntimeEntry {
-            view: empty_presence_view_for_scope(tenant_id, principal_id, device_id),
+            view: empty_presence_view(auth, device_id),
             resume_required: false,
         };
-        let scope = principal_scope_key(tenant_id, principal_id);
+        let scope = typed_principal_scope_key(
+            auth.tenant_id.as_str(),
+            auth.actor_id.as_str(),
+            auth.actor_kind.as_str(),
+        );
         let mut entries = lock_presence_mutex(&self.entries, "presence store");
         entries
             .entry(scope)
             .or_default()
             .insert(device_id.to_owned(), entry.clone());
         drop(entries);
-        self.persist_entry(entry.clone(), session_timestamp())?;
+        self.persist_entry(
+            entry.clone(),
+            session_timestamp(),
+            typed_principal_id(auth.actor_id.as_str(), auth.actor_kind.as_str()).as_str(),
+        )?;
 
         Ok(entry)
     }
@@ -410,12 +420,12 @@ impl SessionPresenceRuntime {
         refresh_resume_at: bool,
         resume_required: bool,
     ) -> Result<(), PresenceRuntimeError> {
-        self.ensure_device_entry(
+        self.ensure_device_entry(auth, device_id.as_str())?;
+        let scope = typed_principal_scope_key(
             auth.tenant_id.as_str(),
             auth.actor_id.as_str(),
-            device_id.as_str(),
-        )?;
-        let scope = principal_scope_key(auth.tenant_id.as_str(), auth.actor_id.as_str());
+            auth.actor_kind.as_str(),
+        );
         let mut entries = lock_presence_mutex(&self.entries, "presence store");
         let scope_entries = entries.entry(scope).or_default();
         let entry =
@@ -437,18 +447,23 @@ impl SessionPresenceRuntime {
         entry.resume_required = resume_required;
         let updated = entry.clone();
         drop(entries);
-        self.persist_entry(updated, observed_at)
+        self.persist_entry(
+            updated,
+            observed_at,
+            typed_principal_id(auth.actor_id.as_str(), auth.actor_kind.as_str()).as_str(),
+        )
     }
 
     fn persist_entry(
         &self,
         entry: PresenceRuntimeEntry,
         updated_at: String,
+        stored_principal_id: &str,
     ) -> Result<(), PresenceRuntimeError> {
         self.state_store
             .save_state(PresenceStateRecord {
                 tenant_id: entry.view.tenant_id.clone(),
-                principal_id: entry.view.principal_id.clone(),
+                principal_id: stored_principal_id.into(),
                 device_id: entry.view.device_id.clone(),
                 presence: entry.view,
                 resume_required: entry.resume_required,
@@ -462,10 +477,6 @@ impl Default for SessionPresenceRuntime {
     fn default() -> Self {
         Self::with_store(Arc::new(RuntimeMemoryPresenceStateStore::default()))
     }
-}
-
-pub(crate) fn principal_scope_key(tenant_id: &str, principal_id: &str) -> String {
-    format!("{tenant_id}:{principal_id}")
 }
 
 pub(crate) fn device_scope_key(tenant_id: &str, principal_id: &str, device_id: &str) -> String {

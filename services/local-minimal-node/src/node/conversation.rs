@@ -98,3 +98,42 @@ pub(super) async fn create_system_channel(
             )?,
     ))
 }
+
+pub(super) async fn create_thread_conversation(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Json(request): Json<CreateThreadConversationRequest>,
+) -> Result<Json<CreateConversationResult>, ApiError> {
+    let auth = resolve_auth_context(&headers)?;
+    Ok(Json(
+        state
+            .conversation_runtime
+            .create_thread_conversation_from_auth_context(
+                &auth,
+                request.conversation_id,
+                request.parent_conversation_id,
+                request.root_message_id,
+            )?,
+    ))
+}
+
+pub(super) async fn bind_direct_chat_conversation(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Json(request): Json<BindDirectChatConversationRequest>,
+) -> Result<Json<CreateConversationResult>, ApiError> {
+    let auth = resolve_auth_context(&headers)?;
+    Ok(Json(
+        state
+            .conversation_runtime
+            .bind_direct_chat_conversation_from_auth_context(
+                &auth,
+                request.conversation_id,
+                request.direct_chat_id,
+                request.left_actor_id,
+                request.left_actor_kind,
+                request.right_actor_id,
+                request.right_actor_kind,
+            )?,
+    ))
+}

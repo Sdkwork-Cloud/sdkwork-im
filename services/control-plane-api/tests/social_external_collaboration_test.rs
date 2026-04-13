@@ -1141,6 +1141,142 @@ async fn test_control_plane_social_shared_channel_policy_auto_triggers_shared_ch
 }
 
 #[tokio::test]
+async fn test_control_plane_social_shared_channel_auto_trigger_preserves_audit_when_composite_ids_are_long_but_valid()
+ {
+    let cluster = Arc::new(RealtimeClusterBridge::default());
+    let ops_runtime = Arc::new(OpsRuntime::new(
+        "node_a",
+        "local-minimal",
+        "127.0.0.1:18090",
+        vec!["session-gateway".into(), "control-plane-api".into()],
+        vec![],
+    ));
+    let audit_runtime = Arc::new(AuditRuntime::default());
+    let trigger = Arc::new(RecordingSharedChannelSyncTrigger::default());
+    let app = control_plane_api::build_app_with_cluster_and_governance_sinks_and_shared_channel_sync_trigger(
+        cluster,
+        ops_runtime,
+        audit_runtime.clone(),
+        trigger.clone(),
+    );
+
+    let policy_id = "p".repeat(120);
+    let conversation_id = "c".repeat(120);
+    let local_actor_id = "a".repeat(120);
+
+    let establish_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/control/social/external-connections")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "connectionId":"ec_long_audit",
+                        "eventId":"evt_ec_long_audit",
+                        "externalTenantId":"t_partner",
+                        "connectionKind":"shared_channel",
+                        "establishedAt":"2026-04-12T10:00:00Z"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("external connection write should return response");
+    assert_eq!(establish_response.status(), StatusCode::OK);
+
+    let policy_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/control/social/shared-channel-policies")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(format!(
+                    r#"{{
+                        "policyId":"{policy_id}",
+                        "eventId":"evt_scp_long_audit",
+                        "connectionId":"ec_long_audit",
+                        "channelId":"ch_partner_ops",
+                        "conversationId":"{conversation_id}",
+                        "policyVersion":1,
+                        "historyVisibility":"shared",
+                        "appliedAt":"2026-04-12T10:01:00Z"
+                    }}"#,
+                )))
+                .unwrap(),
+        )
+        .await
+        .expect("shared channel policy write should return response");
+    assert_eq!(policy_response.status(), StatusCode::OK);
+
+    let link_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/control/social/external-member-links")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(format!(
+                    r#"{{
+                        "linkId":"eml_long_audit",
+                        "eventId":"evt_eml_long_audit",
+                        "connectionId":"ec_long_audit",
+                        "localActorId":"{local_actor_id}",
+                        "localActorKind":"user",
+                        "externalMemberId":"partner::long-audit",
+                        "linkedAt":"2026-04-12T10:02:00Z"
+                    }}"#,
+                )))
+                .unwrap(),
+        )
+        .await
+        .expect("external member link write should return response");
+    assert_eq!(link_response.status(), StatusCode::OK);
+
+    assert_eq!(
+        trigger.snapshot(),
+        vec![SharedChannelLinkedMemberSyncRequest {
+            tenant_id: "t_demo".into(),
+            conversation_id: conversation_id.clone(),
+            shared_channel_policy_id: policy_id.clone(),
+            external_connection_id: "ec_long_audit".into(),
+            local_actor_id: local_actor_id.clone(),
+            local_actor_kind: "user".into(),
+            external_member_id: "partner::long-audit".into(),
+        }]
+    );
+
+    let audit_auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_admin".into(),
+        actor_kind: "admin".into(),
+        session_id: None,
+        device_id: None,
+        permissions: BTreeSet::new(),
+    };
+    let audit_export = audit_runtime.export_bundle(&audit_auth);
+    assert_eq!(audit_export.total, 4);
+    assert!(
+        audit_export
+            .items
+            .iter()
+            .any(|item| item.action == "control.shared_channel_linked_member_sync_triggered"),
+        "shared-channel sync dispatch should remain auditable when component ids are long but valid"
+    );
+}
+
+#[tokio::test]
 async fn test_control_plane_social_external_member_link_idempotent_replay_does_not_duplicate_shared_channel_sync_dispatch()
  {
     let cluster = Arc::new(RealtimeClusterBridge::default());

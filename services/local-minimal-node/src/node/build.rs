@@ -864,6 +864,7 @@ fn build_app(state: AppState) -> Router {
             "/api/v1/devices/{device_id}/twin/reported",
             post(twin::update_device_twin_reported),
         )
+        .route("/api/v1/contacts", get(projection::get_contacts))
         .route("/api/v1/inbox", get(projection::get_inbox))
         .route(
             "/api/v1/conversations",
@@ -880,6 +881,14 @@ fn build_app(state: AppState) -> Router {
         .route(
             "/api/v1/conversations/system-channels",
             post(conversation::create_system_channel),
+        )
+        .route(
+            "/api/v1/conversations/threads",
+            post(conversation::create_thread_conversation),
+        )
+        .route(
+            "/api/v1/conversations/direct-chats/bindings",
+            post(conversation::bind_direct_chat_conversation),
         )
         .route(
             "/api/v1/conversations/{conversation_id}/agent-handoff",
@@ -930,6 +939,10 @@ fn build_app(state: AppState) -> Router {
             get(projection::get_read_cursor).post(projection::update_read_cursor),
         )
         .route(
+            "/api/v1/conversations/{conversation_id}/member-directory",
+            get(projection::get_member_directory),
+        )
+        .route(
             "/api/v1/conversations/{conversation_id}/messages",
             post(message::post_message),
         )
@@ -940,6 +953,14 @@ fn build_app(state: AppState) -> Router {
         .route(
             "/api/v1/conversations/{conversation_id}/messages",
             get(projection::get_timeline),
+        )
+        .route(
+            "/api/v1/conversations/{conversation_id}/pins",
+            get(projection::get_pinned_messages),
+        )
+        .route(
+            "/api/v1/conversations/{conversation_id}/messages/{message_id}/interaction-summary",
+            get(projection::get_message_interaction_summary),
         )
         .route(
             "/api/v1/messages/{message_id}/edit",

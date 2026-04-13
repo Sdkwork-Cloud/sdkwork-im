@@ -28,6 +28,7 @@ rtc-signaling-service = { path = "../rtc-signaling-service" }
 session-gateway = { path = "../session-gateway" }
 serde.workspace = true
 serde_json.workspace = true
+sha2 = "0.10"
 streaming-service = { path = "../streaming-service" }
 tokio.workspace = true
 

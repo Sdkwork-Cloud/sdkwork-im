@@ -50,7 +50,7 @@ fn test_notification_runtime_exposes_message_posted_notification_owner_seam() {
     );
 
     assert!(
-        source.contains(".message_posted_notification_principal_ids_from_auth_context("),
+        source.contains(".message_posted_notification_recipients_from_auth_context("),
         "services/notification-service/src/lib.rs should resolve message-posted recipients through projection-service's message-posted auth-context owner seam instead of expecting service-edge recipient fanout input"
     );
 

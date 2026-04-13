@@ -710,6 +710,65 @@ fn test_runtime_provider_registry_can_diff_committed_policy_versions() {
 }
 
 #[test]
+fn test_runtime_provider_registry_rejects_reversed_policy_diff_version_range() {
+    let registry = RuntimeProviderRegistry::platform_default();
+
+    registry
+        .set_deployment_profile(ProviderDomain::ObjectStorage, "object-storage-volcengine")
+        .expect("deployment profile update should succeed");
+
+    let invalid = registry
+        .diff_versions(2, 1)
+        .expect_err("reversed diff version ranges should be rejected");
+    match invalid {
+        ContractError::UnsupportedCapability(message) => {
+            assert!(
+                message.contains("fromVersion must not exceed toVersion"),
+                "reversed diff error should explain the invalid version range"
+            );
+        }
+        other => panic!("expected unsupported capability error, got {other:?}"),
+    }
+}
+
+#[test]
+fn test_runtime_provider_registry_rejects_empty_tenant_override_id() {
+    let registry = RuntimeProviderRegistry::platform_default();
+
+    let invalid = registry
+        .set_tenant_override("", ProviderDomain::Rtc, "rtc-aliyun")
+        .expect_err("empty tenant override ids should be rejected");
+    match invalid {
+        ContractError::UnsupportedCapability(message) => {
+            assert!(
+                message.contains("tenantId cannot be empty"),
+                "empty tenant override error should explain why the tenant id is invalid"
+            );
+        }
+        other => panic!("expected unsupported capability error, got {other:?}"),
+    }
+}
+
+#[test]
+fn test_runtime_provider_registry_rejects_oversized_tenant_override_id() {
+    let registry = RuntimeProviderRegistry::platform_default();
+    let tenant_id = "t".repeat(257);
+
+    let invalid = registry
+        .set_tenant_override(tenant_id.as_str(), ProviderDomain::Rtc, "rtc-aliyun")
+        .expect_err("oversized tenant override ids should be rejected");
+    match invalid {
+        ContractError::UnsupportedCapability(message) => {
+            assert!(
+                message.contains("tenantId"),
+                "oversized tenant override error should name the rejected field"
+            );
+        }
+        other => panic!("expected unsupported capability error, got {other:?}"),
+    }
+}
+
+#[test]
 fn test_runtime_provider_registry_can_preview_policy_write_without_mutating_history() {
     let registry = RuntimeProviderRegistry::platform_default();
 

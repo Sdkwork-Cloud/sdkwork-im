@@ -16,6 +16,8 @@ param(
     [string]$MessagePrefix,
     [Alias("diagnostics-file")]
     [string]$DiagnosticsFile,
+    [Alias("skip-connect")]
+    [switch]$SkipConnect,
     [switch]$Release,
     [switch]$Help
 )
@@ -91,8 +93,8 @@ function Quote-ProcessArgument {
 }
 
 if ($Help -or [string]::IsNullOrWhiteSpace($ConversationId) -or [string]::IsNullOrWhiteSpace($UserId)) {
-    Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/chat-window-gui.ps1 -ConversationId <id> -UserId <id> [-BaseUrl <url>] [-TenantId <id>] [-SessionId <id>] [-DeviceId <id>] [-Label <name>] [-MessagePrefix <prefix>] [-Release]"
-    Write-Host "Usage: cmd /c .\bin\chat-window-gui.cmd --conversation-id <id> --user-id <id> [--base-url <url>] [--tenant-id <id>] [--session-id <id>] [--device-id <id>] [--label <name>] [--message-prefix <prefix>] [--release]"
+    Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/chat-window-gui.ps1 -ConversationId <id> -UserId <id> [-BaseUrl <url>] [-TenantId <id>] [-SessionId <id>] [-DeviceId <id>] [-Label <name>] [-MessagePrefix <prefix>] [-DiagnosticsFile <path>] [-SkipConnect] [-Release]"
+    Write-Host "Usage: cmd /c .\bin\chat-window-gui.cmd --conversation-id <id> --user-id <id> [--base-url <url>] [--tenant-id <id>] [--session-id <id>] [--device-id <id>] [--label <name>] [--message-prefix <prefix>] [--diagnostics-file <path>] [--skip-connect] [--release]"
     Write-Host "Open one visible GUI chat window backed by polling chat-cli timeline/send-message commands."
     if ($Help) {
         exit 0
@@ -413,8 +415,14 @@ $sendCurrent = {
 
 [void]$form.Add_Shown({
     Write-Diagnostic "form shown"
-    & $refreshTimeline
-    $refreshTimer.Start()
+    if ($SkipConnect) {
+        $statusLabel.Text = "offline launch: $resolvedLabel @ $resolvedBaseUrl"
+        Write-Diagnostic "skip-connect launch requested"
+    }
+    else {
+        & $refreshTimeline
+        $refreshTimer.Start()
+    }
     $inputBox.Focus()
 })
 

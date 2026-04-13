@@ -22,6 +22,7 @@ use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
 use im_time::utc_now_rfc3339_millis;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use sha2::{Digest, Sha256};
 
 mod binding;
 mod creation;
@@ -43,9 +44,28 @@ use self::support::{
     build_message_unpinned_envelope, build_owner_transfer_envelope, build_read_cursor_envelope,
     conversation_business_scope_key, conversation_retention_class, conversation_scope_key,
     conversation_timestamp, event_id_component, next_member_episode, resolve_active_member,
-    resolve_active_member_id, upsert_member, upsert_read_cursor,
+    resolve_active_member_id, resolve_active_member_id_with_kind, resolve_active_member_with_kind,
+    upsert_member, upsert_read_cursor,
 };
 pub use http::{build_default_app, build_public_app};
+
+const CONVERSATION_MAX_ID_BYTES: usize = 256;
+const CONVERSATION_MAX_KIND_BYTES: usize = 64;
+const CONVERSATION_MAX_POLICY_VERSION_BYTES: usize = 128;
+const CONVERSATION_MAX_HISTORY_VISIBILITY_BYTES: usize = 32;
+const CONVERSATION_MAX_RETENTION_POLICY_REF_BYTES: usize = 256;
+const CONVERSATION_MAX_CAPABILITY_FLAG_BYTES: usize = 128;
+const CONVERSATION_MAX_CAPABILITY_FLAGS_TOTAL_BYTES: usize = 16 * 1024;
+const CONVERSATION_MAX_MEMBER_ATTRIBUTES_BYTES: usize = 64 * 1024;
+const CONVERSATION_MAX_SENDER_METADATA_BYTES: usize = 64 * 1024;
+const MESSAGE_RENDER_HINTS_MAX_BYTES: usize = 64 * 1024;
+const CONVERSATION_MAX_REASON_BYTES: usize = 8 * 1024;
+const CONVERSATION_MAX_REQUEST_KEY_BYTES: usize = 2048;
+const MESSAGE_CLIENT_MSG_ID_MAX_BYTES: usize = 256;
+const MESSAGE_REACTION_KEY_MAX_BYTES: usize = 128;
+const MESSAGE_BODY_MAX_BYTES: usize = 512 * 1024;
+const CONVERSATION_CREATE_DELIVERY_PROOF_VERSION: &str = "conversation.create.delivery-proof.v1";
+const CONVERSATION_MESSAGE_DELIVERY_PROOF_VERSION: &str = "conversation.message.delivery-proof.v1";
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -162,10 +182,135 @@ pub struct CloseAgentHandoffCommand {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CreateConversationDeliveryStatus {
+    Applied,
+    Replayed,
+}
+
+impl CreateConversationDeliveryStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Applied => "applied",
+            Self::Replayed => "replayed",
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateConversationResult {
     pub conversation_id: String,
     pub event_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub request_key: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub delivery_status: Option<CreateConversationDeliveryStatus>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub proof_version: Option<String>,
+}
+
+impl CreateConversationResult {
+    pub fn new(conversation_id: String, event_id: String) -> Self {
+        Self {
+            conversation_id,
+            event_id,
+            request_key: None,
+            delivery_status: None,
+            proof_version: None,
+        }
+    }
+
+    pub fn applied_with_request_key(
+        conversation_id: String,
+        event_id: String,
+        request_key: String,
+    ) -> Self {
+        Self {
+            conversation_id,
+            event_id,
+            request_key: Some(request_key),
+            delivery_status: Some(CreateConversationDeliveryStatus::Applied),
+            proof_version: Some(CONVERSATION_CREATE_DELIVERY_PROOF_VERSION.into()),
+        }
+    }
+
+    pub fn replayed_with_request_key(
+        conversation_id: String,
+        event_id: String,
+        request_key: String,
+    ) -> Self {
+        Self {
+            conversation_id,
+            event_id,
+            request_key: Some(request_key),
+            delivery_status: Some(CreateConversationDeliveryStatus::Replayed),
+            proof_version: Some(CONVERSATION_CREATE_DELIVERY_PROOF_VERSION.into()),
+        }
+    }
+
+    pub fn is_applied(&self) -> bool {
+        !matches!(
+            self.delivery_status,
+            Some(CreateConversationDeliveryStatus::Replayed)
+        )
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct GenericConversationCreateReplayRecord {
+    creator_id: String,
+    creator_kind: String,
+    requested_kind: String,
+    event_id: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct AgentDialogCreateReplayRecord {
+    requester_id: String,
+    requester_kind: String,
+    agent_id: String,
+    event_id: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct SystemChannelCreateReplayRecord {
+    requester_id: String,
+    requester_kind: String,
+    subscriber_id: String,
+    event_id: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct AgentHandoffCreateReplayRecord {
+    source_id: String,
+    source_kind: String,
+    target_id: String,
+    target_kind: String,
+    handoff_session_id: String,
+    handoff_reason: Option<String>,
+    event_id: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct ThreadConversationCreateReplayRecord {
+    creator_id: String,
+    creator_kind: String,
+    parent_conversation_id: String,
+    root_message_id: String,
+    event_id: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct DirectChatBindingReplayRecord {
+    bound_by: String,
+    binder_kind: String,
+    direct_chat_id: String,
+    anchor_actor_id: String,
+    anchor_actor_kind: String,
+    peer_actor_id: String,
+    peer_actor_kind: String,
+    event_id: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -306,11 +451,84 @@ pub struct PublishSystemChannelMessageCommand {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PostMessageDeliveryStatus {
+    Applied,
+    Replayed,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PostMessageResult {
     pub message_id: String,
     pub message_seq: u64,
     pub event_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub request_key: Option<String>,
+    pub delivery_status: PostMessageDeliveryStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub proof_version: Option<String>,
+}
+
+impl PostMessageResult {
+    fn applied(
+        message_id: String,
+        message_seq: u64,
+        event_id: String,
+        request_key: Option<String>,
+    ) -> Self {
+        Self {
+            message_id,
+            message_seq,
+            event_id,
+            proof_version: request_key
+                .as_ref()
+                .map(|_| CONVERSATION_MESSAGE_DELIVERY_PROOF_VERSION.into()),
+            request_key,
+            delivery_status: PostMessageDeliveryStatus::Applied,
+        }
+    }
+
+    fn replayed(
+        message_id: String,
+        message_seq: u64,
+        event_id: String,
+        request_key: Option<String>,
+    ) -> Self {
+        Self {
+            message_id,
+            message_seq,
+            event_id,
+            proof_version: request_key
+                .as_ref()
+                .map(|_| CONVERSATION_MESSAGE_DELIVERY_PROOF_VERSION.into()),
+            request_key,
+            delivery_status: PostMessageDeliveryStatus::Replayed,
+        }
+    }
+
+    pub fn is_applied(&self) -> bool {
+        self.delivery_status == PostMessageDeliveryStatus::Applied
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct PostedMessageReplayRecord {
+    sender_id: String,
+    sender_kind: String,
+    message_type: MessageType,
+    body: MessageBody,
+    message_id: String,
+}
+
+#[allow(clippy::large_enum_variant)]
+enum PostMessageMutation {
+    Applied {
+        result: PostMessageResult,
+        message: Message,
+        retention_class: String,
+    },
+    Replayed(PostMessageResult),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -783,6 +1001,7 @@ pub enum RuntimeError {
     ConversationAlreadyExists(String),
     ConversationTypeInvalid(String),
     InvalidInput(String),
+    PayloadTooLarge(String),
     ConversationNotFound(String),
     ConversationBindingNotFound(String),
     MessageNotFound(String),
@@ -801,11 +1020,26 @@ impl From<ContractError> for RuntimeError {
     }
 }
 
+impl RuntimeError {
+    fn payload_too_large(field: &str, max_bytes: usize, actual_bytes: usize) -> Self {
+        Self::PayloadTooLarge(format!(
+            "payload too large for {field}: max={max_bytes} bytes, actual={actual_bytes} bytes"
+        ))
+    }
+}
+
 #[derive(Default)]
 struct ConversationState {
     aggregate: ConversationAggregateState,
     roster: ConversationRoster,
     message_log: ConversationMessageLog,
+    generic_create_request: Option<GenericConversationCreateReplayRecord>,
+    agent_dialog_create_request: Option<AgentDialogCreateReplayRecord>,
+    system_channel_create_request: Option<SystemChannelCreateReplayRecord>,
+    agent_handoff_create_request: Option<AgentHandoffCreateReplayRecord>,
+    thread_create_request: Option<ThreadConversationCreateReplayRecord>,
+    direct_chat_binding_request: Option<DirectChatBindingReplayRecord>,
+    posted_message_requests: HashMap<String, PostedMessageReplayRecord>,
 }
 
 #[derive(Default)]
@@ -823,6 +1057,313 @@ fn lock_runtime_mutex<'a, T>(mutex: &'a Mutex<T>, label: &'static str) -> MutexG
             poisoned.into_inner()
         }
     }
+}
+
+fn validate_payload_size(field: &str, value: &str, max_bytes: usize) -> Result<(), RuntimeError> {
+    let actual_bytes = value.len();
+    if actual_bytes > max_bytes {
+        return Err(RuntimeError::payload_too_large(
+            field,
+            max_bytes,
+            actual_bytes,
+        ));
+    }
+    Ok(())
+}
+
+fn validate_optional_payload_size(
+    field: &str,
+    value: Option<&str>,
+    max_bytes: usize,
+) -> Result<(), RuntimeError> {
+    if let Some(value) = value {
+        validate_payload_size(field, value, max_bytes)?;
+    }
+    Ok(())
+}
+
+fn validate_string_vec_payload_size(
+    field: &str,
+    values: &[String],
+    item_max_bytes: usize,
+    total_max_bytes: usize,
+) -> Result<(), RuntimeError> {
+    let total_bytes = values
+        .iter()
+        .fold(0usize, |total, value| total.saturating_add(value.len()));
+    if total_bytes > total_max_bytes {
+        return Err(RuntimeError::payload_too_large(
+            field,
+            total_max_bytes,
+            total_bytes,
+        ));
+    }
+    for value in values {
+        validate_payload_size(field, value.as_str(), item_max_bytes)?;
+    }
+    Ok(())
+}
+
+fn validate_string_map_payload_size(
+    field: &str,
+    values: &BTreeMap<String, String>,
+    max_bytes: usize,
+) -> Result<(), RuntimeError> {
+    let payload_bytes = values
+        .iter()
+        .map(|(key, value)| key.len().saturating_add(value.len()))
+        .sum::<usize>();
+    if payload_bytes > max_bytes {
+        return Err(RuntimeError::payload_too_large(
+            field,
+            max_bytes,
+            payload_bytes,
+        ));
+    }
+    Ok(())
+}
+
+fn validate_member_attributes_payload_size(
+    field: &str,
+    attributes: &BTreeMap<String, String>,
+) -> Result<(), RuntimeError> {
+    validate_string_map_payload_size(field, attributes, CONVERSATION_MAX_MEMBER_ATTRIBUTES_BYTES)
+}
+
+fn validate_sender_payload_size(field_prefix: &str, sender: &Sender) -> Result<(), RuntimeError> {
+    let id_field = format!("{field_prefix}Id");
+    validate_payload_size(
+        id_field.as_str(),
+        sender.id.as_str(),
+        CONVERSATION_MAX_ID_BYTES,
+    )?;
+
+    let kind_field = format!("{field_prefix}Kind");
+    validate_payload_size(
+        kind_field.as_str(),
+        sender.kind.as_str(),
+        CONVERSATION_MAX_KIND_BYTES,
+    )?;
+
+    let member_id_field = format!("{field_prefix}MemberId");
+    validate_optional_payload_size(
+        member_id_field.as_str(),
+        sender.member_id.as_deref(),
+        CONVERSATION_MAX_ID_BYTES,
+    )?;
+
+    let device_id_field = format!("{field_prefix}DeviceId");
+    validate_optional_payload_size(
+        device_id_field.as_str(),
+        sender.device_id.as_deref(),
+        CONVERSATION_MAX_ID_BYTES,
+    )?;
+
+    let session_id_field = format!("{field_prefix}SessionId");
+    validate_optional_payload_size(
+        session_id_field.as_str(),
+        sender.session_id.as_deref(),
+        CONVERSATION_MAX_ID_BYTES,
+    )?;
+
+    let metadata_field = format!("{field_prefix}Metadata");
+    validate_string_map_payload_size(
+        metadata_field.as_str(),
+        &sender.metadata,
+        CONVERSATION_MAX_SENDER_METADATA_BYTES,
+    )?;
+
+    Ok(())
+}
+
+fn validate_message_body_size(body: &MessageBody) -> Result<(), RuntimeError> {
+    validate_string_map_payload_size(
+        "renderHints",
+        &body.render_hints,
+        MESSAGE_RENDER_HINTS_MAX_BYTES,
+    )?;
+    let actual_bytes = serde_json::to_vec(body)
+        .map_err(|error| RuntimeError::InvalidInput(format!("message body invalid: {error}")))?
+        .len();
+    if actual_bytes > MESSAGE_BODY_MAX_BYTES {
+        return Err(RuntimeError::payload_too_large(
+            "messageBody",
+            MESSAGE_BODY_MAX_BYTES,
+            actual_bytes,
+        ));
+    }
+    Ok(())
+}
+
+fn generic_conversation_create_request_key(
+    tenant_id: &str,
+    creator_kind: &str,
+    creator_id: &str,
+    conversation_id: &str,
+) -> String {
+    format!("{tenant_id}:{creator_kind}:{creator_id}:create-conversation:{conversation_id}")
+}
+
+fn generic_conversation_create_replay_matches(
+    existing: &GenericConversationCreateReplayRecord,
+    command: &CreateConversationCommand,
+    creator_kind: &str,
+) -> bool {
+    existing.creator_id == command.creator_id
+        && existing.creator_kind == creator_kind
+        && existing.requested_kind == command.conversation_type
+}
+
+fn agent_dialog_create_request_key(
+    tenant_id: &str,
+    requester_kind: &str,
+    requester_id: &str,
+    conversation_id: &str,
+) -> String {
+    format!("{tenant_id}:{requester_kind}:{requester_id}:create-agent-dialog:{conversation_id}")
+}
+
+fn agent_dialog_create_replay_matches(
+    existing: &AgentDialogCreateReplayRecord,
+    command: &CreateAgentDialogCommand,
+    requester_kind: &str,
+) -> bool {
+    existing.requester_id == command.requester_id
+        && existing.requester_kind == requester_kind
+        && existing.agent_id == command.agent_id
+}
+
+fn system_channel_create_request_key(
+    tenant_id: &str,
+    requester_kind: &str,
+    requester_id: &str,
+    conversation_id: &str,
+) -> String {
+    format!("{tenant_id}:{requester_kind}:{requester_id}:create-system-channel:{conversation_id}")
+}
+
+fn system_channel_create_replay_matches(
+    existing: &SystemChannelCreateReplayRecord,
+    command: &CreateSystemChannelCommand,
+    requester_kind: &str,
+) -> bool {
+    existing.requester_id == command.requester_id
+        && existing.requester_kind == requester_kind
+        && existing.subscriber_id == command.subscriber_id
+}
+
+fn agent_handoff_create_request_key(
+    tenant_id: &str,
+    source_kind: &str,
+    source_id: &str,
+    conversation_id: &str,
+) -> String {
+    format!("{tenant_id}:{source_kind}:{source_id}:create-agent-handoff:{conversation_id}")
+}
+
+fn agent_handoff_create_replay_matches(
+    existing: &AgentHandoffCreateReplayRecord,
+    command: &CreateAgentHandoffCommand,
+    source_kind: &str,
+) -> bool {
+    existing.source_id == command.source_id
+        && existing.source_kind == source_kind
+        && existing.target_id == command.target_id
+        && existing.target_kind == command.target_kind
+        && existing.handoff_session_id == command.handoff_session_id
+        && existing.handoff_reason == command.handoff_reason
+}
+
+fn thread_conversation_create_request_key(
+    tenant_id: &str,
+    creator_kind: &str,
+    creator_id: &str,
+    conversation_id: &str,
+) -> String {
+    format!("{tenant_id}:{creator_kind}:{creator_id}:create-thread:{conversation_id}")
+}
+
+fn thread_conversation_create_replay_matches(
+    existing: &ThreadConversationCreateReplayRecord,
+    command: &CreateThreadConversationCommand,
+    creator_kind: &str,
+) -> bool {
+    existing.creator_id == command.creator_id
+        && existing.creator_kind == creator_kind
+        && existing.parent_conversation_id == command.parent_conversation_id
+        && existing.root_message_id == command.root_message_id
+}
+
+fn direct_chat_binding_request_key(
+    tenant_id: &str,
+    binder_kind: &str,
+    bound_by: &str,
+    conversation_id: &str,
+) -> String {
+    format!("{tenant_id}:{binder_kind}:{bound_by}:bind-direct-chat:{conversation_id}")
+}
+
+fn direct_chat_binding_replay_matches(
+    existing: &DirectChatBindingReplayRecord,
+    command: &BindDirectChatConversationCommand,
+    binder_kind: &str,
+    pair: &im_domain_core::social::NormalizedActorPair,
+) -> bool {
+    existing.bound_by == command.bound_by
+        && existing.binder_kind == binder_kind
+        && existing.direct_chat_id == command.direct_chat_id
+        && existing.anchor_actor_id == pair.left_actor_id
+        && existing.anchor_actor_kind == command.left_actor_kind
+        && existing.peer_actor_id == pair.right_actor_id
+        && existing.peer_actor_kind == command.right_actor_kind
+}
+
+fn post_message_request_key(command: &PostMessageCommand) -> Option<String> {
+    command.client_msg_id.as_ref().map(|client_msg_id| {
+        format!(
+            "{}:{}:{}:message:{}:{}",
+            command.tenant_id,
+            command.sender.kind,
+            command.sender.id,
+            command.conversation_id,
+            client_msg_id
+        )
+    })
+}
+
+fn post_message_request_key_from_message(message: &Message) -> Option<String> {
+    message.client_msg_id.as_ref().map(|client_msg_id| {
+        format!(
+            "{}:{}:{}:message:{}:{}",
+            message.tenant_id,
+            message.sender.kind,
+            message.sender.id,
+            message.conversation_id,
+            client_msg_id
+        )
+    })
+}
+
+fn posted_message_replay_matches(
+    existing: &PostedMessageReplayRecord,
+    command: &PostMessageCommand,
+) -> bool {
+    existing.sender_id == command.sender.id
+        && existing.sender_kind == command.sender.kind
+        && existing.message_type == command.message_type
+        && existing.body == command.body
+}
+
+fn generated_message_id(conversation_id: &str, message_seq: u64) -> String {
+    let raw_message_id = format!("msg_{conversation_id}_{message_seq}");
+    if raw_message_id.len() <= CONVERSATION_MAX_ID_BYTES {
+        return raw_message_id;
+    }
+
+    let digest = Sha256::digest(conversation_id.as_bytes());
+    let bounded_message_id = format!("msg_{digest:x}_{message_seq}");
+    debug_assert!(bounded_message_id.len() <= CONVERSATION_MAX_ID_BYTES);
+    bounded_message_id
 }
 
 // This internal transition result keeps the full idempotent view and mutation
@@ -905,12 +1446,25 @@ where
         command: PostMessageCommand,
         policy: MessagePostPolicy,
     ) -> Result<PostMessageResult, RuntimeError> {
+        validate_payload_size(
+            "conversationId",
+            command.conversation_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_sender_payload_size("sender", &command.sender)?;
+        validate_optional_payload_size(
+            "clientMsgId",
+            command.client_msg_id.as_deref(),
+            MESSAGE_CLIENT_MSG_ID_MAX_BYTES,
+        )?;
+        validate_message_body_size(&command.body)?;
+        let request_key = post_message_request_key(&command);
         let scope_key =
             conversation_scope_key(command.tenant_id.as_str(), command.conversation_id.as_str());
-        let (message_seq, message_id, message, retention_class) = {
+        let mutation = {
             let mut state =
                 lock_runtime_mutex(&self.state, "conversation-runtime.state.post_message");
-            let (message_seq, message_id, message, retention_class) = {
+            let mutation = {
                 let conversation =
                     state
                         .conversations
@@ -918,106 +1472,165 @@ where
                         .ok_or_else(|| {
                             RuntimeError::ConversationNotFound(command.conversation_id.clone())
                         })?;
-                let sender_member =
-                    resolve_active_member(conversation, command.sender.id.as_str())?;
-                policy::ensure_actor_kind_matches_member(
-                    &sender_member,
-                    command.sender.kind.as_str(),
-                )?;
-                match policy {
-                    MessagePostPolicy::GenericPost => {
-                        policy::ensure_message_post_allowed(conversation, &sender_member)?
+                if let Some(request_key) = request_key.as_ref()
+                    && let Some(existing) = conversation.posted_message_requests.get(request_key)
+                {
+                    if !posted_message_replay_matches(existing, &command) {
+                        return Err(RuntimeError::Conflict(format!(
+                            "message post request conflicts with existing message idempotency key: {request_key}"
+                        )));
                     }
-                    MessagePostPolicy::SystemChannelPublish => {
-                        policy::ensure_system_channel_publish_command_allowed(
-                            conversation,
-                            &sender_member,
-                        )?
+                    let stored = conversation
+                        .message_log
+                        .message(existing.message_id.as_str())
+                        .expect("replayed message id should exist in message log");
+                    PostMessageMutation::Replayed(PostMessageResult::replayed(
+                        existing.message_id.clone(),
+                        stored.message.message_seq,
+                        format!("evt_{}_posted", existing.message_id),
+                        Some(request_key.clone()),
+                    ))
+                } else {
+                    let sender_member = resolve_active_member_with_kind(
+                        conversation,
+                        command.sender.id.as_str(),
+                        command.sender.kind.as_str(),
+                    )?;
+                    policy::ensure_actor_kind_matches_member(
+                        &sender_member,
+                        command.sender.kind.as_str(),
+                    )?;
+                    match policy {
+                        MessagePostPolicy::GenericPost => {
+                            policy::ensure_message_post_allowed(conversation, &sender_member)?
+                        }
+                        MessagePostPolicy::SystemChannelPublish => {
+                            policy::ensure_system_channel_publish_command_allowed(
+                                conversation,
+                                &sender_member,
+                            )?
+                        }
+                    }
+                    let message_seq = conversation.message_log.next_message_seq();
+
+                    let mut sender = command.sender.clone();
+                    if sender.member_id.is_none() {
+                        sender.member_id = Some(sender_member.member_id.clone());
+                    }
+
+                    let message_id =
+                        generated_message_id(command.conversation_id.as_str(), message_seq);
+                    let message_timestamp = conversation_timestamp();
+                    let message = Message {
+                        tenant_id: command.tenant_id.clone(),
+                        conversation_id: command.conversation_id.clone(),
+                        message_id: message_id.clone(),
+                        message_seq,
+                        sender,
+                        message_type: command.message_type.clone(),
+                        delivery_mode: "discrete".into(),
+                        client_msg_id: command.client_msg_id.clone(),
+                        stream_session_id: None,
+                        rtc_session_id: None,
+                        body: command.body.clone(),
+                        attributes: BTreeMap::new(),
+                        metadata: BTreeMap::new(),
+                        occurred_at: message_timestamp.clone(),
+                        committed_at: Some(message_timestamp),
+                    };
+                    conversation.message_log.store_posted(message.clone());
+                    if let Some(request_key) = request_key.as_ref() {
+                        conversation.posted_message_requests.insert(
+                            request_key.clone(),
+                            PostedMessageReplayRecord {
+                                sender_id: command.sender.id.clone(),
+                                sender_kind: command.sender.kind.clone(),
+                                message_type: command.message_type.clone(),
+                                body: command.body.clone(),
+                                message_id: message_id.clone(),
+                            },
+                        );
+                    }
+                    let retention_class = conversation_retention_class(conversation);
+                    PostMessageMutation::Applied {
+                        result: PostMessageResult::applied(
+                            message_id,
+                            message_seq,
+                            format!("evt_{}_posted", message.message_id),
+                            request_key.clone(),
+                        ),
+                        message,
+                        retention_class,
                     }
                 }
-                let message_seq = conversation.message_log.next_message_seq();
-
-                let mut sender = command.sender.clone();
-                if sender.member_id.is_none() {
-                    sender.member_id = Some(sender_member.member_id.clone());
-                }
-
-                let message_id = format!("msg_{}_{}", command.conversation_id, message_seq);
-                let message_timestamp = conversation_timestamp();
-                let message = Message {
-                    tenant_id: command.tenant_id.clone(),
-                    conversation_id: command.conversation_id.clone(),
-                    message_id: message_id.clone(),
-                    message_seq,
-                    sender,
-                    message_type: command.message_type.clone(),
-                    delivery_mode: "discrete".into(),
-                    client_msg_id: command.client_msg_id.clone(),
-                    stream_session_id: None,
-                    rtc_session_id: None,
-                    body: command.body.clone(),
-                    attributes: BTreeMap::new(),
-                    metadata: BTreeMap::new(),
-                    occurred_at: message_timestamp.clone(),
-                    committed_at: Some(message_timestamp),
-                };
-                conversation.message_log.store_posted(message.clone());
-                let retention_class = conversation_retention_class(conversation);
-                (message_seq, message_id, message, retention_class)
             };
 
-            state.message_locator.register_message(&message);
+            if let PostMessageMutation::Applied { message, .. } = &mutation {
+                state.message_locator.register_message(message);
+            }
 
-            (message_seq, message_id, message, retention_class)
+            mutation
         };
 
-        let envelope = CommitEnvelope {
-            event_id: format!("evt_{}_posted", message_id),
-            tenant_id: command.tenant_id.clone(),
-            event_type: "message.posted".into(),
-            event_version: 1,
-            aggregate_type: AggregateType::Conversation,
-            aggregate_id: command.conversation_id.clone(),
-            scope_type: "conversation".into(),
-            scope_id: command.conversation_id.clone(),
-            ordering_key: CommitEnvelope::ordering_key(
-                command.tenant_id.as_str(),
-                command.conversation_id.as_str(),
-            ),
-            ordering_seq: message_seq,
-            causation_id: None,
-            correlation_id: None,
-            idempotency_key: command.client_msg_id,
-            actor: EventActor {
-                actor_id: message.sender.id.clone(),
-                actor_kind: message.sender.kind.clone(),
-                actor_session_id: message.sender.session_id.clone(),
-            },
-            occurred_at: message.occurred_at.clone(),
-            committed_at: message
-                .committed_at
-                .clone()
-                .unwrap_or_else(|| message.occurred_at.clone()),
-            payload_schema: Some("message.posted.v1".into()),
-            payload: serde_json::to_string(&message)
-                .expect("message payload should serialize into commit envelope"),
-            retention_class,
-            audit_class: "default".into(),
-        };
+        match mutation {
+            PostMessageMutation::Replayed(result) => Ok(result),
+            PostMessageMutation::Applied {
+                result,
+                message,
+                retention_class,
+            } => {
+                let envelope = CommitEnvelope {
+                    event_id: result.event_id.clone(),
+                    tenant_id: command.tenant_id.clone(),
+                    event_type: "message.posted".into(),
+                    event_version: 1,
+                    aggregate_type: AggregateType::Conversation,
+                    aggregate_id: command.conversation_id.clone(),
+                    scope_type: "conversation".into(),
+                    scope_id: command.conversation_id.clone(),
+                    ordering_key: CommitEnvelope::ordering_key(
+                        command.tenant_id.as_str(),
+                        command.conversation_id.as_str(),
+                    ),
+                    ordering_seq: message.message_seq,
+                    causation_id: None,
+                    correlation_id: None,
+                    idempotency_key: command.client_msg_id,
+                    actor: EventActor {
+                        actor_id: message.sender.id.clone(),
+                        actor_kind: message.sender.kind.clone(),
+                        actor_session_id: message.sender.session_id.clone(),
+                    },
+                    occurred_at: message.occurred_at.clone(),
+                    committed_at: message
+                        .committed_at
+                        .clone()
+                        .unwrap_or_else(|| message.occurred_at.clone()),
+                    payload_schema: Some("message.posted.v1".into()),
+                    payload: serde_json::to_string(&message)
+                        .expect("message payload should serialize into commit envelope"),
+                    retention_class,
+                    audit_class: "default".into(),
+                };
 
-        self.journal.append(envelope)?;
+                self.journal.append(envelope)?;
 
-        Ok(PostMessageResult {
-            message_id,
-            message_seq,
-            event_id: format!("evt_{}_posted", message.message_id),
-        })
+                Ok(result)
+            }
+        }
     }
 
     pub fn edit_message(
         &self,
         command: EditMessageCommand,
     ) -> Result<MessageMutationResult, RuntimeError> {
+        validate_payload_size(
+            "messageId",
+            command.message_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_sender_payload_size("editor", &command.editor)?;
+        validate_message_body_size(&command.body)?;
         let (edited, retention_class) = {
             let mut state =
                 lock_runtime_mutex(&self.state, "conversation-runtime.state.edit_message");
@@ -1032,7 +1645,11 @@ where
                 .conversations
                 .get_mut(scope_key.as_str())
                 .ok_or_else(|| RuntimeError::MessageNotFound(command.message_id.clone()))?;
-            let editor_member = resolve_active_member(conversation, command.editor.id.as_str())?;
+            let editor_member = resolve_active_member_with_kind(
+                conversation,
+                command.editor.id.as_str(),
+                command.editor.kind.as_str(),
+            )?;
             policy::ensure_actor_kind_matches_member(&editor_member, command.editor.kind.as_str())?;
             let scenario = conversation.aggregate.scenario();
             let handoff_closed = conversation.aggregate.has_closed_handoff();
@@ -1096,6 +1713,12 @@ where
         &self,
         command: RecallMessageCommand,
     ) -> Result<MessageMutationResult, RuntimeError> {
+        validate_payload_size(
+            "messageId",
+            command.message_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_sender_payload_size("recalledBy", &command.recalled_by)?;
         let (recalled, retention_class) = {
             let mut state =
                 lock_runtime_mutex(&self.state, "conversation-runtime.state.recall_message");
@@ -1110,8 +1733,11 @@ where
                 .conversations
                 .get_mut(scope_key.as_str())
                 .ok_or_else(|| RuntimeError::MessageNotFound(command.message_id.clone()))?;
-            let recalled_member =
-                resolve_active_member(conversation, command.recalled_by.id.as_str())?;
+            let recalled_member = resolve_active_member_with_kind(
+                conversation,
+                command.recalled_by.id.as_str(),
+                command.recalled_by.kind.as_str(),
+            )?;
             policy::ensure_actor_kind_matches_member(
                 &recalled_member,
                 command.recalled_by.kind.as_str(),
@@ -1177,6 +1803,17 @@ where
         &self,
         command: AddMessageReactionCommand,
     ) -> Result<MessageReactionMutationResult, RuntimeError> {
+        validate_payload_size(
+            "messageId",
+            command.message_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "reactionKey",
+            command.reaction_key.as_str(),
+            MESSAGE_REACTION_KEY_MAX_BYTES,
+        )?;
+        validate_sender_payload_size("reactedBy", &command.reacted_by)?;
         let (reaction, changed, retention_class) = {
             let mut state = lock_runtime_mutex(
                 &self.state,
@@ -1193,8 +1830,11 @@ where
                 .conversations
                 .get_mut(scope_key.as_str())
                 .ok_or_else(|| RuntimeError::MessageNotFound(command.message_id.clone()))?;
-            let reacted_member =
-                resolve_active_member(conversation, command.reacted_by.id.as_str())?;
+            let reacted_member = resolve_active_member_with_kind(
+                conversation,
+                command.reacted_by.id.as_str(),
+                command.reacted_by.kind.as_str(),
+            )?;
             policy::ensure_actor_kind_matches_member(
                 &reacted_member,
                 command.reacted_by.kind.as_str(),
@@ -1265,6 +1905,17 @@ where
         &self,
         command: RemoveMessageReactionCommand,
     ) -> Result<MessageReactionMutationResult, RuntimeError> {
+        validate_payload_size(
+            "messageId",
+            command.message_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "reactionKey",
+            command.reaction_key.as_str(),
+            MESSAGE_REACTION_KEY_MAX_BYTES,
+        )?;
+        validate_sender_payload_size("removedBy", &command.removed_by)?;
         let (reaction, changed, retention_class) = {
             let mut state = lock_runtime_mutex(
                 &self.state,
@@ -1281,8 +1932,11 @@ where
                 .conversations
                 .get_mut(scope_key.as_str())
                 .ok_or_else(|| RuntimeError::MessageNotFound(command.message_id.clone()))?;
-            let removed_member =
-                resolve_active_member(conversation, command.removed_by.id.as_str())?;
+            let removed_member = resolve_active_member_with_kind(
+                conversation,
+                command.removed_by.id.as_str(),
+                command.removed_by.kind.as_str(),
+            )?;
             policy::ensure_actor_kind_matches_member(
                 &removed_member,
                 command.removed_by.kind.as_str(),
@@ -1354,6 +2008,12 @@ where
         &self,
         command: PinMessageCommand,
     ) -> Result<MessagePinMutationResult, RuntimeError> {
+        validate_payload_size(
+            "messageId",
+            command.message_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_sender_payload_size("pinnedBy", &command.pinned_by)?;
         let (pin, changed, retention_class) = {
             let mut state =
                 lock_runtime_mutex(&self.state, "conversation-runtime.state.pin_message");
@@ -1368,7 +2028,11 @@ where
                 .conversations
                 .get_mut(scope_key.as_str())
                 .ok_or_else(|| RuntimeError::MessageNotFound(command.message_id.clone()))?;
-            let pinned_member = resolve_active_member(conversation, command.pinned_by.id.as_str())?;
+            let pinned_member = resolve_active_member_with_kind(
+                conversation,
+                command.pinned_by.id.as_str(),
+                command.pinned_by.kind.as_str(),
+            )?;
             policy::ensure_actor_kind_matches_member(
                 &pinned_member,
                 command.pinned_by.kind.as_str(),
@@ -1436,6 +2100,12 @@ where
         &self,
         command: UnpinMessageCommand,
     ) -> Result<MessagePinMutationResult, RuntimeError> {
+        validate_payload_size(
+            "messageId",
+            command.message_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_sender_payload_size("unpinnedBy", &command.unpinned_by)?;
         let (pin, changed, retention_class) = {
             let mut state =
                 lock_runtime_mutex(&self.state, "conversation-runtime.state.unpin_message");
@@ -1450,8 +2120,11 @@ where
                 .conversations
                 .get_mut(scope_key.as_str())
                 .ok_or_else(|| RuntimeError::MessageNotFound(command.message_id.clone()))?;
-            let unpinned_member =
-                resolve_active_member(conversation, command.unpinned_by.id.as_str())?;
+            let unpinned_member = resolve_active_member_with_kind(
+                conversation,
+                command.unpinned_by.id.as_str(),
+                command.unpinned_by.kind.as_str(),
+            )?;
             policy::ensure_actor_kind_matches_member(
                 &unpinned_member,
                 command.unpinned_by.kind.as_str(),
@@ -1525,10 +2198,11 @@ where
         auth: &AuthContext,
         conversation_id: &str,
     ) -> Result<ConversationMember, RuntimeError> {
-        self.require_active_member(
+        self.require_active_member_with_kind(
             auth.tenant_id.as_str(),
             conversation_id,
             auth.actor_id.as_str(),
+            auth.actor_kind.as_str(),
         )
     }
 
@@ -1583,9 +2257,28 @@ where
             .conversations
             .get(scope_key.as_str())
             .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.into()))?;
-        let actor_member = resolve_active_member(conversation, principal_id)?;
+        let actor_member = resolve_active_member_with_kind(conversation, principal_id, actor_kind)?;
         policy::ensure_actor_kind_matches_member(&actor_member, actor_kind)?;
         policy::ensure_conversation_bound_write_allowed(conversation, &actor_member, capability)
+    }
+
+    pub fn require_active_member_with_kind(
+        &self,
+        tenant_id: &str,
+        conversation_id: &str,
+        principal_id: &str,
+        principal_kind: &str,
+    ) -> Result<ConversationMember, RuntimeError> {
+        let scope_key = conversation_scope_key(tenant_id, conversation_id);
+        let state = lock_runtime_mutex(
+            &self.state,
+            "conversation-runtime.state.require_active_member_with_kind",
+        );
+        let conversation = state
+            .conversations
+            .get(scope_key.as_str())
+            .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.into()))?;
+        resolve_active_member_with_kind(conversation, principal_id, principal_kind)
     }
 
     pub fn require_active_member(

@@ -107,6 +107,15 @@ pub(super) fn notification_scope_key(tenant_id: &str, notification_id: &str) -> 
 
 pub(super) fn execution_scope_key(
     tenant_id: &str,
+    principal_kind: &str,
+    principal_id: &str,
+    execution_id: &str,
+) -> String {
+    format!("{tenant_id}:{principal_kind}:{principal_id}:{execution_id}")
+}
+
+pub(super) fn legacy_execution_scope_key(
+    tenant_id: &str,
     principal_id: &str,
     execution_id: &str,
 ) -> String {

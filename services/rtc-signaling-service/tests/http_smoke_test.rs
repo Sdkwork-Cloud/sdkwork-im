@@ -101,6 +101,25 @@ async fn test_duplicate_rtc_session_create_is_idempotent_and_conflicting_retry_i
         .await
         .expect("first create session request should succeed");
     assert_eq!(first_create.status(), StatusCode::OK);
+    let first_create_body = first_create
+        .into_body()
+        .collect()
+        .await
+        .expect("first create body should collect")
+        .to_bytes();
+    let first_create_json: serde_json::Value =
+        serde_json::from_slice(&first_create_body).expect("first create should be valid json");
+    assert_eq!(first_create_json["deliveryStatus"], "applied");
+    assert!(
+        !first_create_json["requestKey"]
+            .as_str()
+            .expect("first create requestKey should be present")
+            .is_empty()
+    );
+    assert_eq!(
+        first_create_json["proofVersion"],
+        "rtc.session.delivery-proof.v1"
+    );
 
     let accept_response = app
         .clone()
@@ -155,6 +174,15 @@ async fn test_duplicate_rtc_session_create_is_idempotent_and_conflicting_retry_i
         idempotent_json["artifactMessageId"],
         "msg_accept_idempotent"
     );
+    assert_eq!(idempotent_json["deliveryStatus"], "replayed");
+    assert_eq!(
+        idempotent_json["requestKey"],
+        first_create_json["requestKey"]
+    );
+    assert_eq!(
+        idempotent_json["proofVersion"],
+        first_create_json["proofVersion"]
+    );
 
     let conflicting_create = app
         .oneshot(
@@ -168,6 +196,79 @@ async fn test_duplicate_rtc_session_create_is_idempotent_and_conflicting_retry_i
                     r#"{
                         "rtcSessionId":"rtc_idempotent",
                         "rtcMode":"video"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("conflicting create request should return response");
+    assert_eq!(conflicting_create.status(), StatusCode::CONFLICT);
+    let conflicting_body = conflicting_create
+        .into_body()
+        .collect()
+        .await
+        .expect("conflicting create body should collect")
+        .to_bytes();
+    let conflicting_json: serde_json::Value =
+        serde_json::from_slice(&conflicting_body).expect("conflicting create should be valid json");
+    assert_eq!(conflicting_json["code"], "rtc_session_conflict");
+}
+
+#[tokio::test]
+async fn test_duplicate_rtc_session_create_with_same_actor_id_but_different_actor_kind_is_conflict()
+{
+    let app = rtc_signaling_service::build_default_app();
+
+    let first_create = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/rtc/sessions")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "shared_actor")
+                .header("x-actor-kind", "user")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "rtcSessionId":"rtc_kind_scope",
+                        "rtcMode":"voice"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("first create session request should succeed");
+    assert_eq!(first_create.status(), StatusCode::OK);
+    let first_create_body = first_create
+        .into_body()
+        .collect()
+        .await
+        .expect("first create body should collect")
+        .to_bytes();
+    let first_create_json: serde_json::Value =
+        serde_json::from_slice(&first_create_body).expect("first create should be valid json");
+    assert_eq!(first_create_json["deliveryStatus"], "applied");
+    assert!(
+        first_create_json["requestKey"]
+            .as_str()
+            .expect("first create requestKey should be present")
+            .contains(":user:shared_actor:create:rtc_kind_scope")
+    );
+
+    let conflicting_create = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/rtc/sessions")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "shared_actor")
+                .header("x-actor-kind", "system")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "rtcSessionId":"rtc_kind_scope",
+                        "rtcMode":"voice"
                     }"#,
                 ))
                 .unwrap(),
@@ -262,6 +363,17 @@ async fn test_rtc_session_updates_are_idempotent_and_conflicting_state_transitio
     assert_eq!(
         duplicate_accept_json["artifactMessageId"],
         "msg_accept_once"
+    );
+    assert_eq!(duplicate_accept_json["deliveryStatus"], "replayed");
+    assert!(
+        !duplicate_accept_json["requestKey"]
+            .as_str()
+            .expect("duplicate accept requestKey should be present")
+            .is_empty()
+    );
+    assert_eq!(
+        duplicate_accept_json["proofVersion"],
+        "rtc.session.delivery-proof.v1"
     );
 
     let conflicting_reject = app
@@ -668,6 +780,70 @@ async fn test_map_rtc_provider_callback_over_http() {
 }
 
 #[tokio::test]
+async fn test_map_rtc_provider_callback_rejects_oversized_payload_json_over_http() {
+    let app = rtc_signaling_service::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/rtc/sessions")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "rtcSessionId":"rtc_callback_oversized_payload",
+                        "rtcMode":"voice"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create rtc session should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let callback_body = serde_json::json!({
+        "rtcSessionId":"rtc_callback_oversized_payload",
+        "callbackType":"room-ended",
+        "payloadJson":"x".repeat(262145)
+    })
+    .to_string();
+    let callback_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/rtc/provider-callbacks")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(callback_body))
+                .unwrap(),
+        )
+        .await
+        .expect("oversized callback request should return response");
+
+    assert_eq!(callback_response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let callback_body = callback_response
+        .into_body()
+        .collect()
+        .await
+        .expect("callback rejection body should collect")
+        .to_bytes();
+    let callback_json: serde_json::Value =
+        serde_json::from_slice(&callback_body).expect("callback rejection should be valid json");
+    assert_eq!(callback_json["code"], "payload_too_large");
+    assert!(
+        callback_json["message"]
+            .as_str()
+            .expect("callback rejection message should be a string")
+            .contains("payloadJson"),
+        "error should point to payloadJson guard, got: {callback_json:?}"
+    );
+}
+
+#[tokio::test]
 async fn test_get_rtc_recording_artifact_over_http() {
     let app = rtc_signaling_service::build_default_app();
 
@@ -729,4 +905,31 @@ async fn test_get_rtc_recording_artifact_over_http() {
         artifact_json["playbackUrl"],
         "https://tos.volcengine.local/rtc-artifacts/recordings/t_demo/rtc_recording_http.mp4?provider=object-storage-volcengine&expires=3600"
     );
+}
+
+#[tokio::test]
+async fn test_create_rtc_session_rejects_oversized_session_id_over_http() {
+    let app = rtc_signaling_service::build_default_app();
+    let oversized_session_id = "r".repeat(257);
+    let request_body = serde_json::json!({
+        "rtcSessionId": oversized_session_id,
+        "rtcMode":"voice"
+    })
+    .to_string();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/rtc/sessions")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(request_body))
+                .unwrap(),
+        )
+        .await
+        .expect("oversized session id create request should return response");
+
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
 }

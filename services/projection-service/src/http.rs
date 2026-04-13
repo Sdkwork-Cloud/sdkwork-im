@@ -244,7 +244,7 @@ async fn get_contacts(
 ) -> Result<Json<ContactsResponse>, ProjectionApiError> {
     let auth = resolve_auth_context(&headers)?;
     Ok(Json(ContactsResponse {
-        items: service.contacts_from_auth_context(&auth),
+        items: service.contacts_from_auth_context(&auth)?,
     }))
 }
 

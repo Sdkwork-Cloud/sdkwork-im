@@ -17,14 +17,7 @@ pub(crate) async fn resume_session(
 ) -> Result<Json<im_domain_core::session::SessionResumeView>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
     let device_id = resolve_requested_device_id(&auth, request.device_id)?;
-    state.register_device(
-        auth.tenant_id.as_str(),
-        auth.actor_id.as_str(),
-        device_id.as_str(),
-        auth.session_id.as_deref(),
-        "http",
-        true,
-    )?;
+    state.register_device(&auth, device_id.as_str(), "http", true)?;
     let sync_state = device_sync_session_state(&state, &auth, Some(device_id.as_str()))?;
 
     Ok(Json(state.presence_runtime.resume(
@@ -44,8 +37,7 @@ pub(crate) async fn get_presence_me(
     let sync_state = device_sync_session_state(&state, &auth, auth.device_id.as_deref())?;
 
     Ok(Json(state.presence_runtime.presence_snapshot(
-        auth.tenant_id.as_str(),
-        auth.actor_id.as_str(),
+        &auth,
         auth.device_id.clone(),
         sync_state.registered_devices,
     )?))
@@ -58,14 +50,7 @@ pub(crate) async fn heartbeat_presence(
 ) -> Result<Json<im_domain_core::session::PresenceSnapshotView>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
     let device_id = resolve_requested_device_id(&auth, request.device_id)?;
-    state.prepare_active_device_route(
-        auth.tenant_id.as_str(),
-        auth.actor_id.as_str(),
-        device_id.as_str(),
-        auth.session_id.as_deref(),
-        "http",
-        false,
-    )?;
+    state.prepare_active_device_route(&auth, device_id.as_str(), "http", false)?;
     let sync_state = device_sync_session_state(&state, &auth, Some(device_id.as_str()))?;
 
     Ok(Json(state.presence_runtime.heartbeat(
@@ -83,20 +68,13 @@ pub(crate) async fn disconnect_session(
 ) -> Result<Json<im_domain_core::session::PresenceSnapshotView>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
     let device_id = resolve_requested_device_id(&auth, request.device_id)?;
-    let outcome = state.disconnect_active_device_route(
-        auth.tenant_id.as_str(),
-        auth.actor_id.as_str(),
-        device_id.as_str(),
-        auth.session_id.as_deref(),
-        "http",
-    )?;
+    let outcome = state.disconnect_active_device_route(&auth, device_id.as_str(), "http")?;
     let sync_state = device_sync_session_state(&state, &auth, Some(device_id.as_str()))?;
 
     match outcome {
         DisconnectActiveDeviceRouteOutcome::FenceMatchedSession => {
             Ok(Json(state.presence_runtime.presence_snapshot(
-                auth.tenant_id.as_str(),
-                auth.actor_id.as_str(),
+                &auth,
                 Some(device_id),
                 sync_state.registered_devices,
             )?))

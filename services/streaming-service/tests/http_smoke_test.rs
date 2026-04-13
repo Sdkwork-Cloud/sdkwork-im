@@ -83,3 +83,81 @@ async fn test_standalone_streaming_service_rejects_conversation_scope_over_http(
 
     assert_eq!(value["code"], "conversation_gateway_required");
 }
+
+#[tokio::test]
+async fn test_open_stream_rejects_oversized_stream_id_over_http() {
+    let app = streaming_service::build_default_app();
+    let oversized_stream_id = "s".repeat(257);
+    let request_body = serde_json::json!({
+        "streamId": oversized_stream_id,
+        "streamType":"custom.delta.text",
+        "scopeKind":"request",
+        "scopeId":"req_demo",
+        "durabilityClass":"durableSession",
+        "schemaRef":"custom.delta.text.v1"
+    })
+    .to_string();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(request_body))
+                .unwrap(),
+        )
+        .await
+        .expect("oversized stream id open request should return response");
+
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+}
+
+#[tokio::test]
+async fn test_open_stream_rejects_oversized_durability_class_over_http() {
+    let app = streaming_service::build_default_app();
+    let oversized_durability_class = "d".repeat(65);
+    let request_body = serde_json::json!({
+        "streamId":"st_oversized_durability_class",
+        "streamType":"custom.delta.text",
+        "scopeKind":"request",
+        "scopeId":"req_demo",
+        "durabilityClass": oversized_durability_class,
+        "schemaRef":"custom.delta.text.v1"
+    })
+    .to_string();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(request_body))
+                .unwrap(),
+        )
+        .await
+        .expect("oversized durability class open request should return response");
+
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("rejection body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["code"], "payload_too_large");
+    assert!(
+        value["message"]
+            .as_str()
+            .expect("rejection message should be a string")
+            .contains("durabilityClass"),
+        "error should point to durabilityClass guard, got: {value:?}"
+    );
+}

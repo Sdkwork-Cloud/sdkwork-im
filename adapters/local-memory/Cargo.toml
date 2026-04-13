@@ -8,3 +8,5 @@ version.workspace = true
 im-domain-events = { path = "../../crates/im-domain-events" }
 im-platform-contracts = { path = "../../crates/im-platform-contracts" }
 
+[dev-dependencies]
+im-domain-core = { path = "../../crates/im-domain-core" }

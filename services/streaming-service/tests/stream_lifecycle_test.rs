@@ -304,6 +304,68 @@ async fn test_stream_append_and_list_frames_over_http() {
 }
 
 #[tokio::test]
+async fn test_request_scoped_stream_append_rejects_different_actor_over_http() {
+    let app = streaming_service::build_default_app();
+
+    let open_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "streamId":"st_request_scope_owner_only_append",
+                        "streamType":"custom.delta.text",
+                        "scopeKind":"request",
+                        "scopeId":"req_demo",
+                        "durabilityClass":"durableSession",
+                        "schemaRef":"custom.delta.text.v1"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("open stream request should succeed");
+    assert_eq!(open_response.status(), StatusCode::OK);
+
+    let append_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams/st_request_scope_owner_only_append/frames")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_other_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "frameSeq": 1,
+                        "frameType": "delta",
+                        "schemaRef": "custom.delta.text.v1",
+                        "encoding": "json",
+                        "payload": "{\"delta\":\"intrusion\"}"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("different actor append should return response");
+    assert_eq!(append_response.status(), StatusCode::NOT_FOUND);
+    let append_body = append_response
+        .into_body()
+        .collect()
+        .await
+        .expect("different actor append body should collect")
+        .to_bytes();
+    let append_json: serde_json::Value =
+        serde_json::from_slice(&append_body).expect("different actor append should be valid json");
+    assert_eq!(append_json["code"], "stream_not_found");
+}
+
+#[tokio::test]
 async fn test_stream_runtime_timestamps_advance_between_distinct_mutations() {
     let app = streaming_service::build_default_app();
 
@@ -511,6 +573,20 @@ async fn test_stream_append_enforces_ordering_and_idempotent_retry_rules() {
         .await
         .expect("append first frame request should succeed");
     assert_eq!(append_first.status(), StatusCode::OK);
+    let append_first_body = append_first
+        .into_body()
+        .collect()
+        .await
+        .expect("append first body should collect")
+        .to_bytes();
+    let append_first_json: serde_json::Value =
+        serde_json::from_slice(&append_first_body).expect("append first should be valid json");
+    assert_eq!(append_first_json["frameSeq"], 1);
+    assert_eq!(append_first_json["deliveryStatus"], "applied");
+    assert_eq!(
+        append_first_json["proofVersion"],
+        "stream.frame.delivery-proof.v1"
+    );
 
     let idempotent_retry = app
         .clone()
@@ -535,6 +611,24 @@ async fn test_stream_append_enforces_ordering_and_idempotent_retry_rules() {
         .await
         .expect("idempotent retry request should succeed");
     assert_eq!(idempotent_retry.status(), StatusCode::OK);
+    let idempotent_retry_body = idempotent_retry
+        .into_body()
+        .collect()
+        .await
+        .expect("idempotent retry body should collect")
+        .to_bytes();
+    let idempotent_retry_json: serde_json::Value = serde_json::from_slice(&idempotent_retry_body)
+        .expect("idempotent retry should be valid json");
+    assert_eq!(idempotent_retry_json["frameSeq"], 1);
+    assert_eq!(idempotent_retry_json["deliveryStatus"], "replayed");
+    assert_eq!(
+        idempotent_retry_json["requestKey"],
+        append_first_json["requestKey"]
+    );
+    assert_eq!(
+        idempotent_retry_json["proofVersion"],
+        append_first_json["proofVersion"]
+    );
 
     let out_of_order = app
         .clone()
@@ -716,6 +810,19 @@ async fn test_duplicate_open_stream_is_idempotent_and_conflicting_retry_is_rejec
         .await
         .expect("first open stream request should succeed");
     assert_eq!(first_open.status(), StatusCode::OK);
+    let first_open_body = first_open
+        .into_body()
+        .collect()
+        .await
+        .expect("first open body should collect")
+        .to_bytes();
+    let first_open_json: serde_json::Value =
+        serde_json::from_slice(&first_open_body).expect("first open should be valid json");
+    assert_eq!(first_open_json["deliveryStatus"], "applied");
+    assert_eq!(
+        first_open_json["proofVersion"],
+        "stream.session.delivery-proof.v1"
+    );
 
     let append_response = app
         .clone()
@@ -777,6 +884,15 @@ async fn test_duplicate_open_stream_is_idempotent_and_conflicting_retry_is_rejec
         .expect("idempotent open should be valid json");
     assert_eq!(idempotent_open_json["state"], "active");
     assert_eq!(idempotent_open_json["lastFrameSeq"], 1);
+    assert_eq!(idempotent_open_json["deliveryStatus"], "replayed");
+    assert_eq!(
+        idempotent_open_json["requestKey"],
+        first_open_json["requestKey"]
+    );
+    assert_eq!(
+        idempotent_open_json["proofVersion"],
+        first_open_json["proofVersion"]
+    );
 
     let list_response = app
         .clone()
@@ -834,6 +950,859 @@ async fn test_duplicate_open_stream_is_idempotent_and_conflicting_retry_is_rejec
     let conflicting_open_json: serde_json::Value = serde_json::from_slice(&conflicting_open_body)
         .expect("conflicting open should be valid json");
     assert_eq!(conflicting_open_json["code"], "stream_conflict");
+}
+
+#[tokio::test]
+async fn test_duplicate_open_stream_with_different_actor_is_conflict() {
+    let app = streaming_service::build_default_app();
+
+    let first_open = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "streamId":"st_actor_scope_open",
+                        "streamType":"custom.delta.text",
+                        "scopeKind":"request",
+                        "scopeId":"req_demo",
+                        "durabilityClass":"durableSession",
+                        "schemaRef":"custom.delta.text.v1"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("first open should succeed");
+    assert_eq!(first_open.status(), StatusCode::OK);
+    let first_open_body = first_open
+        .into_body()
+        .collect()
+        .await
+        .expect("first open body should collect")
+        .to_bytes();
+    let first_open_json: serde_json::Value =
+        serde_json::from_slice(&first_open_body).expect("first open should be valid json");
+    assert_eq!(first_open_json["deliveryStatus"], "applied");
+    assert!(
+        first_open_json["requestKey"]
+            .as_str()
+            .expect("first open requestKey should be present")
+            .contains(":u_demo:open:st_actor_scope_open")
+    );
+
+    let conflicting_open = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_other_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "streamId":"st_actor_scope_open",
+                        "streamType":"custom.delta.text",
+                        "scopeKind":"request",
+                        "scopeId":"req_demo",
+                        "durabilityClass":"durableSession",
+                        "schemaRef":"custom.delta.text.v1"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("different actor open should return response");
+    assert_eq!(conflicting_open.status(), StatusCode::CONFLICT);
+    let conflicting_open_body = conflicting_open
+        .into_body()
+        .collect()
+        .await
+        .expect("different actor open body should collect")
+        .to_bytes();
+    let conflicting_open_json: serde_json::Value = serde_json::from_slice(&conflicting_open_body)
+        .expect("different actor open should be valid json");
+    assert_eq!(conflicting_open_json["code"], "stream_conflict");
+}
+
+#[tokio::test]
+async fn test_duplicate_complete_stream_request_is_idempotent_and_conflicting_retry_is_rejected() {
+    let app = streaming_service::build_default_app();
+
+    let open_stream = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "streamId":"st_complete_idempotent",
+                        "streamType":"custom.delta.text",
+                        "scopeKind":"request",
+                        "scopeId":"req_demo",
+                        "durabilityClass":"durableSession",
+                        "schemaRef":"custom.delta.text.v1"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("open stream should succeed");
+    assert_eq!(open_stream.status(), StatusCode::OK);
+
+    let append_frame = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams/st_complete_idempotent/frames")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "frameSeq": 1,
+                        "frameType": "delta",
+                        "schemaRef": "custom.delta.text.v1",
+                        "encoding": "json",
+                        "payload": "{\"delta\":\"hello\"}"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("append frame should succeed");
+    assert_eq!(append_frame.status(), StatusCode::OK);
+
+    let first_complete = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams/st_complete_idempotent/complete")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "frameSeq": 1,
+                        "resultMessageId": "msg_complete_idempotent"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("first complete should return response");
+    assert_eq!(first_complete.status(), StatusCode::OK);
+    let first_complete_body = first_complete
+        .into_body()
+        .collect()
+        .await
+        .expect("first complete body should collect")
+        .to_bytes();
+    let first_complete_json: serde_json::Value =
+        serde_json::from_slice(&first_complete_body).expect("first complete should be valid json");
+    assert_eq!(first_complete_json["state"], "completed");
+    assert_eq!(first_complete_json["deliveryStatus"], "applied");
+    assert_eq!(
+        first_complete_json["proofVersion"],
+        "stream.session.delivery-proof.v1"
+    );
+
+    let duplicate_complete = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams/st_complete_idempotent/complete")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "frameSeq": 1,
+                        "resultMessageId": "msg_complete_idempotent"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("duplicate complete should return response");
+    assert_eq!(duplicate_complete.status(), StatusCode::OK);
+    let duplicate_complete_body = duplicate_complete
+        .into_body()
+        .collect()
+        .await
+        .expect("duplicate complete body should collect")
+        .to_bytes();
+    let duplicate_complete_json: serde_json::Value =
+        serde_json::from_slice(&duplicate_complete_body)
+            .expect("duplicate complete should be valid json");
+    assert_eq!(duplicate_complete_json["deliveryStatus"], "replayed");
+    assert_eq!(
+        duplicate_complete_json["requestKey"],
+        first_complete_json["requestKey"]
+    );
+    assert_eq!(
+        duplicate_complete_json["proofVersion"],
+        first_complete_json["proofVersion"]
+    );
+
+    let conflicting_complete = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams/st_complete_idempotent/complete")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "frameSeq": 1,
+                        "resultMessageId": "msg_complete_conflict"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("conflicting complete should return response");
+    assert_eq!(conflicting_complete.status(), StatusCode::CONFLICT);
+    let conflicting_complete_body = conflicting_complete
+        .into_body()
+        .collect()
+        .await
+        .expect("conflicting complete body should collect")
+        .to_bytes();
+    let conflicting_complete_json: serde_json::Value =
+        serde_json::from_slice(&conflicting_complete_body)
+            .expect("conflicting complete should be valid json");
+    assert_eq!(conflicting_complete_json["code"], "stream_conflict");
+}
+
+#[tokio::test]
+async fn test_duplicate_complete_stream_request_with_different_actor_is_not_found() {
+    let app = streaming_service::build_default_app();
+
+    let open_stream = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "streamId":"st_actor_scope_complete",
+                        "streamType":"custom.delta.text",
+                        "scopeKind":"request",
+                        "scopeId":"req_demo",
+                        "durabilityClass":"durableSession",
+                        "schemaRef":"custom.delta.text.v1"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("open stream should succeed");
+    assert_eq!(open_stream.status(), StatusCode::OK);
+
+    let append_frame = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams/st_actor_scope_complete/frames")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "frameSeq": 1,
+                        "frameType": "delta",
+                        "schemaRef": "custom.delta.text.v1",
+                        "encoding": "json",
+                        "payload": "{\"delta\":\"hello\"}"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("append frame should succeed");
+    assert_eq!(append_frame.status(), StatusCode::OK);
+
+    let first_complete = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams/st_actor_scope_complete/complete")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "frameSeq": 1,
+                        "resultMessageId": "msg_actor_scope_complete"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("first complete should return response");
+    assert_eq!(first_complete.status(), StatusCode::OK);
+    let first_complete_body = first_complete
+        .into_body()
+        .collect()
+        .await
+        .expect("first complete body should collect")
+        .to_bytes();
+    let first_complete_json: serde_json::Value =
+        serde_json::from_slice(&first_complete_body).expect("first complete should be valid json");
+    assert_eq!(first_complete_json["deliveryStatus"], "applied");
+    assert!(
+        first_complete_json["requestKey"]
+            .as_str()
+            .expect("first complete requestKey should be present")
+            .contains(":u_demo:complete:st_actor_scope_complete")
+    );
+
+    let hidden_complete = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams/st_actor_scope_complete/complete")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_other_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "frameSeq": 1,
+                        "resultMessageId": "msg_actor_scope_complete"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("different actor complete should return response");
+    assert_eq!(hidden_complete.status(), StatusCode::NOT_FOUND);
+    let hidden_complete_body = hidden_complete
+        .into_body()
+        .collect()
+        .await
+        .expect("different actor complete body should collect")
+        .to_bytes();
+    let hidden_complete_json: serde_json::Value = serde_json::from_slice(&hidden_complete_body)
+        .expect("different actor complete should be valid json");
+    assert_eq!(hidden_complete_json["code"], "stream_not_found");
+}
+
+#[tokio::test]
+async fn test_duplicate_abort_stream_request_is_idempotent_and_conflicting_retry_is_rejected() {
+    let app = streaming_service::build_default_app();
+
+    let open_stream = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "streamId":"st_abort_idempotent",
+                        "streamType":"custom.delta.text",
+                        "scopeKind":"request",
+                        "scopeId":"req_demo",
+                        "durabilityClass":"durableSession",
+                        "schemaRef":"custom.delta.text.v1"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("open stream should succeed");
+    assert_eq!(open_stream.status(), StatusCode::OK);
+
+    let append_frame = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams/st_abort_idempotent/frames")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "frameSeq": 1,
+                        "frameType": "delta",
+                        "schemaRef": "custom.delta.text.v1",
+                        "encoding": "json",
+                        "payload": "{\"delta\":\"hello\"}"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("append frame should succeed");
+    assert_eq!(append_frame.status(), StatusCode::OK);
+
+    let first_abort = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams/st_abort_idempotent/abort")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "frameSeq": 1,
+                        "reason": "client_cancelled"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("first abort should return response");
+    assert_eq!(first_abort.status(), StatusCode::OK);
+    let first_abort_body = first_abort
+        .into_body()
+        .collect()
+        .await
+        .expect("first abort body should collect")
+        .to_bytes();
+    let first_abort_json: serde_json::Value =
+        serde_json::from_slice(&first_abort_body).expect("first abort should be valid json");
+    assert_eq!(first_abort_json["state"], "aborted");
+    assert_eq!(first_abort_json["deliveryStatus"], "applied");
+    assert_eq!(
+        first_abort_json["proofVersion"],
+        "stream.session.delivery-proof.v1"
+    );
+    assert_eq!(first_abort_json["abortFrameSeq"], 1);
+    assert_eq!(first_abort_json["abortReason"], "client_cancelled");
+
+    let duplicate_abort = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams/st_abort_idempotent/abort")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "frameSeq": 1,
+                        "reason": "client_cancelled"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("duplicate abort should return response");
+    assert_eq!(duplicate_abort.status(), StatusCode::OK);
+    let duplicate_abort_body = duplicate_abort
+        .into_body()
+        .collect()
+        .await
+        .expect("duplicate abort body should collect")
+        .to_bytes();
+    let duplicate_abort_json: serde_json::Value = serde_json::from_slice(&duplicate_abort_body)
+        .expect("duplicate abort should be valid json");
+    assert_eq!(duplicate_abort_json["deliveryStatus"], "replayed");
+    assert_eq!(
+        duplicate_abort_json["requestKey"],
+        first_abort_json["requestKey"]
+    );
+    assert_eq!(
+        duplicate_abort_json["proofVersion"],
+        first_abort_json["proofVersion"]
+    );
+    assert_eq!(
+        duplicate_abort_json["abortReason"],
+        first_abort_json["abortReason"]
+    );
+
+    let conflicting_abort = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams/st_abort_idempotent/abort")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "frameSeq": 1,
+                        "reason": "different_reason"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("conflicting abort should return response");
+    assert_eq!(conflicting_abort.status(), StatusCode::CONFLICT);
+    let conflicting_abort_body = conflicting_abort
+        .into_body()
+        .collect()
+        .await
+        .expect("conflicting abort body should collect")
+        .to_bytes();
+    let conflicting_abort_json: serde_json::Value = serde_json::from_slice(&conflicting_abort_body)
+        .expect("conflicting abort should be valid json");
+    assert_eq!(conflicting_abort_json["code"], "stream_conflict");
+}
+
+#[tokio::test]
+async fn test_duplicate_abort_stream_request_with_different_actor_is_not_found() {
+    let app = streaming_service::build_default_app();
+
+    let open_stream = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "streamId":"st_actor_scope_abort",
+                        "streamType":"custom.delta.text",
+                        "scopeKind":"request",
+                        "scopeId":"req_demo",
+                        "durabilityClass":"durableSession",
+                        "schemaRef":"custom.delta.text.v1"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("open stream should succeed");
+    assert_eq!(open_stream.status(), StatusCode::OK);
+
+    let append_frame = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams/st_actor_scope_abort/frames")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "frameSeq": 1,
+                        "frameType": "delta",
+                        "schemaRef": "custom.delta.text.v1",
+                        "encoding": "json",
+                        "payload": "{\"delta\":\"hello\"}"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("append frame should succeed");
+    assert_eq!(append_frame.status(), StatusCode::OK);
+
+    let first_abort = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams/st_actor_scope_abort/abort")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "frameSeq": 1,
+                        "reason": "client_cancelled"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("first abort should return response");
+    assert_eq!(first_abort.status(), StatusCode::OK);
+    let first_abort_body = first_abort
+        .into_body()
+        .collect()
+        .await
+        .expect("first abort body should collect")
+        .to_bytes();
+    let first_abort_json: serde_json::Value =
+        serde_json::from_slice(&first_abort_body).expect("first abort should be valid json");
+    assert_eq!(first_abort_json["deliveryStatus"], "applied");
+    assert!(
+        first_abort_json["requestKey"]
+            .as_str()
+            .expect("first abort requestKey should be present")
+            .contains(":u_demo:abort:st_actor_scope_abort")
+    );
+
+    let hidden_abort = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams/st_actor_scope_abort/abort")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_other_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "frameSeq": 1,
+                        "reason": "client_cancelled"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("different actor abort should return response");
+    assert_eq!(hidden_abort.status(), StatusCode::NOT_FOUND);
+    let hidden_abort_body = hidden_abort
+        .into_body()
+        .collect()
+        .await
+        .expect("different actor abort body should collect")
+        .to_bytes();
+    let hidden_abort_json: serde_json::Value = serde_json::from_slice(&hidden_abort_body)
+        .expect("different actor abort should be valid json");
+    assert_eq!(hidden_abort_json["code"], "stream_not_found");
+}
+
+#[tokio::test]
+async fn test_duplicate_checkpoint_stream_request_replays_after_stream_completes() {
+    let app = streaming_service::build_default_app();
+
+    let open_stream = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "streamId":"st_checkpoint_idempotent",
+                        "streamType":"custom.delta.text",
+                        "scopeKind":"request",
+                        "scopeId":"req_demo",
+                        "durabilityClass":"durableSession",
+                        "schemaRef":"custom.delta.text.v1"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("open stream should succeed");
+    assert_eq!(open_stream.status(), StatusCode::OK);
+
+    let first_checkpoint = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams/st_checkpoint_idempotent/checkpoint")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "frameSeq": 3
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("first checkpoint should return response");
+    assert_eq!(first_checkpoint.status(), StatusCode::OK);
+    let first_checkpoint_body = first_checkpoint
+        .into_body()
+        .collect()
+        .await
+        .expect("first checkpoint body should collect")
+        .to_bytes();
+    let first_checkpoint_json: serde_json::Value = serde_json::from_slice(&first_checkpoint_body)
+        .expect("first checkpoint should be valid json");
+    assert_eq!(first_checkpoint_json["state"], "checkpointed");
+    assert_eq!(first_checkpoint_json["deliveryStatus"], "applied");
+    assert_eq!(
+        first_checkpoint_json["proofVersion"],
+        "stream.session.delivery-proof.v1"
+    );
+
+    let complete_stream = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams/st_checkpoint_idempotent/complete")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "frameSeq": 5,
+                        "resultMessageId": "msg_checkpoint_complete"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("complete stream should return response");
+    assert_eq!(complete_stream.status(), StatusCode::OK);
+
+    let duplicate_checkpoint = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams/st_checkpoint_idempotent/checkpoint")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "frameSeq": 3
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("duplicate checkpoint should return response");
+    assert_eq!(duplicate_checkpoint.status(), StatusCode::OK);
+    let duplicate_checkpoint_body = duplicate_checkpoint
+        .into_body()
+        .collect()
+        .await
+        .expect("duplicate checkpoint body should collect")
+        .to_bytes();
+    let duplicate_checkpoint_json: serde_json::Value =
+        serde_json::from_slice(&duplicate_checkpoint_body)
+            .expect("duplicate checkpoint should be valid json");
+    assert_eq!(duplicate_checkpoint_json["state"], "completed");
+    assert_eq!(duplicate_checkpoint_json["deliveryStatus"], "replayed");
+    assert_eq!(
+        duplicate_checkpoint_json["requestKey"],
+        first_checkpoint_json["requestKey"]
+    );
+    assert_eq!(
+        duplicate_checkpoint_json["proofVersion"],
+        first_checkpoint_json["proofVersion"]
+    );
+}
+
+#[tokio::test]
+async fn test_duplicate_checkpoint_stream_request_with_different_actor_is_not_found() {
+    let app = streaming_service::build_default_app();
+
+    let open_stream = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "streamId":"st_actor_scope_checkpoint",
+                        "streamType":"custom.delta.text",
+                        "scopeKind":"request",
+                        "scopeId":"req_demo",
+                        "durabilityClass":"durableSession",
+                        "schemaRef":"custom.delta.text.v1"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("open stream should succeed");
+    assert_eq!(open_stream.status(), StatusCode::OK);
+
+    let first_checkpoint = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams/st_actor_scope_checkpoint/checkpoint")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "frameSeq": 3
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("first checkpoint should return response");
+    assert_eq!(first_checkpoint.status(), StatusCode::OK);
+    let first_checkpoint_body = first_checkpoint
+        .into_body()
+        .collect()
+        .await
+        .expect("first checkpoint body should collect")
+        .to_bytes();
+    let first_checkpoint_json: serde_json::Value = serde_json::from_slice(&first_checkpoint_body)
+        .expect("first checkpoint should be valid json");
+    assert_eq!(first_checkpoint_json["deliveryStatus"], "applied");
+    assert!(
+        first_checkpoint_json["requestKey"]
+            .as_str()
+            .expect("first checkpoint requestKey should be present")
+            .contains(":u_demo:checkpoint:st_actor_scope_checkpoint:3")
+    );
+
+    let hidden_checkpoint = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams/st_actor_scope_checkpoint/checkpoint")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_other_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "frameSeq": 3
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("different actor checkpoint should return response");
+    assert_eq!(hidden_checkpoint.status(), StatusCode::NOT_FOUND);
+    let hidden_checkpoint_body = hidden_checkpoint
+        .into_body()
+        .collect()
+        .await
+        .expect("different actor checkpoint body should collect")
+        .to_bytes();
+    let hidden_checkpoint_json: serde_json::Value = serde_json::from_slice(&hidden_checkpoint_body)
+        .expect("different actor checkpoint should be valid json");
+    assert_eq!(hidden_checkpoint_json["code"], "stream_not_found");
 }
 
 #[tokio::test]
@@ -944,4 +1913,335 @@ async fn test_runtime_restores_stream_state_on_rebuild_with_shared_store() {
         .await
         .expect("complete stream request after rebuild should succeed");
     assert_eq!(complete_response.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn test_stream_append_rejects_oversized_payload_over_http() {
+    let app = streaming_service::build_default_app();
+    let open_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-device-id", "d_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "streamId":"st_oversized_payload",
+                        "streamType":"custom.delta.text",
+                        "scopeKind":"request",
+                        "scopeId":"req_demo",
+                        "durabilityClass":"durableSession",
+                        "schemaRef":"custom.delta.text.v1"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("open stream request should succeed");
+    assert_eq!(open_response.status(), StatusCode::OK);
+
+    let oversized_payload = "x".repeat(262145);
+    let append_body = serde_json::json!({
+        "frameSeq": 1,
+        "frameType": "delta",
+        "schemaRef": "custom.delta.text.v1",
+        "encoding": "json",
+        "payload": oversized_payload
+    })
+    .to_string();
+    let append_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams/st_oversized_payload/frames")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-device-id", "d_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(append_body))
+                .unwrap(),
+        )
+        .await
+        .expect("oversized append request should return response");
+    assert_eq!(append_response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+}
+
+#[tokio::test]
+async fn test_stream_append_rejects_oversized_attributes_over_http() {
+    let app = streaming_service::build_default_app();
+    let open_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-device-id", "d_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "streamId":"st_oversized_attributes",
+                        "streamType":"custom.delta.text",
+                        "scopeKind":"request",
+                        "scopeId":"req_demo",
+                        "durabilityClass":"durableSession",
+                        "schemaRef":"custom.delta.text.v1"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("open stream request should succeed");
+    assert_eq!(open_response.status(), StatusCode::OK);
+
+    let append_body = serde_json::json!({
+        "frameSeq": 1,
+        "frameType": "delta",
+        "schemaRef": "custom.delta.text.v1",
+        "encoding": "json",
+        "payload": "{\"delta\":\"hello\"}",
+        "attributes": {
+            "trace": "x".repeat(65537)
+        }
+    })
+    .to_string();
+    let append_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams/st_oversized_attributes/frames")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-device-id", "d_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(append_body))
+                .unwrap(),
+        )
+        .await
+        .expect("oversized attributes append request should return response");
+    assert_eq!(append_response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+}
+
+#[tokio::test]
+async fn test_stream_complete_rejects_oversized_result_message_id_over_http() {
+    let app = streaming_service::build_default_app();
+    let open_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "streamId":"st_oversized_result_message_id",
+                        "streamType":"custom.delta.text",
+                        "scopeKind":"request",
+                        "scopeId":"req_demo",
+                        "durabilityClass":"durableSession",
+                        "schemaRef":"custom.delta.text.v1"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("open stream request should succeed");
+    assert_eq!(open_response.status(), StatusCode::OK);
+
+    let complete_body = serde_json::json!({
+        "frameSeq": 1,
+        "resultMessageId": "m".repeat(257)
+    })
+    .to_string();
+    let complete_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams/st_oversized_result_message_id/complete")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(complete_body))
+                .unwrap(),
+        )
+        .await
+        .expect("oversized complete request should return response");
+    assert_eq!(complete_response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let complete_body = complete_response
+        .into_body()
+        .collect()
+        .await
+        .expect("oversized complete rejection should collect")
+        .to_bytes();
+    let complete_json: serde_json::Value =
+        serde_json::from_slice(&complete_body).expect("complete rejection should be valid json");
+    assert_eq!(complete_json["code"], "payload_too_large");
+    assert!(
+        complete_json["message"]
+            .as_str()
+            .expect("complete rejection message should be a string")
+            .contains("resultMessageId"),
+        "error should point to resultMessageId guard, got: {complete_json:?}"
+    );
+}
+
+#[tokio::test]
+async fn test_stream_abort_rejects_oversized_reason_over_http() {
+    let app = streaming_service::build_default_app();
+    let open_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "streamId":"st_oversized_abort_reason",
+                        "streamType":"custom.delta.text",
+                        "scopeKind":"request",
+                        "scopeId":"req_demo",
+                        "durabilityClass":"durableSession",
+                        "schemaRef":"custom.delta.text.v1"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("open stream request should succeed");
+    assert_eq!(open_response.status(), StatusCode::OK);
+
+    let abort_body = serde_json::json!({
+        "frameSeq": 1,
+        "reason": "x".repeat(8193)
+    })
+    .to_string();
+    let abort_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams/st_oversized_abort_reason/abort")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(abort_body))
+                .unwrap(),
+        )
+        .await
+        .expect("oversized abort request should return response");
+    assert_eq!(abort_response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let abort_body = abort_response
+        .into_body()
+        .collect()
+        .await
+        .expect("oversized abort rejection should collect")
+        .to_bytes();
+    let abort_json: serde_json::Value =
+        serde_json::from_slice(&abort_body).expect("abort rejection should be valid json");
+    assert_eq!(abort_json["code"], "payload_too_large");
+    assert!(
+        abort_json["message"]
+            .as_str()
+            .expect("abort rejection message should be a string")
+            .contains("reason"),
+        "error should point to reason guard, got: {abort_json:?}"
+    );
+}
+
+#[tokio::test]
+async fn test_stream_list_rejects_limit_above_guardrail_over_http() {
+    let app = streaming_service::build_default_app();
+    let open_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "streamId":"st_limit_guardrail",
+                        "streamType":"custom.delta.text",
+                        "scopeKind":"request",
+                        "scopeId":"req_demo",
+                        "durabilityClass":"durableSession",
+                        "schemaRef":"custom.delta.text.v1"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("open stream request should succeed");
+    assert_eq!(open_response.status(), StatusCode::OK);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/streams/st_limit_guardrail/frames?afterFrameSeq=0&limit=1001")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("list request should return response");
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("list rejection body should collect")
+        .to_bytes();
+    let json: serde_json::Value =
+        serde_json::from_slice(&body).expect("list rejection body should be valid json");
+    assert_eq!(json["code"], "invalid_limit");
+}
+
+#[tokio::test]
+async fn test_stream_list_rejects_oversized_stream_id_over_http() {
+    let app = streaming_service::build_default_app();
+    let oversized_stream_id = "s".repeat(257);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/v1/streams/{oversized_stream_id}/frames?afterFrameSeq=0&limit=10"
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("oversized list request should return response");
+
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("oversized list rejection body should collect")
+        .to_bytes();
+    let json: serde_json::Value =
+        serde_json::from_slice(&body).expect("oversized list rejection body should be valid json");
+    assert_eq!(json["code"], "payload_too_large");
+    assert!(
+        json["message"]
+            .as_str()
+            .expect("oversized list rejection message should be a string")
+            .contains("streamId"),
+        "error should point to streamId guard, got: {json:?}"
+    );
 }

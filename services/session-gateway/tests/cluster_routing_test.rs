@@ -266,6 +266,136 @@ fn test_cluster_bridge_migrates_route_and_realtime_state_to_target_node() {
 }
 
 #[test]
+fn test_cluster_bridge_isolates_same_actor_id_across_principal_kinds_for_routes_and_publish() {
+    let cluster = Arc::new(RealtimeClusterBridge::default());
+    let runtime_a = Arc::new(RealtimeDeliveryRuntime::default());
+    let runtime_b = Arc::new(RealtimeDeliveryRuntime::default());
+    cluster.bind_node_runtime("node_a", runtime_a.clone());
+    cluster.bind_node_runtime("node_b", runtime_b.clone());
+
+    expect_ok(runtime_a.sync_subscriptions_for_principal_kind(
+        "t_demo",
+        "u_demo",
+        "user",
+        "d_pad",
+        vec![RealtimeSubscriptionItemInput {
+            scope_type: "conversation".into(),
+            scope_id: "c_user".into(),
+            event_types: vec!["message.posted".into()],
+        }],
+    ));
+    expect_ok(runtime_b.sync_subscriptions_for_principal_kind(
+        "t_demo",
+        "u_demo",
+        "agent",
+        "d_pad",
+        vec![RealtimeSubscriptionItemInput {
+            scope_type: "conversation".into(),
+            scope_id: "c_agent".into(),
+            event_types: vec!["message.posted".into()],
+        }],
+    ));
+    cluster
+        .bind_device_route_for_principal_kind(
+            "t_demo",
+            "u_demo",
+            "user",
+            "d_pad",
+            "node_a",
+            Some("s_user"),
+            "websocket",
+        )
+        .expect("user route bind should succeed");
+    cluster
+        .bind_device_route_for_principal_kind(
+            "t_demo",
+            "u_demo",
+            "agent",
+            "d_pad",
+            "node_b",
+            Some("s_agent"),
+            "websocket",
+        )
+        .expect("agent route bind should succeed");
+
+    let user_route = cluster
+        .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+        .expect("user route should exist");
+    let agent_route = cluster
+        .resolve_device_route_for_principal_kind("t_demo", "u_demo", "agent", "d_pad")
+        .expect("agent route should exist");
+    assert_eq!(user_route.owner_node_id, "node_a");
+    assert_eq!(agent_route.owner_node_id, "node_b");
+
+    let user_publish = cluster.publish_device_event_for_principal_kind(
+        "node_b",
+        "t_demo",
+        "u_demo",
+        "user",
+        "d_pad",
+        "conversation",
+        "c_user",
+        "message.posted",
+        r#"{"messageId":"msg_user"}"#.into(),
+    );
+    let agent_publish = cluster.publish_device_event_for_principal_kind(
+        "node_a",
+        "t_demo",
+        "u_demo",
+        "agent",
+        "d_pad",
+        "conversation",
+        "c_agent",
+        "message.posted",
+        r#"{"messageId":"msg_agent"}"#.into(),
+    );
+    assert_eq!(user_publish.target_node_id, "node_a");
+    assert_eq!(user_publish.route_state, "resolved");
+    assert_eq!(user_publish.delivered, 1);
+    assert_eq!(agent_publish.target_node_id, "node_b");
+    assert_eq!(agent_publish.route_state, "resolved");
+    assert_eq!(agent_publish.delivered, 1);
+
+    let user_window = expect_ok(
+        runtime_a.list_events_for_principal_kind("t_demo", "u_demo", "user", "d_pad", 0, 10),
+    );
+    let agent_window = expect_ok(
+        runtime_b.list_events_for_principal_kind("t_demo", "u_demo", "agent", "d_pad", 0, 10),
+    );
+    assert_eq!(user_window.items.len(), 1);
+    assert_eq!(user_window.items[0].scope_id, "c_user");
+    assert_eq!(agent_window.items.len(), 1);
+    assert_eq!(agent_window.items[0].scope_id, "c_agent");
+}
+
+#[test]
+fn test_cluster_disconnect_fence_isolated_by_principal_kind() {
+    let cluster = Arc::new(RealtimeClusterBridge::default());
+    let runtime = Arc::new(RealtimeDeliveryRuntime::default());
+    cluster.bind_node_runtime("node_a", runtime);
+
+    cluster
+        .mark_device_disconnected_for_principal_kind(
+            "t_demo",
+            "u_demo",
+            "user",
+            "d_pad",
+            Some("s_user"),
+            "node_a",
+        )
+        .expect("user disconnect fence should persist");
+
+    let user_error = cluster
+        .ensure_device_resume_not_required_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+        .expect_err("user principal kind should require reconnect");
+    assert_eq!(user_error.code, "reconnect_required");
+
+    cluster
+        .ensure_device_resume_not_required_for_principal_kind("t_demo", "u_demo", "agent", "d_pad")
+        .expect("agent principal kind should remain isolated from user disconnect fence");
+}
+
+#[test]
 fn test_cluster_bridge_rebind_latest_owner_transfers_realtime_state() {
     let cluster = Arc::new(RealtimeClusterBridge::default());
     let runtime_a = Arc::new(RealtimeDeliveryRuntime::default());

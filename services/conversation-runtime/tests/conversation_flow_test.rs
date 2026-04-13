@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 use std::thread::sleep;
 use std::time::Duration;
@@ -87,6 +88,181 @@ fn test_create_conversation_and_post_message_emits_commit_events_in_order() {
     assert_eq!(events[1].event_type, "conversation.member_joined");
     assert_eq!(events[2].event_type, "message.posted");
     assert_eq!(events[2].ordering_seq, 1);
+}
+
+#[test]
+fn test_duplicate_create_conversation_is_idempotent_and_conflicting_retry_is_rejected() {
+    let journal = InMemoryJournal::default();
+    let runtime = ConversationRuntime::new(journal.clone());
+
+    let first = runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_create_retry".into(),
+            creator_id: "u_demo".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("first create should succeed");
+
+    assert_eq!(first.delivery_status.as_ref().unwrap().as_str(), "applied");
+    assert_eq!(
+        first.proof_version.as_deref(),
+        Some("conversation.create.delivery-proof.v1")
+    );
+    assert_eq!(
+        first.request_key.as_deref(),
+        Some("t_demo:user:u_demo:create-conversation:c_create_retry")
+    );
+
+    let duplicate = runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_create_retry".into(),
+            creator_id: "u_demo".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("duplicate create should be idempotent");
+
+    assert_eq!(duplicate.conversation_id, first.conversation_id);
+    assert_eq!(duplicate.event_id, first.event_id);
+    assert_eq!(duplicate.request_key, first.request_key);
+    assert_eq!(duplicate.proof_version, first.proof_version);
+    assert_eq!(
+        duplicate.delivery_status.as_ref().unwrap().as_str(),
+        "replayed"
+    );
+
+    let members = runtime
+        .list_members("t_demo", "c_create_retry")
+        .expect("members should list");
+    assert_eq!(members.len(), 1);
+    assert_eq!(members[0].principal_id, "u_demo");
+
+    let conflicting_retry = runtime.create_conversation(CreateConversationCommand {
+        tenant_id: "t_demo".into(),
+        conversation_id: "c_create_retry".into(),
+        creator_id: "u_demo".into(),
+        conversation_type: "direct".into(),
+    });
+    assert!(matches!(conflicting_retry, Err(RuntimeError::Conflict(_))));
+
+    let events = journal.recorded();
+    assert_eq!(
+        events.len(),
+        2,
+        "duplicate create retry must not append another conversation.created/member_joined pair"
+    );
+}
+
+#[test]
+fn test_duplicate_post_message_is_idempotent_and_conflicting_retry_is_rejected() {
+    let journal = InMemoryJournal::default();
+    let runtime = ConversationRuntime::new(journal.clone());
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_post_retry".into(),
+            creator_id: "u_demo".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("create conversation should succeed");
+
+    let first = runtime
+        .post_message(PostMessageCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_post_retry".into(),
+            sender: Sender {
+                id: "u_demo".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_demo".into()),
+                session_id: Some("s_demo".into()),
+                metadata: Default::default(),
+            },
+            client_msg_id: Some("client_post_retry".into()),
+            message_type: MessageType::Standard,
+            body: MessageBody {
+                summary: Some("hello".into()),
+                parts: vec![ContentPart::text("hello")],
+                render_hints: Default::default(),
+            },
+        })
+        .expect("first post should succeed");
+
+    let duplicate = runtime
+        .post_message(PostMessageCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_post_retry".into(),
+            sender: Sender {
+                id: "u_demo".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_demo".into()),
+                session_id: Some("s_demo_retry".into()),
+                metadata: Default::default(),
+            },
+            client_msg_id: Some("client_post_retry".into()),
+            message_type: MessageType::Standard,
+            body: MessageBody {
+                summary: Some("hello".into()),
+                parts: vec![ContentPart::text("hello")],
+                render_hints: Default::default(),
+            },
+        })
+        .expect("duplicate same-input post should be idempotent");
+
+    assert_eq!(
+        duplicate.message_id, first.message_id,
+        "idempotent retry should resolve to the original message id"
+    );
+    assert_eq!(
+        duplicate.message_seq, first.message_seq,
+        "idempotent retry should resolve to the original message seq"
+    );
+    assert_eq!(
+        duplicate.event_id, first.event_id,
+        "idempotent retry should resolve to the original event id"
+    );
+
+    let history = runtime
+        .list_messages("t_demo", "c_post_retry", "u_demo")
+        .expect("history should list");
+    assert_eq!(
+        history.items.len(),
+        1,
+        "duplicate same-input retry must not append a second stored message"
+    );
+    assert_eq!(history.high_watermark, 1);
+
+    let conflicting_retry = runtime.post_message(PostMessageCommand {
+        tenant_id: "t_demo".into(),
+        conversation_id: "c_post_retry".into(),
+        sender: Sender {
+            id: "u_demo".into(),
+            kind: "user".into(),
+            member_id: None,
+            device_id: Some("d_demo".into()),
+            session_id: Some("s_demo_retry_conflict".into()),
+            metadata: Default::default(),
+        },
+        client_msg_id: Some("client_post_retry".into()),
+        message_type: MessageType::Standard,
+        body: MessageBody {
+            summary: Some("hello conflict".into()),
+            parts: vec![ContentPart::text("hello conflict")],
+            render_hints: Default::default(),
+        },
+    });
+
+    assert!(matches!(conflicting_retry, Err(RuntimeError::Conflict(_))));
+
+    let events = journal.recorded();
+    assert_eq!(
+        events.len(),
+        3,
+        "duplicate post retry must not append another message.posted event"
+    );
 }
 
 #[test]
@@ -456,6 +632,102 @@ fn test_create_agent_dialog_creates_requester_and_agent_members() {
 }
 
 #[test]
+fn test_duplicate_create_agent_dialog_is_idempotent_and_conflicting_retry_is_rejected() {
+    let source_journal = InMemoryJournal::default();
+    let source_runtime = ConversationRuntime::new(source_journal.clone());
+
+    let first = source_runtime
+        .create_agent_dialog_with_requester_kind(
+            CreateAgentDialogCommand {
+                tenant_id: "t_demo".into(),
+                conversation_id: "c_agent_dialog_retry".into(),
+                requester_id: "u_demo".into(),
+                agent_id: "ag_demo".into(),
+            },
+            "user",
+        )
+        .expect("first agent dialog create should succeed");
+
+    assert_eq!(first.delivery_status.as_ref().unwrap().as_str(), "applied");
+    assert_eq!(
+        first.proof_version.as_deref(),
+        Some("conversation.create.delivery-proof.v1")
+    );
+    assert_eq!(
+        first.request_key.as_deref(),
+        Some("t_demo:user:u_demo:create-agent-dialog:c_agent_dialog_retry")
+    );
+
+    let duplicate = source_runtime
+        .create_agent_dialog_with_requester_kind(
+            CreateAgentDialogCommand {
+                tenant_id: "t_demo".into(),
+                conversation_id: "c_agent_dialog_retry".into(),
+                requester_id: "u_demo".into(),
+                agent_id: "ag_demo".into(),
+            },
+            "user",
+        )
+        .expect("duplicate agent dialog create should replay");
+
+    assert_eq!(duplicate.conversation_id, first.conversation_id);
+    assert_eq!(duplicate.event_id, first.event_id);
+    assert_eq!(duplicate.request_key, first.request_key);
+    assert_eq!(duplicate.proof_version, first.proof_version);
+    assert_eq!(
+        duplicate.delivery_status.as_ref().unwrap().as_str(),
+        "replayed"
+    );
+
+    let conflicting_retry = source_runtime.create_agent_dialog_with_requester_kind(
+        CreateAgentDialogCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_agent_dialog_retry".into(),
+            requester_id: "u_demo".into(),
+            agent_id: "ag_other".into(),
+        },
+        "user",
+    );
+    assert!(matches!(conflicting_retry, Err(RuntimeError::Conflict(_))));
+
+    let replay_runtime = ConversationRuntime::new(InMemoryJournal::default());
+    for envelope in source_journal.recorded() {
+        replay_runtime
+            .apply_recovered_envelope(&envelope)
+            .expect("agent dialog replay should succeed");
+    }
+
+    let recovered_duplicate = replay_runtime
+        .create_agent_dialog_with_requester_kind(
+            CreateAgentDialogCommand {
+                tenant_id: "t_demo".into(),
+                conversation_id: "c_agent_dialog_retry".into(),
+                requester_id: "u_demo".into(),
+                agent_id: "ag_demo".into(),
+            },
+            "user",
+        )
+        .expect("recovered duplicate agent dialog create should replay");
+    assert_eq!(recovered_duplicate.event_id, first.event_id);
+    assert_eq!(recovered_duplicate.request_key, first.request_key);
+    assert_eq!(
+        recovered_duplicate
+            .delivery_status
+            .as_ref()
+            .unwrap()
+            .as_str(),
+        "replayed"
+    );
+
+    let events = source_journal.recorded();
+    assert_eq!(
+        events.len(),
+        3,
+        "duplicate agent dialog create retry must not append another conversation.created/member_joined pair"
+    );
+}
+
+#[test]
 fn test_create_agent_dialog_rejects_non_user_requester_kind() {
     let journal = InMemoryJournal::default();
     let runtime = ConversationRuntime::new(journal.clone());
@@ -554,6 +826,102 @@ fn test_create_system_channel_rejects_non_system_requester_kind() {
 
     assert!(matches!(create, Err(RuntimeError::PermissionDenied(_))));
     assert!(journal.recorded().is_empty());
+}
+
+#[test]
+fn test_duplicate_create_system_channel_is_idempotent_and_conflicting_retry_is_rejected() {
+    let source_journal = InMemoryJournal::default();
+    let source_runtime = ConversationRuntime::new(source_journal.clone());
+
+    let first = source_runtime
+        .create_system_channel_with_requester_kind(
+            CreateSystemChannelCommand {
+                tenant_id: "t_demo".into(),
+                conversation_id: "c_system_channel_retry".into(),
+                requester_id: "svc_ops".into(),
+                subscriber_id: "u_demo".into(),
+            },
+            "system",
+        )
+        .expect("first system channel create should succeed");
+
+    assert_eq!(first.delivery_status.as_ref().unwrap().as_str(), "applied");
+    assert_eq!(
+        first.proof_version.as_deref(),
+        Some("conversation.create.delivery-proof.v1")
+    );
+    assert_eq!(
+        first.request_key.as_deref(),
+        Some("t_demo:system:svc_ops:create-system-channel:c_system_channel_retry")
+    );
+
+    let duplicate = source_runtime
+        .create_system_channel_with_requester_kind(
+            CreateSystemChannelCommand {
+                tenant_id: "t_demo".into(),
+                conversation_id: "c_system_channel_retry".into(),
+                requester_id: "svc_ops".into(),
+                subscriber_id: "u_demo".into(),
+            },
+            "system",
+        )
+        .expect("duplicate system channel create should replay");
+
+    assert_eq!(duplicate.conversation_id, first.conversation_id);
+    assert_eq!(duplicate.event_id, first.event_id);
+    assert_eq!(duplicate.request_key, first.request_key);
+    assert_eq!(duplicate.proof_version, first.proof_version);
+    assert_eq!(
+        duplicate.delivery_status.as_ref().unwrap().as_str(),
+        "replayed"
+    );
+
+    let conflicting_retry = source_runtime.create_system_channel_with_requester_kind(
+        CreateSystemChannelCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_system_channel_retry".into(),
+            requester_id: "svc_ops".into(),
+            subscriber_id: "u_other".into(),
+        },
+        "system",
+    );
+    assert!(matches!(conflicting_retry, Err(RuntimeError::Conflict(_))));
+
+    let replay_runtime = ConversationRuntime::new(InMemoryJournal::default());
+    for envelope in source_journal.recorded() {
+        replay_runtime
+            .apply_recovered_envelope(&envelope)
+            .expect("system channel replay should succeed");
+    }
+
+    let recovered_duplicate = replay_runtime
+        .create_system_channel_with_requester_kind(
+            CreateSystemChannelCommand {
+                tenant_id: "t_demo".into(),
+                conversation_id: "c_system_channel_retry".into(),
+                requester_id: "svc_ops".into(),
+                subscriber_id: "u_demo".into(),
+            },
+            "system",
+        )
+        .expect("recovered duplicate system channel create should replay");
+    assert_eq!(recovered_duplicate.event_id, first.event_id);
+    assert_eq!(recovered_duplicate.request_key, first.request_key);
+    assert_eq!(
+        recovered_duplicate
+            .delivery_status
+            .as_ref()
+            .unwrap()
+            .as_str(),
+        "replayed"
+    );
+
+    let events = source_journal.recorded();
+    assert_eq!(
+        events.len(),
+        3,
+        "duplicate system channel create retry must not append another conversation.created/member_joined pair"
+    );
 }
 
 #[test]
@@ -657,6 +1025,114 @@ fn test_create_agent_handoff_rejects_non_agent_source_kind() {
 
     assert!(matches!(create, Err(RuntimeError::PermissionDenied(_))));
     assert!(journal.recorded().is_empty());
+}
+
+#[test]
+fn test_duplicate_create_agent_handoff_is_idempotent_and_conflicting_retry_is_rejected() {
+    let source_journal = InMemoryJournal::default();
+    let source_runtime = ConversationRuntime::new(source_journal.clone());
+
+    let first = source_runtime
+        .create_agent_handoff_with_source_kind(
+            CreateAgentHandoffCommand {
+                tenant_id: "t_demo".into(),
+                conversation_id: "c_agent_handoff_retry".into(),
+                source_id: "ag_source".into(),
+                target_id: "u_demo".into(),
+                target_kind: "user".into(),
+                handoff_session_id: "hs_retry".into(),
+                handoff_reason: Some("manual_escalation".into()),
+            },
+            "agent",
+        )
+        .expect("first agent handoff create should succeed");
+
+    assert_eq!(first.delivery_status.as_ref().unwrap().as_str(), "applied");
+    assert_eq!(
+        first.proof_version.as_deref(),
+        Some("conversation.create.delivery-proof.v1")
+    );
+    assert_eq!(
+        first.request_key.as_deref(),
+        Some("t_demo:agent:ag_source:create-agent-handoff:c_agent_handoff_retry")
+    );
+
+    let duplicate = source_runtime
+        .create_agent_handoff_with_source_kind(
+            CreateAgentHandoffCommand {
+                tenant_id: "t_demo".into(),
+                conversation_id: "c_agent_handoff_retry".into(),
+                source_id: "ag_source".into(),
+                target_id: "u_demo".into(),
+                target_kind: "user".into(),
+                handoff_session_id: "hs_retry".into(),
+                handoff_reason: Some("manual_escalation".into()),
+            },
+            "agent",
+        )
+        .expect("duplicate agent handoff create should replay");
+
+    assert_eq!(duplicate.conversation_id, first.conversation_id);
+    assert_eq!(duplicate.event_id, first.event_id);
+    assert_eq!(duplicate.request_key, first.request_key);
+    assert_eq!(duplicate.proof_version, first.proof_version);
+    assert_eq!(
+        duplicate.delivery_status.as_ref().unwrap().as_str(),
+        "replayed"
+    );
+
+    let conflicting_retry = source_runtime.create_agent_handoff_with_source_kind(
+        CreateAgentHandoffCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_agent_handoff_retry".into(),
+            source_id: "ag_source".into(),
+            target_id: "u_other".into(),
+            target_kind: "user".into(),
+            handoff_session_id: "hs_retry".into(),
+            handoff_reason: Some("manual_escalation".into()),
+        },
+        "agent",
+    );
+    assert!(matches!(conflicting_retry, Err(RuntimeError::Conflict(_))));
+
+    let replay_runtime = ConversationRuntime::new(InMemoryJournal::default());
+    for envelope in source_journal.recorded() {
+        replay_runtime
+            .apply_recovered_envelope(&envelope)
+            .expect("agent handoff replay should succeed");
+    }
+
+    let recovered_duplicate = replay_runtime
+        .create_agent_handoff_with_source_kind(
+            CreateAgentHandoffCommand {
+                tenant_id: "t_demo".into(),
+                conversation_id: "c_agent_handoff_retry".into(),
+                source_id: "ag_source".into(),
+                target_id: "u_demo".into(),
+                target_kind: "user".into(),
+                handoff_session_id: "hs_retry".into(),
+                handoff_reason: Some("manual_escalation".into()),
+            },
+            "agent",
+        )
+        .expect("recovered duplicate agent handoff create should replay");
+    assert_eq!(recovered_duplicate.event_id, first.event_id);
+    assert_eq!(recovered_duplicate.request_key, first.request_key);
+    assert_eq!(
+        recovered_duplicate
+            .delivery_status
+            .as_ref()
+            .unwrap()
+            .as_str(),
+        "replayed"
+    );
+
+    let events = source_journal.recorded();
+    assert_eq!(
+        events.len(),
+        3,
+        "duplicate agent handoff create retry must not append another conversation.created/member_joined pair"
+    );
 }
 
 #[test]
@@ -1009,6 +1485,56 @@ fn test_conversation_membership_lifecycle_tracks_creator_and_member_changes() {
     assert_eq!(events[1].event_type, "conversation.member_joined");
     assert_eq!(events[2].event_type, "conversation.member_joined");
     assert_eq!(events[3].event_type, "conversation.member_removed");
+}
+
+#[test]
+fn test_conversation_membership_allows_same_actor_id_with_different_principal_kind() {
+    let journal = InMemoryJournal::default();
+    let runtime = ConversationRuntime::new(journal);
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_members_typed_principal".into(),
+            creator_id: "u_owner".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("create conversation should succeed");
+
+    let added_agent = runtime
+        .add_member(AddConversationMemberCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_members_typed_principal".into(),
+            principal_id: "u_owner".into(),
+            principal_kind: "agent".into(),
+            role: MembershipRole::Member,
+            invited_by: "u_owner".into(),
+        })
+        .expect(
+            "same actor id with different principal kind should be treated as a distinct member",
+        );
+
+    assert_eq!(added_agent.principal_id, "u_owner");
+    assert_eq!(added_agent.principal_kind, "agent");
+    assert_eq!(added_agent.role, MembershipRole::Member);
+
+    let members = runtime
+        .list_members("t_demo", "c_members_typed_principal")
+        .expect("list members should succeed");
+    let typed_owner_members = members
+        .iter()
+        .filter(|member| member.principal_id == "u_owner")
+        .collect::<Vec<_>>();
+
+    assert_eq!(typed_owner_members.len(), 2);
+    assert!(
+        typed_owner_members.iter().any(|member| {
+            member.principal_kind == "user" && member.role == MembershipRole::Owner
+        })
+    );
+    assert!(typed_owner_members.iter().any(|member| {
+        member.principal_kind == "agent" && member.role == MembershipRole::Member
+    }));
 }
 
 #[test]
@@ -1694,6 +2220,88 @@ fn test_edit_and_recall_message_emit_mutation_events_without_changing_sequence()
     assert_eq!(events[3].ordering_seq, 1);
     assert_eq!(events[4].event_type, "message.recalled");
     assert_eq!(events[4].ordering_seq, 1);
+}
+
+#[test]
+fn test_generated_message_id_stays_within_runtime_contract_for_max_length_conversation_ids() {
+    let journal = InMemoryJournal::default();
+    let runtime = ConversationRuntime::new(journal);
+    let conversation_id = "c".repeat(256);
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: conversation_id.clone(),
+            creator_id: "u_demo".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("create conversation should succeed");
+
+    let posted = runtime
+        .post_message(PostMessageCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: conversation_id.clone(),
+            sender: Sender {
+                id: "u_demo".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_demo".into()),
+                session_id: Some("s_demo".into()),
+                metadata: Default::default(),
+            },
+            client_msg_id: Some("client_long_message_id".into()),
+            message_type: MessageType::Standard,
+            body: MessageBody {
+                summary: Some("hello".into()),
+                parts: vec![ContentPart::text("hello")],
+                render_hints: Default::default(),
+            },
+        })
+        .expect("post message should succeed");
+
+    assert!(
+        posted.message_id.len() <= 256,
+        "generated message id must stay within runtime contract: {}",
+        posted.message_id.len()
+    );
+
+    let edited = runtime
+        .edit_message(EditMessageCommand {
+            tenant_id: "t_demo".into(),
+            message_id: posted.message_id.clone(),
+            editor: Sender {
+                id: "u_demo".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_demo".into()),
+                session_id: Some("s_demo".into()),
+                metadata: Default::default(),
+            },
+            body: MessageBody {
+                summary: Some("edited".into()),
+                parts: vec![ContentPart::text("edited")],
+                render_hints: Default::default(),
+            },
+        })
+        .expect("generated message id should remain editable");
+
+    let recalled = runtime
+        .recall_message(RecallMessageCommand {
+            tenant_id: "t_demo".into(),
+            message_id: posted.message_id.clone(),
+            recalled_by: Sender {
+                id: "u_demo".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_demo".into()),
+                session_id: Some("s_demo".into()),
+                metadata: Default::default(),
+            },
+        })
+        .expect("generated message id should remain recallable");
+
+    assert_eq!(edited.message_id, posted.message_id);
+    assert_eq!(recalled.message_id, posted.message_id);
 }
 
 #[test]
@@ -4210,6 +4818,162 @@ fn test_create_thread_conversation_binds_parent_message_runtime_and_survives_rec
 }
 
 #[test]
+fn test_duplicate_create_thread_conversation_is_idempotent_and_conflicting_retry_is_rejected() {
+    let source_journal = InMemoryJournal::default();
+    let runtime = ConversationRuntime::new(source_journal.clone());
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_parent_thread_retry".into(),
+            creator_id: "u_owner".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("parent conversation should succeed");
+
+    let first_root = runtime
+        .post_message(PostMessageCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_parent_thread_retry".into(),
+            sender: Sender {
+                id: "u_owner".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+            client_msg_id: Some("client_thread_retry_root_1".into()),
+            message_type: MessageType::Standard,
+            body: MessageBody {
+                summary: Some("root-1".into()),
+                parts: vec![ContentPart::text("root-1")],
+                render_hints: Default::default(),
+            },
+        })
+        .expect("first root message should succeed");
+
+    let second_root = runtime
+        .post_message(PostMessageCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_parent_thread_retry".into(),
+            sender: Sender {
+                id: "u_owner".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+            client_msg_id: Some("client_thread_retry_root_2".into()),
+            message_type: MessageType::Standard,
+            body: MessageBody {
+                summary: Some("root-2".into()),
+                parts: vec![ContentPart::text("root-2")],
+                render_hints: Default::default(),
+            },
+        })
+        .expect("second root message should succeed");
+
+    let first = runtime
+        .create_thread_conversation_with_creator_kind(
+            CreateThreadConversationCommand {
+                tenant_id: "t_demo".into(),
+                conversation_id: "c_thread_retry".into(),
+                parent_conversation_id: "c_parent_thread_retry".into(),
+                root_message_id: first_root.message_id.clone(),
+                creator_id: "u_owner".into(),
+            },
+            "user",
+        )
+        .expect("first thread create should succeed");
+
+    assert_eq!(first.delivery_status.as_ref().unwrap().as_str(), "applied");
+    assert_eq!(
+        first.proof_version.as_deref(),
+        Some("conversation.create.delivery-proof.v1")
+    );
+    assert_eq!(
+        first.request_key.as_deref(),
+        Some("t_demo:user:u_owner:create-thread:c_thread_retry")
+    );
+
+    let duplicate = runtime
+        .create_thread_conversation_with_creator_kind(
+            CreateThreadConversationCommand {
+                tenant_id: "t_demo".into(),
+                conversation_id: "c_thread_retry".into(),
+                parent_conversation_id: "c_parent_thread_retry".into(),
+                root_message_id: first_root.message_id.clone(),
+                creator_id: "u_owner".into(),
+            },
+            "user",
+        )
+        .expect("duplicate thread create should replay");
+
+    assert_eq!(duplicate.conversation_id, first.conversation_id);
+    assert_eq!(duplicate.event_id, first.event_id);
+    assert_eq!(duplicate.request_key, first.request_key);
+    assert_eq!(duplicate.proof_version, first.proof_version);
+    assert_eq!(
+        duplicate.delivery_status.as_ref().unwrap().as_str(),
+        "replayed"
+    );
+
+    let conflicting_retry = runtime.create_thread_conversation_with_creator_kind(
+        CreateThreadConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_thread_retry".into(),
+            parent_conversation_id: "c_parent_thread_retry".into(),
+            root_message_id: second_root.message_id.clone(),
+            creator_id: "u_owner".into(),
+        },
+        "user",
+    );
+    assert!(matches!(conflicting_retry, Err(RuntimeError::Conflict(_))));
+
+    let replay_runtime = ConversationRuntime::new(InMemoryJournal::default());
+    for envelope in source_journal.recorded() {
+        replay_runtime
+            .apply_recovered_envelope(&envelope)
+            .expect("thread replay should succeed");
+    }
+
+    let recovered_duplicate = replay_runtime
+        .create_thread_conversation_with_creator_kind(
+            CreateThreadConversationCommand {
+                tenant_id: "t_demo".into(),
+                conversation_id: "c_thread_retry".into(),
+                parent_conversation_id: "c_parent_thread_retry".into(),
+                root_message_id: first_root.message_id.clone(),
+                creator_id: "u_owner".into(),
+            },
+            "user",
+        )
+        .expect("recovered duplicate thread create should replay");
+    assert_eq!(recovered_duplicate.event_id, first.event_id);
+    assert_eq!(recovered_duplicate.request_key, first.request_key);
+    assert_eq!(
+        recovered_duplicate
+            .delivery_status
+            .as_ref()
+            .unwrap()
+            .as_str(),
+        "replayed"
+    );
+
+    let events = source_journal.recorded();
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| event.aggregate_id == "c_thread_retry")
+            .count(),
+        2,
+        "duplicate thread create retry must not append another conversation.created/member_joined pair for the thread conversation"
+    );
+}
+
+#[test]
 fn test_create_thread_conversation_auto_subscribes_root_message_author_for_notification_truth() {
     let source_journal = InMemoryJournal::default();
     let runtime = ConversationRuntime::new(source_journal.clone());
@@ -4556,6 +5320,121 @@ fn test_bind_direct_chat_conversation_rejects_duplicate_business_binding() {
 }
 
 #[test]
+fn test_duplicate_bind_direct_chat_conversation_is_idempotent_and_conflicting_retry_is_rejected() {
+    let source_journal = InMemoryJournal::default();
+    let source_runtime = ConversationRuntime::new(source_journal.clone());
+
+    let first = source_runtime
+        .bind_direct_chat_conversation_with_binder_kind(
+            BindDirectChatConversationCommand {
+                tenant_id: "t_demo".into(),
+                conversation_id: "c_direct_retry".into(),
+                direct_chat_id: "dc_retry".into(),
+                left_actor_id: "actor_a".into(),
+                left_actor_kind: "user".into(),
+                right_actor_id: "actor_b".into(),
+                right_actor_kind: "user".into(),
+                bound_by: "svc_control".into(),
+            },
+            "system",
+        )
+        .expect("first direct chat binding should succeed");
+
+    assert_eq!(first.delivery_status.as_ref().unwrap().as_str(), "applied");
+    assert_eq!(
+        first.proof_version.as_deref(),
+        Some("conversation.create.delivery-proof.v1")
+    );
+    assert_eq!(
+        first.request_key.as_deref(),
+        Some("t_demo:system:svc_control:bind-direct-chat:c_direct_retry")
+    );
+
+    let duplicate = source_runtime
+        .bind_direct_chat_conversation_with_binder_kind(
+            BindDirectChatConversationCommand {
+                tenant_id: "t_demo".into(),
+                conversation_id: "c_direct_retry".into(),
+                direct_chat_id: "dc_retry".into(),
+                left_actor_id: "actor_a".into(),
+                left_actor_kind: "user".into(),
+                right_actor_id: "actor_b".into(),
+                right_actor_kind: "user".into(),
+                bound_by: "svc_control".into(),
+            },
+            "system",
+        )
+        .expect("duplicate direct chat binding should replay");
+
+    assert_eq!(duplicate.conversation_id, first.conversation_id);
+    assert_eq!(duplicate.event_id, first.event_id);
+    assert_eq!(duplicate.request_key, first.request_key);
+    assert_eq!(duplicate.proof_version, first.proof_version);
+    assert_eq!(
+        duplicate.delivery_status.as_ref().unwrap().as_str(),
+        "replayed"
+    );
+
+    let conflicting_retry = source_runtime.bind_direct_chat_conversation_with_binder_kind(
+        BindDirectChatConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_direct_retry".into(),
+            direct_chat_id: "dc_other".into(),
+            left_actor_id: "actor_a".into(),
+            left_actor_kind: "user".into(),
+            right_actor_id: "actor_b".into(),
+            right_actor_kind: "user".into(),
+            bound_by: "svc_control".into(),
+        },
+        "system",
+    );
+    assert!(matches!(conflicting_retry, Err(RuntimeError::Conflict(_))));
+
+    let replay_runtime = ConversationRuntime::new(InMemoryJournal::default());
+    for envelope in source_journal.recorded() {
+        replay_runtime
+            .apply_recovered_envelope(&envelope)
+            .expect("direct chat replay should succeed");
+    }
+
+    let recovered_duplicate = replay_runtime
+        .bind_direct_chat_conversation_with_binder_kind(
+            BindDirectChatConversationCommand {
+                tenant_id: "t_demo".into(),
+                conversation_id: "c_direct_retry".into(),
+                direct_chat_id: "dc_retry".into(),
+                left_actor_id: "actor_a".into(),
+                left_actor_kind: "user".into(),
+                right_actor_id: "actor_b".into(),
+                right_actor_kind: "user".into(),
+                bound_by: "svc_control".into(),
+            },
+            "system",
+        )
+        .expect("recovered duplicate direct chat binding should replay");
+    assert_eq!(recovered_duplicate.event_id, first.event_id);
+    assert_eq!(recovered_duplicate.request_key, first.request_key);
+    assert_eq!(
+        recovered_duplicate
+            .delivery_status
+            .as_ref()
+            .unwrap()
+            .as_str(),
+        "replayed"
+    );
+
+    let events = source_journal.recorded();
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| event.aggregate_id == "c_direct_retry")
+            .count(),
+        3,
+        "duplicate direct chat binding retry must not append another conversation.created/member_joined pair"
+    );
+}
+
+#[test]
 fn test_direct_chat_business_binding_survives_recovery_replay() {
     let source_journal = InMemoryJournal::default();
     let source_runtime = ConversationRuntime::new(source_journal.clone());
@@ -4608,4 +5487,158 @@ fn test_direct_chat_business_binding_survives_recovery_replay() {
         duplicate_after_replay,
         Err(RuntimeError::Conflict(_))
     ));
+}
+
+#[test]
+fn test_post_message_rejects_oversized_sender_session_id() {
+    let runtime = ConversationRuntime::new(InMemoryJournal::default());
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_sender_session_oversized".into(),
+            creator_id: "u_demo".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("create conversation should succeed");
+
+    let error = runtime
+        .post_message(PostMessageCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_sender_session_oversized".into(),
+            sender: Sender {
+                id: "u_demo".into(),
+                kind: "user".into(),
+                member_id: Some("cm_demo".into()),
+                device_id: Some("d_demo".into()),
+                session_id: Some("s".repeat(257)),
+                metadata: Default::default(),
+            },
+            client_msg_id: Some("client_sender_session_oversized".into()),
+            message_type: MessageType::Standard,
+            body: MessageBody {
+                summary: Some("hello".into()),
+                parts: vec![ContentPart::text("hello")],
+                render_hints: Default::default(),
+            },
+        })
+        .expect_err("oversized sender session id should be rejected");
+
+    match error {
+        RuntimeError::PayloadTooLarge(message) => {
+            assert!(message.contains("senderSessionId"));
+        }
+        other => panic!("expected payload_too_large, got {other:?}"),
+    }
+}
+
+#[test]
+fn test_create_conversation_rejects_oversized_creator_attributes() {
+    let runtime = ConversationRuntime::new(InMemoryJournal::default());
+
+    let error = runtime
+        .create_conversation_with_creator_kind_and_attributes(
+            CreateConversationCommand {
+                tenant_id: "t_demo".into(),
+                conversation_id: "c_creator_attributes_oversized".into(),
+                creator_id: "u_demo".into(),
+                conversation_type: "group".into(),
+            },
+            "user",
+            BTreeMap::from([("profile".into(), "x".repeat(70 * 1024))]),
+        )
+        .expect_err("oversized creator attributes should be rejected");
+
+    match error {
+        RuntimeError::PayloadTooLarge(message) => {
+            assert!(message.contains("creatorAttributes"));
+        }
+        other => panic!("expected payload_too_large, got {other:?}"),
+    }
+}
+
+#[test]
+fn test_post_message_rejects_oversized_sender_metadata() {
+    let runtime = ConversationRuntime::new(InMemoryJournal::default());
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_sender_metadata_oversized".into(),
+            creator_id: "u_demo".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("create conversation should succeed");
+
+    let error = runtime
+        .post_message(PostMessageCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_sender_metadata_oversized".into(),
+            sender: Sender {
+                id: "u_demo".into(),
+                kind: "user".into(),
+                member_id: Some("cm_demo".into()),
+                device_id: Some("d_demo".into()),
+                session_id: Some("s_demo".into()),
+                metadata: BTreeMap::from([("profile".into(), "x".repeat(70 * 1024))]),
+            },
+            client_msg_id: Some("client_sender_metadata_oversized".into()),
+            message_type: MessageType::Standard,
+            body: MessageBody {
+                summary: Some("hello".into()),
+                parts: vec![ContentPart::text("hello")],
+                render_hints: Default::default(),
+            },
+        })
+        .expect_err("oversized sender metadata should be rejected");
+
+    match error {
+        RuntimeError::PayloadTooLarge(message) => {
+            assert!(message.contains("senderMetadata"));
+        }
+        other => panic!("expected payload_too_large, got {other:?}"),
+    }
+}
+
+#[test]
+fn test_post_message_rejects_oversized_render_hints() {
+    let runtime = ConversationRuntime::new(InMemoryJournal::default());
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_render_hints_oversized".into(),
+            creator_id: "u_demo".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("create conversation should succeed");
+
+    let error = runtime
+        .post_message(PostMessageCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_render_hints_oversized".into(),
+            sender: Sender {
+                id: "u_demo".into(),
+                kind: "user".into(),
+                member_id: Some("cm_demo".into()),
+                device_id: Some("d_demo".into()),
+                session_id: Some("s_demo".into()),
+                metadata: BTreeMap::new(),
+            },
+            client_msg_id: Some("client_render_hints_oversized".into()),
+            message_type: MessageType::Standard,
+            body: MessageBody {
+                summary: Some("hello".into()),
+                parts: vec![ContentPart::text("hello")],
+                render_hints: BTreeMap::from([("preview".into(), "x".repeat(70 * 1024))]),
+            },
+        })
+        .expect_err("oversized render hints should be rejected");
+
+    match error {
+        RuntimeError::PayloadTooLarge(message) => {
+            assert!(message.contains("renderHints"));
+        }
+        other => panic!("expected payload_too_large, got {other:?}"),
+    }
 }

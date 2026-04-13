@@ -1,5 +1,15 @@
 use super::*;
 
+pub(super) async fn get_contacts(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> Result<Json<ContactsResponse>, ApiError> {
+    let auth = resolve_auth_context(&headers)?;
+    Ok(Json(ContactsResponse {
+        items: state.projection_service.contacts_from_auth_context(&auth)?,
+    }))
+}
+
 pub(super) async fn get_inbox(
     headers: HeaderMap,
     State(state): State<AppState>,
@@ -34,6 +44,9 @@ pub(super) async fn update_read_cursor(
     Json(request): Json<UpdateReadCursorRequest>,
 ) -> Result<Json<ConversationReadCursorView>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
+    state
+        .conversation_runtime
+        .require_active_member_from_auth_context(&auth, conversation_id.as_str())?;
     access::ensure_registered_device(&state, &auth)?;
     let cursor = state
         .conversation_runtime
@@ -44,7 +57,7 @@ pub(super) async fn update_read_cursor(
             request.last_read_message_id,
         )?;
 
-    state.audit_runtime.record_anchor(
+    let _ = state.audit_runtime.record_anchor(
         &auth,
         RecordAuditAnchor {
             record_id: format!("audit_read_cursor_{}", cursor.member_id),
@@ -100,6 +113,55 @@ pub(super) async fn get_conversation_summary(
             status: axum::http::StatusCode::NOT_FOUND,
             code: "conversation_summary_not_found",
             message: format!("conversation summary not found: {conversation_id}"),
+        })?;
+    Ok(Json(summary))
+}
+
+pub(super) async fn get_member_directory(
+    Path(conversation_id): Path<String>,
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> Result<Json<MemberDirectoryResponse>, ApiError> {
+    let auth = resolve_auth_context(&headers)?;
+    Ok(Json(MemberDirectoryResponse {
+        items: state
+            .projection_service
+            .member_directory_from_auth_context(&auth, conversation_id.as_str())?,
+    }))
+}
+
+pub(super) async fn get_pinned_messages(
+    Path(conversation_id): Path<String>,
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> Result<Json<PinnedMessagesResponse>, ApiError> {
+    let auth = resolve_auth_context(&headers)?;
+    Ok(Json(PinnedMessagesResponse {
+        items: state
+            .projection_service
+            .pinned_messages_from_auth_context(&auth, conversation_id.as_str())?,
+    }))
+}
+
+pub(super) async fn get_message_interaction_summary(
+    Path((conversation_id, message_id)): Path<(String, String)>,
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> Result<Json<projection_service::MessageInteractionSummaryView>, ApiError> {
+    let auth = resolve_auth_context(&headers)?;
+    let summary = state
+        .projection_service
+        .message_interaction_summary_from_auth_context(
+            &auth,
+            conversation_id.as_str(),
+            message_id.as_str(),
+        )?
+        .ok_or_else(|| ApiError {
+            status: axum::http::StatusCode::NOT_FOUND,
+            code: "message_interaction_summary_not_found",
+            message: format!(
+                "message interaction summary not found: {conversation_id}/{message_id}"
+            ),
         })?;
     Ok(Json(summary))
 }

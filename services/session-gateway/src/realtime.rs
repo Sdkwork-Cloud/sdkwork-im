@@ -12,9 +12,18 @@ use im_time::utc_now_rfc3339_millis;
 use serde::Deserialize;
 use tokio::sync::watch;
 
+use crate::principal_scope::{actor_device_scope_key, typed_device_scope_key, typed_principal_id};
+
 mod storage;
 
 use storage::{RuntimeMemoryCheckpointStore, RuntimeMemorySubscriptionStore};
+
+const REALTIME_MAX_SCOPE_TYPE_BYTES: usize = 64;
+const REALTIME_MAX_SCOPE_ID_BYTES: usize = 512;
+const REALTIME_MAX_EVENT_TYPE_BYTES: usize = 128;
+const REALTIME_MAX_EVENT_TYPES_TOTAL_BYTES: usize = 16 * 1024;
+const REALTIME_MAX_SUBSCRIPTION_ITEMS: usize = 256;
+pub(crate) const REALTIME_EVENT_WINDOW_MAX_LIMIT: usize = 1000;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -60,6 +69,33 @@ impl From<ContractError> for RealtimeRuntimeError {
 }
 
 impl RealtimeRuntimeError {
+    fn payload_too_large(field: &'static str, max_bytes: usize, actual_bytes: usize) -> Self {
+        Self {
+            code: "payload_too_large",
+            message: format!(
+                "payload too large for {field}: max={max_bytes} bytes, actual={actual_bytes} bytes"
+            ),
+        }
+    }
+
+    fn collection_too_large(field: &'static str, max_items: usize, actual_items: usize) -> Self {
+        Self {
+            code: "payload_too_large",
+            message: format!(
+                "payload too large for {field}: max={max_items} items, actual={actual_items} items"
+            ),
+        }
+    }
+
+    fn limit_invalid(limit: usize) -> Self {
+        Self {
+            code: "limit_invalid",
+            message: format!(
+                "limit must be less than or equal to {REALTIME_EVENT_WINDOW_MAX_LIMIT}; actual={limit}"
+            ),
+        }
+    }
+
     fn checkpoint_store(value: ContractError) -> Self {
         match value {
             ContractError::Unavailable(message) => Self {
@@ -174,19 +210,40 @@ impl RealtimeDeliveryRuntime {
         principal_id: &str,
         device_id: &str,
     ) -> Result<(), RealtimeRuntimeError> {
-        let scope_key = device_scope_key(tenant_id, principal_id, device_id);
+        self.ensure_device_state_internal(tenant_id, principal_id, None, device_id)
+    }
+
+    pub fn ensure_device_state_for_principal_kind(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: &str,
+        device_id: &str,
+    ) -> Result<(), RealtimeRuntimeError> {
+        self.ensure_device_state_internal(tenant_id, principal_id, Some(principal_kind), device_id)
+    }
+
+    fn ensure_device_state_internal(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: Option<&str>,
+        device_id: &str,
+    ) -> Result<(), RealtimeRuntimeError> {
+        let scope_key = device_scope_key(tenant_id, principal_id, principal_kind, device_id);
+        let stored_principal_id = storage_principal_id(principal_id, principal_kind);
         let needs_restore = !lock_realtime_mutex(&self.latest_sequences, "realtime sequence store")
             .contains_key(scope_key.as_str());
         let restored = if needs_restore {
             self.checkpoint_store
-                .load_checkpoint(tenant_id, principal_id, device_id)
+                .load_checkpoint(tenant_id, stored_principal_id.as_str(), device_id)
                 .map_err(RealtimeRuntimeError::checkpoint_store)?
         } else {
             None
         };
         let restored_subscriptions = if needs_restore {
             self.subscription_store
-                .load_subscriptions(tenant_id, principal_id, device_id)
+                .load_subscriptions(tenant_id, stored_principal_id.as_str(), device_id)
                 .map_err(RealtimeRuntimeError::subscription_store)?
         } else {
             None
@@ -254,7 +311,7 @@ impl RealtimeDeliveryRuntime {
             sender
         });
         if checkpoint_needs_normalization {
-            self.persist_checkpoint(tenant_id, principal_id, device_id)?;
+            self.persist_checkpoint_internal(tenant_id, principal_id, principal_kind, device_id)?;
         }
 
         Ok(())
@@ -266,8 +323,28 @@ impl RealtimeDeliveryRuntime {
         principal_id: &str,
         device_id: &str,
     ) -> Result<watch::Receiver<u64>, RealtimeRuntimeError> {
-        self.ensure_device_state(tenant_id, principal_id, device_id)?;
-        let scope_key = device_scope_key(tenant_id, principal_id, device_id);
+        self.subscribe_device_internal(tenant_id, principal_id, None, device_id)
+    }
+
+    pub fn subscribe_device_for_principal_kind(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: &str,
+        device_id: &str,
+    ) -> Result<watch::Receiver<u64>, RealtimeRuntimeError> {
+        self.subscribe_device_internal(tenant_id, principal_id, Some(principal_kind), device_id)
+    }
+
+    fn subscribe_device_internal(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: Option<&str>,
+        device_id: &str,
+    ) -> Result<watch::Receiver<u64>, RealtimeRuntimeError> {
+        self.ensure_device_state_internal(tenant_id, principal_id, principal_kind, device_id)?;
+        let scope_key = device_scope_key(tenant_id, principal_id, principal_kind, device_id);
         let sender = lock_realtime_mutex(&self.notifiers, "realtime notifier store")
             .entry(scope_key)
             .or_insert_with(|| {
@@ -285,8 +362,33 @@ impl RealtimeDeliveryRuntime {
         principal_id: &str,
         device_id: &str,
     ) -> Result<watch::Receiver<u64>, RealtimeRuntimeError> {
-        self.ensure_device_state(tenant_id, principal_id, device_id)?;
-        let scope_key = device_scope_key(tenant_id, principal_id, device_id);
+        self.subscribe_disconnect_signal_internal(tenant_id, principal_id, None, device_id)
+    }
+
+    pub fn subscribe_disconnect_signal_for_principal_kind(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: &str,
+        device_id: &str,
+    ) -> Result<watch::Receiver<u64>, RealtimeRuntimeError> {
+        self.subscribe_disconnect_signal_internal(
+            tenant_id,
+            principal_id,
+            Some(principal_kind),
+            device_id,
+        )
+    }
+
+    fn subscribe_disconnect_signal_internal(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: Option<&str>,
+        device_id: &str,
+    ) -> Result<watch::Receiver<u64>, RealtimeRuntimeError> {
+        self.ensure_device_state_internal(tenant_id, principal_id, principal_kind, device_id)?;
+        let scope_key = device_scope_key(tenant_id, principal_id, principal_kind, device_id);
         let sender = lock_realtime_mutex(
             &self.disconnect_notifiers,
             "realtime disconnect notifier store",
@@ -309,12 +411,37 @@ impl RealtimeDeliveryRuntime {
         principal_id: &str,
         device_id: &str,
     ) -> Result<u64, RealtimeRuntimeError> {
-        self.ensure_device_state(tenant_id, principal_id, device_id)?;
+        self.disconnect_generation_internal(tenant_id, principal_id, None, device_id)
+    }
+
+    pub fn disconnect_generation_for_principal_kind(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: &str,
+        device_id: &str,
+    ) -> Result<u64, RealtimeRuntimeError> {
+        self.disconnect_generation_internal(
+            tenant_id,
+            principal_id,
+            Some(principal_kind),
+            device_id,
+        )
+    }
+
+    fn disconnect_generation_internal(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: Option<&str>,
+        device_id: &str,
+    ) -> Result<u64, RealtimeRuntimeError> {
+        self.ensure_device_state_internal(tenant_id, principal_id, principal_kind, device_id)?;
         Ok(lock_realtime_mutex(
             &self.disconnect_generations,
             "realtime disconnect generation store",
         )
-        .get(device_scope_key(tenant_id, principal_id, device_id).as_str())
+        .get(device_scope_key(tenant_id, principal_id, principal_kind, device_id).as_str())
         .copied()
         .unwrap_or(0))
     }
@@ -325,8 +452,33 @@ impl RealtimeDeliveryRuntime {
         principal_id: &str,
         device_id: &str,
     ) -> Result<(), RealtimeRuntimeError> {
-        self.ensure_device_state(tenant_id, principal_id, device_id)?;
-        let scope_key = device_scope_key(tenant_id, principal_id, device_id);
+        self.signal_device_disconnect_internal(tenant_id, principal_id, None, device_id)
+    }
+
+    pub fn signal_device_disconnect_for_principal_kind(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: &str,
+        device_id: &str,
+    ) -> Result<(), RealtimeRuntimeError> {
+        self.signal_device_disconnect_internal(
+            tenant_id,
+            principal_id,
+            Some(principal_kind),
+            device_id,
+        )
+    }
+
+    fn signal_device_disconnect_internal(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: Option<&str>,
+        device_id: &str,
+    ) -> Result<(), RealtimeRuntimeError> {
+        self.ensure_device_state_internal(tenant_id, principal_id, principal_kind, device_id)?;
+        let scope_key = device_scope_key(tenant_id, principal_id, principal_kind, device_id);
         let next_generation = {
             let mut disconnect_generations = lock_realtime_mutex(
                 &self.disconnect_generations,
@@ -355,8 +507,28 @@ impl RealtimeDeliveryRuntime {
         principal_id: &str,
         device_id: &str,
     ) -> Result<RealtimeWindowCheckpoint, RealtimeRuntimeError> {
-        self.ensure_device_state(tenant_id, principal_id, device_id)?;
-        let scope_key = device_scope_key(tenant_id, principal_id, device_id);
+        self.window_checkpoint_internal(tenant_id, principal_id, None, device_id)
+    }
+
+    pub fn window_checkpoint_for_principal_kind(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: &str,
+        device_id: &str,
+    ) -> Result<RealtimeWindowCheckpoint, RealtimeRuntimeError> {
+        self.window_checkpoint_internal(tenant_id, principal_id, Some(principal_kind), device_id)
+    }
+
+    fn window_checkpoint_internal(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: Option<&str>,
+        device_id: &str,
+    ) -> Result<RealtimeWindowCheckpoint, RealtimeRuntimeError> {
+        self.ensure_device_state_internal(tenant_id, principal_id, principal_kind, device_id)?;
+        let scope_key = device_scope_key(tenant_id, principal_id, principal_kind, device_id);
         Ok(RealtimeWindowCheckpoint {
             latest_realtime_seq: lock_realtime_mutex(
                 &self.latest_sequences,
@@ -386,8 +558,37 @@ impl RealtimeDeliveryRuntime {
         device_id: &str,
         items: Vec<RealtimeSubscriptionItemInput>,
     ) -> Result<RealtimeSubscriptionSnapshot, RealtimeRuntimeError> {
+        self.sync_subscriptions_internal(tenant_id, principal_id, None, device_id, items)
+    }
+
+    pub fn sync_subscriptions_for_principal_kind(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: &str,
+        device_id: &str,
+        items: Vec<RealtimeSubscriptionItemInput>,
+    ) -> Result<RealtimeSubscriptionSnapshot, RealtimeRuntimeError> {
+        self.sync_subscriptions_internal(
+            tenant_id,
+            principal_id,
+            Some(principal_kind),
+            device_id,
+            items,
+        )
+    }
+
+    fn sync_subscriptions_internal(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: Option<&str>,
+        device_id: &str,
+        items: Vec<RealtimeSubscriptionItemInput>,
+    ) -> Result<RealtimeSubscriptionSnapshot, RealtimeRuntimeError> {
+        validate_realtime_subscription_items(&items)?;
         let synced_at = realtime_timestamp();
-        self.ensure_device_state(tenant_id, principal_id, device_id)?;
+        self.ensure_device_state_internal(tenant_id, principal_id, principal_kind, device_id)?;
         let subscriptions = items
             .into_iter()
             .map(|item| RealtimeSubscription {
@@ -397,11 +598,11 @@ impl RealtimeDeliveryRuntime {
                 subscribed_at: synced_at.clone(),
             })
             .collect::<Vec<_>>();
-        let scope_key = device_scope_key(tenant_id, principal_id, device_id);
+        let scope_key = device_scope_key(tenant_id, principal_id, principal_kind, device_id);
 
         lock_realtime_mutex(&self.subscriptions, "realtime subscription store")
             .insert(scope_key.clone(), subscriptions.clone());
-        self.persist_subscriptions(tenant_id, principal_id, device_id)?;
+        self.persist_subscriptions_internal(tenant_id, principal_id, principal_kind, device_id)?;
 
         Ok(RealtimeSubscriptionSnapshot {
             tenant_id: tenant_id.into(),
@@ -418,10 +619,35 @@ impl RealtimeDeliveryRuntime {
         principal_id: &str,
         device_id: &str,
     ) -> Result<(), RealtimeRuntimeError> {
-        let scope_key = device_scope_key(tenant_id, principal_id, device_id);
+        self.clear_device_subscriptions_internal(tenant_id, principal_id, None, device_id)
+    }
+
+    pub fn clear_device_subscriptions_for_principal_kind(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: &str,
+        device_id: &str,
+    ) -> Result<(), RealtimeRuntimeError> {
+        self.clear_device_subscriptions_internal(
+            tenant_id,
+            principal_id,
+            Some(principal_kind),
+            device_id,
+        )
+    }
+
+    fn clear_device_subscriptions_internal(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: Option<&str>,
+        device_id: &str,
+    ) -> Result<(), RealtimeRuntimeError> {
+        let scope_key = device_scope_key(tenant_id, principal_id, principal_kind, device_id);
         lock_realtime_mutex(&self.subscriptions, "realtime subscription store")
             .remove(scope_key.as_str());
-        self.persist_subscriptions(tenant_id, principal_id, device_id)
+        self.persist_subscriptions_internal(tenant_id, principal_id, principal_kind, device_id)
     }
 
     pub fn list_events(
@@ -432,8 +658,40 @@ impl RealtimeDeliveryRuntime {
         after_seq: u64,
         limit: usize,
     ) -> Result<RealtimeEventWindow, RealtimeRuntimeError> {
-        self.ensure_device_state(tenant_id, principal_id, device_id)?;
-        let scope_key = device_scope_key(tenant_id, principal_id, device_id);
+        self.list_events_internal(tenant_id, principal_id, None, device_id, after_seq, limit)
+    }
+
+    pub fn list_events_for_principal_kind(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: &str,
+        device_id: &str,
+        after_seq: u64,
+        limit: usize,
+    ) -> Result<RealtimeEventWindow, RealtimeRuntimeError> {
+        self.list_events_internal(
+            tenant_id,
+            principal_id,
+            Some(principal_kind),
+            device_id,
+            after_seq,
+            limit,
+        )
+    }
+
+    fn list_events_internal(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: Option<&str>,
+        device_id: &str,
+        after_seq: u64,
+        limit: usize,
+    ) -> Result<RealtimeEventWindow, RealtimeRuntimeError> {
+        validate_realtime_event_limit(limit)?;
+        self.ensure_device_state_internal(tenant_id, principal_id, principal_kind, device_id)?;
+        let scope_key = device_scope_key(tenant_id, principal_id, principal_kind, device_id);
         let acked_through_seq = lock_realtime_mutex(&self.acked_sequences, "realtime ack store")
             .get(scope_key.as_str())
             .copied()
@@ -481,8 +739,36 @@ impl RealtimeDeliveryRuntime {
         device_id: &str,
         acked_seq: u64,
     ) -> Result<RealtimeAckState, RealtimeRuntimeError> {
-        self.ensure_device_state(tenant_id, principal_id, device_id)?;
-        let scope_key = device_scope_key(tenant_id, principal_id, device_id);
+        self.ack_events_internal(tenant_id, principal_id, None, device_id, acked_seq)
+    }
+
+    pub fn ack_events_for_principal_kind(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: &str,
+        device_id: &str,
+        acked_seq: u64,
+    ) -> Result<RealtimeAckState, RealtimeRuntimeError> {
+        self.ack_events_internal(
+            tenant_id,
+            principal_id,
+            Some(principal_kind),
+            device_id,
+            acked_seq,
+        )
+    }
+
+    fn ack_events_internal(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: Option<&str>,
+        device_id: &str,
+        acked_seq: u64,
+    ) -> Result<RealtimeAckState, RealtimeRuntimeError> {
+        self.ensure_device_state_internal(tenant_id, principal_id, principal_kind, device_id)?;
+        let scope_key = device_scope_key(tenant_id, principal_id, principal_kind, device_id);
         let latest_seq = lock_realtime_mutex(&self.latest_sequences, "realtime sequence store")
             .get(scope_key.as_str())
             .copied()
@@ -510,7 +796,7 @@ impl RealtimeDeliveryRuntime {
             items.retain(|item| item.realtime_seq > acked_through_seq);
             (*trimmed_entry, items.len())
         };
-        self.persist_checkpoint(tenant_id, principal_id, device_id)?;
+        self.persist_checkpoint_internal(tenant_id, principal_id, principal_kind, device_id)?;
 
         Ok(RealtimeAckState {
             tenant_id: tenant_id.into(),
@@ -529,8 +815,28 @@ impl RealtimeDeliveryRuntime {
         principal_id: &str,
         device_id: &str,
     ) -> Result<RealtimeDeviceStateSnapshot, RealtimeRuntimeError> {
-        self.ensure_device_state(tenant_id, principal_id, device_id)?;
-        let scope_key = device_scope_key(tenant_id, principal_id, device_id);
+        self.take_device_state_internal(tenant_id, principal_id, None, device_id)
+    }
+
+    pub fn take_device_state_for_principal_kind(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: &str,
+        device_id: &str,
+    ) -> Result<RealtimeDeviceStateSnapshot, RealtimeRuntimeError> {
+        self.take_device_state_internal(tenant_id, principal_id, Some(principal_kind), device_id)
+    }
+
+    fn take_device_state_internal(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: Option<&str>,
+        device_id: &str,
+    ) -> Result<RealtimeDeviceStateSnapshot, RealtimeRuntimeError> {
+        self.ensure_device_state_internal(tenant_id, principal_id, principal_kind, device_id)?;
+        let scope_key = device_scope_key(tenant_id, principal_id, principal_kind, device_id);
         let subscriptions = lock_realtime_mutex(&self.subscriptions, "realtime subscription store")
             .remove(scope_key.as_str())
             .unwrap_or_default();
@@ -566,6 +872,22 @@ impl RealtimeDeliveryRuntime {
         &self,
         snapshot: RealtimeDeviceStateSnapshot,
     ) -> Result<(), RealtimeRuntimeError> {
+        self.restore_device_state_internal(snapshot, None)
+    }
+
+    pub fn restore_device_state_for_principal_kind(
+        &self,
+        principal_kind: &str,
+        snapshot: RealtimeDeviceStateSnapshot,
+    ) -> Result<(), RealtimeRuntimeError> {
+        self.restore_device_state_internal(snapshot, Some(principal_kind))
+    }
+
+    fn restore_device_state_internal(
+        &self,
+        snapshot: RealtimeDeviceStateSnapshot,
+        principal_kind: Option<&str>,
+    ) -> Result<(), RealtimeRuntimeError> {
         let latest_realtime_seq = snapshot
             .events
             .iter()
@@ -583,6 +905,7 @@ impl RealtimeDeliveryRuntime {
         let scope_key = device_scope_key(
             snapshot.tenant_id.as_str(),
             snapshot.principal_id.as_str(),
+            principal_kind,
             snapshot.device_id.as_str(),
         );
 
@@ -598,14 +921,16 @@ impl RealtimeDeliveryRuntime {
             .insert(scope_key.clone(), trimmed_through_seq);
         lock_realtime_mutex(&self.notifiers, "realtime notifier store")
             .insert(scope_key, watch::channel(latest_realtime_seq).0);
-        self.persist_subscriptions(
+        self.persist_subscriptions_internal(
             snapshot.tenant_id.as_str(),
             snapshot.principal_id.as_str(),
+            principal_kind,
             snapshot.device_id.as_str(),
         )?;
-        self.persist_checkpoint(
+        self.persist_checkpoint_internal(
             snapshot.tenant_id.as_str(),
             snapshot.principal_id.as_str(),
+            principal_kind,
             snapshot.device_id.as_str(),
         )?;
 
@@ -626,6 +951,54 @@ impl RealtimeDeliveryRuntime {
         payload: String,
         registered_devices: Vec<String>,
     ) -> Result<usize, RealtimeRuntimeError> {
+        self.publish_scope_event_internal(
+            tenant_id,
+            principal_id,
+            None,
+            scope_type,
+            scope_id,
+            event_type,
+            payload,
+            registered_devices,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn publish_scope_event_for_principal_kind(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: &str,
+        scope_type: &str,
+        scope_id: &str,
+        event_type: &str,
+        payload: String,
+        registered_devices: Vec<String>,
+    ) -> Result<usize, RealtimeRuntimeError> {
+        self.publish_scope_event_internal(
+            tenant_id,
+            principal_id,
+            Some(principal_kind),
+            scope_type,
+            scope_id,
+            event_type,
+            payload,
+            registered_devices,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn publish_scope_event_internal(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: Option<&str>,
+        scope_type: &str,
+        scope_id: &str,
+        event_type: &str,
+        payload: String,
+        registered_devices: Vec<String>,
+    ) -> Result<usize, RealtimeRuntimeError> {
         let matched_targets = {
             let subscriptions =
                 lock_realtime_mutex(&self.subscriptions, "realtime subscription store");
@@ -633,6 +1006,7 @@ impl RealtimeDeliveryRuntime {
                 &subscriptions,
                 tenant_id,
                 principal_id,
+                principal_kind,
                 scope_type,
                 scope_id,
                 event_type,
@@ -681,7 +1055,12 @@ impl RealtimeDeliveryRuntime {
         }
         drop(notifiers);
         for device_id in persisted_devices {
-            self.persist_checkpoint(tenant_id, principal_id, device_id.as_str())?;
+            self.persist_checkpoint_internal(
+                tenant_id,
+                principal_id,
+                principal_kind,
+                device_id.as_str(),
+            )?;
         }
 
         Ok(delivered)
@@ -701,8 +1080,91 @@ pub(super) fn lock_realtime_mutex<'a, T>(
     }
 }
 
-fn device_scope_key(tenant_id: &str, principal_id: &str, device_id: &str) -> String {
-    format!("{tenant_id}:{principal_id}:{device_id}")
+fn device_scope_key(
+    tenant_id: &str,
+    principal_id: &str,
+    principal_kind: Option<&str>,
+    device_id: &str,
+) -> String {
+    match principal_kind {
+        Some(principal_kind) => {
+            typed_device_scope_key(tenant_id, principal_id, principal_kind, device_id)
+        }
+        None => actor_device_scope_key(tenant_id, principal_id, device_id),
+    }
+}
+
+fn storage_principal_id(principal_id: &str, principal_kind: Option<&str>) -> String {
+    match principal_kind {
+        Some(principal_kind) => typed_principal_id(principal_id, principal_kind),
+        None => principal_id.to_owned(),
+    }
+}
+
+fn validate_payload_size(
+    field: &'static str,
+    payload: &str,
+    max_bytes: usize,
+) -> Result<(), RealtimeRuntimeError> {
+    let actual_bytes = payload.len();
+    if actual_bytes > max_bytes {
+        return Err(RealtimeRuntimeError::payload_too_large(
+            field,
+            max_bytes,
+            actual_bytes,
+        ));
+    }
+    Ok(())
+}
+
+fn validate_realtime_subscription_items(
+    items: &[RealtimeSubscriptionItemInput],
+) -> Result<(), RealtimeRuntimeError> {
+    if items.len() > REALTIME_MAX_SUBSCRIPTION_ITEMS {
+        return Err(RealtimeRuntimeError::collection_too_large(
+            "items",
+            REALTIME_MAX_SUBSCRIPTION_ITEMS,
+            items.len(),
+        ));
+    }
+    for item in items {
+        validate_payload_size(
+            "scopeType",
+            item.scope_type.as_str(),
+            REALTIME_MAX_SCOPE_TYPE_BYTES,
+        )?;
+        validate_payload_size(
+            "scopeId",
+            item.scope_id.as_str(),
+            REALTIME_MAX_SCOPE_ID_BYTES,
+        )?;
+        let event_types_total_bytes = item
+            .event_types
+            .iter()
+            .fold(0usize, |total, event_type| total.saturating_add(event_type.len()));
+        if event_types_total_bytes > REALTIME_MAX_EVENT_TYPES_TOTAL_BYTES {
+            return Err(RealtimeRuntimeError::payload_too_large(
+                "eventTypes",
+                REALTIME_MAX_EVENT_TYPES_TOTAL_BYTES,
+                event_types_total_bytes,
+            ));
+        }
+        for event_type in &item.event_types {
+            validate_payload_size(
+                "eventTypes",
+                event_type.as_str(),
+                REALTIME_MAX_EVENT_TYPE_BYTES,
+            )?;
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn validate_realtime_event_limit(limit: usize) -> Result<(), RealtimeRuntimeError> {
+    if limit > REALTIME_EVENT_WINDOW_MAX_LIMIT {
+        return Err(RealtimeRuntimeError::limit_invalid(limit));
+    }
+    Ok(())
 }
 
 fn normalize_checkpoint_fields(
@@ -730,10 +1192,12 @@ fn normalize_window_events(
         .collect()
 }
 
+#[allow(clippy::too_many_arguments)]
 fn collect_matched_delivery_targets(
     subscriptions: &HashMap<String, Vec<RealtimeSubscription>>,
     tenant_id: &str,
     principal_id: &str,
+    principal_kind: Option<&str>,
     scope_type: &str,
     scope_id: &str,
     event_type: &str,
@@ -744,7 +1208,8 @@ fn collect_matched_delivery_targets(
         .collect::<BTreeSet<_>>()
         .into_iter()
         .filter_map(|device_id| {
-            let scope_key = device_scope_key(tenant_id, principal_id, device_id.as_str());
+            let scope_key =
+                device_scope_key(tenant_id, principal_id, principal_kind, device_id.as_str());
             let matches_subscription =
                 subscriptions
                     .get(scope_key.as_str())
@@ -792,7 +1257,7 @@ mod tests {
     fn test_collect_matched_delivery_targets_filters_to_registered_matching_devices() {
         let mut subscriptions = HashMap::new();
         subscriptions.insert(
-            device_scope_key("t_demo", "u_demo", "d_match"),
+            device_scope_key("t_demo", "u_demo", None, "d_match"),
             vec![subscription(
                 "conversation",
                 "c_demo",
@@ -800,7 +1265,7 @@ mod tests {
             )],
         );
         subscriptions.insert(
-            device_scope_key("t_demo", "u_demo", "d_other_scope"),
+            device_scope_key("t_demo", "u_demo", None, "d_other_scope"),
             vec![subscription(
                 "conversation",
                 "c_other",
@@ -808,7 +1273,7 @@ mod tests {
             )],
         );
         subscriptions.insert(
-            device_scope_key("t_demo", "u_demo", "d_other_event"),
+            device_scope_key("t_demo", "u_demo", None, "d_other_event"),
             vec![subscription("conversation", "c_demo", vec!["message.read"])],
         );
 
@@ -816,6 +1281,7 @@ mod tests {
             &subscriptions,
             "t_demo",
             "u_demo",
+            None,
             "conversation",
             "c_demo",
             "message.posted",
@@ -831,7 +1297,7 @@ mod tests {
         assert_eq!(
             matched,
             vec![(
-                device_scope_key("t_demo", "u_demo", "d_match"),
+                device_scope_key("t_demo", "u_demo", None, "d_match"),
                 "d_match".into()
             )]
         );
@@ -841,7 +1307,7 @@ mod tests {
     fn test_collect_matched_delivery_targets_accepts_wildcard_event_subscriptions() {
         let mut subscriptions = HashMap::new();
         subscriptions.insert(
-            device_scope_key("t_demo", "u_demo", "d_wildcard"),
+            device_scope_key("t_demo", "u_demo", None, "d_wildcard"),
             vec![subscription("conversation", "c_demo", vec![])],
         );
 
@@ -849,6 +1315,7 @@ mod tests {
             &subscriptions,
             "t_demo",
             "u_demo",
+            None,
             "conversation",
             "c_demo",
             "message.edited",
@@ -858,7 +1325,7 @@ mod tests {
         assert_eq!(
             matched,
             vec![(
-                device_scope_key("t_demo", "u_demo", "d_wildcard"),
+                device_scope_key("t_demo", "u_demo", None, "d_wildcard"),
                 "d_wildcard".into()
             )]
         );
@@ -868,7 +1335,7 @@ mod tests {
     fn test_persist_checkpoint_normalizes_transient_inconsistent_sequence_state() {
         let checkpoint_store = Arc::new(MemoryRealtimeCheckpointStore::default());
         let runtime = RealtimeDeliveryRuntime::with_checkpoint_store(checkpoint_store.clone());
-        let scope_key = device_scope_key("t_demo", "u_demo", "d_pad");
+        let scope_key = device_scope_key("t_demo", "u_demo", None, "d_pad");
 
         runtime
             .latest_sequences

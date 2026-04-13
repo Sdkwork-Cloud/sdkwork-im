@@ -7,7 +7,9 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use im_adapters_local_disk::FileCommitJournal;
 use im_domain_core::social::direct_chat_pair_hash;
-use im_domain_events::social::{DirectChatBoundPayload, SocialEventType, social_commit_envelope};
+use im_domain_events::social::{
+    DirectChatBoundPayload, SocialCommitEnvelopeInput, SocialEventType, social_commit_envelope,
+};
 use im_domain_events::{AggregateType, EventActor};
 use im_platform_contracts::CommitJournal;
 
@@ -47,22 +49,22 @@ fn write_social_direct_chat_commit(runtime_dir: &Path) {
     let payload_json =
         serde_json::to_string(&payload).expect("social direct chat payload should serialize");
     journal
-        .append(social_commit_envelope(
-            "evt_social_cli_001",
-            "t_demo",
-            AggregateType::DirectChat,
-            payload.direct_chat_id.as_str(),
-            SocialEventType::DirectChatBound,
-            1,
-            EventActor {
+        .append(social_commit_envelope(SocialCommitEnvelopeInput {
+            event_id: "evt_social_cli_001",
+            tenant_id: "t_demo",
+            aggregate_type: AggregateType::DirectChat,
+            aggregate_id: payload.direct_chat_id.as_str(),
+            event_type: SocialEventType::DirectChatBound,
+            ordering_seq: 1,
+            actor: EventActor {
                 actor_id: "operator_cli".into(),
                 actor_kind: "operator".into(),
                 actor_session_id: None,
             },
-            payload.bound_at.as_str(),
-            payload.bound_at.as_str(),
-            payload_json.as_str(),
-        ))
+            occurred_at: payload.bound_at.as_str(),
+            committed_at: payload.bound_at.as_str(),
+            payload: payload_json.as_str(),
+        }))
         .expect("social direct chat commit should append to journal");
 }
 

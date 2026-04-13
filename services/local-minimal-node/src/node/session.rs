@@ -18,14 +18,7 @@ pub(super) async fn resume_session(
 ) -> Result<Json<SessionResumeView>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
     let device_id = access::resolve_requested_device_id(&auth, request.device_id)?;
-    state.bind_device_registration(
-        auth.tenant_id.as_str(),
-        auth.actor_id.as_str(),
-        device_id.as_str(),
-        auth.session_id.as_deref(),
-        "http",
-        true,
-    )?;
+    state.bind_device_registration(&auth, device_id.as_str(), "http", true)?;
     let sync_state = device_sync_session_state(&state, &auth, Some(device_id.as_str()))?;
 
     Ok(Json(state.session_presence_runtime.resume(
@@ -44,8 +37,7 @@ pub(super) async fn get_presence_me(
     let auth = resolve_auth_context(&headers)?;
     let sync_state = device_sync_session_state(&state, &auth, auth.device_id.as_deref())?;
     Ok(Json(state.session_presence_runtime.presence_snapshot(
-        auth.tenant_id.as_str(),
-        auth.actor_id.as_str(),
+        &auth,
         auth.device_id.clone(),
         sync_state.registered_devices,
     )?))
@@ -58,13 +50,7 @@ pub(super) async fn heartbeat_presence(
 ) -> Result<Json<PresenceSnapshotView>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
     let device_id = access::resolve_requested_device_id(&auth, request.device_id)?;
-    state.prepare_active_device_route(
-        auth.tenant_id.as_str(),
-        auth.actor_id.as_str(),
-        device_id.as_str(),
-        auth.session_id.as_deref(),
-        "http",
-    )?;
+    state.prepare_active_device_route(&auth, device_id.as_str(), "http")?;
     let sync_state = device_sync_session_state(&state, &auth, Some(device_id.as_str()))?;
 
     Ok(Json(state.session_presence_runtime.heartbeat(
@@ -82,20 +68,13 @@ pub(super) async fn disconnect_session(
 ) -> Result<Json<PresenceSnapshotView>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
     let device_id = access::resolve_requested_device_id(&auth, request.device_id)?;
-    let outcome = state.disconnect_active_device_route(
-        auth.tenant_id.as_str(),
-        auth.actor_id.as_str(),
-        device_id.as_str(),
-        auth.session_id.as_deref(),
-        "http",
-    )?;
+    let outcome = state.disconnect_active_device_route(&auth, device_id.as_str(), "http")?;
     let sync_state = device_sync_session_state(&state, &auth, Some(device_id.as_str()))?;
 
     match outcome {
         DisconnectActiveDeviceRouteOutcome::FenceMatchedSession => {
             Ok(Json(state.session_presence_runtime.presence_snapshot(
-                auth.tenant_id.as_str(),
-                auth.actor_id.as_str(),
+                &auth,
                 Some(device_id),
                 sync_state.registered_devices,
             )?))
@@ -118,10 +97,8 @@ pub(super) async fn register_device(
     let auth = resolve_auth_context(&headers)?;
     let device_id = access::resolve_requested_device_id(&auth, request.device_id)?;
     Ok(Json(state.prepare_active_device_route(
-        auth.tenant_id.as_str(),
-        auth.actor_id.as_str(),
+        &auth,
         device_id.as_str(),
-        auth.session_id.as_deref(),
         "http",
     )?))
 }
@@ -133,20 +110,19 @@ pub(super) async fn sync_realtime_subscriptions(
 ) -> Result<Json<im_domain_core::realtime::RealtimeSubscriptionSnapshot>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
     let device_id = access::resolve_requested_device_id(&auth, request.device_id)?;
-    state.prepare_active_device_route(
-        auth.tenant_id.as_str(),
-        auth.actor_id.as_str(),
-        device_id.as_str(),
-        auth.session_id.as_deref(),
-        "http",
-    )?;
+    state.prepare_active_device_route(&auth, device_id.as_str(), "http")?;
 
-    Ok(Json(state.realtime_runtime.sync_subscriptions(
-        auth.tenant_id.as_str(),
-        auth.actor_id.as_str(),
-        device_id.as_str(),
-        request.items,
-    )?))
+    Ok(Json(
+        state
+            .realtime_runtime
+            .sync_subscriptions_for_principal_kind(
+                auth.tenant_id.as_str(),
+                auth.actor_id.as_str(),
+                auth.actor_kind.as_str(),
+                device_id.as_str(),
+                request.items,
+            )?,
+    ))
 }
 
 pub(super) async fn list_realtime_events(
@@ -156,13 +132,7 @@ pub(super) async fn list_realtime_events(
 ) -> Result<Json<im_domain_core::realtime::RealtimeEventWindow>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
     let device_id = access::resolve_requested_device_id(&auth, None)?;
-    state.prepare_active_device_route(
-        auth.tenant_id.as_str(),
-        auth.actor_id.as_str(),
-        device_id.as_str(),
-        auth.session_id.as_deref(),
-        "http_poll",
-    )?;
+    state.prepare_active_device_route(&auth, device_id.as_str(), "http_poll")?;
     let limit = query.limit.unwrap_or(100);
 
     if limit == 0 {
@@ -172,13 +142,16 @@ pub(super) async fn list_realtime_events(
         ));
     }
 
-    Ok(Json(state.realtime_runtime.list_events(
-        auth.tenant_id.as_str(),
-        auth.actor_id.as_str(),
-        device_id.as_str(),
-        query.after_seq.unwrap_or_default(),
-        limit,
-    )?))
+    Ok(Json(
+        state.realtime_runtime.list_events_for_principal_kind(
+            auth.tenant_id.as_str(),
+            auth.actor_id.as_str(),
+            auth.actor_kind.as_str(),
+            device_id.as_str(),
+            query.after_seq.unwrap_or_default(),
+            limit,
+        )?,
+    ))
 }
 
 pub(super) async fn ack_realtime_events(
@@ -188,17 +161,12 @@ pub(super) async fn ack_realtime_events(
 ) -> Result<Json<im_domain_core::realtime::RealtimeAckState>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
     let device_id = access::resolve_requested_device_id(&auth, request.device_id)?;
-    state.prepare_active_device_route(
-        auth.tenant_id.as_str(),
-        auth.actor_id.as_str(),
-        device_id.as_str(),
-        auth.session_id.as_deref(),
-        "http",
-    )?;
+    state.prepare_active_device_route(&auth, device_id.as_str(), "http")?;
 
-    Ok(Json(state.realtime_runtime.ack_events(
+    Ok(Json(state.realtime_runtime.ack_events_for_principal_kind(
         auth.tenant_id.as_str(),
         auth.actor_id.as_str(),
+        auth.actor_kind.as_str(),
         device_id.as_str(),
         request.acked_seq,
     )?))
@@ -211,13 +179,7 @@ pub(super) async fn realtime_websocket(
 ) -> Result<axum::response::Response, ApiError> {
     let auth = resolve_auth_context(&headers)?;
     let device_id = access::resolve_requested_device_id(&auth, None)?;
-    state.prepare_active_device_route(
-        auth.tenant_id.as_str(),
-        auth.actor_id.as_str(),
-        device_id.as_str(),
-        auth.session_id.as_deref(),
-        "websocket",
-    )?;
+    state.prepare_active_device_route(&auth, device_id.as_str(), "websocket")?;
     let runtime = state.realtime_runtime.clone();
     let ws = ws.protocols([session_gateway::CCP_WEBSOCKET_SUBPROTOCOL]);
     let wire_mode = if ws.selected_protocol().is_some() {

@@ -276,9 +276,10 @@ fn test_session_gateway_sync_state_owner_moves_out_of_lib_impl() {
 
     for required_symbol in [
         "pub(crate) struct SessionSyncState",
+        "pub(crate) fn ensure_device_kind_available(",
         "pub(crate) fn register_device(",
         "pub(crate) fn device_sync_session_state(",
-        "fn registered_devices(",
+        "fn registered_devices(&self, tenant_id: &str, principal_id: &str, principal_kind: &str) -> Vec<String> {",
         "fn latest_device_sync_seq(",
     ] {
         assert!(
@@ -327,9 +328,9 @@ fn test_session_gateway_device_registration_owner_moves_out_of_lib_impl() {
         "pub(crate) fn register_device(",
         "pub(crate) fn prepare_active_device_route(",
         "self.presence_runtime\n            .register_device(",
-        "self.realtime_runtime\n            .ensure_device_state(",
-        "self.session_state\n            .register_device(",
-        "self.realtime_cluster.bind_device_route(",
+        "self.realtime_runtime\n            .ensure_device_state_for_principal_kind(",
+        "self.session_state.register_device(",
+        "self.realtime_cluster.bind_device_route_for_principal_kind(",
     ] {
         assert!(
             owner_source.contains(required_symbol),
@@ -450,10 +451,10 @@ fn test_session_gateway_disconnect_lifecycle_owner_moves_out_of_session_entrypoi
     for required_symbol in [
         "pub(crate) enum DisconnectActiveDeviceRouteOutcome",
         "pub(crate) fn disconnect_active_device_route(",
-        "disconnect_fence_matches_session(",
-        "clear_device_subscriptions(",
-        "release_device_route(",
-        "mark_device_disconnected(",
+        "disconnect_fence_matches_session_for_principal_kind(",
+        "clear_device_subscriptions_for_principal_kind(",
+        "release_device_route_for_principal_kind(",
+        "mark_device_disconnected_for_principal_kind(",
     ] {
         assert!(
             owner_source.contains(required_symbol),

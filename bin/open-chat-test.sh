@@ -83,7 +83,12 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+script_source="${BASH_SOURCE[0]}"
+script_dir="${script_source%/*}"
+if [[ "$script_dir" == "$script_source" ]]; then
+  script_dir="."
+fi
+script_dir="$(cd -- "$script_dir" && pwd)"
 
 read_config_value() {
   local key="$1"
@@ -122,7 +127,7 @@ invoke_chat_cli() {
     args+=("$release_flag")
   fi
   args+=("$@")
-  "$script_dir/chat-cli.sh" "${args[@]}"
+  "${BASH:-bash}" "$script_dir/chat-cli.sh" "${args[@]}"
 }
 
 open_terminal() {
@@ -183,6 +188,73 @@ print_json_string_array() {
   printf ']'
 }
 
+create_temp_file() {
+  if command -v mktemp >/dev/null 2>&1; then
+    mktemp
+    return 0
+  fi
+
+  local temp_root="${TMPDIR:-${TEMP:-${TMP:-$script_dir}}}"
+  mkdir -p "$temp_root" >/dev/null 2>&1 || true
+  local nonce=0
+  while [[ $nonce -lt 1000 ]]; do
+    local candidate="${temp_root}/craw-chat-open-chat-test-${$}-${nonce}.tmp"
+    if [[ ! -e "$candidate" ]]; then
+      : > "$candidate"
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+    nonce=$((nonce + 1))
+  done
+  echo "unable to allocate temporary file path" >&2
+  return 1
+}
+
+pause_seconds() {
+  local seconds="$1"
+  if command -v sleep >/dev/null 2>&1; then
+    sleep "$seconds"
+    return 0
+  fi
+  read -r -t "$seconds" _ || true
+}
+
+compact_timestamp() {
+  local ts
+  if printf -v ts '%(%Y%m%d%H%M%S)T' -1 2>/dev/null; then
+    printf '%s' "$ts"
+    return 0
+  fi
+  if command -v date >/dev/null 2>&1; then
+    date +%Y%m%d%H%M%S
+    return 0
+  fi
+  printf '%s' "$SECONDS"
+}
+
+file_contains_text() {
+  local file_path="$1"
+  local needle="$2"
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    if [[ "$line" == *"$needle"* ]]; then
+      return 0
+    fi
+  done < "$file_path"
+  return 1
+}
+
+cleanup_temp_files() {
+  if command -v rm >/dev/null 2>&1; then
+    rm -f "$@"
+    return 0
+  fi
+  for file_path in "$@"; do
+    if [[ -n "$file_path" && -e "$file_path" ]]; then
+      : > "$file_path" || true
+    fi
+  done
+}
+
 run_scripted_validation() {
   local resolved_validation_message="$validation_message"
   if [[ -z "$resolved_validation_message" ]]; then
@@ -191,8 +263,8 @@ run_scripted_validation() {
 
   local watch_stdout
   local watch_stderr
-  watch_stdout="$(mktemp)"
-  watch_stderr="$(mktemp)"
+  watch_stdout="$(create_temp_file)"
+  watch_stderr="$(create_temp_file)"
 
   local watch_args=()
   if [[ -n "$release_flag" ]]; then
@@ -211,9 +283,9 @@ run_scripted_validation() {
     --idle-timeout-seconds 5
   )
 
-  "$script_dir/chat-cli.sh" "${watch_args[@]}" >"$watch_stdout" 2>"$watch_stderr" &
+  "${BASH:-bash}" "$script_dir/chat-cli.sh" "${watch_args[@]}" >"$watch_stdout" 2>"$watch_stderr" &
   local watch_pid=$!
-  sleep 1
+  pause_seconds 1
 
   invoke_chat_cli \
     --base-url "$base_url" \
@@ -225,8 +297,8 @@ run_scripted_validation() {
     --conversation-id "$conversation_id" \
     --summary "$resolved_validation_message" \
     --text "$resolved_validation_message" \
-    --client-msg-id "open_chat_test_scripted_$(date +%Y%m%d%H%M%S)"
-  >/dev/null
+    --client-msg-id "open_chat_test_scripted_$(compact_timestamp)" \
+    >/dev/null
 
   local watch_exit=0
   if ! wait "$watch_pid"; then
@@ -237,21 +309,22 @@ run_scripted_validation() {
     echo "scripted validation watch failed" >&2
     cat "$watch_stderr" >&2 || true
     cat "$watch_stdout" >&2 || true
-    rm -f "$watch_stdout" "$watch_stderr"
+    cleanup_temp_files "$watch_stdout" "$watch_stderr"
     exit "$watch_exit"
   fi
 
   local watch_frame_types=()
-  while IFS= read -r frame_type; do
-    [[ -n "$frame_type" ]] || continue
-    watch_frame_types+=("$frame_type")
-  done < <(sed -nE 's/.*"type"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' "$watch_stdout")
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    if [[ "$line" =~ \"type\"[[:space:]]*:[[:space:]]*\"([^\"]+)\" ]]; then
+      watch_frame_types+=("${BASH_REMATCH[1]}")
+    fi
+  done < "$watch_stdout"
 
   if [[ ${#watch_frame_types[@]} -eq 0 ]]; then
     echo "scripted validation watch did not produce any frames" >&2
     cat "$watch_stderr" >&2 || true
     cat "$watch_stdout" >&2 || true
-    rm -f "$watch_stdout" "$watch_stderr"
+    cleanup_temp_files "$watch_stdout" "$watch_stderr"
     exit 1
   fi
 
@@ -268,12 +341,12 @@ run_scripted_validation() {
   )"
 
   local watch_delivered="false"
-  if grep -q "$resolved_validation_message" "$watch_stdout"; then
+  if file_contains_text "$watch_stdout" "$resolved_validation_message"; then
     watch_delivered="true"
   fi
 
   local timeline_contains="false"
-  if printf '%s' "$timeline_json" | grep -q "$resolved_validation_message"; then
+  if [[ "$timeline_json" == *"$resolved_validation_message"* ]]; then
     timeline_contains="true"
   fi
 
@@ -299,11 +372,11 @@ run_scripted_validation() {
     echo "timelineContainsValidationMessage: $timeline_contains"
   fi
 
-  rm -f "$watch_stdout" "$watch_stderr"
+  cleanup_temp_files "$watch_stdout" "$watch_stderr"
 }
 
 if [[ -z "$conversation_id" ]]; then
-  conversation_id="c_demo_$(date +%Y%m%d%H%M%S)"
+  conversation_id="c_demo_$(compact_timestamp)"
 fi
 
 resolve_base_url
@@ -319,7 +392,7 @@ if [[ "$skip_start" != "true" ]] && ! healthcheck; then
   if [[ -n "$release_flag" ]]; then
     start_args+=("$release_flag")
   fi
-  "$script_dir/start-local.sh" "${start_args[@]}"
+  "${BASH:-bash}" "$script_dir/start-local.sh" "${start_args[@]}"
 fi
 
 if ! healthcheck; then
@@ -348,8 +421,8 @@ invoke_chat_cli \
   --conversation-id "$conversation_id" \
   --principal-id "$guest_user_id" \
   --principal-kind user \
-  --role member
- >/dev/null
+  --role member \
+  >/dev/null
 
 if [[ "$scripted_validation" == "true" ]]; then
   run_scripted_validation

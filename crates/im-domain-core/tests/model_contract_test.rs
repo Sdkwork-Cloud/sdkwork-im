@@ -112,6 +112,8 @@ fn test_stream_session_serializes_lifecycle_fields() {
     let session = StreamSession {
         tenant_id: "t_demo".into(),
         stream_id: "st_demo".into(),
+        owner_principal_id: Some("u_demo".into()),
+        owner_principal_kind: Some("user".into()),
         stream_type: "custom.delta.text".into(),
         scope_kind: "conversation".into(),
         scope_id: "c_demo".into(),
@@ -122,6 +124,9 @@ fn test_stream_session_serializes_lifecycle_fields() {
         last_frame_seq: 3,
         last_checkpoint_seq: Some(2),
         result_message_id: None,
+        complete_frame_seq: None,
+        abort_frame_seq: None,
+        abort_reason: None,
         opened_at: "2026-04-05T10:00:00Z".into(),
         closed_at: None,
         expires_at: None,
@@ -133,6 +138,8 @@ fn test_stream_session_serializes_lifecycle_fields() {
         value["durabilityClass"],
         Value::String("durableSession".into())
     );
+    assert_eq!(value["ownerPrincipalId"], Value::String("u_demo".into()));
+    assert_eq!(value["ownerPrincipalKind"], Value::String("user".into()));
     assert_eq!(value["state"], Value::String("opened".into()));
 }
 
@@ -179,6 +186,7 @@ fn test_rtc_session_serializes_signal_binding_fields() {
         conversation_id: Some("c_demo".into()),
         rtc_mode: "voice".into(),
         initiator_id: "u_demo".into(),
+        initiator_kind: Some("user".into()),
         provider_plugin_id: Some("rtc-volcengine".into()),
         provider_session_id: Some("volcengine:rtc_demo".into()),
         access_endpoint: Some("wss://rtc.volcengine.local/session".into()),
@@ -193,6 +201,7 @@ fn test_rtc_session_serializes_signal_binding_fields() {
     let value = serde_json::to_value(session).expect("rtc session should serialize");
 
     assert_eq!(value["rtcMode"], Value::String("voice".into()));
+    assert_eq!(value["initiatorKind"], Value::String("user".into()));
     assert_eq!(value["state"], Value::String("started".into()));
 }
 
