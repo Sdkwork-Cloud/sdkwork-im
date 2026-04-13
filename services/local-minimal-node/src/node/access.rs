@@ -38,6 +38,17 @@ pub(super) fn ensure_ops_read_access(auth: &AuthContext) -> Result<(), ApiError>
     ))
 }
 
+pub(super) fn ensure_portal_access(auth: &AuthContext) -> Result<(), ApiError> {
+    if auth.has_permission("portal.access") {
+        return Ok(());
+    }
+
+    Err(ApiError::forbidden(
+        "permission_denied",
+        "missing required permission: portal.access",
+    ))
+}
+
 pub(super) fn ensure_registered_device(
     state: &AppState,
     auth: &AuthContext,

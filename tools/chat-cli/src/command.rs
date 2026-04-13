@@ -86,6 +86,11 @@ pub(crate) struct AuthInput {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum CommandOperation {
     Health,
+    Login {
+        login: String,
+        password: String,
+        client_kind: String,
+    },
     Token {
         authorization_header: bool,
     },
@@ -240,6 +245,40 @@ fn parse_command_operation(
 ) -> Result<CommandOperation, CliError> {
     match command_name {
         "health" => Ok(CommandOperation::Health),
+        "login" => {
+            let mut login = None;
+            let mut password = None;
+            let mut client_kind = Some("im_user".to_owned());
+            while let Some(next) = cursor.peek() {
+                match next {
+                    "-h" | "--help" => return Err(CliError::help(login_usage())),
+                    "--login" => {
+                        cursor.next();
+                        login = Some(cursor.required_value("--login")?);
+                    }
+                    "--password" => {
+                        cursor.next();
+                        password = Some(cursor.required_value("--password")?);
+                    }
+                    "--client-kind" => {
+                        cursor.next();
+                        client_kind = Some(cursor.required_value("--client-kind")?);
+                    }
+                    other if other.starts_with('-') => {
+                        return Err(CliError::usage(format!(
+                            "unknown login flag: {other}\n\n{}",
+                            login_usage()
+                        )));
+                    }
+                    _ => break,
+                }
+            }
+            Ok(CommandOperation::Login {
+                login: required_field(login, "--login is required for login")?,
+                password: required_field(password, "--password is required for login")?,
+                client_kind: client_kind.unwrap_or_else(|| "im_user".to_owned()),
+            })
+        }
         "token" => {
             let mut authorization_header = true;
             while let Some(next) = cursor.peek() {
@@ -743,6 +782,7 @@ fn is_command_name(value: &str) -> bool {
     matches!(
         value,
         "health"
+            | "login"
             | "token"
             | "create-conversation"
             | "add-member"
@@ -771,6 +811,7 @@ fn cli_usage() -> String {
             "  -h, --help                       Show help\n\n",
             "Commands:\n",
             "  health\n",
+            "  login --login <id> --password <secret> [--client-kind im_user|portal_operator]\n",
             "  token [--token-only]\n",
             "  create-conversation --conversation-id <id> [--conversation-type <type>]\n",
             "  add-member --conversation-id <id> --principal-id <id> [--principal-kind user] [--role member]\n",
@@ -790,6 +831,10 @@ fn cli_usage() -> String {
 
 fn token_usage() -> String {
     "Usage: craw-chat-cli [global options] token [--token-only]".to_owned()
+}
+
+fn login_usage() -> String {
+    "Usage: craw-chat-cli [global options] login --login <id> --password <secret> [--client-kind <im_user|portal_operator>]".to_owned()
 }
 
 fn create_conversation_usage() -> String {

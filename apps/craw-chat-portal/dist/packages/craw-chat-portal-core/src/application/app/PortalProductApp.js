@@ -96,6 +96,31 @@ function queryAllWithinApp(root, selector) {
   return [];
 }
 
+function readInputValue(root, selector, { trim = true } = {}) {
+  const input = queryWithinApp(root, selector);
+  if (!input || typeof input.value !== 'string') {
+    return null;
+  }
+
+  return trim ? input.value.trim() : input.value;
+}
+
+function readPortalSignInCredentials(root) {
+  const tenantId = readInputValue(root, '[name="tenantId"]');
+  const login = readInputValue(root, '[name="login"]');
+  const password = readInputValue(root, '[name="password"]', { trim: false });
+
+  if (tenantId === null && login === null && password === null) {
+    return null;
+  }
+
+  return {
+    tenantId: tenantId ?? '',
+    login: login ?? '',
+    password: password ?? '',
+  };
+}
+
 function renderSiteState({ eyebrow, title, description, actions = '' }) {
   return renderPortalSiteLayout({
     body: renderSurface({
@@ -118,6 +143,7 @@ export function createPortalProductApp(root) {
   let activeRenderId = 0;
   let destroyed = false;
   let lastFailureStage = null;
+  let lastSignInCredentials = null;
 
   const renderers = {
     [PORTAL_ROUTE_PATHS.dashboard]: renderPortalDashboardPage,
@@ -448,7 +474,17 @@ export function createPortalProductApp(root) {
     });
   }
 
-  function retrySignIn() {
+  function retrySignIn(credentials = lastSignInCredentials) {
+    const requestedCredentials =
+      credentials && typeof credentials === 'object'
+        ? {
+            tenantId: credentials.tenantId ?? '',
+            login: credentials.login ?? '',
+            password: credentials.password ?? '',
+          }
+        : undefined;
+
+    lastSignInCredentials = requestedCredentials ?? null;
     const renderId = createRenderId();
     lastFailureStage = null;
 
@@ -463,12 +499,13 @@ export function createPortalProductApp(root) {
     );
 
     void authStore
-      .signIn()
+      .signIn(requestedCredentials)
       .then(() => {
         if (!canCommitRender(renderId)) {
           return;
         }
 
+        lastSignInCredentials = null;
         const activeShellState = shellStore.getState();
         navigate(
           resolveLoginRedirectTarget(window.location.search, {
@@ -734,11 +771,17 @@ export function createPortalProductApp(root) {
       case 'retry-render':
         retryRender();
         return;
+      case 'portal-sign-in':
+        event.preventDefault?.();
+        retrySignIn(readPortalSignInCredentials(root));
+        return;
       case 'demo-sign-in':
+        event.preventDefault?.();
         retrySignIn();
         return;
       case 'sign-out':
         closeSettings();
+        lastSignInCredentials = null;
         authStore.signOut();
         navigate(PORTAL_ROUTE_PATHS.home, { replace: true });
         return;

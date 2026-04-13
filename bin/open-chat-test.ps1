@@ -7,8 +7,16 @@ param(
     [string]$ConversationId,
     [Alias("owner-user-id")]
     [string]$OwnerUserId = "u_owner",
+    [Alias("owner-login")]
+    [string]$OwnerLogin,
+    [Alias("owner-password")]
+    [string]$OwnerPassword,
     [Alias("guest-user-id")]
     [string]$GuestUserId = "u_guest",
+    [Alias("guest-login")]
+    [string]$GuestLogin,
+    [Alias("guest-password")]
+    [string]$GuestPassword,
     [Alias("owner-label")]
     [string]$OwnerLabel = "owner",
     [Alias("guest-label")]
@@ -92,6 +100,81 @@ function Resolve-BaseUrl {
         $resolvedHost = "127.0.0.1"
     }
     return "http://$resolvedHost`:$port"
+}
+
+function Resolve-BindAddressFromBaseUrl {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ResolvedBaseUrl
+    )
+
+    try {
+        $uri = [System.Uri]$ResolvedBaseUrl
+    }
+    catch {
+        throw "base url must be a valid absolute http(s) url: $ResolvedBaseUrl"
+    }
+
+    if (-not $uri.IsAbsoluteUri -or ($uri.Scheme -ne "http" -and $uri.Scheme -ne "https")) {
+        throw "base url must be a valid absolute http(s) url: $ResolvedBaseUrl"
+    }
+
+    $resolvedHostName = if ([string]::IsNullOrWhiteSpace($uri.Host)) { "127.0.0.1" } else { $uri.Host }
+    $port = if ($uri.IsDefaultPort) {
+        if ($uri.Scheme -eq "https") { 443 } else { 80 }
+    }
+    else {
+        $uri.Port
+    }
+
+    return "$resolvedHostName`:$port"
+}
+
+function Resolve-SeededImPassword {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Login
+    )
+
+    switch ($Login) {
+        "u_owner" { return "Owner#2026" }
+        "u_guest" { return "Guest#2026" }
+        "u_demo" { return "Demo#2026" }
+        default { return $null }
+    }
+}
+
+function Resolve-ImLogin {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RequestedUserId,
+        [string]$RequestedLogin
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($RequestedLogin)) {
+        return $RequestedLogin
+    }
+
+    return $RequestedUserId
+}
+
+function Resolve-ImPassword {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Login,
+        [string]$RequestedPassword
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($RequestedPassword)) {
+        return $RequestedPassword
+    }
+
+    $seededPassword = Resolve-SeededImPassword -Login $Login
+    if (-not [string]::IsNullOrWhiteSpace($seededPassword)) {
+        return $seededPassword
+    }
+
+    throw "No password was provided for login '$Login'. Supply -OwnerPassword/-GuestPassword for non-seeded accounts."
 }
 
 function Quote-ProcessArgument {
@@ -195,6 +278,79 @@ function Invoke-ChatCliJson {
     return $result.Stdout | ConvertFrom-Json
 }
 
+function Invoke-ImUserLogin {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ResolvedBaseUrl,
+        [Parameter(Mandatory = $true)]
+        [string]$RequestedUserId,
+        [Parameter(Mandatory = $true)]
+        [string]$Login,
+        [Parameter(Mandatory = $true)]
+        [string]$Password,
+        [Parameter(Mandatory = $true)]
+        [string]$SessionId,
+        [Parameter(Mandatory = $true)]
+        [string]$DeviceId
+    )
+
+    $loginResponse = Invoke-ChatCliJson -Arguments @(
+        "--base-url", $ResolvedBaseUrl,
+        "--tenant-id", $TenantId,
+        "--user-id", $RequestedUserId,
+        "--session-id", $SessionId,
+        "--device-id", $DeviceId,
+        "login",
+        "--login", $Login,
+        "--password", $Password,
+        "--client-kind", "im_user"
+    )
+
+    $accessToken = [string]$loginResponse.accessToken
+    if ([string]::IsNullOrWhiteSpace($accessToken)) {
+        throw "login response did not include accessToken for '$Login'"
+    }
+
+    $resolvedUserId = if ($null -ne $loginResponse.user -and -not [string]::IsNullOrWhiteSpace([string]$loginResponse.user.id)) {
+        [string]$loginResponse.user.id
+    }
+    else {
+        $RequestedUserId
+    }
+
+    return [pscustomobject]@{
+        UserId = $resolvedUserId
+        Login = $Login
+        BearerToken = $accessToken
+        RefreshToken = [string]$loginResponse.refreshToken
+        SessionId = $SessionId
+        DeviceId = $DeviceId
+    }
+}
+
+function Get-ChatCliAuthArguments {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ResolvedBaseUrl,
+        [Parameter(Mandatory = $true)]
+        [psobject]$AuthContext
+    )
+
+    $arguments = @(
+        "--base-url", $ResolvedBaseUrl,
+        "--tenant-id", $TenantId,
+        "--user-id", $AuthContext.UserId,
+        "--session-id", $AuthContext.SessionId,
+        "--device-id", $AuthContext.DeviceId
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace([string]$AuthContext.BearerToken)) {
+        $arguments += @("--bearer-token", [string]$AuthContext.BearerToken)
+    }
+
+    return $arguments
+}
+
 function Parse-JsonLines {
     param(
         [AllowNull()]
@@ -225,13 +381,9 @@ function Invoke-ScriptedValidation {
         [Parameter(Mandatory = $true)]
         [string]$ResolvedValidationMessage,
         [Parameter(Mandatory = $true)]
-        [string]$OwnerSessionId,
+        [psobject]$OwnerAuth,
         [Parameter(Mandatory = $true)]
-        [string]$OwnerDeviceId,
-        [Parameter(Mandatory = $true)]
-        [string]$GuestSessionId,
-        [Parameter(Mandatory = $true)]
-        [string]$GuestDeviceId
+        [psobject]$GuestAuth
     )
 
     $watchOutputFile = Join-Path ([System.IO.Path]::GetTempPath()) ("craw-chat-watch-{0}.stdout" -f ([guid]::NewGuid().ToString("N")))
@@ -246,12 +398,8 @@ function Invoke-ScriptedValidation {
         if ($Release) {
             $watchArgs += "-Release"
         }
+        $watchArgs += (Get-ChatCliAuthArguments -ResolvedBaseUrl $ResolvedBaseUrl -AuthContext $GuestAuth)
         $watchArgs += @(
-            "--base-url", $ResolvedBaseUrl,
-            "--tenant-id", $TenantId,
-            "--user-id", $GuestUserId,
-            "--session-id", $GuestSessionId,
-            "--device-id", $GuestDeviceId,
             "watch",
             "--conversation-id", $ConversationId,
             "--event-type", "message.posted",
@@ -269,18 +417,13 @@ function Invoke-ScriptedValidation {
         Start-Sleep -Milliseconds 500
 
         $clientMessageId = "open_chat_test_scripted_{0}" -f (Get-Date -Format "yyyyMMddHHmmssfff")
-        $null = Invoke-ChatCliJson -Arguments @(
-            "--base-url", $ResolvedBaseUrl,
-            "--tenant-id", $TenantId,
-            "--user-id", $OwnerUserId,
-            "--session-id", $OwnerSessionId,
-            "--device-id", $OwnerDeviceId,
-            "send-message",
-            "--conversation-id", $ConversationId,
-            "--summary", $ResolvedValidationMessage,
-            "--text", $ResolvedValidationMessage,
-            "--client-msg-id", $clientMessageId
-        )
+        $null = Invoke-ChatCliJson -Arguments ((Get-ChatCliAuthArguments -ResolvedBaseUrl $ResolvedBaseUrl -AuthContext $OwnerAuth) + @(
+                "send-message",
+                "--conversation-id", $ConversationId,
+                "--summary", $ResolvedValidationMessage,
+                "--text", $ResolvedValidationMessage,
+                "--client-msg-id", $clientMessageId
+            ))
 
         if (-not $watchProcess.WaitForExit(15000)) {
             try {
@@ -321,15 +464,10 @@ function Invoke-ScriptedValidation {
             }
         }
 
-        $timeline = Invoke-ChatCliJson -Arguments @(
-            "--base-url", $ResolvedBaseUrl,
-            "--tenant-id", $TenantId,
-            "--user-id", $GuestUserId,
-            "--session-id", $GuestSessionId,
-            "--device-id", $GuestDeviceId,
-            "timeline",
-            "--conversation-id", $ConversationId
-        )
+        $timeline = Invoke-ChatCliJson -Arguments ((Get-ChatCliAuthArguments -ResolvedBaseUrl $ResolvedBaseUrl -AuthContext $GuestAuth) + @(
+                "timeline",
+                "--conversation-id", $ConversationId
+            ))
         $timelineSummaries = @()
         if ($null -ne $timeline -and $null -ne $timeline.items) {
             $timelineSummaries = @($timeline.items | ForEach-Object { $_.summary })
@@ -338,8 +476,8 @@ function Invoke-ScriptedValidation {
         return [ordered]@{
             mode = "scripted"
             conversationId = $ConversationId
-            ownerUserId = $OwnerUserId
-            guestUserId = $GuestUserId
+            ownerUserId = $OwnerAuth.UserId
+            guestUserId = $GuestAuth.UserId
             validationMessage = $ResolvedValidationMessage
             watchFrameTypes = @($watchFrames | ForEach-Object { $_.type })
             watchDelivered = ($deliveredSummary -eq $ResolvedValidationMessage)
@@ -399,55 +537,120 @@ shell.Run "$escapedCommandLine", 1, False
 }
 
 function Start-HostedLocalService {
-    $root = Split-Path -Parent $PSScriptRoot
-    $profileDir = if ($Release) { "release" } else { "debug" }
-    $exePath = Join-Path $root "target\$profileDir\local-minimal-node.exe"
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ResolvedBaseUrl
+    )
 
-    if (-not (Test-Path $exePath)) {
-        $installArgs = @()
-        if ($Release) {
-            $installArgs += "-Release"
+    $resolvedBindAddress = Resolve-BindAddressFromBaseUrl -ResolvedBaseUrl $ResolvedBaseUrl
+    if ($Release) {
+        & "$PSScriptRoot\start-local.ps1" -ProfileName "local-minimal" -Release -BindAddress $resolvedBindAddress
+    }
+    else {
+        & "$PSScriptRoot\start-local.ps1" -ProfileName "local-minimal" -BindAddress $resolvedBindAddress
+    }
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to start local-minimal-node via start-local.ps1."
+    }
+
+    if (-not (Test-ChatHealth -Url $ResolvedBaseUrl)) {
+        throw "Chat service is not healthy at $ResolvedBaseUrl after start-local.ps1 completed"
+    }
+}
+
+function Stop-LocalMinimalNodeListener {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ResolvedBaseUrl
+    )
+
+    $bindAddress = Resolve-BindAddressFromBaseUrl -ResolvedBaseUrl $ResolvedBaseUrl
+    $port = [int](($bindAddress -split ':')[-1])
+    $listeners = @(Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue)
+    if ($listeners.Count -eq 0) {
+        return $false
+    }
+
+    foreach ($listener in $listeners) {
+        $process = Get-Process -Id $listener.OwningProcess -ErrorAction SilentlyContinue
+        if ($null -eq $process) {
+            continue
         }
-        & "$PSScriptRoot\install-local.ps1" @installArgs
-        if ($LASTEXITCODE -ne 0) {
-            throw "Failed to build local-minimal-node."
+
+        if ($process.ProcessName -ne "local-minimal-node") {
+            throw "Port $port is occupied by non-local-minimal-node process '$($process.ProcessName)' (PID $($process.Id))."
+        }
+
+        Stop-Process -Id $process.Id -Force -ErrorAction Stop
+        try {
+            Wait-Process -Id $process.Id -Timeout 15 -ErrorAction Stop
+        }
+        catch {
+            if ($null -ne (Get-Process -Id $process.Id -ErrorAction SilentlyContinue)) {
+                throw "local-minimal-node PID $($process.Id) did not exit after forced stop."
+            }
         }
     }
 
-    $configFile = Join-Path $root ".runtime\local-minimal\config\local-minimal.env"
-    $bindAddress = Read-ConfigValue -ConfigFile $configFile -Key "CRAW_CHAT_BIND_ADDR"
-    $runtimeDir = Read-ConfigValue -ConfigFile $configFile -Key "CRAW_CHAT_RUNTIME_DIR"
-    $publicBearerSecret = Read-ConfigValue -ConfigFile $configFile -Key "CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET"
+    return $true
+}
 
-    $hostScriptPath = Join-Path ([System.IO.Path]::GetTempPath()) "craw-chat-local-hosted-$profileDir.ps1"
-    @"
-`$env:CRAW_CHAT_BIND_ADDR = "$bindAddress"
-`$env:CRAW_CHAT_RUNTIME_DIR = "$runtimeDir"
-`$env:CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET = "$publicBearerSecret"
-Set-Location "$root"
-& "$exePath"
-"@ | Set-Content -Path $hostScriptPath -Encoding UTF8
+function Invoke-ImUserLoginWithRecovery {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ResolvedBaseUrl,
+        [Parameter(Mandatory = $true)]
+        [string]$RequestedUserId,
+        [Parameter(Mandatory = $true)]
+        [string]$Login,
+        [Parameter(Mandatory = $true)]
+        [string]$Password,
+        [Parameter(Mandatory = $true)]
+        [string]$SessionId,
+        [Parameter(Mandatory = $true)]
+        [string]$DeviceId
+    )
 
-    Start-Process -FilePath "powershell.exe" -WindowStyle Hidden -ArgumentList @(
-        "-NoProfile",
-        "-ExecutionPolicy", "Bypass",
-        "-File", $hostScriptPath
-    ) | Out-Null
-
-    for ($attempt = 0; $attempt -lt 30; $attempt++) {
-        Start-Sleep -Seconds 1
-        if (Test-ChatHealth -Url $BaseUrl) {
-            return
-        }
+    try {
+        return Invoke-ImUserLogin `
+            -ResolvedBaseUrl $ResolvedBaseUrl `
+            -RequestedUserId $RequestedUserId `
+            -Login $Login `
+            -Password $Password `
+            -SessionId $SessionId `
+            -DeviceId $DeviceId
     }
+    catch {
+        $message = $_.Exception.Message
+        $signingSecretMissing =
+            $message -match "auth_signing_secret_missing" -or
+            $message -match "public bearer signing secret is missing"
 
-    throw "Hosted local-minimal-node did not become healthy at $BaseUrl"
+        if ($SkipStart -or -not $signingSecretMissing) {
+            throw
+        }
+
+        Write-Host "Local service auth preflight failed. Recycling local-minimal-node with standard start-local.ps1..."
+        $stopped = Stop-LocalMinimalNodeListener -ResolvedBaseUrl $ResolvedBaseUrl
+        if (-not $stopped) {
+            throw
+        }
+
+        Start-HostedLocalService -ResolvedBaseUrl $ResolvedBaseUrl
+        return Invoke-ImUserLogin `
+            -ResolvedBaseUrl $ResolvedBaseUrl `
+            -RequestedUserId $RequestedUserId `
+            -Login $Login `
+            -Password $Password `
+            -SessionId $SessionId `
+            -DeviceId $DeviceId
+    }
 }
 
 if ($Help) {
-    Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/open-chat-test.ps1 [-ConversationId <id>] [-BaseUrl <url>] [-TenantId <id>] [-OwnerUserId <id>] [-GuestUserId <id>] [-OwnerLabel <label>] [-GuestLabel <label>] [-Release] [-SkipStart] [-UseConsoleWindows] [-ScriptedValidation] [-ValidationMessage <text>] [-Json]"
-    Write-Host "Usage: cmd /c .\bin\open-chat-test.cmd [--conversation-id <id>] [--base-url <url>] [--tenant-id <id>] [--owner-user-id <id>] [--guest-user-id <id>] [--owner-label <label>] [--guest-label <label>] [--release] [--skip-start] [--use-console-windows] [--scripted-validation] [--validation-message <text>] [--json]"
-    Write-Host "Create a local test conversation and either open two visible chat windows or run scripted watch/timeline validation."
+    Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/open-chat-test.ps1 [-ConversationId <id>] [-BaseUrl <url>] [-TenantId <id>] [-OwnerUserId <id>] [-OwnerLogin <id>] [-OwnerPassword <secret>] [-GuestUserId <id>] [-GuestLogin <id>] [-GuestPassword <secret>] [-OwnerLabel <label>] [-GuestLabel <label>] [-Release] [-SkipStart] [-UseConsoleWindows] [-ScriptedValidation] [-ValidationMessage <text>] [-Json]"
+    Write-Host "Usage: cmd /c .\bin\open-chat-test.cmd [--conversation-id <id>] [--base-url <url>] [--tenant-id <id>] [--owner-user-id <id>] [--owner-login <id>] [--owner-password <secret>] [--guest-user-id <id>] [--guest-login <id>] [--guest-password <secret>] [--owner-label <label>] [--guest-label <label>] [--release] [--skip-start] [--use-console-windows] [--scripted-validation] [--validation-message <text>] [--json]"
+    Write-Host "Create a local test conversation, authenticate owner and guest through real login, then either open two visible chat windows or run scripted watch/timeline validation."
     exit 0
 }
 
@@ -470,45 +673,56 @@ else {
 
 if (-not $SkipStart -and -not (Test-ChatHealth -Url $BaseUrl)) {
     Write-Host "Local service is not healthy. Starting local-minimal-node..."
-    Start-HostedLocalService
+    Start-HostedLocalService -ResolvedBaseUrl $BaseUrl
 }
 
 if (-not (Test-ChatHealth -Url $BaseUrl)) {
     throw "Chat service is not healthy at $BaseUrl"
 }
 
-if ($ScriptedValidation) {
-    $null = Invoke-ChatCliJson -Arguments @(
-        "--base-url", $BaseUrl,
-        "--tenant-id", $TenantId,
-        "--user-id", $OwnerUserId,
-        "--session-id", $ownerSessionId,
-        "--device-id", $ownerDeviceId,
-        "create-conversation",
-        "--conversation-id", $ConversationId,
-        "--conversation-type", "group"
-    )
+$resolvedOwnerLogin = Resolve-ImLogin -RequestedUserId $OwnerUserId -RequestedLogin $OwnerLogin
+$resolvedOwnerPassword = Resolve-ImPassword -Login $resolvedOwnerLogin -RequestedPassword $OwnerPassword
+$resolvedGuestLogin = Resolve-ImLogin -RequestedUserId $GuestUserId -RequestedLogin $GuestLogin
+$resolvedGuestPassword = Resolve-ImPassword -Login $resolvedGuestLogin -RequestedPassword $GuestPassword
 
-    $null = Invoke-ChatCliJson -Arguments @(
-        "--base-url", $BaseUrl,
-        "--tenant-id", $TenantId,
-        "--user-id", $OwnerUserId,
-        "--session-id", $ownerSessionId,
-        "--device-id", $ownerDeviceId,
-        "add-member",
-        "--conversation-id", $ConversationId,
-        "--principal-id", $GuestUserId,
-        "--principal-kind", "user",
-        "--role", "member"
-    )
+$ownerAuth = Invoke-ImUserLoginWithRecovery `
+    -ResolvedBaseUrl $BaseUrl `
+    -RequestedUserId $OwnerUserId `
+    -Login $resolvedOwnerLogin `
+    -Password $resolvedOwnerPassword `
+    -SessionId $ownerSessionId `
+    -DeviceId $ownerDeviceId
+$guestAuth = Invoke-ImUserLoginWithRecovery `
+    -ResolvedBaseUrl $BaseUrl `
+    -RequestedUserId $GuestUserId `
+    -Login $resolvedGuestLogin `
+    -Password $resolvedGuestPassword `
+    -SessionId $guestSessionId `
+    -DeviceId $guestDeviceId
+
+$ownerCliAuthArgs = @(Get-ChatCliAuthArguments -ResolvedBaseUrl $BaseUrl -AuthContext $ownerAuth)
+$guestCliAuthArgs = @(Get-ChatCliAuthArguments -ResolvedBaseUrl $BaseUrl -AuthContext $guestAuth)
+
+if ($ScriptedValidation) {
+    $null = Invoke-ChatCliJson -Arguments ($ownerCliAuthArgs + @(
+            "create-conversation",
+            "--conversation-id", $ConversationId,
+            "--conversation-type", "group"
+        ))
+
+    $null = Invoke-ChatCliJson -Arguments ($ownerCliAuthArgs + @(
+            "add-member",
+            "--conversation-id", $ConversationId,
+            "--principal-id", $guestAuth.UserId,
+            "--principal-kind", "user",
+            "--role", "member"
+        ))
 
     $summary = Invoke-ScriptedValidation `
         -ResolvedBaseUrl $BaseUrl `
         -ResolvedValidationMessage $resolvedValidationMessage `
-        -OwnerSessionId $ownerSessionId `
-        -OwnerDeviceId $ownerDeviceId `
-        -GuestSessionId $guestSessionId `
-        -GuestDeviceId $guestDeviceId
+        -OwnerAuth $ownerAuth `
+        -GuestAuth $guestAuth
 
     if ($Json) {
         $summary | ConvertTo-Json -Depth 8
@@ -523,29 +737,19 @@ if ($ScriptedValidation) {
     exit 0
 }
 
-Invoke-ChatCli -Arguments @(
-    "--base-url", $BaseUrl,
-    "--tenant-id", $TenantId,
-    "--user-id", $OwnerUserId,
-    "--session-id", $ownerSessionId,
-    "--device-id", $ownerDeviceId,
-    "create-conversation",
-    "--conversation-id", $ConversationId,
-    "--conversation-type", "group"
-)
+Invoke-ChatCli -Arguments ($ownerCliAuthArgs + @(
+        "create-conversation",
+        "--conversation-id", $ConversationId,
+        "--conversation-type", "group"
+    ))
 
-Invoke-ChatCli -Arguments @(
-    "--base-url", $BaseUrl,
-    "--tenant-id", $TenantId,
-    "--user-id", $OwnerUserId,
-    "--session-id", $ownerSessionId,
-    "--device-id", $ownerDeviceId,
-    "add-member",
-    "--conversation-id", $ConversationId,
-    "--principal-id", $GuestUserId,
-    "--principal-kind", "user",
-    "--role", "member"
-)
+Invoke-ChatCli -Arguments ($ownerCliAuthArgs + @(
+        "add-member",
+        "--conversation-id", $ConversationId,
+        "--principal-id", $guestAuth.UserId,
+        "--principal-kind", "user",
+        "--role", "member"
+    ))
 
 $windowScript = if ($UseConsoleWindows) {
     Join-Path $PSScriptRoot "chat-window.ps1"
@@ -560,9 +764,10 @@ $ownerArgs = @(
     "-BaseUrl", $BaseUrl,
     "-TenantId", $TenantId,
     "-ConversationId", $ConversationId,
-    "-UserId", $OwnerUserId,
-    "-SessionId", $ownerSessionId,
-    "-DeviceId", $ownerDeviceId,
+    "-UserId", $ownerAuth.UserId,
+    "-SessionId", $ownerAuth.SessionId,
+    "-DeviceId", $ownerAuth.DeviceId,
+    "-BearerToken", $ownerAuth.BearerToken,
     "-Label", $OwnerLabel,
     "-MessagePrefix", "[$OwnerLabel] "
 )
@@ -580,9 +785,10 @@ $guestArgs = @(
     "-BaseUrl", $BaseUrl,
     "-TenantId", $TenantId,
     "-ConversationId", $ConversationId,
-    "-UserId", $GuestUserId,
-    "-SessionId", $guestSessionId,
-    "-DeviceId", $guestDeviceId,
+    "-UserId", $guestAuth.UserId,
+    "-SessionId", $guestAuth.SessionId,
+    "-DeviceId", $guestAuth.DeviceId,
+    "-BearerToken", $guestAuth.BearerToken,
     "-Label", $GuestLabel,
     "-MessagePrefix", "[$GuestLabel] "
 )
@@ -598,8 +804,8 @@ $guestProcessId = Start-DetachedPowerShellWindow -ArgumentList $guestArgs
 
 Write-Host "Opened two chat windows."
 Write-Host "conversationId: $ConversationId"
-Write-Host "owner: $OwnerUserId"
-Write-Host "guest: $GuestUserId"
+Write-Host "owner: $($ownerAuth.UserId)"
+Write-Host "guest: $($guestAuth.UserId)"
 if ($null -ne $ownerProcessId) {
     Write-Host "ownerWindowPid: $ownerProcessId"
 }

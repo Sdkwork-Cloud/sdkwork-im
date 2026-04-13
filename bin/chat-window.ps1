@@ -11,6 +11,8 @@ param(
     [string]$SessionId,
     [Alias("device-id")]
     [string]$DeviceId,
+    [Alias("bearer-token")]
+    [string]$BearerToken,
     [string]$Label,
     [Alias("message-prefix")]
     [string]$MessagePrefix,
@@ -72,9 +74,9 @@ function Resolve-BaseUrl {
 }
 
 if ($Help -or [string]::IsNullOrWhiteSpace($ConversationId) -or [string]::IsNullOrWhiteSpace($UserId)) {
-    Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/chat-window.ps1 -ConversationId <id> -UserId <id> [-BaseUrl <url>] [-TenantId <id>] [-SessionId <id>] [-DeviceId <id>] [-Label <name>] [-MessagePrefix <prefix>] [-Release]"
-    Write-Host "Usage: cmd /c .\bin\chat-window.cmd --conversation-id <id> --user-id <id> [--base-url <url>] [--tenant-id <id>] [--session-id <id>] [--device-id <id>] [--label <name>] [--message-prefix <prefix>] [--release]"
-    Write-Host "Open one interactive chat terminal backed by bin/chat-cli.ps1 chat-session."
+    Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/chat-window.ps1 -ConversationId <id> -UserId <id> [-BaseUrl <url>] [-TenantId <id>] [-SessionId <id>] [-DeviceId <id>] [-BearerToken <token>] [-Label <name>] [-MessagePrefix <prefix>] [-Release]"
+    Write-Host "Usage: cmd /c .\bin\chat-window.cmd --conversation-id <id> --user-id <id> [--base-url <url>] [--tenant-id <id>] [--session-id <id>] [--device-id <id>] [--bearer-token <token>] [--label <name>] [--message-prefix <prefix>] [--release]"
+    Write-Host "Open one interactive chat terminal backed by bin/chat-cli.ps1 chat-session, optionally with a real bearer token."
     if ($Help) {
         exit 0
     }
@@ -102,7 +104,14 @@ $cliArgs += @(
     "--tenant-id", $TenantId,
     "--user-id", $UserId,
     "--session-id", $resolvedSessionId,
-    "--device-id", $resolvedDeviceId,
+    "--device-id", $resolvedDeviceId
+)
+
+if (-not [string]::IsNullOrWhiteSpace($BearerToken)) {
+    $cliArgs += @("--bearer-token", $BearerToken)
+}
+
+$cliArgs += @(
     "chat-session",
     "--conversation-id", $ConversationId,
     "--label", $resolvedLabel

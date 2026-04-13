@@ -31,6 +31,28 @@ pub async fn execute_command(command: CliCommand) -> Result<CommandOutput, CliEr
                 http_request_json(&command.context, Method::GET, "/healthz", None, false).await?;
             Ok(CommandOutput::Json(value))
         }
+        CommandOperation::Login {
+            login,
+            password,
+            client_kind,
+        } => {
+            let value = http_request_json(
+                &command.context,
+                Method::POST,
+                "/api/v1/auth/login",
+                Some(json!({
+                    "tenantId": command.context.auth.tenant_id.clone(),
+                    "login": login,
+                    "password": password,
+                    "deviceId": command.context.auth.device_id.clone(),
+                    "sessionId": command.context.auth.session_id.clone(),
+                    "clientKind": client_kind,
+                })),
+                false,
+            )
+            .await?;
+            Ok(CommandOutput::Json(value))
+        }
         CommandOperation::Token {
             authorization_header,
         } => {

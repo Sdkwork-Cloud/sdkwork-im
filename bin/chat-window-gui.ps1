@@ -11,6 +11,8 @@ param(
     [string]$SessionId,
     [Alias("device-id")]
     [string]$DeviceId,
+    [Alias("bearer-token")]
+    [string]$BearerToken,
     [string]$Label,
     [Alias("message-prefix")]
     [string]$MessagePrefix,
@@ -93,9 +95,9 @@ function Quote-ProcessArgument {
 }
 
 if ($Help -or [string]::IsNullOrWhiteSpace($ConversationId) -or [string]::IsNullOrWhiteSpace($UserId)) {
-    Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/chat-window-gui.ps1 -ConversationId <id> -UserId <id> [-BaseUrl <url>] [-TenantId <id>] [-SessionId <id>] [-DeviceId <id>] [-Label <name>] [-MessagePrefix <prefix>] [-DiagnosticsFile <path>] [-SkipConnect] [-Release]"
-    Write-Host "Usage: cmd /c .\bin\chat-window-gui.cmd --conversation-id <id> --user-id <id> [--base-url <url>] [--tenant-id <id>] [--session-id <id>] [--device-id <id>] [--label <name>] [--message-prefix <prefix>] [--diagnostics-file <path>] [--skip-connect] [--release]"
-    Write-Host "Open one visible GUI chat window backed by polling chat-cli timeline/send-message commands."
+    Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/chat-window-gui.ps1 -ConversationId <id> -UserId <id> [-BaseUrl <url>] [-TenantId <id>] [-SessionId <id>] [-DeviceId <id>] [-BearerToken <token>] [-Label <name>] [-MessagePrefix <prefix>] [-DiagnosticsFile <path>] [-SkipConnect] [-Release]"
+    Write-Host "Usage: cmd /c .\bin\chat-window-gui.cmd --conversation-id <id> --user-id <id> [--base-url <url>] [--tenant-id <id>] [--session-id <id>] [--device-id <id>] [--bearer-token <token>] [--label <name>] [--message-prefix <prefix>] [--diagnostics-file <path>] [--skip-connect] [--release]"
+    Write-Host "Open one visible GUI chat window backed by polling chat-cli timeline/send-message commands, optionally with a real bearer token."
     if ($Help) {
         exit 0
     }
@@ -214,6 +216,22 @@ function New-ClientMessageId {
         ([guid]::NewGuid().ToString("N").Substring(0, 8))
 }
 
+function Get-ChatCliAuthArguments {
+    $arguments = @(
+        "--base-url", $resolvedBaseUrl,
+        "--tenant-id", $TenantId,
+        "--user-id", $UserId,
+        "--session-id", $resolvedSessionId,
+        "--device-id", $resolvedDeviceId
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($BearerToken)) {
+        $arguments += @("--bearer-token", $BearerToken)
+    }
+
+    return $arguments
+}
+
 Write-Diagnostic "script start label=$resolvedLabel conversation=$ConversationId baseUrl=$resolvedBaseUrl"
 
 Add-Type -AssemblyName System.Windows.Forms
@@ -325,15 +343,10 @@ $refreshTimeline = {
 
     $script:refreshInProgress = $true
     try {
-        $timeline = Invoke-ChatCliJson -Arguments @(
-            "--base-url", $resolvedBaseUrl,
-            "--tenant-id", $TenantId,
-            "--user-id", $UserId,
-            "--session-id", $resolvedSessionId,
-            "--device-id", $resolvedDeviceId,
-            "timeline",
-            "--conversation-id", $ConversationId
-        )
+        $timeline = Invoke-ChatCliJson -Arguments ((Get-ChatCliAuthArguments) + @(
+                "timeline",
+                "--conversation-id", $ConversationId
+            ))
         & $renderTimeline $timeline
         $statusLabel.Text = "connected: $resolvedLabel @ $resolvedBaseUrl (last sync $(Get-Date -Format 'HH:mm:ss'))"
     }
@@ -375,18 +388,13 @@ $sendCurrent = {
     }
 
     try {
-        $null = Invoke-ChatCliJson -Arguments @(
-            "--base-url", $resolvedBaseUrl,
-            "--tenant-id", $TenantId,
-            "--user-id", $UserId,
-            "--session-id", $resolvedSessionId,
-            "--device-id", $resolvedDeviceId,
-            "send-message",
-            "--conversation-id", $ConversationId,
-            "--summary", $summary,
-            "--text", $summary,
-            "--client-msg-id", (New-ClientMessageId)
-        )
+        $null = Invoke-ChatCliJson -Arguments ((Get-ChatCliAuthArguments) + @(
+                "send-message",
+                "--conversation-id", $ConversationId,
+                "--summary", $summary,
+                "--text", $summary,
+                "--client-msg-id", (New-ClientMessageId)
+            ))
         Write-Diagnostic ("message sent: " + $summary)
         $inputBox.Clear()
         & $refreshTimeline

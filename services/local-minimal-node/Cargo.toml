@@ -11,6 +11,7 @@ axum.workspace = true
 control-plane-api = { path = "../control-plane-api" }
 conversation-runtime = { path = "../conversation-runtime" }
 futures-util.workspace = true
+hex = "0.4.3"
 im-adapter-iot-access-local = { path = "../../adapters/iot-access-local" }
 im-adapter-iot-mqtt = { path = "../../adapters/iot-mqtt" }
 im-adapters-local-disk = { path = "../../adapters/local-disk" }
@@ -23,14 +24,18 @@ im-time = { path = "../../crates/im-time" }
 media-service = { path = "../media-service" }
 notification-service = { path = "../notification-service" }
 ops-service = { path = "../ops-service" }
+pbkdf2 = "0.12.2"
 projection-service = { path = "../projection-service" }
+rand = "0.8.5"
 rtc-signaling-service = { path = "../rtc-signaling-service" }
 session-gateway = { path = "../session-gateway" }
 serde.workspace = true
 serde_json.workspace = true
 sha2 = "0.10"
 streaming-service = { path = "../streaming-service" }
+subtle = "2.6.1"
 tokio.workspace = true
+tower-http = { version = "0.6.6", features = ["cors"] }
 
 [dev-dependencies]
 craw-chat-ccp-control = { path = "../../crates/craw-chat-ccp-control" }

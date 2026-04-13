@@ -8,6 +8,7 @@ use im_adapter_iot_access_local::LocalDeviceAccessProvider;
 use im_adapter_iot_mqtt::MqttIotProtocolAdapter;
 use im_adapters_local_disk::FileDeviceTwinStore;
 use im_adapters_local_memory::MemoryDeviceTwinStore;
+use tower_http::cors::{AllowHeaders, AllowMethods, AllowOrigin, CorsLayer};
 
 #[derive(Clone)]
 struct LocalMinimalSharedChannelLinkedMemberSyncTrigger {
@@ -172,6 +173,7 @@ fn build_public_app_with_bind_addr(bind_addr: &str) -> Router {
         build_default_device_access_provider(),
         build_default_iot_protocol_adapter(),
     )
+    .layer(build_public_browser_cors_layer())
     .layer(middleware::from_fn(require_public_bearer_auth))
 }
 
@@ -390,7 +392,26 @@ fn build_public_app_with_bind_addr_and_runtime_dir(
         build_default_device_access_provider(),
         build_default_iot_protocol_adapter(),
     )
+    .layer(build_public_browser_cors_layer())
     .layer(middleware::from_fn(require_public_bearer_auth))
+}
+
+fn build_public_browser_cors_layer() -> CorsLayer {
+    let allowed_origins = [
+        "http://127.0.0.1:4176".parse().expect("valid localhost origin"),
+        "http://localhost:4176".parse().expect("valid localhost origin"),
+    ];
+    CorsLayer::new()
+        .allow_origin(AllowOrigin::list(allowed_origins))
+        .allow_methods(AllowMethods::list([
+            axum::http::Method::GET,
+            axum::http::Method::POST,
+            axum::http::Method::OPTIONS,
+        ]))
+        .allow_headers(AllowHeaders::list([
+            axum::http::header::AUTHORIZATION,
+            axum::http::header::CONTENT_TYPE,
+        ]))
 }
 
 fn build_local_minimal_realtime_plane(runtime_dir: impl AsRef<StdPath>) -> RealtimePlaneAssembly {
@@ -681,9 +702,11 @@ fn build_app_with_dependencies_and_runtime_and_journal(
         )),
         None => Arc::new(MemoryDeviceTwinStore::default()),
     };
+    let auth_runtime = Arc::new(auth::AuthRuntime::new(runtime_dir.clone()));
     let state = AppState {
         node_id: node_id.clone(),
         runtime_dir,
+        auth_runtime,
         realtime_cluster,
         conversation_runtime,
         user_module_provider,
@@ -824,6 +847,18 @@ fn build_app(state: AppState) -> Router {
     Router::new()
         .route("/healthz", get(healthz))
         .route("/readyz", get(readyz))
+        .route("/api/v1/auth/login", post(auth::login))
+        .route("/api/v1/auth/refresh", post(auth::refresh))
+        .route("/api/v1/auth/me", get(auth::me))
+        .route("/api/v1/portal/home", get(portal::get_home))
+        .route("/api/v1/portal/auth", get(portal::get_auth))
+        .route("/api/v1/portal/workspace", get(portal::get_workspace))
+        .route("/api/v1/portal/dashboard", get(portal::get_dashboard))
+        .route("/api/v1/portal/conversations", get(portal::get_conversations))
+        .route("/api/v1/portal/realtime", get(portal::get_realtime))
+        .route("/api/v1/portal/media", get(portal::get_media))
+        .route("/api/v1/portal/automation", get(portal::get_automation))
+        .route("/api/v1/portal/governance", get(portal::get_governance))
         .route("/api/v1/sessions/resume", post(session::resume_session))
         .route(
             "/api/v1/sessions/disconnect",

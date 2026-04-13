@@ -80,6 +80,7 @@ use rtc_signaling_service::{
     rtc_create_request_key, rtc_session_action_request_key,
 };
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use session_gateway::{
     AckRealtimeEventsRequest, ListRealtimeEventsQuery, PresenceRuntimeError, RealtimeClusterBridge,
     RealtimeClusterError, RealtimeDeliveryRuntime, RealtimePlaneAssembly, RealtimeRuntimeError,
@@ -95,6 +96,7 @@ use streaming_service::{
 };
 
 mod access;
+mod auth;
 mod build;
 mod conversation;
 mod device_registration;
@@ -104,6 +106,7 @@ mod iot;
 mod media;
 mod membership;
 mod message;
+mod portal;
 mod platform;
 mod projection;
 mod rtc;
@@ -142,6 +145,7 @@ pub use runtime_dir::{
 struct AppState {
     node_id: String,
     runtime_dir: Option<PathBuf>,
+    auth_runtime: Arc<auth::AuthRuntime>,
     realtime_cluster: Arc<RealtimeClusterBridge>,
     conversation_runtime: Arc<ConversationRuntime<ProjectionJournal>>,
     user_module_provider: Arc<dyn UserModuleProvider>,
@@ -762,9 +766,25 @@ impl ApiError {
         }
     }
 
+    fn unauthorized(code: &'static str, message: impl Into<String>) -> Self {
+        Self {
+            status: axum::http::StatusCode::UNAUTHORIZED,
+            code,
+            message: message.into(),
+        }
+    }
+
     fn forbidden(code: &'static str, message: impl Into<String>) -> Self {
         Self {
             status: axum::http::StatusCode::FORBIDDEN,
+            code,
+            message: message.into(),
+        }
+    }
+
+    fn service_unavailable(code: &'static str, message: impl Into<String>) -> Self {
+        Self {
+            status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
             code,
             message: message.into(),
         }
@@ -1020,7 +1040,18 @@ pub fn resolve_runtime_dir() -> PathBuf {
 
 async fn require_public_bearer_auth(request: Request<axum::body::Body>, next: Next) -> Response {
     match request.uri().path() {
-        "/healthz" | "/readyz" => next.run(request).await,
+        "/healthz"
+        | "/readyz"
+        | "/api/v1/auth/login"
+        | "/api/v1/auth/refresh"
+        | "/api/v1/portal/home"
+        | "/api/v1/portal/auth"
+            if request.method() == axum::http::Method::GET
+                || request.method() == axum::http::Method::POST =>
+        {
+            next.run(request).await
+        }
+        _ if request.method() == axum::http::Method::OPTIONS => next.run(request).await,
         _ => match resolve_public_bearer_auth_context(request.headers()) {
             Ok(_) => next.run(request).await,
             Err(error) => ApiError::from(error).into_response(),

@@ -53,16 +53,20 @@ export function clearPortalSessionToken() {
   });
 }
 
-export async function loginPortalUser() {
-  return activePortalDataSource.loginPortalUser();
+function resolveProtectedPortalToken(token = readPortalSessionToken()) {
+  return token;
+}
+
+export async function loginPortalUser(credentials) {
+  return activePortalDataSource.loginPortalUser(credentials);
 }
 
 export async function bootstrapPortalSession(token = readPortalSessionToken()) {
   return activePortalDataSource.bootstrapPortalSession(token);
 }
 
-export async function getPortalWorkspace() {
-  return activePortalDataSource.getPortalWorkspace();
+export async function getPortalWorkspace(token = resolveProtectedPortalToken()) {
+  return activePortalDataSource.getPortalWorkspace(token);
 }
 
 export async function getPortalHome() {
@@ -73,26 +77,26 @@ export async function getPortalAuth() {
   return activePortalDataSource.getPortalAuth();
 }
 
-export async function getPortalDashboard() {
-  return activePortalDataSource.getPortalDashboard();
+export async function getPortalDashboard(token = resolveProtectedPortalToken()) {
+  return activePortalDataSource.getPortalDashboard(token);
 }
 
-export async function getPortalConversationsBoard() {
-  return activePortalDataSource.getPortalConversationsBoard();
+export async function getPortalConversationsBoard(token = resolveProtectedPortalToken()) {
+  return activePortalDataSource.getPortalConversationsBoard(token);
 }
 
-export async function getPortalRealtimeBoard() {
-  return activePortalDataSource.getPortalRealtimeBoard();
+export async function getPortalRealtimeBoard(token = resolveProtectedPortalToken()) {
+  return activePortalDataSource.getPortalRealtimeBoard(token);
 }
 
-export async function getPortalMediaBoard() {
-  return activePortalDataSource.getPortalMediaBoard();
+export async function getPortalMediaBoard(token = resolveProtectedPortalToken()) {
+  return activePortalDataSource.getPortalMediaBoard(token);
 }
 
-export async function getPortalAutomationBoard() {
-  return activePortalDataSource.getPortalAutomationBoard();
+export async function getPortalAutomationBoard(token = resolveProtectedPortalToken()) {
+  return activePortalDataSource.getPortalAutomationBoard(token);
 }
 
-export async function getPortalGovernanceBoard() {
-  return activePortalDataSource.getPortalGovernanceBoard();
+export async function getPortalGovernanceBoard(token = resolveProtectedPortalToken()) {
+  return activePortalDataSource.getPortalGovernanceBoard(token);
 }

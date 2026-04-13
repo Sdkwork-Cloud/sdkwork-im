@@ -13,6 +13,12 @@ const defaultState = {
   workspace: null,
 };
 
+const DEFAULT_PORTAL_SIGN_IN_CREDENTIALS = Object.freeze({
+  tenantId: 't_demo',
+  login: 'ops_demo',
+  password: 'Portal#2026',
+});
+
 function isNonEmptyString(value) {
   return typeof value === 'string' && value.trim().length > 0;
 }
@@ -62,7 +68,7 @@ export function createPortalAuthStore() {
         return null;
       }
 
-      const workspace = await getPortalWorkspace();
+      const workspace = await getPortalWorkspace(session.token);
       if (!isValidPortalWorkspace(workspace)) {
         clearPortalSessionToken();
         store.setState(defaultState);
@@ -77,8 +83,8 @@ export function createPortalAuthStore() {
 
       return session;
     },
-    async signIn() {
-      const session = await loginPortalUser();
+    async signIn(credentials = DEFAULT_PORTAL_SIGN_IN_CREDENTIALS) {
+      const session = await loginPortalUser(credentials);
 
       if (!isValidPortalSession(session)) {
         clearPortalSessionToken();
@@ -86,7 +92,7 @@ export function createPortalAuthStore() {
         throw new TypeError('Portal sign-in session payload is invalid.');
       }
 
-      const workspace = await getPortalWorkspace();
+      const workspace = await getPortalWorkspace(session.token);
       if (!isValidPortalWorkspace(workspace)) {
         clearPortalSessionToken();
         store.setState(defaultState);

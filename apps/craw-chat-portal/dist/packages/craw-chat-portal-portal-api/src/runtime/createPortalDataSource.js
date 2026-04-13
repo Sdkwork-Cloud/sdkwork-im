@@ -1,4 +1,13 @@
+import { httpPortalDataSource } from './dataSources/httpPortalDataSource.js';
 import { mockPortalDataSource } from './dataSources/mockPortalDataSource.js';
+
+function resolveBasePortalDataSource() {
+  if (typeof window !== 'undefined' && typeof window.fetch === 'function') {
+    return httpPortalDataSource;
+  }
+
+  return mockPortalDataSource;
+}
 
 function isPlainObject(value) {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
@@ -10,16 +19,18 @@ function isPlainObject(value) {
 }
 
 export function createPortalDataSource(overrides = {}) {
+  const baseDataSource = resolveBasePortalDataSource();
+
   if (!isPlainObject(overrides)) {
     throw new TypeError('Portal data source overrides must be a plain object.');
   }
 
   for (const [key, value] of Object.entries(overrides)) {
-    if (!(key in mockPortalDataSource)) {
+    if (!(key in baseDataSource)) {
       throw new TypeError(`Unknown portal data source override "${key}".`);
     }
 
-    if (typeof mockPortalDataSource[key] !== 'function') {
+    if (typeof baseDataSource[key] !== 'function') {
       continue;
     }
 
@@ -29,7 +40,7 @@ export function createPortalDataSource(overrides = {}) {
   }
 
   return Object.freeze({
-    ...mockPortalDataSource,
+    ...baseDataSource,
     ...overrides,
   });
 }
