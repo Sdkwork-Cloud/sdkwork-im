@@ -190,9 +190,10 @@ impl AuthRuntime {
             auth_store_paths(runtime_dir.as_ref().map(PathBuf::as_path));
         let mut accounts =
             load_json_file::<Vec<AuthAccountRecord>>(accounts_path.as_deref()).unwrap_or_default();
-        let refresh_sessions =
+        let mut refresh_sessions =
             load_json_file::<Vec<AuthRefreshSessionRecord>>(refresh_sessions_path.as_deref())
                 .unwrap_or_default();
+        prune_expired_refresh_sessions(&mut refresh_sessions, current_unix_epoch_seconds());
 
         seed_accounts(&mut accounts);
         let store = AuthStore {
@@ -279,15 +280,31 @@ impl AuthRuntime {
         )?
         .to_owned();
         let mut store = self.lock_store()?;
-        let session_index = store
+        let now = current_unix_epoch_seconds();
+        let pruned_expired_sessions =
+            prune_expired_refresh_sessions(&mut store.refresh_sessions, now);
+        let session_index = match store
             .refresh_sessions
             .iter()
             .position(|candidate| candidate.refresh_token == refresh_token)
-            .ok_or_else(|| {
-                ApiError::unauthorized("auth_refresh_invalid", "refresh token is invalid")
-            })?;
+        {
+            Some(index) => index,
+            None => {
+                if pruned_expired_sessions {
+                    persist_store(&store).map_err(|error| {
+                        ApiError::service_unavailable(
+                            "auth_store_unavailable",
+                            format!("failed to persist expired refresh token eviction: {error}"),
+                        )
+                    })?;
+                }
+                return Err(ApiError::unauthorized(
+                    "auth_refresh_invalid",
+                    "refresh token is invalid",
+                ));
+            }
+        };
         let session = store.refresh_sessions.remove(session_index);
-        let now = current_unix_epoch_seconds();
         if session.expires_at <= now {
             persist_store(&store).map_err(|error| {
                 ApiError::service_unavailable(
@@ -417,6 +434,7 @@ impl AuthRuntime {
         let access_token = issue_access_token(account, device_id.as_str(), session_id.as_str(), now)?;
         let refresh_token = generate_secret_token(32);
 
+        prune_expired_refresh_sessions(&mut store.refresh_sessions, now);
         store.refresh_sessions.retain(|session| {
             !(session.tenant_id == account.tenant_id
                 && session.account_id == account.account_id
@@ -609,6 +627,15 @@ fn verify_password(account: &AuthAccountRecord, password: &str) -> Result<bool, 
 fn derive_password_hash(password: &str, salt: &[u8], iterations: u32) -> String {
     let derived = pbkdf2_hmac_array::<sha2::Sha256, 32>(password.as_bytes(), salt, iterations);
     hex_encode(derived)
+}
+
+fn prune_expired_refresh_sessions(
+    refresh_sessions: &mut Vec<AuthRefreshSessionRecord>,
+    now: u64,
+) -> bool {
+    let original_len = refresh_sessions.len();
+    refresh_sessions.retain(|session| session.expires_at > now);
+    refresh_sessions.len() != original_len
 }
 
 fn auth_store_paths(runtime_dir: Option<&Path>) -> (Option<PathBuf>, Option<PathBuf>) {

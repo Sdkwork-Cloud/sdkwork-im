@@ -147,6 +147,10 @@ fn auth_accounts_path(runtime_dir: &PathBuf) -> PathBuf {
     runtime_dir.join("state").join("auth-accounts.json")
 }
 
+fn auth_refresh_sessions_path(runtime_dir: &PathBuf) -> PathBuf {
+    runtime_dir.join("state").join("auth-refresh-sessions.json")
+}
+
 fn read_auth_accounts(runtime_dir: &PathBuf) -> Vec<Value> {
     let path = auth_accounts_path(runtime_dir);
     serde_json::from_str(
@@ -163,6 +167,78 @@ fn write_auth_accounts(runtime_dir: &PathBuf, accounts: &[Value]) {
         serde_json::to_string_pretty(accounts).expect("auth accounts should serialize"),
     )
     .unwrap_or_else(|_| panic!("auth accounts file should be writable: {}", path.display()));
+}
+
+fn read_auth_refresh_sessions(runtime_dir: &PathBuf) -> Vec<Value> {
+    let path = auth_refresh_sessions_path(runtime_dir);
+    serde_json::from_str(
+        &fs::read_to_string(&path).unwrap_or_else(|_| {
+            panic!("auth refresh sessions file should exist: {}", path.display())
+        }),
+    )
+    .expect("auth refresh sessions json should parse")
+}
+
+fn write_auth_refresh_sessions(runtime_dir: &PathBuf, sessions: &[Value]) {
+    let path = auth_refresh_sessions_path(runtime_dir);
+    fs::write(
+        &path,
+        serde_json::to_string_pretty(sessions).expect("auth refresh sessions should serialize"),
+    )
+    .unwrap_or_else(|_| panic!("auth refresh sessions should be writable: {}", path.display()));
+}
+
+#[tokio::test]
+async fn test_bootstrap_prunes_expired_refresh_sessions_from_runtime_store() {
+    let (_guard, _secret) = configure_public_bearer_secret().await;
+    let runtime_dir = unique_runtime_dir();
+    let state_dir = runtime_dir.join("state");
+    fs::create_dir_all(&state_dir).expect("runtime state dir should be created");
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("system clock should be after unix epoch")
+        .as_secs();
+
+    write_auth_refresh_sessions(
+        &runtime_dir,
+        &[
+            json!({
+                "refreshToken": "rt_expired_bootstrap",
+                "tenantId": "t_demo",
+                "accountId": "acct_demo_guest",
+                "actorId": "u_guest",
+                "clientKind": "im_user",
+                "sessionId": "s_expired_bootstrap",
+                "deviceId": "d_expired_bootstrap",
+                "expiresAt": now.saturating_sub(30)
+            }),
+            json!({
+                "refreshToken": "rt_active_bootstrap",
+                "tenantId": "t_demo",
+                "accountId": "acct_demo_guest",
+                "actorId": "u_guest",
+                "clientKind": "im_user",
+                "sessionId": "s_active_bootstrap",
+                "deviceId": "d_active_bootstrap",
+                "expiresAt": now + 300
+            }),
+        ],
+    );
+
+    let _app = local_minimal_node::build_public_app_with_runtime_dir(runtime_dir.as_path());
+    let sessions = read_auth_refresh_sessions(&runtime_dir);
+    let refresh_tokens = sessions
+        .iter()
+        .filter_map(|session| session["refreshToken"].as_str())
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        refresh_tokens,
+        vec!["rt_active_bootstrap"],
+        "bootstrap should evict expired refresh sessions and preserve active ones"
+    );
+
+    let _ = fs::remove_dir_all(runtime_dir);
 }
 
 #[tokio::test]
