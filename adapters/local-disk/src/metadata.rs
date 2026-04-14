@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use im_platform_contracts::{ContractError, MetadataStore};
+use im_platform_contracts::{ContractError, MetadataSnapshotRecord, MetadataStore};
 
 use crate::shared::{read_json_records_or_default, write_json_records};
 
@@ -75,6 +75,21 @@ impl MetadataStore for FileMetadataStore {
 
     fn load_snapshot(&self, scope: &str, key: &str) -> Result<Option<String>, ContractError> {
         Ok(self.snapshot(scope, key))
+    }
+
+    fn put_snapshots(&self, snapshots: &[MetadataSnapshotRecord]) -> Result<(), ContractError> {
+        let _guard = self
+            .io_lock
+            .lock()
+            .expect("metadata file store lock should lock");
+        let mut records = self.read_records()?;
+        for snapshot in snapshots {
+            records.insert(
+                snapshot_key(snapshot.scope.as_str(), snapshot.key.as_str()),
+                snapshot.value.clone(),
+            );
+        }
+        self.write_records(&records)
     }
 }
 

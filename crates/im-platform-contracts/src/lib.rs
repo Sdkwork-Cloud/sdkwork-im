@@ -11,14 +11,15 @@ pub use craw_chat_contract_control::{
     RealtimeSubscriptionStore,
 };
 pub use craw_chat_contract_core::{
-    ContractError, LeaseGrant, LeaseStore, MetadataStore, ObjectDescriptor, ObjectPutRequest,
-    ObjectStore,
+    ContractError, LeaseGrant, LeaseStore, MetadataSnapshotRecord, MetadataStore, ObjectDescriptor,
+    ObjectPutRequest, ObjectStore,
 };
 pub use craw_chat_contract_iot::{
     DeviceSubject, DeviceSubjectRecord, DeviceSubjectStore, DeviceTwinRecord, DeviceTwinStore,
 };
 pub use craw_chat_contract_message::{
-    CommitEnvelope, CommitJournal, CommitPosition, TimelineProjectionStore,
+    CommitEnvelope, CommitJournal, CommitPosition, TimelineProjectionBatch,
+    TimelineProjectionRecord, TimelineProjectionStore,
 };
 pub use craw_chat_contract_notification::{NotificationTaskRecord, NotificationTaskStore};
 pub use craw_chat_contract_rtc::{RtcStateRecord, RtcStateStore};

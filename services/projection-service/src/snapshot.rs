@@ -5,7 +5,10 @@ use im_domain_core::conversation::DeviceSyncFeedEntry;
 use im_domain_core::conversation::{
     ConversationMember, ConversationReadCursor, principal_member_key,
 };
-use im_platform_contracts::{MetadataStore, TimelineProjectionStore};
+use im_platform_contracts::{
+    MetadataSnapshotRecord, MetadataStore, TimelineProjectionBatch, TimelineProjectionRecord,
+    TimelineProjectionStore,
+};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 use crate::contacts::{
@@ -40,6 +43,101 @@ const CONTACT_CATALOG_SCOPE: &str = "projection-contacts";
 const PRINCIPAL_SNAPSHOT_SCOPE_PREFIX: &str = "principal";
 const DEVICE_SYNC_SNAPSHOT_SCOPE_PREFIX: &str = "device-sync";
 const DEVICE_SYNC_CATALOG_SCOPE: &str = "projection-device-sync";
+
+#[derive(Default)]
+struct ProjectionSnapshotWritePlan {
+    metadata_snapshots: Vec<MetadataSnapshotRecord>,
+    timeline_batches: Vec<TimelineProjectionBatch>,
+}
+
+impl ProjectionSnapshotWritePlan {
+    fn push_metadata<T: Serialize>(
+        &mut self,
+        scope: &str,
+        key: &str,
+        value: &T,
+    ) -> Result<(), ProjectionError> {
+        self.metadata_snapshots.push(MetadataSnapshotRecord {
+            scope: scope.to_owned(),
+            key: key.to_owned(),
+            value: serde_json::to_string(value).map_err(ProjectionError::InvalidSnapshot)?,
+        });
+        Ok(())
+    }
+
+    fn push_timeline_batch<T>(
+        &mut self,
+        scope: &str,
+        entries: impl IntoIterator<Item = T>,
+    ) -> Result<(), ProjectionError>
+    where
+        T: Serialize + TimelineSequenceValue,
+    {
+        let records = entries
+            .into_iter()
+            .map(|entry| {
+                Ok(TimelineProjectionRecord {
+                    message_seq: entry.timeline_sequence(),
+                    payload: serde_json::to_string(&entry)
+                        .map_err(ProjectionError::InvalidSnapshot)?,
+                })
+            })
+            .collect::<Result<Vec<_>, ProjectionError>>()?;
+        if !records.is_empty() {
+            self.timeline_batches.push(TimelineProjectionBatch {
+                conversation_id: scope.to_owned(),
+                records,
+            });
+        }
+        Ok(())
+    }
+
+    fn commit(
+        self,
+        metadata_store: &dyn MetadataStore,
+        timeline_store: &dyn TimelineProjectionStore,
+    ) -> Result<(), ProjectionError> {
+        if !self.metadata_snapshots.is_empty() {
+            metadata_store
+                .put_snapshots(&self.metadata_snapshots)
+                .map_err(ProjectionError::StoreFailure)?;
+        }
+        if !self.timeline_batches.is_empty() {
+            timeline_store
+                .upsert_timeline_batches(&self.timeline_batches)
+                .map_err(ProjectionError::StoreFailure)?;
+        }
+        Ok(())
+    }
+
+    fn commit_metadata_only(
+        self,
+        metadata_store: &dyn MetadataStore,
+    ) -> Result<(), ProjectionError> {
+        if !self.metadata_snapshots.is_empty() {
+            metadata_store
+                .put_snapshots(&self.metadata_snapshots)
+                .map_err(ProjectionError::StoreFailure)?;
+        }
+        Ok(())
+    }
+}
+
+trait TimelineSequenceValue {
+    fn timeline_sequence(&self) -> u64;
+}
+
+impl TimelineSequenceValue for TimelineViewEntry {
+    fn timeline_sequence(&self) -> u64 {
+        self.message_seq
+    }
+}
+
+impl TimelineSequenceValue for DeviceSyncFeedEntry {
+    fn timeline_sequence(&self) -> u64 {
+        self.sync_seq
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord)]
 #[serde(rename_all = "camelCase")]
@@ -86,104 +184,67 @@ impl TimelineProjectionService {
         timeline_store: &dyn TimelineProjectionStore,
     ) -> Result<bool, ProjectionError> {
         let scope = conversation_snapshot_scope(tenant_id, conversation_id);
+        let mut persisted_device_sync_snapshot = false;
         let result = (|| {
-            let Some(summary) = self.conversation_summary(tenant_id, conversation_id) else {
+            let mut write_plan = ProjectionSnapshotWritePlan::default();
+            if !self.collect_conversation_snapshot_writes(
+                tenant_id,
+                conversation_id,
+                &mut write_plan,
+            )? {
                 return Ok(false);
-            };
-            let conversation = self
-                .conversations
-                .lock_projection("conversation store")
-                .get(scope.as_str())
-                .cloned();
-            let mut members = self
-                .members
-                .lock_projection("member store")
-                .get(scope.as_str())
-                .map(|scope_members| scope_members.values().cloned().collect::<Vec<_>>())
-                .unwrap_or_default();
-            members.sort_by(|left, right| {
-                left.principal_id
-                    .cmp(&right.principal_id)
-                    .then_with(|| left.principal_kind.cmp(&right.principal_kind))
-            });
-            let mut read_cursors = self
-                .read_cursors
-                .lock_projection("cursor store")
-                .get(scope.as_str())
-                .map(|scope_cursors| scope_cursors.values().cloned().collect::<Vec<_>>())
-                .unwrap_or_default();
-            read_cursors.sort_by(|left, right| left.member_id.cmp(&right.member_id));
-            let interaction_items = self
-                .message_interactions
-                .lock_projection("message interaction store")
-                .get(scope.as_str())
-                .map(interaction_snapshot_items)
-                .unwrap_or_default();
-
-            persist_metadata_snapshot(
-                metadata_store,
-                scope.as_str(),
-                CONVERSATION_SUMMARY_KEY,
-                &summary,
-            )?;
-            if let Some(conversation) = conversation.as_ref() {
-                persist_metadata_snapshot(
-                    metadata_store,
-                    scope.as_str(),
-                    CONVERSATION_CATALOG_KEY,
-                    conversation,
-                )?;
             }
-            persist_metadata_snapshot(
-                metadata_store,
-                scope.as_str(),
-                CONVERSATION_MEMBERS_KEY,
-                &members,
-            )?;
-            persist_metadata_snapshot(
-                metadata_store,
-                scope.as_str(),
-                CONVERSATION_READ_CURSORS_KEY,
-                &read_cursors,
-            )?;
-            persist_metadata_snapshot(
-                metadata_store,
-                scope.as_str(),
-                MESSAGE_INTERACTIONS_KEY,
-                &interaction_items,
-            )?;
-
-            for entry in self.timeline(tenant_id, conversation_id) {
-                let entry_payload =
-                    serde_json::to_string(&entry).map_err(ProjectionError::InvalidSnapshot)?;
-                timeline_store
-                    .upsert_timeline_entry(
-                        scope.as_str(),
-                        entry.message_seq,
-                        entry_payload.as_str(),
-                    )
-                    .map_err(ProjectionError::StoreFailure)?;
+            self.collect_contact_snapshot_writes(&mut write_plan)?;
+            match self.collect_device_sync_snapshot_writes(&mut write_plan) {
+                Ok(persisted) => persisted_device_sync_snapshot = persisted,
+                Err(error) => {
+                    self.record_projection_snapshot_failure(
+                        ProjectionSnapshotOperation::DeviceSyncSnapshotPersist,
+                        "device-sync",
+                        DEVICE_SYNC_CATALOG_SCOPE,
+                        &error,
+                    );
+                    return Err(error);
+                }
             }
-            self.persist_contact_snapshot(metadata_store)?;
-            self.persist_device_sync_snapshot(metadata_store, timeline_store)?;
-
+            write_plan.commit(metadata_store, timeline_store)?;
             Ok(true)
         })();
 
         match &result {
-            Ok(true) => self.record_projection_snapshot_success(
-                ProjectionSnapshotOperation::ConversationSnapshotPersist,
-                "conversation",
-                scope.as_str(),
-                format!("persisted conversation projection snapshot for {scope}"),
-            ),
+            Ok(true) => {
+                if persisted_device_sync_snapshot {
+                    self.record_projection_snapshot_success(
+                        ProjectionSnapshotOperation::DeviceSyncSnapshotPersist,
+                        "device-sync",
+                        DEVICE_SYNC_CATALOG_SCOPE,
+                        "persisted device sync projection snapshot catalog".to_owned(),
+                    );
+                }
+                self.record_projection_snapshot_success(
+                    ProjectionSnapshotOperation::ConversationSnapshotPersist,
+                    "conversation",
+                    scope.as_str(),
+                    format!("persisted conversation projection snapshot for {scope}"),
+                );
+            }
             Ok(false) => {}
-            Err(error) => self.record_projection_snapshot_failure(
-                ProjectionSnapshotOperation::ConversationSnapshotPersist,
-                "conversation",
-                scope.as_str(),
-                error,
-            ),
+            Err(error) => {
+                if persisted_device_sync_snapshot {
+                    self.record_projection_snapshot_failure(
+                        ProjectionSnapshotOperation::DeviceSyncSnapshotPersist,
+                        "device-sync",
+                        DEVICE_SYNC_CATALOG_SCOPE,
+                        error,
+                    );
+                }
+                self.record_projection_snapshot_failure(
+                    ProjectionSnapshotOperation::ConversationSnapshotPersist,
+                    "conversation",
+                    scope.as_str(),
+                    error,
+                );
+            }
         }
 
         result
@@ -313,122 +374,11 @@ impl TimelineProjectionService {
         timeline_store: &dyn TimelineProjectionStore,
     ) -> Result<bool, ProjectionError> {
         let result = (|| {
-            let registered_device_snapshots = self
-                .registered_devices
-                .lock_projection("registered device store")
-                .iter()
-                .map(|(scope, devices)| {
-                    let mut items = devices.values().cloned().collect::<Vec<_>>();
-                    items.sort_by(|left, right| left.device_id.cmp(&right.device_id));
-                    (scope.clone(), items)
-                })
-                .collect::<Vec<_>>();
-            let device_sync_feeds = self
-                .device_sync_feeds
-                .lock_projection("device sync feed store")
-                .clone();
-            let device_sync_sequences = self
-                .device_sync_sequences
-                .lock_projection("device sync sequence store")
-                .clone();
-            if registered_device_snapshots.is_empty()
-                && device_sync_feeds.is_empty()
-                && device_sync_sequences.is_empty()
-            {
+            let mut write_plan = ProjectionSnapshotWritePlan::default();
+            if !self.collect_device_sync_snapshot_writes(&mut write_plan)? {
                 return Ok(false);
             }
-
-            let mut persisted_device_scopes = BTreeSet::new();
-            let mut principal_catalog = BTreeSet::new();
-            for (runtime_scope, devices) in &registered_device_snapshots {
-                principal_catalog.insert(PrincipalSnapshotCatalogEntry {
-                    tenant_id: runtime_scope.tenant_id.clone(),
-                    principal_id: runtime_scope.principal_id.clone(),
-                    principal_kind: runtime_scope.principal_kind.clone(),
-                });
-                let snapshot_scope = device_principal_snapshot_scope(runtime_scope);
-                persist_metadata_snapshot(
-                    metadata_store,
-                    snapshot_scope.as_str(),
-                    REGISTERED_DEVICES_KEY,
-                    devices,
-                )?;
-
-                for device in devices {
-                    persisted_device_scopes.insert(device_feed_scope_key(
-                        runtime_scope.tenant_id.as_str(),
-                        runtime_scope.principal_id.as_str(),
-                        runtime_scope.principal_kind.as_deref(),
-                        device.device_id.as_str(),
-                    ));
-                }
-            }
-            for runtime_scope in device_sync_feeds.keys() {
-                persisted_device_scopes.insert(runtime_scope.clone());
-            }
-            for runtime_scope in device_sync_sequences.keys() {
-                persisted_device_scopes.insert(runtime_scope.clone());
-            }
-
-            let principal_catalog = principal_catalog.into_iter().collect::<Vec<_>>();
-            let device_scope_catalog = persisted_device_scopes
-                .iter()
-                .map(|scope| DeviceSyncScopeCatalogEntry {
-                    tenant_id: scope.tenant_id.clone(),
-                    principal_id: scope.principal_id.clone(),
-                    principal_kind: scope.principal_kind.clone(),
-                    device_id: scope.device_id.clone(),
-                })
-                .collect::<Vec<_>>();
-            persist_metadata_snapshot(
-                metadata_store,
-                DEVICE_SYNC_CATALOG_SCOPE,
-                REGISTERED_DEVICE_PRINCIPALS_KEY,
-                &principal_catalog,
-            )?;
-            persist_metadata_snapshot(
-                metadata_store,
-                DEVICE_SYNC_CATALOG_SCOPE,
-                DEVICE_SYNC_SCOPE_CATALOG_KEY,
-                &device_scope_catalog,
-            )?;
-
-            for runtime_scope in persisted_device_scopes {
-                let snapshot_scope = device_sync_snapshot_scope(&runtime_scope);
-                let feed_entries = device_sync_feeds
-                    .get(&runtime_scope)
-                    .cloned()
-                    .unwrap_or_default();
-                let latest_sync_seq = device_sync_sequences
-                    .get(&runtime_scope)
-                    .copied()
-                    .unwrap_or_else(|| {
-                        feed_entries
-                            .iter()
-                            .map(|entry| entry.sync_seq)
-                            .max()
-                            .unwrap_or_default()
-                    });
-                persist_metadata_snapshot(
-                    metadata_store,
-                    snapshot_scope.as_str(),
-                    DEVICE_SYNC_SEQUENCE_KEY,
-                    &latest_sync_seq,
-                )?;
-
-                for entry in feed_entries {
-                    let payload =
-                        serde_json::to_string(&entry).map_err(ProjectionError::InvalidSnapshot)?;
-                    timeline_store
-                        .upsert_timeline_entry(
-                            snapshot_scope.as_str(),
-                            entry.sync_seq,
-                            payload.as_str(),
-                        )
-                        .map_err(ProjectionError::StoreFailure)?;
-                }
-            }
-
+            write_plan.commit(metadata_store, timeline_store)?;
             Ok(true)
         })();
 
@@ -456,53 +406,214 @@ impl TimelineProjectionService {
         metadata_store: &dyn MetadataStore,
     ) -> Result<bool, ProjectionError> {
         (|| {
-            let contacts = self.contacts.lock_projection("contact store").clone();
-            let direct_chat_bindings = self
-                .direct_chat_bindings
-                .lock_projection("contact direct chat binding store")
-                .values()
-                .cloned()
-                .collect::<Vec<_>>();
-
-            if contacts.is_empty() && direct_chat_bindings.is_empty() {
+            let mut write_plan = ProjectionSnapshotWritePlan::default();
+            if !self.collect_contact_snapshot_writes(&mut write_plan)? {
                 return Ok(false);
             }
-
-            let mut owner_catalog = BTreeSet::new();
-            for (runtime_scope, scope_contacts) in &contacts {
-                let Some((tenant_id, owner_user_id)) = parse_contact_scope(runtime_scope.as_str())
-                else {
-                    continue;
-                };
-                owner_catalog.insert(ContactOwnerCatalogEntry {
-                    tenant_id: tenant_id.to_owned(),
-                    owner_user_id: owner_user_id.to_owned(),
-                });
-                let snapshot_scope = principal_snapshot_scope(tenant_id, owner_user_id);
-                let items = contact_snapshot_items(scope_contacts);
-                persist_metadata_snapshot(
-                    metadata_store,
-                    snapshot_scope.as_str(),
-                    CONTACTS_KEY,
-                    &items,
-                )?;
-            }
-
-            persist_metadata_snapshot(
-                metadata_store,
-                CONTACT_CATALOG_SCOPE,
-                CONTACT_OWNERS_KEY,
-                &owner_catalog.into_iter().collect::<Vec<_>>(),
-            )?;
-            persist_metadata_snapshot(
-                metadata_store,
-                CONTACT_CATALOG_SCOPE,
-                CONTACT_DIRECT_CHAT_BINDINGS_KEY,
-                &direct_chat_bindings,
-            )?;
-
+            write_plan.commit_metadata_only(metadata_store)?;
             Ok(true)
         })()
+    }
+
+    fn collect_conversation_snapshot_writes(
+        &self,
+        tenant_id: &str,
+        conversation_id: &str,
+        write_plan: &mut ProjectionSnapshotWritePlan,
+    ) -> Result<bool, ProjectionError> {
+        let scope = conversation_snapshot_scope(tenant_id, conversation_id);
+        let Some(summary) = self.conversation_summary(tenant_id, conversation_id) else {
+            return Ok(false);
+        };
+        let conversation = self
+            .conversations
+            .lock_projection("conversation store")
+            .get(scope.as_str())
+            .cloned();
+        let mut members = self
+            .members
+            .lock_projection("member store")
+            .get(scope.as_str())
+            .map(|scope_members| scope_members.values().cloned().collect::<Vec<_>>())
+            .unwrap_or_default();
+        members.sort_by(|left, right| {
+            left.principal_id
+                .cmp(&right.principal_id)
+                .then_with(|| left.principal_kind.cmp(&right.principal_kind))
+        });
+        let mut read_cursors = self
+            .read_cursors
+            .lock_projection("cursor store")
+            .get(scope.as_str())
+            .map(|scope_cursors| scope_cursors.values().cloned().collect::<Vec<_>>())
+            .unwrap_or_default();
+        read_cursors.sort_by(|left, right| left.member_id.cmp(&right.member_id));
+        let interaction_items = self
+            .message_interactions
+            .lock_projection("message interaction store")
+            .get(scope.as_str())
+            .map(interaction_snapshot_items)
+            .unwrap_or_default();
+
+        write_plan.push_metadata(scope.as_str(), CONVERSATION_SUMMARY_KEY, &summary)?;
+        if let Some(conversation) = conversation.as_ref() {
+            write_plan.push_metadata(scope.as_str(), CONVERSATION_CATALOG_KEY, conversation)?;
+        }
+        write_plan.push_metadata(scope.as_str(), CONVERSATION_MEMBERS_KEY, &members)?;
+        write_plan.push_metadata(scope.as_str(), CONVERSATION_READ_CURSORS_KEY, &read_cursors)?;
+        write_plan.push_metadata(scope.as_str(), MESSAGE_INTERACTIONS_KEY, &interaction_items)?;
+        write_plan
+            .push_timeline_batch(scope.as_str(), self.timeline(tenant_id, conversation_id))?;
+        Ok(true)
+    }
+
+    fn collect_device_sync_snapshot_writes(
+        &self,
+        write_plan: &mut ProjectionSnapshotWritePlan,
+    ) -> Result<bool, ProjectionError> {
+        let registered_device_snapshots = self
+            .registered_devices
+            .lock_projection("registered device store")
+            .iter()
+            .map(|(scope, devices)| {
+                let mut items = devices.values().cloned().collect::<Vec<_>>();
+                items.sort_by(|left, right| left.device_id.cmp(&right.device_id));
+                (scope.clone(), items)
+            })
+            .collect::<Vec<_>>();
+        let device_sync_feeds = self
+            .device_sync_feeds
+            .lock_projection("device sync feed store")
+            .clone();
+        let device_sync_sequences = self
+            .device_sync_sequences
+            .lock_projection("device sync sequence store")
+            .clone();
+        if registered_device_snapshots.is_empty()
+            && device_sync_feeds.is_empty()
+            && device_sync_sequences.is_empty()
+        {
+            return Ok(false);
+        }
+
+        let mut persisted_device_scopes = BTreeSet::new();
+        let mut principal_catalog = BTreeSet::new();
+        for (runtime_scope, devices) in &registered_device_snapshots {
+            principal_catalog.insert(PrincipalSnapshotCatalogEntry {
+                tenant_id: runtime_scope.tenant_id.clone(),
+                principal_id: runtime_scope.principal_id.clone(),
+                principal_kind: runtime_scope.principal_kind.clone(),
+            });
+            let snapshot_scope = device_principal_snapshot_scope(runtime_scope);
+            write_plan.push_metadata(snapshot_scope.as_str(), REGISTERED_DEVICES_KEY, devices)?;
+
+            for device in devices {
+                persisted_device_scopes.insert(device_feed_scope_key(
+                    runtime_scope.tenant_id.as_str(),
+                    runtime_scope.principal_id.as_str(),
+                    runtime_scope.principal_kind.as_deref(),
+                    device.device_id.as_str(),
+                ));
+            }
+        }
+        for runtime_scope in device_sync_feeds.keys() {
+            persisted_device_scopes.insert(runtime_scope.clone());
+        }
+        for runtime_scope in device_sync_sequences.keys() {
+            persisted_device_scopes.insert(runtime_scope.clone());
+        }
+
+        let principal_catalog = principal_catalog.into_iter().collect::<Vec<_>>();
+        let device_scope_catalog = persisted_device_scopes
+            .iter()
+            .map(|scope| DeviceSyncScopeCatalogEntry {
+                tenant_id: scope.tenant_id.clone(),
+                principal_id: scope.principal_id.clone(),
+                principal_kind: scope.principal_kind.clone(),
+                device_id: scope.device_id.clone(),
+            })
+            .collect::<Vec<_>>();
+        write_plan.push_metadata(
+            DEVICE_SYNC_CATALOG_SCOPE,
+            REGISTERED_DEVICE_PRINCIPALS_KEY,
+            &principal_catalog,
+        )?;
+        write_plan.push_metadata(
+            DEVICE_SYNC_CATALOG_SCOPE,
+            DEVICE_SYNC_SCOPE_CATALOG_KEY,
+            &device_scope_catalog,
+        )?;
+
+        for runtime_scope in persisted_device_scopes {
+            let snapshot_scope = device_sync_snapshot_scope(&runtime_scope);
+            let feed_entries = device_sync_feeds
+                .get(&runtime_scope)
+                .cloned()
+                .unwrap_or_default();
+            let latest_sync_seq = device_sync_sequences
+                .get(&runtime_scope)
+                .copied()
+                .unwrap_or_else(|| {
+                    feed_entries
+                        .iter()
+                        .map(|entry| entry.sync_seq)
+                        .max()
+                        .unwrap_or_default()
+                });
+            write_plan.push_metadata(
+                snapshot_scope.as_str(),
+                DEVICE_SYNC_SEQUENCE_KEY,
+                &latest_sync_seq,
+            )?;
+            write_plan.push_timeline_batch(snapshot_scope.as_str(), feed_entries)?;
+        }
+
+        Ok(true)
+    }
+
+    fn collect_contact_snapshot_writes(
+        &self,
+        write_plan: &mut ProjectionSnapshotWritePlan,
+    ) -> Result<bool, ProjectionError> {
+        let contacts = self.contacts.lock_projection("contact store").clone();
+        let direct_chat_bindings = self
+            .direct_chat_bindings
+            .lock_projection("contact direct chat binding store")
+            .values()
+            .cloned()
+            .collect::<Vec<_>>();
+
+        if contacts.is_empty() && direct_chat_bindings.is_empty() {
+            return Ok(false);
+        }
+
+        let mut owner_catalog = BTreeSet::new();
+        for (runtime_scope, scope_contacts) in &contacts {
+            let Some((tenant_id, owner_user_id)) = parse_contact_scope(runtime_scope.as_str())
+            else {
+                continue;
+            };
+            owner_catalog.insert(ContactOwnerCatalogEntry {
+                tenant_id: tenant_id.to_owned(),
+                owner_user_id: owner_user_id.to_owned(),
+            });
+            let snapshot_scope = principal_snapshot_scope(tenant_id, owner_user_id);
+            let items = contact_snapshot_items(scope_contacts);
+            write_plan.push_metadata(snapshot_scope.as_str(), CONTACTS_KEY, &items)?;
+        }
+
+        write_plan.push_metadata(
+            CONTACT_CATALOG_SCOPE,
+            CONTACT_OWNERS_KEY,
+            &owner_catalog.into_iter().collect::<Vec<_>>(),
+        )?;
+        write_plan.push_metadata(
+            CONTACT_CATALOG_SCOPE,
+            CONTACT_DIRECT_CHAT_BINDINGS_KEY,
+            &direct_chat_bindings,
+        )?;
+
+        Ok(true)
     }
 
     pub fn restore_contact_snapshot(
@@ -709,6 +820,7 @@ fn device_sync_snapshot_scope(scope: &DeviceFeedScopeKey) -> String {
     }
 }
 
+#[cfg(test)]
 fn persist_metadata_snapshot<T: Serialize>(
     metadata_store: &dyn MetadataStore,
     scope: &str,
@@ -735,12 +847,250 @@ fn load_metadata_snapshot<T: DeserializeOwned>(
 
 #[cfg(test)]
 mod tests {
+    use std::collections::{BTreeMap, HashMap};
     use std::panic::{self, AssertUnwindSafe};
-    use std::sync::Mutex;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::{Arc, Mutex};
 
     use im_adapters_local_memory::{MemoryMetadataStore, MemoryTimelineProjectionStore};
+    use im_domain_core::conversation::{MembershipRole, build_conversation_member};
+    use im_platform_contracts::{
+        ContractError, MetadataSnapshotRecord, MetadataStore, TimelineProjectionBatch,
+        TimelineProjectionRecord, TimelineProjectionStore,
+    };
 
     use super::*;
+
+    #[derive(Clone, Default)]
+    struct CountingMetadataStore {
+        snapshots: Arc<Mutex<HashMap<String, String>>>,
+        single_put_calls: Arc<AtomicUsize>,
+        batch_put_calls: Arc<AtomicUsize>,
+    }
+
+    impl CountingMetadataStore {
+        fn single_put_calls(&self) -> usize {
+            self.single_put_calls.load(Ordering::Relaxed)
+        }
+
+        fn batch_put_calls(&self) -> usize {
+            self.batch_put_calls.load(Ordering::Relaxed)
+        }
+
+        fn insert_snapshots(&self, snapshots: &[MetadataSnapshotRecord]) {
+            let mut stored = self.snapshots.lock().expect("metadata store should lock");
+            for snapshot in snapshots {
+                stored.insert(
+                    format!("{}:{}", snapshot.scope, snapshot.key),
+                    snapshot.value.clone(),
+                );
+            }
+        }
+    }
+
+    impl MetadataStore for CountingMetadataStore {
+        fn put_snapshot(&self, scope: &str, key: &str, value: &str) -> Result<(), ContractError> {
+            self.single_put_calls.fetch_add(1, Ordering::Relaxed);
+            self.snapshots
+                .lock()
+                .expect("metadata store should lock")
+                .insert(format!("{scope}:{key}"), value.to_owned());
+            Ok(())
+        }
+
+        fn load_snapshot(&self, scope: &str, key: &str) -> Result<Option<String>, ContractError> {
+            Ok(self
+                .snapshots
+                .lock()
+                .expect("metadata store should lock")
+                .get(format!("{scope}:{key}").as_str())
+                .cloned())
+        }
+
+        fn put_snapshots(&self, snapshots: &[MetadataSnapshotRecord]) -> Result<(), ContractError> {
+            self.batch_put_calls.fetch_add(1, Ordering::Relaxed);
+            self.insert_snapshots(snapshots);
+            Ok(())
+        }
+    }
+
+    #[derive(Clone, Default)]
+    struct CountingTimelineProjectionStore {
+        entries: Arc<Mutex<HashMap<String, BTreeMap<u64, String>>>>,
+        single_upsert_calls: Arc<AtomicUsize>,
+        batch_upsert_calls: Arc<AtomicUsize>,
+    }
+
+    impl CountingTimelineProjectionStore {
+        fn single_upsert_calls(&self) -> usize {
+            self.single_upsert_calls.load(Ordering::Relaxed)
+        }
+
+        fn batch_upsert_calls(&self) -> usize {
+            self.batch_upsert_calls.load(Ordering::Relaxed)
+        }
+
+        fn upsert_records(&self, scope: &str, records: &[TimelineProjectionRecord]) {
+            let mut stored = self.entries.lock().expect("timeline store should lock");
+            let scope_entries = stored.entry(scope.to_owned()).or_default();
+            for record in records {
+                scope_entries.insert(record.message_seq, record.payload.clone());
+            }
+        }
+    }
+
+    impl TimelineProjectionStore for CountingTimelineProjectionStore {
+        fn upsert_timeline_entry(
+            &self,
+            conversation_id: &str,
+            message_seq: u64,
+            payload: &str,
+        ) -> Result<(), ContractError> {
+            self.single_upsert_calls.fetch_add(1, Ordering::Relaxed);
+            self.entries
+                .lock()
+                .expect("timeline store should lock")
+                .entry(conversation_id.to_owned())
+                .or_default()
+                .insert(message_seq, payload.to_owned());
+            Ok(())
+        }
+
+        fn load_timeline(
+            &self,
+            conversation_id: &str,
+        ) -> Result<Vec<(u64, String)>, ContractError> {
+            Ok(self
+                .entries
+                .lock()
+                .expect("timeline store should lock")
+                .get(conversation_id)
+                .map(|items| {
+                    items
+                        .iter()
+                        .map(|(message_seq, payload)| (*message_seq, payload.clone()))
+                        .collect()
+                })
+                .unwrap_or_default())
+        }
+
+        fn upsert_timeline_batches(
+            &self,
+            batches: &[TimelineProjectionBatch],
+        ) -> Result<(), ContractError> {
+            self.batch_upsert_calls.fetch_add(1, Ordering::Relaxed);
+            for batch in batches {
+                self.upsert_records(batch.conversation_id.as_str(), &batch.records);
+            }
+            Ok(())
+        }
+    }
+
+    fn conversation_created_event(
+        tenant_id: &str,
+        conversation_id: &str,
+        conversation_type: &str,
+    ) -> im_domain_events::CommitEnvelope {
+        im_domain_events::CommitEnvelope::minimal(
+            &format!("evt_{tenant_id}_{conversation_id}_created"),
+            tenant_id,
+            "conversation.created",
+            "conversation",
+            conversation_id,
+            0,
+        )
+        .with_payload(
+            "conversation.created.v1",
+            &serde_json::json!({
+                "conversationType": conversation_type,
+            })
+            .to_string(),
+        )
+    }
+
+    fn member_joined_event(
+        tenant_id: &str,
+        conversation_id: &str,
+        principal_id: &str,
+        role: MembershipRole,
+    ) -> im_domain_events::CommitEnvelope {
+        let member = build_conversation_member(
+            tenant_id,
+            conversation_id,
+            format!("cm_{conversation_id}_{principal_id}"),
+            principal_id,
+            "user",
+            role,
+            Some("u_owner".into()),
+            "2026-04-08T10:00:00Z".into(),
+        );
+
+        im_domain_events::CommitEnvelope::minimal(
+            &format!("evt_{tenant_id}_{conversation_id}_{principal_id}_joined"),
+            tenant_id,
+            "conversation.member_joined",
+            "conversation",
+            conversation_id,
+            1,
+        )
+        .with_payload(
+            "conversation.member_joined.v1",
+            &serde_json::to_string(&member).expect("member should serialize"),
+        )
+    }
+
+    fn message_posted_event(
+        tenant_id: &str,
+        conversation_id: &str,
+        message_id: &str,
+        message_seq: u64,
+        sender_id: &str,
+        summary: &str,
+    ) -> im_domain_events::CommitEnvelope {
+        im_domain_events::CommitEnvelope::minimal(
+            &format!("evt_{tenant_id}_{conversation_id}_{message_seq}"),
+            tenant_id,
+            "message.posted",
+            "conversation",
+            conversation_id,
+            message_seq,
+        )
+        .with_payload(
+            "message.posted.v1",
+            &serde_json::json!({
+                "tenantId": tenant_id,
+                "conversationId": conversation_id,
+                "messageId": message_id,
+                "messageSeq": message_seq,
+                "sender": {
+                    "id": sender_id,
+                    "kind": "user",
+                    "memberId": format!("cm_{sender_id}"),
+                    "deviceId": format!("d_{sender_id}"),
+                    "sessionId": format!("s_{sender_id}"),
+                    "metadata": {}
+                },
+                "messageType": "standard",
+                "deliveryMode": "discrete",
+                "clientMsgId": format!("client_{message_id}"),
+                "streamSessionId": null,
+                "rtcSessionId": null,
+                "body": {
+                    "summary": summary,
+                    "parts": [{
+                        "kind": "text",
+                        "text": summary
+                    }],
+                    "renderHints": {}
+                },
+                "attributes": {},
+                "metadata": {},
+                "occurredAt": "2026-04-08T10:00:01Z",
+                "committedAt": "2026-04-08T10:00:01Z"
+            })
+            .to_string(),
+        )
+    }
 
     fn poison_mutex<T>(mutex: &Mutex<T>) {
         let _ = panic::catch_unwind(AssertUnwindSafe(|| {
@@ -763,6 +1113,90 @@ mod tests {
             last_message_at: None,
             agent_handoff: None,
         }
+    }
+
+    #[test]
+    fn test_persist_conversation_snapshot_batches_projection_store_flushes() {
+        let projection = TimelineProjectionService::default();
+        let metadata_store = CountingMetadataStore::default();
+        let timeline_store = CountingTimelineProjectionStore::default();
+
+        projection
+            .apply(&conversation_created_event("t_demo", "c_batch", "group"))
+            .expect("conversation projection should succeed");
+        projection
+            .apply(&member_joined_event(
+                "t_demo",
+                "c_batch",
+                "u_member",
+                MembershipRole::Owner,
+            ))
+            .expect("member projection should succeed");
+        projection.register_device("t_demo", "u_member", "d_phone");
+        projection
+            .apply(&message_posted_event(
+                "t_demo",
+                "c_batch",
+                "msg_batch_1",
+                1,
+                "u_member",
+                "batched snapshot",
+            ))
+            .expect("message projection should succeed");
+
+        assert!(
+            projection
+                .persist_conversation_snapshot(
+                    "t_demo",
+                    "c_batch",
+                    &metadata_store,
+                    &timeline_store,
+                )
+                .expect("snapshot should persist"),
+            "snapshot should exist"
+        );
+
+        assert_eq!(
+            metadata_store.single_put_calls(),
+            0,
+            "conversation snapshot persistence should avoid per-record metadata flushes"
+        );
+        assert_eq!(
+            metadata_store.batch_put_calls(),
+            1,
+            "conversation snapshot persistence should flush metadata once per envelope"
+        );
+        assert_eq!(
+            timeline_store.single_upsert_calls(),
+            0,
+            "conversation snapshot persistence should avoid per-entry timeline flushes"
+        );
+        assert_eq!(
+            timeline_store.batch_upsert_calls(),
+            1,
+            "conversation snapshot persistence should flush timeline projections once per envelope"
+        );
+        assert_eq!(
+            timeline_store
+                .load_timeline(conversation_snapshot_scope("t_demo", "c_batch").as_str())
+                .expect("conversation timeline should load")
+                .len(),
+            1,
+            "conversation timeline should still persist its message entries"
+        );
+        assert_eq!(
+            timeline_store
+                .load_timeline(
+                    device_sync_snapshot_scope(&device_feed_scope_key(
+                        "t_demo", "u_member", None, "d_phone"
+                    ))
+                    .as_str(),
+                )
+                .expect("device sync timeline should load")
+                .len(),
+            1,
+            "device sync timeline should still persist its feed entries"
+        );
     }
 
     #[test]

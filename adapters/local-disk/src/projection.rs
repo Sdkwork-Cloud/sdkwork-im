@@ -2,7 +2,9 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use im_platform_contracts::{ContractError, TimelineProjectionStore};
+use im_platform_contracts::{
+    ContractError, TimelineProjectionBatch, TimelineProjectionRecord, TimelineProjectionStore,
+};
 
 use crate::shared::{read_json_records_or_default, write_json_records};
 
@@ -78,6 +80,41 @@ impl TimelineProjectionStore for FileTimelineProjectionStore {
 
     fn load_timeline(&self, conversation_id: &str) -> Result<Vec<(u64, String)>, ContractError> {
         Ok(self.entries(conversation_id))
+    }
+
+    fn upsert_timeline_entries(
+        &self,
+        conversation_id: &str,
+        records: &[TimelineProjectionRecord],
+    ) -> Result<(), ContractError> {
+        let _guard = self
+            .io_lock
+            .lock()
+            .expect("timeline projection file store lock should lock");
+        let mut stored = self.read_records()?;
+        let scope_entries = stored.entry(conversation_id.to_string()).or_default();
+        for record in records {
+            scope_entries.insert(record.message_seq, record.payload.clone());
+        }
+        self.write_records(&stored)
+    }
+
+    fn upsert_timeline_batches(
+        &self,
+        batches: &[TimelineProjectionBatch],
+    ) -> Result<(), ContractError> {
+        let _guard = self
+            .io_lock
+            .lock()
+            .expect("timeline projection file store lock should lock");
+        let mut stored = self.read_records()?;
+        for batch in batches {
+            let scope_entries = stored.entry(batch.conversation_id.clone()).or_default();
+            for record in &batch.records {
+                scope_entries.insert(record.message_seq, record.payload.clone());
+            }
+        }
+        self.write_records(&stored)
     }
 }
 

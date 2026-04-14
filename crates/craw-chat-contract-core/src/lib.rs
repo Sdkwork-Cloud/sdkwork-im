@@ -24,10 +24,28 @@ pub struct ObjectDescriptor {
     pub content_length: u64,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MetadataSnapshotRecord {
+    pub scope: String,
+    pub key: String,
+    pub value: String,
+}
+
 pub trait MetadataStore {
     fn put_snapshot(&self, scope: &str, key: &str, value: &str) -> Result<(), ContractError>;
 
     fn load_snapshot(&self, scope: &str, key: &str) -> Result<Option<String>, ContractError>;
+
+    fn put_snapshots(&self, snapshots: &[MetadataSnapshotRecord]) -> Result<(), ContractError> {
+        for snapshot in snapshots {
+            self.put_snapshot(
+                snapshot.scope.as_str(),
+                snapshot.key.as_str(),
+                snapshot.value.as_str(),
+            )?;
+        }
+        Ok(())
+    }
 }
 
 pub trait LeaseStore {

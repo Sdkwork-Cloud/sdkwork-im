@@ -4,11 +4,12 @@ use std::sync::{Arc, Mutex};
 use im_domain_events::CommitEnvelope;
 use im_platform_contracts::{
     AutomationExecutionRecord, AutomationExecutionStore, CommitJournal, CommitPosition,
-    ContractError, DeviceTwinRecord, DeviceTwinStore, MetadataStore, NotificationTaskRecord,
-    NotificationTaskStore, PresenceStateRecord, PresenceStateStore, RealtimeCheckpointRecord,
-    RealtimeCheckpointStore, RealtimeDisconnectFenceRecord, RealtimeDisconnectFenceStore,
-    RealtimeSubscriptionRecord, RealtimeSubscriptionStore, RtcStateRecord, RtcStateStore,
-    StreamStateRecord, StreamStateStore, TimelineProjectionStore,
+    ContractError, DeviceTwinRecord, DeviceTwinStore, MetadataSnapshotRecord, MetadataStore,
+    NotificationTaskRecord, NotificationTaskStore, PresenceStateRecord, PresenceStateStore,
+    RealtimeCheckpointRecord, RealtimeCheckpointStore, RealtimeDisconnectFenceRecord,
+    RealtimeDisconnectFenceStore, RealtimeSubscriptionRecord, RealtimeSubscriptionStore,
+    RtcStateRecord, RtcStateStore, StreamStateRecord, StreamStateStore, TimelineProjectionBatch,
+    TimelineProjectionRecord, TimelineProjectionStore,
 };
 
 #[derive(Clone)]
@@ -73,6 +74,17 @@ impl MetadataStore for MemoryMetadataStore {
 
     fn load_snapshot(&self, scope: &str, key: &str) -> Result<Option<String>, ContractError> {
         Ok(self.snapshot(scope, key))
+    }
+
+    fn put_snapshots(&self, snapshots: &[MetadataSnapshotRecord]) -> Result<(), ContractError> {
+        let mut stored = self.snapshots.lock().expect("metadata store should lock");
+        for snapshot in snapshots {
+            stored.insert(
+                snapshot_key(snapshot.scope.as_str(), snapshot.key.as_str()),
+                snapshot.value.clone(),
+            );
+        }
+        Ok(())
     }
 }
 
@@ -572,6 +584,39 @@ impl TimelineProjectionStore for MemoryTimelineProjectionStore {
 
     fn load_timeline(&self, conversation_id: &str) -> Result<Vec<(u64, String)>, ContractError> {
         Ok(self.entries(conversation_id))
+    }
+
+    fn upsert_timeline_entries(
+        &self,
+        conversation_id: &str,
+        records: &[TimelineProjectionRecord],
+    ) -> Result<(), ContractError> {
+        let mut entries = self
+            .entries
+            .lock()
+            .expect("timeline projection store should lock");
+        let scope_entries = entries.entry(conversation_id.to_string()).or_default();
+        for record in records {
+            scope_entries.insert(record.message_seq, record.payload.clone());
+        }
+        Ok(())
+    }
+
+    fn upsert_timeline_batches(
+        &self,
+        batches: &[TimelineProjectionBatch],
+    ) -> Result<(), ContractError> {
+        let mut entries = self
+            .entries
+            .lock()
+            .expect("timeline projection store should lock");
+        for batch in batches {
+            let scope_entries = entries.entry(batch.conversation_id.clone()).or_default();
+            for record in &batch.records {
+                scope_entries.insert(record.message_seq, record.payload.clone());
+            }
+        }
+        Ok(())
     }
 }
 
