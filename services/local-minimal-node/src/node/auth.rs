@@ -4,10 +4,10 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use getrandom::fill as fill_random;
 use hex::{decode as hex_decode, encode as hex_encode};
 use im_auth_context::{AuthContext, PUBLIC_BEARER_HS256_SECRET_ENV, encode_hs256_bearer_token};
 use pbkdf2::pbkdf2_hmac_array;
-use rand::{RngCore, rngs::OsRng};
 use serde::de::DeserializeOwned;
 use serde_json::json;
 use subtle::ConstantTimeEq;
@@ -1016,12 +1016,40 @@ fn current_unix_epoch_millis() -> u128 {
 
 fn generate_secret_token(bytes: usize) -> String {
     let mut buffer = vec![0u8; bytes];
-    OsRng.fill_bytes(buffer.as_mut_slice());
+    fill_random_bytes(buffer.as_mut_slice());
     hex_encode(buffer)
 }
 
 fn random_bytes<const N: usize>() -> [u8; N] {
     let mut buffer = [0u8; N];
-    OsRng.fill_bytes(&mut buffer);
+    fill_random_bytes(&mut buffer);
     buffer
+}
+
+fn fill_random_bytes(buffer: &mut [u8]) {
+    fill_random(buffer).unwrap_or_else(|error| {
+        panic!("system entropy unavailable for auth secret generation: {error}")
+    });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_secret_token_and_random_bytes_emit_expected_sizes() {
+        let token = generate_secret_token(32);
+        assert_eq!(token.len(), 64);
+        assert!(
+            token.chars().all(|value| value.is_ascii_hexdigit()),
+            "secret tokens should remain hex encoded"
+        );
+
+        let bytes = random_bytes::<16>();
+        assert_eq!(bytes.len(), 16);
+        assert!(
+            bytes.iter().any(|value| *value != 0),
+            "random byte helper should not deterministically return all-zero buffers"
+        );
+    }
 }

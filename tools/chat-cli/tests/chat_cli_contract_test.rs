@@ -1284,6 +1284,27 @@ fn test_chat_cli_wrappers_rebuild_when_sources_are_newer_than_local_binary() {
 }
 
 #[test]
+fn test_chat_cli_bash_wrapper_avoids_windows_find_exe_for_source_scan() {
+    let root = workspace_root();
+    let chat_cli_local_sh_path = root.join("bin").join("chat-cli-local.sh");
+    let chat_cli_local_sh = fs::read_to_string(&chat_cli_local_sh_path).unwrap_or_else(|_| {
+        panic!(
+            "missing chat-cli-local bash wrapper: {}",
+            chat_cli_local_sh_path.display()
+        )
+    });
+
+    assert!(
+        chat_cli_local_sh.contains("shopt -s globstar nullglob"),
+        "chat-cli-local.sh must enable bash-native recursive globbing instead of relying on external find"
+    );
+    assert!(
+        !chat_cli_local_sh.contains("find \"${input_path}\" -type f -print0"),
+        "chat-cli-local.sh must not call external find for source scanning because Windows find.exe breaks the bash wrapper"
+    );
+}
+
+#[test]
 fn test_open_chat_test_ps1_contains_managed_runtime_self_heal_guards() {
     let root = workspace_root();
     let open_chat_test_ps1_path = root.join("bin").join("open-chat-test.ps1");

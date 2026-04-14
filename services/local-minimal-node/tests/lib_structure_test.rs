@@ -472,6 +472,15 @@ fn test_local_minimal_node_device_registration_owner_moves_out_of_access_impl() 
 }
 
 #[test]
+fn test_local_minimal_node_manifest_avoids_rand_0_8_direct_dependency() {
+    let manifest = include_str!("../Cargo.toml");
+    assert!(
+        !manifest.contains("rand = \"0.8.5\""),
+        "services/local-minimal-node/Cargo.toml should not keep a direct rand 0.8.5 dependency once token entropy moves to getrandom"
+    );
+}
+
+#[test]
 fn test_local_minimal_node_route_preflight_owner_moves_out_of_session_entrypoints() {
     let node_source = include_str!("../src/node.rs");
     let session_source = include_str!("../src/node/session.rs");

@@ -11,6 +11,7 @@ axum.workspace = true
 control-plane-api = { path = "../control-plane-api" }
 conversation-runtime = { path = "../conversation-runtime" }
 futures-util.workspace = true
+getrandom = "0.3.4"
 hex = "0.4.3"
 im-adapter-iot-access-local = { path = "../../adapters/iot-access-local" }
 im-adapter-iot-mqtt = { path = "../../adapters/iot-mqtt" }
@@ -26,7 +27,6 @@ notification-service = { path = "../notification-service" }
 ops-service = { path = "../ops-service" }
 pbkdf2 = "0.12.2"
 projection-service = { path = "../projection-service" }
-rand = "0.8.5"
 rtc-signaling-service = { path = "../rtc-signaling-service" }
 session-gateway = { path = "../session-gateway" }
 serde.workspace = true

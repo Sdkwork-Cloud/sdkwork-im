@@ -48,6 +48,10 @@ chat_cli_source_roots=(
 
 chat_cli_binary_needs_build() {
   local input_path=""
+  local source_path=""
+  local globstar_enabled=0
+  local nullglob_enabled=0
+
   if [[ ! -x "${binary_path}" ]]; then
     return 0
   fi
@@ -61,15 +65,33 @@ chat_cli_binary_needs_build() {
   for input_path in "${chat_cli_source_roots[@]}"; do
     [[ -d "${input_path}" ]] || continue
 
-    if ! command -v find >/dev/null 2>&1; then
-      return 0
+    if shopt -q globstar; then
+      globstar_enabled=1
     fi
+    if shopt -q nullglob; then
+      nullglob_enabled=1
+    fi
+    shopt -s globstar nullglob
 
-    while IFS= read -r -d '' source_path; do
+    for source_path in "${input_path}"/**/*; do
+      [[ -f "${source_path}" ]] || continue
       if [[ "${source_path}" -nt "${binary_path}" ]]; then
+        if [[ "$globstar_enabled" -eq 0 ]]; then
+          shopt -u globstar
+        fi
+        if [[ "$nullglob_enabled" -eq 0 ]]; then
+          shopt -u nullglob
+        fi
         return 0
       fi
-    done < <(find "${input_path}" -type f -print0)
+    done
+
+    if [[ "$globstar_enabled" -eq 0 ]]; then
+      shopt -u globstar
+    fi
+    if [[ "$nullglob_enabled" -eq 0 ]]; then
+      shopt -u nullglob
+    fi
   done
 
   return 1
