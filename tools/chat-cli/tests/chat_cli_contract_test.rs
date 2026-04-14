@@ -1333,6 +1333,35 @@ fn test_open_chat_test_ps1_contains_managed_runtime_self_heal_guards() {
     }
 }
 
+#[test]
+fn test_open_chat_test_gui_launch_prefers_manual_login_over_prefetched_bearer_tokens() {
+    let root = workspace_root();
+    let open_chat_test_ps1_path = root.join("bin").join("open-chat-test.ps1");
+    let open_chat_test_ps1 = fs::read_to_string(&open_chat_test_ps1_path).unwrap_or_else(|_| {
+        panic!(
+            "missing open-chat-test PowerShell script: {}",
+            open_chat_test_ps1_path.display()
+        )
+    });
+
+    assert!(
+        open_chat_test_ps1.contains("\"-Login\", $resolvedOwnerLogin"),
+        "open-chat-test.ps1 GUI owner launch must preserve the real login identifier so operators can click Login against the prepared conversation"
+    );
+    assert!(
+        open_chat_test_ps1.contains("\"-Login\", $resolvedGuestLogin"),
+        "open-chat-test.ps1 GUI guest launch must preserve the real login identifier so operators can click Login against the prepared conversation"
+    );
+    assert!(
+        !open_chat_test_ps1.contains("\"-BearerToken\", $ownerAuth.BearerToken"),
+        "open-chat-test.ps1 GUI owner launch must not inject a prefetched bearer token because that bypasses the manual login flow under test"
+    );
+    assert!(
+        !open_chat_test_ps1.contains("\"-BearerToken\", $guestAuth.BearerToken"),
+        "open-chat-test.ps1 GUI guest launch must not inject a prefetched bearer token because that bypasses the manual login flow under test"
+    );
+}
+
 #[tokio::test]
 async fn test_chat_cli_timeline_connect_failure_surfaces_actionable_service_unreachable_hint() {
     let base_url = reserve_closed_base_url().await;

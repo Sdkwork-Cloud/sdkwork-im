@@ -1,4 +1,4 @@
-param(
+﻿param(
     [Alias("base-url")]
     [string]$BaseUrl,
     [Alias("tenant-id")]
@@ -101,6 +101,15 @@ $resolvedLabel = if ([string]::IsNullOrWhiteSpace($Label)) { $UserId } else { $L
 $resolvedSessionId = if ([string]::IsNullOrWhiteSpace($SessionId)) { "s_$UserId" } else { $SessionId }
 $resolvedDeviceId = if ([string]::IsNullOrWhiteSpace($DeviceId)) { "d_$UserId" } else { $DeviceId }
 $resolvedMessagePrefix = if ($PSBoundParameters.ContainsKey('MessagePrefix')) { $MessagePrefix } else { "[$resolvedLabel] " }
+$resolvedAutomationAction = [Environment]::GetEnvironmentVariable("CRAW_CHAT_GUI_AUTOMATION_ACTION")
+$resolvedAutomationDelayMs = 250
+$automationDelayMsText = [Environment]::GetEnvironmentVariable("CRAW_CHAT_GUI_AUTOMATION_DELAY_MS")
+if (-not [string]::IsNullOrWhiteSpace($automationDelayMsText)) {
+    $parsedAutomationDelayMs = 0
+    if ([int]::TryParse($automationDelayMsText, [ref]$parsedAutomationDelayMs) -and $parsedAutomationDelayMs -ge 0) {
+        $resolvedAutomationDelayMs = $parsedAutomationDelayMs
+    }
+}
 $resolvedDiagnosticsFile = if ([string]::IsNullOrWhiteSpace($DiagnosticsFile)) {
     $runtimeLogDir = Join-Path (Split-Path -Parent $PSScriptRoot) ".runtime\local-minimal\logs\chat-window-gui"
     Join-Path $runtimeLogDir ("{0}-{1}-{2}.log" -f `
@@ -177,6 +186,74 @@ function Resolve-ImPassword {
 function Resolve-PublicBearerSecret {
     $configFile = Join-Path (Split-Path -Parent $PSScriptRoot) ".runtime\local-minimal\config\local-minimal.env"
     return Read-ConfigValue -ConfigFile $configFile -Key "CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET"
+}
+
+function Get-HttpErrorDetail {
+    param(
+        [Parameter(Mandatory = $true)]
+        [System.Exception]$Exception
+    )
+
+    $message = $Exception.Message
+    try {
+        $response = $Exception.Response
+        if ($null -ne $response) {
+            $stream = $response.GetResponseStream()
+            if ($null -ne $stream) {
+                $reader = New-Object System.IO.StreamReader($stream)
+                $body = $reader.ReadToEnd()
+                if (-not [string]::IsNullOrWhiteSpace($body)) {
+                    $message = "$message :: $body"
+                }
+            }
+        }
+    }
+    catch {
+    }
+
+    return $message
+}
+
+function Invoke-AuthenticatedJsonRequest {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ResolvedBaseUrl,
+        [Parameter(Mandatory = $true)]
+        [string]$BearerToken,
+        [Parameter(Mandatory = $true)]
+        [string]$Method,
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+        $Body,
+        [switch]$AllowEmpty
+    )
+
+    $uri = ($ResolvedBaseUrl.TrimEnd('/')) + $Path
+    $headers = @{
+        Authorization = "Bearer $BearerToken"
+    }
+
+    try {
+        if ($null -eq $Body) {
+            $response = Invoke-WebRequest -Uri $uri -Method $Method -Headers $headers -UseBasicParsing
+        }
+        else {
+            $jsonBody = $Body | ConvertTo-Json -Depth 12 -Compress
+            $response = Invoke-WebRequest -Uri $uri -Method $Method -Headers $headers -ContentType "application/json" -Body $jsonBody -UseBasicParsing
+        }
+    }
+    catch {
+        throw "HTTP $Method $Path failed: $(Get-HttpErrorDetail -Exception $_.Exception)"
+    }
+
+    if ([string]::IsNullOrWhiteSpace($response.Content)) {
+        if ($AllowEmpty) {
+            return $null
+        }
+        throw "HTTP $Method $Path returned empty output"
+    }
+
+    return $response.Content | ConvertFrom-Json
 }
 
 function Resolve-ChatCliExecutablePath {
@@ -374,37 +451,28 @@ function Resolve-ChatAuthContext {
     }
 
     $resolvedLogin = Resolve-ImLogin -RequestedUserId $UserId -RequestedLogin $Login
-    $seededPassword = Resolve-SeededImPassword -ResolvedLogin $resolvedLogin
     $shouldUseRealLogin = -not [string]::IsNullOrWhiteSpace($Login) `
-        -or -not [string]::IsNullOrWhiteSpace($Password) `
-        -or -not [string]::IsNullOrWhiteSpace($seededPassword)
+        -and -not [string]::IsNullOrWhiteSpace($Password)
 
     if ($shouldUseRealLogin) {
-        $resolvedPassword = if (-not [string]::IsNullOrWhiteSpace($Password)) {
-            $Password
-        }
-        else {
-            Resolve-ImPassword -ResolvedLogin $resolvedLogin -RequestedPassword $Password
-        }
         $script:resolvedAuthContext = Invoke-ImUserLogin `
             -ResolvedBaseUrl $resolvedBaseUrl `
             -RequestedUserId $UserId `
             -ResolvedLogin $resolvedLogin `
-            -ResolvedPassword $resolvedPassword `
+            -ResolvedPassword $Password `
             -ResolvedSessionId $resolvedSessionId `
             -ResolvedDeviceId $resolvedDeviceId
         Write-Diagnostic ("auth mode=real-login user=" + [string]$script:resolvedAuthContext.UserId + " login=" + $resolvedLogin)
         return $script:resolvedAuthContext
     }
 
-    $publicBearerSecret = Resolve-PublicBearerSecret
     $script:resolvedAuthContext = [pscustomobject]@{
         UserId = $UserId
         SessionId = $resolvedSessionId
         DeviceId = $resolvedDeviceId
         BearerToken = $null
-        PublicBearerSecret = $publicBearerSecret
-        AuthMode = if ([string]::IsNullOrWhiteSpace($publicBearerSecret)) { "implicit-cli-default" } else { "config-public-secret" }
+        PublicBearerSecret = $null
+        AuthMode = "manual-login-pending"
     }
     Write-Diagnostic ("auth mode=" + [string]$script:resolvedAuthContext.AuthMode)
     return $script:resolvedAuthContext
@@ -419,6 +487,10 @@ function New-ClientMessageId {
 
 function Get-ChatCliAuthArguments {
     $authContext = Resolve-ChatAuthContext
+    if ([string]::IsNullOrWhiteSpace([string]$authContext.BearerToken) -and [string]::IsNullOrWhiteSpace([string]$authContext.PublicBearerSecret)) {
+        throw "manual login is required before sending chat or RTC requests"
+    }
+
     $arguments = @(
         "--base-url", $resolvedBaseUrl,
         "--tenant-id", $TenantId,
@@ -440,7 +512,7 @@ function Get-ChatCliAuthArguments {
 if ($Help -or [string]::IsNullOrWhiteSpace($ConversationId) -or [string]::IsNullOrWhiteSpace($UserId)) {
     Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/chat-window-gui.ps1 -ConversationId <id> -UserId <id> [-BaseUrl <url>] [-TenantId <id>] [-SessionId <id>] [-DeviceId <id>] [-BearerToken <token>] [-Login <id>] [-Password <secret>] [-Label <name>] [-MessagePrefix <prefix>] [-DiagnosticsFile <path>] [-SkipConnect] [-Release]"
     Write-Host "Usage: cmd /c .\bin\chat-window-gui.cmd --conversation-id <id> --user-id <id> [--base-url <url>] [--tenant-id <id>] [--session-id <id>] [--device-id <id>] [--bearer-token <token>] [--login <id>] [--password <secret>] [--label <name>] [--message-prefix <prefix>] [--diagnostics-file <path>] [--skip-connect] [--release]"
-    Write-Host "Open one visible GUI chat window backed by polling chat-cli timeline/send-message commands. Default seeded IM users prefer real login before shared-secret fallback."
+    Write-Host "Open one visible GUI chat window with visible account/password login, polling chat timeline/send-message commands, and RTC signaling controls for local video or voice call testing."
     if ($Help) {
         exit 0
     }
@@ -471,41 +543,288 @@ Add-Type -AssemblyName System.Drawing
 
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "craw-chat [$resolvedLabel] [$ConversationId]"
-$form.Width = 900
-$form.Height = 640
+$form.Width = 1240
+$form.Height = 780
 $form.StartPosition = 'CenterScreen'
 
 $statusLabel = New-Object System.Windows.Forms.Label
 $statusLabel.Location = New-Object System.Drawing.Point(12, 12)
-$statusLabel.Size = New-Object System.Drawing.Size(860, 20)
+$statusLabel.Size = New-Object System.Drawing.Size(1190, 20)
 $statusLabel.Text = "connecting: $resolvedLabel @ $resolvedBaseUrl"
 $form.Controls.Add($statusLabel)
 
+$authGroup = New-Object System.Windows.Forms.GroupBox
+$authGroup.Location = New-Object System.Drawing.Point(12, 40)
+$authGroup.Size = New-Object System.Drawing.Size(660, 96)
+$authGroup.Text = "Login"
+$form.Controls.Add($authGroup)
+
+$userLabel = New-Object System.Windows.Forms.Label
+$userLabel.Location = New-Object System.Drawing.Point(12, 24)
+$userLabel.Size = New-Object System.Drawing.Size(80, 18)
+$userLabel.Text = "User ID"
+$authGroup.Controls.Add($userLabel)
+
+$userIdDisplayBox = New-Object System.Windows.Forms.TextBox
+$userIdDisplayBox.Location = New-Object System.Drawing.Point(12, 46)
+$userIdDisplayBox.Size = New-Object System.Drawing.Size(120, 24)
+$userIdDisplayBox.Text = $UserId
+$authGroup.Controls.Add($userIdDisplayBox)
+
+$conversationLabel = New-Object System.Windows.Forms.Label
+$conversationLabel.Location = New-Object System.Drawing.Point(146, 24)
+$conversationLabel.Size = New-Object System.Drawing.Size(90, 18)
+$conversationLabel.Text = "Conversation"
+$authGroup.Controls.Add($conversationLabel)
+
+$conversationDisplayBox = New-Object System.Windows.Forms.TextBox
+$conversationDisplayBox.Location = New-Object System.Drawing.Point(146, 46)
+$conversationDisplayBox.Size = New-Object System.Drawing.Size(200, 24)
+$conversationDisplayBox.Text = $ConversationId
+$authGroup.Controls.Add($conversationDisplayBox)
+
+$loginLabel = New-Object System.Windows.Forms.Label
+$loginLabel.Location = New-Object System.Drawing.Point(360, 24)
+$loginLabel.Size = New-Object System.Drawing.Size(80, 18)
+$loginLabel.Text = "Login"
+$authGroup.Controls.Add($loginLabel)
+
+$loginTextBox = New-Object System.Windows.Forms.TextBox
+$loginTextBox.Location = New-Object System.Drawing.Point(360, 46)
+$loginTextBox.Size = New-Object System.Drawing.Size(120, 24)
+$initialLoginValue = $(if ([string]::IsNullOrWhiteSpace($Login)) { $UserId } else { $Login })
+$loginTextBox.Text = $initialLoginValue
+$authGroup.Controls.Add($loginTextBox)
+
+$passwordLabel = New-Object System.Windows.Forms.Label
+$passwordLabel.Location = New-Object System.Drawing.Point(494, 24)
+$passwordLabel.Size = New-Object System.Drawing.Size(80, 18)
+$passwordLabel.Text = "Password"
+$authGroup.Controls.Add($passwordLabel)
+
+$passwordTextBox = New-Object System.Windows.Forms.TextBox
+$passwordTextBox.Location = New-Object System.Drawing.Point(494, 46)
+$passwordTextBox.Size = New-Object System.Drawing.Size(120, 24)
+$passwordTextBox.UseSystemPasswordChar = $true
+$initialPasswordValue = $Password
+$initialResolvedLogin = $initialLoginValue.Trim()
+if ([string]::IsNullOrWhiteSpace($initialPasswordValue) -and -not [string]::IsNullOrWhiteSpace($initialResolvedLogin)) {
+    $seededPassword = Resolve-SeededImPassword -ResolvedLogin $initialResolvedLogin
+    if (-not [string]::IsNullOrWhiteSpace($seededPassword)) {
+        $initialPasswordValue = $seededPassword
+        Write-Diagnostic ("seeded password prefilled for login=" + $initialResolvedLogin)
+    }
+}
+$passwordTextBox.Text = $initialPasswordValue
+$authGroup.Controls.Add($passwordTextBox)
+
+$loginButton = New-Object System.Windows.Forms.Button
+$loginButton.Location = New-Object System.Drawing.Point(360, 72)
+$loginButton.Size = New-Object System.Drawing.Size(78, 20)
+$loginButton.Text = "Login"
+$authGroup.Controls.Add($loginButton)
+
+$logoutButton = New-Object System.Windows.Forms.Button
+$logoutButton.Location = New-Object System.Drawing.Point(446, 72)
+$logoutButton.Size = New-Object System.Drawing.Size(78, 20)
+$logoutButton.Text = "Logout"
+$authGroup.Controls.Add($logoutButton)
+
+$manualRefreshButton = New-Object System.Windows.Forms.Button
+$manualRefreshButton.Location = New-Object System.Drawing.Point(532, 72)
+$manualRefreshButton.Size = New-Object System.Drawing.Size(82, 20)
+$manualRefreshButton.Text = "Refresh"
+$authGroup.Controls.Add($manualRefreshButton)
+
 $transcriptBox = New-Object System.Windows.Forms.TextBox
-$transcriptBox.Location = New-Object System.Drawing.Point(12, 40)
-$transcriptBox.Size = New-Object System.Drawing.Size(860, 500)
+$transcriptBox.Location = New-Object System.Drawing.Point(12, 148)
+$transcriptBox.Size = New-Object System.Drawing.Size(660, 470)
 $transcriptBox.Multiline = $true
 $transcriptBox.ReadOnly = $true
 $transcriptBox.ScrollBars = 'Vertical'
 $transcriptBox.Font = New-Object System.Drawing.Font("Consolas", 10)
 $form.Controls.Add($transcriptBox)
 
+$rtcGroup = New-Object System.Windows.Forms.GroupBox
+$rtcGroup.Location = New-Object System.Drawing.Point(684, 40)
+$rtcGroup.Size = New-Object System.Drawing.Size(536, 578)
+$rtcGroup.Text = "RTC Signaling / Video Call Test"
+$form.Controls.Add($rtcGroup)
+
+$rtcSessionLabel = New-Object System.Windows.Forms.Label
+$rtcSessionLabel.Location = New-Object System.Drawing.Point(12, 24)
+$rtcSessionLabel.Size = New-Object System.Drawing.Size(90, 18)
+$rtcSessionLabel.Text = "RTC Session"
+$rtcGroup.Controls.Add($rtcSessionLabel)
+
+$rtcSessionTextBox = New-Object System.Windows.Forms.TextBox
+$rtcSessionTextBox.Location = New-Object System.Drawing.Point(12, 46)
+$rtcSessionTextBox.Size = New-Object System.Drawing.Size(220, 24)
+$rtcSessionTextBox.Text = "rtc_$ConversationId"
+$rtcGroup.Controls.Add($rtcSessionTextBox)
+
+$rtcModeLabel = New-Object System.Windows.Forms.Label
+$rtcModeLabel.Location = New-Object System.Drawing.Point(246, 24)
+$rtcModeLabel.Size = New-Object System.Drawing.Size(80, 18)
+$rtcModeLabel.Text = "Mode"
+$rtcGroup.Controls.Add($rtcModeLabel)
+
+$rtcModeCombo = New-Object System.Windows.Forms.ComboBox
+$rtcModeCombo.Location = New-Object System.Drawing.Point(246, 46)
+$rtcModeCombo.Size = New-Object System.Drawing.Size(100, 24)
+$rtcModeCombo.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
+[void]$rtcModeCombo.Items.Add("video")
+[void]$rtcModeCombo.Items.Add("voice")
+$rtcModeCombo.SelectedIndex = 0
+$rtcGroup.Controls.Add($rtcModeCombo)
+
+$signalingStreamLabel = New-Object System.Windows.Forms.Label
+$signalingStreamLabel.Location = New-Object System.Drawing.Point(12, 78)
+$signalingStreamLabel.Size = New-Object System.Drawing.Size(130, 18)
+$signalingStreamLabel.Text = "Signaling Stream"
+$rtcGroup.Controls.Add($signalingStreamLabel)
+
+$signalingStreamTextBox = New-Object System.Windows.Forms.TextBox
+$signalingStreamTextBox.Location = New-Object System.Drawing.Point(12, 100)
+$signalingStreamTextBox.Size = New-Object System.Drawing.Size(220, 24)
+$signalingStreamTextBox.Text = "st_$ConversationId"
+$rtcGroup.Controls.Add($signalingStreamTextBox)
+
+$artifactMessageLabel = New-Object System.Windows.Forms.Label
+$artifactMessageLabel.Location = New-Object System.Drawing.Point(246, 78)
+$artifactMessageLabel.Size = New-Object System.Drawing.Size(120, 18)
+$artifactMessageLabel.Text = "Artifact Message"
+$rtcGroup.Controls.Add($artifactMessageLabel)
+
+$artifactMessageTextBox = New-Object System.Windows.Forms.TextBox
+$artifactMessageTextBox.Location = New-Object System.Drawing.Point(246, 100)
+$artifactMessageTextBox.Size = New-Object System.Drawing.Size(220, 24)
+$rtcGroup.Controls.Add($artifactMessageTextBox)
+
+$signalTypeLabel = New-Object System.Windows.Forms.Label
+$signalTypeLabel.Location = New-Object System.Drawing.Point(12, 132)
+$signalTypeLabel.Size = New-Object System.Drawing.Size(90, 18)
+$signalTypeLabel.Text = "Signal Type"
+$rtcGroup.Controls.Add($signalTypeLabel)
+
+$signalTypeTextBox = New-Object System.Windows.Forms.TextBox
+$signalTypeTextBox.Location = New-Object System.Drawing.Point(12, 154)
+$signalTypeTextBox.Size = New-Object System.Drawing.Size(160, 24)
+$signalTypeTextBox.Text = "rtc.offer"
+$rtcGroup.Controls.Add($signalTypeTextBox)
+
+$schemaRefLabel = New-Object System.Windows.Forms.Label
+$schemaRefLabel.Location = New-Object System.Drawing.Point(186, 132)
+$schemaRefLabel.Size = New-Object System.Drawing.Size(90, 18)
+$schemaRefLabel.Text = "Schema Ref"
+$rtcGroup.Controls.Add($schemaRefLabel)
+
+$schemaRefTextBox = New-Object System.Windows.Forms.TextBox
+$schemaRefTextBox.Location = New-Object System.Drawing.Point(186, 154)
+$schemaRefTextBox.Size = New-Object System.Drawing.Size(170, 24)
+$schemaRefTextBox.Text = "webrtc.offer.v1"
+$rtcGroup.Controls.Add($schemaRefTextBox)
+
+$participantLabel = New-Object System.Windows.Forms.Label
+$participantLabel.Location = New-Object System.Drawing.Point(370, 132)
+$participantLabel.Size = New-Object System.Drawing.Size(120, 18)
+$participantLabel.Text = "Credential User"
+$rtcGroup.Controls.Add($participantLabel)
+
+$participantTextBox = New-Object System.Windows.Forms.TextBox
+$participantTextBox.Location = New-Object System.Drawing.Point(370, 154)
+$participantTextBox.Size = New-Object System.Drawing.Size(140, 24)
+$participantTextBox.Text = "u_guest"
+$rtcGroup.Controls.Add($participantTextBox)
+
+$signalPayloadLabel = New-Object System.Windows.Forms.Label
+$signalPayloadLabel.Location = New-Object System.Drawing.Point(12, 186)
+$signalPayloadLabel.Size = New-Object System.Drawing.Size(120, 18)
+$signalPayloadLabel.Text = "Signal Payload"
+$rtcGroup.Controls.Add($signalPayloadLabel)
+
+$signalPayloadTextBox = New-Object System.Windows.Forms.TextBox
+$signalPayloadTextBox.Location = New-Object System.Drawing.Point(12, 208)
+$signalPayloadTextBox.Size = New-Object System.Drawing.Size(498, 160)
+$signalPayloadTextBox.Multiline = $true
+$signalPayloadTextBox.ScrollBars = 'Vertical'
+$signalPayloadTextBox.Font = New-Object System.Drawing.Font("Consolas", 9)
+$signalPayloadTextBox.Text = '{"sdp":"demo"}'
+$rtcGroup.Controls.Add($signalPayloadTextBox)
+
+$rtcCreateButton = New-Object System.Windows.Forms.Button
+$rtcCreateButton.Location = New-Object System.Drawing.Point(12, 380)
+$rtcCreateButton.Size = New-Object System.Drawing.Size(78, 28)
+$rtcCreateButton.Text = "Create"
+$rtcGroup.Controls.Add($rtcCreateButton)
+
+$rtcInviteButton = New-Object System.Windows.Forms.Button
+$rtcInviteButton.Location = New-Object System.Drawing.Point(98, 380)
+$rtcInviteButton.Size = New-Object System.Drawing.Size(78, 28)
+$rtcInviteButton.Text = "Invite"
+$rtcGroup.Controls.Add($rtcInviteButton)
+
+$rtcAcceptButton = New-Object System.Windows.Forms.Button
+$rtcAcceptButton.Location = New-Object System.Drawing.Point(184, 380)
+$rtcAcceptButton.Size = New-Object System.Drawing.Size(78, 28)
+$rtcAcceptButton.Text = "Accept"
+$rtcGroup.Controls.Add($rtcAcceptButton)
+
+$rtcRejectButton = New-Object System.Windows.Forms.Button
+$rtcRejectButton.Location = New-Object System.Drawing.Point(270, 380)
+$rtcRejectButton.Size = New-Object System.Drawing.Size(78, 28)
+$rtcRejectButton.Text = "Reject"
+$rtcGroup.Controls.Add($rtcRejectButton)
+
+$rtcEndButton = New-Object System.Windows.Forms.Button
+$rtcEndButton.Location = New-Object System.Drawing.Point(356, 380)
+$rtcEndButton.Size = New-Object System.Drawing.Size(78, 28)
+$rtcEndButton.Text = "End"
+$rtcGroup.Controls.Add($rtcEndButton)
+
+$rtcSignalButton = New-Object System.Windows.Forms.Button
+$rtcSignalButton.Location = New-Object System.Drawing.Point(12, 416)
+$rtcSignalButton.Size = New-Object System.Drawing.Size(110, 28)
+$rtcSignalButton.Text = "Send Signal"
+$rtcGroup.Controls.Add($rtcSignalButton)
+
+$rtcCredentialButton = New-Object System.Windows.Forms.Button
+$rtcCredentialButton.Location = New-Object System.Drawing.Point(130, 416)
+$rtcCredentialButton.Size = New-Object System.Drawing.Size(110, 28)
+$rtcCredentialButton.Text = "Credentials"
+$rtcGroup.Controls.Add($rtcCredentialButton)
+
+$rtcRecordingButton = New-Object System.Windows.Forms.Button
+$rtcRecordingButton.Location = New-Object System.Drawing.Point(248, 416)
+$rtcRecordingButton.Size = New-Object System.Drawing.Size(100, 28)
+$rtcRecordingButton.Text = "Recording"
+$rtcGroup.Controls.Add($rtcRecordingButton)
+
+$diagnosticsBox = New-Object System.Windows.Forms.TextBox
+$diagnosticsBox.Location = New-Object System.Drawing.Point(12, 456)
+$diagnosticsBox.Size = New-Object System.Drawing.Size(498, 98)
+$diagnosticsBox.Multiline = $true
+$diagnosticsBox.ReadOnly = $true
+$diagnosticsBox.ScrollBars = 'Vertical'
+$diagnosticsBox.Font = New-Object System.Drawing.Font("Consolas", 9)
+$rtcGroup.Controls.Add($diagnosticsBox)
+
 $inputBox = New-Object System.Windows.Forms.TextBox
-$inputBox.Location = New-Object System.Drawing.Point(12, 552)
-$inputBox.Size = New-Object System.Drawing.Size(740, 28)
+$inputBox.Location = New-Object System.Drawing.Point(12, 630)
+$inputBox.Size = New-Object System.Drawing.Size(1090, 28)
 $inputBox.Font = New-Object System.Drawing.Font("Consolas", 11)
 $form.Controls.Add($inputBox)
 
 $sendButton = New-Object System.Windows.Forms.Button
-$sendButton.Location = New-Object System.Drawing.Point(760, 548)
-$sendButton.Size = New-Object System.Drawing.Size(112, 34)
+$sendButton.Location = New-Object System.Drawing.Point(1110, 626)
+$sendButton.Size = New-Object System.Drawing.Size(110, 34)
 $sendButton.Text = "Send"
 $form.Controls.Add($sendButton)
 
 $footerLabel = New-Object System.Windows.Forms.Label
-$footerLabel.Location = New-Object System.Drawing.Point(12, 590)
-$footerLabel.Size = New-Object System.Drawing.Size(860, 20)
-$footerLabel.Text = "Enter to send, /quit to close chat window."
+$footerLabel.Location = New-Object System.Drawing.Point(12, 670)
+$footerLabel.Size = New-Object System.Drawing.Size(1190, 20)
+$footerLabel.Text = "Use Login to acquire a bearer token. RTC buttons validate signaling only. Enter sends, /refresh refreshes, /quit closes."
 $form.Controls.Add($footerLabel)
 
 $refreshTimer = New-Object System.Windows.Forms.Timer
@@ -523,6 +842,232 @@ $appendLine = {
     $transcriptBox.AppendText($line + [Environment]::NewLine)
     $transcriptBox.SelectionStart = $transcriptBox.TextLength
     $transcriptBox.ScrollToCaret()
+}
+
+$appendDiagnostic = {
+    param([string]$line)
+
+    if ([string]::IsNullOrWhiteSpace($line)) {
+        return
+    }
+
+    Write-Diagnostic $line
+    $diagnosticsBox.AppendText($line + [Environment]::NewLine)
+    $diagnosticsBox.SelectionStart = $diagnosticsBox.TextLength
+    $diagnosticsBox.ScrollToCaret()
+}
+
+$setInteractiveState = {
+    $hasBearer = $null -ne $script:resolvedAuthContext -and -not [string]::IsNullOrWhiteSpace([string]$script:resolvedAuthContext.BearerToken)
+    $sendButton.Enabled = $hasBearer
+    $logoutButton.Enabled = $hasBearer
+    $manualRefreshButton.Enabled = $true
+    $rtcCreateButton.Enabled = $hasBearer
+    $rtcInviteButton.Enabled = $hasBearer
+    $rtcAcceptButton.Enabled = $hasBearer
+    $rtcRejectButton.Enabled = $hasBearer
+    $rtcEndButton.Enabled = $hasBearer
+    $rtcSignalButton.Enabled = $hasBearer
+    $rtcCredentialButton.Enabled = $hasBearer
+    $rtcRecordingButton.Enabled = $hasBearer
+}
+
+$setManualPendingState = {
+    $script:resolvedAuthContext = $null
+    $statusLabel.Text = "manual login required: $resolvedLabel @ $resolvedBaseUrl"
+    & $appendDiagnostic "auth mode=manual-login-pending"
+    & $setInteractiveState
+}
+
+$setAuthenticatedState = {
+    param($authContext)
+
+    $script:resolvedAuthContext = $authContext
+    if (-not [string]::IsNullOrWhiteSpace([string]$authContext.UserId)) {
+        $userIdDisplayBox.Text = [string]$authContext.UserId
+    }
+    $statusLabel.Text = "authenticated: $([string]$authContext.UserId) @ $resolvedBaseUrl"
+    & $appendDiagnostic ("auth mode={0} user={1}" -f [string]$authContext.AuthMode, [string]$authContext.UserId)
+    & $setInteractiveState
+}
+
+$performLogin = {
+    $resolvedLoginInput = $loginTextBox.Text.Trim()
+    $resolvedPasswordInput = $passwordTextBox.Text
+    if ([string]::IsNullOrWhiteSpace($resolvedLoginInput)) {
+        $statusLabel.Text = "login required: $resolvedLabel @ $resolvedBaseUrl"
+        & $appendDiagnostic "login failed: login is required"
+        return
+    }
+    if ([string]::IsNullOrWhiteSpace($resolvedPasswordInput)) {
+        $statusLabel.Text = "password required: $resolvedLabel @ $resolvedBaseUrl"
+        & $appendDiagnostic "login failed: password is required"
+        return
+    }
+
+    $requestedUserId = $userIdDisplayBox.Text.Trim()
+    if ([string]::IsNullOrWhiteSpace($requestedUserId)) {
+        $requestedUserId = $resolvedLoginInput
+    }
+
+    try {
+        $authContext = Invoke-ImUserLogin `
+            -ResolvedBaseUrl $resolvedBaseUrl `
+            -RequestedUserId $requestedUserId `
+            -ResolvedLogin $resolvedLoginInput `
+            -ResolvedPassword $resolvedPasswordInput `
+            -ResolvedSessionId $resolvedSessionId `
+            -ResolvedDeviceId $resolvedDeviceId
+        & $setAuthenticatedState $authContext
+        if (-not $SkipConnect) {
+            & $refreshTimeline
+            $refreshTimer.Start()
+        }
+    }
+    catch {
+        $statusLabel.Text = "login failed: $resolvedLabel @ $resolvedBaseUrl"
+        & $appendDiagnostic ("login failed: " + $_.Exception.Message)
+    }
+}
+
+$invokeRtcAction = {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Action
+    )
+
+    if ($null -eq $script:resolvedAuthContext -or [string]::IsNullOrWhiteSpace([string]$script:resolvedAuthContext.BearerToken)) {
+        $statusLabel.Text = "manual login required: $resolvedLabel @ $resolvedBaseUrl"
+        & $appendDiagnostic ("rtc $Action failed: manual login is required before sending chat or RTC requests")
+        return
+    }
+
+    $rtcSessionId = $rtcSessionTextBox.Text.Trim()
+    if ([string]::IsNullOrWhiteSpace($rtcSessionId)) {
+        $statusLabel.Text = "rtc $Action failed: missing rtc session id"
+        & $appendDiagnostic ("rtc $Action failed: rtc session id is required")
+        return
+    }
+
+    $conversationIdValue = $conversationDisplayBox.Text.Trim()
+    if ([string]::IsNullOrWhiteSpace($conversationIdValue)) {
+        $statusLabel.Text = "rtc $Action failed: missing conversation id"
+        & $appendDiagnostic ("rtc $Action failed: conversation id is required")
+        return
+    }
+
+    if ([string]::IsNullOrWhiteSpace($artifactMessageTextBox.Text) -and @("accept", "reject", "end") -contains $Action) {
+        $artifactMessageTextBox.Text = New-ArtifactMessageId -Action $Action
+    }
+
+    try {
+        switch ($Action) {
+            "create" {
+                $response = Invoke-AuthenticatedJsonRequest `
+                    -ResolvedBaseUrl $resolvedBaseUrl `
+                    -BearerToken ([string]$script:resolvedAuthContext.BearerToken) `
+                    -Method "POST" `
+                    -Path "/api/v1/rtc/sessions" `
+                    -Body ([ordered]@{
+                            rtcSessionId = $rtcSessionId
+                            conversationId = $conversationIdValue
+                            rtcMode = [string]$rtcModeCombo.SelectedItem
+                        })
+            }
+            "invite" {
+                $response = Invoke-AuthenticatedJsonRequest `
+                    -ResolvedBaseUrl $resolvedBaseUrl `
+                    -BearerToken ([string]$script:resolvedAuthContext.BearerToken) `
+                    -Method "POST" `
+                    -Path "/api/v1/rtc/sessions/$rtcSessionId/invite" `
+                    -Body ([ordered]@{
+                            signalingStreamId = $signalingStreamTextBox.Text.Trim()
+                        })
+            }
+            "accept" {
+                $response = Invoke-AuthenticatedJsonRequest `
+                    -ResolvedBaseUrl $resolvedBaseUrl `
+                    -BearerToken ([string]$script:resolvedAuthContext.BearerToken) `
+                    -Method "POST" `
+                    -Path "/api/v1/rtc/sessions/$rtcSessionId/accept" `
+                    -Body ([ordered]@{
+                            artifactMessageId = $artifactMessageTextBox.Text.Trim()
+                        })
+            }
+            "reject" {
+                $response = Invoke-AuthenticatedJsonRequest `
+                    -ResolvedBaseUrl $resolvedBaseUrl `
+                    -BearerToken ([string]$script:resolvedAuthContext.BearerToken) `
+                    -Method "POST" `
+                    -Path "/api/v1/rtc/sessions/$rtcSessionId/reject" `
+                    -Body ([ordered]@{
+                            artifactMessageId = $artifactMessageTextBox.Text.Trim()
+                        })
+            }
+            "end" {
+                $response = Invoke-AuthenticatedJsonRequest `
+                    -ResolvedBaseUrl $resolvedBaseUrl `
+                    -BearerToken ([string]$script:resolvedAuthContext.BearerToken) `
+                    -Method "POST" `
+                    -Path "/api/v1/rtc/sessions/$rtcSessionId/end" `
+                    -Body ([ordered]@{
+                            artifactMessageId = $artifactMessageTextBox.Text.Trim()
+                        })
+            }
+            "signal" {
+                $signalPayloadValue = $signalPayloadTextBox.Text.Trim()
+                if ([string]::IsNullOrWhiteSpace($signalPayloadValue)) {
+                    throw "signal payload is required"
+                }
+
+                $payloadObject = $signalPayloadValue | ConvertFrom-Json
+                $response = Invoke-AuthenticatedJsonRequest `
+                    -ResolvedBaseUrl $resolvedBaseUrl `
+                    -BearerToken ([string]$script:resolvedAuthContext.BearerToken) `
+                    -Method "POST" `
+                    -Path "/api/v1/rtc/sessions/$rtcSessionId/signals" `
+                    -Body ([ordered]@{
+                            signalType = $signalTypeTextBox.Text.Trim()
+                            schemaRef = $schemaRefTextBox.Text.Trim()
+                            payload = ($payloadObject | ConvertTo-Json -Depth 12 -Compress)
+                        })
+            }
+            "credentials" {
+                $participantId = $participantTextBox.Text.Trim()
+                if ([string]::IsNullOrWhiteSpace($participantId)) {
+                    throw "credential participant is required"
+                }
+                $response = Invoke-AuthenticatedJsonRequest `
+                    -ResolvedBaseUrl $resolvedBaseUrl `
+                    -BearerToken ([string]$script:resolvedAuthContext.BearerToken) `
+                    -Method "POST" `
+                    -Path "/api/v1/rtc/sessions/$rtcSessionId/credentials" `
+                    -Body ([ordered]@{
+                            participantId = $participantId
+                        })
+            }
+            "recording" {
+                $response = Invoke-AuthenticatedJsonRequest `
+                    -ResolvedBaseUrl $resolvedBaseUrl `
+                    -BearerToken ([string]$script:resolvedAuthContext.BearerToken) `
+                    -Method "GET" `
+                    -Path "/api/v1/rtc/sessions/$rtcSessionId/artifacts/recording" `
+                    -Body $null
+            }
+            default {
+                throw "unsupported rtc action '$Action'"
+            }
+        }
+
+        & $appendDiagnostic ("rtc {0} ok: {1}" -f $Action, ($response | ConvertTo-Json -Depth 12 -Compress))
+        if ($Action -ne "credentials" -and $Action -ne "recording") {
+            & $refreshTimeline
+        }
+    }
+    catch {
+        $statusLabel.Text = "rtc $Action failed: $resolvedLabel @ $resolvedBaseUrl"
+        & $appendDiagnostic ("rtc $Action failed: " + $_.Exception.Message)
+    }
 }
 
 $renderTimeline = {
@@ -556,21 +1101,30 @@ $refreshTimeline = {
         return
     }
 
+    if ($null -eq $script:resolvedAuthContext -or [string]::IsNullOrWhiteSpace([string]$script:resolvedAuthContext.BearerToken)) {
+        $statusLabel.Text = "manual login required: $resolvedLabel @ $resolvedBaseUrl"
+        return
+    }
+
+    $conversationIdValue = $conversationDisplayBox.Text.Trim()
+    if ([string]::IsNullOrWhiteSpace($conversationIdValue)) {
+        $statusLabel.Text = "conversation required: $resolvedLabel @ $resolvedBaseUrl"
+        & $appendDiagnostic "timeline refresh skipped: conversation id is required"
+        return
+    }
+
     $script:refreshInProgress = $true
     try {
         $timeline = Invoke-ChatCliJson -Arguments ((Get-ChatCliAuthArguments) + @(
                 "timeline",
-                "--conversation-id", $ConversationId
+                "--conversation-id", $conversationIdValue
             ))
         & $renderTimeline $timeline
         $statusLabel.Text = "connected: $resolvedLabel @ $resolvedBaseUrl (last sync $(Get-Date -Format 'HH:mm:ss'))"
     }
     catch {
         $statusLabel.Text = "error: $resolvedLabel @ $resolvedBaseUrl"
-        Write-Diagnostic ("timeline refresh failed: " + $_.Exception.ToString())
-        if ($transcriptBox.Text -notlike "*[error]*$($_.Exception.Message)*") {
-            & $appendLine ("[error] " + $_.Exception.Message)
-        }
+        & $appendDiagnostic ("timeline refresh failed: " + $_.Exception.Message)
     }
     finally {
         $script:refreshInProgress = $false
@@ -595,6 +1149,14 @@ $sendCurrent = {
         return
     }
 
+    $conversationIdValue = $conversationDisplayBox.Text.Trim()
+    if ([string]::IsNullOrWhiteSpace($conversationIdValue)) {
+        $statusLabel.Text = "conversation required: $resolvedLabel @ $resolvedBaseUrl"
+        & $appendDiagnostic "send failed: conversation id is required"
+        $inputBox.Focus()
+        return
+    }
+
     $summary = if ([string]::IsNullOrWhiteSpace($resolvedMessagePrefix)) {
         $text
     }
@@ -605,19 +1167,18 @@ $sendCurrent = {
     try {
         $null = Invoke-ChatCliJson -Arguments ((Get-ChatCliAuthArguments) + @(
                 "send-message",
-                "--conversation-id", $ConversationId,
+                "--conversation-id", $conversationIdValue,
                 "--summary", $summary,
                 "--text", $summary,
                 "--client-msg-id", (New-ClientMessageId)
             ))
-        Write-Diagnostic ("message sent: " + $summary)
+        & $appendDiagnostic ("message sent: " + $summary)
         $inputBox.Clear()
         & $refreshTimeline
     }
     catch {
         $statusLabel.Text = "error: $resolvedLabel @ $resolvedBaseUrl"
-        Write-Diagnostic ("send failed: " + $_.Exception.ToString())
-        & $appendLine ("[error] " + $_.Exception.Message)
+        & $appendDiagnostic ("send failed: " + $_.Exception.Message)
     }
 
     $inputBox.Focus()
@@ -627,7 +1188,21 @@ $sendCurrent = {
     & $refreshTimeline
 })
 
+[void]$loginButton.Add_Click($performLogin)
+[void]$logoutButton.Add_Click({
+    $refreshTimer.Stop()
+    & $setManualPendingState
+})
+[void]$manualRefreshButton.Add_Click($refreshTimeline)
 [void]$sendButton.Add_Click($sendCurrent)
+[void]$rtcCreateButton.Add_Click({ & $invokeRtcAction "create" })
+[void]$rtcInviteButton.Add_Click({ & $invokeRtcAction "invite" })
+[void]$rtcAcceptButton.Add_Click({ & $invokeRtcAction "accept" })
+[void]$rtcRejectButton.Add_Click({ & $invokeRtcAction "reject" })
+[void]$rtcEndButton.Add_Click({ & $invokeRtcAction "end" })
+[void]$rtcSignalButton.Add_Click({ & $invokeRtcAction "signal" })
+[void]$rtcCredentialButton.Add_Click({ & $invokeRtcAction "credentials" })
+[void]$rtcRecordingButton.Add_Click({ & $invokeRtcAction "recording" })
 [void]$inputBox.Add_KeyDown({
     param($sender, $eventArgs)
     if ($eventArgs.KeyCode -eq [System.Windows.Forms.Keys]::Enter -and -not $eventArgs.Shift) {
@@ -638,14 +1213,50 @@ $sendCurrent = {
 
 [void]$form.Add_Shown({
     Write-Diagnostic "form shown"
+    $authContext = Resolve-ChatAuthContext
+    if ([string]::IsNullOrWhiteSpace([string]$authContext.BearerToken) -and [string]::IsNullOrWhiteSpace([string]$authContext.PublicBearerSecret)) {
+        & $setManualPendingState
+    }
+    else {
+        & $setAuthenticatedState $authContext
+    }
+
     if ($SkipConnect) {
         $statusLabel.Text = "offline launch: $resolvedLabel @ $resolvedBaseUrl"
         Write-Diagnostic "skip-connect launch requested"
     }
-    else {
+    elseif (-not [string]::IsNullOrWhiteSpace([string]$authContext.BearerToken) -or -not [string]::IsNullOrWhiteSpace([string]$authContext.PublicBearerSecret)) {
         & $refreshTimeline
         $refreshTimer.Start()
     }
+
+    if (-not [string]::IsNullOrWhiteSpace($resolvedAutomationAction)) {
+        if ([string]$authContext.AuthMode -eq "manual-login-pending") {
+            Write-Diagnostic ("automation action={0} delayMs={1}" -f $resolvedAutomationAction, $resolvedAutomationDelayMs)
+            $script:automationTimer = New-Object System.Windows.Forms.Timer
+            $script:automationTimer.Interval = [Math]::Max(1, $resolvedAutomationDelayMs)
+            [void]$script:automationTimer.Add_Tick({
+                $script:automationTimer.Stop()
+                $script:automationTimer.Dispose()
+                $script:automationTimer = $null
+
+                switch ($resolvedAutomationAction) {
+                    "click-login" {
+                        Write-Diagnostic "automation execute=click-login"
+                        & $performLogin
+                    }
+                    default {
+                        Write-Diagnostic ("automation ignored unsupported action=" + $resolvedAutomationAction)
+                    }
+                }
+            })
+            $script:automationTimer.Start()
+        }
+        else {
+            Write-Diagnostic ("automation skipped action={0} authMode={1}" -f $resolvedAutomationAction, [string]$authContext.AuthMode)
+        }
+    }
+
     $inputBox.Focus()
 })
 
@@ -653,6 +1264,8 @@ $sendCurrent = {
     Write-Diagnostic "form closing"
     $refreshTimer.Stop()
 })
+
+& $setInteractiveState
 
 try {
     [System.Windows.Forms.Application]::Run($form)

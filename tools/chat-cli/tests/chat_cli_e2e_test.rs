@@ -1518,7 +1518,7 @@ async fn test_chat_window_gui_cmd_uses_real_login_when_inherited_public_secret_i
                  Remove-Item -LiteralPath $diag -ErrorAction SilentlyContinue; \
                  $env:CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET = 'bogus-wrapper-secret'; \
                  $text = $null; \
-                 $proc = Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', $wrapper, '--base-url', $base, '--conversation-id', 'c_gui_cmd_real_login_demo', '--user-id', 'u_guest', '--label', 'guest-real-login', '-DiagnosticsFile', $diag -PassThru -WindowStyle Hidden; \
+                 $proc = Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', $wrapper, '--base-url', $base, '--conversation-id', 'c_gui_cmd_real_login_demo', '--user-id', 'u_guest', '--login', 'u_guest', '--password', 'Guest#2026', '--label', 'guest-real-login', '-DiagnosticsFile', $diag -PassThru -WindowStyle Hidden; \
                  for ($i = 0; $i -lt 40; $i++) { \
                    Start-Sleep -Milliseconds 250; \
                    if (Test-Path $diag) { \
@@ -1558,6 +1558,219 @@ async fn test_chat_window_gui_cmd_uses_real_login_when_inherited_public_secret_i
         "chat-window-gui.cmd should not fail timeline refresh when only the inherited shared-secret env var is poisoned\ndiagnostics:\n{}\nstdout:\n{}\nstderr:\n{}",
         diagnostics_text,
         String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    handle.abort();
+    let _ = handle.await;
+}
+
+#[cfg(windows)]
+#[tokio::test]
+async fn test_chat_window_gui_cmd_manual_login_launch_is_idle_until_explicit_auth() {
+    let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(2)
+        .expect("repo root should exist")
+        .to_path_buf();
+    let wrapper_path = repo_root.join("bin").join("chat-window-gui.cmd");
+    let diagnostics_path = std::env::temp_dir().join(format!(
+        "chat-window-gui-cmd-manual-login-{}-{}.log",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system time should be after unix epoch")
+            .as_nanos()
+    ));
+    let diagnostics_arg = diagnostics_path.to_string_lossy().to_string();
+    let wrapper_arg = wrapper_path.to_string_lossy().to_string();
+
+    let output = tokio::task::spawn_blocking(move || {
+        Command::new("powershell.exe")
+            .arg("-NoProfile")
+            .arg("-ExecutionPolicy")
+            .arg("Bypass")
+            .arg("-Command")
+            .arg(
+                "$wrapper = $env:CHAT_WINDOW_GUI_CMD; \
+                 $diag = $env:CHAT_WINDOW_GUI_DIAG; \
+                 Remove-Item -LiteralPath $diag -ErrorAction SilentlyContinue; \
+                 $text = $null; \
+                 $proc = Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', $wrapper, '--conversation-id', 'c_gui_cmd_manual_login_demo', '--user-id', 'u_guest', '--label', 'guest-manual', '--skip-connect', '-DiagnosticsFile', $diag -PassThru -WindowStyle Hidden; \
+                 for ($i = 0; $i -lt 40; $i++) { \
+                   Start-Sleep -Milliseconds 250; \
+                   if (Test-Path $diag) { \
+                     $text = Get-Content -Raw -LiteralPath $diag; \
+                     if ($text -like '*auth mode=*' -or $text -like '*manual-login*') { break } \
+                   } \
+                 }; \
+                 if ($null -ne $text -and $text -like '*script start*') { \
+                   Start-Sleep -Milliseconds 2000; \
+                   if (Test-Path $diag) { $text = Get-Content -Raw -LiteralPath $diag } \
+                 }; \
+                 if ($proc -and -not $proc.HasExited) { & taskkill.exe /PID $proc.Id /T /F | Out-Null }; \
+                 if ($null -eq $text) { exit 2 }; \
+                 [Console]::Out.Write($text)",
+            )
+            .env("CHAT_WINDOW_GUI_CMD", wrapper_arg)
+            .env("CHAT_WINDOW_GUI_DIAG", diagnostics_arg)
+            .current_dir(repo_root)
+            .output()
+    })
+    .await
+    .expect("chat-window-gui.cmd manual-login helper wait task should join")
+    .expect("chat-window-gui.cmd manual-login helper should complete");
+
+    let _ = fs::remove_file(&diagnostics_path);
+
+    assert!(
+        output.status.success(),
+        "chat-window-gui.cmd manual-login helper should exit successfully\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let diagnostics_text = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        diagnostics_text.contains("auth mode=manual-login-pending"),
+        "chat-window-gui.cmd direct launches without token or explicit credentials must stay in manual-login-pending mode\ndiagnostics:\n{}\nstdout:\n{}\nstderr:\n{}",
+        diagnostics_text,
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        diagnostics_text.contains("seeded password prefilled for login=u_guest"),
+        "chat-window-gui.cmd direct launches for seeded users should prefill the default password so the operator only needs to click Login\ndiagnostics:\n{}\nstdout:\n{}\nstderr:\n{}",
+        diagnostics_text,
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        !diagnostics_text.contains("auth mode=real-login"),
+        "chat-window-gui.cmd manual-login launch must not implicitly log in seeded users before the operator enters credentials\ndiagnostics:\n{}\nstdout:\n{}\nstderr:\n{}",
+        diagnostics_text,
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[cfg(windows)]
+#[tokio::test]
+async fn test_chat_window_gui_cmd_login_button_keeps_window_open_for_prepared_conversation() {
+    unsafe {
+        std::env::set_var(
+            im_auth_context::PUBLIC_BEARER_HS256_SECRET_ENV,
+            "local-chat-cli-secret",
+        );
+    }
+
+    let app = local_minimal_node::build_public_app();
+    let (base_url, handle) = spawn_server(app).await;
+    prepare_real_login_conversation(base_url.as_str(), "c_gui_cmd_click_login_demo").await;
+
+    let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(2)
+        .expect("repo root should exist")
+        .to_path_buf();
+    let wrapper_path = repo_root.join("bin").join("chat-window-gui.cmd");
+    let diagnostics_path = std::env::temp_dir().join(format!(
+        "chat-window-gui-cmd-click-login-{}-{}.log",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system time should be after unix epoch")
+            .as_nanos()
+    ));
+    let diagnostics_arg = diagnostics_path.to_string_lossy().to_string();
+    let wrapper_arg = wrapper_path.to_string_lossy().to_string();
+    let base_url_arg = base_url.clone();
+
+    let output = tokio::task::spawn_blocking(move || {
+        Command::new("powershell.exe")
+            .arg("-NoProfile")
+            .arg("-ExecutionPolicy")
+            .arg("Bypass")
+            .arg("-Command")
+            .arg(
+                r#"$wrapper = $env:CHAT_WINDOW_GUI_CMD;
+$diag = $env:CHAT_WINDOW_GUI_DIAG;
+$base = $env:CHAT_WINDOW_GUI_BASE_URL;
+Remove-Item -LiteralPath $diag -ErrorAction SilentlyContinue;
+$proc = Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', $wrapper, '--base-url', $base, '--conversation-id', 'c_gui_cmd_click_login_demo', '--user-id', 'u_guest', '--label', 'guest-click-login', '-DiagnosticsFile', $diag -PassThru -WindowStyle Hidden;
+$text = $null;
+for ($i = 0; $i -lt 60; $i++) {
+  Start-Sleep -Milliseconds 250;
+  if (Test-Path $diag) {
+    $text = Get-Content -Raw -LiteralPath $diag;
+    if ($text -like '*auth mode=real-login*' -or $text -like '*login failed*' -or $text -like '*application run completed*') { break }
+  }
+}
+Start-Sleep -Milliseconds 1500;
+if (Test-Path $diag) { $text = Get-Content -Raw -LiteralPath $diag }
+$proc.Refresh();
+[Console]::Out.WriteLine("__PROC_EXITED__=$($proc.HasExited)");
+if ($null -eq $text) {
+  [Console]::Out.WriteLine("__ERROR__=diagnostics_missing");
+  try {
+    if ($proc -and -not $proc.HasExited) {
+      $null = $proc.CloseMainWindow();
+      Start-Sleep -Milliseconds 500;
+      if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -ErrorAction SilentlyContinue }
+    }
+  } catch {}
+  exit 2
+}
+[Console]::Out.Write($text);
+try {
+  if ($proc -and -not $proc.HasExited) {
+    $null = $proc.CloseMainWindow();
+    Start-Sleep -Milliseconds 500;
+    if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -ErrorAction SilentlyContinue }
+  }
+} catch {}"#,
+            )
+            .env("CHAT_WINDOW_GUI_CMD", wrapper_arg)
+            .env("CHAT_WINDOW_GUI_DIAG", diagnostics_arg)
+            .env("CHAT_WINDOW_GUI_BASE_URL", base_url_arg)
+            .env("CRAW_CHAT_GUI_AUTOMATION_ACTION", "click-login")
+            .env("CRAW_CHAT_GUI_AUTOMATION_DELAY_MS", "400")
+            .current_dir(repo_root)
+            .output()
+    })
+    .await
+    .expect("chat-window-gui.cmd click-login helper wait task should join")
+    .expect("chat-window-gui.cmd click-login helper should complete");
+
+    let _ = fs::remove_file(&diagnostics_path);
+
+    assert!(
+        output.status.success(),
+        "chat-window-gui.cmd click-login helper should exit successfully\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let diagnostics_text = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        diagnostics_text.contains("__PROC_EXITED__=False"),
+        "chat-window-gui.cmd should stay open after the operator clicks Login for a prepared conversation\nstdout:\n{}\nstderr:\n{}",
+        diagnostics_text,
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        diagnostics_text.contains("auth mode=manual-login-pending")
+            && diagnostics_text.contains("seeded password prefilled for login=u_guest")
+            && diagnostics_text.contains("auth mode=real-login user=u_guest"),
+        "chat-window-gui.cmd should transition from manual-login-pending to real-login after the Login button is clicked\nstdout:\n{}\nstderr:\n{}",
+        diagnostics_text,
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        !diagnostics_text.contains("timeline refresh failed")
+            && !diagnostics_text.contains("application run completed"),
+        "chat-window-gui.cmd should keep the window active and refresh the prepared conversation without closing after login\nstdout:\n{}\nstderr:\n{}",
+        diagnostics_text,
         String::from_utf8_lossy(&output.stderr)
     );
 
@@ -1923,7 +2136,8 @@ async fn test_chat_window_gui_cmd_help_surfaces_gnu_style_named_flags() {
             && stdout_text.contains("--user-id")
             && stdout_text.contains("--message-prefix")
             && stdout_text.contains("--login")
-            && stdout_text.contains("--password"),
+            && stdout_text.contains("--password")
+            && stdout_text.contains("RTC"),
         "chat-window-gui.cmd help must surface the Windows GNU-style launch contract\nstdout:\n{}\nstderr:\n{}",
         stdout_text,
         String::from_utf8_lossy(&output.stderr)
@@ -2130,6 +2344,8 @@ async fn test_open_chat_test_cmd_help_surfaces_gnu_style_named_flags() {
         stdout_text.contains("--conversation-id")
             && stdout_text.contains("--owner-user-id")
             && stdout_text.contains("--scripted-validation")
+            && stdout_text.contains("--scripted-rtc-validation")
+            && stdout_text.contains("--rtc-mode")
             && stdout_text.contains("--validation-message")
             && stdout_text.contains("--json"),
         "open-chat-test.cmd help must surface the Windows GNU-style scripted-validation contract\nstdout:\n{}\nstderr:\n{}",
@@ -2293,6 +2509,80 @@ async fn test_open_chat_test_bash_scripted_validation_emits_json_summary() {
     assert!(
         frame_types.contains(&"event.window"),
         "bash scripted validation must observe event.window: {frame_types:?}"
+    );
+
+    handle.abort();
+    let _ = handle.await;
+}
+
+#[cfg(windows)]
+#[tokio::test]
+async fn test_open_chat_test_powershell_rtc_scripted_validation_emits_json_summary() {
+    unsafe {
+        std::env::set_var(
+            im_auth_context::PUBLIC_BEARER_HS256_SECRET_ENV,
+            "local-chat-cli-secret",
+        );
+    }
+
+    let app = local_minimal_node::build_public_app();
+    let (base_url, handle) = spawn_server(app).await;
+
+    let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(2)
+        .expect("repo root should exist")
+        .to_path_buf();
+    let script_path = repo_root.join("bin").join("open-chat-test.ps1");
+
+    let output = tokio::task::spawn_blocking(move || {
+        Command::new("powershell.exe")
+            .arg("-NoProfile")
+            .arg("-ExecutionPolicy")
+            .arg("Bypass")
+            .arg("-File")
+            .arg(script_path)
+            .arg("-BaseUrl")
+            .arg(base_url)
+            .arg("-ConversationId")
+            .arg("c_cli_open_chat_rtc_scripted_demo")
+            .arg("-OwnerUserId")
+            .arg("u_owner")
+            .arg("-GuestUserId")
+            .arg("u_guest")
+            .arg("-SkipStart")
+            .arg("-ScriptedRtcValidation")
+            .arg("-RtcMode")
+            .arg("video")
+            .arg("-Json")
+            .current_dir(repo_root)
+            .output()
+    })
+    .await
+    .expect("open-chat-test rtc wait task should join")
+    .expect("open-chat-test rtc should complete");
+
+    assert!(
+        output.status.success(),
+        "open-chat-test rtc scripted validation should exit successfully\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let summary: Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|error| {
+        panic!(
+            "open-chat-test rtc scripted validation must emit json summary: {error}\nstdout:\n{}\nstderr:\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        )
+    });
+
+    assert_eq!(summary["mode"], "rtc-scripted");
+    assert_eq!(summary["conversationId"], "c_cli_open_chat_rtc_scripted_demo");
+    assert_eq!(summary["rtcMode"], "video");
+    assert_eq!(
+        summary["timelineSummaries"],
+        serde_json::json!(["rtc.invite", "rtc.offer", "rtc.accept", "rtc.end"])
     );
 
     handle.abort();

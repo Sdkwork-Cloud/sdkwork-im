@@ -28,6 +28,11 @@ param(
     [switch]$UseConsoleWindows,
     [Alias("scripted-validation")]
     [switch]$ScriptedValidation,
+    [Alias("scripted-rtc-validation")]
+    [switch]$ScriptedRtcValidation,
+    [Alias("rtc-mode")]
+    [ValidateSet("voice", "video")]
+    [string]$RtcMode = "video",
     [Alias("validation-message")]
     [string]$ValidationMessage,
     [switch]$Json,
@@ -378,6 +383,74 @@ function Invoke-ImUserLogin {
     }
 }
 
+function Get-HttpErrorDetail {
+    param(
+        [Parameter(Mandatory = $true)]
+        [System.Exception]$Exception
+    )
+
+    $message = $Exception.Message
+    try {
+        $response = $Exception.Response
+        if ($null -ne $response) {
+            $stream = $response.GetResponseStream()
+            if ($null -ne $stream) {
+                $reader = New-Object System.IO.StreamReader($stream)
+                $body = $reader.ReadToEnd()
+                if (-not [string]::IsNullOrWhiteSpace($body)) {
+                    $message = "$message :: $body"
+                }
+            }
+        }
+    }
+    catch {
+    }
+
+    return $message
+}
+
+function Invoke-AuthenticatedJsonRequest {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ResolvedBaseUrl,
+        [Parameter(Mandatory = $true)]
+        [psobject]$AuthContext,
+        [Parameter(Mandatory = $true)]
+        [string]$Method,
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+        $Body,
+        [switch]$AllowEmpty
+    )
+
+    $uri = ($ResolvedBaseUrl.TrimEnd('/')) + $Path
+    $headers = @{
+        Authorization = "Bearer $([string]$AuthContext.BearerToken)"
+    }
+
+    try {
+        if ($null -eq $Body) {
+            $response = Invoke-WebRequest -Uri $uri -Method $Method -Headers $headers -UseBasicParsing
+        }
+        else {
+            $jsonBody = $Body | ConvertTo-Json -Depth 12 -Compress
+            $response = Invoke-WebRequest -Uri $uri -Method $Method -Headers $headers -ContentType "application/json" -Body $jsonBody -UseBasicParsing
+        }
+    }
+    catch {
+        throw "HTTP $Method $Path failed: $(Get-HttpErrorDetail -Exception $_.Exception)"
+    }
+
+    if ([string]::IsNullOrWhiteSpace($response.Content)) {
+        if ($AllowEmpty) {
+            return $null
+        }
+        throw "HTTP $Method $Path returned empty output"
+    }
+
+    return $response.Content | ConvertFrom-Json
+}
+
 function Get-ChatCliAuthArguments {
     param(
         [Parameter(Mandatory = $true)]
@@ -537,6 +610,97 @@ function Invoke-ScriptedValidation {
     finally {
         Remove-Item -LiteralPath $watchOutputFile -ErrorAction SilentlyContinue
         Remove-Item -LiteralPath $watchErrorFile -ErrorAction SilentlyContinue
+    }
+}
+
+function Invoke-ScriptedRtcValidation {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ResolvedBaseUrl,
+        [Parameter(Mandatory = $true)]
+        [string]$ResolvedRtcMode,
+        [Parameter(Mandatory = $true)]
+        [psobject]$OwnerAuth,
+        [Parameter(Mandatory = $true)]
+        [psobject]$GuestAuth
+    )
+
+    $rtcSessionId = "rtc_$ConversationId"
+    $inviteResponse = $null
+    $signalResponse = $null
+    $acceptResponse = $null
+    $endResponse = $null
+
+    $null = Invoke-AuthenticatedJsonRequest `
+        -ResolvedBaseUrl $ResolvedBaseUrl `
+        -AuthContext $OwnerAuth `
+        -Method "POST" `
+        -Path "/api/v1/rtc/sessions" `
+        -Body ([ordered]@{
+                rtcSessionId = $rtcSessionId
+                conversationId = $ConversationId
+                rtcMode = $ResolvedRtcMode
+            })
+
+    $inviteResponse = Invoke-AuthenticatedJsonRequest `
+        -ResolvedBaseUrl $ResolvedBaseUrl `
+        -AuthContext $OwnerAuth `
+        -Method "POST" `
+        -Path "/api/v1/rtc/sessions/$rtcSessionId/invite" `
+        -Body ([ordered]@{
+                signalingStreamId = "st_$ConversationId"
+            })
+
+    $signalResponse = Invoke-AuthenticatedJsonRequest `
+        -ResolvedBaseUrl $ResolvedBaseUrl `
+        -AuthContext $GuestAuth `
+        -Method "POST" `
+        -Path "/api/v1/rtc/sessions/$rtcSessionId/signals" `
+        -Body ([ordered]@{
+                signalType = "rtc.offer"
+                schemaRef = "webrtc.offer.v1"
+                payload = '{"sdp":"open-chat-test-rtc"}'
+            })
+
+    $acceptResponse = Invoke-AuthenticatedJsonRequest `
+        -ResolvedBaseUrl $ResolvedBaseUrl `
+        -AuthContext $GuestAuth `
+        -Method "POST" `
+        -Path "/api/v1/rtc/sessions/$rtcSessionId/accept" `
+        -Body ([ordered]@{
+                artifactMessageId = "msg_${rtcSessionId}_accept"
+            })
+
+    $endResponse = Invoke-AuthenticatedJsonRequest `
+        -ResolvedBaseUrl $ResolvedBaseUrl `
+        -AuthContext $OwnerAuth `
+        -Method "POST" `
+        -Path "/api/v1/rtc/sessions/$rtcSessionId/end" `
+        -Body ([ordered]@{
+                artifactMessageId = "msg_${rtcSessionId}_end"
+            })
+
+    $timeline = Invoke-ChatCliJson -Arguments ((Get-ChatCliAuthArguments -ResolvedBaseUrl $ResolvedBaseUrl -AuthContext $OwnerAuth) + @(
+            "timeline",
+            "--conversation-id", $ConversationId
+        ))
+    $timelineSummaries = @()
+    if ($null -ne $timeline -and $null -ne $timeline.items) {
+        $timelineSummaries = @($timeline.items | ForEach-Object { $_.summary })
+    }
+
+    return [ordered]@{
+        mode = "rtc-scripted"
+        conversationId = $ConversationId
+        rtcSessionId = $rtcSessionId
+        rtcMode = $ResolvedRtcMode
+        ownerUserId = $OwnerAuth.UserId
+        guestUserId = $GuestAuth.UserId
+        inviteDeliveryStatus = [string]$inviteResponse.deliveryStatus
+        signalType = [string]$signalResponse.signalType
+        acceptDeliveryStatus = [string]$acceptResponse.deliveryStatus
+        endDeliveryStatus = [string]$endResponse.deliveryStatus
+        timelineSummaries = $timelineSummaries
     }
 }
 
@@ -870,9 +1034,9 @@ function Invoke-ImUserLoginWithRecovery {
 }
 
 if ($Help) {
-    Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/open-chat-test.ps1 [-ConversationId <id>] [-BaseUrl <url>] [-TenantId <id>] [-OwnerUserId <id>] [-OwnerLogin <id>] [-OwnerPassword <secret>] [-GuestUserId <id>] [-GuestLogin <id>] [-GuestPassword <secret>] [-OwnerLabel <label>] [-GuestLabel <label>] [-Release] [-SkipStart] [-UseConsoleWindows] [-ScriptedValidation] [-ValidationMessage <text>] [-Json]"
-    Write-Host "Usage: cmd /c .\bin\open-chat-test.cmd [--conversation-id <id>] [--base-url <url>] [--tenant-id <id>] [--owner-user-id <id>] [--owner-login <id>] [--owner-password <secret>] [--guest-user-id <id>] [--guest-login <id>] [--guest-password <secret>] [--owner-label <label>] [--guest-label <label>] [--release] [--skip-start] [--use-console-windows] [--scripted-validation] [--validation-message <text>] [--json]"
-    Write-Host "Create a local test conversation, authenticate owner and guest through real login, then either open two visible chat windows or run scripted watch/timeline validation."
+    Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/open-chat-test.ps1 [-ConversationId <id>] [-BaseUrl <url>] [-TenantId <id>] [-OwnerUserId <id>] [-OwnerLogin <id>] [-OwnerPassword <secret>] [-GuestUserId <id>] [-GuestLogin <id>] [-GuestPassword <secret>] [-OwnerLabel <label>] [-GuestLabel <label>] [-Release] [-SkipStart] [-UseConsoleWindows] [-ScriptedValidation] [-ScriptedRtcValidation] [-RtcMode <voice|video>] [-ValidationMessage <text>] [-Json]"
+    Write-Host "Usage: cmd /c .\bin\open-chat-test.cmd [--conversation-id <id>] [--base-url <url>] [--tenant-id <id>] [--owner-user-id <id>] [--owner-login <id>] [--owner-password <secret>] [--guest-user-id <id>] [--guest-login <id>] [--guest-password <secret>] [--owner-label <label>] [--guest-label <label>] [--release] [--skip-start] [--use-console-windows] [--scripted-validation] [--scripted-rtc-validation] [--rtc-mode <voice|video>] [--validation-message <text>] [--json]"
+    Write-Host "Create a local test conversation, authenticate owner and guest through real login, then either open two visible chat windows, run scripted watch/timeline validation, or run scripted RTC signaling validation."
     exit 0
 }
 
@@ -891,6 +1055,10 @@ $resolvedValidationMessage = if ([string]::IsNullOrWhiteSpace($ValidationMessage
 }
 else {
     $ValidationMessage
+}
+
+if ($ScriptedValidation -and $ScriptedRtcValidation) {
+    throw "Choose either -ScriptedValidation or -ScriptedRtcValidation, not both."
 }
 
 if (-not $SkipStart -and -not (Test-ChatHealth -Url $BaseUrl)) {
@@ -945,19 +1113,39 @@ $guestAuth = Invoke-ImUserLoginWithRecovery `
 
 $ownerCliAuthArgs = @(Get-ChatCliAuthArguments -ResolvedBaseUrl $BaseUrl -AuthContext $ownerAuth)
 
-Invoke-ChatCli -Arguments ($ownerCliAuthArgs + @(
+$null = Invoke-ChatCliJson -Arguments ($ownerCliAuthArgs + @(
         "create-conversation",
         "--conversation-id", $ConversationId,
         "--conversation-type", "group"
     ))
 
-Invoke-ChatCli -Arguments ($ownerCliAuthArgs + @(
+$null = Invoke-ChatCliJson -Arguments ($ownerCliAuthArgs + @(
         "add-member",
         "--conversation-id", $ConversationId,
         "--principal-id", $guestAuth.UserId,
         "--principal-kind", "user",
         "--role", "member"
     ))
+
+if ($ScriptedRtcValidation) {
+    $summary = Invoke-ScriptedRtcValidation `
+        -ResolvedBaseUrl $BaseUrl `
+        -ResolvedRtcMode $RtcMode `
+        -OwnerAuth $ownerAuth `
+        -GuestAuth $guestAuth
+
+    if ($Json) {
+        $summary | ConvertTo-Json -Depth 8
+    }
+    else {
+        Write-Host "RTC scripted validation completed."
+        Write-Host "conversationId: $($summary.conversationId)"
+        Write-Host "rtcSessionId: $($summary.rtcSessionId)"
+        Write-Host "rtcMode: $($summary.rtcMode)"
+        Write-Host "timelineSummaries: $([string]::Join(', ', $summary.timelineSummaries))"
+    }
+    exit 0
+}
 
 $windowScript = if ($UseConsoleWindows) {
     Join-Path $PSScriptRoot "chat-window.ps1"
@@ -973,9 +1161,9 @@ $ownerArgs = @(
     "-TenantId", $TenantId,
     "-ConversationId", $ConversationId,
     "-UserId", $ownerAuth.UserId,
+    "-Login", $resolvedOwnerLogin,
     "-SessionId", $ownerAuth.SessionId,
     "-DeviceId", $ownerAuth.DeviceId,
-    "-BearerToken", $ownerAuth.BearerToken,
     "-Label", $OwnerLabel,
     "-MessagePrefix", "[$OwnerLabel] "
 )
@@ -994,9 +1182,9 @@ $guestArgs = @(
     "-TenantId", $TenantId,
     "-ConversationId", $ConversationId,
     "-UserId", $guestAuth.UserId,
+    "-Login", $resolvedGuestLogin,
     "-SessionId", $guestAuth.SessionId,
     "-DeviceId", $guestAuth.DeviceId,
-    "-BearerToken", $guestAuth.BearerToken,
     "-Label", $GuestLabel,
     "-MessagePrefix", "[$GuestLabel] "
 )
