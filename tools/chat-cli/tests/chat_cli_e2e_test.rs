@@ -3,6 +3,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::time::Duration;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use axum::Router;
 use craw_chat_cli::{
@@ -24,6 +25,14 @@ async fn spawn_server(app: Router) -> (String, tokio::task::JoinHandle<()>) {
         axum::serve(listener, app).await.expect("server should run");
     });
     (format!("http://127.0.0.1:{}", address.port()), handle)
+}
+
+fn unique_runtime_dir() -> PathBuf {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("system clock should be after unix epoch")
+        .as_nanos();
+    std::env::temp_dir().join(format!("craw_chat_cli_real_auth_runtime_{unique}"))
 }
 
 fn resolve_usable_bash() -> Option<PathBuf> {
@@ -89,6 +98,278 @@ fn command_output_frames(output: CommandOutput) -> Vec<Value> {
         CommandOutput::Frames(values) => values,
         other => panic!("expected frame output, got {other:?}"),
     }
+}
+
+async fn run_real_login_watch_validation_flow(
+    base_url: &str,
+    conversation_id: &str,
+    owner_session_id: &str,
+    owner_device_id: &str,
+    guest_session_id: &str,
+    guest_device_id: &str,
+    validation_message: &str,
+) {
+    let owner_login_output = execute_command(
+        parse_cli_args([
+            "craw-chat-cli",
+            "--base-url",
+            base_url,
+            "--tenant-id",
+            "t_demo",
+            "--user-id",
+            "u_owner",
+            "--session-id",
+            owner_session_id,
+            "--device-id",
+            owner_device_id,
+            "login",
+            "--login",
+            "u_owner",
+            "--password",
+            "Owner#2026",
+            "--client-kind",
+            "im_user",
+        ])
+        .expect("owner login args should parse"),
+    )
+    .await
+    .expect("owner login should succeed");
+    let owner_login_json = command_output_json(owner_login_output);
+    let owner_bearer = owner_login_json["accessToken"]
+        .as_str()
+        .expect("owner login should return access token")
+        .to_owned();
+    let owner_user_id = owner_login_json["user"]["id"]
+        .as_str()
+        .expect("owner login should return user id")
+        .to_owned();
+
+    let guest_login_output = execute_command(
+        parse_cli_args([
+            "craw-chat-cli",
+            "--base-url",
+            base_url,
+            "--tenant-id",
+            "t_demo",
+            "--user-id",
+            "u_guest",
+            "--session-id",
+            guest_session_id,
+            "--device-id",
+            guest_device_id,
+            "login",
+            "--login",
+            "u_guest",
+            "--password",
+            "Guest#2026",
+            "--client-kind",
+            "im_user",
+        ])
+        .expect("guest login args should parse"),
+    )
+    .await
+    .expect("guest login should succeed");
+    let guest_login_json = command_output_json(guest_login_output);
+    let guest_bearer = guest_login_json["accessToken"]
+        .as_str()
+        .expect("guest login should return access token")
+        .to_owned();
+    let guest_user_id = guest_login_json["user"]["id"]
+        .as_str()
+        .expect("guest login should return user id")
+        .to_owned();
+
+    let create_output = execute_command(
+        parse_cli_args([
+            "craw-chat-cli",
+            "--base-url",
+            base_url,
+            "--tenant-id",
+            "t_demo",
+            "--user-id",
+            owner_user_id.as_str(),
+            "--session-id",
+            owner_session_id,
+            "--device-id",
+            owner_device_id,
+            "--bearer-token",
+            owner_bearer.as_str(),
+            "create-conversation",
+            "--conversation-id",
+            conversation_id,
+            "--conversation-type",
+            "group",
+        ])
+        .expect("create conversation args should parse"),
+    )
+    .await
+    .expect("conversation creation should succeed");
+    let create_json = command_output_json(create_output);
+    assert_eq!(create_json["conversationId"], conversation_id);
+
+    let add_member_output = execute_command(
+        parse_cli_args([
+            "craw-chat-cli",
+            "--base-url",
+            base_url,
+            "--tenant-id",
+            "t_demo",
+            "--user-id",
+            owner_user_id.as_str(),
+            "--session-id",
+            owner_session_id,
+            "--device-id",
+            owner_device_id,
+            "--bearer-token",
+            owner_bearer.as_str(),
+            "add-member",
+            "--conversation-id",
+            conversation_id,
+            "--principal-id",
+            guest_user_id.as_str(),
+            "--principal-kind",
+            "user",
+            "--role",
+            "member",
+        ])
+        .expect("add member args should parse"),
+    )
+    .await
+    .expect("member add should succeed");
+    let add_member_json = command_output_json(add_member_output);
+    assert_eq!(add_member_json["principalId"], guest_user_id);
+
+    let watch_base_url = base_url.to_owned();
+    let watch_conversation_id = conversation_id.to_owned();
+    let watch_guest_user_id = guest_user_id.clone();
+    let watch_guest_bearer = guest_bearer.clone();
+    let watch_guest_session_id = guest_session_id.to_owned();
+    let watch_guest_device_id = guest_device_id.to_owned();
+    let watch_task = tokio::spawn(async move {
+        execute_command(
+            parse_cli_args([
+                "craw-chat-cli",
+                "--base-url",
+                watch_base_url.as_str(),
+                "--tenant-id",
+                "t_demo",
+                "--user-id",
+                watch_guest_user_id.as_str(),
+                "--session-id",
+                watch_guest_session_id.as_str(),
+                "--device-id",
+                watch_guest_device_id.as_str(),
+                "--bearer-token",
+                watch_guest_bearer.as_str(),
+                "watch",
+                "--conversation-id",
+                watch_conversation_id.as_str(),
+                "--event-type",
+                "message.posted",
+                "--exit-after-events",
+                "1",
+                "--idle-timeout-seconds",
+                "5",
+            ])
+            .expect("watch args should parse"),
+        )
+        .await
+    });
+
+    sleep(Duration::from_millis(250)).await;
+
+    let send_output = execute_command(
+        parse_cli_args([
+            "craw-chat-cli",
+            "--base-url",
+            base_url,
+            "--tenant-id",
+            "t_demo",
+            "--user-id",
+            owner_user_id.as_str(),
+            "--session-id",
+            owner_session_id,
+            "--device-id",
+            owner_device_id,
+            "--bearer-token",
+            owner_bearer.as_str(),
+            "send-message",
+            "--conversation-id",
+            conversation_id,
+            "--summary",
+            validation_message,
+            "--text",
+            validation_message,
+            "--client-msg-id",
+            "cli_real_auth_watch_msg_1",
+        ])
+        .expect("send args should parse"),
+    )
+    .await
+    .expect("message send should succeed");
+    let send_json = command_output_json(send_output);
+    assert_eq!(send_json["summary"], validation_message);
+
+    let watch_output = timeout(Duration::from_secs(10), watch_task)
+        .await
+        .expect("watch task should complete before timeout")
+        .expect("watch task should join")
+        .expect("watch command should succeed");
+    let watch_frames = command_output_frames(watch_output);
+    assert!(
+        watch_frames
+            .iter()
+            .any(|frame| frame["type"] == "realtime.connected")
+    );
+    assert!(
+        watch_frames
+            .iter()
+            .any(|frame| frame["type"] == "subscriptions.synced")
+    );
+    let pushed_window = watch_frames
+        .iter()
+        .find(|frame| frame["type"] == "event.window" && frame["reason"] == "push")
+        .expect("watch should observe push event window after real login");
+    let payload: Value = serde_json::from_str(
+        pushed_window["window"]["items"][0]["payload"]
+            .as_str()
+            .expect("payload should be string"),
+    )
+    .expect("payload should be valid json");
+    assert_eq!(payload["summary"], validation_message);
+
+    let timeline_output = execute_command(
+        parse_cli_args([
+            "craw-chat-cli",
+            "--base-url",
+            base_url,
+            "--tenant-id",
+            "t_demo",
+            "--user-id",
+            guest_user_id.as_str(),
+            "--session-id",
+            guest_session_id,
+            "--device-id",
+            guest_device_id,
+            "--bearer-token",
+            guest_bearer.as_str(),
+            "timeline",
+            "--conversation-id",
+            conversation_id,
+        ])
+        .expect("timeline args should parse"),
+    )
+    .await
+    .expect("timeline should succeed");
+    let timeline_json = command_output_json(timeline_output);
+    assert!(
+        timeline_json["items"]
+            .as_array()
+            .expect("timeline items should be an array")
+            .iter()
+            .any(|item| item["summary"] == validation_message),
+        "timeline should contain validation message after real-login flow"
+    );
 }
 
 #[tokio::test]
@@ -285,6 +566,51 @@ async fn test_chat_cli_can_drive_two_party_http_and_websocket_validation_flow() 
 
     handle.abort();
     let _ = handle.await;
+}
+
+#[tokio::test]
+async fn test_chat_cli_keeps_real_login_watch_flow_healthy_after_runtime_dir_restart() {
+    unsafe {
+        std::env::set_var(
+            im_auth_context::PUBLIC_BEARER_HS256_SECRET_ENV,
+            "local-chat-cli-secret",
+        );
+    }
+
+    let runtime_dir = unique_runtime_dir();
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+
+    let app_before = local_minimal_node::build_public_app_with_runtime_dir(runtime_dir.as_path());
+    let (base_url_before, handle_before) = spawn_server(app_before).await;
+    run_real_login_watch_validation_flow(
+        base_url_before.as_str(),
+        "c_cli_real_auth_restart_before",
+        "s_owner_live",
+        "d_owner_live",
+        "s_guest_live",
+        "d_guest_live",
+        "before restart real login watch",
+    )
+    .await;
+    handle_before.abort();
+    let _ = handle_before.await;
+
+    let app_after = local_minimal_node::build_public_app_with_runtime_dir(runtime_dir.as_path());
+    let (base_url_after, handle_after) = spawn_server(app_after).await;
+    run_real_login_watch_validation_flow(
+        base_url_after.as_str(),
+        "c_cli_real_auth_restart_after",
+        "s_owner_live",
+        "d_owner_live",
+        "s_guest_live",
+        "d_guest_live",
+        "after restart real login watch",
+    )
+    .await;
+    handle_after.abort();
+    let _ = handle_after.await;
+
+    let _ = fs::remove_dir_all(runtime_dir);
 }
 
 #[tokio::test]

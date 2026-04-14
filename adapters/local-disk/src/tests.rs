@@ -90,6 +90,10 @@ fn unique_presence_state_store_file() -> PathBuf {
     std::env::temp_dir().join(format!("craw_chat_presence_state_store_{unique}.json"))
 }
 
+fn pending_temp_file(file_path: &PathBuf) -> PathBuf {
+    file_path.with_extension("json.tmp")
+}
+
 #[test]
 fn test_file_commit_journal_persists_across_reopen() {
     let file_path = unique_commit_journal_file();
@@ -149,6 +153,82 @@ fn test_read_commit_journal_file_restores_minimal_events() {
 }
 
 #[test]
+fn test_file_commit_journal_recovers_pending_tmp_file_on_reopen() {
+    let file_path = unique_commit_journal_file();
+    let temp_path = pending_temp_file(&file_path);
+    fs::write(
+        &temp_path,
+        serde_json::to_vec_pretty(&vec![CommitEnvelope::minimal(
+            "evt_demo_tmp",
+            "t_demo",
+            "conversation.created",
+            "conversation",
+            "c_demo",
+            0,
+        )])
+        .expect("pending temp journal payload should serialize"),
+    )
+    .expect("pending temp journal file should be written");
+
+    let reopened = FileCommitJournal::new("local-minimal", &file_path);
+    let recorded = reopened.recorded().expect("recorded should succeed");
+    assert_eq!(recorded.len(), 1);
+    assert_eq!(recorded[0].event_id, "evt_demo_tmp");
+    assert!(
+        !temp_path.exists(),
+        "pending temp journal file should be promoted into the live file"
+    );
+    assert!(file_path.exists(), "live journal file should be restored");
+
+    let _ = fs::remove_file(file_path);
+    let _ = fs::remove_file(temp_path);
+}
+
+#[test]
+fn test_file_commit_journal_prefers_live_file_over_stale_tmp_file() {
+    let file_path = unique_commit_journal_file();
+    let temp_path = pending_temp_file(&file_path);
+    fs::write(
+        &file_path,
+        serde_json::to_vec_pretty(&vec![CommitEnvelope::minimal(
+            "evt_demo_live",
+            "t_demo",
+            "conversation.created",
+            "conversation",
+            "c_demo",
+            0,
+        )])
+        .expect("live journal payload should serialize"),
+    )
+    .expect("live journal file should be written");
+    fs::write(
+        &temp_path,
+        serde_json::to_vec_pretty(&vec![CommitEnvelope::minimal(
+            "evt_demo_tmp",
+            "t_demo",
+            "message.posted",
+            "conversation",
+            "c_demo",
+            1,
+        )])
+        .expect("stale temp journal payload should serialize"),
+    )
+    .expect("stale temp journal file should be written");
+
+    let reopened = FileCommitJournal::new("local-minimal", &file_path);
+    let recorded = reopened.recorded().expect("recorded should succeed");
+    assert_eq!(recorded.len(), 1);
+    assert_eq!(recorded[0].event_id, "evt_demo_live");
+    assert!(
+        !temp_path.exists(),
+        "stale temp journal file should be removed once the live file wins"
+    );
+
+    let _ = fs::remove_file(file_path);
+    let _ = fs::remove_file(temp_path);
+}
+
+#[test]
 fn test_validate_checkpoint_store_file_rejects_array_shape() {
     let file_path = unique_checkpoint_store_file();
     fs::write(&file_path, b"[]").expect("checkpoint file should be written");
@@ -163,6 +243,49 @@ fn test_validate_checkpoint_store_file_rejects_array_shape() {
     assert!(message.contains("failed to parse realtime checkpoint store"));
 
     let _ = fs::remove_file(file_path);
+}
+
+#[test]
+fn test_file_checkpoint_store_recovers_pending_tmp_file_on_reopen() {
+    let file_path = unique_checkpoint_store_file();
+    let temp_path = pending_temp_file(&file_path);
+    let pending_payload = BTreeMap::from([(
+        "t_demo:u_demo:d_pad".to_string(),
+        RealtimeCheckpointRecord {
+            tenant_id: "t_demo".into(),
+            principal_id: "u_demo".into(),
+            device_id: "d_pad".into(),
+            latest_realtime_seq: 9,
+            acked_through_seq: 7,
+            trimmed_through_seq: 7,
+            updated_at: "2026-04-06T00:00:00.000Z".into(),
+        },
+    )]);
+    fs::write(
+        &temp_path,
+        serde_json::to_vec_pretty(&pending_payload)
+            .expect("pending temp checkpoint payload should serialize"),
+    )
+    .expect("pending temp checkpoint file should be written");
+
+    let reopened = FileRealtimeCheckpointStore::new(&file_path);
+    let restored = reopened
+        .load_checkpoint("t_demo", "u_demo", "d_pad")
+        .expect("load should succeed")
+        .expect("checkpoint should exist");
+    assert_eq!(restored.latest_realtime_seq, 9);
+    assert_eq!(restored.acked_through_seq, 7);
+    assert!(
+        !temp_path.exists(),
+        "pending temp checkpoint file should be promoted into the live file"
+    );
+    assert!(
+        file_path.exists(),
+        "live checkpoint file should be restored"
+    );
+
+    let _ = fs::remove_file(file_path);
+    let _ = fs::remove_file(temp_path);
 }
 
 #[test]
