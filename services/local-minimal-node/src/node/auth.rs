@@ -143,7 +143,13 @@ const SEEDED_ACCOUNTS: &[SeedAccountDefinition] = &[
         name: "Owner Demo",
         role: "Conversation Owner",
         email: "owner@nebula-commerce.example",
-        permissions: &["conversation.*", "realtime.*", "rtc.*", "media.*", "stream.*"],
+        permissions: &[
+            "conversation.*",
+            "realtime.*",
+            "rtc.*",
+            "media.*",
+            "stream.*",
+        ],
     },
     SeedAccountDefinition {
         tenant_id: "t_demo",
@@ -156,7 +162,12 @@ const SEEDED_ACCOUNTS: &[SeedAccountDefinition] = &[
         name: "Guest Demo",
         role: "Conversation Guest",
         email: "guest@nebula-commerce.example",
-        permissions: &["conversation.read", "realtime.read", "rtc.read", "media.read"],
+        permissions: &[
+            "conversation.read",
+            "realtime.read",
+            "rtc.read",
+            "media.read",
+        ],
     },
     SeedAccountDefinition {
         tenant_id: "t_demo",
@@ -169,7 +180,13 @@ const SEEDED_ACCOUNTS: &[SeedAccountDefinition] = &[
         name: "Demo User",
         role: "Demo Operator",
         email: "demo@nebula-commerce.example",
-        permissions: &["conversation.*", "realtime.*", "rtc.*", "media.*", "stream.*"],
+        permissions: &[
+            "conversation.*",
+            "realtime.*",
+            "rtc.*",
+            "media.*",
+            "stream.*",
+        ],
     },
     SeedAccountDefinition {
         tenant_id: "t_demo",
@@ -188,12 +205,9 @@ const SEEDED_ACCOUNTS: &[SeedAccountDefinition] = &[
 
 impl AuthRuntime {
     pub(super) fn new(runtime_dir: Option<PathBuf>) -> Self {
-        let (accounts_path, refresh_sessions_path) =
-            auth_store_paths(runtime_dir.as_ref().map(PathBuf::as_path));
-        let (accounts_path, mut accounts) = load_managed_auth_store::<AuthAccountRecord>(
-            accounts_path,
-            "auth accounts",
-        );
+        let (accounts_path, refresh_sessions_path) = auth_store_paths(runtime_dir.as_deref());
+        let (accounts_path, mut accounts) =
+            load_managed_auth_store::<AuthAccountRecord>(accounts_path, "auth accounts");
         let (refresh_sessions_path, mut refresh_sessions) =
             load_managed_auth_store::<AuthRefreshSessionRecord>(
                 refresh_sessions_path,
@@ -238,7 +252,8 @@ impl AuthRuntime {
         }
         let password = request.password.as_str();
         let client_kind = resolve_client_kind(request.client_kind.as_deref())?;
-        let device_id = validate_optional_auth_binding_id("deviceId", request.device_id.as_deref())?;
+        let device_id =
+            validate_optional_auth_binding_id("deviceId", request.device_id.as_deref())?;
         let session_id =
             validate_optional_auth_binding_id("sessionId", request.session_id.as_deref())?;
         let mut store = self.lock_store()?;
@@ -253,10 +268,7 @@ impl AuthRuntime {
             })
             .cloned()
             .ok_or_else(|| {
-                ApiError::unauthorized(
-                    "auth_login_invalid",
-                    "account login or password is invalid",
-                )
+                ApiError::unauthorized("auth_login_invalid", "account login or password is invalid")
             })?;
 
         if account.disabled {
@@ -273,12 +285,7 @@ impl AuthRuntime {
             ));
         }
 
-        self.issue_session(
-            &mut store,
-            &account,
-            device_id,
-            session_id,
-        )
+        self.issue_session(&mut store, &account, device_id, session_id)
     }
 
     pub(super) fn refresh(&self, request: RefreshRequest) -> Result<LoginResponse, ApiError> {
@@ -288,7 +295,8 @@ impl AuthRuntime {
             "refreshToken is required",
         )?
         .to_owned();
-        let device_id = validate_optional_auth_binding_id("deviceId", request.device_id.as_deref())?;
+        let device_id =
+            validate_optional_auth_binding_id("deviceId", request.device_id.as_deref())?;
         let session_id =
             validate_optional_auth_binding_id("sessionId", request.session_id.as_deref())?;
         let mut store = self.lock_store()?;
@@ -366,7 +374,8 @@ impl AuthRuntime {
             .accounts
             .iter()
             .find(|candidate| {
-                candidate.tenant_id == session.tenant_id && candidate.account_id == session.account_id
+                candidate.tenant_id == session.tenant_id
+                    && candidate.account_id == session.account_id
             })
             .cloned()
             .ok_or_else(|| {
@@ -443,7 +452,8 @@ impl AuthRuntime {
             .unwrap_or_else(|| default_session_id(account.actor_id.as_str()));
         let now = current_unix_epoch_seconds();
         let expires_at = now + ACCESS_TOKEN_TTL_SECONDS;
-        let access_token = issue_access_token(account, device_id.as_str(), session_id.as_str(), now)?;
+        let access_token =
+            issue_access_token(account, device_id.as_str(), session_id.as_str(), now)?;
         let refresh_token = generate_secret_token(32);
 
         prune_expired_refresh_sessions(&mut store.refresh_sessions, now);
@@ -481,10 +491,7 @@ impl AuthRuntime {
 
     fn lock_store(&self) -> Result<MutexGuard<'_, AuthStore>, ApiError> {
         self.store.lock().map_err(|_| {
-            ApiError::service_unavailable(
-                "auth_store_unavailable",
-                "auth store lock is poisoned",
-            )
+            ApiError::service_unavailable("auth_store_unavailable", "auth store lock is poisoned")
         })
     }
 }
@@ -509,7 +516,9 @@ pub(super) async fn me(
 ) -> Result<Json<MeResponse>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
     let client_kind_hint = client_kind_from_headers(&headers);
-    Ok(Json(state.auth_runtime.me(&auth, client_kind_hint.as_deref())?))
+    Ok(Json(
+        state.auth_runtime.me(&auth, client_kind_hint.as_deref())?,
+    ))
 }
 
 fn account_user_view(account: &AuthAccountRecord) -> AuthUserView {
@@ -609,7 +618,11 @@ fn seed_accounts(accounts: &mut Vec<AuthAccountRecord>) {
             password_hash,
             password_salt: hex_encode(salt),
             password_iterations: PASSWORD_ITERATIONS,
-            permissions: definition.permissions.iter().map(|value| (*value).to_owned()).collect(),
+            permissions: definition
+                .permissions
+                .iter()
+                .map(|value| (*value).to_owned())
+                .collect(),
             disabled: false,
         });
     }
@@ -633,7 +646,10 @@ fn verify_password(account: &AuthAccountRecord, password: &str) -> Result<bool, 
         salt.as_slice(),
         account.password_iterations,
     );
-    Ok(actual_hash.as_slice().ct_eq(expected_hash.as_slice()).into())
+    Ok(actual_hash
+        .as_slice()
+        .ct_eq(expected_hash.as_slice())
+        .into())
 }
 
 fn derive_password_hash(password: &str, salt: &[u8], iterations: u32) -> String {
@@ -675,7 +691,10 @@ fn auth_store_paths(runtime_dir: Option<&Path>) -> (Option<PathBuf>, Option<Path
     };
     let state_dir = runtime_dir.join("state");
     if let Err(error) = fs::create_dir_all(&state_dir) {
-        eprintln!("failed to create auth state dir {}: {error}", state_dir.display());
+        eprintln!(
+            "failed to create auth state dir {}: {error}",
+            state_dir.display()
+        );
         return (None, None);
     }
     (
@@ -684,7 +703,10 @@ fn auth_store_paths(runtime_dir: Option<&Path>) -> (Option<PathBuf>, Option<Path
     )
 }
 
-fn load_managed_auth_store<T>(path: Option<PathBuf>, label: &'static str) -> (Option<PathBuf>, Vec<T>)
+fn load_managed_auth_store<T>(
+    path: Option<PathBuf>,
+    label: &'static str,
+) -> (Option<PathBuf>, Vec<T>)
 where
     T: DeserializeOwned,
 {
@@ -774,8 +796,12 @@ where
         })?;
     }
 
-    let mut temp_file = File::create(&temp_path)
-        .map_err(|error| format!("failed to create temp file {}: {error}", temp_path.display()))?;
+    let mut temp_file = File::create(&temp_path).map_err(|error| {
+        format!(
+            "failed to create temp file {}: {error}",
+            temp_path.display()
+        )
+    })?;
     temp_file
         .write_all(content.as_bytes())
         .map_err(|error| format!("failed to write temp file {}: {error}", temp_path.display()))?;

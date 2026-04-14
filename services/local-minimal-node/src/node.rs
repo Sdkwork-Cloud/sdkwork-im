@@ -106,8 +106,8 @@ mod iot;
 mod media;
 mod membership;
 mod message;
-mod portal;
 mod platform;
+mod portal;
 mod projection;
 mod rtc;
 mod runtime_dir;
@@ -248,18 +248,14 @@ impl AppState {
         )
     }
 
+    #[rustfmt::skip]
     fn prepare_active_device_route(
         &self,
         auth: &AuthContext,
         device_id: &str,
         connection_kind: &str,
     ) -> Result<projection_service::RegisteredDeviceView, ApiError> {
-        self.device_registration.prepare_active_device_route(
-            self,
-            auth,
-            device_id,
-            connection_kind,
-        )
+        self.device_registration.prepare_active_device_route(self, auth, device_id, connection_kind)
     }
 
     fn disconnect_active_device_route(

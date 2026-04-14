@@ -127,6 +127,7 @@ impl SessionSyncState {
         })
     }
 
+    #[rustfmt::skip]
     fn registered_devices(&self, tenant_id: &str, principal_id: &str, principal_kind: &str) -> Vec<String> {
         lock_session_sync_mutex(&self.registered_devices, "registered device store")
             .get(typed_principal_scope_key(tenant_id, principal_id, principal_kind).as_str())

@@ -50,6 +50,7 @@ impl SessionDeviceRegistration {
         }
     }
 
+    #[rustfmt::skip]
     pub(crate) fn register_device(
         &self,
         auth: &AuthContext,

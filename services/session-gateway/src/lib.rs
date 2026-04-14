@@ -506,17 +506,14 @@ impl AppState {
         )
     }
 
+    #[rustfmt::skip]
     fn disconnect_active_device_route(
         &self,
         auth: &AuthContext,
         device_id: &str,
         connection_kind: &str,
     ) -> Result<DisconnectActiveDeviceRouteOutcome, ApiError> {
-        self.device_registration.disconnect_active_device_route(
-            auth,
-            device_id,
-            connection_kind,
-        )
+        self.device_registration.disconnect_active_device_route(auth, device_id, connection_kind)
     }
 
     fn device_sync_session_state(

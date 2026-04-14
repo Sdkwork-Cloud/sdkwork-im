@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use super::*;
@@ -90,7 +90,7 @@ fn unique_presence_state_store_file() -> PathBuf {
     std::env::temp_dir().join(format!("craw_chat_presence_state_store_{unique}.json"))
 }
 
-fn pending_temp_file(file_path: &PathBuf) -> PathBuf {
+fn pending_temp_file(file_path: &Path) -> PathBuf {
     file_path.with_extension("json.tmp")
 }
 

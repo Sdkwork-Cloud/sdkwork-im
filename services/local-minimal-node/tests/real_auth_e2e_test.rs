@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -72,11 +72,7 @@ async fn read_json(response: axum::response::Response) -> Value {
     serde_json::from_slice(&bytes).expect("response body should be valid json")
 }
 
-async fn post_json(
-    app: &axum::Router,
-    path: &str,
-    payload: Value,
-) -> axum::response::Response {
+async fn post_json(app: &axum::Router, path: &str, payload: Value) -> axum::response::Response {
     app.clone()
         .oneshot(
             Request::builder()
@@ -143,15 +139,15 @@ async fn get_json_with_bearer(
         .expect("route should return response")
 }
 
-fn auth_accounts_path(runtime_dir: &PathBuf) -> PathBuf {
+fn auth_accounts_path(runtime_dir: &Path) -> PathBuf {
     runtime_dir.join("state").join("auth-accounts.json")
 }
 
-fn auth_refresh_sessions_path(runtime_dir: &PathBuf) -> PathBuf {
+fn auth_refresh_sessions_path(runtime_dir: &Path) -> PathBuf {
     runtime_dir.join("state").join("auth-refresh-sessions.json")
 }
 
-fn auth_sidecar_paths(runtime_dir: &PathBuf, prefix: &str) -> Vec<PathBuf> {
+fn auth_sidecar_paths(runtime_dir: &Path, prefix: &str) -> Vec<PathBuf> {
     let state_dir = runtime_dir.join("state");
     let Ok(entries) = fs::read_dir(&state_dir) else {
         return Vec::new();
@@ -170,7 +166,7 @@ fn auth_sidecar_paths(runtime_dir: &PathBuf, prefix: &str) -> Vec<PathBuf> {
     paths
 }
 
-fn read_auth_accounts(runtime_dir: &PathBuf) -> Vec<Value> {
+fn read_auth_accounts(runtime_dir: &Path) -> Vec<Value> {
     let path = auth_accounts_path(runtime_dir);
     serde_json::from_str(
         &fs::read_to_string(&path)
@@ -179,7 +175,7 @@ fn read_auth_accounts(runtime_dir: &PathBuf) -> Vec<Value> {
     .expect("auth accounts json should parse")
 }
 
-fn write_auth_accounts(runtime_dir: &PathBuf, accounts: &[Value]) {
+fn write_auth_accounts(runtime_dir: &Path, accounts: &[Value]) {
     let path = auth_accounts_path(runtime_dir);
     fs::write(
         &path,
@@ -188,23 +184,29 @@ fn write_auth_accounts(runtime_dir: &PathBuf, accounts: &[Value]) {
     .unwrap_or_else(|_| panic!("auth accounts file should be writable: {}", path.display()));
 }
 
-fn read_auth_refresh_sessions(runtime_dir: &PathBuf) -> Vec<Value> {
+fn read_auth_refresh_sessions(runtime_dir: &Path) -> Vec<Value> {
     let path = auth_refresh_sessions_path(runtime_dir);
-    serde_json::from_str(
-        &fs::read_to_string(&path).unwrap_or_else(|_| {
-            panic!("auth refresh sessions file should exist: {}", path.display())
-        }),
-    )
+    serde_json::from_str(&fs::read_to_string(&path).unwrap_or_else(|_| {
+        panic!(
+            "auth refresh sessions file should exist: {}",
+            path.display()
+        )
+    }))
     .expect("auth refresh sessions json should parse")
 }
 
-fn write_auth_refresh_sessions(runtime_dir: &PathBuf, sessions: &[Value]) {
+fn write_auth_refresh_sessions(runtime_dir: &Path, sessions: &[Value]) {
     let path = auth_refresh_sessions_path(runtime_dir);
     fs::write(
         &path,
         serde_json::to_string_pretty(sessions).expect("auth refresh sessions should serialize"),
     )
-    .unwrap_or_else(|_| panic!("auth refresh sessions should be writable: {}", path.display()));
+    .unwrap_or_else(|_| {
+        panic!(
+            "auth refresh sessions should be writable: {}",
+            path.display()
+        )
+    });
 }
 
 #[tokio::test]
@@ -366,7 +368,12 @@ async fn test_seeded_im_user_can_log_in_refresh_and_fetch_me_profile() {
     assert_eq!(login_body["user"]["clientKind"], "im_user");
     assert!(login_body["accessToken"].as_str().is_some());
     assert!(login_body["refreshToken"].as_str().is_some());
-    assert!(runtime_dir.join("state").join("auth-accounts.json").exists());
+    assert!(
+        runtime_dir
+            .join("state")
+            .join("auth-accounts.json")
+            .exists()
+    );
     assert!(
         runtime_dir
             .join("state")
@@ -932,7 +939,10 @@ async fn test_rtc_routes_accept_real_login_tokens_for_owner_and_guest_flow() {
         .iter()
         .map(|item| item["summary"].as_str().unwrap_or_default())
         .collect::<Vec<_>>();
-    assert_eq!(summaries, vec!["rtc.invite", "rtc.offer", "rtc.accept", "rtc.end"]);
+    assert_eq!(
+        summaries,
+        vec!["rtc.invite", "rtc.offer", "rtc.accept", "rtc.end"]
+    );
 
     let _ = fs::remove_dir_all(runtime_dir);
 }
