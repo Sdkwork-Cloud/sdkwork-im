@@ -13,6 +13,8 @@ param(
     [string]$DeviceId,
     [Alias("bearer-token")]
     [string]$BearerToken,
+    [string]$Login,
+    [string]$Password,
     [string]$Label,
     [Alias("message-prefix")]
     [string]$MessagePrefix,
@@ -73,10 +75,263 @@ function Resolve-BaseUrl {
     return "http://$resolvedHost`:$port"
 }
 
+function Resolve-SeededImPassword {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ResolvedLogin
+    )
+
+    switch ($ResolvedLogin) {
+        "u_owner" { return "Owner#2026" }
+        "u_guest" { return "Guest#2026" }
+        "u_demo" { return "Demo#2026" }
+        default { return $null }
+    }
+}
+
+function Resolve-ImLogin {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RequestedUserId,
+        [string]$RequestedLogin
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($RequestedLogin)) {
+        return $RequestedLogin
+    }
+
+    return $RequestedUserId
+}
+
+function Resolve-ImPassword {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ResolvedLogin,
+        [string]$RequestedPassword
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($RequestedPassword)) {
+        return $RequestedPassword
+    }
+
+    $seededPassword = Resolve-SeededImPassword -ResolvedLogin $ResolvedLogin
+    if (-not [string]::IsNullOrWhiteSpace($seededPassword)) {
+        return $seededPassword
+    }
+
+    throw "No password was provided for login '$ResolvedLogin'. Supply -Login/-Password for non-seeded accounts."
+}
+
+function Quote-ProcessArgument {
+    param(
+        [AllowNull()]
+        [string]$Value
+    )
+
+    if ($null -eq $Value) {
+        return '""'
+    }
+
+    if ($Value -notmatch '[\s"]') {
+        return $Value
+    }
+
+    return '"' + ($Value -replace '"', '\"') + '"'
+}
+
+function Invoke-ChatCliCaptured {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$Arguments,
+        [switch]$AllowEmpty,
+        [ValidateRange(1, 300)]
+        [int]$TimeoutSeconds = 30
+    )
+
+    $root = Split-Path -Parent $PSScriptRoot
+    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $startInfo.FileName = "powershell.exe"
+    $startInfo.WorkingDirectory = $root
+    $startInfo.UseShellExecute = $false
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    $startInfo.CreateNoWindow = $true
+    $startInfo.StandardOutputEncoding = [System.Text.Encoding]::UTF8
+    $startInfo.StandardErrorEncoding = [System.Text.Encoding]::UTF8
+
+    $allArgs = @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $PSScriptRoot "chat-cli.ps1")
+    )
+    if ($Release) {
+        $allArgs += "-Release"
+    }
+    $allArgs += $Arguments
+    $startInfo.Arguments = (($allArgs | ForEach-Object { Quote-ProcessArgument $_ }) -join ' ')
+
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $startInfo
+
+    [void]$process.Start()
+    $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+    $stderrTask = $process.StandardError.ReadToEndAsync()
+
+    if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
+        try {
+            Stop-Process -Id $process.Id -Force -ErrorAction Stop
+            $process.WaitForExit()
+        }
+        catch {
+        }
+        $stdout = $stdoutTask.GetAwaiter().GetResult()
+        $stderr = $stderrTask.GetAwaiter().GetResult()
+        throw "chat-cli invocation timed out after $TimeoutSeconds seconds: $($Arguments -join ' ')`n$stderr`n$stdout"
+    }
+
+    $process.WaitForExit()
+    $stdout = $stdoutTask.GetAwaiter().GetResult()
+    $stderr = $stderrTask.GetAwaiter().GetResult()
+    $exitCode = if ($null -eq $process.ExitCode) { 0 } else { [int]$process.ExitCode }
+    if ($exitCode -ne 0) {
+        throw "chat-cli invocation failed with exit code ${exitCode}: $($Arguments -join ' ')`n$stderr`n$stdout"
+    }
+
+    if ([string]::IsNullOrWhiteSpace($stdout) -and -not $AllowEmpty) {
+        throw "chat-cli invocation returned empty output: $($Arguments -join ' ')"
+    }
+
+    return [pscustomobject]@{
+        Stdout = $stdout
+        Stderr = $stderr
+    }
+}
+
+function Invoke-ChatCliJson {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$Arguments
+    )
+
+    $result = Invoke-ChatCliCaptured -Arguments $Arguments
+    return $result.Stdout | ConvertFrom-Json
+}
+
+function Invoke-ImUserLogin {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ResolvedBaseUrl,
+        [Parameter(Mandatory = $true)]
+        [string]$RequestedUserId,
+        [Parameter(Mandatory = $true)]
+        [string]$ResolvedLogin,
+        [Parameter(Mandatory = $true)]
+        [string]$ResolvedPassword,
+        [Parameter(Mandatory = $true)]
+        [string]$ResolvedSessionId,
+        [Parameter(Mandatory = $true)]
+        [string]$ResolvedDeviceId
+    )
+
+    $loginResponse = Invoke-ChatCliJson -Arguments @(
+        "--base-url", $ResolvedBaseUrl,
+        "--tenant-id", $TenantId,
+        "--user-id", $RequestedUserId,
+        "--session-id", $ResolvedSessionId,
+        "--device-id", $ResolvedDeviceId,
+        "login",
+        "--login", $ResolvedLogin,
+        "--password", $ResolvedPassword,
+        "--client-kind", "im_user"
+    )
+
+    $accessToken = [string]$loginResponse.accessToken
+    if ([string]::IsNullOrWhiteSpace($accessToken)) {
+        throw "login response did not include accessToken for '$ResolvedLogin'"
+    }
+
+    $resolvedAuthUserId = if ($null -ne $loginResponse.user -and -not [string]::IsNullOrWhiteSpace([string]$loginResponse.user.id)) {
+        [string]$loginResponse.user.id
+    }
+    else {
+        $RequestedUserId
+    }
+
+    return [pscustomobject]@{
+        UserId = $resolvedAuthUserId
+        SessionId = $ResolvedSessionId
+        DeviceId = $ResolvedDeviceId
+        BearerToken = $accessToken
+        PublicBearerSecret = $null
+        AuthMode = "real-login"
+    }
+}
+
+function Resolve-PublicBearerSecret {
+    $configFile = Join-Path (Split-Path -Parent $PSScriptRoot) ".runtime\local-minimal\config\local-minimal.env"
+    return Read-ConfigValue -ConfigFile $configFile -Key "CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET"
+}
+
+function Resolve-ChatAuthContext {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ResolvedBaseUrl,
+        [Parameter(Mandatory = $true)]
+        [string]$RequestedUserId,
+        [Parameter(Mandatory = $true)]
+        [string]$ResolvedSessionId,
+        [Parameter(Mandatory = $true)]
+        [string]$ResolvedDeviceId
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($BearerToken)) {
+        return [pscustomobject]@{
+            UserId = $RequestedUserId
+            SessionId = $ResolvedSessionId
+            DeviceId = $ResolvedDeviceId
+            BearerToken = $BearerToken
+            PublicBearerSecret = $null
+            AuthMode = "provided-bearer"
+        }
+    }
+
+    $resolvedLogin = Resolve-ImLogin -RequestedUserId $RequestedUserId -RequestedLogin $Login
+    $seededPassword = Resolve-SeededImPassword -ResolvedLogin $resolvedLogin
+    $shouldUseRealLogin = -not [string]::IsNullOrWhiteSpace($Login) `
+        -or -not [string]::IsNullOrWhiteSpace($Password) `
+        -or -not [string]::IsNullOrWhiteSpace($seededPassword)
+
+    if ($shouldUseRealLogin) {
+        $resolvedPassword = if (-not [string]::IsNullOrWhiteSpace($Password)) {
+            $Password
+        }
+        else {
+            Resolve-ImPassword -ResolvedLogin $resolvedLogin -RequestedPassword $Password
+        }
+        return Invoke-ImUserLogin `
+            -ResolvedBaseUrl $ResolvedBaseUrl `
+            -RequestedUserId $RequestedUserId `
+            -ResolvedLogin $resolvedLogin `
+            -ResolvedPassword $resolvedPassword `
+            -ResolvedSessionId $ResolvedSessionId `
+            -ResolvedDeviceId $ResolvedDeviceId
+    }
+
+    $publicBearerSecret = Resolve-PublicBearerSecret
+    return [pscustomobject]@{
+        UserId = $RequestedUserId
+        SessionId = $ResolvedSessionId
+        DeviceId = $ResolvedDeviceId
+        BearerToken = $null
+        PublicBearerSecret = $publicBearerSecret
+        AuthMode = if ([string]::IsNullOrWhiteSpace($publicBearerSecret)) { "implicit-cli-default" } else { "config-public-secret" }
+    }
+}
+
 if ($Help -or [string]::IsNullOrWhiteSpace($ConversationId) -or [string]::IsNullOrWhiteSpace($UserId)) {
-    Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/chat-window.ps1 -ConversationId <id> -UserId <id> [-BaseUrl <url>] [-TenantId <id>] [-SessionId <id>] [-DeviceId <id>] [-BearerToken <token>] [-Label <name>] [-MessagePrefix <prefix>] [-Release]"
-    Write-Host "Usage: cmd /c .\bin\chat-window.cmd --conversation-id <id> --user-id <id> [--base-url <url>] [--tenant-id <id>] [--session-id <id>] [--device-id <id>] [--bearer-token <token>] [--label <name>] [--message-prefix <prefix>] [--release]"
-    Write-Host "Open one interactive chat terminal backed by bin/chat-cli.ps1 chat-session, optionally with a real bearer token."
+    Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/chat-window.ps1 -ConversationId <id> -UserId <id> [-BaseUrl <url>] [-TenantId <id>] [-SessionId <id>] [-DeviceId <id>] [-BearerToken <token>] [-Login <id>] [-Password <secret>] [-Label <name>] [-MessagePrefix <prefix>] [-Release]"
+    Write-Host "Usage: cmd /c .\bin\chat-window.cmd --conversation-id <id> --user-id <id> [--base-url <url>] [--tenant-id <id>] [--session-id <id>] [--device-id <id>] [--bearer-token <token>] [--login <id>] [--password <secret>] [--label <name>] [--message-prefix <prefix>] [--release]"
+    Write-Host "Open one interactive chat terminal backed by bin/chat-cli.ps1 chat-session. Default seeded IM users prefer real login before shared-secret fallback."
     if ($Help) {
         exit 0
     }
@@ -88,6 +343,11 @@ $resolvedBaseUrl = Resolve-BaseUrl -RequestedBaseUrl $BaseUrl
 $resolvedSessionId = if ([string]::IsNullOrWhiteSpace($SessionId)) { "s_$UserId" } else { $SessionId }
 $resolvedDeviceId = if ([string]::IsNullOrWhiteSpace($DeviceId)) { "d_$UserId" } else { $DeviceId }
 $resolvedMessagePrefix = if ($PSBoundParameters.ContainsKey('MessagePrefix')) { $MessagePrefix } else { "[$resolvedLabel] " }
+$resolvedAuthContext = Resolve-ChatAuthContext `
+    -ResolvedBaseUrl $resolvedBaseUrl `
+    -RequestedUserId $UserId `
+    -ResolvedSessionId $resolvedSessionId `
+    -ResolvedDeviceId $resolvedDeviceId
 
 try {
     $host.UI.RawUI.WindowTitle = "craw-chat [$resolvedLabel] [$ConversationId]"
@@ -102,13 +362,16 @@ if ($Release) {
 $cliArgs += @(
     "--base-url", $resolvedBaseUrl,
     "--tenant-id", $TenantId,
-    "--user-id", $UserId,
-    "--session-id", $resolvedSessionId,
-    "--device-id", $resolvedDeviceId
+    "--user-id", $resolvedAuthContext.UserId,
+    "--session-id", $resolvedAuthContext.SessionId,
+    "--device-id", $resolvedAuthContext.DeviceId
 )
 
-if (-not [string]::IsNullOrWhiteSpace($BearerToken)) {
-    $cliArgs += @("--bearer-token", $BearerToken)
+if (-not [string]::IsNullOrWhiteSpace([string]$resolvedAuthContext.BearerToken)) {
+    $cliArgs += @("--bearer-token", [string]$resolvedAuthContext.BearerToken)
+}
+elseif (-not [string]::IsNullOrWhiteSpace([string]$resolvedAuthContext.PublicBearerSecret)) {
+    $cliArgs += @("--public-bearer-secret", [string]$resolvedAuthContext.PublicBearerSecret)
 }
 
 $cliArgs += @(
@@ -121,7 +384,7 @@ if (-not [string]::IsNullOrWhiteSpace($resolvedMessagePrefix)) {
     $cliArgs += @("--message-prefix", $resolvedMessagePrefix)
 }
 
-Write-Host "Opening chat session: conversation=$ConversationId user=$UserId label=$resolvedLabel baseUrl=$resolvedBaseUrl"
+Write-Host "Opening chat session: conversation=$ConversationId user=$($resolvedAuthContext.UserId) label=$resolvedLabel baseUrl=$resolvedBaseUrl authMode=$($resolvedAuthContext.AuthMode)"
 Write-Host "Type /quit to exit."
 
 & "$PSScriptRoot\chat-cli.ps1" @cliArgs

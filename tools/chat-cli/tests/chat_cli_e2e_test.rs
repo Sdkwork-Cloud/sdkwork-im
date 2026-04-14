@@ -372,6 +372,116 @@ async fn run_real_login_watch_validation_flow(
     );
 }
 
+async fn login_seeded_im_user(
+    base_url: &str,
+    user_id: &str,
+    password: &str,
+    session_id: &str,
+    device_id: &str,
+) -> (String, String) {
+    let login_output = execute_command(
+        parse_cli_args([
+            "craw-chat-cli",
+            "--base-url",
+            base_url,
+            "--tenant-id",
+            "t_demo",
+            "--user-id",
+            user_id,
+            "--session-id",
+            session_id,
+            "--device-id",
+            device_id,
+            "login",
+            "--login",
+            user_id,
+            "--password",
+            password,
+            "--client-kind",
+            "im_user",
+        ])
+        .expect("seeded login args should parse"),
+    )
+    .await
+    .expect("seeded login should succeed");
+    let login_json = command_output_json(login_output);
+    let resolved_user_id = login_json["user"]["id"]
+        .as_str()
+        .expect("seeded login should return user id")
+        .to_owned();
+    let access_token = login_json["accessToken"]
+        .as_str()
+        .expect("seeded login should return access token")
+        .to_owned();
+    (resolved_user_id, access_token)
+}
+
+async fn prepare_real_login_conversation(base_url: &str, conversation_id: &str) {
+    let (owner_user_id, owner_bearer) =
+        login_seeded_im_user(base_url, "u_owner", "Owner#2026", "s_owner_setup", "d_owner_setup")
+            .await;
+
+    let create_output = execute_command(
+        parse_cli_args([
+            "craw-chat-cli",
+            "--base-url",
+            base_url,
+            "--tenant-id",
+            "t_demo",
+            "--user-id",
+            owner_user_id.as_str(),
+            "--session-id",
+            "s_owner_setup",
+            "--device-id",
+            "d_owner_setup",
+            "--bearer-token",
+            owner_bearer.as_str(),
+            "create-conversation",
+            "--conversation-id",
+            conversation_id,
+            "--conversation-type",
+            "group",
+        ])
+        .expect("real-login create args should parse"),
+    )
+    .await
+    .expect("real-login conversation create should succeed");
+    let create_json = command_output_json(create_output);
+    assert_eq!(create_json["conversationId"], conversation_id);
+
+    let add_member_output = execute_command(
+        parse_cli_args([
+            "craw-chat-cli",
+            "--base-url",
+            base_url,
+            "--tenant-id",
+            "t_demo",
+            "--user-id",
+            owner_user_id.as_str(),
+            "--session-id",
+            "s_owner_setup",
+            "--device-id",
+            "d_owner_setup",
+            "--bearer-token",
+            owner_bearer.as_str(),
+            "add-member",
+            "--conversation-id",
+            conversation_id,
+            "--principal-id",
+            "u_guest",
+            "--principal-kind",
+            "user",
+            "--role",
+            "member",
+        ])
+        .expect("real-login add-member args should parse"),
+    )
+    .await
+    .expect("real-login add member should succeed");
+    let add_member_json = command_output_json(add_member_output);
+    assert_eq!(add_member_json["principalId"], "u_guest");
+}
+
 #[tokio::test]
 async fn test_chat_cli_can_drive_two_party_http_and_websocket_validation_flow() {
     unsafe {
@@ -1244,61 +1354,7 @@ async fn test_chat_window_cmd_wrapper_accepts_gnu_style_named_flags_for_interact
     let app = local_minimal_node::build_public_app();
     let (base_url, handle) = spawn_server(app).await;
 
-    execute_command(
-        parse_cli_args([
-            "craw-chat-cli",
-            "--base-url",
-            base_url.as_str(),
-            "--tenant-id",
-            "t_demo",
-            "--user-id",
-            "u_owner",
-            "--session-id",
-            "s_owner",
-            "--device-id",
-            "d_owner",
-            "--public-bearer-secret",
-            "local-chat-cli-secret",
-            "create-conversation",
-            "--conversation-id",
-            "c_cli_chat_window_cmd_gnu_demo",
-            "--conversation-type",
-            "group",
-        ])
-        .expect("create args should parse"),
-    )
-    .await
-    .expect("create conversation should succeed");
-
-    execute_command(
-        parse_cli_args([
-            "craw-chat-cli",
-            "--base-url",
-            base_url.as_str(),
-            "--tenant-id",
-            "t_demo",
-            "--user-id",
-            "u_owner",
-            "--session-id",
-            "s_owner",
-            "--device-id",
-            "d_owner",
-            "--public-bearer-secret",
-            "local-chat-cli-secret",
-            "add-member",
-            "--conversation-id",
-            "c_cli_chat_window_cmd_gnu_demo",
-            "--principal-id",
-            "u_guest",
-            "--principal-kind",
-            "user",
-            "--role",
-            "member",
-        ])
-        .expect("add-member args should parse"),
-    )
-    .await
-    .expect("add member should succeed");
+    prepare_real_login_conversation(base_url.as_str(), "c_cli_chat_window_cmd_gnu_demo").await;
 
     let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
@@ -1326,6 +1382,7 @@ async fn test_chat_window_cmd_wrapper_accepts_gnu_style_named_flags_for_interact
         .arg("guest-gnu")
         .arg("--message-prefix")
         .arg("[gnu] ")
+        .env(im_auth_context::PUBLIC_BEARER_HS256_SECRET_ENV, "bogus-wrapper-secret")
         .current_dir(&repo_root)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -1367,6 +1424,13 @@ async fn test_chat_window_cmd_wrapper_accepts_gnu_style_named_flags_for_interact
         stdout_text,
         String::from_utf8_lossy(&output.stderr)
     );
+    assert!(
+        !stdout_text.contains("authorization_signature_invalid")
+            && !String::from_utf8_lossy(&output.stderr).contains("authorization_signature_invalid"),
+        "chat-window.cmd should not depend on a poisoned inherited public bearer secret when seeded real login is available\nstdout:\n{}\nstderr:\n{}",
+        stdout_text,
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     let timeline_output = execute_command(
         parse_cli_args([
@@ -1403,6 +1467,98 @@ async fn test_chat_window_cmd_wrapper_accepts_gnu_style_named_flags_for_interact
             .iter()
             .any(|summary| summary == "[gnu] hello from chat-window cmd gnu"),
         "chat-window.cmd must preserve --message-prefix when called with gnu-style named flags: {summaries:?}"
+    );
+
+    handle.abort();
+    let _ = handle.await;
+}
+
+#[cfg(windows)]
+#[tokio::test]
+async fn test_chat_window_gui_cmd_uses_real_login_when_inherited_public_secret_is_poisoned() {
+    unsafe {
+        std::env::set_var(
+            im_auth_context::PUBLIC_BEARER_HS256_SECRET_ENV,
+            "local-chat-cli-secret",
+        );
+    }
+
+    let app = local_minimal_node::build_public_app();
+    let (base_url, handle) = spawn_server(app).await;
+    prepare_real_login_conversation(base_url.as_str(), "c_gui_cmd_real_login_demo").await;
+
+    let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(2)
+        .expect("repo root should exist")
+        .to_path_buf();
+    let wrapper_path = repo_root.join("bin").join("chat-window-gui.cmd");
+    let diagnostics_path = std::env::temp_dir().join(format!(
+        "chat-window-gui-cmd-real-login-{}-{}.log",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system time should be after unix epoch")
+            .as_nanos()
+    ));
+    let diagnostics_arg = diagnostics_path.to_string_lossy().to_string();
+    let wrapper_arg = wrapper_path.to_string_lossy().to_string();
+    let base_url_arg = base_url.clone();
+
+    let output = tokio::task::spawn_blocking(move || {
+        Command::new("powershell.exe")
+            .arg("-NoProfile")
+            .arg("-ExecutionPolicy")
+            .arg("Bypass")
+            .arg("-Command")
+            .arg(
+                "$wrapper = $env:CHAT_WINDOW_GUI_CMD; \
+                 $diag = $env:CHAT_WINDOW_GUI_DIAG; \
+                 $base = $env:CHAT_WINDOW_GUI_BASE_URL; \
+                 Remove-Item -LiteralPath $diag -ErrorAction SilentlyContinue; \
+                 $env:CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET = 'bogus-wrapper-secret'; \
+                 $text = $null; \
+                 $proc = Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', $wrapper, '--base-url', $base, '--conversation-id', 'c_gui_cmd_real_login_demo', '--user-id', 'u_guest', '--label', 'guest-real-login', '-DiagnosticsFile', $diag -PassThru -WindowStyle Hidden; \
+                 for ($i = 0; $i -lt 40; $i++) { \
+                   Start-Sleep -Milliseconds 250; \
+                   if (Test-Path $diag) { \
+                     $text = Get-Content -Raw -LiteralPath $diag; \
+                     if ($text -like '*timeline refresh*' -or $text -like '*auth mode*') { break } \
+                   } \
+                 }; \
+                 Start-Sleep -Milliseconds 3000; \
+                 if (Test-Path $diag) { $text = Get-Content -Raw -LiteralPath $diag }; \
+                 if ($proc -and -not $proc.HasExited) { & taskkill.exe /PID $proc.Id /T /F | Out-Null }; \
+                 if ($null -eq $text) { exit 2 }; \
+                 [Console]::Out.Write($text)",
+            )
+            .env("CHAT_WINDOW_GUI_CMD", wrapper_arg)
+            .env("CHAT_WINDOW_GUI_DIAG", diagnostics_arg)
+            .env("CHAT_WINDOW_GUI_BASE_URL", base_url_arg)
+            .current_dir(repo_root)
+            .output()
+    })
+    .await
+    .expect("chat-window-gui.cmd real-login helper wait task should join")
+    .expect("chat-window-gui.cmd real-login helper should complete");
+
+    let _ = fs::remove_file(&diagnostics_path);
+
+    assert!(
+        output.status.success(),
+        "chat-window-gui.cmd real-login helper should exit successfully\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let diagnostics_text = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        !diagnostics_text.contains("authorization_signature_invalid")
+            && !diagnostics_text.contains("timeline refresh failed"),
+        "chat-window-gui.cmd should not fail timeline refresh when only the inherited shared-secret env var is poisoned\ndiagnostics:\n{}\nstdout:\n{}\nstderr:\n{}",
+        diagnostics_text,
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
     );
 
     handle.abort();
@@ -1723,7 +1879,9 @@ async fn test_chat_window_cmd_help_surfaces_gnu_style_named_flags() {
     assert!(
         stdout_text.contains("--conversation-id")
             && stdout_text.contains("--user-id")
-            && stdout_text.contains("--message-prefix"),
+            && stdout_text.contains("--message-prefix")
+            && stdout_text.contains("--login")
+            && stdout_text.contains("--password"),
         "chat-window.cmd help must surface the Windows GNU-style launch contract\nstdout:\n{}\nstderr:\n{}",
         stdout_text,
         String::from_utf8_lossy(&output.stderr)
@@ -1763,7 +1921,9 @@ async fn test_chat_window_gui_cmd_help_surfaces_gnu_style_named_flags() {
     assert!(
         stdout_text.contains("--conversation-id")
             && stdout_text.contains("--user-id")
-            && stdout_text.contains("--message-prefix"),
+            && stdout_text.contains("--message-prefix")
+            && stdout_text.contains("--login")
+            && stdout_text.contains("--password"),
         "chat-window-gui.cmd help must surface the Windows GNU-style launch contract\nstdout:\n{}\nstderr:\n{}",
         stdout_text,
         String::from_utf8_lossy(&output.stderr)
@@ -1813,7 +1973,7 @@ async fn test_chat_window_gui_cmd_wrapper_preserves_exclamation_mark_in_label() 
                    Start-Sleep -Milliseconds 3000; \
                    if (Test-Path $diag) { $text = Get-Content -Raw -LiteralPath $diag } \
                  }; \
-                 if ($proc -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }; \
+                 if ($proc -and -not $proc.HasExited) { & taskkill.exe /PID $proc.Id /T /F | Out-Null }; \
                  if ($null -eq $text) { exit 2 }; \
                  [Console]::Out.Write($text)",
             )
@@ -1896,7 +2056,7 @@ async fn test_chat_window_gui_cmd_wrapper_accepts_gnu_style_named_flags_for_laun
                    Start-Sleep -Milliseconds 3000; \
                    if (Test-Path $diag) { $text = Get-Content -Raw -LiteralPath $diag } \
                  }; \
-                 if ($proc -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }; \
+                 if ($proc -and -not $proc.HasExited) { & taskkill.exe /PID $proc.Id /T /F | Out-Null }; \
                  if ($null -eq $text) { exit 2 }; \
                  [Console]::Out.Write($text)",
             )
