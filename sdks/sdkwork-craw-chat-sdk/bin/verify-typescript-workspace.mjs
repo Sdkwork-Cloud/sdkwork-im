@@ -2,6 +2,7 @@
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { resolveSdkworkGeneratorRoot } from './sdk-paths.mjs';
 
 function fail(message) {
   console.error(`[sdkwork-craw-chat-sdk] ${message}`);
@@ -37,7 +38,7 @@ parseArgs(process.argv.slice(2));
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = path.resolve(scriptDir, '..');
-const generatorRoot = path.resolve(workspaceRoot, '..', '..', '..', '..', 'sdk', 'sdkwork-sdk-generator');
+const generatorRoot = resolveSdkworkGeneratorRoot(workspaceRoot);
 const tscPath = path.join(generatorRoot, 'node_modules', 'typescript', 'bin', 'tsc');
 const tsconfigPath = path.join(
   workspaceRoot,

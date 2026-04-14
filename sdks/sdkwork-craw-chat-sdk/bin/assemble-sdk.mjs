@@ -2,6 +2,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { resolveSdkworkGeneratorRoot } from './sdk-paths.mjs';
 
 function fail(message) {
   console.error(`[sdkwork-craw-chat-sdk] ${message}`);
@@ -34,9 +35,7 @@ function parseArgs(argv) {
 async function loadYaml() {
   const scriptDir = path.dirname(fileURLToPath(import.meta.url));
   const workspaceRoot = path.resolve(scriptDir, '..');
-  const generatorRoot = process.env.SDKWORK_GENERATOR_ROOT
-    ? path.resolve(process.env.SDKWORK_GENERATOR_ROOT)
-    : path.resolve(workspaceRoot, '..', '..', '..', '..', 'sdk', 'sdkwork-sdk-generator');
+  const generatorRoot = resolveSdkworkGeneratorRoot(workspaceRoot);
   const yamlPath = path.join(generatorRoot, 'node_modules', 'js-yaml', 'dist', 'js-yaml.mjs');
 
   if (!existsSync(yamlPath)) {

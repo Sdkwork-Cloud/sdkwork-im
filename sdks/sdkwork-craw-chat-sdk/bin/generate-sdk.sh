@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-GENERATOR_ROOT="${SDKWORK_GENERATOR_ROOT:-$(cd "${WORKSPACE_DIR}/../../../../sdk/sdkwork-sdk-generator" && pwd)}"
+GENERATOR_ROOT="$(node "${SCRIPT_DIR}/sdk-paths.mjs" --workspace "${WORKSPACE_DIR}")"
 BASE_SPEC="${WORKSPACE_DIR}/openapi/craw-chat-app.openapi.yaml"
 SDKGEN_SPEC="${WORKSPACE_DIR}/openapi/craw-chat-app.sdkgen.yaml"
 FLUTTER_SDKGEN_SPEC="${WORKSPACE_DIR}/openapi/craw-chat-app.flutter.sdkgen.yaml"

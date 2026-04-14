@@ -45,11 +45,8 @@ function Normalize-LanguageList {
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $WorkspaceDir = (Resolve-Path (Join-Path $ScriptDir "..")).Path
-$GeneratorRoot = if ($env:SDKWORK_GENERATOR_ROOT) {
-  (Resolve-Path $env:SDKWORK_GENERATOR_ROOT).Path
-} else {
-  (Resolve-Path (Join-Path $WorkspaceDir "..\..\..\..\sdk\sdkwork-sdk-generator")).Path
-}
+$GeneratorRoot = (& node (Join-Path $ScriptDir "sdk-paths.mjs") --workspace $WorkspaceDir).Trim()
+Assert-LastExitCode "resolve-generator-root"
 $BaseSpec = Join-Path $WorkspaceDir "openapi\craw-chat-app.openapi.yaml"
 $SdkgenSpec = Join-Path $WorkspaceDir "openapi\craw-chat-app.sdkgen.yaml"
 $FlutterSdkgenSpec = Join-Path $WorkspaceDir "openapi\craw-chat-app.flutter.sdkgen.yaml"
