@@ -4970,6 +4970,20 @@ fn test_chat_window_gui_ps1_reads_cli_json_via_utf8_process_io() {
 
 #[cfg(windows)]
 #[test]
+fn test_chat_window_gui_ps1_invite_path_precreates_missing_rtc_session() {
+    let root = workspace_root();
+    let script_path = root.join("bin").join("chat-window-gui.ps1");
+    let script = fs::read_to_string(&script_path)
+        .unwrap_or_else(|_| panic!("missing bin script: {}", script_path.display()));
+
+    assert!(
+        script.matches("Ensure-RtcSessionExistsForInvite").count() >= 2,
+        "chat-window-gui.ps1 invite flow must define and invoke a create-before-invite preflight so first-click invite cannot fail with rtc_session_not_found"
+    );
+}
+
+#[cfg(windows)]
+#[test]
 fn test_start_local_ps1_captures_background_process_stdout_into_documented_log_file() {
     let root = workspace_root();
     let temp_root = unique_temp_root("start_ps1_log_capture");

@@ -256,6 +256,69 @@ function Invoke-AuthenticatedJsonRequest {
     return $response.Content | ConvertFrom-Json
 }
 
+function Ensure-RtcSessionExistsForInvite {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ResolvedBaseUrl,
+        [Parameter(Mandatory = $true)]
+        [string]$BearerToken,
+        [Parameter(Mandatory = $true)]
+        [string]$RtcSessionId,
+        [Parameter(Mandatory = $true)]
+        [string]$ConversationId,
+        [Parameter(Mandatory = $true)]
+        [string]$RtcMode
+    )
+
+    $null = Invoke-AuthenticatedJsonRequest `
+        -ResolvedBaseUrl $ResolvedBaseUrl `
+        -BearerToken $BearerToken `
+        -Method "POST" `
+        -Path "/api/v1/rtc/sessions" `
+        -Body ([ordered]@{
+                rtcSessionId = $RtcSessionId
+                conversationId = $ConversationId
+                rtcMode = $RtcMode
+            })
+}
+
+function Get-RtcActionFailureMessage {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Action,
+        [Parameter(Mandatory = $true)]
+        [string]$FailureMessage
+    )
+
+    if ($FailureMessage -notmatch 'rtc_session_not_found') {
+        return $FailureMessage
+    }
+
+    switch ($Action) {
+        "accept" {
+            return "$FailureMessage :: wait for the owner window to create and invite the rtc session before accepting"
+        }
+        "reject" {
+            return "$FailureMessage :: wait for the owner window to create and invite the rtc session before rejecting"
+        }
+        "signal" {
+            return "$FailureMessage :: create and invite the rtc session before sending signaling payloads"
+        }
+        "end" {
+            return "$FailureMessage :: create and invite the rtc session before ending it"
+        }
+        "credentials" {
+            return "$FailureMessage :: create and invite the rtc session before requesting participant credentials"
+        }
+        "recording" {
+            return "$FailureMessage :: create and invite the rtc session before requesting a recording artifact"
+        }
+        default {
+            return $FailureMessage
+        }
+    }
+}
+
 function Resolve-ChatCliExecutablePath {
     $root = Split-Path -Parent $PSScriptRoot
     $profileDir = if ($Release) { "release" } else { "debug" }
@@ -975,6 +1038,12 @@ $invokeRtcAction = {
                         })
             }
             "invite" {
+                Ensure-RtcSessionExistsForInvite `
+                    -ResolvedBaseUrl $resolvedBaseUrl `
+                    -BearerToken ([string]$script:resolvedAuthContext.BearerToken) `
+                    -RtcSessionId $rtcSessionId `
+                    -ConversationId $conversationIdValue `
+                    -RtcMode ([string]$rtcModeCombo.SelectedItem)
                 $response = Invoke-AuthenticatedJsonRequest `
                     -ResolvedBaseUrl $resolvedBaseUrl `
                     -BearerToken ([string]$script:resolvedAuthContext.BearerToken) `
@@ -1066,7 +1135,10 @@ $invokeRtcAction = {
     }
     catch {
         $statusLabel.Text = "rtc $Action failed: $resolvedLabel @ $resolvedBaseUrl"
-        & $appendDiagnostic ("rtc $Action failed: " + $_.Exception.Message)
+        $failureMessage = Get-RtcActionFailureMessage `
+            -Action $Action `
+            -FailureMessage ([string]$_.Exception.Message)
+        & $appendDiagnostic ("rtc $Action failed: " + $failureMessage)
     }
 }
 
