@@ -1,94 +1,133 @@
 # App SDK
 
+The app SDK family is the primary integration surface for embedding Craw Chat conversation,
+presence, media, stream, and RTC capabilities into web, mobile, and backend applications.
+
+## Audience And Scope
+
+Use this family when you need app-facing product features such as:
+
+- session resume and disconnect
+- presence heartbeat and current-presence reads
+- realtime subscription sync, event pull, and event acknowledgement
+- device registration and device sync feed reads
+- inbox, conversations, members, read cursors, and timeline navigation
+- messages, media, streams, and RTC
+
+Do not use this family for:
+
+- control-plane governance
+- node lifecycle administration
+- audit, ops, or diagnostics-only routes
+- internal trusted-header-only workflows as a public integration model
+
 ## Workspace Layout
 
-- Root workspace: `sdks/sdkwork-craw-chat-sdk`
-- Authority contract: `sdks/sdkwork-craw-chat-sdk/openapi/craw-chat-app.openapi.yaml`
-- Derived sdkgen input: `sdks/sdkwork-craw-chat-sdk/openapi/craw-chat-app.sdkgen.yaml`
-- Language workspaces:
+- root workspace: `sdks/sdkwork-craw-chat-sdk`
+- authority contract: `sdks/sdkwork-craw-chat-sdk/openapi/craw-chat-app.openapi.yaml`
+- derived generator input: `sdks/sdkwork-craw-chat-sdk/openapi/craw-chat-app.sdkgen.yaml`
+- language workspaces:
   - `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript`
   - `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-flutter`
+  - `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-rust`
 
-## Scope
+## Package Layers
 
-The app SDK workspace is intended to generate app-facing HTTP SDK support for:
+| Language | Preferred public package or crate | Generated transport package or crate | Public entrypoint |
+| --- | --- | --- | --- |
+| TypeScript | `@sdkwork/craw-chat-sdk` | `@sdkwork/craw-chat-backend-sdk` | `CrawChatClient.create()` |
+| Flutter | `craw_chat_sdk` | `backend_sdk` | `CrawChatClient.create()` |
+| Rust | `craw-chat-sdk` | `sdkwork-craw-chat-backend-sdk` | `CrawChatClient::new_with_base_url()` |
 
-- sessions and presence
-- realtime HTTP coordination
-- device registration and sync feed
-- inbox, conversations, membership, and read cursor
-- messages and mutation flows
-- media upload, lookup, and attachment
-- stream lifecycle and frame transport
-- RTC lifecycle, signals, and participant credentials
+For all three languages:
 
-It intentionally excludes:
+- `generated/server-openapi` is generator-owned transport output
+- `composed` is the manual-owned integration layer you should import from
+- the composed layer exposes `CrawChatClient`, semantic modules, and builder helpers
 
-- control-plane governance APIs
-- ops, audit, and diagnostics routes
-- IoT routes
-- provider-health-only routes
+## Client Surface
+
+The composed client surfaces are aligned by capability:
+
+- `session`
+- `presence`
+- `realtime`
+- `devices`
+- `inbox`
+- `conversations`
+- `messages`
+- `media`
+- `streams`
+- `rtc`
+
+Convenience builders are also available for common text-message, text-stream-frame, and JSON RTC
+signal payload construction.
 
 ## Contract Source
 
-The canonical route surface still comes from
-`services/local-minimal-node/src/node/build.rs`. The app SDK workspace then stores two checked-in
-contract files:
+The app SDK family is generated from a checked-in authority contract:
 
-- `craw-chat-app.openapi.yaml`
-  The OpenAPI 3.0.3 authority contract.
-- `craw-chat-app.sdkgen.yaml`
-  The generator-compatible derived contract.
+- authority contract: `openapi/craw-chat-app.openapi.yaml`
+- default generator input: `openapi/craw-chat-app.sdkgen.yaml`
+- Flutter-specific generator input: `openapi/craw-chat-app.flutter.sdkgen.yaml`
 
-For this family, the checked-in OpenAPI authority is real and should be documented as such.
+The canonical route surface still originates from `services/local-minimal-node/src/node/build.rs`,
+but the SDK workspace uses the checked-in OpenAPI authority as its explicit consumer contract.
 
 ## Auth Model
 
-The app SDK models public bearer auth only:
+The public app SDK contract is bearer-token based.
 
-- `Authorization: Bearer <token>`
-- signed with `CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET`
-
-Trusted headers are still valid for tests and embedded internal flows, but they are not the public
-consumer contract for generated SDK packages.
+- SDK consumers should use `Authorization: Bearer <token>`
+- public auth is signed with `CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET`
+- trusted headers remain internal and test-oriented, not the public SDK contract
 
 ## Realtime Boundary
 
-The authority contract includes `GET /api/v1/realtime/ws` for visibility, but the current SDK
-generation round covers HTTP only.
+The app SDK family includes the realtime HTTP coordination surface:
 
-- generated support covers resume, subscription sync, event pull, and ack flow
-- websocket transport notes remain manual-owned
-- the current workspace docs explicitly call out close code `4001` and `session.disconnect` as
-  transport considerations rather than generated adapter behavior
+- replace or sync subscriptions
+- pull event windows
+- acknowledge consumed events
+
+The authority contract also documents `GET /api/v1/realtime/ws`, but this round does not claim a
+full manual WebSocket adapter in the composed SDK layers. The docs may describe the transport and
+recovery contract without overstating SDK implementation.
+
+## Ownership Rules
+
+- change the authority contract or generator inputs when you need transport changes
+- regenerate instead of hand-editing generated files
+- keep manual composition in the `composed` layer
+- route consumers to `composed`, not to generated private source paths
 
 ## Regeneration
 
-From the workspace root:
+From the app SDK workspace root:
 
 ```powershell
-.\bin\generate-sdk.ps1 -Languages typescript,flutter
-```
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\bin\generate-sdk.ps1 -Languages typescript,flutter
+powershell -ExecutionPolicy Bypass -File .\bin\generate-sdk.ps1 -Languages typescript,flutter,rust
 ```
 
 ```bash
-./bin/generate-sdk.sh --language typescript --language flutter
+./bin/generate-sdk.sh --language typescript --language flutter --language rust
 ```
 
-Per-language forwarding wrappers are also present inside each language workspace.
+Per-language forwarding wrappers also exist inside each language workspace for focused generation
+and verification.
 
-## Current Release Status
+## Reading Path
 
-| Artifact | Language | Generation state | Release state |
-| --- | --- | --- | --- |
-| `sdkwork-craw-chat-sdk-typescript` | TypeScript | `template_only_pending_generation` | `not_published` |
-| `sdkwork-craw-chat-sdk-flutter` | Flutter | `template_only_pending_generation` | `not_published` |
+- start with [Language Support](/sdk/language-support)
+- then pick a quick start:
+  [TypeScript](/sdk/typescript-quick-start),
+  [Flutter](/sdk/flutter-quick-start),
+  [Rust](/sdk/rust-quick-start)
+- use [Auth and Client Init](/sdk/auth-and-client-init) for shared setup rules
+- use [Module Map](/sdk/module-map) to route yourself to the correct capability page
 
-The current documentation standard therefore distinguishes between:
+## Publication Boundary
 
-- a real checked-in OpenAPI and workspace contract
-- a real generation wrapper layout
-- a release wave that still does not publish packages
+These docs describe the implemented local SDK workspaces in this repository. Public package
+publication remains separate from local workspace presence and should not be inferred from the
+existence of the packages or crates alone.

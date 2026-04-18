@@ -1,18 +1,16 @@
-import type { DefaultTheme } from "vitepress";
 import { defineConfig } from "vitepress";
 import { apiReferenceSidebar } from "./api-reference-sidebar.mjs";
 
-const nav: DefaultTheme.NavItem[] = [
+const nav = [
   { text: "Getting Started", link: "/getting-started/index" },
-  { text: "Architecture", link: "/architecture/overview" },
-  { text: "Features", link: "/features/index" },
-  { text: "API Reference", link: "/api-reference/index" },
   { text: "SDK", link: "/sdk/index" },
+  { text: "API Reference", link: "/api-reference/index" },
+  { text: "Architecture", link: "/architecture/overview" },
   { text: "Deployment", link: "/deployment/index" },
   { text: "Reference", link: "/reference/cli-and-scripts" },
 ];
 
-const sidebar: DefaultTheme.Sidebar = {
+const sidebar = {
   "/getting-started/": [
     {
       text: "Getting Started",
@@ -48,8 +46,26 @@ const sidebar: DefaultTheme.Sidebar = {
       items: [
         { text: "Overview", link: "/sdk/index" },
         { text: "App SDK", link: "/sdk/app-sdk" },
-        { text: "Admin SDK", link: "/sdk/admin-sdk" },
         { text: "Language Support", link: "/sdk/language-support" },
+        { text: "TypeScript Quick Start", link: "/sdk/typescript-quick-start" },
+        { text: "Flutter Quick Start", link: "/sdk/flutter-quick-start" },
+        { text: "Rust Quick Start", link: "/sdk/rust-quick-start" },
+        { text: "Auth and Client Init", link: "/sdk/auth-and-client-init" },
+        { text: "Module Map", link: "/sdk/module-map" },
+        { text: "Generation and Ownership", link: "/sdk/generation-and-ownership" },
+        { text: "Session and Presence", link: "/sdk/modules/session-and-presence" },
+        { text: "Realtime", link: "/sdk/modules/realtime" },
+        { text: "Devices and Inbox", link: "/sdk/modules/devices-and-inbox" },
+        { text: "Conversations", link: "/sdk/modules/conversations" },
+        { text: "Messages", link: "/sdk/modules/messages" },
+        { text: "Media", link: "/sdk/modules/media" },
+        { text: "Streams", link: "/sdk/modules/streams" },
+        { text: "RTC", link: "/sdk/modules/rtc" },
+        { text: "Session Bootstrap", link: "/sdk/examples/session-bootstrap" },
+        { text: "Conversation Workflow", link: "/sdk/examples/conversation-workflow" },
+        { text: "Message and Media", link: "/sdk/examples/message-and-media" },
+        { text: "Stream and RTC", link: "/sdk/examples/stream-and-rtc" },
+        { text: "Admin SDK", link: "/sdk/admin-sdk" },
       ],
     },
   ],

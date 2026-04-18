@@ -54,6 +54,46 @@ function readYaml(filePath, yaml) {
   return yaml.load(readFileSync(filePath, 'utf8'));
 }
 
+function readCargoManifest(filePath) {
+  const source = readFileSync(filePath, 'utf8');
+  const packageSection = readTomlSection(source, 'package');
+  const libSection = readTomlSection(source, 'lib');
+
+  return {
+    name: readTomlString(packageSection, 'name'),
+    version: readTomlString(packageSection, 'version'),
+    description: readTomlString(packageSection, 'description'),
+    libName: readTomlString(libSection, 'name'),
+    libPath: readTomlString(libSection, 'path') || 'src/lib.rs',
+  };
+}
+
+function readTomlSection(source, sectionName) {
+  const header = `[${sectionName}]`;
+  const startIndex = source.indexOf(header);
+  if (startIndex < 0) {
+    return '';
+  }
+
+  const afterHeader = source.slice(startIndex + header.length);
+  const nextHeaderMatch = afterHeader.match(/\r?\n\[[^\r\n]+\]/);
+  if (!nextHeaderMatch || typeof nextHeaderMatch.index !== 'number') {
+    return afterHeader;
+  }
+
+  return afterHeader.slice(0, nextHeaderMatch.index);
+}
+
+function readTomlString(sectionSource, key) {
+  if (!sectionSource) {
+    return '';
+  }
+
+  const pattern = new RegExp(`^\\s*${key}\\s*=\\s*"([^"]*)"\\s*$`, 'm');
+  const match = sectionSource.match(pattern);
+  return match ? match[1] : '';
+}
+
 function readAuthorityMeta(authorityPath, yaml) {
   const document = readYaml(authorityPath, yaml);
   return {
@@ -78,6 +118,13 @@ function generatedManifestPath(workspaceRoot, language) {
       'generated',
       'server-openapi',
       'pubspec.yaml',
+    ),
+    rust: path.join(
+      workspaceRoot,
+      'sdkwork-craw-chat-sdk-rust',
+      'generated',
+      'server-openapi',
+      'Cargo.toml',
     ),
   };
 
@@ -179,6 +226,43 @@ function renderLanguageAssembly(workspaceRoot, language, yaml) {
         },
       ],
     },
+    rust: {
+      workspace: 'sdkwork-craw-chat-sdk-rust',
+      packages: [
+        {
+          layer: 'generated',
+          path: ['generated', 'server-openapi'],
+          manifest: ['generated', 'server-openapi', 'Cargo.toml'],
+          readManifest(manifestPath) {
+            const manifest = readCargoManifest(manifestPath);
+            return {
+              name: manifest.name || '',
+              version: manifest.version || '',
+              description: manifest.description || '',
+              entrypoints: {
+                library: manifest.libPath || 'src/lib.rs',
+              },
+            };
+          },
+        },
+        {
+          layer: 'composed',
+          path: ['composed'],
+          manifest: ['composed', 'Cargo.toml'],
+          readManifest(manifestPath) {
+            const manifest = readCargoManifest(manifestPath);
+            return {
+              name: manifest.name || '',
+              version: manifest.version || '',
+              description: manifest.description || '',
+              entrypoints: {
+                library: manifest.libPath || 'src/lib.rs',
+              },
+            };
+          },
+        },
+      ],
+    },
   };
 
   const config = map[language];
@@ -225,7 +309,7 @@ const flutterDerivedPath = path.join(workspaceRoot, 'openapi', 'craw-chat-app.fl
 const assemblyPath = path.join(workspaceRoot, '.sdkwork-assembly.json');
 const authority = readAuthorityMeta(authorityPath, yaml);
 const languageSet = new Set(args.languages);
-for (const language of ['typescript', 'flutter']) {
+for (const language of ['typescript', 'flutter', 'rust']) {
   const manifestPath = generatedManifestPath(workspaceRoot, language);
   if (manifestPath && existsSync(manifestPath)) {
     languageSet.add(language);

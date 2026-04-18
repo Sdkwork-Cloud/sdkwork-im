@@ -1,38 +1,50 @@
 # Language Support
 
-## Workspace Matrix
+The app SDK family currently spans three implementation languages in this worktree and one
+secondary admin audience that remains separate from the primary app integration path.
 
-| Audience | Language | Workspace | Current state |
-| --- | --- | --- | --- |
-| App | TypeScript | `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript` | Workspace present, generation and publication still pending |
-| App | Flutter | `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-flutter` | Workspace present, generation and publication still pending |
-| Admin | TypeScript | `sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-typescript` | Workspace present, generation and publication still pending |
-| Admin | Flutter | `sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-flutter` | Workspace present, generation and publication still pending |
+## App SDK Languages
 
-## Release Catalog Facts
-
-From `artifacts/releases/wave-d-2026-04-08/sdk-release-catalog.json`:
-
-| Artifact ID | Audience | Language | Generation | Release |
+| Language | Workspace | Preferred public package or crate | Generated transport package or crate | Start here |
 | --- | --- | --- | --- | --- |
-| `app-typescript` | app | typescript | `template_only_pending_generation` | `not_published` |
-| `app-flutter` | app | flutter | `template_only_pending_generation` | `not_published` |
-| `admin-typescript` | admin | typescript | `template_only_pending_generation` | `not_published` |
-| `admin-flutter` | admin | flutter | `template_only_pending_generation` | `not_published` |
+| TypeScript | `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript` | `@sdkwork/craw-chat-sdk` | `@sdkwork/craw-chat-backend-sdk` | [/sdk/typescript-quick-start](/sdk/typescript-quick-start) |
+| Flutter | `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-flutter` | `craw_chat_sdk` | `backend_sdk` | [/sdk/flutter-quick-start](/sdk/flutter-quick-start) |
+| Rust | `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-rust` | `craw-chat-sdk` | `sdkwork-craw-chat-backend-sdk` | [/sdk/rust-quick-start](/sdk/rust-quick-start) |
 
-## What "Supported Language" Means Here
+## Admin SDK Languages
 
-In this documentation, language support means:
+The admin family is documented separately because its audience and source-of-truth model differ:
 
-- the workspace boundary exists
-- the target language directory exists
-- generation wrappers and documentation are present
-- the release catalog already tracks the artifact
+| Language | Workspace | Notes |
+| --- | --- | --- |
+| TypeScript | `sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-typescript` | Secondary control-plane audience |
+| Flutter | `sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-flutter` | Secondary control-plane audience |
 
-It does not mean:
+See [Admin SDK](/sdk/admin-sdk) when you are integrating governance or control-plane behavior.
 
-- a package has been published to npm or pub.dev
-- a stable version number has been assigned
-- the current wave has completed generation
+## What "Supported" Means In This Site
 
-That distinction is necessary to keep the docs precise and trustworthy.
+In this documentation, a supported SDK language means:
+
+- the workspace exists in the repository
+- the language has a manual-owned `composed` SDK surface
+- the language has a generated transport package or crate
+- the language has a dedicated quick-start path in the docs
+
+It does not automatically mean:
+
+- a registry package has been published
+- a public version line has been frozen
+- every consumer environment can resolve the package without a local workspace checkout
+
+## Delivery-State Vocabulary
+
+Use these labels consistently when reading the SDK docs:
+
+- `Implemented and verified`
+- `Generated and verified`
+- `Documented contract only`
+- `Workspace present but not published`
+
+For the app SDK pages, the most important distinction is between the local implemented workspaces
+and public registry publication. These docs treat those as separate states.

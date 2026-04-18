@@ -15,6 +15,7 @@ const failures = [];
 const ps1Source = read('bin/generate-sdk.ps1');
 const shSource = read('bin/generate-sdk.sh');
 const readmeSource = read('README.md');
+const assemblySource = read('.sdkwork-assembly.json');
 const workspaceGitignoreSource = read('.gitignore');
 const verifySdkSource = read('bin/verify-sdk.mjs');
 const workspaceGitignorePath = path.join(workspaceRoot, '.gitignore');
@@ -25,6 +26,11 @@ const verifyFlutterDartAnalysisPath = path.join(
   workspaceRoot,
   'bin',
   'verify-flutter-dart-analysis.dart',
+);
+const syncFlutterPubspecOverridesPath = path.join(
+  workspaceRoot,
+  'bin',
+  'sync-flutter-pubspec-overrides.mjs',
 );
 const verifyTypeScriptGeneratedBuildConcurrencyPath = path.join(
   workspaceRoot,
@@ -56,13 +62,29 @@ const normalizeGeneratedAuthSurfacePath = path.join(
   'bin',
   'normalize-generated-auth-surface.mjs',
 );
+const assembly = JSON.parse(assemblySource);
 const typescriptReadmeSource = read('sdkwork-craw-chat-sdk-typescript/README.md');
 const flutterReadmeSource = read('sdkwork-craw-chat-sdk-flutter/README.md');
+const rustReadmeSource = read('sdkwork-craw-chat-sdk-rust/README.md');
+const rustComposedReadmeSource = read('sdkwork-craw-chat-sdk-rust/composed/README.md');
+const rustWorkspaceReadmePath = path.join(workspaceRoot, 'sdkwork-craw-chat-sdk-rust', 'README.md');
+const rustWorkspaceComposedCargoTomlPath = path.join(
+  workspaceRoot,
+  'sdkwork-craw-chat-sdk-rust',
+  'composed',
+  'Cargo.toml',
+);
 const workspaceForwarders = [
   'sdkwork-craw-chat-sdk-typescript/bin/sdk-verify.ps1',
   'sdkwork-craw-chat-sdk-typescript/bin/sdk-verify.sh',
   'sdkwork-craw-chat-sdk-flutter/bin/sdk-verify.ps1',
   'sdkwork-craw-chat-sdk-flutter/bin/sdk-verify.sh',
+  'sdkwork-craw-chat-sdk-rust/bin/sdk-gen.ps1',
+  'sdkwork-craw-chat-sdk-rust/bin/sdk-gen.sh',
+  'sdkwork-craw-chat-sdk-rust/bin/sdk-verify.ps1',
+  'sdkwork-craw-chat-sdk-rust/bin/sdk-verify.sh',
+  'sdkwork-craw-chat-sdk-rust/bin/sdk-assemble.ps1',
+  'sdkwork-craw-chat-sdk-rust/bin/sdk-assemble.sh',
 ];
 
 if (!existsSync(verifyTypeScriptWorkspacePath)) {
@@ -71,8 +93,17 @@ if (!existsSync(verifyTypeScriptWorkspacePath)) {
 if (!existsSync(verifyFlutterWorkspacePath)) {
   failures.push('Workspace root must provide bin/verify-flutter-workspace.mjs.');
 }
+if (!existsSync(rustWorkspaceReadmePath)) {
+  failures.push('Workspace root must provide sdkwork-craw-chat-sdk-rust/README.md.');
+}
+if (!existsSync(rustWorkspaceComposedCargoTomlPath)) {
+  failures.push('Workspace root must provide sdkwork-craw-chat-sdk-rust/composed/Cargo.toml.');
+}
 if (!existsSync(verifyFlutterDartAnalysisPath)) {
   failures.push('Workspace root must provide bin/verify-flutter-dart-analysis.dart.');
+}
+if (!existsSync(syncFlutterPubspecOverridesPath)) {
+  failures.push('Workspace root must provide bin/sync-flutter-pubspec-overrides.mjs.');
 }
 if (!existsSync(verifyTypeScriptGeneratedBuildConcurrencyPath)) {
   failures.push('Workspace root must provide bin/verify-typescript-generated-build-concurrency.mjs.');
@@ -125,6 +156,9 @@ if (!existsSync(workspaceGitignorePath)) {
 if (!/## Verification/.test(readmeSource)) {
   failures.push('Workspace README must document a verification entrypoint.');
 }
+if (!/sdkwork-craw-chat-sdk-rust\//.test(readmeSource)) {
+  failures.push('Workspace README must list sdkwork-craw-chat-sdk-rust/ in the workspace layout.');
+}
 if (!/verify-sdk/.test(readmeSource)) {
   failures.push('Workspace README must reference the verify-sdk command.');
 }
@@ -145,6 +179,36 @@ if (!/\.sdkwork\/dart\/pub-cache/.test(readmeSource)) {
 }
 if (!/verify-flutter-dart-analysis\.dart/.test(readmeSource)) {
   failures.push('Workspace README must document the Windows Flutter Dart analysis fallback entrypoint.');
+}
+if (!/Rust composed (package|workspace path): `sdkwork-craw-chat-sdk-rust\/composed`/.test(readmeSource)) {
+  failures.push('Workspace README must document the Rust composed workspace path.');
+}
+if (!/Rust generated package: `sdkwork-craw-chat-backend-sdk`/.test(readmeSource)) {
+  failures.push('Workspace README must document the Rust generated package name.');
+}
+if (!/-Languages typescript,flutter,rust/.test(readmeSource)) {
+  failures.push('Workspace README must document the comma-separated PowerShell generation example with rust.');
+}
+if (!/-Languages typescript,flutter,rust -WithDart/.test(readmeSource)) {
+  failures.push('Workspace README must document the comma-separated PowerShell verification example with rust.');
+}
+if (!/\.\/bin\/generate-sdk\.sh --language typescript --language flutter --language rust/.test(readmeSource)) {
+  failures.push('Workspace README must document the shell generation example with rust.');
+}
+if (!/\.\/bin\/verify-sdk\.sh --language typescript --language flutter --language rust --with-dart/.test(readmeSource)) {
+  failures.push('Workspace README must document the shell verification example with rust.');
+}
+for (const requiredReadmePattern of [
+  /TypeScript generated package: `@sdkwork\/craw-chat-backend-sdk`/,
+  /TypeScript composed package: `@sdkwork\/craw-chat-sdk`/,
+  /Flutter generated package: `backend_sdk`/,
+  /Flutter composed package: `craw_chat_sdk`/,
+  /Rust generated package: `sdkwork-craw-chat-backend-sdk`/,
+  /Rust composed package: `craw-chat-sdk`/,
+]) {
+  if (!requiredReadmePattern.test(readmeSource)) {
+    failures.push(`Workspace README is missing package contract: ${requiredReadmePattern}`);
+  }
 }
 if (!/verify-sdk-automation\.mjs/.test(verifySdkSource)) {
   failures.push('verify-sdk.mjs must run verify-sdk-automation.mjs.');
@@ -184,11 +248,68 @@ if (!/dead auth scaffolding plus stray `src\/index\.js` and `src\/index\.d\.ts` 
 if (!/runtime root exports/.test(typescriptReadmeSource)) {
   failures.push('TypeScript workspace README must document runtime root-export verification.');
 }
+if (!/@sdkwork\/craw-chat-backend-sdk/.test(typescriptReadmeSource)) {
+  failures.push('TypeScript workspace README must document the generated package name @sdkwork/craw-chat-backend-sdk.');
+}
+if (!/The websocket transport is documented at the workspace root but is not implemented/.test(typescriptReadmeSource)) {
+  failures.push('TypeScript workspace README must document that websocket transport is not implemented in this round.');
+}
 if (!/sdk-verify/.test(flutterReadmeSource)) {
   failures.push('Flutter workspace README must reference sdk-verify.');
 }
 if (!/WithDart|with-dart/.test(flutterReadmeSource)) {
   failures.push('Flutter workspace README must document the WithDart verification path.');
+}
+if (!/package:backend_sdk\/backend_sdk\.dart/.test(flutterReadmeSource)) {
+  failures.push('Flutter workspace README must document the generated backend_sdk package entrypoint.');
+}
+if (!/The websocket transport is documented at the workspace root but is not implemented/.test(flutterReadmeSource)) {
+  failures.push('Flutter workspace README must document that websocket transport is not implemented in this round.');
+}
+if (!/- Rust: \[sdkwork-craw-chat-sdk-rust\]/.test(readmeSource)) {
+  failures.push('Workspace README must list the Rust language workspace link.');
+}
+if (!/sdkwork-craw-chat-backend-sdk/.test(rustReadmeSource)) {
+  failures.push('Rust workspace README must document the generated crate name sdkwork-craw-chat-backend-sdk.');
+}
+if (!/craw-chat-sdk/.test(rustReadmeSource)) {
+  failures.push('Rust workspace README must document the composed crate name craw-chat-sdk.');
+}
+if (!/The websocket transport is documented at the workspace root but is not implemented/.test(rustReadmeSource)) {
+  failures.push('Rust workspace README must document that websocket transport is not implemented in this round.');
+}
+if (!/generated\/server-openapi/.test(rustComposedReadmeSource) || !/Generator-owned transport crate/.test(rustComposedReadmeSource)) {
+  failures.push('Rust composed README must document the generated/server-openapi generator-owned crate boundary.');
+}
+if (!/sdkwork-craw-chat-backend-sdk/.test(rustComposedReadmeSource)) {
+  failures.push('Rust composed README must document the generated crate name sdkwork-craw-chat-backend-sdk.');
+}
+if (!/craw-chat-sdk/.test(rustComposedReadmeSource)) {
+  failures.push('Rust composed README must document the composed crate name craw-chat-sdk.');
+}
+if (!/CrawChatClient/.test(rustComposedReadmeSource)) {
+  failures.push('Rust composed README must document CrawChatClient as the primary consumer entrypoint.');
+}
+if (!/websocket transport is documented at the workspace root but is not implemented/i.test(rustComposedReadmeSource)) {
+  failures.push('Rust composed README must document that websocket transport is not implemented in this round.');
+}
+const assemblyLanguages = new Set((assembly.languages ?? []).map((entry) => entry.language));
+for (const requiredLanguage of ['typescript', 'flutter', 'rust']) {
+  if (!assemblyLanguages.has(requiredLanguage)) {
+    failures.push(`.sdkwork-assembly.json must include language metadata for ${requiredLanguage}.`);
+  }
+}
+for (const requiredPackage of [
+  '@sdkwork/craw-chat-backend-sdk',
+  '@sdkwork/craw-chat-sdk',
+  'backend_sdk',
+  'craw_chat_sdk',
+  'sdkwork-craw-chat-backend-sdk',
+  'craw-chat-sdk',
+]) {
+  if (!assemblySource.includes(`"${requiredPackage}"`)) {
+    failures.push(`.sdkwork-assembly.json must include package metadata for ${requiredPackage}.`);
+  }
 }
 
 const verifyTypeScriptWorkspaceSource = read('bin/verify-typescript-workspace.mjs');
@@ -211,6 +332,9 @@ if (!/verify-auth-surface-alignment\.mjs/.test(verifyFlutterWorkspaceSource)) {
 }
 if (!/verify-flutter-dart-analysis\.dart/.test(verifyFlutterWorkspaceSource)) {
   failures.push('verify-flutter-workspace.mjs must reference verify-flutter-dart-analysis.dart for Windows Dart analysis.');
+}
+if (!/sync-flutter-pubspec-overrides\.mjs/.test(verifyFlutterWorkspaceSource)) {
+  failures.push('verify-flutter-workspace.mjs must synchronize Flutter pubspec_overrides.yaml before metadata verification.');
 }
 if (!/\.sdkwork['"]?, ['"]dart['"]?, ['"]pub-cache|\.sdkwork\\dart\\pub-cache/.test(verifyFlutterWorkspaceSource)) {
   failures.push('verify-flutter-workspace.mjs must isolate the Dart pub cache under .sdkwork/dart/pub-cache.');

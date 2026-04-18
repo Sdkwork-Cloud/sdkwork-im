@@ -7,8 +7,8 @@ It is a workspace, not a single package. The workspace owns:
 - the authority OpenAPI 3.x contract for app-facing Craw Chat APIs
 - the sdkgen-compatible derived contract used by `sdkwork-sdk-generator`
 - root regeneration wrappers
-- generated TypeScript and Flutter HTTP SDK packages
-- composed TypeScript and Flutter product SDK packages
+- generated TypeScript, Flutter, and Rust HTTP SDK packages
+- composed TypeScript, Flutter, and Rust product SDK packages
 - package-level documentation for regeneration and release preparation
 
 ## Scope
@@ -112,6 +112,7 @@ sdkwork-craw-chat-sdk/
   bin/
   sdkwork-craw-chat-sdk-typescript/
   sdkwork-craw-chat-sdk-flutter/
+  sdkwork-craw-chat-sdk-rust/
 ```
 
 Per language workspace:
@@ -129,32 +130,35 @@ Per language workspace:
 
 Primary consumer packages in this workspace are:
 
-- TypeScript composed package: `sdkwork-craw-chat-sdk-typescript/composed`
-  Publishes `@sdkwork/craw-chat-sdk`
-- Flutter composed package: `sdkwork-craw-chat-sdk-flutter/composed`
-  Publishes `craw_chat_sdk`
+- TypeScript composed package: `@sdkwork/craw-chat-sdk`
+- TypeScript composed workspace path: `sdkwork-craw-chat-sdk-typescript/composed`
+- Flutter composed package: `craw_chat_sdk`
+- Flutter composed workspace path: `sdkwork-craw-chat-sdk-flutter/composed`
+- Rust composed package: `craw-chat-sdk`
+- Rust composed workspace path: `sdkwork-craw-chat-sdk-rust/composed`
 
 Generated transport packages remain available for lower-level HTTP use:
 
 - TypeScript generated package: `@sdkwork/craw-chat-backend-sdk`
 - Flutter generated package: `backend_sdk`
+- Rust generated package: `sdkwork-craw-chat-backend-sdk`
 
 ## Regeneration
 
 Run from the workspace root:
 
 ```powershell
-.\bin\generate-sdk.ps1 -Languages typescript,flutter
+.\bin\generate-sdk.ps1 -Languages typescript,flutter,rust
 ```
 
 If local PowerShell execution policy blocks script execution, use:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\bin\generate-sdk.ps1 -Languages typescript,flutter
+powershell -ExecutionPolicy Bypass -File .\bin\generate-sdk.ps1 -Languages typescript,flutter,rust
 ```
 
 ```bash
-./bin/generate-sdk.sh --language typescript --language flutter
+./bin/generate-sdk.sh --language typescript --language flutter --language rust
 ```
 
 The wrapper flow is:
@@ -166,7 +170,8 @@ The wrapper flow is:
    The same post-generation TypeScript verification path also rechecks the composed package boundary, typecheck, build, dist cleanup, and smoke tests, then runs the determinism regression so repeated stable generated-package builds keep `dist/index.cjs.map` free of run-specific temporary-directory leakage before regeneration is considered complete.
    The TypeScript normalization layer also strips generator-only dead auth scaffolding and any `src/index.js` or `src/index.d.ts` build residue, so the published package stays root-entrypoint-only and bearer-only.
 4. Generate Flutter from `craw-chat-app.flutter.sdkgen.yaml`, normalize the generated public auth surface back to bearer-only semantics, then run the Flutter workspace verification suite so Dart models do not regress into empty primitive wrapper classes, the Flutter composed layer keeps its convenience metadata helpers, it only consumes the generated package through the public `package:backend_sdk/backend_sdk.dart` entrypoint, and the generated package metadata stays aligned on `backend_sdk`.
-5. Refresh workspace metadata.
+5. Generate Rust from `craw-chat-app.sdkgen.yaml`, normalize the generated crate back to bearer-only auth semantics, add the generated-crate workspace escape hatch needed for standalone Cargo execution, then run the Rust workspace verification suite so generated crate metadata, root-only public imports, publish-core `check/build`, and composed crate `cargo test` stay aligned.
+6. Refresh workspace metadata.
 
 ## Verification
 
@@ -195,7 +200,8 @@ This default verification flow runs:
 5. TypeScript generated-package concurrency regression verification through `bin/verify-typescript-generated-build-concurrency.mjs` on Windows hosts, so overlapping root verification invocations do not regress back into shared-temp or shared-log collisions.
 6. Flutter workspace verification through `bin/verify-flutter-workspace.mjs`, which runs generated-model regression checks, bearer-auth surface alignment checks, composed parity checks, public API boundary checks, and package metadata consistency checks.
 7. Optional native Dart verification on top of the default Flutter workspace checks when `--with-dart` or `-WithDart` is requested. On Windows, this path resolves Flutter's bundled `dart.exe`, isolates the local pub cache under `/.sdkwork/dart/pub-cache`, and falls back to `bin/verify-flutter-dart-analysis.dart` when `dart analyze` cannot safely launch its own helper process in the current environment.
-8. Workspace assembly refresh.
+8. Rust workspace verification through `bin/verify-rust-workspace.mjs`, which runs bearer-auth surface alignment, generated crate metadata checks, generated crate public API boundary checks, generated crate publish-core `check/build`, and composed crate `cargo test`. On Windows, this path also forces a short `CARGO_TARGET_DIR` under `.sdkwork/rust-target`, and it retries Cargo with `CARGO_NET_OFFLINE=true` when the local crate cache is warm but external registry access is unavailable.
+9. Workspace assembly refresh.
 
 If a machine has a healthy Dart toolchain, opt into native Dart verification explicitly:
 
@@ -204,11 +210,11 @@ node .\bin\verify-sdk.mjs --with-dart
 ```
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\bin\verify-sdk.ps1 -Languages typescript,flutter -WithDart
+powershell -ExecutionPolicy Bypass -File .\bin\verify-sdk.ps1 -Languages typescript,flutter,rust -WithDart
 ```
 
 ```bash
-./bin/verify-sdk.sh --language typescript --language flutter --with-dart
+./bin/verify-sdk.sh --language typescript --language flutter --language rust --with-dart
 ```
 
 ## Ownership Rules
@@ -222,3 +228,4 @@ powershell -ExecutionPolicy Bypass -File .\bin\verify-sdk.ps1 -Languages typescr
 
 - TypeScript: [sdkwork-craw-chat-sdk-typescript](./sdkwork-craw-chat-sdk-typescript/README.md)
 - Flutter: [sdkwork-craw-chat-sdk-flutter](./sdkwork-craw-chat-sdk-flutter/README.md)
+- Rust: [sdkwork-craw-chat-sdk-rust](./sdkwork-craw-chat-sdk-rust/README.md)

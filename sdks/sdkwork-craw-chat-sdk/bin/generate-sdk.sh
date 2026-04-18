@@ -18,7 +18,7 @@ SDK_TYPE="backend"
 BASE_URL="http://127.0.0.1:18090"
 API_PREFIX="/api/v1"
 REQUESTED_VERSION=""
-LANGUAGES=("typescript" "flutter")
+LANGUAGES=("typescript" "flutter" "rust")
 LANGUAGES_EXPLICIT=false
 
 fail() {
@@ -109,6 +109,11 @@ for LANGUAGE in "${LANGUAGES[@]}"; do
       OUTPUT_DIR="${WORKSPACE_DIR}/sdkwork-craw-chat-sdk-flutter/generated/server-openapi"
       PACKAGE_NAME="backend_sdk"
       INPUT_SPEC="${PREPARED_FLUTTER_INPUT}"
+      ;;
+    rust)
+      OUTPUT_DIR="${WORKSPACE_DIR}/sdkwork-craw-chat-sdk-rust/generated/server-openapi"
+      PACKAGE_NAME="sdkwork-craw-chat-backend-sdk"
+      INPUT_SPEC="${PREPARED_INPUT}"
       ;;
     *)
       fail "Unsupported language: ${LANGUAGE}"

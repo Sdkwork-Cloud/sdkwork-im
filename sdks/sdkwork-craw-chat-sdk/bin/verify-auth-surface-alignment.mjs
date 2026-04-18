@@ -35,6 +35,15 @@ function read(relativePath) {
   return readFileSync(path.join(workspaceRoot, relativePath), 'utf8');
 }
 
+function readIfExists(relativePath, failures, missingMessage) {
+  const absolutePath = path.join(workspaceRoot, relativePath);
+  if (!existsSync(absolutePath)) {
+    failures.push(missingMessage);
+    return null;
+  }
+  return readFileSync(absolutePath, 'utf8');
+}
+
 function assertAbsent(failures, source, pattern, message) {
   if (pattern.test(source)) {
     failures.push(message);
@@ -64,7 +73,7 @@ const workspaceRoot = path.resolve(scriptDir, '..');
 const languageSet = new Set(args.languages.length > 0 ? args.languages : ['typescript', 'flutter']);
 
 for (const language of languageSet) {
-  if (!['typescript', 'flutter'].includes(language)) {
+  if (!['typescript', 'flutter', 'rust'].includes(language)) {
     fail(`Unsupported language: ${language}`);
   }
 }
@@ -652,6 +661,113 @@ if (languageSet.has('flutter')) {
     /\bsetAccessToken\s*\(/,
     'Flutter composed context must not proxy setAccessToken(...).',
   );
+}
+
+if (languageSet.has('rust')) {
+  const generatedClientSource = readIfExists(
+    'sdkwork-craw-chat-sdk-rust/generated/server-openapi/src/client.rs',
+    failures,
+    'Rust generated backend client source is missing: sdkwork-craw-chat-sdk-rust/generated/server-openapi/src/client.rs.',
+  );
+  const generatedHttpClientSource = readIfExists(
+    'sdkwork-craw-chat-sdk-rust/generated/server-openapi/src/http/client.rs',
+    failures,
+    'Rust generated http client source is missing: sdkwork-craw-chat-sdk-rust/generated/server-openapi/src/http/client.rs.',
+  );
+  const generatedReadmeSource = readIfExists(
+    'sdkwork-craw-chat-sdk-rust/generated/server-openapi/README.md',
+    failures,
+    'Rust generated README is missing: sdkwork-craw-chat-sdk-rust/generated/server-openapi/README.md.',
+  );
+  const generatedCargoTomlSource = readIfExists(
+    'sdkwork-craw-chat-sdk-rust/generated/server-openapi/Cargo.toml',
+    failures,
+    'Rust generated Cargo manifest is missing: sdkwork-craw-chat-sdk-rust/generated/server-openapi/Cargo.toml.',
+  );
+
+  if (generatedClientSource) {
+    assertAbsent(
+      failures,
+      generatedClientSource,
+      /\bset_api_key\s*\(/,
+      'Rust generated backend client must not expose set_api_key(...).',
+    );
+    assertAbsent(
+      failures,
+      generatedClientSource,
+      /\bset_access_token\s*\(/,
+      'Rust generated backend client must not expose set_access_token(...).',
+    );
+    assertPresent(
+      failures,
+      generatedClientSource,
+      /\bset_auth_token\s*\(/,
+      'Rust generated backend client must expose set_auth_token(...).',
+    );
+  }
+
+  if (generatedHttpClientSource) {
+    assertAbsent(
+      failures,
+      generatedHttpClientSource,
+      /\bset_api_key\s*\(/,
+      'Rust generated http client must not expose set_api_key(...).',
+    );
+    assertAbsent(
+      failures,
+      generatedHttpClientSource,
+      /\bset_access_token\s*\(/,
+      'Rust generated http client must not expose set_access_token(...).',
+    );
+    assertAbsent(
+      failures,
+      generatedHttpClientSource,
+      /\bDEFAULT_API_KEY_HEADER\b|\bDEFAULT_API_KEY_USE_BEARER\b|Access-Token|api_key/,
+      'Rust generated http client must stay bearer-only internally.',
+    );
+    assertPresent(
+      failures,
+      generatedHttpClientSource,
+      /\bset_auth_token\s*\(/,
+      'Rust generated http client must expose set_auth_token(...).',
+    );
+  }
+
+  if (generatedReadmeSource) {
+    assertAbsent(
+      failures,
+      generatedReadmeSource,
+      /set_api_key|set_access_token|Access-Token|Mode A: API Key|Mode B: Dual Token/,
+      'Rust generated README must not document API key or dual-token auth flows.',
+    );
+    assertPresent(
+      failures,
+      generatedReadmeSource,
+      /set_auth_token/,
+      'Rust generated README must document bearer auth through set_auth_token(...).',
+    );
+  }
+
+  if (generatedCargoTomlSource) {
+    assertPresent(
+      failures,
+      generatedCargoTomlSource,
+      /^name = "sdkwork-craw-chat-backend-sdk"$/m,
+      'Rust generated Cargo manifest must keep package name sdkwork-craw-chat-backend-sdk.',
+    );
+    assertPresent(
+      failures,
+      generatedCargoTomlSource,
+      /^\[lib\]$/m,
+      'Rust generated Cargo manifest must declare a lib target.',
+    );
+    assertPresent(
+      failures,
+      generatedCargoTomlSource,
+      /^path = "src\/lib\.rs"$/m,
+      'Rust generated Cargo manifest lib target must point to src/lib.rs.',
+    );
+  }
 }
 
 if (failures.length > 0) {

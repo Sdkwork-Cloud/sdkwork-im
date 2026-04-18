@@ -29,10 +29,13 @@ await sdk.conversations.postText(
 
 ## Local Dependency Override
 
-This workspace keeps `pubspec.yaml` publish-friendly and resolves the local generated package through `pubspec_overrides.yaml`:
+This workspace keeps `pubspec.yaml` publish-friendly and lets the root Craw Chat SDK wrappers materialize a local `pubspec_overrides.yaml` for the current checkout layout.
+That generated local override keeps both the generated `backend_sdk` package and `sdkwork_common_flutter` pointed at the correct workspace paths in either the main checkout or a nested git worktree:
 
 ```yaml
 dependency_overrides:
   backend_sdk:
     path: ../generated/server-openapi
+  sdkwork_common_flutter:
+    path: <computed by root wrapper>
 ```

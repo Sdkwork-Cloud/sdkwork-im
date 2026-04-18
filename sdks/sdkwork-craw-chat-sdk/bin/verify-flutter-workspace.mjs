@@ -1,12 +1,11 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 function fail(message) {
-  console.error(`[sdkwork-craw-chat-sdk] ${message}`);
-  process.exit(1);
+  throw new Error(message);
 }
 
 function parseArgs(argv) {
@@ -104,6 +103,7 @@ const composedDir = path.join(
   'sdkwork-craw-chat-sdk-flutter',
   'composed',
 );
+const composedOverridePath = path.join(composedDir, 'pubspec_overrides.yaml');
 const flutterDartAnalysisScript = path.join(scriptDir, 'verify-flutter-dart-analysis.dart');
 const dartEnv = {
   ...process.env,
@@ -112,73 +112,96 @@ const dartEnv = {
   FLUTTER_SUPPRESS_ANALYTICS: 'true',
   CI: 'true',
 };
+const hadOriginalComposedOverride = existsSync(composedOverridePath);
+const originalComposedOverrideSource = hadOriginalComposedOverride
+  ? readFileSync(composedOverridePath, 'utf8')
+  : '';
 
-run('node', [path.join(scriptDir, 'verify-flutter-generated-models.mjs')], {
-  cwd: workspaceRoot,
-  step: 'flutter:generated-regression',
-});
-run('node', [path.join(scriptDir, 'verify-auth-surface-alignment.mjs'), '--language', 'flutter'], {
-  cwd: workspaceRoot,
-  step: 'flutter:auth-surface',
-});
-run('node', [path.join(scriptDir, 'verify-flutter-composed-parity.mjs')], {
-  cwd: workspaceRoot,
-  step: 'flutter:composed-parity',
-});
-run('node', [path.join(scriptDir, 'verify-flutter-public-api-boundary.mjs')], {
-  cwd: workspaceRoot,
-  step: 'flutter:public-api-boundary',
-});
-run('node', [path.join(scriptDir, 'verify-flutter-package-metadata.mjs')], {
-  cwd: workspaceRoot,
-  step: 'flutter:package-metadata',
-});
-
-if (args.withDart) {
-  run('dart', ['--version'], {
+try {
+  run('node', [path.join(scriptDir, 'verify-flutter-generated-models.mjs')], {
     cwd: workspaceRoot,
-    env: dartEnv,
-    step: 'flutter:dart-version',
-    timeoutMs: 10000,
+    step: 'flutter:generated-regression',
   });
-  run('dart', ['pub', 'get'], {
-    cwd: generatedDir,
-    env: dartEnv,
-    step: 'flutter:generated-pub-get',
-    timeoutMs: 600000,
+  run('node', [path.join(scriptDir, 'verify-auth-surface-alignment.mjs'), '--language', 'flutter'], {
+    cwd: workspaceRoot,
+    step: 'flutter:auth-surface',
   });
-  run('dart', ['pub', 'get'], {
-    cwd: composedDir,
-    env: dartEnv,
-    step: 'flutter:composed-pub-get',
-    timeoutMs: 600000,
+  run('node', [path.join(scriptDir, 'verify-flutter-composed-parity.mjs')], {
+    cwd: workspaceRoot,
+    step: 'flutter:composed-parity',
   });
-  if (process.platform === 'win32') {
-    const generatedPackageConfig = path.join(generatedDir, '.dart_tool', 'package_config.json');
-    run('dart', [`--packages=${generatedPackageConfig}`, flutterDartAnalysisScript, generatedDir], {
+  run('node', [path.join(scriptDir, 'verify-flutter-public-api-boundary.mjs')], {
+    cwd: workspaceRoot,
+    step: 'flutter:public-api-boundary',
+  });
+  run('node', [path.join(scriptDir, 'sync-flutter-pubspec-overrides.mjs')], {
+    cwd: workspaceRoot,
+    step: 'flutter:sync-pubspec-overrides',
+  });
+  run('node', [path.join(scriptDir, 'verify-flutter-package-metadata.mjs')], {
+    cwd: workspaceRoot,
+    step: 'flutter:package-metadata',
+  });
+
+  if (args.withDart) {
+    run('dart', ['--version'], {
       cwd: workspaceRoot,
       env: dartEnv,
-      step: 'flutter:generated-analyze',
-      timeoutMs: 300000,
+      step: 'flutter:dart-version',
+      timeoutMs: 10000,
     });
-    run('dart', [`--packages=${generatedPackageConfig}`, flutterDartAnalysisScript, composedDir], {
-      cwd: workspaceRoot,
-      env: dartEnv,
-      step: 'flutter:composed-analyze',
-      timeoutMs: 300000,
-    });
-  } else {
-    run('dart', ['analyze'], {
+    run('dart', ['pub', 'get'], {
       cwd: generatedDir,
       env: dartEnv,
-      step: 'flutter:generated-analyze',
-      timeoutMs: 300000,
+      step: 'flutter:generated-pub-get',
+      timeoutMs: 600000,
     });
-    run('dart', ['analyze'], {
+    run('dart', ['pub', 'get'], {
       cwd: composedDir,
       env: dartEnv,
-      step: 'flutter:composed-analyze',
-      timeoutMs: 300000,
+      step: 'flutter:composed-pub-get',
+      timeoutMs: 600000,
     });
+    if (process.platform === 'win32') {
+      const generatedPackageConfig = path.join(generatedDir, '.dart_tool', 'package_config.json');
+      run('dart', [`--packages=${generatedPackageConfig}`, flutterDartAnalysisScript, generatedDir], {
+        cwd: workspaceRoot,
+        env: dartEnv,
+        step: 'flutter:generated-analyze',
+        timeoutMs: 300000,
+      });
+      run('dart', [`--packages=${generatedPackageConfig}`, flutterDartAnalysisScript, composedDir], {
+        cwd: workspaceRoot,
+        env: dartEnv,
+        step: 'flutter:composed-analyze',
+        timeoutMs: 300000,
+      });
+    } else {
+      run('dart', ['analyze'], {
+        cwd: generatedDir,
+        env: dartEnv,
+        step: 'flutter:generated-analyze',
+        timeoutMs: 300000,
+      });
+      run('dart', ['analyze'], {
+        cwd: composedDir,
+        env: dartEnv,
+        step: 'flutter:composed-analyze',
+        timeoutMs: 300000,
+      });
+    }
   }
+} catch (error) {
+  console.error(`[sdkwork-craw-chat-sdk] ${error.message}`);
+  process.exitCode = 1;
+} finally {
+  if (hadOriginalComposedOverride) {
+    writeFileSync(composedOverridePath, originalComposedOverrideSource, 'utf8');
+  } else if (existsSync(composedOverridePath)) {
+    rmSync(composedOverridePath);
+  }
+}
+
+if (process.exitCode && process.exitCode !== 0) {
+  process.exit(process.exitCode);
 }

@@ -58,6 +58,7 @@ powershell -ExecutionPolicy Bypass -File .\bin\sdk-gen.ps1
 
 These scripts forward to the root `sdkwork-craw-chat-sdk/bin/generate-sdk.*` wrapper and constrain generation to the Flutter target.
 The forwarded flow ends by running the shared `bin/verify-flutter-workspace.mjs` suite, so regeneration immediately rechecks generated-model regressions, bearer-auth surface alignment, composed parity, public API boundaries, and package metadata alignment.
+The same root-owned verification path also materializes the local `composed/pubspec_overrides.yaml` file for the current checkout layout, so `backend_sdk` and `sdkwork_common_flutter` resolve correctly in both the main workspace and nested git worktrees.
 
 ## Verify
 

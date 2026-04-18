@@ -3,103 +3,100 @@ layout: home
 
 hero:
   name: Craw Chat
-  text: Implementation-aligned product documentation
-  tagline: Open-source documentation for the current Craw Chat repository state, covering runtime architecture, OpenAPI-style HTTP APIs, SDK workspaces, and deployment operations.
+  text: SDK-first integration documentation
+  tagline: Implementation-aligned open-source docs for the Craw Chat app runtime, the TypeScript, Flutter, and Rust app SDKs, the App API, and deployment workflows.
   actions:
     - theme: brand
-      text: Get Started
-      link: /getting-started/index
+      text: SDK Overview
+      link: /sdk/index
     - theme: alt
-      text: API Reference
+      text: TypeScript Quick Start
+      link: /sdk/typescript-quick-start
+    - theme: alt
+      text: App API
       link: /api-reference/index
-    - theme: alt
-      text: Deployment
-      link: /deployment/index
 
 features:
-  - title: Implementation First
-    details: Every page is written against the current repository behavior, not against roadmap assumptions or placeholder directories.
-  - title: OpenAPI-style API Docs
-    details: HTTP operations are grouped by runtime domain, linked directly from the sidebar, and documented with request and response schemas plus nested field expansion.
-  - title: SDK Boundary Clarity
-    details: The docs distinguish between checked-in OpenAPI authority, generated-workspace layout, and actual release status so consumers do not confuse templates with published packages.
-  - title: Operable Deployment Guides
-    details: Local binary, Docker Compose, runtime inspection, repair, backup, preview, and restore flows are documented from the existing scripts and binaries.
-  - title: Runtime-centric Architecture
-    details: The site explains the Rust workspace, service boundaries, runtime-directory contract, provider model, and control-plane governance through the code that actually runs.
-  - title: Mature Open-source Structure
-    details: The site is organized as a product documentation portal with clear entry points for onboarding, operations, architecture, APIs, SDKs, and reference material.
+  - title: Trilanguage App SDK
+    details: The app-facing SDK family in this worktree exposes composed SDK surfaces for TypeScript, Flutter, and Rust above generated HTTP transport packages.
+  - title: App SDK Before Raw HTTP
+    details: The docs route integrators to SDK quick starts, client initialization, module pages, and scenario examples before dropping down into operation-level API details.
+  - title: Generated vs Composed Clarity
+    details: Every SDK page distinguishes generator-owned `generated/server-openapi` output from the manual-owned `composed` layer that consumers should integrate against.
+  - title: API and SDK Mapping
+    details: App API pages stay operation-focused, while SDK pages stay integration-focused, and both sections cross-link to each other by runtime domain.
+  - title: Public Auth Reality
+    details: The public integration contract is bearer-token based. Trusted headers remain internal and test-oriented, not the app SDK contract.
+  - title: Operable Runtime
+    details: Runtime topology, deployment scripts, inspection workflows, backup or restore paths, and environment expectations remain documented from the code that actually runs.
 ---
 
-## What Craw Chat Is
+## What You Can Integrate Today
 
-Craw Chat is a Rust workspace that currently ships two meaningful runtime surfaces:
+The current Craw Chat worktree exposes two distinct developer surfaces:
 
-- `services/local-minimal-node`, the app-facing node that serves session, conversation, message,
-  media, stream, RTC, platform, ops, audit, and provider-health routes.
-- `services/control-plane-api`, the separate governance surface for protocol registry, provider
-  policy, and node lifecycle operations.
+- the app-facing runtime and App API surface, served by `local-minimal-node`
+- the trilanguage app SDK family under `sdks/sdkwork-craw-chat-sdk`
 
-The default runnable profile in this repository is `local-minimal`. The `local-default` profile
-already has script, config, and Docker entry points, but it still reuses the current
-`local-minimal` runtime contract and topology.
+For most integrators, the best reading order is:
+
+1. [SDK Overview](/sdk/index)
+2. [Auth and Client Init](/sdk/auth-and-client-init)
+3. one language quick start
+4. [Module Map](/sdk/module-map)
+5. the matching App API domain pages
 
 <div class="landing-grid">
   <div class="fact-card">
-    <h3>Default App Listener</h3>
-    <p><code>127.0.0.1:18090</code> for local binary workflows, and <code>0.0.0.0:18090</code> inside Docker Compose.</p>
+    <h3>Preferred App SDK Surface</h3>
+    <p>Use the manual-owned <code>composed</code> SDK layer. It exposes <code>CrawChatClient</code> and semantic modules in TypeScript, Flutter, and Rust.</p>
   </div>
   <div class="fact-card">
-    <h3>Control Plane Listener</h3>
-    <p><code>127.0.0.1:18081</code> when the standalone <code>control-plane-api</code> binary is run directly.</p>
+    <h3>Local App Base URL</h3>
+    <p><code>http://127.0.0.1:18090</code> is the default app runtime listener for local binary workflows.</p>
   </div>
   <div class="fact-card">
-    <h3>Public Auth Model</h3>
-    <p>Public HTTP surfaces use <code>Authorization: Bearer &lt;token&gt;</code> signed with <code>CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET</code>.</p>
+    <h3>Public Auth Contract</h3>
+    <p>SDK consumers authenticate with <code>Authorization: Bearer &lt;token&gt;</code>. Trusted headers are not the public app SDK contract.</p>
   </div>
   <div class="fact-card">
-    <h3>SDK Delivery State</h3>
-    <p>The release catalog is still <code>template_only_pending_generation</code> and <code>not_published</code>, even though the SDK workspace structure is already checked in.</p>
+    <h3>Publication Boundary</h3>
+    <p>The workspaces exist locally in this repository. Public registry publication is a separate concern and is not implied by local package availability.</p>
   </div>
 </div>
 
-## Recommended Reading Path
+## SDK Entry Points
 
-1. Start with [Getting Started](/getting-started/index) to understand supported runtime modes,
-   prerequisites, and auth expectations.
-2. Use [Quick Start](/getting-started/quick-start) to initialize config, build the local node, and
-   verify health or smoke status.
-3. Read [Architecture Overview](/architecture/overview) and
-   [Runtime Topology](/architecture/runtime-topology) before changing runtime wiring, providers, or
-   deployment assumptions.
-4. Use [API Reference](/api-reference/index) for the OpenAPI-style operation catalog with sidebar
-   links to every documented endpoint.
-5. Read [SDK Overview](/sdk/index) before promising package availability, version numbers, or
-   generation status to downstream consumers.
-6. Keep [Deployment](/deployment/index) and [Reference](/reference/cli-and-scripts) open when
-   running, diagnosing, backing up, or restoring a local environment.
+| Language | Preferred package or crate | Quick start | Notes |
+| --- | --- | --- | --- |
+| TypeScript | `@sdkwork/craw-chat-sdk` | [/sdk/typescript-quick-start](/sdk/typescript-quick-start) | Async `CrawChatClient.create()` layered over the generated backend SDK |
+| Flutter | `craw_chat_sdk` | [/sdk/flutter-quick-start](/sdk/flutter-quick-start) | `CrawChatClient.create()` layered over `backend_sdk` |
+| Rust | `craw-chat-sdk` | [/sdk/rust-quick-start](/sdk/rust-quick-start) | `CrawChatClient::new_with_base_url()` plus semantic module accessors |
 
-## Current Delivery Surface
+## App Runtime and SDK Surface
 
 | Area | What is currently implemented |
 | --- | --- |
-| App runtime | Session resume, presence, realtime delivery, device sync, conversations, membership, messages, media, streams, RTC, notifications, automation, audit, ops, and provider health |
-| Control plane | Protocol registry, protocol governance, provider registry, effective bindings, provider policy preview and rollback, plus node drain, activate, and route migration |
+| App runtime | Session resume, presence, realtime coordination, device sync, inbox, conversations, membership, messages, media, streams, and RTC |
+| App SDK family | TypeScript, Flutter, and Rust workspaces with generated transport layers and manual-owned composed SDK surfaces |
+| App API reference | OpenAPI-style domain pages for session and realtime, device sync, conversations, membership, messages, media, streams, and RTC |
+| Admin and control plane | Separate audience and workflow from the app SDK. See [/sdk/admin-sdk](/sdk/admin-sdk) and [/api-reference/control-plane-api](/api-reference/control-plane-api). |
 | Deployment | Local binary lifecycle scripts, Docker Compose bootstrap, runtime inspection, repair, backup listing, archive, preview, and restore |
-| SDK workspaces | App SDK workspace with checked-in OpenAPI authority and derived sdkgen input; admin SDK workspace with frozen audience and language boundaries but no checked-in admin OpenAPI source yet |
-| Frontend apps | `apps/craw-chat-admin` and `apps/craw-chat-portal` exist as workspace directories but are not documented here as mature product surfaces |
 
 ::: warning Scope rule
-This documentation intentionally describes only what can be verified from the current repository
-state. Placeholder directories, future plans, or unpublished SDK artifacts are explicitly marked as
-such rather than documented as delivered features.
+This site documents implemented repository behavior and local workspace surfaces. It does not treat
+local packages or crates as automatically published to ecosystem registries, and it does not claim
+handwritten WebSocket adapters where the current SDK round documents only the HTTP coordination
+surface.
 :::
 
-<div class="source-note">
-  <strong>Implementation sources:</strong>
-  App routing is aligned to <code>services/local-minimal-node/src/node/build.rs</code>.
-  Control-plane routing is aligned to <code>services/control-plane-api/src/lib.rs</code>.
-  Local lifecycle and deployment behavior is aligned to <code>bin/</code>,
-  <code>deployments/</code>, and the runtime-management entrypoints in
-  <code>services/local-minimal-node/src/main.rs</code>.
-</div>
+## Recommended Reading
+
+1. Start with [SDK Overview](/sdk/index) if you are integrating application features.
+2. Use [Auth and Client Init](/sdk/auth-and-client-init) before writing any client bootstrap code.
+3. Pick one language quick start:
+   [TypeScript](/sdk/typescript-quick-start),
+   [Flutter](/sdk/flutter-quick-start),
+   [Rust](/sdk/rust-quick-start).
+4. Use [Module Map](/sdk/module-map) to find the right semantic SDK surface for your use case.
+5. Drop into [App API Overview](/api-reference/app-api) when you need exact payloads, statuses, or operation-level details.

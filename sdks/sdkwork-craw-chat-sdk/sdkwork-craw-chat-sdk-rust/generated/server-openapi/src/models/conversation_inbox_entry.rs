@@ -1,0 +1,53 @@
+use serde::{Deserialize, Serialize};
+
+use crate::models::{ConversationAgentHandoffView};
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct ConversationInboxEntry {
+    #[serde(rename = "tenantId")]
+    pub tenant_id: String,
+
+    #[serde(rename = "principalId")]
+    pub principal_id: String,
+
+    #[serde(rename = "memberId")]
+    pub member_id: String,
+
+    #[serde(rename = "conversationId")]
+    pub conversation_id: String,
+
+    #[serde(rename = "conversationType")]
+    pub conversation_type: String,
+
+    #[serde(rename = "messageCount")]
+    pub message_count: i64,
+
+    #[serde(rename = "lastMessageId")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_message_id: Option<String>,
+
+    #[serde(rename = "lastMessageSeq")]
+    pub last_message_seq: i64,
+
+    #[serde(rename = "lastSenderId")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_sender_id: Option<String>,
+
+    #[serde(rename = "lastSenderKind")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_sender_kind: Option<String>,
+
+    #[serde(rename = "lastSummary")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_summary: Option<String>,
+
+    #[serde(rename = "unreadCount")]
+    pub unread_count: i64,
+
+    #[serde(rename = "lastActivityAt")]
+    pub last_activity_at: String,
+
+    #[serde(rename = "agentHandoff")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_handoff: Option<ConversationAgentHandoffView>,
+}

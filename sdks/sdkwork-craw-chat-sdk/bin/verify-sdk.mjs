@@ -57,9 +57,9 @@ function run(command, args, options = {}) {
 const args = parseArgs(process.argv.slice(2));
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = path.resolve(scriptDir, '..');
-const languageSet = new Set(args.languages.length > 0 ? args.languages : ['typescript', 'flutter']);
+const languageSet = new Set(args.languages.length > 0 ? args.languages : ['typescript', 'flutter', 'rust']);
 for (const language of languageSet) {
-  if (!['typescript', 'flutter'].includes(language)) {
+  if (!['typescript', 'flutter', 'rust'].includes(language)) {
     fail(`Unsupported language: ${language}`);
   }
 }
@@ -96,6 +96,13 @@ if (languageSet.has('flutter')) {
   run('node', flutterWorkspaceArgs, {
     cwd: workspaceRoot,
     step: 'flutter:workspace',
+  });
+}
+
+if (languageSet.has('rust')) {
+  run('node', [path.join(scriptDir, 'verify-rust-workspace.mjs')], {
+    cwd: workspaceRoot,
+    step: 'rust:workspace',
   });
 }
 

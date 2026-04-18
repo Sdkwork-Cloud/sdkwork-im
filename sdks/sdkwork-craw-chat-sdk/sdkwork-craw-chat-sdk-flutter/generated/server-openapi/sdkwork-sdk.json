@@ -7,7 +7,7 @@
   "packageName": "backend_sdk",
   "generator": "@sdkwork/sdk-generator",
   "capabilities": {
-    "supportsGeneratedTests": false,
+    "supportsGeneratedTests": true,
     "supportsReadme": true,
     "supportsCustomScaffold": true,
     "supportsPublishWorkflow": true,

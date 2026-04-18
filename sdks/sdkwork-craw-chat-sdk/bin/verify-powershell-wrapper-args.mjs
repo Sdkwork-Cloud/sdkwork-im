@@ -24,8 +24,12 @@ for (const [label, source] of [
   }
 }
 
-if (!/-Languages typescript,flutter/.test(readme)) {
-  failures.push('Workspace README must keep documenting the comma-separated PowerShell example that the wrappers support.');
+if (!/-Languages typescript,flutter,rust/.test(readme)) {
+  failures.push('Workspace README must keep documenting the comma-separated PowerShell example that the wrappers support for rust.');
+}
+
+if (!/powershell -ExecutionPolicy Bypass -File \.\\bin\\verify-sdk\.ps1 -Languages typescript,flutter,rust -WithDart/.test(readme)) {
+  failures.push('Workspace README must document the PowerShell verification example with rust in the language list.');
 }
 
 if (failures.length > 0) {

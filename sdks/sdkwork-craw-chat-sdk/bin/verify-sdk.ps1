@@ -1,5 +1,5 @@
 param(
-  [string[]]$Languages = @("typescript", "flutter"),
+  [string[]]$Languages = @("typescript", "flutter", "rust"),
   [switch]$WithDart
 )
 
@@ -25,7 +25,7 @@ function Normalize-LanguageList {
   }
 
   if ($Normalized.Count -eq 0) {
-    return @("typescript", "flutter")
+    return @("typescript", "flutter", "rust")
   }
 
   return $Normalized

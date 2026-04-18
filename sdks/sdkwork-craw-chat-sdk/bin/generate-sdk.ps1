@@ -1,5 +1,5 @@
 param(
-  [string[]]$Languages = @("typescript", "flutter"),
+  [string[]]$Languages = @("typescript", "flutter", "rust"),
   [string]$RequestedVersion,
   [string]$BaseUrl = "http://127.0.0.1:18090",
   [string]$ApiPrefix = "/api/v1"
@@ -37,7 +37,7 @@ function Normalize-LanguageList {
   }
 
   if ($Normalized.Count -eq 0) {
-    return @("typescript", "flutter")
+    return @("typescript", "flutter", "rust")
   }
 
   return $Normalized
@@ -107,6 +107,11 @@ $LanguageConfigurations = @{
     OutputDir = Join-Path $WorkspaceDir "sdkwork-craw-chat-sdk-flutter\generated\server-openapi"
     PackageName = "backend_sdk"
     Input = $PreparedFlutterInput
+  }
+  rust = @{
+    OutputDir = Join-Path $WorkspaceDir "sdkwork-craw-chat-sdk-rust\generated\server-openapi"
+    PackageName = "sdkwork-craw-chat-backend-sdk"
+    Input = $PreparedInput
   }
 }
 

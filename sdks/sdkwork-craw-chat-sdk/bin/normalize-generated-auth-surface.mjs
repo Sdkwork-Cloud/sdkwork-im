@@ -55,6 +55,36 @@ function removeIfExists(targetPath) {
   rmSync(targetPath, { recursive: true, force: true });
 }
 
+function replaceOrFail(source, pattern, replacement, description) {
+  if (!matchesPattern(source, pattern)) {
+    fail(description);
+  }
+  return source.replace(pattern, replacement);
+}
+
+function matchesPattern(source, pattern) {
+  pattern.lastIndex = 0;
+  const matched = pattern.test(source);
+  pattern.lastIndex = 0;
+  return matched;
+}
+
+function replaceOrVerifyNormalized(
+  source,
+  pattern,
+  replacement,
+  normalizedPattern,
+  description,
+) {
+  if (matchesPattern(source, pattern)) {
+    return source.replace(pattern, replacement);
+  }
+  if (matchesPattern(source, normalizedPattern)) {
+    return source;
+  }
+  fail(description);
+}
+
 function renderTypeScriptIndex() {
   return `export { SdkworkBackendClient, createClient } from './sdk';
 export * from './types';
@@ -670,6 +700,102 @@ MIT
 `;
 }
 
+function renderRustReadme() {
+  return `# sdkwork-craw-chat-sdk (Rust)
+
+Professional Rust transport SDK for the Craw Chat app API.
+
+## Installation
+
+\`\`\`bash
+cargo add sdkwork-craw-chat-backend-sdk
+\`\`\`
+
+## Quick Start
+
+\`\`\`rust
+use sdkwork_craw_chat_backend_sdk::{SdkworkBackendClient, SdkworkConfig};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = SdkworkBackendClient::new(SdkworkConfig::new("http://127.0.0.1:18090"))?;
+    client.set_auth_token("your-bearer-token");
+
+    let result = client.inbox().get_inbox().await?;
+    println!("{result:?}");
+    Ok(())
+}
+\`\`\`
+
+## Authentication
+
+Craw Chat app routes use bearer authentication only.
+
+\`\`\`rust
+use sdkwork_craw_chat_backend_sdk::{SdkworkBackendClient, SdkworkConfig};
+
+let client = SdkworkBackendClient::new(SdkworkConfig::new("http://127.0.0.1:18090"))?;
+client.set_auth_token("your-bearer-token");
+// Sends: Authorization: Bearer <token>
+\`\`\`
+
+## Configuration
+
+\`\`\`rust
+use sdkwork_craw_chat_backend_sdk::{SdkworkBackendClient, SdkworkConfig};
+
+let client = SdkworkBackendClient::new(SdkworkConfig::new("http://127.0.0.1:18090"))?;
+client.set_header("X-Custom-Header", "value");
+\`\`\`
+
+## API Modules
+
+- \`client.session()\` - session API
+- \`client.presence()\` - presence API
+- \`client.realtime()\` - realtime API
+- \`client.device()\` - device API
+- \`client.inbox()\` - inbox API
+- \`client.conversation()\` - conversation API
+- \`client.message()\` - message API
+- \`client.media()\` - media API
+- \`client.stream()\` - stream API
+- \`client.rtc()\` - rtc API
+
+## Publishing
+
+This SDK includes cross-platform publish scripts in \`bin/\`:
+
+- \`bin/publish-core.mjs\`
+- \`bin/publish.sh\`
+- \`bin/publish.ps1\`
+
+## License
+
+MIT
+
+## Package Boundary
+
+- Use only the crate root entrypoint: \`sdkwork_craw_chat_backend_sdk\`.
+- Internal generated module paths are not part of the supported public API.
+- The workspace normalization wrapper strips generator-only auth scaffolding before verification and packaging.
+
+## Regeneration Contract
+
+- Generator-owned files are tracked in \`.sdkwork/sdkwork-generator-manifest.json\`.
+- Each run also writes \`.sdkwork/sdkwork-generator-changes.json\` so automation can inspect created, updated, deleted, unchanged, scaffolded, and backed-up files plus the classified impact areas, verification plan, and execution decision for the latest generation.
+- Apply mode also writes \`.sdkwork/sdkwork-generator-report.json\` with the full execution report, including \`schemaVersion\`, \`generator\`, stable artifact paths, and the execution handoff commands that match CLI \`--json\` output.
+- CLI JSON output also includes an execution handoff with concrete next commands, including reviewed apply commands for dry-run flows.
+- Put hand-written wrappers, adapters, and orchestration in \`custom/\`.
+- Files scaffolded under \`custom/\` are created once and preserved across regenerations.
+- If a generated-owned file was modified locally, its previous content is copied to \`.sdkwork/manual-backups/\` before overwrite or removal.
+`;
+}
+
+function renderStandaloneRustWorkspaceTable() {
+  return `[workspace]
+`;
+}
+
 function normalizeTypeScript(workspaceRoot) {
   const generatedRoot = path.join(
     workspaceRoot,
@@ -703,13 +829,79 @@ function normalizeFlutter(workspaceRoot) {
   writeIfChanged(path.join(generatedRoot, 'README.md'), renderFlutterReadme());
 }
 
+function normalizeRust(workspaceRoot) {
+  const generatedRoot = path.join(
+    workspaceRoot,
+    'sdkwork-craw-chat-sdk-rust',
+    'generated',
+    'server-openapi',
+  );
+  const clientPath = path.join(generatedRoot, 'src', 'client.rs');
+  const httpClientPath = path.join(generatedRoot, 'src', 'http', 'client.rs');
+  const readmePath = path.join(generatedRoot, 'README.md');
+  const cargoTomlPath = path.join(generatedRoot, 'Cargo.toml');
+
+  const clientSource = readFileSync(clientPath, 'utf8');
+  const normalizedClientSource = replaceOrVerifyNormalized(
+    clientSource,
+    /(\r?\n\s*pub fn set_api_key\(&self, api_key: impl Into<String>\) -> &Self \{\r?\n[\s\S]*?\r?\n\s*\}\r?\n\r?\n)\s*pub fn set_auth_token\(&self, token: impl Into<String>\) -> &Self \{\r?\n[\s\S]*?\r?\n\s*\}\r?\n\r?\n\s*pub fn set_access_token\(&self, token: impl Into<String>\) -> &Self \{\r?\n[\s\S]*?\r?\n\s*\}\r?\n\r?\n\s*pub fn set_header/g,
+    `
+
+    pub fn set_auth_token(&self, token: impl Into<String>) -> &Self {
+        self.http.set_auth_token(token);
+        self
+    }
+
+    pub fn set_header`,
+    /pub fn set_auth_token\(&self, token: impl Into<String>\) -> &Self \{\r?\n\s*self\.http\.set_auth_token\(token\);\r?\n\s*self\r?\n\s*\}\r?\n\r?\n\s*pub fn set_header/,
+    'Rust generated backend client no longer matches the expected auth surface template.',
+  );
+  writeIfChanged(clientPath, normalizedClientSource);
+
+  const httpClientSource = readFileSync(httpClientPath, 'utf8');
+  let normalizedHttpClientSource = httpClientSource;
+  if (matchesPattern(
+    normalizedHttpClientSource,
+    /const DEFAULT_API_KEY_HEADER: &str = "[^"]*";\r?\nconst DEFAULT_API_KEY_USE_BEARER: bool = (?:true|false);\r?\n\r?\n/g,
+  )) {
+    normalizedHttpClientSource = normalizedHttpClientSource.replace(
+      /const DEFAULT_API_KEY_HEADER: &str = "[^"]*";\r?\nconst DEFAULT_API_KEY_USE_BEARER: bool = (?:true|false);\r?\n\r?\n/g,
+      '',
+    );
+  }
+  normalizedHttpClientSource = replaceOrVerifyNormalized(
+    normalizedHttpClientSource,
+    /\r?\n\s*pub fn set_api_key\(&self, api_key: impl Into<String>\) \{\r?\n[\s\S]*?\r?\n\s*\}\r?\n\r?\n\s*pub fn set_auth_token\(&self, token: impl Into<String>\) \{\r?\n[\s\S]*?\r?\n\s*\}\r?\n\r?\n\s*pub fn set_access_token\(&self, token: impl Into<String>\) \{\r?\n[\s\S]*?\r?\n\s*\}\r?\n\r?\n\s*pub fn set_header/g,
+    `
+
+    pub fn set_auth_token(&self, token: impl Into<String>) {
+        let mut headers = self.headers.write().expect("sdk headers poisoned");
+        headers.insert("Authorization".to_string(), format!("Bearer {}", token.into()));
+    }
+
+    pub fn set_header`,
+    /pub fn set_auth_token\(&self, token: impl Into<String>\) \{\r?\n\s*let mut headers = self\.headers\.write\(\)\.expect\("sdk headers poisoned"\);\r?\n\s*headers\.insert\("Authorization"\.to_string\(\), format!\("Bearer \{\}", token\.into\(\)\)\);\r?\n\s*\}\r?\n\r?\n\s*pub fn set_header/,
+    'Rust generated http client no longer matches the expected auth mutator template.',
+  );
+  writeIfChanged(httpClientPath, normalizedHttpClientSource);
+  writeIfChanged(readmePath, renderRustReadme());
+
+  const cargoTomlSource = readFileSync(cargoTomlPath, 'utf8');
+  if (!/^\[workspace\]\s*$/m.test(cargoTomlSource)) {
+    writeIfChanged(
+      cargoTomlPath,
+      `${cargoTomlSource.replace(/\s*$/, '')}\n\n${renderStandaloneRustWorkspaceTable()}`,
+    );
+  }
+}
+
 const args = parseArgs(process.argv.slice(2));
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = path.resolve(scriptDir, '..');
 const languageSet = new Set(args.languages.length > 0 ? args.languages : ['typescript', 'flutter']);
 
 for (const language of languageSet) {
-  if (!['typescript', 'flutter'].includes(language)) {
+  if (!['typescript', 'flutter', 'rust'].includes(language)) {
     fail(`Unsupported language: ${language}`);
   }
 }
@@ -720,6 +912,10 @@ if (languageSet.has('typescript')) {
 
 if (languageSet.has('flutter')) {
   normalizeFlutter(workspaceRoot);
+}
+
+if (languageSet.has('rust')) {
+  normalizeRust(workspaceRoot);
 }
 
 console.log(

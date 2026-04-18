@@ -30,6 +30,14 @@ Do not import generated private paths such as `generated/server-openapi/src/type
 The root workspace wrappers also build and verify the generated transport package into `generated/server-openapi/dist` through a stable outer script, rather than relying on Vite/esbuild child-process behavior inside the generated package itself.
 The stable generated-package build now also uses a workspace lock plus per-run temporary directories so overlapping root verification or generation flows do not collide on shared TypeScript build scratch space.
 
+## Generated Package
+
+The generated TypeScript transport package is `generated/server-openapi/package.json`:
+
+- package name: `@sdkwork/craw-chat-backend-sdk`
+- runtime entrypoints: `dist/index.js` and `dist/index.cjs`
+- type entrypoint: `dist/index.d.ts`
+
 ## Consumer Package
 
 The primary app-facing TypeScript package is `composed/package.json`:
