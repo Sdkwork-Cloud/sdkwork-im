@@ -56,6 +56,57 @@ pub(super) fn ensure_registered_device(
     state.require_registered_device_binding(auth)
 }
 
+fn ensure_conversation_not_archived(
+    state: &AppState,
+    auth: &AuthContext,
+    conversation_id: &str,
+) -> Result<(), ApiError> {
+    if state
+        .projection_service
+        .is_archived_direct_chat_conversation(auth.tenant_id.as_str(), conversation_id)
+    {
+        return Err(ApiError::forbidden(
+            "conversation_archived",
+            format!("direct chat conversation is archived: {conversation_id}"),
+        ));
+    }
+
+    Ok(())
+}
+
+fn ensure_conversation_not_blocked(
+    state: &AppState,
+    auth: &AuthContext,
+    conversation_id: &str,
+) -> Result<(), ApiError> {
+    let Some(user_block) =
+        direct_chat_access_block_for_conversation(state, auth.tenant_id.as_str(), conversation_id)
+    else {
+        return Ok(());
+    };
+
+    Err(ApiError::forbidden(
+        "conversation_blocked",
+        format!(
+            "direct chat conversation is blocked by user block {}: {conversation_id}",
+            user_block.block_id
+        ),
+    ))
+}
+
+pub(super) fn direct_chat_access_block_for_conversation(
+    state: &AppState,
+    tenant_id: &str,
+    conversation_id: &str,
+) -> Option<im_domain_core::social::UserBlock> {
+    let direct_chat_id = state
+        .projection_service
+        .direct_chat_id_for_conversation(tenant_id, conversation_id)?;
+    state
+        .social_query
+        .active_direct_chat_access_block(tenant_id, direct_chat_id.as_str())
+}
+
 pub(super) fn resolve_requested_device_id(
     auth: &AuthContext,
     requested_device_id: Option<String>,
@@ -87,14 +138,39 @@ pub(super) fn resolve_requested_device_id(
     }
 }
 
+pub(super) fn resolve_active_auth_context(
+    state: &AppState,
+    headers: &HeaderMap,
+) -> Result<AuthContext, ApiError> {
+    let auth = resolve_auth_context(headers)?;
+    ensure_active_auth_principal(state, &auth)?;
+    Ok(auth)
+}
+
+pub(super) fn ensure_active_auth_principal(
+    state: &AppState,
+    auth: &AuthContext,
+) -> Result<(), ApiError> {
+    state.refresh_projection_state_from_runtime_dir()?;
+    user_module::ensure_active_principal(
+        state,
+        auth.tenant_id.as_str(),
+        auth.actor_id.as_str(),
+        auth.actor_kind.as_str(),
+    )
+}
+
 pub(super) fn ensure_conversation_member(
     state: &AppState,
     auth: &AuthContext,
     conversation_id: &str,
 ) -> Result<(), ApiError> {
+    ensure_active_auth_principal(state, auth)?;
     state
         .conversation_runtime
         .require_active_member_from_auth_context(auth, conversation_id)?;
+    ensure_conversation_not_archived(state, auth, conversation_id)?;
+    ensure_conversation_not_blocked(state, auth, conversation_id)?;
     Ok(())
 }
 
@@ -103,9 +179,12 @@ pub(super) fn resolve_conversation_actor_auth_context(
     auth: &AuthContext,
     conversation_id: &str,
 ) -> Result<AuthContext, ApiError> {
+    ensure_active_auth_principal(state, auth)?;
     let actor_member = state
         .conversation_runtime
         .require_active_member_from_auth_context(auth, conversation_id)?;
+    ensure_conversation_not_archived(state, auth, conversation_id)?;
+    ensure_conversation_not_blocked(state, auth, conversation_id)?;
     let mut actor_auth = auth.clone();
     actor_auth.actor_kind = actor_member.principal_kind;
     Ok(actor_auth)
@@ -117,6 +196,7 @@ fn ensure_conversation_bound_write_access(
     conversation_id: &str,
     capability: &str,
 ) -> Result<(), ApiError> {
+    ensure_active_auth_principal(state, auth)?;
     state
         .conversation_runtime
         .ensure_conversation_bound_write_allowed_from_auth_context(
@@ -124,6 +204,8 @@ fn ensure_conversation_bound_write_access(
             conversation_id,
             capability,
         )?;
+    ensure_conversation_not_archived(state, auth, conversation_id)?;
+    ensure_conversation_not_blocked(state, auth, conversation_id)?;
     Ok(())
 }
 

@@ -1,4 +1,6 @@
 use std::collections::BTreeMap;
+use std::fs;
+use std::path::Path as FsPath;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -10,7 +12,9 @@ use axum::{
     Json, Router,
     routing::{get, post},
 };
-use im_auth_context::{AuthContextError, resolve_auth_context, resolve_public_bearer_auth_context};
+use im_auth_context::{
+    AuthContext, AuthContextError, resolve_auth_context, resolve_public_bearer_auth_context,
+};
 use im_domain_core::conversation::{
     ConversationMember, ConversationReadCursorView, MembershipRole,
 };
@@ -23,7 +27,146 @@ use super::*;
 #[derive(Clone)]
 struct AppState {
     runtime: Arc<ConversationRuntime<InMemoryJournal>>,
+    principal_directory: Arc<dyn PrincipalDirectory>,
     shared_channel_sync_rate_limiter: SharedChannelSyncRateLimiter,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum PrincipalDirectoryError {
+    PrincipalNotFound {
+        tenant_id: String,
+        principal_id: String,
+        principal_kind: String,
+    },
+    PrincipalDisabled {
+        tenant_id: String,
+        principal_id: String,
+        principal_kind: String,
+    },
+    Unavailable(String),
+}
+
+pub trait PrincipalDirectory: Send + Sync {
+    fn ensure_active_principal(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: &str,
+    ) -> Result<(), PrincipalDirectoryError>;
+}
+
+#[derive(Default)]
+struct AllowAllPrincipalDirectory;
+
+impl PrincipalDirectory for AllowAllPrincipalDirectory {
+    fn ensure_active_principal(
+        &self,
+        _tenant_id: &str,
+        _principal_id: &str,
+        _principal_kind: &str,
+    ) -> Result<(), PrincipalDirectoryError> {
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct StaticPrincipalDirectory {
+    principals: BTreeMap<(String, String, String), StaticPrincipalDirectoryRecord>,
+}
+
+#[derive(Clone, Debug)]
+struct StaticPrincipalDirectoryRecord {
+    disabled: bool,
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct StaticPrincipalDirectoryCatalog {
+    #[serde(default)]
+    principals: Vec<StaticPrincipalDirectoryEntry>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct StaticPrincipalDirectoryEntry {
+    tenant_id: String,
+    principal_id: String,
+    #[serde(default = "default_user_principal_kind")]
+    principal_kind: String,
+    #[serde(default)]
+    disabled: bool,
+}
+
+fn default_user_principal_kind() -> String {
+    "user".into()
+}
+
+impl StaticPrincipalDirectory {
+    pub fn from_json_file(path: &FsPath) -> Result<Self, String> {
+        let content = fs::read_to_string(path).map_err(|error| {
+            format!(
+                "principal directory catalog unreadable: {} ({error})",
+                path.display()
+            )
+        })?;
+        let catalog: StaticPrincipalDirectoryCatalog =
+            serde_json::from_str(&content).map_err(|error| {
+                format!(
+                    "principal directory catalog invalid json: {} ({error})",
+                    path.display()
+                )
+            })?;
+        let mut principals = BTreeMap::new();
+        for entry in catalog.principals {
+            if entry.tenant_id.trim().is_empty() {
+                return Err("principal directory catalog contains empty tenantId".into());
+            }
+            if entry.principal_id.trim().is_empty() {
+                return Err("principal directory catalog contains empty principalId".into());
+            }
+            if entry.principal_kind.trim().is_empty() {
+                return Err("principal directory catalog contains empty principalKind".into());
+            }
+            principals.insert(
+                (entry.tenant_id, entry.principal_kind, entry.principal_id),
+                StaticPrincipalDirectoryRecord {
+                    disabled: entry.disabled,
+                },
+            );
+        }
+        Ok(Self { principals })
+    }
+}
+
+impl PrincipalDirectory for StaticPrincipalDirectory {
+    fn ensure_active_principal(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: &str,
+    ) -> Result<(), PrincipalDirectoryError> {
+        if principal_kind != "user" {
+            return Ok(());
+        }
+
+        match self.principals.get(&(
+            tenant_id.to_owned(),
+            principal_kind.to_owned(),
+            principal_id.to_owned(),
+        )) {
+            Some(record) if record.disabled => Err(PrincipalDirectoryError::PrincipalDisabled {
+                tenant_id: tenant_id.into(),
+                principal_id: principal_id.into(),
+                principal_kind: principal_kind.into(),
+            }),
+            Some(_) => Ok(()),
+            None => Err(PrincipalDirectoryError::PrincipalNotFound {
+                tenant_id: tenant_id.into(),
+                principal_id: principal_id.into(),
+                principal_kind: principal_kind.into(),
+            }),
+        }
+    }
 }
 
 const SHARED_CHANNEL_SYNC_PERMISSION: &str = "conversation.shared_channel.sync";
@@ -530,6 +673,18 @@ impl IntoResponse for ApiError {
 pub fn build_default_app() -> Router {
     let state = AppState {
         runtime: Arc::new(ConversationRuntime::new(InMemoryJournal::default())),
+        principal_directory: Arc::new(AllowAllPrincipalDirectory),
+        shared_channel_sync_rate_limiter: SharedChannelSyncRateLimiter::from_env(),
+    };
+    build_app(state)
+}
+
+pub fn build_default_app_with_principal_directory(
+    principal_directory: Arc<dyn PrincipalDirectory>,
+) -> Router {
+    let state = AppState {
+        runtime: Arc::new(ConversationRuntime::new(InMemoryJournal::default())),
+        principal_directory,
         shared_channel_sync_rate_limiter: SharedChannelSyncRateLimiter::from_env(),
     };
     build_app(state)
@@ -537,6 +692,13 @@ pub fn build_default_app() -> Router {
 
 pub fn build_public_app() -> Router {
     build_default_app().layer(middleware::from_fn(require_public_bearer_auth))
+}
+
+pub fn build_public_app_with_principal_directory(
+    principal_directory: Arc<dyn PrincipalDirectory>,
+) -> Router {
+    build_default_app_with_principal_directory(principal_directory)
+        .layer(middleware::from_fn(require_public_bearer_auth))
 }
 
 fn build_app(state: AppState) -> Router {
@@ -668,7 +830,7 @@ async fn create_conversation(
     State(state): State<AppState>,
     Json(request): Json<CreateConversationRequest>,
 ) -> Result<Json<CreateConversationResult>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_active_http_auth_context(&state, &headers)?;
     let policy = request.conversation_policy()?;
     let result = state.runtime.create_conversation_from_auth_context(
         &auth,
@@ -712,7 +874,7 @@ async fn create_agent_dialog(
     State(state): State<AppState>,
     Json(request): Json<CreateAgentDialogRequest>,
 ) -> Result<Json<CreateConversationResult>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_active_http_auth_context(&state, &headers)?;
     Ok(Json(state.runtime.create_agent_dialog_from_auth_context(
         &auth,
         request.conversation_id,
@@ -725,7 +887,13 @@ async fn create_agent_handoff(
     State(state): State<AppState>,
     Json(request): Json<CreateAgentHandoffRequest>,
 ) -> Result<Json<CreateConversationResult>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_active_http_auth_context(&state, &headers)?;
+    ensure_active_http_principal(
+        &state,
+        auth.tenant_id.as_str(),
+        request.target_id.as_str(),
+        request.target_kind.as_str(),
+    )?;
     Ok(Json(state.runtime.create_agent_handoff_from_auth_context(
         &auth,
         request.conversation_id,
@@ -741,7 +909,13 @@ async fn create_system_channel(
     State(state): State<AppState>,
     Json(request): Json<CreateSystemChannelRequest>,
 ) -> Result<Json<CreateConversationResult>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_active_http_auth_context(&state, &headers)?;
+    ensure_active_http_principal(
+        &state,
+        auth.tenant_id.as_str(),
+        request.subscriber_id.as_str(),
+        "user",
+    )?;
     Ok(Json(
         state.runtime.create_system_channel_from_auth_context(
             &auth,
@@ -756,7 +930,7 @@ async fn create_thread_conversation(
     State(state): State<AppState>,
     Json(request): Json<CreateThreadConversationRequest>,
 ) -> Result<Json<CreateConversationResult>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_active_http_auth_context(&state, &headers)?;
     Ok(Json(
         state.runtime.create_thread_conversation_from_auth_context(
             &auth,
@@ -772,7 +946,19 @@ async fn bind_direct_chat_conversation(
     State(state): State<AppState>,
     Json(request): Json<BindDirectChatConversationRequest>,
 ) -> Result<Json<CreateConversationResult>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_active_http_auth_context(&state, &headers)?;
+    ensure_active_http_principal(
+        &state,
+        auth.tenant_id.as_str(),
+        request.left_actor_id.as_str(),
+        request.left_actor_kind.as_str(),
+    )?;
+    ensure_active_http_principal(
+        &state,
+        auth.tenant_id.as_str(),
+        request.right_actor_id.as_str(),
+        request.right_actor_kind.as_str(),
+    )?;
     Ok(Json(
         state
             .runtime
@@ -788,12 +974,78 @@ async fn bind_direct_chat_conversation(
     ))
 }
 
+fn resolve_active_http_auth_context(
+    state: &AppState,
+    headers: &HeaderMap,
+) -> Result<AuthContext, ApiError> {
+    let auth = resolve_auth_context(headers)?;
+    ensure_active_http_auth_principal(state, &auth)?;
+    Ok(auth)
+}
+
+fn ensure_active_http_auth_principal(state: &AppState, auth: &AuthContext) -> Result<(), ApiError> {
+    ensure_active_http_principal(
+        state,
+        auth.tenant_id.as_str(),
+        auth.actor_id.as_str(),
+        auth.actor_kind.as_str(),
+    )
+}
+
+fn ensure_active_http_principal(
+    state: &AppState,
+    tenant_id: &str,
+    principal_id: &str,
+    principal_kind: &str,
+) -> Result<(), ApiError> {
+    state
+        .principal_directory
+        .ensure_active_principal(tenant_id, principal_id, principal_kind)
+        .map_err(map_principal_directory_error)
+}
+
+fn map_principal_directory_error(error: PrincipalDirectoryError) -> ApiError {
+    match error {
+        PrincipalDirectoryError::PrincipalNotFound {
+            tenant_id,
+            principal_id,
+            principal_kind,
+        } => ApiError::bad_request(
+            "conversation_principal_not_found",
+            format!(
+                "principal not found in directory: tenant={tenant_id} principal={principal_kind}:{principal_id}"
+            ),
+        ),
+        PrincipalDirectoryError::PrincipalDisabled {
+            tenant_id,
+            principal_id,
+            principal_kind,
+        } => ApiError::forbidden(
+            "conversation_principal_disabled",
+            format!(
+                "principal disabled in directory: tenant={tenant_id} principal={principal_kind}:{principal_id}"
+            ),
+        ),
+        PrincipalDirectoryError::Unavailable(message) => ApiError {
+            status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
+            code: "principal_directory_unavailable",
+            message,
+        },
+    }
+}
+
 async fn sync_shared_channel_linked_member(
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<SyncSharedChannelLinkedMemberRequest>,
 ) -> Result<Json<SyncSharedChannelLinkedMemberResponse>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_active_http_auth_context(&state, &headers)?;
+    ensure_active_http_principal(
+        &state,
+        auth.tenant_id.as_str(),
+        request.local_actor_id.as_str(),
+        request.local_actor_kind.as_str(),
+    )?;
     if !auth.has_permission(SHARED_CHANNEL_SYNC_PERMISSION) {
         return Err(ApiError::forbidden(
             "shared_channel_sync_permission_denied",
@@ -868,7 +1120,7 @@ async fn get_agent_handoff_state(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<AgentHandoffStateView>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_active_http_auth_context(&state, &headers)?;
     Ok(Json(
         state
             .runtime
@@ -881,7 +1133,7 @@ async fn get_conversation_binding(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<ConversationBindingResponse>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_active_http_auth_context(&state, &headers)?;
     let binding = state
         .runtime
         .conversation_business_binding_from_auth_context(&auth, conversation_id.as_str())?;
@@ -897,7 +1149,7 @@ async fn accept_agent_handoff(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<AgentHandoffStateView>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_active_http_auth_context(&state, &headers)?;
     Ok(Json(state.runtime.accept_agent_handoff_from_auth_context(
         &auth,
         conversation_id,
@@ -909,7 +1161,7 @@ async fn resolve_agent_handoff(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<AgentHandoffStateView>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_active_http_auth_context(&state, &headers)?;
     Ok(Json(
         state
             .runtime
@@ -922,7 +1174,7 @@ async fn close_agent_handoff(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<AgentHandoffStateView>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_active_http_auth_context(&state, &headers)?;
     Ok(Json(state.runtime.close_agent_handoff_from_auth_context(
         &auth,
         conversation_id,
@@ -934,7 +1186,7 @@ async fn list_members(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<ListMembersResponse>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_active_http_auth_context(&state, &headers)?;
     Ok(Json(ListMembersResponse {
         items: state
             .runtime
@@ -948,7 +1200,13 @@ async fn add_member(
     State(state): State<AppState>,
     Json(request): Json<AddConversationMemberRequest>,
 ) -> Result<Json<ConversationMember>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_active_http_auth_context(&state, &headers)?;
+    ensure_active_http_principal(
+        &state,
+        auth.tenant_id.as_str(),
+        request.principal_id.as_str(),
+        request.principal_kind.as_str(),
+    )?;
     Ok(Json(state.runtime.add_member_from_auth_context(
         &auth,
         conversation_id,
@@ -965,7 +1223,7 @@ async fn remove_member(
     State(state): State<AppState>,
     Json(request): Json<RemoveConversationMemberRequest>,
 ) -> Result<Json<ConversationMember>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_active_http_auth_context(&state, &headers)?;
     Ok(Json(state.runtime.remove_member_from_auth_context(
         &auth,
         conversation_id,
@@ -979,7 +1237,7 @@ async fn transfer_conversation_owner(
     State(state): State<AppState>,
     Json(request): Json<TransferConversationOwnerRequest>,
 ) -> Result<Json<TransferConversationOwnerResult>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_active_http_auth_context(&state, &headers)?;
     Ok(Json(
         state
             .runtime
@@ -997,7 +1255,7 @@ async fn change_conversation_member_role(
     State(state): State<AppState>,
     Json(request): Json<ChangeConversationMemberRoleRequest>,
 ) -> Result<Json<ChangeConversationMemberRoleResult>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_active_http_auth_context(&state, &headers)?;
     Ok(Json(
         state
             .runtime
@@ -1015,7 +1273,7 @@ async fn leave_conversation(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<ConversationMember>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_active_http_auth_context(&state, &headers)?;
     Ok(Json(state.runtime.leave_conversation_from_auth_context(
         &auth,
         conversation_id,
@@ -1027,7 +1285,7 @@ async fn get_read_cursor(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<ConversationReadCursorView>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_active_http_auth_context(&state, &headers)?;
     Ok(Json(state.runtime.read_cursor_view_from_auth_context(
         &auth,
         conversation_id.as_str(),
@@ -1039,7 +1297,7 @@ async fn list_messages(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<MessageHistoryResult>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_active_http_auth_context(&state, &headers)?;
     Ok(Json(state.runtime.list_messages_from_auth_context(
         &auth,
         conversation_id.as_str(),
@@ -1052,7 +1310,7 @@ async fn update_read_cursor(
     State(state): State<AppState>,
     Json(request): Json<UpdateReadCursorRequest>,
 ) -> Result<Json<ConversationReadCursorView>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_active_http_auth_context(&state, &headers)?;
     state.runtime.update_read_cursor_from_auth_context(
         &auth,
         conversation_id.clone(),
@@ -1072,7 +1330,7 @@ async fn post_message(
     State(state): State<AppState>,
     Json(request): Json<PostMessageRequest>,
 ) -> Result<Json<PostMessageResult>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_active_http_auth_context(&state, &headers)?;
     let body = build_message_body(
         request.summary,
         request.text,
@@ -1098,7 +1356,7 @@ async fn publish_system_channel_message(
     State(state): State<AppState>,
     Json(request): Json<PostMessageRequest>,
 ) -> Result<Json<PostMessageResult>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_active_http_auth_context(&state, &headers)?;
     let body = build_message_body(
         request.summary,
         request.text,
@@ -1124,7 +1382,7 @@ async fn edit_message(
     State(state): State<AppState>,
     Json(request): Json<EditMessageRequest>,
 ) -> Result<Json<MessageMutationResult>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_active_http_auth_context(&state, &headers)?;
     let body = build_message_body(
         request.summary,
         request.text,
@@ -1141,7 +1399,7 @@ async fn recall_message(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<MessageMutationResult>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_active_http_auth_context(&state, &headers)?;
     Ok(Json(state.runtime.recall_message(
         RecallMessageCommand::from_auth_context(&auth, message_id),
     )?))
@@ -1153,7 +1411,7 @@ async fn add_message_reaction(
     State(state): State<AppState>,
     Json(request): Json<MessageReactionRequest>,
 ) -> Result<Json<MessageReactionMutationResult>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_active_http_auth_context(&state, &headers)?;
     if request.reaction_key.trim().is_empty() {
         return Err(ApiError::bad_request(
             "reaction_key_invalid",
@@ -1172,7 +1430,7 @@ async fn remove_message_reaction(
     State(state): State<AppState>,
     Json(request): Json<MessageReactionRequest>,
 ) -> Result<Json<MessageReactionMutationResult>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_active_http_auth_context(&state, &headers)?;
     if request.reaction_key.trim().is_empty() {
         return Err(ApiError::bad_request(
             "reaction_key_invalid",
@@ -1190,7 +1448,7 @@ async fn pin_message(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<MessagePinMutationResult>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_active_http_auth_context(&state, &headers)?;
     Ok(Json(state.runtime.pin_message(
         PinMessageCommand::from_auth_context(&auth, message_id),
     )?))
@@ -1201,7 +1459,7 @@ async fn unpin_message(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<MessagePinMutationResult>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_active_http_auth_context(&state, &headers)?;
     Ok(Json(state.runtime.unpin_message(
         UnpinMessageCommand::from_auth_context(&auth, message_id),
     )?))
@@ -1232,14 +1490,59 @@ fn build_message_body(
         summary,
         parts: resolved_parts,
         render_hints,
-    })
+    }
+    .with_derived_summary())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
+    use http_body_util::BodyExt;
+    use std::collections::BTreeSet;
     use std::sync::{Mutex, OnceLock};
     use std::time::Duration;
+    use tower::ServiceExt;
+
+    #[derive(Clone)]
+    struct StrictKnownPrincipalDirectory {
+        known_user_ids: Vec<&'static str>,
+    }
+
+    impl StrictKnownPrincipalDirectory {
+        fn new(known_user_ids: &[&'static str]) -> Self {
+            Self {
+                known_user_ids: known_user_ids.to_vec(),
+            }
+        }
+    }
+
+    impl PrincipalDirectory for StrictKnownPrincipalDirectory {
+        fn ensure_active_principal(
+            &self,
+            _tenant_id: &str,
+            principal_id: &str,
+            principal_kind: &str,
+        ) -> Result<(), PrincipalDirectoryError> {
+            if principal_kind != "user" {
+                return Ok(());
+            }
+            if self
+                .known_user_ids
+                .iter()
+                .any(|known| *known == principal_id)
+            {
+                return Ok(());
+            }
+
+            Err(PrincipalDirectoryError::PrincipalNotFound {
+                tenant_id: "t_demo".into(),
+                principal_id: principal_id.into(),
+                principal_kind: principal_kind.into(),
+            })
+        }
+    }
 
     struct ScopedEnvVar {
         name: &'static str,
@@ -1276,6 +1579,66 @@ mod tests {
             .get_or_init(|| Mutex::new(()))
             .lock()
             .expect("env lock")
+    }
+
+    fn build_test_app_with_runtime_and_directory(
+        runtime: Arc<ConversationRuntime<InMemoryJournal>>,
+        principal_directory: Arc<dyn PrincipalDirectory>,
+    ) -> Router {
+        build_app(AppState {
+            runtime,
+            principal_directory,
+            shared_channel_sync_rate_limiter: SharedChannelSyncRateLimiter::from_env(),
+        })
+    }
+
+    fn seed_group_conversation_with_ghost_member(
+        runtime: &ConversationRuntime<InMemoryJournal>,
+        conversation_id: &str,
+    ) -> String {
+        let owner_auth = AuthContext {
+            tenant_id: "t_demo".into(),
+            actor_id: "u_owner".into(),
+            actor_kind: "user".into(),
+            session_id: None,
+            device_id: None,
+            permissions: BTreeSet::new(),
+        };
+        runtime
+            .create_conversation(CreateConversationCommand {
+                tenant_id: "t_demo".into(),
+                conversation_id: conversation_id.into(),
+                creator_id: "u_owner".into(),
+                conversation_type: "group".into(),
+            })
+            .expect("seed create conversation should succeed");
+        runtime
+            .add_member(AddConversationMemberCommand {
+                tenant_id: "t_demo".into(),
+                conversation_id: conversation_id.into(),
+                principal_id: "u_missing".into(),
+                principal_kind: "user".into(),
+                role: MembershipRole::Member,
+                invited_by: "u_owner".into(),
+            })
+            .expect("seed add ghost member should succeed");
+
+        runtime
+            .post_message(PostMessageCommand::from_auth_context(
+                &owner_auth,
+                conversation_id.into(),
+                Some(format!("seed_{conversation_id}")),
+                MessageType::Standard,
+                build_message_body(
+                    Some("seed root".into()),
+                    Some("seed root".into()),
+                    Vec::new(),
+                    BTreeMap::new(),
+                )
+                .expect("seed message body should build"),
+            ))
+            .expect("seed root message should succeed")
+            .message_id
     }
 
     #[test]
@@ -1371,5 +1734,124 @@ mod tests {
             limiter.try_acquire("tenant_new"),
             "expired buckets should be swept before enforcing max bucket cap"
         );
+    }
+
+    #[test]
+    fn test_build_message_body_derives_summary_for_structured_message_when_missing() {
+        let body = build_message_body(
+            None,
+            None,
+            vec![ContentPart::Data(im_domain_core::message::DataPart {
+                schema_ref: im_domain_core::message::CRAW_CHAT_MESSAGE_SCHEMA_LOCATION.into(),
+                encoding: "application/json".into(),
+                payload: serde_json::json!({
+                    "name": "The Bund",
+                    "latitude": 31.2400,
+                    "longitude": 121.4900
+                })
+                .to_string(),
+            })],
+            BTreeMap::new(),
+        )
+        .expect("rich message body should build");
+
+        assert_eq!(body.summary.as_deref(), Some("Location: The Bund"));
+    }
+
+    #[test]
+    fn test_build_message_body_preserves_explicit_summary_over_derived_summary() {
+        let body = build_message_body(
+            Some("Pinned location".into()),
+            Some("caption".into()),
+            vec![ContentPart::Data(im_domain_core::message::DataPart {
+                schema_ref: im_domain_core::message::CRAW_CHAT_MESSAGE_SCHEMA_LOCATION.into(),
+                encoding: "application/json".into(),
+                payload: serde_json::json!({
+                    "name": "West Lake",
+                    "latitude": 30.2528,
+                    "longitude": 120.1551
+                })
+                .to_string(),
+            })],
+            BTreeMap::new(),
+        )
+        .expect("rich message body should build");
+
+        assert_eq!(body.summary.as_deref(), Some("Pinned location"));
+    }
+
+    #[tokio::test]
+    async fn test_post_message_rejects_unknown_user_member_with_strict_principal_directory() {
+        let runtime = Arc::new(ConversationRuntime::new(InMemoryJournal::default()));
+        seed_group_conversation_with_ghost_member(runtime.as_ref(), "c_ghost_post_http");
+        let app = build_test_app_with_runtime_and_directory(
+            runtime,
+            Arc::new(StrictKnownPrincipalDirectory::new(&["u_owner"])),
+        );
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/conversations/c_ghost_post_http/messages")
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "u_missing")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        r#"{
+                            "clientMsgId":"ghost_http_post",
+                            "summary":"ghost",
+                            "text":"ghost"
+                        }"#,
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .expect("ghost member post request should return response");
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let body = response
+            .into_body()
+            .collect()
+            .await
+            .expect("body should collect")
+            .to_bytes();
+        let value: serde_json::Value =
+            serde_json::from_slice(&body).expect("response should be valid json");
+        assert_eq!(value["code"], "conversation_principal_not_found");
+    }
+
+    #[tokio::test]
+    async fn test_list_messages_rejects_unknown_user_member_with_strict_principal_directory() {
+        let runtime = Arc::new(ConversationRuntime::new(InMemoryJournal::default()));
+        seed_group_conversation_with_ghost_member(runtime.as_ref(), "c_ghost_history_http");
+        let app = build_test_app_with_runtime_and_directory(
+            runtime,
+            Arc::new(StrictKnownPrincipalDirectory::new(&["u_owner"])),
+        );
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/api/v1/conversations/c_ghost_history_http/messages")
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "u_missing")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("ghost member history request should return response");
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let body = response
+            .into_body()
+            .collect()
+            .await
+            .expect("body should collect")
+            .to_bytes();
+        let value: serde_json::Value =
+            serde_json::from_slice(&body).expect("response should be valid json");
+        assert_eq!(value["code"], "conversation_principal_not_found");
     }
 }

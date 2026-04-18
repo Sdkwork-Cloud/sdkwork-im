@@ -41,14 +41,14 @@ use device_registration::{DisconnectActiveDeviceRouteOutcome, SessionDeviceRegis
 pub use presence::{PresenceRuntimeError, SessionPresenceRuntime};
 pub use realtime::{
     AckRealtimeEventsRequest, ListRealtimeEventsQuery, RealtimeDeliveryRuntime,
-    RealtimeDeviceStateSnapshot, RealtimeRuntimeError, RealtimeSubscriptionItemInput,
-    SyncRealtimeSubscriptionsRequest,
+    RealtimeDeviceStateSnapshot, RealtimeRuntimeError, RealtimeScopeAccessPolicy,
+    RealtimeSubscriptionItemInput, SyncRealtimeSubscriptionsRequest,
 };
 use session_state::SessionSyncState;
 pub use websocket::{
     CCP_WEBSOCKET_SUBPROTOCOL, REALTIME_OVERLOAD_CLOSE_CODE, REALTIME_OVERLOAD_CLOSE_REASON,
-    RealtimeWebsocketMode, SESSION_DISCONNECT_CLOSE_CODE, SESSION_DISCONNECT_CLOSE_REASON,
-    serve_realtime_websocket,
+    RealtimeRouteOwner, RealtimeRouteOwnerError, RealtimeWebsocketMode,
+    SESSION_DISCONNECT_CLOSE_CODE, SESSION_DISCONNECT_CLOSE_REASON, serve_realtime_websocket,
 };
 
 const SESSION_GATEWAY_MAX_DEVICE_ID_BYTES: usize = 256;
@@ -148,6 +148,7 @@ impl From<RealtimeRuntimeError> for ApiError {
         let status = match value.code {
             "payload_too_large" => axum::http::StatusCode::PAYLOAD_TOO_LARGE,
             "limit_invalid" => axum::http::StatusCode::BAD_REQUEST,
+            "conversation_archived" | "conversation_blocked" => axum::http::StatusCode::FORBIDDEN,
             "checkpoint_store_unavailable" | "subscription_store_unavailable" => {
                 axum::http::StatusCode::SERVICE_UNAVAILABLE
             }

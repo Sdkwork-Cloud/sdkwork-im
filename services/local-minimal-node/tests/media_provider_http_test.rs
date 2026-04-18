@@ -50,6 +50,7 @@ async fn test_local_minimal_profile_gets_media_download_url_over_http() {
                 .body(Body::from(
                     r#"{
                         "mediaAssetId":"ma_local_provider_http",
+                        "bucket":"media-demo",
                         "resource":{
                             "uuid":"res_local_provider_http",
                             "type":"video",
@@ -65,6 +66,31 @@ async fn test_local_minimal_profile_gets_media_download_url_over_http() {
         .await
         .expect("create upload should succeed");
     assert_eq!(create_response.status(), StatusCode::OK);
+    let create_body = create_response
+        .into_body()
+        .collect()
+        .await
+        .expect("create upload body should collect")
+        .to_bytes();
+    let create_json: serde_json::Value =
+        serde_json::from_slice(&create_body).expect("create upload response should be valid json");
+    assert_eq!(create_json["mediaAssetId"], "ma_local_provider_http");
+    assert_eq!(
+        create_json["mediaAsset"]["processingState"],
+        "pendingUpload"
+    );
+    assert_eq!(create_json["bucket"], "media-demo");
+    assert_eq!(
+        create_json["objectKey"],
+        "tenant/t_demo/ma_local_provider_http/demo.mp4"
+    );
+    assert_eq!(create_json["storageProvider"], "object-storage-volcengine");
+    assert_eq!(create_json["deliveryStatus"], "applied");
+    let upload_url = create_json["uploadUrl"]
+        .as_str()
+        .expect("uploadUrl should be present");
+    assert!(upload_url.contains("media-demo"));
+    assert!(upload_url.contains("ma_local_provider_http"));
 
     let complete_response = app
         .clone()
@@ -79,6 +105,7 @@ async fn test_local_minimal_profile_gets_media_download_url_over_http() {
                     r#"{
                         "bucket":"media-demo",
                         "objectKey":"tenant/t_demo/ma_local_provider_http/demo.mp4",
+                        "storageProvider":"object-storage-volcengine",
                         "url":"https://ignored.example/demo.mp4"
                     }"#,
                 ))

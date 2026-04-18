@@ -7,8 +7,12 @@ use im_domain_core::conversation::{
 };
 use im_domain_core::media::{MediaResource, MediaResourceType};
 use im_domain_core::message::{
-    ContentPart, MediaPart, Message, MessageBody, MessageEdited, MessageRecalled, MessageType,
-    Sender,
+    CRAW_CHAT_CUSTOM_MESSAGE_SCHEMA_PREFIX, CRAW_CHAT_MESSAGE_SCHEMA_AGENT,
+    CRAW_CHAT_MESSAGE_SCHEMA_AI_IMAGE, CRAW_CHAT_MESSAGE_SCHEMA_AI_VIDEO,
+    CRAW_CHAT_MESSAGE_SCHEMA_CARD, CRAW_CHAT_MESSAGE_SCHEMA_CONTACT, CRAW_CHAT_MESSAGE_SCHEMA_LINK,
+    CRAW_CHAT_MESSAGE_SCHEMA_LOCATION, CRAW_CHAT_MESSAGE_SCHEMA_MUSIC,
+    CRAW_CHAT_MESSAGE_SCHEMA_STICKER, CRAW_CHAT_MESSAGE_SCHEMA_VOICE, ContentPart, DataPart,
+    MediaPart, Message, MessageBody, MessageEdited, MessageRecalled, MessageType, Sender,
 };
 use im_domain_core::realtime::{
     RealtimeAckState, RealtimeEvent, RealtimeEventWindow, RealtimeSubscription,
@@ -613,5 +617,218 @@ fn test_message_mutation_payloads_serialize_stable_shape() {
     assert_eq!(
         recalled_value["recalledAt"],
         Value::String("2026-04-05T10:00:40Z".into())
+    );
+}
+
+#[test]
+fn test_message_body_derives_summary_for_rich_structured_message_schemas() {
+    let cases = [
+        (
+            CRAW_CHAT_MESSAGE_SCHEMA_LOCATION,
+            json!({
+                "name": "The Bund",
+                "latitude": 31.2400,
+                "longitude": 121.4900
+            }),
+            "Location: The Bund",
+        ),
+        (
+            CRAW_CHAT_MESSAGE_SCHEMA_LINK,
+            json!({
+                "title": "Realtime architecture",
+                "url": "https://example.com/realtime"
+            }),
+            "Link: Realtime architecture",
+        ),
+        (
+            CRAW_CHAT_MESSAGE_SCHEMA_CARD,
+            json!({
+                "title": "Support escalation"
+            }),
+            "Card: Support escalation",
+        ),
+        (
+            CRAW_CHAT_MESSAGE_SCHEMA_MUSIC,
+            json!({
+                "title": "Ambient Focus",
+                "url": "https://example.com/music"
+            }),
+            "Music: Ambient Focus",
+        ),
+        (
+            CRAW_CHAT_MESSAGE_SCHEMA_CONTACT,
+            json!({
+                "displayName": "Alice"
+            }),
+            "Contact: Alice",
+        ),
+        (
+            CRAW_CHAT_MESSAGE_SCHEMA_STICKER,
+            json!({
+                "stickerId": "sticker_wave"
+            }),
+            "Sticker",
+        ),
+        (
+            CRAW_CHAT_MESSAGE_SCHEMA_VOICE,
+            json!({
+                "durationSeconds": 7
+            }),
+            "Voice message",
+        ),
+        (
+            CRAW_CHAT_MESSAGE_SCHEMA_AGENT,
+            json!({
+                "agentId": "agent_sales_router",
+                "agentName": "Sales Router"
+            }),
+            "Agent: Sales Router",
+        ),
+        (
+            CRAW_CHAT_MESSAGE_SCHEMA_AI_IMAGE,
+            json!({
+                "prompt": "A skyline at sunset"
+            }),
+            "AI image generated",
+        ),
+        (
+            CRAW_CHAT_MESSAGE_SCHEMA_AI_VIDEO,
+            json!({
+                "prompt": "Launch teaser"
+            }),
+            "AI video generated",
+        ),
+    ];
+
+    for (schema_ref, payload, expected) in cases {
+        let body = MessageBody {
+            summary: None,
+            parts: vec![ContentPart::Data(DataPart {
+                schema_ref: schema_ref.into(),
+                encoding: "application/json".into(),
+                payload: payload.to_string(),
+            })],
+            render_hints: BTreeMap::new(),
+        };
+
+        assert_eq!(body.derived_summary().as_deref(), Some(expected));
+    }
+
+    let custom_body = MessageBody {
+        summary: None,
+        parts: vec![ContentPart::Data(DataPart {
+            schema_ref: format!("{CRAW_CHAT_CUSTOM_MESSAGE_SCHEMA_PREFIX}workflow.approval"),
+            encoding: "application/json".into(),
+            payload: json!({
+                "approvalId": "approval_demo"
+            })
+            .to_string(),
+        })],
+        render_hints: BTreeMap::new(),
+    };
+
+    assert_eq!(
+        custom_body.derived_summary().as_deref(),
+        Some("Custom: workflow.approval")
+    );
+}
+
+#[test]
+fn test_message_body_prefers_structured_semantics_and_media_signal_fallbacks() {
+    let rich_body = MessageBody {
+        summary: None,
+        parts: vec![
+            ContentPart::text("caption that should not become the summary"),
+            ContentPart::Data(DataPart {
+                schema_ref: CRAW_CHAT_MESSAGE_SCHEMA_LOCATION.into(),
+                encoding: "application/json".into(),
+                payload: json!({
+                    "name": "West Lake",
+                    "latitude": 30.2528,
+                    "longitude": 120.1551
+                })
+                .to_string(),
+            }),
+        ],
+        render_hints: BTreeMap::new(),
+    };
+    assert_eq!(
+        rich_body.derived_summary().as_deref(),
+        Some("Location: West Lake")
+    );
+
+    let media_body = MessageBody {
+        summary: None,
+        parts: vec![ContentPart::media(MediaPart {
+            media_asset_id: "asset_image_demo".into(),
+            resource: Some(MediaResource {
+                id: None,
+                uuid: Some("media_image_demo".into()),
+                url: Some("https://example.com/demo.png".into()),
+                bytes: None,
+                local_file: None,
+                base64: None,
+                resource_type: Some(MediaResourceType::Image),
+                mime_type: Some("image/png".into()),
+                size: None,
+                name: Some("demo.png".into()),
+                extension: Some("png".into()),
+                tags: None,
+                metadata: None,
+                prompt: None,
+            }),
+        })],
+        render_hints: BTreeMap::new(),
+    };
+    assert_eq!(media_body.derived_summary().as_deref(), Some("Image"));
+
+    let signal_body = MessageBody {
+        summary: None,
+        parts: vec![ContentPart::Signal(im_domain_core::message::SignalPart {
+            signal_type: "rtc.offer".into(),
+            schema_ref: Some("webrtc.offer.v1".into()),
+            payload: json!({
+                "sdp": "demo"
+            })
+            .to_string(),
+        })],
+        render_hints: BTreeMap::new(),
+    };
+    assert_eq!(signal_body.derived_summary().as_deref(), Some("rtc.offer"));
+}
+
+#[test]
+fn test_message_body_with_derived_summary_preserves_explicit_summary_and_normalizes_blank() {
+    let explicit = MessageBody {
+        summary: Some("Pinned place".into()),
+        parts: vec![ContentPart::Data(DataPart {
+            schema_ref: CRAW_CHAT_MESSAGE_SCHEMA_LOCATION.into(),
+            encoding: "application/json".into(),
+            payload: json!({
+                "name": "The Bund"
+            })
+            .to_string(),
+        })],
+        render_hints: BTreeMap::new(),
+    }
+    .with_derived_summary();
+    assert_eq!(explicit.summary.as_deref(), Some("Pinned place"));
+
+    let normalized = MessageBody {
+        summary: Some("   ".into()),
+        parts: vec![ContentPart::Data(DataPart {
+            schema_ref: CRAW_CHAT_MESSAGE_SCHEMA_CARD.into(),
+            encoding: "application/json".into(),
+            payload: json!({
+                "title": "Escalation runbook"
+            })
+            .to_string(),
+        })],
+        render_hints: BTreeMap::new(),
+    }
+    .with_derived_summary();
+    assert_eq!(
+        normalized.summary.as_deref(),
+        Some("Card: Escalation runbook")
     );
 }

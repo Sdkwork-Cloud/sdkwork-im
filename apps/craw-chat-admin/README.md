@@ -93,6 +93,7 @@ The admin frontend contract targets a compatible management backend that serves 
 
 - browser development: set `SDKWORK_ADMIN_PROXY_TARGET=http://host:port` before `pnpm dev`
 - desktop runtime: set `SDKWORK_ADMIN_PROXY_TARGET=http://host:port` before `pnpm tauri:dev` or `pnpm tauri:build`
+- desktop runtime portal shell injects `window.__CRAW_CHAT_PORTAL_API_BASE_URL__` from `CRAW_CHAT_PORTAL_API_BASE_URL`, then `CRAW_CHAT_BIND_ADDR`, then the local-minimal default `http://127.0.0.1:18090`; wildcard bind hosts such as `0.0.0.0` and `::` are normalized to loopback before injection
 - explicit local demo mode: set `SDKWORK_ADMIN_SANDBOX=1` when you want an in-memory IM admin sandbox instead of a real `/api/admin/*` backend
 - compatibility alias: `SDKWORK_ADMIN_BIND` is still accepted for existing operator scripts
 - when no compatible backend is configured, both Vite dev mode and the desktop runtime return a structured `503` response for `/api/admin/*` instead of silently proxying to a fake local default
@@ -103,7 +104,9 @@ The admin frontend contract targets a compatible management backend that serves 
 The local admin sandbox is intended for product walkthroughs, shell verification, and package smoke validation when no real management backend is available.
 
 - enable with `SDKWORK_ADMIN_SANDBOX=1`
-- default credentials: `admin@sdkwork.local` / `ChangeMe123!`
+- optional explicit sandbox credentials: set `SDKWORK_ADMIN_SANDBOX_EMAIL` and `SDKWORK_ADMIN_SANDBOX_PASSWORD`
+- optional login-form prefill: set `VITE_ADMIN_SANDBOX_EMAIL` and `VITE_ADMIN_SANDBOX_PASSWORD` if you want the dev-only login page to start with your sandbox credentials
+- if no sandbox password is provided, the Vite dev server and desktop runtime generate a one-time login password and print the effective sandbox login to startup logs
 - login, workspace hydration, tenant/project changes, API key issuance, and core operator reads run against an in-memory backend seeded from `dev/admin-sandbox-seed.json`
 - sandbox state is ephemeral by design and resets whenever the Vite server or desktop runtime restarts
 
@@ -120,6 +123,12 @@ Inside the current `craw-chat` workspace, the discovered control-plane service b
 The desktop app uses the shared `sdkwork-api-product-runtime` instead of a hard-coded local web host.
 
 That keeps the admin desktop app aligned with the `/admin/*` operator shell contract while preserving native IPC commands and embedded asset orchestration.
+
+The desktop runtime fails fast during startup if the embedded admin or portal site is missing its `index.html`, so packaging defects surface before the operator sees a blank shell.
+
+Release builds do not fall back to workspace `dist/` directories when `embedded-sites/admin` or `embedded-sites/portal` are missing, so broken bundles fail during verification instead of only failing later on customer machines.
+
+The desktop asset build step validates the admin site, the mirrored portal site, and the vendored portal SDK bundles before Tauri packaging continues.
 
 ## Delivery Standard
 

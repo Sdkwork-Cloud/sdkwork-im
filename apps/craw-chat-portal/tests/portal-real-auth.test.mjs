@@ -3,7 +3,15 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { test } from 'node:test';
 
-const appRoot = path.resolve('apps/craw-chat-portal');
+import './helpers/installMockPortalDefaultDataSource.mjs';
+import { resolvePortalAppRoot } from './helpers/portal-paths.mjs';
+
+const appRoot = resolvePortalAppRoot(import.meta.url);
+const explicitCredentials = Object.freeze({
+  tenantId: 'tenant-alpha',
+  login: 'ops.alpha',
+  password: 'Sup3rSecret!2026',
+});
 
 function storageDouble() {
   const store = new Map();
@@ -21,11 +29,17 @@ function storageDouble() {
   };
 }
 
-function createWindowDouble({ pathname = '/', search = '', localStorage = storageDouble() } = {}) {
+function createWindowDouble({
+  pathname = '/',
+  search = '',
+  localStorage = storageDouble(),
+  sessionStorage = storageDouble(),
+} = {}) {
   const listeners = new Map();
 
   const windowDouble = {
     localStorage,
+    sessionStorage,
     location: {
       pathname,
       search,
@@ -118,6 +132,7 @@ test('portal auth store forwards explicit credentials to the portal-api login se
 
   const originalWindow = global.window;
   const localStorage = storageDouble();
+  const sessionStorage = storageDouble();
   const originalDataSource =
     typeof dataSourceModule.getActivePortalDataSource === 'function'
       ? dataSourceModule.getActivePortalDataSource()
@@ -127,6 +142,7 @@ test('portal auth store forwards explicit credentials to the portal-api login se
 
   global.window = {
     localStorage,
+    sessionStorage,
   };
 
   dataSourceModule.setActivePortalDataSource({
@@ -159,19 +175,63 @@ test('portal auth store forwards explicit credentials to the portal-api login se
 
   try {
     const store = authStoreModule.createPortalAuthStore();
-    await store.signIn({
-      tenantId: 't_demo',
-      login: 'ops_demo',
-      password: 'Portal#2026',
-    });
+    await store.signIn(explicitCredentials);
 
-    assert.deepEqual(capturedCredentials, {
-      tenantId: 't_demo',
-      login: 'ops_demo',
-      password: 'Portal#2026',
-    });
+    assert.deepEqual(capturedCredentials, explicitCredentials);
     assert.equal(capturedWorkspaceToken, 'portal_access_token_demo');
-    assert.equal(localStorage.getItem('craw-chat-portal.session.v1'), 'portal_access_token_demo');
+    assert.equal(sessionStorage.getItem('craw-chat-portal.session.v1'), 'portal_access_token_demo');
+    assert.equal(localStorage.getItem('craw-chat-portal.session.v1'), null);
+  } finally {
+    dataSourceModule.resetActivePortalDataSource();
+    global.window = originalWindow;
+  }
+});
+
+test('portal auth store refuses to sign in without explicit credentials', async () => {
+  const authStoreModule = await import(
+    pathToFileURL(
+      path.join(appRoot, 'packages/craw-chat-portal-core/src/store/usePortalAuthStore.js'),
+    ).href
+  );
+  const dataSourceModule = await import(
+    pathToFileURL(
+      path.join(
+        appRoot,
+        'packages/craw-chat-portal-portal-api/src/runtime/activeDataSource.js',
+      ),
+    ).href
+  );
+
+  const originalWindow = global.window;
+  const localStorage = storageDouble();
+  const sessionStorage = storageDouble();
+  const originalDataSource =
+    typeof dataSourceModule.getActivePortalDataSource === 'function'
+      ? dataSourceModule.getActivePortalDataSource()
+      : dataSourceModule.activePortalDataSource;
+  let loginCalls = 0;
+
+  global.window = {
+    localStorage,
+    sessionStorage,
+  };
+
+  dataSourceModule.setActivePortalDataSource({
+    ...originalDataSource,
+    async loginPortalUser() {
+      loginCalls += 1;
+      return originalDataSource.loginPortalUser(explicitCredentials);
+    },
+  });
+
+  try {
+    const store = authStoreModule.createPortalAuthStore();
+
+    await assert.rejects(
+      () => store.signIn(),
+      /Portal sign-in credentials must be provided explicitly/,
+    );
+    assert.equal(loginCalls, 0);
   } finally {
     dataSourceModule.resetActivePortalDataSource();
     global.window = originalWindow;
@@ -200,6 +260,7 @@ test('portal app reads login form credentials and routes real sign-in through th
   const originalDocument = global.document;
   const originalEvent = global.Event;
   const localStorage = storageDouble();
+  const sessionStorage = storageDouble();
   const originalDataSource =
     typeof dataSourceModule.getActivePortalDataSource === 'function'
       ? dataSourceModule.getActivePortalDataSource()
@@ -212,11 +273,12 @@ test('portal app reads login form credentials and routes real sign-in through th
     pathname: '/login',
     search: '?redirect=%2Fconsole%2Fdashboard',
     localStorage,
+    sessionStorage,
   });
   global.document = createDocumentDouble({
-    '[name="tenantId"]': { value: 't_demo' },
-    '[name="login"]': { value: 'ops_demo' },
-    '[name="password"]': { value: 'Portal#2026' },
+    '[name="tenantId"]': { value: explicitCredentials.tenantId },
+    '[name="login"]': { value: explicitCredentials.login },
+    '[name="password"]': { value: explicitCredentials.password },
   });
   global.Event = class Event {
     constructor(type) {
@@ -266,13 +328,10 @@ test('portal app reads login form credentials and routes real sign-in through th
     });
     await flushAsyncWork(8);
 
-    assert.deepEqual(capturedCredentials, {
-      tenantId: 't_demo',
-      login: 'ops_demo',
-      password: 'Portal#2026',
-    });
+    assert.deepEqual(capturedCredentials, explicitCredentials);
     assert.equal(capturedWorkspaceToken, 'portal_access_token_live');
-    assert.equal(localStorage.getItem('craw-chat-portal.session.v1'), 'portal_access_token_live');
+    assert.equal(sessionStorage.getItem('craw-chat-portal.session.v1'), 'portal_access_token_live');
+    assert.equal(localStorage.getItem('craw-chat-portal.session.v1'), null);
     assert.equal(global.window.location.pathname, '/console/dashboard');
 
     teardown();
@@ -284,7 +343,7 @@ test('portal app reads login form credentials and routes real sign-in through th
   }
 });
 
-test('portal auth page renders tenant, login, and password inputs for real sign-in', async () => {
+test('portal auth page renders empty tenant, login, and password inputs for real sign-in', async () => {
   const authPageModule = await import(
     pathToFileURL(
       path.join(appRoot, 'packages/craw-chat-portal-auth/src/index.js'),
@@ -296,5 +355,9 @@ test('portal auth page renders tenant, login, and password inputs for real sign-
   assert.match(html, /name="tenantId"/);
   assert.match(html, /name="login"/);
   assert.match(html, /name="password"/);
+  assert.match(html, /placeholder="Enter tenant ID"/);
+  assert.match(html, /placeholder="Enter login"/);
+  assert.match(html, /placeholder="Enter password"/);
+  assert.doesNotMatch(html, /value="t_demo"|value="ops_demo"|value="Portal#2026"/);
   assert.match(html, /data-command="portal-sign-in"/);
 });

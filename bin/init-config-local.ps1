@@ -139,12 +139,17 @@ $publicBearerSecret = Read-ConfigValue -ConfigFile $configFile -Key "CRAW_CHAT_P
 if ([string]::IsNullOrWhiteSpace($publicBearerSecret)) {
     $publicBearerSecret = New-PublicBearerSecret
 }
+$friendRequestCursorSecret = Read-ConfigValue -ConfigFile $configFile -Key "CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET"
+if ([string]::IsNullOrWhiteSpace($friendRequestCursorSecret)) {
+    $friendRequestCursorSecret = New-PublicBearerSecret
+}
 
 $content = @(
     "# $ProfileName runtime config"
     "CRAW_CHAT_BIND_ADDR=$BindAddress"
     "CRAW_CHAT_RUNTIME_DIR=$runtimeDir"
     "CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET=$publicBearerSecret"
+    "CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET=$friendRequestCursorSecret"
 )
 
 Set-Content -Path $configFile -Value $content

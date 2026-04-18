@@ -3,6 +3,7 @@ use im_auth_context::AuthContext;
 use im_domain_core::conversation::{
     ConversationInboxEntry, ConversationReadCursorView, DeviceSyncFeedEntry,
 };
+use im_domain_core::social::DirectChatStatus;
 
 use super::{
     ContactView, ConversationMemberDirectoryEntry, ConversationSummaryView,
@@ -76,12 +77,73 @@ impl ProjectionAccessError {
 }
 
 impl TimelineProjectionService {
+    fn direct_chat_binding_for_conversation(
+        &self,
+        tenant_id: &str,
+        conversation_id: &str,
+    ) -> Option<super::model::ContactDirectChatBindingView> {
+        super::lock_projection_mutex(
+            &self.direct_chat_bindings,
+            "contact direct chat binding store",
+        )
+        .values()
+        .find(|binding| {
+            binding.conversation_id == conversation_id
+                && binding
+                    .tenant_id
+                    .as_deref()
+                    .map_or(true, |binding_tenant_id| binding_tenant_id == tenant_id)
+        })
+        .cloned()
+    }
+
+    fn ensure_conversation_not_archived_direct_chat(
+        &self,
+        tenant_id: &str,
+        conversation_id: &str,
+    ) -> Result<(), ProjectionAccessError> {
+        let Some(binding) = self.direct_chat_binding_for_conversation(tenant_id, conversation_id)
+        else {
+            return Ok(());
+        };
+        if binding.status != DirectChatStatus::Archived {
+            return Ok(());
+        }
+
+        Err(ProjectionAccessError::forbidden(
+            "conversation_archived",
+            format!("direct chat conversation is archived: {conversation_id}"),
+        ))
+    }
+
+    pub fn is_archived_direct_chat_conversation(
+        &self,
+        tenant_id: &str,
+        conversation_id: &str,
+    ) -> bool {
+        self.direct_chat_binding_for_conversation(tenant_id, conversation_id)
+            .is_some_and(|binding| binding.status == DirectChatStatus::Archived)
+    }
+
+    pub fn direct_chat_id_for_conversation(
+        &self,
+        tenant_id: &str,
+        conversation_id: &str,
+    ) -> Option<String> {
+        self.direct_chat_binding_for_conversation(tenant_id, conversation_id)
+            .map(|binding| binding.direct_chat_id)
+    }
+
     pub fn ensure_active_member_from_auth_context(
         &self,
         auth: &AuthContext,
         conversation_id: &str,
     ) -> Result<(), ProjectionAccessError> {
         validate_conversation_id(conversation_id)?;
+        self.ensure_conversation_not_archived_direct_chat(
+            auth.tenant_id.as_str(),
+            conversation_id,
+        )?;
         let is_active = self
             .member_snapshot_for_principal_kind(
                 auth.tenant_id.as_str(),
@@ -109,6 +171,10 @@ impl TimelineProjectionService {
         conversation_id: &str,
     ) -> Result<(), ProjectionAccessError> {
         validate_conversation_id(conversation_id)?;
+        self.ensure_conversation_not_archived_direct_chat(
+            auth.tenant_id.as_str(),
+            conversation_id,
+        )?;
         let can_read_history = self
             .member_snapshot_for_principal_kind(
                 auth.tenant_id.as_str(),
@@ -317,6 +383,10 @@ impl TimelineProjectionService {
                     auth.actor_kind.as_str(),
                 )
                 .is_some_and(|member| member.member_id == entry.member_id)
+                    && !self.is_archived_direct_chat_conversation(
+                        auth.tenant_id.as_str(),
+                        entry.conversation_id.as_str(),
+                    )
             })
             .collect()
     }

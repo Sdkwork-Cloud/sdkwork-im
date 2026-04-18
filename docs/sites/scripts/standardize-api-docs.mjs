@@ -1,8 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const repoRoot = process.cwd();
-const apiRoot = path.join(repoRoot, "api-reference");
+const currentDir = path.dirname(fileURLToPath(import.meta.url));
+const docsRoot = path.resolve(currentDir, "..");
+const apiRoot = path.join(docsRoot, "api-reference");
 
 const markdownFiles = [];
 
@@ -53,16 +55,15 @@ function inferSuccessLabel(method, route, block) {
   return status;
 }
 
-function sdkLabel(page) {
+function sdkLabel(page, route, method) {
   const labels = {
-    "app/session-and-realtime": "`sdkwork-craw-chat-sdk` / session",
-    "app/device-sync": "`sdkwork-craw-chat-sdk` / device-sync",
-    "app/conversations": "`sdkwork-craw-chat-sdk` / conversations",
-    "app/membership-and-read-state": "`sdkwork-craw-chat-sdk` / membership",
-    "app/messages": "`sdkwork-craw-chat-sdk` / messages",
-    "app/media": "`sdkwork-craw-chat-sdk` / media",
-    "app/streams": "`sdkwork-craw-chat-sdk` / streams",
-    "app/rtc": "`sdkwork-craw-chat-sdk` / rtc",
+    "app/conversations": route === "/api/v1/inbox"
+      ? "`@sdkwork/craw-chat-sdk` / `sdk.generated.inbox.getInbox()`"
+      : "`@sdkwork/craw-chat-sdk` / `sdk.conversations`",
+    "app/membership-and-read-state": "`@sdkwork/craw-chat-sdk` / `sdk.conversations`",
+    "app/messages": "`@sdkwork/craw-chat-sdk` / `sdk.messages`",
+    "app/media": "`@sdkwork/craw-chat-sdk` / `sdk.media`",
+    "app/rtc": "`@sdkwork/craw-chat-sdk` / `sdk.rtc`",
     "platform/notifications": "`sdkwork-craw-chat-sdk` / notifications",
     "platform/automation": "`sdkwork-craw-chat-sdk` / automation",
     "platform/audit": "`sdkwork-craw-chat-sdk` / audit",
@@ -73,6 +74,64 @@ function sdkLabel(page) {
     "control-plane/providers": "`sdkwork-craw-chat-sdk-admin` / provider-governance",
     "control-plane/nodes": "`sdkwork-craw-chat-sdk-admin` / node-operations",
   };
+  if (page === "app/session-and-realtime") {
+    if (route === "/healthz" || route === "/readyz") {
+      return "Direct HTTP probe";
+    }
+    if (route === "/api/v1/sessions/resume") {
+      return "`@sdkwork/craw-chat-sdk` / `sdk.connect({ deviceId })`, `sdk.generated.session.resume(...)`";
+    }
+    if (route === "/api/v1/sessions/disconnect") {
+      return "`@sdkwork/craw-chat-sdk` / `sdk.generated.session.disconnect(...)`";
+    }
+    if (route === "/api/v1/presence/heartbeat") {
+      return "`@sdkwork/craw-chat-sdk` / `sdk.generated.presence.heartbeat(...)`";
+    }
+    if (route === "/api/v1/presence/me") {
+      return "`@sdkwork/craw-chat-sdk` / `sdk.auth.me()`, `sdk.generated.presence.getPresenceMe()`";
+    }
+    if (route === "/api/v1/realtime/subscriptions/sync") {
+      return "`@sdkwork/craw-chat-sdk` / `sdk.connect(...)`, `sdk.generated.realtime.syncRealtimeSubscriptions(...)`";
+    }
+    if (route === "/api/v1/realtime/events") {
+      return "`@sdkwork/craw-chat-sdk` / `sdk.sync.catchUp(...)`, `sdk.generated.realtime.listRealtimeEvents(...)`";
+    }
+    if (route === "/api/v1/realtime/events/ack") {
+      return "`@sdkwork/craw-chat-sdk` / `sdk.sync.ack(...)`, `context.ack()`, `sdk.generated.realtime.ackRealtimeEvents(...)`";
+    }
+    if (route.endsWith("/ws")) {
+      return "`@sdkwork/craw-chat-sdk` / `sdk.connect(...)`";
+    }
+  }
+
+  if (page === "app/device-sync") {
+    if (route === "/api/v1/devices/register") {
+      return "`@sdkwork/craw-chat-sdk` / `sdk.generated.device.register(...)`";
+    }
+    return "`@sdkwork/craw-chat-sdk` / `sdk.generated.device.getDeviceSyncFeed(...)`";
+  }
+
+  if (page === "app/streams") {
+    if (route === "/api/v1/streams") {
+      return "`@sdkwork/craw-chat-sdk` / `sdk.generated.stream.open(...)`";
+    }
+    if (route.endsWith("/frames") && method === "GET") {
+      return "`@sdkwork/craw-chat-sdk` / `sdk.generated.stream.listStreamFrames(...)`";
+    }
+    if (route.endsWith("/frames")) {
+      return "`@sdkwork/craw-chat-sdk` / `sdk.generated.stream.appendStreamFrame(...)`";
+    }
+    if (route.endsWith("/checkpoint")) {
+      return "`@sdkwork/craw-chat-sdk` / `sdk.generated.stream.checkpoint(...)`";
+    }
+    if (route.endsWith("/complete")) {
+      return "`@sdkwork/craw-chat-sdk` / `sdk.generated.stream.complete(...)`";
+    }
+    if (route.endsWith("/abort")) {
+      return "`@sdkwork/craw-chat-sdk` / `sdk.generated.stream.abort(...)`";
+    }
+  }
+
   return labels[page] ?? "`sdkwork-craw-chat-sdk`";
 }
 
@@ -218,7 +277,7 @@ function metaGrid(method, route, block, filePath) {
   const page = pageKey(filePath);
   const cards = [
     ["Security", securityLabel(route, page)],
-    ["SDK", sdkLabel(page)],
+    ["SDK", sdkLabel(page, route, method)],
     ["Permission", permissionLabel(page, method, route)],
     ["Success", `\`${inferSuccessLabel(method, route, block)}\``],
   ];

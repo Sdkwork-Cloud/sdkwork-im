@@ -1,8 +1,11 @@
 use std::collections::HashMap;
 use std::sync::{Mutex, MutexGuard};
 
+use im_domain_core::social::DirectChatStatus;
 use im_domain_events::CommitEnvelope;
-use im_domain_events::social::{DirectChatBoundPayload, FriendshipActivatedPayload};
+use im_domain_events::social::{
+    DirectChatBoundPayload, FriendshipActivatedPayload, FriendshipRemovedPayload,
+};
 
 use crate::model::ContactDirectChatBindingView;
 use crate::{ContactView, TimelineProjectionService};
@@ -50,6 +53,34 @@ impl TimelineProjectionService {
         Ok(())
     }
 
+    pub(super) fn apply_friendship_removed(
+        &self,
+        event: &CommitEnvelope,
+    ) -> Result<(), ProjectionError> {
+        let payload: FriendshipRemovedPayload =
+            serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
+        self.archive_friendship_direct_chat(
+            event.tenant_id.as_str(),
+            payload.friendship_id.as_str(),
+            payload.removed_at.as_str(),
+        );
+
+        self.remove_friendship_contact(
+            event.tenant_id.as_str(),
+            payload.user_low_id.as_str(),
+            payload.user_high_id.as_str(),
+            payload.friendship_id.as_str(),
+        );
+        self.remove_friendship_contact(
+            event.tenant_id.as_str(),
+            payload.user_high_id.as_str(),
+            payload.user_low_id.as_str(),
+            payload.friendship_id.as_str(),
+        );
+
+        Ok(())
+    }
+
     pub(super) fn apply_direct_chat_bound(
         &self,
         event: &CommitEnvelope,
@@ -57,9 +88,12 @@ impl TimelineProjectionService {
         let payload: DirectChatBoundPayload =
             serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
         let binding = ContactDirectChatBindingView {
+            tenant_id: Some(event.tenant_id.clone()),
             direct_chat_id: payload.direct_chat_id.clone(),
             conversation_id: payload.conversation_id.clone(),
             bound_at: payload.bound_at.clone(),
+            status: DirectChatStatus::Active,
+            updated_at: Some(payload.bound_at.clone()),
         };
         self.lock_direct_chat_bindings("apply_direct_chat_bound")
             .insert(binding.direct_chat_id.clone(), binding.clone());
@@ -138,6 +172,70 @@ impl TimelineProjectionService {
                 binding.bound_at.as_str(),
             )
             .to_owned();
+        }
+    }
+
+    fn remove_friendship_contact(
+        &self,
+        tenant_id: &str,
+        owner_user_id: &str,
+        target_user_id: &str,
+        friendship_id: &str,
+    ) {
+        let scope = contact_runtime_scope(tenant_id, owner_user_id);
+        let key = contact_entry_key("friendship", target_user_id);
+        let mut contacts = self.lock_contact_store("remove_friendship_contact");
+        let mut remove_scope = false;
+        if let Some(scope_contacts) = contacts.get_mut(scope.as_str()) {
+            if scope_contacts
+                .get(key.as_str())
+                .is_some_and(|contact| contact.friendship_id == friendship_id)
+            {
+                scope_contacts.remove(key.as_str());
+            }
+            remove_scope = scope_contacts.is_empty();
+        }
+        if remove_scope {
+            contacts.remove(scope.as_str());
+        }
+    }
+
+    fn archive_friendship_direct_chat(
+        &self,
+        tenant_id: &str,
+        friendship_id: &str,
+        archived_at: &str,
+    ) {
+        let direct_chat_ids = {
+            let contacts = self.lock_contact_store("archive_friendship_direct_chat");
+            contacts
+                .iter()
+                .filter_map(|(scope, scope_contacts)| {
+                    let Some((scope_tenant_id, _)) = parse_contact_scope(scope.as_str()) else {
+                        return None;
+                    };
+                    if scope_tenant_id != tenant_id {
+                        return None;
+                    }
+
+                    scope_contacts
+                        .values()
+                        .find(|contact| contact.friendship_id == friendship_id)
+                        .and_then(|contact| contact.direct_chat_id.clone())
+                })
+                .collect::<Vec<_>>()
+        };
+
+        if direct_chat_ids.is_empty() {
+            return;
+        }
+
+        let mut bindings = self.lock_direct_chat_bindings("archive_friendship_direct_chat");
+        for direct_chat_id in direct_chat_ids {
+            if let Some(binding) = bindings.get_mut(direct_chat_id.as_str()) {
+                binding.status = DirectChatStatus::Archived;
+                binding.updated_at = Some(archived_at.to_owned());
+            }
         }
     }
 

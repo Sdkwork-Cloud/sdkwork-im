@@ -4,10 +4,10 @@
   "type": "module",
   "scripts": {
     "docs:generate": "node ./scripts/generate-operation-pages.mjs",
-    "docs:dev": "npm run docs:generate && vitepress dev .",
-    "docs:build": "npm run docs:generate && vitepress build .",
-    "docs:preview": "vitepress preview .",
-    "docs:verify": "npm run docs:generate && node ./scripts/verify-api-docs.mjs"
+    "docs:dev": "node ./scripts/generate-operation-pages.mjs && node ./scripts/run-vitepress.mjs dev .",
+    "docs:build": "node ./scripts/generate-operation-pages.mjs && node ./scripts/run-vitepress.mjs build .",
+    "docs:preview": "node ./scripts/run-vitepress.mjs preview .",
+    "docs:verify": "node ./scripts/docs-verify.mjs"
   },
   "devDependencies": {
     "vitepress": "^1.6.4"

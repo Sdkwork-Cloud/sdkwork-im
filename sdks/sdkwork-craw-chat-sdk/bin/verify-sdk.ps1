@@ -1,9 +1,20 @@
 param(
-  [string[]]$Languages = @("typescript", "flutter"),
+  [string[]]$Languages = @("typescript", "flutter", "rust", "java", "csharp", "swift", "kotlin", "go", "python"),
   [switch]$WithDart
 )
 
 $ErrorActionPreference = "Stop"
+$OfficialLanguages = @(
+  "typescript",
+  "flutter",
+  "rust",
+  "java",
+  "csharp",
+  "swift",
+  "kotlin",
+  "go",
+  "python"
+)
 
 function Normalize-LanguageList {
   param(
@@ -25,7 +36,7 @@ function Normalize-LanguageList {
   }
 
   if ($Normalized.Count -eq 0) {
-    return @("typescript", "flutter")
+    return @("typescript", "flutter", "rust", "java", "csharp", "swift", "kotlin", "go", "python")
   }
 
   return $Normalized
@@ -33,6 +44,10 @@ function Normalize-LanguageList {
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Languages = Normalize-LanguageList $Languages
+$UnknownLanguages = @($Languages | Where-Object { $OfficialLanguages -notcontains $_.Trim().ToLowerInvariant() })
+if ($UnknownLanguages.Count -gt 0) {
+  throw "Unsupported language: $($UnknownLanguages -join ', ')"
+}
 $Args = @((Join-Path $ScriptDir "verify-sdk.mjs"))
 
 foreach ($Language in $Languages) {

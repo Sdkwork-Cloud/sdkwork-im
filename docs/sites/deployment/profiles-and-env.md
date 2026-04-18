@@ -1,5 +1,8 @@
 # Profiles and Environment
 
+Use this page to choose the right local profile and confirm the environment variables required for
+startup, auth hardening, and shared-channel sync behavior.
+
 ## Profile Matrix
 
 | Item | `local-minimal` | `local-default` |
@@ -34,6 +37,7 @@ For public or commercial deployments, keep these enabled and explicit:
 
 | Variable | Purpose |
 | --- | --- |
+| `CRAW_CHAT_BROWSER_ORIGINS` | Comma-separated explicit browser origins allowed to call the public app routes. Defaults to the local portal preview origins only when unset. |
 | `CRAW_CHAT_PUBLIC_BEARER_REQUIRE_EXP` | Requires `exp` in public bearer tokens (`1/true/yes/on`). |
 | `CRAW_CHAT_PUBLIC_BEARER_MAX_TTL_SECONDS` | Rejects public bearer tokens whose lifetime exceeds this maximum. |
 | `CRAW_CHAT_PUBLIC_BEARER_REQUIRED_ISS` | Optional strict issuer match. When set, public bearer `iss` must equal this value. |
@@ -54,6 +58,9 @@ For public or commercial deployments, keep these enabled and explicit:
 | `CRAW_CHAT_RUNTIME_PROFILE` | Runtime profile name (`local-minimal`/`local-default`/etc.). Remote `http://` override is only honored for local profiles. |
 
 ### Shared-channel sync target variables
+
+These variables narrow the shared-channel sync behavior to an explicit remote target and its
+runtime guards.
 
 | Variable | Purpose |
 | --- | --- |
@@ -94,6 +101,7 @@ path, the provider-health surface reports the external mode as unavailable.
 CRAW_CHAT_BIND_ADDR=127.0.0.1:18090
 CRAW_CHAT_RUNTIME_DIR=.runtime/local-minimal
 CRAW_CHAT_RUNTIME_PROFILE=local-minimal
+CRAW_CHAT_BROWSER_ORIGINS=http://127.0.0.1:4176,http://localhost:4176
 CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET=replace-with-local-minimal-secret
 CRAW_CHAT_PUBLIC_BEARER_REQUIRE_EXP=true
 CRAW_CHAT_PUBLIC_BEARER_MAX_TTL_SECONDS=900
@@ -120,6 +128,7 @@ CRAW_CHAT_ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP=false
 CRAW_CHAT_BIND_ADDR=127.0.0.1:18090
 CRAW_CHAT_RUNTIME_DIR=.runtime/local-minimal
 CRAW_CHAT_RUNTIME_PROFILE=local-default
+CRAW_CHAT_BROWSER_ORIGINS=http://127.0.0.1:4176,http://localhost:4176
 CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET=replace-with-local-default-secret
 CRAW_CHAT_PUBLIC_BEARER_REQUIRE_EXP=true
 CRAW_CHAT_PUBLIC_BEARER_MAX_TTL_SECONDS=900

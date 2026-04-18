@@ -3,8 +3,47 @@
 <p class="api-page-intro">
   Stream endpoints expose the transport used for long-running structured payload delivery, RTC
   signaling coordination, and device protocol bridges. The wire model follows the current
-  `streaming-service` implementation.
+  `streaming-service`.
 </p>
+
+<div class="api-link-list">
+  <a href="/api-reference/app/rtc"><code>RTC</code> RTC lifecycle and signaling resources are documented separately</a>
+  <a href="/api-reference/iot/protocol-and-health"><code>IoT</code> Device ingress and downlink flows also bridge into the stream model</a>
+  <a href="/sdk/app-sdk"><code>SDK</code> <code>@sdkwork/craw-chat-sdk</code> currently exposes stream routes through the generated transport boundary; Flutter consumers access the same contract through <code>craw_chat_sdk</code></a>
+</div>
+
+## Recommended SDK Mapping
+
+Stream transport is currently generated-first in the TypeScript SDK:
+
+- `sdk.generated.stream.open(...)`
+- `sdk.generated.stream.listStreamFrames(...)`
+- `sdk.generated.stream.appendStreamFrame(...)`
+- `sdk.generated.stream.checkpoint(...)`
+- `sdk.generated.stream.complete(...)`
+- `sdk.generated.stream.abort(...)`
+
+Example:
+
+```ts
+const stream = await sdk.generated.stream.open({
+  streamId: 'stream-demo-1',
+  streamType: 'custom.delta.text',
+  scopeKind: 'conversation',
+  scopeId: 'conversation-1',
+  durabilityClass: 'durableSession',
+  schemaRef: 'custom.delta.text.v1',
+});
+
+await sdk.generated.stream.appendStreamFrame(stream.streamId, {
+  frameType: 'delta',
+  encoding: 'utf-8',
+  payload: 'hello world',
+});
+
+const frames = await sdk.generated.stream.listStreamFrames(stream.streamId);
+console.log(frames.items.length);
+```
 
 <a id="open-stream"></a>
 <section class="api-op">
@@ -22,7 +61,7 @@ Opens a new stream session.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / streams</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.generated.stream.open(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation `stream.open` capability or device stream permission.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 StreamSession`</span></div>
 </div>
@@ -77,7 +116,7 @@ Appends a frame to an open stream.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / streams</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.generated.stream.appendStreamFrame(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation `stream.append` capability or device stream permission.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 StreamFrame`</span></div>
 </div>
@@ -125,7 +164,7 @@ Reads a paged window of frames for a stream.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / streams</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.generated.stream.listStreamFrames(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation member or registered device read scope.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 StreamFrameWindow`</span></div>
 </div>
@@ -175,7 +214,7 @@ Updates the consumer checkpoint for the stream.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / streams</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.generated.stream.checkpoint(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation `stream.checkpoint` capability or device stream permission.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 StreamSession`</span></div>
 </div>
@@ -223,7 +262,7 @@ Marks the stream as completed.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / streams</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.generated.stream.complete(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation `stream.complete` capability or device stream permission.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 StreamSession`</span></div>
 </div>
@@ -271,7 +310,7 @@ Aborts the stream lifecycle.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / streams</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.generated.stream.abort(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation `stream.abort` capability or device stream permission.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 StreamSession`</span></div>
 </div>

@@ -138,6 +138,68 @@ function backendApiPath(path) {
     return `${normalizedPrefix}${normalizedPath}`;
 }
 
+class AuthApi {
+    constructor(client) {
+        this.client = client;
+    }
+    /** Sign in to the tenant portal */
+    async login(body) {
+        return this.client.post(backendApiPath(`/auth/login`), body, undefined, undefined, 'application/json');
+    }
+    /** Read the current portal session */
+    async me() {
+        return this.client.get(backendApiPath(`/auth/me`));
+    }
+}
+function createAuthApi(client) {
+    return new AuthApi(client);
+}
+
+class PortalApi {
+    constructor(client) {
+        this.client = client;
+    }
+    /** Read the tenant portal home snapshot */
+    async getHome() {
+        return this.client.get(backendApiPath(`/portal/home`));
+    }
+    /** Read the tenant portal sign-in snapshot */
+    async getAuth() {
+        return this.client.get(backendApiPath(`/portal/auth`));
+    }
+    /** Read the current tenant workspace snapshot */
+    async getWorkspace() {
+        return this.client.get(backendApiPath(`/portal/workspace`));
+    }
+    /** Read the tenant dashboard snapshot */
+    async getDashboard() {
+        return this.client.get(backendApiPath(`/portal/dashboard`));
+    }
+    /** Read the tenant conversations snapshot */
+    async getConversations() {
+        return this.client.get(backendApiPath(`/portal/conversations`));
+    }
+    /** Read the tenant realtime snapshot */
+    async getRealtime() {
+        return this.client.get(backendApiPath(`/portal/realtime`));
+    }
+    /** Read the tenant media snapshot */
+    async getMedia() {
+        return this.client.get(backendApiPath(`/portal/media`));
+    }
+    /** Read the tenant automation snapshot */
+    async getAutomation() {
+        return this.client.get(backendApiPath(`/portal/automation`));
+    }
+    /** Read the tenant governance snapshot */
+    async getGovernance() {
+        return this.client.get(backendApiPath(`/portal/governance`));
+    }
+}
+function createPortalApi(client) {
+    return new PortalApi(client);
+}
+
 class SessionApi {
     constructor(client) {
         this.client = client;
@@ -333,7 +395,7 @@ class MediaApi {
     constructor(client) {
         this.client = client;
     }
-    /** Create a media upload record */
+    /** Create a media upload session with presigned client-upload metadata */
     async createMediaUpload(body) {
         return this.client.post(backendApiPath(`/media/uploads`), body, undefined, undefined, 'application/json');
     }
@@ -435,6 +497,8 @@ function createRtcApi(client) {
 class SdkworkBackendClient {
     constructor(config) {
         this.httpClient = createHttpClient(config);
+        this.auth = createAuthApi(this.httpClient);
+        this.portal = createPortalApi(this.httpClient);
         this.session = createSessionApi(this.httpClient);
         this.presence = createPresenceApi(this.httpClient);
         this.realtime = createRealtimeApi(this.httpClient);
@@ -489,12 +553,14 @@ Object.defineProperty(exports, "SUCCESS_CODES", {
     enumerable: true,
     get: function () { return sdkCommon.SUCCESS_CODES; }
 });
+exports.AuthApi = AuthApi;
 exports.BaseApi = BaseApi;
 exports.ConversationApi = ConversationApi;
 exports.DeviceApi = DeviceApi;
 exports.InboxApi = InboxApi;
 exports.MediaApi = MediaApi;
 exports.MessageApi = MessageApi;
+exports.PortalApi = PortalApi;
 exports.PresenceApi = PresenceApi;
 exports.RealtimeApi = RealtimeApi;
 exports.RtcApi = RtcApi;
@@ -502,12 +568,14 @@ exports.SdkworkBackendClient = SdkworkBackendClient;
 exports.SessionApi = SessionApi;
 exports.StreamApi = StreamApi;
 exports.backendApiPath = backendApiPath;
+exports.createAuthApi = createAuthApi;
 exports.createClient = createClient;
 exports.createConversationApi = createConversationApi;
 exports.createDeviceApi = createDeviceApi;
 exports.createInboxApi = createInboxApi;
 exports.createMediaApi = createMediaApi;
 exports.createMessageApi = createMessageApi;
+exports.createPortalApi = createPortalApi;
 exports.createPresenceApi = createPresenceApi;
 exports.createRealtimeApi = createRealtimeApi;
 exports.createRtcApi = createRtcApi;

@@ -3,7 +3,9 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { test } from 'node:test';
 
-const appRoot = path.resolve('apps/craw-chat-portal');
+import { resolvePortalAppRoot } from './helpers/portal-paths.mjs';
+
+const appRoot = resolvePortalAppRoot(import.meta.url);
 
 function moduleUrl(relativePath) {
   return pathToFileURL(path.join(appRoot, relativePath)).href;

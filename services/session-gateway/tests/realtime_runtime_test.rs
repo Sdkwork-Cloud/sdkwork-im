@@ -232,6 +232,31 @@ fn test_sync_subscriptions_rejects_too_many_subscription_items() {
 }
 
 #[test]
+fn test_sync_subscriptions_rejects_oversized_total_subscription_payload() {
+    let runtime = RealtimeDeliveryRuntime::default();
+    let oversized_items = (0..40)
+        .map(|index| RealtimeSubscriptionItemInput {
+            scope_type: "conversation".into(),
+            scope_id: format!("c_{index:03}_{}", "x".repeat(480)),
+            event_types: (0..120)
+                .map(|event_index| format!("evt_{event_index:02}_{}", "y".repeat(120)))
+                .collect(),
+        })
+        .collect::<Vec<_>>();
+
+    let error = runtime
+        .sync_subscriptions("t_demo", "u_demo", "d_pad", oversized_items)
+        .expect_err("oversized total subscription payload should be rejected");
+
+    assert_eq!(error.code, "payload_too_large");
+    assert!(
+        error.message.contains("items"),
+        "error should point to total items payload guard, got: {}",
+        error.message
+    );
+}
+
+#[test]
 fn test_runtime_isolates_same_actor_id_across_principal_kinds() {
     let runtime = RealtimeDeliveryRuntime::default();
     expect_ok(runtime.sync_subscriptions_for_principal_kind(

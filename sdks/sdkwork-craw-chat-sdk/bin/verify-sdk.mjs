@@ -57,9 +57,21 @@ function run(command, args, options = {}) {
 const args = parseArgs(process.argv.slice(2));
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = path.resolve(scriptDir, '..');
-const languageSet = new Set(args.languages.length > 0 ? args.languages : ['typescript', 'flutter']);
+const officialLanguages = [
+  'typescript',
+  'flutter',
+  'rust',
+  'java',
+  'csharp',
+  'swift',
+  'kotlin',
+  'go',
+  'python',
+];
+const defaultLanguages = officialLanguages;
+const languageSet = new Set(args.languages.length > 0 ? args.languages : defaultLanguages);
 for (const language of languageSet) {
-  if (!['typescript', 'flutter'].includes(language)) {
+  if (!officialLanguages.includes(language)) {
     fail(`Unsupported language: ${language}`);
   }
 }
@@ -67,6 +79,14 @@ for (const language of languageSet) {
 run('node', [path.join(scriptDir, 'verify-sdk-automation.mjs')], {
   cwd: workspaceRoot,
   step: 'workspace:automation',
+});
+run('node', [path.join(scriptDir, 'verify-internal-docs.mjs')], {
+  cwd: workspaceRoot,
+  step: 'workspace:internal-docs',
+});
+run('node', [path.join(scriptDir, 'verify-docs-contract-tests.mjs')], {
+  cwd: workspaceRoot,
+  step: 'workspace:docs-contract-tests',
 });
 run('node', [path.join(scriptDir, 'verify-powershell-wrapper-args.mjs')], {
   cwd: workspaceRoot,
@@ -86,6 +106,10 @@ if (languageSet.has('typescript')) {
     cwd: workspaceRoot,
     step: 'typescript:generated-build-concurrency',
   });
+  run('node', [path.join(scriptDir, 'verify-typescript-workspace-concurrency.mjs')], {
+    cwd: workspaceRoot,
+    step: 'typescript:workspace-concurrency',
+  });
 }
 
 if (languageSet.has('flutter')) {
@@ -99,7 +123,56 @@ if (languageSet.has('flutter')) {
   });
 }
 
-run('node', [path.join(scriptDir, 'assemble-sdk.mjs'), ...[...languageSet].flatMap((language) => ['--language', language])], {
+if (languageSet.has('rust')) {
+  run('node', [path.join(scriptDir, 'verify-rust-workspace.mjs')], {
+    cwd: workspaceRoot,
+    step: 'rust:workspace',
+  });
+}
+
+if (languageSet.has('java')) {
+  run('node', [path.join(scriptDir, 'verify-java-workspace.mjs')], {
+    cwd: workspaceRoot,
+    step: 'java:workspace',
+  });
+}
+
+if (languageSet.has('csharp')) {
+  run('node', [path.join(scriptDir, 'verify-csharp-workspace.mjs')], {
+    cwd: workspaceRoot,
+    step: 'csharp:workspace',
+  });
+}
+
+if (languageSet.has('swift')) {
+  run('node', [path.join(scriptDir, 'verify-swift-workspace.mjs')], {
+    cwd: workspaceRoot,
+    step: 'swift:workspace',
+  });
+}
+
+if (languageSet.has('kotlin')) {
+  run('node', [path.join(scriptDir, 'verify-kotlin-workspace.mjs')], {
+    cwd: workspaceRoot,
+    step: 'kotlin:workspace',
+  });
+}
+
+if (languageSet.has('go')) {
+  run('node', [path.join(scriptDir, 'verify-go-workspace.mjs')], {
+    cwd: workspaceRoot,
+    step: 'go:workspace',
+  });
+}
+
+if (languageSet.has('python')) {
+  run('node', [path.join(scriptDir, 'verify-python-workspace.mjs')], {
+    cwd: workspaceRoot,
+    step: 'python:workspace',
+  });
+}
+
+run('node', [path.join(scriptDir, 'assemble-sdk.mjs')], {
   cwd: workspaceRoot,
   step: 'workspace:assemble',
 });

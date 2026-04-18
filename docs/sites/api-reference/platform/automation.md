@@ -5,6 +5,12 @@
   been accepted by the runtime.
 </p>
 
+<div class="api-link-list">
+  <a href="/api-reference/platform/notifications"><code>Notifications</code> Notification work items are documented separately</a>
+  <a href="/api-reference/platform/audit"><code>Audit</code> Audit evidence and export flows are documented separately</a>
+  <a href="/sdk/index"><code>SDK</code> Treat automation routes as HTTP-first surfaces unless a repo consumer layer is documented elsewhere</a>
+</div>
+
 <a id="request-automation-execution"></a>
 <section class="api-op">
 

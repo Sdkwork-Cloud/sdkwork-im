@@ -1,11 +1,13 @@
 # `POST /api/v1/iot/protocol/downlink`
 
 <p class="api-page-intro">
-  OpenAPI-style operation reference for <strong>Protocol and Health</strong> in the <strong>IoT API</strong>.
+  Exact request and response contract for <strong>Protocol and Health</strong> in the <strong>IoT API</strong>.
 </p>
 
 <div class="api-link-list">
-  <a href="/api-reference/iot/protocol-and-health">Back to Protocol and Health</a>
+  <a href="/api-reference/iot/protocol-and-health"><code>Protocol and Health</code> Return to the group page for workflow context and related operations</a>
+  <a href="/api-reference/iot-api"><code>IoT API</code> Return to the domain overview</a>
+  <a href="/api-reference/auth-and-errors"><code>Auth</code> Shared bearer, trusted-header, and error-envelope rules</a>
 </div>
 
 <section class="api-op api-op-single">

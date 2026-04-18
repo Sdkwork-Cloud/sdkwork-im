@@ -13,12 +13,6 @@ const defaultState = {
   workspace: null,
 };
 
-const DEFAULT_PORTAL_SIGN_IN_CREDENTIALS = Object.freeze({
-  tenantId: 't_demo',
-  login: 'ops_demo',
-  password: 'Portal#2026',
-});
-
 function isNonEmptyString(value) {
   return typeof value === 'string' && value.trim().length > 0;
 }
@@ -54,6 +48,24 @@ function isValidPortalWorkspace(workspace) {
   );
 }
 
+function normalizePortalSignInCredentials(credentials) {
+  if (credentials === null || typeof credentials !== 'object' || Array.isArray(credentials)) {
+    throw new TypeError('Portal sign-in credentials must be provided explicitly.');
+  }
+
+  const normalized = {
+    tenantId: String(credentials.tenantId ?? '').trim(),
+    login: String(credentials.login ?? '').trim(),
+    password: String(credentials.password ?? ''),
+  };
+
+  if (!normalized.tenantId || !normalized.login || normalized.password.length === 0) {
+    throw new TypeError('Portal sign-in requires tenantId, login, and password.');
+  }
+
+  return normalized;
+}
+
 export function createPortalAuthStore() {
   const store = createStore(defaultState);
 
@@ -83,8 +95,9 @@ export function createPortalAuthStore() {
 
       return session;
     },
-    async signIn(credentials = DEFAULT_PORTAL_SIGN_IN_CREDENTIALS) {
-      const session = await loginPortalUser(credentials);
+    async signIn(credentials) {
+      const normalizedCredentials = normalizePortalSignInCredentials(credentials);
+      const session = await loginPortalUser(normalizedCredentials);
 
       if (!isValidPortalSession(session)) {
         clearPortalSessionToken();

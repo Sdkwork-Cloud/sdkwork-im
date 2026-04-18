@@ -56,11 +56,15 @@
 | Provider policies | Preview, commit, history, diff, rollback, conflict, noop, and unavailable cases | `services/control-plane-api/tests/provider_registry_test.rs` |
 | Node lifecycle | Drain, activate, and route migration | `services/control-plane-api/tests/drain_routes_test.rs` |
 
-## Important Non-delivery Boundaries
+## Important Non-Delivery Boundaries
 
 | Surface | Current status |
 | --- | --- |
-| App TypeScript and Flutter packages | Workspace layout, OpenAPI authority, and generation wrappers exist; release catalog still says `template_only_pending_generation` and `not_published` |
-| Admin TypeScript and Flutter packages | Workspace layout exists, but release catalog still says `template_only_pending_generation` and `not_published` |
+| App TypeScript and Flutter packages | Workspace layout, checked-in app authority, and generation wrappers exist, but the release catalog still records `template_only_pending_generation` and `not_published`; manifests are repo package contracts, not registry delivery |
+| Admin TypeScript and Flutter packages | Workspace layout exists, but no checked-in admin OpenAPI authority file exists yet; the release catalog still records `template_only_pending_generation` and `not_published` |
 | Admin OpenAPI source | No checked-in admin OpenAPI authority file exists under `sdks/sdkwork-craw-chat-sdk-admin/` yet |
 | Frontend apps | `apps/craw-chat-portal` and `apps/craw-chat-admin` are present as directories, not documented here as mature deliverables |
+
+## What To Read Next
+
+- Continue with [SDK Overview](/sdk/index) for package-surface and publication-state detail.

@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
+use std::env;
 use std::fs;
 use std::path::{Path as StdPath, PathBuf};
 use std::sync::Arc;
@@ -14,6 +15,7 @@ use axum::extract::ws::WebSocketUpgrade;
 use axum::extract::{Path, Query, State};
 use axum::http::HeaderMap;
 use axum::http::Request;
+use axum::http::header::CONTENT_TYPE;
 use axum::middleware::{self, Next};
 use axum::response::IntoResponse;
 use axum::response::Response;
@@ -21,11 +23,12 @@ use axum::{
     Json, Router,
     routing::{get, post},
 };
+use control_plane_api::SocialControlQuery;
 use conversation_runtime::{
-    AgentHandoffStateView, ChangeConversationMemberRoleResult, ConversationRuntime,
-    CreateConversationResult, EditMessageCommand, MessageMutationResult, PostMessageCommand,
-    PostMessageResult, PublishSystemChannelMessageCommand, RecallMessageCommand,
-    TransferConversationOwnerResult,
+    AgentHandoffStateView, BindDirectChatConversationCommand, ChangeConversationMemberRoleResult,
+    ConversationRuntime, CreateConversationResult, EditMessageCommand, MessageMutationResult,
+    PostMessageCommand, PostMessageResult, PublishSystemChannelMessageCommand,
+    RecallMessageCommand, TransferConversationOwnerResult,
 };
 use im_adapters_local_disk::{
     FileAutomationExecutionStore, FileCommitJournal, FileMetadataStore, FileNotificationTaskStore,
@@ -49,7 +52,8 @@ use im_domain_core::media::MediaProcessingState;
 use im_domain_core::message::{ContentPart, MediaPart, MessageBody, MessageType, SignalPart};
 use im_domain_core::realtime::RealtimeSubscription;
 use im_domain_core::session::{PresenceSnapshotView, SessionResumeView};
-use im_domain_events::CommitEnvelope;
+use im_domain_core::social::{DirectChat, FriendRequest, Friendship};
+use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
 use im_platform_contracts::{
     CommitJournal, CommitPosition, ContractError, DeviceAccessProvider, DeviceTwinStore,
     EffectiveProviderBinding, IotProtocolAdapter, MetadataStore,
@@ -84,7 +88,8 @@ use serde_json::Value;
 use session_gateway::{
     AckRealtimeEventsRequest, ListRealtimeEventsQuery, PresenceRuntimeError, RealtimeClusterBridge,
     RealtimeClusterError, RealtimeDeliveryRuntime, RealtimePlaneAssembly, RealtimeRuntimeError,
-    SessionPresenceRuntime, SyncRealtimeSubscriptionsRequest, serve_realtime_websocket,
+    RealtimeScopeAccessPolicy, SessionPresenceRuntime, SyncRealtimeSubscriptionsRequest,
+    serve_realtime_websocket,
 };
 use sha2::{Digest, Sha256};
 use streaming_service::{
@@ -109,9 +114,11 @@ mod message;
 mod platform;
 mod portal;
 mod projection;
+mod realtime_policy;
 mod rtc;
 mod runtime_dir;
 mod session;
+mod social;
 mod stream;
 mod twin;
 mod user_module;
@@ -146,6 +153,8 @@ struct AppState {
     node_id: String,
     runtime_dir: Option<PathBuf>,
     auth_runtime: Arc<auth::AuthRuntime>,
+    control_plane_app: Router,
+    social_query: Arc<SocialControlQuery>,
     realtime_cluster: Arc<RealtimeClusterBridge>,
     conversation_runtime: Arc<ConversationRuntime<ProjectionJournal>>,
     user_module_provider: Arc<dyn UserModuleProvider>,
@@ -162,6 +171,22 @@ struct AppState {
     automation_runtime: Arc<AutomationRuntime>,
     audit_runtime: Arc<AuditRuntime>,
     ops_runtime: Arc<OpsRuntime>,
+    projection_replay_state: Arc<std::sync::Mutex<ProjectionReplayAuthorityState>>,
+    pending_friend_request_accept_repairs:
+        Arc<std::sync::Mutex<PendingFriendRequestAcceptanceRepairStore>>,
+    friend_request_accept_repair_gate: Arc<tokio::sync::Mutex<()>>,
+}
+
+type PendingFriendRequestAcceptanceRepairStore =
+    BTreeMap<String, PendingFriendRequestAcceptanceRepair>;
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct PendingFriendRequestAcceptanceRepair {
+    tenant_id: String,
+    request_id: String,
+    requester_user_id: String,
+    target_user_id: String,
+    accepted_at: String,
 }
 
 #[derive(Clone)]
@@ -169,6 +194,8 @@ struct ProjectionJournal {
     inner: ProjectionJournalInner,
     projection_service: Arc<TimelineProjectionService>,
     snapshot_stores: Option<ProjectionSnapshotStores>,
+    replay_state: Arc<std::sync::Mutex<ProjectionReplayAuthorityState>>,
+    applied_social_projection_event_ids: Arc<std::sync::Mutex<BTreeSet<String>>>,
 }
 
 #[derive(Clone)]
@@ -189,11 +216,22 @@ struct ProjectionSnapshotRestoreSummary {
     restored_device_sync: bool,
 }
 
+#[derive(Default)]
+struct ProjectionReplayAuthorityState {
+    applied_event_count: usize,
+}
+
 const PROJECTION_METADATA_FILE_NAME: &str = "projection-metadata.json";
 const PROJECTION_TIMELINE_FILE_NAME: &str = "projection-timeline.json";
 const PROJECTION_SNAPSHOT_CHECKPOINT_KEY: &str = "conversation-snapshot-checkpoint";
 const LOCAL_NODE_AUDIT_AGGREGATE_ID_MAX_BYTES: usize = 256;
 const LOCAL_NODE_AUDIT_RECORD_ID_MAX_BYTES: usize = 256;
+const APP_OPENAPI_SCHEMA_PATH_ENV: &str = "CRAW_CHAT_APP_OPENAPI_SCHEMA_PATH";
+const APP_OPENAPI_SCHEMA_PATH: &str = "/openapi/craw-chat-app.openapi.yaml";
+const APP_OPENAPI_SCHEMA_EMBEDDED_YAML: &str =
+    include_str!("../../../sdks/sdkwork-craw-chat-sdk/openapi/craw-chat-app.openapi.yaml");
+const PUBLIC_BROWSER_ORIGINS_ENV: &str = "CRAW_CHAT_BROWSER_ORIGINS";
+const DEFAULT_PUBLIC_BROWSER_ORIGINS: &[&str] = &["http://127.0.0.1:4176", "http://localhost:4176"];
 
 fn stable_local_audit_aggregate_id(namespace: &str, business_id: &str) -> String {
     if business_id.len() <= LOCAL_NODE_AUDIT_AGGREGATE_ID_MAX_BYTES {
@@ -376,6 +414,10 @@ impl ProjectionJournal {
             )),
             projection_service,
             snapshot_stores: None,
+            replay_state: Arc::new(std::sync::Mutex::new(
+                ProjectionReplayAuthorityState::default(),
+            )),
+            applied_social_projection_event_ids: Arc::new(std::sync::Mutex::new(BTreeSet::new())),
         }
     }
 
@@ -388,7 +430,23 @@ impl ProjectionJournal {
             inner: ProjectionJournalInner::File(FileCommitJournal::new("local-minimal", file_path)),
             projection_service,
             snapshot_stores: Some(snapshot_stores),
+            replay_state: Arc::new(std::sync::Mutex::new(
+                ProjectionReplayAuthorityState::default(),
+            )),
+            applied_social_projection_event_ids: Arc::new(std::sync::Mutex::new(BTreeSet::new())),
         }
+    }
+
+    fn replay_state(&self) -> Arc<std::sync::Mutex<ProjectionReplayAuthorityState>> {
+        self.replay_state.clone()
+    }
+
+    fn set_applied_event_count(&self, applied_event_count: usize) {
+        let mut state = self
+            .replay_state
+            .lock()
+            .expect("projection replay authority state should not be poisoned");
+        state.applied_event_count = applied_event_count;
     }
 
     fn recorded(&self) -> Result<Vec<CommitEnvelope>, ContractError> {
@@ -454,22 +512,145 @@ impl ProjectionJournal {
     fn snapshot_stores(&self) -> Option<ProjectionSnapshotStores> {
         self.snapshot_stores.clone()
     }
+
+    fn mark_social_projection_events<'a>(
+        &self,
+        envelopes: impl IntoIterator<Item = &'a CommitEnvelope>,
+    ) {
+        let mut applied = self
+            .applied_social_projection_event_ids
+            .lock()
+            .expect("social projection event id set should not be poisoned");
+        for envelope in envelopes {
+            if !tracks_social_projection_event(envelope) {
+                continue;
+            }
+            applied.insert(envelope.event_id.clone());
+        }
+    }
 }
 
 impl CommitJournal for ProjectionJournal {
     fn append(&self, envelope: CommitEnvelope) -> Result<CommitPosition, ContractError> {
+        let mut replay_state = self
+            .replay_state
+            .lock()
+            .expect("projection replay authority state should not be poisoned");
         let position = match &self.inner {
             ProjectionJournalInner::Memory(inner) => inner.append(envelope.clone())?,
             ProjectionJournalInner::File(inner) => inner.append(envelope.clone())?,
         };
 
-        if self.projection_service.apply(&envelope).is_ok()
-            && let Some(snapshot_stores) = self.snapshot_stores.as_ref()
-        {
-            snapshot_stores.persist_for_envelope(self.projection_service.as_ref(), &envelope);
+        if self.projection_service.apply(&envelope).is_ok() {
+            if let Some(snapshot_stores) = self.snapshot_stores.as_ref() {
+                snapshot_stores.persist_for_envelope(self.projection_service.as_ref(), &envelope);
+            }
+            self.mark_social_projection_events(std::iter::once(&envelope));
         }
+        replay_state.applied_event_count = replay_state.applied_event_count.saturating_add(1);
 
         Ok(position)
+    }
+
+    fn append_batch(
+        &self,
+        envelopes: Vec<CommitEnvelope>,
+    ) -> Result<Vec<CommitPosition>, ContractError> {
+        let batch_len = envelopes.len();
+        let mut replay_state = self
+            .replay_state
+            .lock()
+            .expect("projection replay authority state should not be poisoned");
+        let positions = match &self.inner {
+            ProjectionJournalInner::Memory(inner) => inner.append_batch(envelopes.clone())?,
+            ProjectionJournalInner::File(inner) => inner.append_batch(envelopes.clone())?,
+        };
+
+        for envelope in &envelopes {
+            if self.projection_service.apply(envelope).is_ok() {
+                if let Some(snapshot_stores) = self.snapshot_stores.as_ref() {
+                    snapshot_stores.persist_for_envelope(
+                        self.projection_service.as_ref(),
+                        envelope,
+                    );
+                }
+                self.mark_social_projection_events(std::iter::once(envelope));
+            }
+        }
+        replay_state.applied_event_count = replay_state.applied_event_count.saturating_add(batch_len);
+
+        Ok(positions)
+    }
+}
+
+fn tracks_social_projection_event(envelope: &CommitEnvelope) -> bool {
+    matches!(
+        envelope.event_type.as_str(),
+        "friendship.activated" | "friendship.removed" | "direct_chat.bound"
+    )
+}
+
+impl AppState {
+    fn refresh_projection_state_from_runtime_dir(&self) -> Result<(), ApiError> {
+        let Some(runtime_dir) = self.runtime_dir.as_ref() else {
+            return Ok(());
+        };
+        let journal_path = runtime_dir
+            .as_path()
+            .join("state")
+            .join("commit-journal.json");
+        if !journal_path.exists() {
+            return Ok(());
+        }
+
+        let recorded =
+            read_commit_journal_file(journal_path.as_path()).map_err(|error| ApiError {
+                status: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                code: "projection_authority_refresh_unavailable",
+                message: format!(
+                    "failed to read shared projection commit journal {}: {error:?}",
+                    journal_path.display()
+                ),
+            })?;
+        let mut replay_state = self
+            .projection_replay_state
+            .lock()
+            .expect("projection replay authority state should not be poisoned");
+        if recorded.len() == replay_state.applied_event_count {
+            return Ok(());
+        }
+
+        if recorded.len() < replay_state.applied_event_count {
+            self.projection_service.reset_for_recovery();
+            self.conversation_runtime.reset_for_recovery();
+            runtime_dir::apply_projection_journal_envelopes(
+                recorded.as_slice(),
+                self.projection_service.as_ref(),
+                self.conversation_runtime.as_ref(),
+                "local-minimal authority rebuild",
+            )
+            .map_err(|error| ApiError {
+                status: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                code: "projection_authority_refresh_failed",
+                message: error,
+            })?;
+            replay_state.applied_event_count = recorded.len();
+            return Ok(());
+        }
+
+        runtime_dir::apply_projection_journal_envelopes(
+            &recorded[replay_state.applied_event_count..],
+            self.projection_service.as_ref(),
+            self.conversation_runtime.as_ref(),
+            "local-minimal authority tail replay",
+        )
+        .map_err(|error| ApiError {
+            status: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            code: "projection_authority_refresh_failed",
+            message: error,
+        })?;
+        replay_state.applied_event_count = recorded.len();
+        Ok(())
     }
 }
 
@@ -683,6 +864,71 @@ struct InboxResponse {
 #[serde(rename_all = "camelCase")]
 struct ContactsResponse {
     items: Vec<ContactView>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SubmitFriendRequestAppRequest {
+    target_user_id: String,
+    request_message: Option<String>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum SocialFriendRequestListDirectionQuery {
+    Incoming,
+    Outgoing,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum SocialFriendRequestListStatusQuery {
+    #[default]
+    Pending,
+    Accepted,
+    Declined,
+    Canceled,
+    Expired,
+    All,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ListFriendRequestsAppQuery {
+    direction: SocialFriendRequestListDirectionQuery,
+    #[serde(default)]
+    status: SocialFriendRequestListStatusQuery,
+    limit: Option<usize>,
+    cursor: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SocialFriendRequestMutationResponse {
+    friend_request: FriendRequest,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SocialFriendRequestListResponse {
+    items: Vec<FriendRequest>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    next_cursor: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SocialFriendRequestAcceptanceResponse {
+    friend_request: FriendRequest,
+    friendship: Friendship,
+    direct_chat: DirectChat,
+    conversation: CreateConversationResult,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SocialFriendshipMutationResponse {
+    friendship: Friendship,
 }
 
 #[derive(Debug, Serialize)]
@@ -946,6 +1192,7 @@ impl From<RealtimeRuntimeError> for ApiError {
         let status = match value.code {
             "payload_too_large" => axum::http::StatusCode::PAYLOAD_TOO_LARGE,
             "limit_invalid" => axum::http::StatusCode::BAD_REQUEST,
+            "conversation_archived" | "conversation_blocked" => axum::http::StatusCode::FORBIDDEN,
             "checkpoint_store_unavailable" | "subscription_store_unavailable" => {
                 axum::http::StatusCode::SERVICE_UNAVAILABLE
             }
@@ -1034,10 +1281,102 @@ pub fn resolve_runtime_dir() -> PathBuf {
         .unwrap_or_else(|_| PathBuf::from(".runtime").join("local-minimal"))
 }
 
+pub fn resolve_app_openapi_schema_source_path() -> PathBuf {
+    env::var(APP_OPENAPI_SCHEMA_PATH_ENV)
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| {
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../../sdks/sdkwork-craw-chat-sdk/openapi/craw-chat-app.openapi.yaml")
+        })
+}
+
+pub fn load_app_openapi_schema_yaml() -> String {
+    let source_path = resolve_app_openapi_schema_source_path();
+    match fs::read_to_string(&source_path) {
+        Ok(contents) if !contents.trim().is_empty() => contents,
+        Ok(_) => APP_OPENAPI_SCHEMA_EMBEDDED_YAML.to_string(),
+        Err(_) => APP_OPENAPI_SCHEMA_EMBEDDED_YAML.to_string(),
+    }
+}
+
+pub fn resolve_public_browser_origins() -> Vec<String> {
+    std::env::var(PUBLIC_BROWSER_ORIGINS_ENV)
+        .map(|value| parse_public_browser_origins(value.as_str()))
+        .unwrap_or_else(|_| {
+            Ok(DEFAULT_PUBLIC_BROWSER_ORIGINS
+                .iter()
+                .map(|origin| origin.to_string())
+                .collect())
+        })
+        .unwrap_or_else(|error| panic!("{error}"))
+}
+
+fn parse_public_browser_origins(value: &str) -> Result<Vec<String>, String> {
+    let mut normalized = BTreeSet::new();
+    let mut invalid = Vec::new();
+
+    for candidate in value.split([',', ';', '\n', '\r']) {
+        let candidate = candidate.trim();
+        if candidate.is_empty() {
+            continue;
+        }
+
+        match normalize_public_browser_origin(candidate) {
+            Ok(origin) => {
+                normalized.insert(origin);
+            }
+            Err(error) => invalid.push(error),
+        }
+    }
+
+    if !invalid.is_empty() {
+        return Err(format!(
+            "{PUBLIC_BROWSER_ORIGINS_ENV} contains invalid origins: {}",
+            invalid.join("; ")
+        ));
+    }
+
+    if normalized.is_empty() {
+        return Err(format!(
+            "{PUBLIC_BROWSER_ORIGINS_ENV} must define at least one origin when set"
+        ));
+    }
+
+    Ok(normalized.into_iter().collect())
+}
+
+fn normalize_public_browser_origin(value: &str) -> Result<String, String> {
+    let uri = value
+        .parse::<axum::http::Uri>()
+        .map_err(|_| format!("`{value}` is not a valid origin URI"))?;
+    let scheme = uri
+        .scheme_str()
+        .ok_or_else(|| format!("`{value}` is missing a URI scheme"))?;
+    let authority = uri
+        .authority()
+        .ok_or_else(|| format!("`{value}` is missing a URI authority"))?;
+    let path = uri.path();
+
+    if path != "/" && !path.is_empty() {
+        return Err(format!("`{value}` must not include a path"));
+    }
+
+    if uri.query().is_some() {
+        return Err(format!("`{value}` must not include a query string"));
+    }
+
+    Ok(format!(
+        "{}://{}",
+        scheme.to_ascii_lowercase(),
+        authority.as_str().to_ascii_lowercase()
+    ))
+}
+
 async fn require_public_bearer_auth(request: Request<axum::body::Body>, next: Next) -> Response {
     match request.uri().path() {
         "/healthz"
         | "/readyz"
+        | APP_OPENAPI_SCHEMA_PATH
         | "/api/v1/auth/login"
         | "/api/v1/auth/refresh"
         | "/api/v1/portal/home"
@@ -1069,4 +1408,11 @@ async fn readyz() -> Json<HealthResponse> {
         service: "local-minimal-node",
         profile: "local-minimal",
     })
+}
+
+async fn export_app_openapi_schema() -> impl IntoResponse {
+    (
+        [(CONTENT_TYPE, "application/yaml; charset=utf-8")],
+        load_app_openapi_schema_yaml(),
+    )
 }

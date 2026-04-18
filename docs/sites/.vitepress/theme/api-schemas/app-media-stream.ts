@@ -58,6 +58,9 @@ export const appMediaStreamSchemas: ApiSchemaDefinitionMap = {
   CreateUploadRequest: {
     fields: [
       field("mediaAssetId", "string", "Media asset identifier.", { required: true }),
+      field("bucket", "string", "Object storage bucket.", { required: true }),
+      field("objectKey", "string | null", "Preferred object storage key."),
+      field("expiresInSeconds", "uint32 | null", "Requested presigned upload URL lifetime."),
       objectField("resource", "Media resource payload.", mediaResourceFields, {
         required: true,
         summary: "View nested fields for resource",
@@ -71,6 +74,7 @@ export const appMediaStreamSchemas: ApiSchemaDefinitionMap = {
       field("storageProvider", "string | null", "Preferred object storage provider plugin."),
       field("url", "string", "Final object URL.", { required: true }),
       field("checksum", "string | null", "Object checksum."),
+      field("etag", "string | null", "ETag returned by the object storage upload response."),
     ],
   },
   MediaAsset: {
@@ -85,6 +89,31 @@ export const appMediaStreamSchemas: ApiSchemaDefinitionMap = {
       field("storageProvider", "string", "Object storage provider plugin.", { required: true }),
       field("downloadUrl", "string", "Signed download URL.", { required: true }),
       field("expiresInSeconds", "uint32", "URL lifetime in seconds.", { required: true }),
+    ],
+  },
+  MediaUploadSessionResponse: {
+    fields: [
+      field("mediaAssetId", "string", "Media asset identifier.", { required: true }),
+      objectField("mediaAsset", "Pending media asset snapshot.", mediaAssetFields, {
+        required: true,
+        summary: "View nested fields for media asset",
+      }),
+      field("bucket", "string", "Object storage bucket.", { required: true }),
+      field("objectKey", "string", "Resolved object storage key.", { required: true }),
+      field("storageProvider", "string", "Resolved object storage provider plugin.", { required: true }),
+      field("uploadMethod", "string", "Presigned upload HTTP method.", { required: true }),
+      field("uploadUrl", "string", "Presigned upload URL.", { required: true }),
+      field("uploadHeaders", "Record<string, string>", "Required headers for the presigned upload.", {
+        required: true,
+      }),
+      field("uploadExpiresInSeconds", "uint32", "Upload URL lifetime in seconds.", { required: true }),
+      field("requestKey", "string", "Idempotency proof key for the create-upload request.", {
+        required: true,
+      }),
+      field("deliveryStatus", "string", "Whether the session was newly applied or replayed.", {
+        required: true,
+      }),
+      field("proofVersion", "string", "Delivery-proof schema version.", { required: true }),
     ],
   },
   AttachMediaRequest: {

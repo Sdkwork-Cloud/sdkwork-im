@@ -57,6 +57,10 @@ pub(super) async fn edit_message(
 ) -> Result<Json<MessageMutationResult>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
     access::ensure_registered_device(&state, &auth)?;
+    let conversation_id = state
+        .conversation_runtime
+        .conversation_id_for_message_from_auth_context(&auth, message_id.as_str())?;
+    access::ensure_conversation_member(&state, &auth, conversation_id.as_str())?;
     let summary = request.summary.clone();
     let body = effects::build_message_body(
         request.summary,
@@ -112,6 +116,10 @@ pub(super) async fn recall_message(
 ) -> Result<Json<MessageMutationResult>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
     access::ensure_registered_device(&state, &auth)?;
+    let conversation_id = state
+        .conversation_runtime
+        .conversation_id_for_message_from_auth_context(&auth, message_id.as_str())?;
+    access::ensure_conversation_member(&state, &auth, conversation_id.as_str())?;
     let mut command = RecallMessageCommand::from_auth_context(&auth, message_id);
     command.recalled_by = user_module::resolve_sender_from_auth_context(&state, &auth)?;
     let result = state.conversation_runtime.recall_message(command)?;

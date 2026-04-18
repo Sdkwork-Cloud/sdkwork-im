@@ -21,8 +21,20 @@
 
 ## SDK Alignment
 
-- IoT-facing administrative flows typically sit behind backend or operator SDKs instead of the public app SDK.
+- IoT-facing administrative flows typically sit behind backend or operator SDKs rather than the public app SDK.
 - Downlink requests ultimately write frames into the same streaming model used by the App API.
+- This site does not document a separate published IoT SDK family. Treat these routes as HTTP-first surfaces unless a repo consumer layer is documented separately.
+
+## How To Use This Page
+
+- Start with [Authentication and Errors](/api-reference/auth-and-errors) for shared auth and error rules.
+- Use the linked IoT operation group for exact ingress, downlink, and provider-health behavior.
+- Switch to [SDK Overview](/sdk/index) only when you need to determine whether a repo package also has a documented publication state.
+
+## What To Read Next
+
+- [Authentication and Errors](/api-reference/auth-and-errors)
+- [SDK Overview](/sdk/index)
 
 ## IoT API Domains
 

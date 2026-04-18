@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { resolveSdkworkGeneratorRoot } from './sdk-paths.mjs';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = path.resolve(scriptDir, '..');
@@ -14,9 +15,7 @@ const modelsPath = path.join(
   'src',
   'models.dart',
 );
-const generatorRoot = process.env.SDKWORK_GENERATOR_ROOT
-  ? path.resolve(process.env.SDKWORK_GENERATOR_ROOT)
-  : path.resolve(workspaceRoot, '..', '..', '..', '..', 'sdk', 'sdkwork-sdk-generator');
+const generatorRoot = resolveSdkworkGeneratorRoot(workspaceRoot);
 const authoritySpecPath = path.join(workspaceRoot, 'openapi', 'craw-chat-app.openapi.yaml');
 
 const models = readFileSync(modelsPath, 'utf8');

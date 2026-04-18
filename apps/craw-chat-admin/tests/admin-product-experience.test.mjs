@@ -1210,7 +1210,10 @@ test('zh-CN translations cover auth, sidebar, and advanced settings panels', () 
   assert.match(i18n, /'GitHub sign-in is disabled until a live provider policy is configured\.':/);
   assert.match(i18n, /'Google sign-in is disabled until a live provider policy is configured\.':/);
   assert.match(i18n, /'Disabled':/);
-  assert.match(i18n, /'Local dev credentials are prefilled: \{email\} \/ \{password\}\.':/);
+  assert.match(
+    i18n,
+    /'Local dev login is prefilled from VITE_ADMIN_SANDBOX_EMAIL and VITE_ADMIN_SANDBOX_PASSWORD\.':/,
+  );
   assert.match(i18n, /'Already provisioned\?':/);
   assert.match(i18n, /'Need access\?':/);
   assert.match(i18n, /'Back to login':/);

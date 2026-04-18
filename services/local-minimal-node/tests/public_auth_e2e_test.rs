@@ -377,6 +377,7 @@ async fn test_public_app_rejects_cross_principal_media_attach() {
                 .body(Body::from(
                     r#"{
                         "mediaAssetId":"ma_cross_principal",
+                        "bucket":"local-media",
                         "resource":{
                             "uuid":"res_cross_principal",
                             "type":"image",
@@ -407,7 +408,7 @@ async fn test_public_app_rejects_cross_principal_media_attach() {
                     r#"{
                         "bucket":"local-media",
                         "objectKey":"tenant/t_demo/ma_cross_principal/demo.png",
-                        "storageProvider":"local",
+                        "storageProvider":"object-storage-volcengine",
                         "url":"https://cdn.example.com/ma_cross_principal/demo.png",
                         "checksum":"sha256:demo"
                     }"#,

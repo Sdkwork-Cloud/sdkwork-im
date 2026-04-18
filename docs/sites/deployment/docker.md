@@ -11,7 +11,7 @@ Docker deployment is the recommended path for local container validation and dem
 
 ## `local-minimal` Compose Facts
 
-The checked-in Compose profile currently sets:
+The repo Compose profile currently sets:
 
 - container name: `craw-chat-local-minimal`
 - `CRAW_CHAT_BIND_ADDR=0.0.0.0:18090`
@@ -75,3 +75,9 @@ services:
 ```
 
 So it is a profile compatibility layer, not a separate image, port layout, or service graph.
+
+## What To Read Next
+
+- [Deployment](/deployment/index)
+- [Profiles and Environment](/deployment/profiles-and-env)
+- [Quick Start](/getting-started/quick-start)

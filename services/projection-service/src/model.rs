@@ -1,6 +1,7 @@
 use im_domain_core::conversation::{
     ConversationAgentHandoffView, ConversationMember, MembershipRole, MembershipState,
 };
+use im_domain_core::social::DirectChatStatus;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -146,9 +147,19 @@ pub struct ContactView {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct ContactDirectChatBindingView {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) tenant_id: Option<String>,
     pub(super) direct_chat_id: String,
     pub(super) conversation_id: String,
     pub(super) bound_at: String,
+    #[serde(default = "default_direct_chat_status")]
+    pub(super) status: DirectChatStatus,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) updated_at: Option<String>,
+}
+
+fn default_direct_chat_status() -> DirectChatStatus {
+    DirectChatStatus::Active
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

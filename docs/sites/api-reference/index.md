@@ -1,15 +1,15 @@
 # API Reference
 
 <p class="api-page-intro">
-  This API reference is aligned to the HTTP surface implemented by the current repository state.
-  It documents request and response shapes using an OpenAPI-style layout, with expandable nested
+  This API reference stays aligned to the HTTP surface implemented by the current repository state.
+  It documents request and response shapes in an OpenAPI-style layout, with expandable nested
   schemas for deeply structured payloads.
 </p>
 
 <div class="api-overview-grid">
   <div class="api-card">
     <h3>App API</h3>
-    <p>Session recovery, realtime delivery, device sync, conversations, membership, messages, media, streams, and RTC.</p>
+    <p>Portal sign-in, portal snapshots, session recovery, realtime delivery, device sync, conversations, membership, messages, media, streams, and RTC.</p>
     <p><a href="/api-reference/app-api">Open App API overview</a></p>
   </div>
   <div class="api-card">
@@ -36,10 +36,29 @@
 - Nested request and response fields are expandable so large payloads remain readable on desktop and mobile.
 - Shared auth rules and error envelope semantics are documented in [Authentication and Errors](/api-reference/auth-and-errors).
 
-## Recommended Reading Path
+## How To Use This Page
+
+Read the API docs in this order:
+
+1. Start with [Authentication and Errors](/api-reference/auth-and-errors) for shared bearer, trusted-header, and error-envelope rules.
+2. Open the domain overview that matches the runtime surface you are integrating: app, platform, IoT, or control plane.
+3. Use operation pages for the exact request and response contract.
+4. Switch to the SDK docs only when your next question becomes package names, language parity,
+   helper methods, or publication state.
+
+That split keeps HTTP semantics and consumer package surfaces from being mixed together.
+
+## When To Switch To SDK Docs
+
+- Use [TypeScript SDK](/sdk/typescript-sdk) or [Flutter SDK](/sdk/flutter-sdk) when you need checked-in import paths and client examples for the app runtime.
+- Use [Admin SDK](/sdk/admin-sdk) when you need the governance consumer boundary and release-state limits for control-plane integrations.
+- Use [SDK Overview](/sdk/index) when you need to decide whether a repo package also implies public registry availability.
+
+## What To Read Next
 
 <div class="api-link-list">
   <a href="/api-reference/auth-and-errors"><code>Auth</code> Authentication, trusted headers, and the error envelope</a>
+  <a href="/api-reference/app/portal-and-auth"><code>App</code> Portal sign-in and tenant portal snapshot endpoints</a>
   <a href="/api-reference/app/session-and-realtime"><code>App</code> Session and realtime transport semantics</a>
   <a href="/api-reference/app/conversations"><code>App</code> Conversation creation and handoff flows</a>
   <a href="/api-reference/platform/ops"><code>Platform</code> Operator diagnostics and runtime inspection</a>

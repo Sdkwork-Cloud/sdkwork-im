@@ -4,7 +4,15 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { test } from 'node:test';
 
-const appRoot = path.resolve('apps/craw-chat-portal');
+import './helpers/installMockPortalDefaultDataSource.mjs';
+import { resolvePortalAppRoot } from './helpers/portal-paths.mjs';
+
+const appRoot = resolvePortalAppRoot(import.meta.url);
+const explicitCredentials = Object.freeze({
+  tenantId: 'tenant-alpha',
+  login: 'ops.alpha',
+  password: 'Sup3rSecret!2026',
+});
 
 function storageDouble() {
   const store = new Map();
@@ -563,7 +571,7 @@ test('auth store rejects malformed sign-in session payloads before fetching work
     const store = authStoreModule.createPortalAuthStore();
 
     await assert.rejects(
-      () => store.signIn(),
+      () => store.signIn(explicitCredentials),
       {
         name: 'TypeError',
       },
@@ -622,7 +630,7 @@ test('auth store rejects malformed workspace payloads during sign-in before pers
     const store = authStoreModule.createPortalAuthStore();
 
     await assert.rejects(
-      () => store.signIn(),
+      () => store.signIn(explicitCredentials),
       {
         name: 'TypeError',
       },
@@ -1446,7 +1454,11 @@ test('portal app renders a recovery state and can retry when demo tenant sign-in
     search: '?redirect=%2Fconsole%2Fdashboard',
     localStorage,
   });
-  global.document = createDocumentDouble();
+  global.document = createDocumentDouble({
+    '[name="tenantId"]': { value: explicitCredentials.tenantId },
+    '[name="login"]': { value: explicitCredentials.login },
+    '[name="password"]': { value: explicitCredentials.password },
+  });
   global.Event = class Event {
     constructor(type) {
       this.type = type;
@@ -1472,7 +1484,7 @@ test('portal app renders a recovery state and can retry when demo tenant sign-in
     assert.match(root.innerHTML, /Nebula Commerce IM/);
 
     const signInButton = {
-      dataset: { command: 'demo-sign-in' },
+      dataset: { command: 'portal-sign-in' },
       closest() {
         return this;
       },
@@ -1544,7 +1556,11 @@ test('portal app routes demo tenant sign-in to the pinned default module when lo
     pathname: '/login',
     localStorage,
   });
-  global.document = createDocumentDouble();
+  global.document = createDocumentDouble({
+    '[name="tenantId"]': { value: explicitCredentials.tenantId },
+    '[name="login"]': { value: explicitCredentials.login },
+    '[name="password"]': { value: explicitCredentials.password },
+  });
   global.Event = class Event {
     constructor(type) {
       this.type = type;
@@ -1558,7 +1574,7 @@ test('portal app routes demo tenant sign-in to the pinned default module when lo
     assert.match(root.innerHTML, /Nebula Commerce IM/);
 
     const signInButton = {
-      dataset: { command: 'demo-sign-in' },
+      dataset: { command: 'portal-sign-in' },
       closest() {
         return this;
       },
@@ -3029,11 +3045,17 @@ test('portal app resets transient settings state across sign-out and next sign-i
     await flushAsyncWork();
 
     const demoSignInButton = {
-      dataset: { command: 'demo-sign-in' },
+      dataset: { command: 'portal-sign-in' },
       closest() {
         return this;
       },
     };
+
+    global.document = createDocumentDouble({
+      '[name="tenantId"]': { value: explicitCredentials.tenantId },
+      '[name="login"]': { value: explicitCredentials.login },
+      '[name="password"]': { value: explicitCredentials.password },
+    });
 
     await root.dispatchEvent('click', {
       target: demoSignInButton,

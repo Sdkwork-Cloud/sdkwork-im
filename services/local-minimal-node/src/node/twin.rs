@@ -29,7 +29,7 @@ pub(super) async fn get_device_twin(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<DeviceTwinView>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = access::resolve_active_auth_context(&state, &headers)?;
     access::ensure_device_twin_read_access(&state, &auth, device_id.as_str())?;
 
     let record = state
@@ -51,7 +51,7 @@ pub(super) async fn update_device_twin_desired(
     State(state): State<AppState>,
     Json(request): Json<UpdateDeviceTwinDesiredRequest>,
 ) -> Result<Json<DeviceTwinView>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = access::resolve_active_auth_context(&state, &headers)?;
     access::ensure_device_twin_desired_write_access(&state, &auth, device_id.as_str())?;
 
     let mut record =
@@ -70,7 +70,7 @@ pub(super) async fn update_device_twin_reported(
     State(state): State<AppState>,
     Json(request): Json<UpdateDeviceTwinReportedRequest>,
 ) -> Result<Json<DeviceTwinView>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = access::resolve_active_auth_context(&state, &headers)?;
     access::ensure_device_twin_reported_write_access(&state, &auth, device_id.as_str())?;
 
     let mut record =

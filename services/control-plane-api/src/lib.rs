@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path as StdPath, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, Mutex, MutexGuard, RwLock};
+use std::sync::{Arc, Mutex, MutexGuard, OnceLock, RwLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use audit_service::{AuditRuntime, RecordAuditAnchor};
@@ -15,12 +15,16 @@ use axum::{
     Json, Router,
     routing::{get, post},
 };
+use base64::Engine as _;
 use bytes::Bytes;
 use craw_chat_ccp_registry::{
     BusinessPolicyVocabulary, CapabilityProfile, CcpRegistry, ClientCompatibilityDescriptor,
     EffectiveProtocolSnapshot, KillSwitchRule, ProtocolGovernanceSnapshot, QuotaProfile,
     ReleaseChannel, RolloutPolicy, SchemaDescriptor,
 };
+use fs4::fs_std::FileExt;
+use getrandom::fill as fill_random;
+use hmac::{Hmac, Mac};
 use http_body_util::{BodyExt, Full};
 use hyper::body::Incoming;
 use hyper::header::{AUTHORIZATION, CONTENT_TYPE};
@@ -44,8 +48,10 @@ use im_domain_core::social::{
 };
 use im_domain_events::social::{
     DirectChatBoundPayload, ExternalConnectionEstablishedPayload, ExternalMemberLinkBoundPayload,
-    FriendRequestSubmittedPayload, FriendshipActivatedPayload, SharedChannelPolicyAppliedPayload,
-    SocialCommitEnvelopeInput, SocialEventType, UserBlockedPayload, social_commit_envelope,
+    FriendRequestAcceptedPayload, FriendRequestCanceledPayload, FriendRequestDeclinedPayload,
+    FriendRequestSubmittedPayload, FriendshipActivatedPayload, FriendshipRemovedPayload,
+    SharedChannelPolicyAppliedPayload, SocialCommitEnvelopeInput, SocialEventType,
+    UserBlockedPayload, social_commit_envelope,
 };
 use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
 use im_platform_contracts::{
@@ -136,6 +142,61 @@ struct AppState {
 }
 
 #[derive(Clone)]
+pub struct SocialControlQuery {
+    social_runtime: Arc<SocialControlRuntime>,
+}
+
+impl SocialControlQuery {
+    pub fn direct_chat_snapshot(
+        &self,
+        tenant_id: &str,
+        direct_chat_id: &str,
+    ) -> Option<DirectChat> {
+        self.social_runtime
+            .direct_chat_snapshot(tenant_id, direct_chat_id)
+            .map(|record| record.direct_chat)
+    }
+
+    pub fn active_direct_chat_access_block(
+        &self,
+        tenant_id: &str,
+        direct_chat_id: &str,
+    ) -> Option<UserBlock> {
+        self.social_runtime
+            .active_direct_chat_access_block(tenant_id, direct_chat_id)
+    }
+
+    pub fn active_friendship_access_block_for_pair(
+        &self,
+        tenant_id: &str,
+        user_a: &str,
+        user_b: &str,
+    ) -> Option<UserBlock> {
+        self.social_runtime
+            .active_friendship_access_block_for_pair(tenant_id, user_a, user_b)
+    }
+
+    pub fn authoritative_active_friendships_for_user(
+        &self,
+        tenant_id: &str,
+        user_id: &str,
+    ) -> Result<Vec<Friendship>, String> {
+        self.social_runtime
+            .authoritative_active_friendships_for_user(tenant_id, user_id)
+    }
+
+    pub fn authoritative_active_direct_chat_for_pair(
+        &self,
+        tenant_id: &str,
+        user_low_id: &str,
+        user_high_id: &str,
+    ) -> Result<Option<DirectChat>, String> {
+        self.social_runtime
+            .authoritative_active_direct_chat_for_pair(tenant_id, user_low_id, user_high_id)
+    }
+}
+
+#[derive(Clone)]
 struct GovernanceLoop {
     ops_runtime: Arc<OpsRuntime>,
     audit_runtime: Arc<AuditRuntime>,
@@ -144,6 +205,7 @@ struct GovernanceLoop {
 const SOCIAL_STATE_FILE_NAME: &str = "social-state.json";
 const SOCIAL_COMMIT_JOURNAL_FILE_NAME: &str = "social-commit-journal.json";
 const SOCIAL_TRANSACTION_MARKER_FILE_NAME: &str = "social-transaction-marker.json";
+const SOCIAL_WRITE_LOCK_FILE_NAME: &str = "social-write.lock";
 const SOCIAL_COMMIT_PARTITION: &str = "control-plane-social";
 const PUBLIC_SHARED_CHANNEL_SYNC_ROUTE: &str = "/api/v1/conversations/shared-channel-links/sync";
 const PUBLIC_SHARED_CHANNEL_SYNC_ACTOR_ID: &str = "control-plane-sync";
@@ -204,6 +266,11 @@ const CONTROL_PLANE_MAX_EXTERNAL_DISPLAY_NAME_BYTES: usize = 512;
 const CONTROL_PLANE_MAX_REQUEST_KEY_BYTES: usize = 512;
 const CONTROL_PLANE_MAX_REQUEST_KEYS: usize = 1024;
 const CONTROL_PLANE_MAX_REQUEST_KEYS_TOTAL_BYTES: usize = 64 * 1024;
+const SOCIAL_FRIEND_REQUEST_LIST_DEFAULT_LIMIT: usize = 100;
+const SOCIAL_FRIEND_REQUEST_LIST_MAX_LIMIT: usize = 200;
+const SOCIAL_FRIEND_REQUEST_LIST_MAX_CURSOR_BYTES: usize = 1024;
+const SOCIAL_FRIEND_REQUEST_CURSOR_VERSION: u64 = 1;
+const FRIEND_REQUEST_CURSOR_HS256_SECRET_ENV: &str = "CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET";
 static CONTROL_PLANE_AUDIT_RECORD_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -815,6 +882,10 @@ impl SharedChannelLinkedMemberSyncTrigger for PublicSharedChannelLinkedMemberSyn
     }
 }
 
+fn social_query_handle(social_runtime: Arc<SocialControlRuntime>) -> Arc<SocialControlQuery> {
+    Arc::new(SocialControlQuery { social_runtime })
+}
+
 #[derive(Clone)]
 enum SocialStateStore {
     Memory(Arc<Mutex<SocialControlState>>),
@@ -848,8 +919,21 @@ struct SocialControlRuntime {
     state: RwLock<SocialControlState>,
     journal_path: Option<Arc<PathBuf>>,
     tx_marker_path: Option<Arc<PathBuf>>,
+    write_lock_path: Option<Arc<PathBuf>>,
     snapshot_failpoint_path: Option<Arc<PathBuf>>,
     shared_channel_sync_stale_reclaim_scheduler_started: AtomicBool,
+}
+
+struct SocialWriteLockGuard {
+    file: fs::File,
+}
+
+impl Drop for SocialWriteLockGuard {
+    fn drop(&mut self) {
+        if let Err(error) = self.file.unlock() {
+            eprintln!("failed to unlock control-plane social write lock: {error}");
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default)]
@@ -891,6 +975,31 @@ struct SubmittedFriendRequest {
     persistence: SocialWritePersistence,
 }
 
+#[derive(Clone, Debug)]
+struct AcceptedFriendRequest {
+    friend_request: FriendRequest,
+    latest_commit: CommitEnvelope,
+    persistence: SocialWritePersistence,
+    friendship: Option<Friendship>,
+    friendship_materialized_commit: Option<CommitEnvelope>,
+    direct_chat: Option<DirectChat>,
+    direct_chat_materialized_commit: Option<CommitEnvelope>,
+}
+
+#[derive(Clone, Debug)]
+struct DeclinedFriendRequest {
+    friend_request: FriendRequest,
+    latest_commit: CommitEnvelope,
+    persistence: SocialWritePersistence,
+}
+
+#[derive(Clone, Debug)]
+struct CanceledFriendRequest {
+    friend_request: FriendRequest,
+    latest_commit: CommitEnvelope,
+    persistence: SocialWritePersistence,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct StoredFriendship {
     friendship: Friendship,
@@ -899,6 +1008,13 @@ struct StoredFriendship {
 
 #[derive(Clone, Debug)]
 struct ActivatedFriendship {
+    friendship: Friendship,
+    latest_commit: CommitEnvelope,
+    persistence: SocialWritePersistence,
+}
+
+#[derive(Clone, Debug)]
+struct RemovedFriendship {
     friendship: Friendship,
     latest_commit: CommitEnvelope,
     persistence: SocialWritePersistence,
@@ -2023,7 +2139,11 @@ impl SocialControlState {
         let event_type = commit.event_type.clone();
         match event_type.as_str() {
             "friend_request.submitted" => self.apply_friend_request_commit(commit),
+            "friend_request.accepted" => self.apply_friend_request_accepted_commit(commit),
+            "friend_request.declined" => self.apply_friend_request_declined_commit(commit),
+            "friend_request.canceled" => self.apply_friend_request_canceled_commit(commit),
             "friendship.activated" => self.apply_friendship_commit(commit),
+            "friendship.removed" => self.apply_friendship_removed_commit(commit),
             "user_block.blocked" => self.apply_user_block_commit(commit),
             "direct_chat.bound" => self.apply_direct_chat_commit(commit),
             "external_connection.established" => self.apply_external_connection_commit(commit),
@@ -2083,6 +2203,144 @@ impl SocialControlState {
         Ok(())
     }
 
+    fn apply_friend_request_accepted_commit(
+        &mut self,
+        commit: CommitEnvelope,
+    ) -> Result<(), String> {
+        let payload: FriendRequestAcceptedPayload = serde_json::from_str(commit.payload.as_str())
+            .map_err(|error| {
+            format!(
+                "failed to parse friend request accept replay payload for {}: {error}",
+                commit.event_id
+            )
+        })?;
+        validate_social_commit_target(
+            &commit,
+            AggregateType::FriendRequest,
+            payload.request_id.as_str(),
+        )?;
+        let record = self
+            .friend_requests
+            .get_mut(payload.request_id.as_str())
+            .ok_or_else(|| {
+                format!(
+                    "friend request accept replay payload for {} references missing request {}",
+                    commit.event_id, payload.request_id
+                )
+            })?;
+        if !matches!(record.friend_request.status, FriendRequestStatus::Pending) {
+            return Err(format!(
+                "friend request accept replay payload for {} cannot transition request {} from {:?}",
+                commit.event_id, payload.request_id, record.friend_request.status
+            ));
+        }
+        if payload.accepted_by_user_id != record.friend_request.target_user_id {
+            return Err(format!(
+                "friend request accept replay payload for {} must be accepted by target user {}",
+                commit.event_id, record.friend_request.target_user_id
+            ));
+        }
+
+        record.friend_request.status = FriendRequestStatus::Accepted;
+        record.friend_request.updated_at = payload.accepted_at;
+        record.commits.push(commit);
+        Ok(())
+    }
+
+    fn apply_friend_request_declined_commit(
+        &mut self,
+        commit: CommitEnvelope,
+    ) -> Result<(), String> {
+        let payload: FriendRequestDeclinedPayload = serde_json::from_str(commit.payload.as_str())
+            .map_err(|error| {
+            format!(
+                "failed to parse friend request decline replay payload for {}: {error}",
+                commit.event_id
+            )
+        })?;
+        validate_social_commit_target(
+            &commit,
+            AggregateType::FriendRequest,
+            payload.request_id.as_str(),
+        )?;
+        let record = self
+            .friend_requests
+            .get_mut(payload.request_id.as_str())
+            .ok_or_else(|| {
+                format!(
+                    "friend request decline replay payload for {} references missing request {}",
+                    commit.event_id, payload.request_id
+                )
+            })?;
+        if !matches!(
+            record.friend_request.status,
+            FriendRequestStatus::Pending | FriendRequestStatus::Declined
+        ) {
+            return Err(format!(
+                "friend request decline replay payload for {} cannot transition request {} from {:?}",
+                commit.event_id, payload.request_id, record.friend_request.status
+            ));
+        }
+        if payload.declined_by_user_id != record.friend_request.target_user_id {
+            return Err(format!(
+                "friend request decline replay payload for {} must be declined by target user {}",
+                commit.event_id, record.friend_request.target_user_id
+            ));
+        }
+
+        record.friend_request.status = FriendRequestStatus::Declined;
+        record.friend_request.updated_at = payload.declined_at;
+        record.commits.push(commit);
+        Ok(())
+    }
+
+    fn apply_friend_request_canceled_commit(
+        &mut self,
+        commit: CommitEnvelope,
+    ) -> Result<(), String> {
+        let payload: FriendRequestCanceledPayload = serde_json::from_str(commit.payload.as_str())
+            .map_err(|error| {
+            format!(
+                "failed to parse friend request cancel replay payload for {}: {error}",
+                commit.event_id
+            )
+        })?;
+        validate_social_commit_target(
+            &commit,
+            AggregateType::FriendRequest,
+            payload.request_id.as_str(),
+        )?;
+        let record = self
+            .friend_requests
+            .get_mut(payload.request_id.as_str())
+            .ok_or_else(|| {
+                format!(
+                    "friend request cancel replay payload for {} references missing request {}",
+                    commit.event_id, payload.request_id
+                )
+            })?;
+        if !matches!(
+            record.friend_request.status,
+            FriendRequestStatus::Pending | FriendRequestStatus::Canceled
+        ) {
+            return Err(format!(
+                "friend request cancel replay payload for {} cannot transition request {} from {:?}",
+                commit.event_id, payload.request_id, record.friend_request.status
+            ));
+        }
+        if payload.canceled_by_user_id != record.friend_request.requester_user_id {
+            return Err(format!(
+                "friend request cancel replay payload for {} must be canceled by requester user {}",
+                commit.event_id, record.friend_request.requester_user_id
+            ));
+        }
+
+        record.friend_request.status = FriendRequestStatus::Canceled;
+        record.friend_request.updated_at = payload.canceled_at;
+        record.commits.push(commit);
+        Ok(())
+    }
+
     fn apply_friendship_commit(&mut self, commit: CommitEnvelope) -> Result<(), String> {
         let payload: FriendshipActivatedPayload = serde_json::from_str(commit.payload.as_str())
             .map_err(|error| {
@@ -2123,6 +2381,84 @@ impl SocialControlState {
             });
         record.friendship = friendship;
         record.commits.push(commit);
+        Ok(())
+    }
+
+    fn apply_friendship_removed_commit(&mut self, commit: CommitEnvelope) -> Result<(), String> {
+        let payload: FriendshipRemovedPayload = serde_json::from_str(commit.payload.as_str())
+            .map_err(|error| {
+                format!(
+                    "failed to parse friendship removal replay payload for {}: {error}",
+                    commit.event_id
+                )
+            })?;
+        validate_social_commit_target(
+            &commit,
+            AggregateType::Friendship,
+            payload.friendship_id.as_str(),
+        )?;
+        let pair = normalize_user_pair(payload.user_low_id.as_str(), payload.user_high_id.as_str())
+            .map_err(|error| {
+                format!(
+                    "failed to validate friendship removal replay payload for {}: {error}",
+                    commit.event_id
+                )
+            })?;
+        if payload.removed_by_user_id != pair.user_low_id
+            && payload.removed_by_user_id != pair.user_high_id
+        {
+            return Err(format!(
+                "friendship removal replay payload for {} has foreign remover {}",
+                commit.event_id, payload.removed_by_user_id
+            ));
+        }
+
+        let friendship = Friendship {
+            tenant_id: commit.tenant_id.clone(),
+            friendship_id: payload.friendship_id.clone(),
+            user_low_id: pair.user_low_id.clone(),
+            user_high_id: pair.user_high_id.clone(),
+            initiator_user_id: payload.removed_by_user_id,
+            status: FriendshipStatus::Removed,
+            established_at: None,
+            updated_at: payload.removed_at,
+        };
+        let archived_at;
+        let tenant_id = commit.tenant_id.clone();
+        {
+            let record = self
+                .friendships
+                .entry(friendship.friendship_id.clone())
+                .or_insert_with(|| StoredFriendship {
+                    friendship: friendship.clone(),
+                    commits: Vec::new(),
+                });
+            if record.friendship.user_low_id != pair.user_low_id
+                || record.friendship.user_high_id != pair.user_high_id
+            {
+                return Err(format!(
+                    "friendship removal replay payload for {} does not match stored pair",
+                    commit.event_id
+                ));
+            }
+            record.friendship.status = FriendshipStatus::Removed;
+            record.friendship.updated_at = friendship.updated_at.clone();
+            if record.friendship.established_at.is_none() {
+                record.friendship.established_at = friendship.established_at.clone();
+            }
+            if record.friendship.initiator_user_id.trim().is_empty() {
+                record.friendship.initiator_user_id = friendship.initiator_user_id.clone();
+            }
+            archived_at = record.friendship.updated_at.clone();
+            record.commits.push(commit);
+        }
+        archive_active_direct_chats_for_pair(
+            self,
+            tenant_id.as_str(),
+            pair.user_low_id.as_str(),
+            pair.user_high_id.as_str(),
+            archived_at.as_str(),
+        );
         Ok(())
     }
 
@@ -2488,6 +2824,60 @@ struct SubmitFriendRequestRequest {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+struct AcceptFriendRequestRequest {
+    event_id: String,
+    accepted_by_user_id: String,
+    accepted_at: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DeclineFriendRequestRequest {
+    event_id: String,
+    declined_by_user_id: String,
+    declined_at: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CancelFriendRequestRequest {
+    event_id: String,
+    canceled_by_user_id: String,
+    canceled_at: String,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum FriendRequestInventoryDirectionQuery {
+    Incoming,
+    Outgoing,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum FriendRequestInventoryStatusQuery {
+    #[default]
+    Pending,
+    Accepted,
+    Declined,
+    Canceled,
+    Expired,
+    All,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FriendRequestInventoryQuery {
+    user_id: String,
+    direction: FriendRequestInventoryDirectionQuery,
+    #[serde(default)]
+    status: FriendRequestInventoryStatusQuery,
+    limit: Option<usize>,
+    cursor: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct ActivateFriendshipRequest {
     friendship_id: String,
     event_id: String,
@@ -2495,6 +2885,14 @@ struct ActivateFriendshipRequest {
     peer_user_id: String,
     direct_chat_id: Option<String>,
     established_at: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RemoveFriendshipRequest {
+    event_id: String,
+    removed_by_user_id: String,
+    removed_at: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -2752,11 +3150,15 @@ struct ProviderPolicyDiffResponse {
 #[serde(rename_all = "snake_case")]
 enum SocialFriendRequestWriteStatus {
     Submitted,
+    Accepted,
+    Declined,
+    Canceled,
 }
 
 #[derive(Clone, Copy, Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 enum SocialFriendRequestReadStatus {
+    Inventory,
     Snapshot,
 }
 
@@ -2764,6 +3166,7 @@ enum SocialFriendRequestReadStatus {
 #[serde(rename_all = "snake_case")]
 enum SocialFriendshipWriteStatus {
     Activated,
+    Removed,
 }
 
 #[derive(Clone, Copy, Debug, Serialize)]
@@ -2803,6 +3206,14 @@ struct SocialFriendRequestCommitResponse {
     friend_request: FriendRequest,
     latest_commit: CommitEnvelopeResponse,
     persistence: SocialWritePersistence,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    friendship: Option<Friendship>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    friendship_latest_commit: Option<CommitEnvelopeResponse>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    direct_chat: Option<DirectChat>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    direct_chat_latest_commit: Option<CommitEnvelopeResponse>,
 }
 
 #[derive(Debug, Serialize)]
@@ -2811,6 +3222,30 @@ struct SocialFriendRequestSnapshotResponse {
     status: SocialFriendRequestReadStatus,
     friend_request: FriendRequest,
     commits: Vec<CommitEnvelopeResponse>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SocialFriendRequestInventoryResponse {
+    status: SocialFriendRequestReadStatus,
+    items: Vec<FriendRequest>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    next_cursor: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FriendRequestInventoryCursor {
+    v: u64,
+    updated_at: String,
+    created_at: String,
+    request_id: String,
+}
+
+#[derive(Debug)]
+struct FriendRequestInventoryPage {
+    items: Vec<FriendRequest>,
+    next_cursor: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -3686,6 +4121,7 @@ impl SocialControlRuntime {
             state: RwLock::new(state),
             journal_path: None,
             tx_marker_path: None,
+            write_lock_path: None,
             snapshot_failpoint_path: snapshot_failpoint_path.map(Arc::new),
             shared_channel_sync_stale_reclaim_scheduler_started: AtomicBool::new(false),
         }
@@ -3702,6 +4138,7 @@ impl SocialControlRuntime {
         let state_dir = runtime_dir.as_ref().join("state");
         let journal_path = state_dir.join(SOCIAL_COMMIT_JOURNAL_FILE_NAME);
         let tx_marker_path = state_dir.join(SOCIAL_TRANSACTION_MARKER_FILE_NAME);
+        let write_lock_path = state_dir.join(SOCIAL_WRITE_LOCK_FILE_NAME);
         let state_store = SocialStateStore::file(state_dir.join(SOCIAL_STATE_FILE_NAME));
         let commit_journal = Arc::new(FileCommitJournal::new(
             SOCIAL_COMMIT_PARTITION,
@@ -3718,6 +4155,7 @@ impl SocialControlRuntime {
             state: RwLock::new(state),
             journal_path: Some(Arc::new(journal_path)),
             tx_marker_path: Some(Arc::new(tx_marker_path)),
+            write_lock_path: Some(Arc::new(write_lock_path)),
             snapshot_failpoint_path: Some(Arc::new(state_dir.join("social-failpoints.json"))),
             shared_channel_sync_stale_reclaim_scheduler_started: AtomicBool::new(false),
         }
@@ -3957,6 +4395,48 @@ impl SocialControlRuntime {
         Ok(self.current_persistence())
     }
 
+    fn persist_state_transition_batch(
+        &self,
+        next: &SocialControlState,
+        commits: &[CommitEnvelope],
+    ) -> Result<SocialWritePersistence, ControlPlaneError> {
+        let Some(marker_event_id) = commits.first().map(|commit| commit.event_id.as_str()) else {
+            return Ok(self.current_persistence());
+        };
+        self.commit_journal
+            .append_batch(commits.to_vec())
+            .map_err(|error| {
+                ControlPlaneError::service_unavailable(
+                    "social_commit_journal_unavailable",
+                    format!(
+                        "failed to append social commit journal batch before state write: {}",
+                        contract_error_message(error)
+                    ),
+                )
+            })?;
+        self.write_pending_tx_marker(marker_event_id).map_err(|error| {
+            ControlPlaneError::service_unavailable(
+                "social_state_unavailable",
+                format!("failed to write social transaction marker: {error}"),
+            )
+        })?;
+        if self.consume_fail_next_snapshot_save().map_err(|error| {
+            ControlPlaneError::service_unavailable(
+                "social_state_unavailable",
+                format!("failed to consume social snapshot failpoint: {error}"),
+            )
+        })? {
+            return Ok(self.repair_required_persistence());
+        }
+        if self.state_store.save(next).is_err() {
+            return Ok(self.repair_required_persistence());
+        }
+        if self.clear_pending_tx_marker().is_err() {
+            return Ok(self.repair_required_persistence());
+        }
+        Ok(self.current_persistence())
+    }
+
     fn repair_derived_snapshot_best_effort(
         &self,
         state: &SocialControlState,
@@ -4015,6 +4495,130 @@ impl SocialControlRuntime {
             transaction_marker_cleared,
             aggregate_counts: repaired_state.aggregate_counts(),
         })
+    }
+
+    fn acquire_cross_instance_write_lock(
+        &self,
+    ) -> Result<Option<SocialWriteLockGuard>, ControlPlaneError> {
+        let Some(path) = self.write_lock_path.as_deref() else {
+            return Ok(None);
+        };
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(|error| {
+                ControlPlaneError::service_unavailable(
+                    "social_state_unavailable",
+                    format!(
+                        "failed to create control-plane social lock directory {}: {error}",
+                        parent.display()
+                    ),
+                )
+            })?;
+        }
+        let file = fs::OpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            .truncate(false)
+            .open(path)
+            .map_err(|error| {
+                ControlPlaneError::service_unavailable(
+                    "social_state_unavailable",
+                    format!(
+                        "failed to open control-plane social write lock {}: {error}",
+                        path.display()
+                    ),
+                )
+            })?;
+        file.lock_exclusive().map_err(|error| {
+            ControlPlaneError::service_unavailable(
+                "social_state_unavailable",
+                format!(
+                    "failed to acquire control-plane social write lock {}: {error}",
+                    path.display()
+                ),
+            )
+        })?;
+        Ok(Some(SocialWriteLockGuard { file }))
+    }
+
+    fn acquire_cross_instance_read_lock(
+        &self,
+    ) -> Result<Option<SocialWriteLockGuard>, ControlPlaneError> {
+        let Some(path) = self.write_lock_path.as_deref() else {
+            return Ok(None);
+        };
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(|error| {
+                ControlPlaneError::service_unavailable(
+                    "social_state_unavailable",
+                    format!(
+                        "failed to create control-plane social lock directory {}: {error}",
+                        parent.display()
+                    ),
+                )
+            })?;
+        }
+        let file = fs::OpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            .truncate(false)
+            .open(path)
+            .map_err(|error| {
+                ControlPlaneError::service_unavailable(
+                    "social_state_unavailable",
+                    format!(
+                        "failed to open control-plane social read lock {}: {error}",
+                        path.display()
+                    ),
+                )
+            })?;
+        file.lock_shared().map_err(|error| {
+            ControlPlaneError::service_unavailable(
+                "social_state_unavailable",
+                format!(
+                    "failed to acquire control-plane social read lock {}: {error}",
+                    path.display()
+                ),
+            )
+        })?;
+        Ok(Some(SocialWriteLockGuard { file }))
+    }
+
+    fn refresh_state_from_authority_for_write(&self) -> Result<(), ControlPlaneError> {
+        let Some(journal_path) = self.journal_path.as_deref() else {
+            return Ok(());
+        };
+
+        let snapshot_state = Self::load_social_state_or_default(
+            &self.state_store,
+            "failed to load control-plane social snapshot during cross-instance write refresh",
+        );
+        let mut authoritative_state = if journal_path.exists() {
+            match Self::replay_state_from_commit_journal(journal_path) {
+                Ok(replayed) => replayed,
+                Err(error) => {
+                    eprintln!(
+                        "failed to replay control-plane social commit journal {} during cross-instance refresh: {error}. falling back to snapshot/default state",
+                        journal_path.display()
+                    );
+                    snapshot_state.clone()
+                }
+            }
+        } else {
+            snapshot_state.clone()
+        };
+        authoritative_state.merge_pending_shared_channel_sync_requests_from(&snapshot_state);
+        authoritative_state.merge_dead_letter_shared_channel_sync_requests_from(&snapshot_state);
+        authoritative_state.merge_delivered_shared_channel_sync_requests_from(&snapshot_state);
+        authoritative_state
+            .merge_delivered_shared_channel_sync_delivery_proofs_from(&snapshot_state);
+        authoritative_state.merge_recent_shared_channel_sync_deliveries_from(&snapshot_state);
+        *self
+            .state
+            .write()
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock) = authoritative_state;
+        Ok(())
     }
 
     fn persist_failed_shared_channel_sync_requests(
@@ -5592,6 +6196,8 @@ impl SocialControlRuntime {
             updated_at: request.established_at,
         };
 
+        let _write_lock = self.acquire_cross_instance_write_lock()?;
+        self.refresh_state_from_authority_for_write()?;
         let mut state = self
             .state
             .write()
@@ -5754,6 +6360,8 @@ impl SocialControlRuntime {
             "invalid_external_member_link",
         )?;
 
+        let _write_lock = self.acquire_cross_instance_write_lock()?;
+        self.refresh_state_from_authority_for_write()?;
         let connection = self
             .external_connection_snapshot(tenant_id, request.connection_id.as_str())
             .ok_or_else(|| {
@@ -5992,6 +6600,8 @@ impl SocialControlRuntime {
             ));
         }
 
+        let _write_lock = self.acquire_cross_instance_write_lock()?;
+        self.refresh_state_from_authority_for_write()?;
         let connection = self
             .external_connection_snapshot(tenant_id, request.connection_id.as_str())
             .ok_or_else(|| {
@@ -6225,6 +6835,8 @@ impl SocialControlRuntime {
             updated_at: request.requested_at,
         };
 
+        let _write_lock = self.acquire_cross_instance_write_lock()?;
+        self.refresh_state_from_authority_for_write()?;
         let mut state = self
             .state
             .write()
@@ -6258,6 +6870,78 @@ impl SocialControlRuntime {
                 ),
             ));
         }
+        let requested_pair = friend_request
+            .user_pair()
+            .expect("validated friend request should expose normalized user pair");
+        if let Some(user_block) = active_friendship_scoped_user_block(
+            &next_state,
+            tenant_id,
+            friend_request.requester_user_id.as_str(),
+            friend_request.target_user_id.as_str(),
+        ) {
+            return Err(ControlPlaneError::conflict_with_details(
+                "friend_request_blocked",
+                format!(
+                    "friend request pair {} is blocked by {}",
+                    requested_pair.pair_key(),
+                    user_block.block_id
+                ),
+                social_pair_block_conflict_details(&user_block),
+            ));
+        }
+        if let Some(existing_friendship) = next_state.friendships.values().find(|record| {
+            record.friendship.tenant_id == tenant_id
+                && record.friendship.status.is_active()
+                && record
+                    .friendship
+                    .pair()
+                    .ok()
+                    .is_some_and(|pair| pair == requested_pair)
+        }) {
+            return Err(ControlPlaneError::conflict_with_details(
+                "friendship_pair_conflict",
+                format!(
+                    "active friendship already exists for pair {}",
+                    requested_pair.pair_key()
+                ),
+                serde_json::json!({
+                    "existingFriendshipId": existing_friendship.friendship.friendship_id,
+                    "existingStatus": existing_friendship.friendship.status,
+                    "userLowId": existing_friendship.friendship.user_low_id,
+                    "userHighId": existing_friendship.friendship.user_high_id
+                }),
+            ));
+        }
+        let pair_has_materialized_friendship = next_state.friendships.values().any(|record| {
+            record.friendship.tenant_id == tenant_id
+                && record.friendship.user_low_id == requested_pair.user_low_id
+                && record.friendship.user_high_id == requested_pair.user_high_id
+        });
+        if let Some(existing) = next_state.friend_requests.values().find(|record| {
+            record.friend_request.tenant_id == tenant_id
+                && (record.friend_request.status == FriendRequestStatus::Pending
+                    || (record.friend_request.status == FriendRequestStatus::Accepted
+                        && !pair_has_materialized_friendship))
+                && record
+                    .friend_request
+                    .user_pair()
+                    .ok()
+                    .is_some_and(|pair| pair == requested_pair)
+        }) {
+            return Err(ControlPlaneError::conflict_with_details(
+                "friend_request_pair_conflict",
+                format!(
+                    "open friend request already exists for pair {}",
+                    requested_pair.pair_key()
+                ),
+                serde_json::json!({
+                    "existingRequestId": existing.friend_request.request_id,
+                    "existingStatus": existing.friend_request.status,
+                    "existingRequesterUserId": existing.friend_request.requester_user_id,
+                    "existingTargetUserId": existing.friend_request.target_user_id
+                }),
+            ));
+        }
 
         next_state.friend_requests.insert(
             friend_request.request_id.clone(),
@@ -6288,6 +6972,662 @@ impl SocialControlRuntime {
             .get(request_id)
             .filter(|record| record.friend_request.tenant_id == tenant_id)
             .cloned()
+    }
+
+    fn list_friend_requests(
+        &self,
+        tenant_id: &str,
+        user_id: &str,
+        direction: FriendRequestInventoryDirectionQuery,
+        status: FriendRequestInventoryStatusQuery,
+        limit: usize,
+        cursor: Option<&FriendRequestInventoryCursor>,
+    ) -> FriendRequestInventoryPage {
+        let mut items = self
+            .state
+            .read()
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
+            .friend_requests
+            .values()
+            .filter(|record| record.friend_request.tenant_id == tenant_id)
+            .filter(|record| {
+                friend_request_matches_inventory_direction(
+                    &record.friend_request,
+                    user_id,
+                    direction,
+                )
+            })
+            .filter(|record| {
+                friend_request_matches_inventory_status(&record.friend_request, status)
+            })
+            .map(|record| record.friend_request.clone())
+            .collect::<Vec<_>>();
+        items.sort_by(compare_friend_request_inventory_order);
+        if let Some(cursor) = cursor {
+            items.retain(|item| compare_friend_request_inventory_with_cursor(item, cursor).is_gt());
+        }
+        let next_cursor = if items.len() > limit {
+            items
+                .get(limit - 1)
+                .map(friend_request_inventory_cursor_for)
+        } else {
+            None
+        };
+        items.truncate(limit);
+        FriendRequestInventoryPage { items, next_cursor }
+    }
+
+    fn accept_friend_request(
+        &self,
+        tenant_id: &str,
+        auth: &AuthContext,
+        request_id: &str,
+        request: AcceptFriendRequestRequest,
+    ) -> Result<AcceptedFriendRequest, ControlPlaneError> {
+        validate_payload_size("requestId", request_id, CONTROL_PLANE_MAX_ID_BYTES)?;
+        validate_payload_size(
+            "eventId",
+            request.event_id.as_str(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "acceptedByUserId",
+            request.accepted_by_user_id.as_str(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "acceptedAt",
+            request.accepted_at.as_str(),
+            CONTROL_PLANE_MAX_TIMESTAMP_BYTES,
+        )?;
+        validate_required_with_code("requestId", request_id, "invalid_friend_request")?;
+        validate_required_with_code(
+            "eventId",
+            request.event_id.as_str(),
+            "invalid_friend_request",
+        )?;
+        validate_required_with_code(
+            "acceptedByUserId",
+            request.accepted_by_user_id.as_str(),
+            "invalid_friend_request",
+        )?;
+        validate_required_with_code(
+            "acceptedAt",
+            request.accepted_at.as_str(),
+            "invalid_friend_request",
+        )?;
+
+        let _write_lock = self.acquire_cross_instance_write_lock()?;
+        self.refresh_state_from_authority_for_write()?;
+        let mut state = self
+            .state
+            .write()
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock);
+        let stored = state
+            .friend_requests
+            .get(request_id)
+            .filter(|record| record.friend_request.tenant_id == tenant_id)
+            .cloned()
+            .ok_or_else(|| {
+                ControlPlaneError::not_found(
+                    "friend_request_not_found",
+                    format!("friend request {request_id} was not found"),
+                )
+            })?;
+        let existing_committed_event = state.committed_event(tenant_id, request.event_id.as_str());
+        let existing_ordering_seq = existing_committed_event
+            .as_ref()
+            .map(|existing| existing.commit().ordering_seq);
+        if stored.friend_request.target_user_id != request.accepted_by_user_id {
+            return Err(ControlPlaneError::invalid(
+                "invalid_friend_request",
+                format!("acceptedByUserId must match target user for {request_id}"),
+            ));
+        }
+        if !matches!(stored.friend_request.status, FriendRequestStatus::Pending)
+            && existing_ordering_seq.is_none()
+        {
+            return Err(ControlPlaneError::conflict(
+                "friend_request_not_pending",
+                format!("friend request {request_id} is not pending"),
+            ));
+        }
+
+        let user_pair = stored
+            .friend_request
+            .user_pair()
+            .expect("validated friend request should expose normalized user pair");
+        let actor_pair = normalize_actor_pair(
+            stored.friend_request.requester_user_id.as_str(),
+            stored.friend_request.target_user_id.as_str(),
+        )
+        .expect("validated friend request participants should normalize into direct chat pair");
+        let accepted_at = request.accepted_at.clone();
+        let friendship_id = deterministic_social_id("fs_", request_id);
+        let friendship_event_id = deterministic_social_id("evt_fs_activate_", request_id);
+        let direct_chat_id = deterministic_social_id("dc_", request_id);
+        let direct_chat_event_id = deterministic_social_id("evt_dc_bind_", request_id);
+        let conversation_id = deterministic_social_id("c_direct_", request_id);
+        let payload = FriendRequestAcceptedPayload {
+            request_id: request_id.into(),
+            accepted_by_user_id: request.accepted_by_user_id.clone(),
+            accepted_at: accepted_at.clone(),
+        };
+        let payload_json = serde_json::to_string(&payload)
+            .expect("friend request accept payload should serialize into json");
+        let accept_commit = social_commit_envelope(SocialCommitEnvelopeInput {
+            event_id: request.event_id.as_str(),
+            tenant_id,
+            aggregate_type: AggregateType::FriendRequest,
+            aggregate_id: request_id,
+            event_type: SocialEventType::FriendRequestAccepted,
+            ordering_seq: existing_ordering_seq.unwrap_or(stored.commits.len() as u64 + 1),
+            actor: EventActor {
+                actor_id: auth.actor_id.clone(),
+                actor_kind: auth.actor_kind.clone(),
+                actor_session_id: auth.session_id.clone(),
+            },
+            occurred_at: accepted_at.as_str(),
+            committed_at: accepted_at.as_str(),
+            payload: payload_json.as_str(),
+        });
+        let accept_commit_already_committed = if let Some(existing) = existing_committed_event {
+            if existing.commit() != &accept_commit {
+                return Err(social_event_id_conflict(request.event_id.as_str(), &existing));
+            }
+            true
+        } else {
+            false
+        };
+        if let Some(user_block) = active_friendship_scoped_user_block(
+            &state,
+            tenant_id,
+            stored.friend_request.requester_user_id.as_str(),
+            stored.friend_request.target_user_id.as_str(),
+        ) {
+            let pair = stored
+                .friend_request
+                .user_pair()
+                .expect("validated friend request should expose normalized user pair");
+            return Err(ControlPlaneError::conflict_with_details(
+                "friend_request_blocked",
+                format!(
+                    "friend request pair {} is blocked by {}",
+                    pair.pair_key(),
+                    user_block.block_id
+                ),
+                social_pair_block_conflict_details(&user_block),
+            ));
+        }
+
+        let mut next_state = state.clone();
+        let mut commits_to_persist = Vec::new();
+        let friend_request = if accept_commit_already_committed {
+            next_state
+                .friend_requests
+                .get(request_id)
+                .expect("friend request should exist after replay validation")
+                .friend_request
+                .clone()
+        } else {
+            let record = next_state
+                .friend_requests
+                .get_mut(request_id)
+                .expect("friend request should exist after validation");
+            record.friend_request.status = FriendRequestStatus::Accepted;
+            record.friend_request.updated_at = accepted_at.clone();
+            record.commits.push(accept_commit.clone());
+            commits_to_persist.push(accept_commit.clone());
+            record.friend_request.clone()
+        };
+
+        let existing_friendship =
+            active_friendship_record_for_pair(&next_state, tenant_id, &user_pair.user_low_id, &user_pair.user_high_id);
+        let existing_direct_chat =
+            active_direct_chat_record_for_pair(&next_state, tenant_id, actor_pair.pair_hash.as_str());
+
+        let planned_direct_chat_id = existing_direct_chat
+            .as_ref()
+            .map(|record| record.direct_chat.direct_chat_id.clone())
+            .unwrap_or_else(|| direct_chat_id.clone());
+
+        let (friendship, friendship_materialized_commit) = if let Some(record) = existing_friendship {
+            (Some(record.friendship), None)
+        } else {
+            let friendship_payload = FriendshipActivatedPayload {
+                friendship_id: friendship_id.clone(),
+                user_low_id: user_pair.user_low_id.clone(),
+                user_high_id: user_pair.user_high_id.clone(),
+                initiator_user_id: stored.friend_request.requester_user_id.clone(),
+                direct_chat_id: Some(planned_direct_chat_id.clone()),
+                established_at: accepted_at.clone(),
+            };
+            let friendship_payload_json = serde_json::to_string(&friendship_payload)
+                .expect("friendship payload should serialize into json");
+            let friendship_commit = social_commit_envelope(SocialCommitEnvelopeInput {
+                event_id: friendship_event_id.as_str(),
+                tenant_id,
+                aggregate_type: AggregateType::Friendship,
+                aggregate_id: friendship_id.as_str(),
+                event_type: SocialEventType::FriendshipActivated,
+                ordering_seq: 1,
+                actor: EventActor {
+                    actor_id: auth.actor_id.clone(),
+                    actor_kind: auth.actor_kind.clone(),
+                    actor_session_id: auth.session_id.clone(),
+                },
+                occurred_at: accepted_at.as_str(),
+                committed_at: accepted_at.as_str(),
+                payload: friendship_payload_json.as_str(),
+            });
+            if let Some(existing) =
+                next_state.committed_event(tenant_id, friendship_event_id.as_str())
+            {
+                if existing.commit() != &friendship_commit {
+                    return Err(social_event_id_conflict(friendship_event_id.as_str(), &existing));
+                }
+                match existing {
+                    SocialCommittedEvent::Friendship { record, .. }
+                        if record.friendship.status.is_active() =>
+                    {
+                        (Some(record.friendship), None)
+                    }
+                    SocialCommittedEvent::Friendship { .. } => (None, None),
+                    other => {
+                        return Err(social_event_id_conflict(friendship_event_id.as_str(), &other));
+                    }
+                }
+            } else {
+                if next_state.friendships.contains_key(friendship_id.as_str()) {
+                    return Err(ControlPlaneError::conflict(
+                        "friendship_conflict",
+                        format!("friendship {friendship_id} already exists"),
+                    ));
+                }
+                let friendship = Friendship {
+                    tenant_id: tenant_id.into(),
+                    friendship_id: friendship_id.clone(),
+                    user_low_id: user_pair.user_low_id.clone(),
+                    user_high_id: user_pair.user_high_id.clone(),
+                    initiator_user_id: stored.friend_request.requester_user_id.clone(),
+                    status: FriendshipStatus::Active,
+                    established_at: Some(accepted_at.clone()),
+                    updated_at: accepted_at.clone(),
+                };
+                next_state.friendships.insert(
+                    friendship.friendship_id.clone(),
+                    StoredFriendship {
+                        friendship: friendship.clone(),
+                        commits: vec![friendship_commit.clone()],
+                    },
+                );
+                commits_to_persist.push(friendship_commit.clone());
+                (Some(friendship), Some(friendship_commit))
+            }
+        };
+
+        let (direct_chat, direct_chat_materialized_commit) = if let Some(record) = existing_direct_chat {
+            (Some(record.direct_chat), None)
+        } else {
+            let direct_chat_payload = DirectChatBoundPayload {
+                direct_chat_id: direct_chat_id.clone(),
+                conversation_id: conversation_id.clone(),
+                left_actor_id: actor_pair.left_actor_id.clone(),
+                right_actor_id: actor_pair.right_actor_id.clone(),
+                pair_hash: actor_pair.pair_hash.clone(),
+                bound_at: accepted_at.clone(),
+            };
+            let direct_chat_payload_json = serde_json::to_string(&direct_chat_payload)
+                .expect("direct chat payload should serialize into json");
+            let direct_chat_commit = social_commit_envelope(SocialCommitEnvelopeInput {
+                event_id: direct_chat_event_id.as_str(),
+                tenant_id,
+                aggregate_type: AggregateType::DirectChat,
+                aggregate_id: direct_chat_id.as_str(),
+                event_type: SocialEventType::DirectChatBound,
+                ordering_seq: 1,
+                actor: EventActor {
+                    actor_id: auth.actor_id.clone(),
+                    actor_kind: auth.actor_kind.clone(),
+                    actor_session_id: auth.session_id.clone(),
+                },
+                occurred_at: accepted_at.as_str(),
+                committed_at: accepted_at.as_str(),
+                payload: direct_chat_payload_json.as_str(),
+            });
+            if let Some(existing) =
+                next_state.committed_event(tenant_id, direct_chat_event_id.as_str())
+            {
+                if existing.commit() != &direct_chat_commit {
+                    return Err(social_event_id_conflict(direct_chat_event_id.as_str(), &existing));
+                }
+                match existing {
+                    SocialCommittedEvent::DirectChat { record, .. }
+                        if record.direct_chat.status.is_active() =>
+                    {
+                        (Some(record.direct_chat), None)
+                    }
+                    SocialCommittedEvent::DirectChat { .. } => (None, None),
+                    other => {
+                        return Err(social_event_id_conflict(direct_chat_event_id.as_str(), &other));
+                    }
+                }
+            } else {
+                if next_state.direct_chats.contains_key(direct_chat_id.as_str()) {
+                    return Err(ControlPlaneError::conflict(
+                        "direct_chat_conflict",
+                        format!("direct chat {direct_chat_id} already exists"),
+                    ));
+                }
+                let direct_chat = DirectChat {
+                    tenant_id: tenant_id.into(),
+                    direct_chat_id: direct_chat_id.clone(),
+                    left_actor_id: actor_pair.left_actor_id.clone(),
+                    right_actor_id: actor_pair.right_actor_id.clone(),
+                    pair_hash: actor_pair.pair_hash.clone(),
+                    status: DirectChatStatus::Active,
+                    conversation_id: Some(conversation_id.clone()),
+                    created_at: accepted_at.clone(),
+                    updated_at: accepted_at.clone(),
+                };
+                next_state.direct_chats.insert(
+                    direct_chat.direct_chat_id.clone(),
+                    StoredDirectChat {
+                        direct_chat: direct_chat.clone(),
+                        commits: vec![direct_chat_commit.clone()],
+                    },
+                );
+                commits_to_persist.push(direct_chat_commit.clone());
+                (Some(direct_chat), Some(direct_chat_commit))
+            }
+        };
+
+        let persistence = if commits_to_persist.is_empty() {
+            self.repair_derived_snapshot_best_effort(&next_state)
+        } else {
+            self.persist_state_transition_batch(&next_state, commits_to_persist.as_slice())?
+        };
+        *state = next_state;
+
+        Ok(AcceptedFriendRequest {
+            friend_request,
+            latest_commit: accept_commit,
+            persistence,
+            friendship,
+            friendship_materialized_commit,
+            direct_chat,
+            direct_chat_materialized_commit,
+        })
+    }
+
+    fn decline_friend_request(
+        &self,
+        tenant_id: &str,
+        auth: &AuthContext,
+        request_id: &str,
+        request: DeclineFriendRequestRequest,
+    ) -> Result<DeclinedFriendRequest, ControlPlaneError> {
+        validate_payload_size("requestId", request_id, CONTROL_PLANE_MAX_ID_BYTES)?;
+        validate_payload_size(
+            "eventId",
+            request.event_id.as_str(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "declinedByUserId",
+            request.declined_by_user_id.as_str(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "declinedAt",
+            request.declined_at.as_str(),
+            CONTROL_PLANE_MAX_TIMESTAMP_BYTES,
+        )?;
+        validate_required_with_code("requestId", request_id, "invalid_friend_request")?;
+        validate_required_with_code(
+            "eventId",
+            request.event_id.as_str(),
+            "invalid_friend_request",
+        )?;
+        validate_required_with_code(
+            "declinedByUserId",
+            request.declined_by_user_id.as_str(),
+            "invalid_friend_request",
+        )?;
+        validate_required_with_code(
+            "declinedAt",
+            request.declined_at.as_str(),
+            "invalid_friend_request",
+        )?;
+
+        let _write_lock = self.acquire_cross_instance_write_lock()?;
+        self.refresh_state_from_authority_for_write()?;
+        let mut state = self
+            .state
+            .write()
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock);
+        let stored = state
+            .friend_requests
+            .get(request_id)
+            .filter(|record| record.friend_request.tenant_id == tenant_id)
+            .cloned()
+            .ok_or_else(|| {
+                ControlPlaneError::not_found(
+                    "friend_request_not_found",
+                    format!("friend request {request_id} was not found"),
+                )
+            })?;
+        let existing_ordering_seq = state
+            .committed_event(tenant_id, request.event_id.as_str())
+            .map(|existing| existing.commit().ordering_seq);
+        if !matches!(stored.friend_request.status, FriendRequestStatus::Pending)
+            && existing_ordering_seq.is_none()
+        {
+            return Err(ControlPlaneError::conflict(
+                "friend_request_not_pending",
+                format!("friend request {request_id} is not pending"),
+            ));
+        }
+        if stored.friend_request.target_user_id != request.declined_by_user_id {
+            return Err(ControlPlaneError::invalid(
+                "invalid_friend_request",
+                format!("declinedByUserId must match target user for {request_id}"),
+            ));
+        }
+
+        let payload = FriendRequestDeclinedPayload {
+            request_id: request_id.into(),
+            declined_by_user_id: request.declined_by_user_id.clone(),
+            declined_at: request.declined_at.clone(),
+        };
+        let payload_json = serde_json::to_string(&payload)
+            .expect("friend request decline payload should serialize into json");
+        let commit = social_commit_envelope(SocialCommitEnvelopeInput {
+            event_id: request.event_id.as_str(),
+            tenant_id,
+            aggregate_type: AggregateType::FriendRequest,
+            aggregate_id: request_id,
+            event_type: SocialEventType::FriendRequestDeclined,
+            ordering_seq: existing_ordering_seq.unwrap_or(stored.commits.len() as u64 + 1),
+            actor: EventActor {
+                actor_id: auth.actor_id.clone(),
+                actor_kind: auth.actor_kind.clone(),
+                actor_session_id: auth.session_id.clone(),
+            },
+            occurred_at: request.declined_at.as_str(),
+            committed_at: request.declined_at.as_str(),
+            payload: payload_json.as_str(),
+        });
+        if let Some(replayed) =
+            self.replay_committed_social_event(&state, &commit, |existing, persistence| {
+                match existing {
+                    SocialCommittedEvent::FriendRequest { record, commit } => {
+                        Ok(DeclinedFriendRequest {
+                            friend_request: record.friend_request,
+                            latest_commit: commit,
+                            persistence,
+                        })
+                    }
+                    other => Err(social_event_id_conflict(request.event_id.as_str(), &other)),
+                }
+            })?
+        {
+            return Ok(replayed);
+        }
+
+        let mut next_state = state.clone();
+        let record = next_state
+            .friend_requests
+            .get_mut(request_id)
+            .expect("friend request should exist after validation");
+        record.friend_request.status = FriendRequestStatus::Declined;
+        record.friend_request.updated_at = request.declined_at;
+        let friend_request = record.friend_request.clone();
+        record.commits.push(commit.clone());
+
+        let persistence = self.persist_state_transition(&next_state, &commit)?;
+        *state = next_state;
+
+        Ok(DeclinedFriendRequest {
+            friend_request,
+            latest_commit: commit,
+            persistence,
+        })
+    }
+
+    fn cancel_friend_request(
+        &self,
+        tenant_id: &str,
+        auth: &AuthContext,
+        request_id: &str,
+        request: CancelFriendRequestRequest,
+    ) -> Result<CanceledFriendRequest, ControlPlaneError> {
+        validate_payload_size("requestId", request_id, CONTROL_PLANE_MAX_ID_BYTES)?;
+        validate_payload_size(
+            "eventId",
+            request.event_id.as_str(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "canceledByUserId",
+            request.canceled_by_user_id.as_str(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "canceledAt",
+            request.canceled_at.as_str(),
+            CONTROL_PLANE_MAX_TIMESTAMP_BYTES,
+        )?;
+        validate_required_with_code("requestId", request_id, "invalid_friend_request")?;
+        validate_required_with_code(
+            "eventId",
+            request.event_id.as_str(),
+            "invalid_friend_request",
+        )?;
+        validate_required_with_code(
+            "canceledByUserId",
+            request.canceled_by_user_id.as_str(),
+            "invalid_friend_request",
+        )?;
+        validate_required_with_code(
+            "canceledAt",
+            request.canceled_at.as_str(),
+            "invalid_friend_request",
+        )?;
+
+        let _write_lock = self.acquire_cross_instance_write_lock()?;
+        self.refresh_state_from_authority_for_write()?;
+        let mut state = self
+            .state
+            .write()
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock);
+        let stored = state
+            .friend_requests
+            .get(request_id)
+            .filter(|record| record.friend_request.tenant_id == tenant_id)
+            .cloned()
+            .ok_or_else(|| {
+                ControlPlaneError::not_found(
+                    "friend_request_not_found",
+                    format!("friend request {request_id} was not found"),
+                )
+            })?;
+        let existing_ordering_seq = state
+            .committed_event(tenant_id, request.event_id.as_str())
+            .map(|existing| existing.commit().ordering_seq);
+        if !matches!(stored.friend_request.status, FriendRequestStatus::Pending)
+            && existing_ordering_seq.is_none()
+        {
+            return Err(ControlPlaneError::conflict(
+                "friend_request_not_pending",
+                format!("friend request {request_id} is not pending"),
+            ));
+        }
+        if stored.friend_request.requester_user_id != request.canceled_by_user_id {
+            return Err(ControlPlaneError::invalid(
+                "invalid_friend_request",
+                format!("canceledByUserId must match requester user for {request_id}"),
+            ));
+        }
+
+        let payload = FriendRequestCanceledPayload {
+            request_id: request_id.into(),
+            canceled_by_user_id: request.canceled_by_user_id.clone(),
+            canceled_at: request.canceled_at.clone(),
+        };
+        let payload_json = serde_json::to_string(&payload)
+            .expect("friend request cancel payload should serialize into json");
+        let commit = social_commit_envelope(SocialCommitEnvelopeInput {
+            event_id: request.event_id.as_str(),
+            tenant_id,
+            aggregate_type: AggregateType::FriendRequest,
+            aggregate_id: request_id,
+            event_type: SocialEventType::FriendRequestCanceled,
+            ordering_seq: existing_ordering_seq.unwrap_or(stored.commits.len() as u64 + 1),
+            actor: EventActor {
+                actor_id: auth.actor_id.clone(),
+                actor_kind: auth.actor_kind.clone(),
+                actor_session_id: auth.session_id.clone(),
+            },
+            occurred_at: request.canceled_at.as_str(),
+            committed_at: request.canceled_at.as_str(),
+            payload: payload_json.as_str(),
+        });
+        if let Some(replayed) =
+            self.replay_committed_social_event(&state, &commit, |existing, persistence| {
+                match existing {
+                    SocialCommittedEvent::FriendRequest { record, commit } => {
+                        Ok(CanceledFriendRequest {
+                            friend_request: record.friend_request,
+                            latest_commit: commit,
+                            persistence,
+                        })
+                    }
+                    other => Err(social_event_id_conflict(request.event_id.as_str(), &other)),
+                }
+            })?
+        {
+            return Ok(replayed);
+        }
+
+        let mut next_state = state.clone();
+        let record = next_state
+            .friend_requests
+            .get_mut(request_id)
+            .expect("friend request should exist after validation");
+        record.friend_request.status = FriendRequestStatus::Canceled;
+        record.friend_request.updated_at = request.canceled_at;
+        let friend_request = record.friend_request.clone();
+        record.commits.push(commit.clone());
+
+        let persistence = self.persist_state_transition(&next_state, &commit)?;
+        *state = next_state;
+
+        Ok(CanceledFriendRequest {
+            friend_request,
+            latest_commit: commit,
+            persistence,
+        })
     }
 
     fn activate_friendship(
@@ -6390,6 +7730,8 @@ impl SocialControlRuntime {
             updated_at: request.established_at,
         };
 
+        let _write_lock = self.acquire_cross_instance_write_lock()?;
+        self.refresh_state_from_authority_for_write()?;
         let mut state = self
             .state
             .write()
@@ -6420,18 +7762,39 @@ impl SocialControlRuntime {
                 format!("friendship {} already exists", friendship.friendship_id),
             ));
         }
-        if next_state.friendships.values().any(|record| {
+        if let Some(user_block) = active_friendship_scoped_user_block(
+            &next_state,
+            tenant_id,
+            friendship.user_low_id.as_str(),
+            friendship.user_high_id.as_str(),
+        ) {
+            return Err(ControlPlaneError::conflict_with_details(
+                "friendship_blocked",
+                format!(
+                    "friendship pair {}:{} is blocked by {}",
+                    pair.user_low_id, pair.user_high_id, user_block.block_id
+                ),
+                social_pair_block_conflict_details(&user_block),
+            ));
+        }
+        if let Some(existing_friendship) = next_state.friendships.values().find(|record| {
             record.friendship.tenant_id == tenant_id
                 && record.friendship.status.is_active()
                 && record.friendship.user_low_id == pair.user_low_id
                 && record.friendship.user_high_id == pair.user_high_id
         }) {
-            return Err(ControlPlaneError::conflict(
+            return Err(ControlPlaneError::conflict_with_details(
                 "friendship_pair_conflict",
                 format!(
                     "active friendship already exists for pair {}:{}",
                     pair.user_low_id, pair.user_high_id
                 ),
+                serde_json::json!({
+                    "existingFriendshipId": existing_friendship.friendship.friendship_id,
+                    "existingStatus": existing_friendship.friendship.status,
+                    "userLowId": existing_friendship.friendship.user_low_id,
+                    "userHighId": existing_friendship.friendship.user_high_id
+                }),
             ));
         }
 
@@ -6464,6 +7827,146 @@ impl SocialControlRuntime {
             .get(friendship_id)
             .filter(|record| record.friendship.tenant_id == tenant_id)
             .cloned()
+    }
+
+    fn remove_friendship(
+        &self,
+        tenant_id: &str,
+        auth: &AuthContext,
+        friendship_id: &str,
+        request: RemoveFriendshipRequest,
+    ) -> Result<RemovedFriendship, ControlPlaneError> {
+        validate_payload_size("friendshipId", friendship_id, CONTROL_PLANE_MAX_ID_BYTES)?;
+        validate_payload_size(
+            "eventId",
+            request.event_id.as_str(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "removedByUserId",
+            request.removed_by_user_id.as_str(),
+            CONTROL_PLANE_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "removedAt",
+            request.removed_at.as_str(),
+            CONTROL_PLANE_MAX_TIMESTAMP_BYTES,
+        )?;
+        validate_required_with_code("friendshipId", friendship_id, "invalid_friendship")?;
+        validate_required_with_code("eventId", request.event_id.as_str(), "invalid_friendship")?;
+        validate_required_with_code(
+            "removedByUserId",
+            request.removed_by_user_id.as_str(),
+            "invalid_friendship",
+        )?;
+        validate_required_with_code(
+            "removedAt",
+            request.removed_at.as_str(),
+            "invalid_friendship",
+        )?;
+
+        let _write_lock = self.acquire_cross_instance_write_lock()?;
+        self.refresh_state_from_authority_for_write()?;
+        let mut state = self
+            .state
+            .write()
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock);
+        let stored = state
+            .friendships
+            .get(friendship_id)
+            .filter(|record| record.friendship.tenant_id == tenant_id)
+            .cloned()
+            .ok_or_else(|| {
+                ControlPlaneError::not_found(
+                    "friendship_not_found",
+                    format!("friendship {friendship_id} was not found"),
+                )
+            })?;
+        let existing_ordering_seq = state
+            .committed_event(tenant_id, request.event_id.as_str())
+            .map(|existing| existing.commit().ordering_seq);
+        if !stored.friendship.status.is_active() && existing_ordering_seq.is_none() {
+            return Err(ControlPlaneError::conflict(
+                "friendship_not_active",
+                format!("friendship {friendship_id} is not active"),
+            ));
+        }
+        if request.removed_by_user_id != stored.friendship.user_low_id
+            && request.removed_by_user_id != stored.friendship.user_high_id
+        {
+            return Err(ControlPlaneError::invalid(
+                "invalid_friendship",
+                format!("removedByUserId must be a friendship participant for {friendship_id}"),
+            ));
+        }
+
+        let payload = FriendshipRemovedPayload {
+            friendship_id: stored.friendship.friendship_id.clone(),
+            user_low_id: stored.friendship.user_low_id.clone(),
+            user_high_id: stored.friendship.user_high_id.clone(),
+            removed_by_user_id: request.removed_by_user_id.clone(),
+            removed_at: request.removed_at.clone(),
+        };
+        let payload_json = serde_json::to_string(&payload)
+            .expect("friendship removal payload should serialize into json");
+        let commit = social_commit_envelope(SocialCommitEnvelopeInput {
+            event_id: request.event_id.as_str(),
+            tenant_id,
+            aggregate_type: AggregateType::Friendship,
+            aggregate_id: friendship_id,
+            event_type: SocialEventType::FriendshipRemoved,
+            ordering_seq: existing_ordering_seq.unwrap_or(stored.commits.len() as u64 + 1),
+            actor: EventActor {
+                actor_id: auth.actor_id.clone(),
+                actor_kind: auth.actor_kind.clone(),
+                actor_session_id: auth.session_id.clone(),
+            },
+            occurred_at: request.removed_at.as_str(),
+            committed_at: request.removed_at.as_str(),
+            payload: payload_json.as_str(),
+        });
+        if let Some(replayed) =
+            self.replay_committed_social_event(&state, &commit, |existing, persistence| {
+                match existing {
+                    SocialCommittedEvent::Friendship { record, commit } => Ok(RemovedFriendship {
+                        friendship: record.friendship,
+                        latest_commit: commit,
+                        persistence,
+                    }),
+                    other => Err(social_event_id_conflict(request.event_id.as_str(), &other)),
+                }
+            })?
+        {
+            return Ok(replayed);
+        }
+
+        let mut next_state = state.clone();
+        let friendship = {
+            let record = next_state
+                .friendships
+                .get_mut(friendship_id)
+                .expect("friendship should exist after validation");
+            record.friendship.status = FriendshipStatus::Removed;
+            record.friendship.updated_at = request.removed_at;
+            record.commits.push(commit.clone());
+            record.friendship.clone()
+        };
+        archive_active_direct_chats_for_pair(
+            &mut next_state,
+            tenant_id,
+            friendship.user_low_id.as_str(),
+            friendship.user_high_id.as_str(),
+            friendship.updated_at.as_str(),
+        );
+
+        let persistence = self.persist_state_transition(&next_state, &commit)?;
+        *state = next_state;
+
+        Ok(RemovedFriendship {
+            friendship,
+            latest_commit: commit,
+            persistence,
+        })
     }
 
     fn block_user(
@@ -6582,6 +8085,8 @@ impl SocialControlRuntime {
             updated_at: request.effective_at,
         };
 
+        let _write_lock = self.acquire_cross_instance_write_lock()?;
+        self.refresh_state_from_authority_for_write()?;
         let mut state = self
             .state
             .write()
@@ -6651,6 +8156,31 @@ impl SocialControlRuntime {
             .get(block_id)
             .filter(|record| record.user_block.tenant_id == tenant_id)
             .cloned()
+    }
+
+    fn active_direct_chat_access_block(
+        &self,
+        tenant_id: &str,
+        direct_chat_id: &str,
+    ) -> Option<UserBlock> {
+        let state = self
+            .state
+            .read()
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock);
+        active_direct_chat_scoped_user_block(&state, tenant_id, direct_chat_id)
+    }
+
+    fn active_friendship_access_block_for_pair(
+        &self,
+        tenant_id: &str,
+        user_a: &str,
+        user_b: &str,
+    ) -> Option<UserBlock> {
+        let state = self
+            .state
+            .read()
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock);
+        active_friendship_scoped_user_block(&state, tenant_id, user_a, user_b)
     }
 
     fn bind_direct_chat(
@@ -6755,6 +8285,8 @@ impl SocialControlRuntime {
             updated_at: request.bound_at,
         };
 
+        let _write_lock = self.acquire_cross_instance_write_lock()?;
+        self.refresh_state_from_authority_for_write()?;
         let mut state = self
             .state
             .write()
@@ -6783,17 +8315,24 @@ impl SocialControlRuntime {
                 format!("direct chat {} already exists", direct_chat.direct_chat_id),
             ));
         }
-        if next_state.direct_chats.values().any(|record| {
+        if let Some(existing_direct_chat) = next_state.direct_chats.values().find(|record| {
             record.direct_chat.tenant_id == tenant_id
                 && record.direct_chat.status.is_active()
                 && record.direct_chat.pair_hash == pair.pair_hash
         }) {
-            return Err(ControlPlaneError::conflict(
+            return Err(ControlPlaneError::conflict_with_details(
                 "direct_chat_pair_conflict",
                 format!(
                     "active direct chat already exists for pair {}",
                     pair.pair_hash
                 ),
+                serde_json::json!({
+                    "existingDirectChatId": existing_direct_chat.direct_chat.direct_chat_id,
+                    "existingStatus": existing_direct_chat.direct_chat.status,
+                    "leftActorId": existing_direct_chat.direct_chat.left_actor_id,
+                    "rightActorId": existing_direct_chat.direct_chat.right_actor_id,
+                    "conversationId": existing_direct_chat.direct_chat.conversation_id
+                }),
             ));
         }
 
@@ -6826,6 +8365,75 @@ impl SocialControlRuntime {
             .get(direct_chat_id)
             .filter(|record| record.direct_chat.tenant_id == tenant_id)
             .cloned()
+    }
+
+    fn authoritative_state_for_query(&self) -> Result<SocialControlState, String> {
+        match self.journal_path.as_deref() {
+            Some(journal_path) => Ok(Self::load_state_with_journal_replay(
+                &self.state_store,
+                journal_path,
+                self.tx_marker_path.as_deref().map(|path| path.as_path()),
+            )),
+            None => self.state_store.load(),
+        }
+    }
+
+    fn authoritative_active_friendships_for_user(
+        &self,
+        tenant_id: &str,
+        user_id: &str,
+    ) -> Result<Vec<Friendship>, String> {
+        let state = self.authoritative_state_for_query()?;
+        let mut friendships = state
+            .friendships
+            .values()
+            .filter_map(|record| {
+                let friendship = &record.friendship;
+                if friendship.tenant_id != tenant_id || !friendship.status.is_active() {
+                    return None;
+                }
+                if friendship.user_low_id != user_id && friendship.user_high_id != user_id {
+                    return None;
+                }
+                Some(friendship.clone())
+            })
+            .collect::<Vec<_>>();
+        friendships.sort_by(|left, right| {
+            right
+                .updated_at
+                .cmp(&left.updated_at)
+                .then_with(|| left.friendship_id.cmp(&right.friendship_id))
+        });
+        Ok(friendships)
+    }
+
+    fn authoritative_active_direct_chat_for_pair(
+        &self,
+        tenant_id: &str,
+        user_low_id: &str,
+        user_high_id: &str,
+    ) -> Result<Option<DirectChat>, String> {
+        let state = self.authoritative_state_for_query()?;
+        let pair_hash = format!("{user_low_id}:{user_high_id}");
+        let direct_chat = state
+            .direct_chats
+            .values()
+            .filter_map(|record| {
+                let direct_chat = &record.direct_chat;
+                if direct_chat.tenant_id != tenant_id
+                    || !direct_chat.status.is_active()
+                    || direct_chat.pair_hash != pair_hash
+                {
+                    return None;
+                }
+                Some(direct_chat.clone())
+            })
+            .max_by(|left, right| {
+                left.updated_at
+                    .cmp(&right.updated_at)
+                    .then_with(|| left.direct_chat_id.cmp(&right.direct_chat_id))
+            });
+        Ok(direct_chat)
     }
 }
 
@@ -7085,6 +8693,30 @@ pub fn build_control_surface_with_cluster_and_governance_sinks_and_shared_channe
     })
 }
 
+pub fn build_control_surface_with_cluster_and_governance_sinks_and_shared_channel_sync_trigger_with_social_query(
+    realtime_cluster: Arc<RealtimeClusterBridge>,
+    ops_runtime: Arc<OpsRuntime>,
+    audit_runtime: Arc<AuditRuntime>,
+    shared_channel_sync_trigger: Arc<dyn SharedChannelLinkedMemberSyncTrigger>,
+) -> (Router, Arc<SocialControlQuery>) {
+    let provider_registry = Arc::new(RuntimeProviderRegistry::platform_default());
+    let social_runtime = build_social_runtime_from_env();
+    let social_query = social_query_handle(social_runtime.clone());
+    let router = build_control_surface_with_state(AppState {
+        realtime_cluster,
+        protocol_registry: Arc::new(CcpRegistry::control_plane_v1()),
+        provider_registry: provider_registry.clone(),
+        provider_registry_runtime: Some(provider_registry),
+        governance_loop: Some(GovernanceLoop {
+            ops_runtime,
+            audit_runtime,
+        }),
+        social_runtime,
+        shared_channel_sync_trigger: Some(shared_channel_sync_trigger),
+    });
+    (router, social_query)
+}
+
 pub fn build_app_with_cluster_and_governance_sinks_and_runtime_dir(
     realtime_cluster: Arc<RealtimeClusterBridge>,
     ops_runtime: Arc<OpsRuntime>,
@@ -7151,6 +8783,31 @@ pub fn build_control_surface_with_cluster_and_governance_sinks_and_runtime_dir_a
         social_runtime: Arc::new(SocialControlRuntime::from_runtime_dir(runtime_dir)),
         shared_channel_sync_trigger: Some(shared_channel_sync_trigger),
     })
+}
+
+pub fn build_control_surface_with_cluster_and_governance_sinks_and_runtime_dir_and_shared_channel_sync_trigger_with_social_query(
+    realtime_cluster: Arc<RealtimeClusterBridge>,
+    ops_runtime: Arc<OpsRuntime>,
+    audit_runtime: Arc<AuditRuntime>,
+    runtime_dir: impl AsRef<StdPath>,
+    shared_channel_sync_trigger: Arc<dyn SharedChannelLinkedMemberSyncTrigger>,
+) -> (Router, Arc<SocialControlQuery>) {
+    let provider_registry = Arc::new(RuntimeProviderRegistry::platform_default());
+    let social_runtime = Arc::new(SocialControlRuntime::from_runtime_dir(runtime_dir));
+    let social_query = social_query_handle(social_runtime.clone());
+    let router = build_control_surface_with_state(AppState {
+        realtime_cluster,
+        protocol_registry: Arc::new(CcpRegistry::control_plane_v1()),
+        provider_registry: provider_registry.clone(),
+        provider_registry_runtime: Some(provider_registry),
+        governance_loop: Some(GovernanceLoop {
+            ops_runtime,
+            audit_runtime,
+        }),
+        social_runtime,
+        shared_channel_sync_trigger: Some(shared_channel_sync_trigger),
+    });
+    (router, social_query)
 }
 
 pub fn build_app_with_cluster_provider_registry_and_governance_sinks(
@@ -7258,11 +8915,23 @@ fn build_control_surface_with_state_and_scheduler_config(
         )
         .route(
             "/api/v1/control/social/friend-requests",
-            post(submit_friend_request),
+            get(list_friend_requests).post(submit_friend_request),
         )
         .route(
             "/api/v1/control/social/friend-requests/{request_id}",
             get(friend_request_snapshot),
+        )
+        .route(
+            "/api/v1/control/social/friend-requests/{request_id}/accept",
+            post(accept_friend_request),
+        )
+        .route(
+            "/api/v1/control/social/friend-requests/{request_id}/decline",
+            post(decline_friend_request),
+        )
+        .route(
+            "/api/v1/control/social/friend-requests/{request_id}/cancel",
+            post(cancel_friend_request),
         )
         .route(
             "/api/v1/control/social/friendships",
@@ -7271,6 +8940,10 @@ fn build_control_surface_with_state_and_scheduler_config(
         .route(
             "/api/v1/control/social/friendships/{friendship_id}",
             get(friendship_snapshot),
+        )
+        .route(
+            "/api/v1/control/social/friendships/{friendship_id}/remove",
+            post(remove_friendship),
         )
         .route("/api/v1/control/social/user-blocks", post(block_user))
         .route(
@@ -7634,6 +9307,454 @@ async fn rollback_provider_policy(
     )))
 }
 
+fn friend_request_matches_inventory_direction(
+    friend_request: &FriendRequest,
+    user_id: &str,
+    direction: FriendRequestInventoryDirectionQuery,
+) -> bool {
+    match direction {
+        FriendRequestInventoryDirectionQuery::Incoming => friend_request.target_user_id == user_id,
+        FriendRequestInventoryDirectionQuery::Outgoing => {
+            friend_request.requester_user_id == user_id
+        }
+    }
+}
+
+fn friend_request_matches_inventory_status(
+    friend_request: &FriendRequest,
+    status: FriendRequestInventoryStatusQuery,
+) -> bool {
+    match status {
+        FriendRequestInventoryStatusQuery::Pending => {
+            friend_request.status == FriendRequestStatus::Pending
+        }
+        FriendRequestInventoryStatusQuery::Accepted => {
+            friend_request.status == FriendRequestStatus::Accepted
+        }
+        FriendRequestInventoryStatusQuery::Declined => {
+            friend_request.status == FriendRequestStatus::Declined
+        }
+        FriendRequestInventoryStatusQuery::Canceled => {
+            friend_request.status == FriendRequestStatus::Canceled
+        }
+        FriendRequestInventoryStatusQuery::Expired => {
+            friend_request.status == FriendRequestStatus::Expired
+        }
+        FriendRequestInventoryStatusQuery::All => true,
+    }
+}
+
+fn compare_friend_request_inventory_order(
+    left: &FriendRequest,
+    right: &FriendRequest,
+) -> CmpOrdering {
+    compare_friend_request_inventory_sort_key(
+        left.updated_at.as_str(),
+        left.created_at.as_str(),
+        left.request_id.as_str(),
+        right.updated_at.as_str(),
+        right.created_at.as_str(),
+        right.request_id.as_str(),
+    )
+}
+
+fn compare_friend_request_inventory_with_cursor(
+    friend_request: &FriendRequest,
+    cursor: &FriendRequestInventoryCursor,
+) -> CmpOrdering {
+    compare_friend_request_inventory_sort_key(
+        friend_request.updated_at.as_str(),
+        friend_request.created_at.as_str(),
+        friend_request.request_id.as_str(),
+        cursor.updated_at.as_str(),
+        cursor.created_at.as_str(),
+        cursor.request_id.as_str(),
+    )
+}
+
+fn compare_friend_request_inventory_sort_key(
+    left_updated_at: &str,
+    left_created_at: &str,
+    left_request_id: &str,
+    right_updated_at: &str,
+    right_created_at: &str,
+    right_request_id: &str,
+) -> CmpOrdering {
+    right_updated_at
+        .cmp(left_updated_at)
+        .then_with(|| right_created_at.cmp(left_created_at))
+        .then_with(|| left_request_id.cmp(right_request_id))
+}
+
+fn friend_request_inventory_cursor_for(friend_request: &FriendRequest) -> String {
+    let cursor = FriendRequestInventoryCursor {
+        v: SOCIAL_FRIEND_REQUEST_CURSOR_VERSION,
+        updated_at: friend_request.updated_at.clone(),
+        created_at: friend_request.created_at.clone(),
+        request_id: friend_request.request_id.clone(),
+    };
+    let payload = serde_json::to_value(&cursor)
+        .expect("friend request inventory cursor should serialize into json");
+    let secret = resolve_friend_request_cursor_signing_secret();
+    encode_hs256_bearer_token(&payload, secret.as_str())
+        .expect("friend request inventory cursor should encode into signed compact token")
+}
+
+fn parse_friend_request_inventory_cursor(
+    cursor: &str,
+) -> Result<FriendRequestInventoryCursor, ControlPlaneError> {
+    let payload = decode_signed_friend_request_cursor_payload(cursor)?;
+    let cursor: FriendRequestInventoryCursor = serde_json::from_value(payload).map_err(|_| {
+        ControlPlaneError::invalid(
+            "cursor_invalid",
+            "friend request cursor payload is not valid",
+        )
+    })?;
+    if cursor.v != SOCIAL_FRIEND_REQUEST_CURSOR_VERSION {
+        return Err(ControlPlaneError::invalid(
+            "cursor_invalid",
+            format!(
+                "friend request cursor version {} is not supported",
+                cursor.v
+            ),
+        ));
+    }
+    Ok(cursor)
+}
+
+fn decode_signed_friend_request_cursor_payload(
+    cursor: &str,
+) -> Result<serde_json::Value, ControlPlaneError> {
+    let segments = cursor.split('.').collect::<Vec<_>>();
+    if segments.len() != 3 {
+        return Err(ControlPlaneError::invalid(
+            "cursor_invalid",
+            "friend request cursor must be a signed compact token",
+        ));
+    }
+    let header_bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(segments[0])
+        .map_err(|_| {
+            ControlPlaneError::invalid(
+                "cursor_invalid",
+                "friend request cursor header must be valid base64url",
+            )
+        })?;
+    let header: serde_json::Value = serde_json::from_slice(&header_bytes).map_err(|_| {
+        ControlPlaneError::invalid(
+            "cursor_invalid",
+            "friend request cursor header must be valid json",
+        )
+    })?;
+    let algorithm = header
+        .get("alg")
+        .and_then(serde_json::Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| {
+            ControlPlaneError::invalid(
+                "cursor_invalid",
+                "friend request cursor algorithm must be HS256",
+            )
+        })?;
+    if algorithm != "HS256" {
+        return Err(ControlPlaneError::invalid(
+            "cursor_invalid",
+            "friend request cursor algorithm must be HS256",
+        ));
+    }
+
+    let signature = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(segments[2])
+        .map_err(|_| {
+            ControlPlaneError::invalid(
+                "cursor_invalid",
+                "friend request cursor signature must be valid base64url",
+            )
+        })?;
+    let secret = resolve_friend_request_cursor_signing_secret();
+    let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).map_err(|_| {
+        ControlPlaneError::service_unavailable(
+            "cursor_signing_secret_invalid",
+            "friend request cursor signing secret is invalid",
+        )
+    })?;
+    mac.update(format!("{}.{}", segments[0], segments[1]).as_bytes());
+    mac.verify_slice(signature.as_slice()).map_err(|_| {
+        ControlPlaneError::invalid(
+            "cursor_invalid",
+            "friend request cursor signature is invalid",
+        )
+    })?;
+
+    let payload = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(segments[1])
+        .map_err(|_| {
+            ControlPlaneError::invalid(
+                "cursor_invalid",
+                "friend request cursor payload must be valid base64url",
+            )
+        })?;
+    serde_json::from_slice(&payload).map_err(|_| {
+        ControlPlaneError::invalid(
+            "cursor_invalid",
+            "friend request cursor payload is not valid json",
+        )
+    })
+}
+
+fn resolve_friend_request_cursor_signing_secret() -> String {
+    if let Some(configured) = resolve_non_empty_env_secret(FRIEND_REQUEST_CURSOR_HS256_SECRET_ENV) {
+        return configured;
+    }
+    if let Some(configured) = resolve_non_empty_env_secret(PUBLIC_BEARER_HS256_SECRET_ENV) {
+        return configured;
+    }
+
+    static EPHEMERAL_SECRET: OnceLock<String> = OnceLock::new();
+    EPHEMERAL_SECRET
+        .get_or_init(|| {
+            let mut bytes = [0u8; 32];
+            if fill_random(&mut bytes).is_ok() {
+                eprintln!(
+                    "warning: {} is unset; using ephemeral in-memory friend request cursor signing secret",
+                    FRIEND_REQUEST_CURSOR_HS256_SECRET_ENV
+                );
+                return base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes);
+            }
+            let fallback = format!(
+                "ephemeral-friend-request-cursor-secret-{}",
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_nanos()
+            );
+            eprintln!(
+                "warning: failed to generate random friend request cursor signing secret; using process-local time-derived fallback"
+            );
+            fallback
+        })
+        .clone()
+}
+
+fn resolve_non_empty_env_secret(name: &str) -> Option<String> {
+    std::env::var(name)
+        .ok()
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
+}
+
+fn active_friendship_scoped_user_block(
+    state: &SocialControlState,
+    tenant_id: &str,
+    user_a: &str,
+    user_b: &str,
+) -> Option<UserBlock> {
+    let pair = normalize_user_pair(user_a, user_b).ok()?;
+    state.user_blocks.values().find_map(|record| {
+        if record.user_block.tenant_id != tenant_id
+            || !record.user_block.status.is_active()
+            || !matches!(
+                record.user_block.scope.clone(),
+                BlockScope::All | BlockScope::Friendship
+            )
+        {
+            return None;
+        }
+        record
+            .user_block
+            .user_pair()
+            .ok()
+            .filter(|block_pair| *block_pair == pair)
+            .map(|_| record.user_block.clone())
+    })
+}
+
+fn active_direct_chat_scoped_user_block(
+    state: &SocialControlState,
+    tenant_id: &str,
+    direct_chat_id: &str,
+) -> Option<UserBlock> {
+    let direct_chat = state
+        .direct_chats
+        .get(direct_chat_id)
+        .filter(|record| record.direct_chat.tenant_id == tenant_id)
+        .map(|record| &record.direct_chat)?;
+    let pair = normalize_user_pair(
+        direct_chat.left_actor_id.as_str(),
+        direct_chat.right_actor_id.as_str(),
+    )
+    .ok()?;
+
+    state.user_blocks.values().find_map(|record| {
+        if record.user_block.tenant_id != tenant_id || !record.user_block.status.is_active() {
+            return None;
+        }
+        match record.user_block.scope {
+            BlockScope::All => {}
+            BlockScope::DirectChat
+                if record.user_block.direct_chat_id.as_deref() == Some(direct_chat_id) => {}
+            _ => return None,
+        }
+
+        record
+            .user_block
+            .user_pair()
+            .ok()
+            .filter(|candidate| candidate == &pair)
+            .map(|_| record.user_block.clone())
+    })
+}
+
+fn social_pair_block_conflict_details(user_block: &UserBlock) -> serde_json::Value {
+    serde_json::json!({
+        "blockId": user_block.block_id.clone(),
+        "blockerUserId": user_block.blocker_user_id.clone(),
+        "blockedUserId": user_block.blocked_user_id.clone(),
+        "scope": user_block.scope.clone(),
+        "directChatId": user_block.direct_chat_id.clone(),
+    })
+}
+
+fn deterministic_social_id(prefix: &str, seed: &str) -> String {
+    let digest = Sha256::digest(seed.as_bytes());
+    let digest = format!("{digest:x}");
+    format!("{prefix}{}", &digest[..24])
+}
+
+fn active_friendship_record_for_pair(
+    state: &SocialControlState,
+    tenant_id: &str,
+    user_low_id: &str,
+    user_high_id: &str,
+) -> Option<StoredFriendship> {
+    state
+        .friendships
+        .values()
+        .filter_map(|record| {
+            let friendship = &record.friendship;
+            if friendship.tenant_id != tenant_id
+                || !friendship.status.is_active()
+                || friendship.user_low_id != user_low_id
+                || friendship.user_high_id != user_high_id
+            {
+                return None;
+            }
+            Some(record.clone())
+        })
+        .max_by(|left, right| {
+            left.friendship
+                .updated_at
+                .cmp(&right.friendship.updated_at)
+                .then_with(|| left.friendship.friendship_id.cmp(&right.friendship.friendship_id))
+        })
+}
+
+fn active_direct_chat_record_for_pair(
+    state: &SocialControlState,
+    tenant_id: &str,
+    pair_hash: &str,
+) -> Option<StoredDirectChat> {
+    state
+        .direct_chats
+        .values()
+        .filter_map(|record| {
+            let direct_chat = &record.direct_chat;
+            if direct_chat.tenant_id != tenant_id
+                || !direct_chat.status.is_active()
+                || direct_chat.pair_hash != pair_hash
+            {
+                return None;
+            }
+            Some(record.clone())
+        })
+        .max_by(|left, right| {
+            left.direct_chat
+                .updated_at
+                .cmp(&right.direct_chat.updated_at)
+                .then_with(|| {
+                    left.direct_chat
+                        .direct_chat_id
+                        .cmp(&right.direct_chat.direct_chat_id)
+                })
+        })
+}
+
+fn archive_active_direct_chats_for_pair(
+    state: &mut SocialControlState,
+    tenant_id: &str,
+    user_low_id: &str,
+    user_high_id: &str,
+    archived_at: &str,
+) {
+    let pair_hash = normalize_actor_pair(user_low_id, user_high_id)
+        .expect("validated friendship pair should normalize into direct chat pair")
+        .pair_hash;
+    for record in state.direct_chats.values_mut() {
+        if record.direct_chat.tenant_id != tenant_id
+            || record.direct_chat.pair_hash != pair_hash
+            || !record.direct_chat.status.is_active()
+        {
+            continue;
+        }
+        record.direct_chat.status = DirectChatStatus::Archived;
+        record.direct_chat.updated_at = archived_at.to_owned();
+    }
+}
+
+async fn list_friend_requests(
+    Query(query): Query<FriendRequestInventoryQuery>,
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> Result<Json<SocialFriendRequestInventoryResponse>, ControlPlaneError> {
+    let auth = resolve_auth_context(&headers)?;
+    ensure_control_read_access(&auth)?;
+    validate_payload_size("userId", query.user_id.as_str(), CONTROL_PLANE_MAX_ID_BYTES)?;
+    validate_required_with_code(
+        "userId",
+        query.user_id.as_str(),
+        "invalid_friend_request_query",
+    )?;
+    let limit = query
+        .limit
+        .unwrap_or(SOCIAL_FRIEND_REQUEST_LIST_DEFAULT_LIMIT);
+    if limit == 0 || limit > SOCIAL_FRIEND_REQUEST_LIST_MAX_LIMIT {
+        return Err(ControlPlaneError::invalid(
+            "limit_invalid",
+            format!("limit must be between 1 and {SOCIAL_FRIEND_REQUEST_LIST_MAX_LIMIT}"),
+        ));
+    }
+    let cursor = if let Some(cursor) = query.cursor.as_deref() {
+        validate_payload_size(
+            "cursor",
+            cursor,
+            SOCIAL_FRIEND_REQUEST_LIST_MAX_CURSOR_BYTES,
+        )?;
+        Some(parse_friend_request_inventory_cursor(cursor)?)
+    } else {
+        None
+    };
+
+    let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
+    state
+        .social_runtime
+        .refresh_state_from_authority_for_write()?;
+    let page = state.social_runtime.list_friend_requests(
+        auth.tenant_id.as_str(),
+        query.user_id.as_str(),
+        query.direction,
+        query.status,
+        limit,
+        cursor.as_ref(),
+    );
+
+    Ok(Json(SocialFriendRequestInventoryResponse {
+        status: SocialFriendRequestReadStatus::Inventory,
+        items: page.items,
+        next_cursor: page.next_cursor,
+    }))
+}
+
 async fn submit_friend_request(
     headers: HeaderMap,
     State(state): State<AppState>,
@@ -7665,6 +9786,170 @@ async fn submit_friend_request(
         friend_request: submitted.friend_request,
         latest_commit: submitted.latest_commit.into(),
         persistence: submitted.persistence,
+        friendship: None,
+        friendship_latest_commit: None,
+        direct_chat: None,
+        direct_chat_latest_commit: None,
+    }))
+}
+
+async fn accept_friend_request(
+    Path(request_id): Path<String>,
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Json(request): Json<AcceptFriendRequestRequest>,
+) -> Result<Json<SocialFriendRequestCommitResponse>, ControlPlaneError> {
+    let auth = resolve_auth_context(&headers)?;
+    ensure_control_write_access(&auth)?;
+
+    let accepted = state.social_runtime.accept_friend_request(
+        auth.tenant_id.as_str(),
+        &auth,
+        request_id.as_str(),
+        request,
+    )?;
+    record_control_plane_audit(
+        &state,
+        &auth,
+        "control.friend_request_accepted",
+        "friend_request",
+        accepted.friend_request.request_id.clone(),
+        serde_json::json!({
+            "requestId": accepted.friend_request.request_id,
+            "requesterUserId": accepted.friend_request.requester_user_id,
+            "targetUserId": accepted.friend_request.target_user_id,
+            "eventId": accepted.latest_commit.event_id
+        }),
+    );
+    if let (Some(friendship), Some(friendship_commit)) = (
+        accepted.friendship.as_ref(),
+        accepted.friendship_materialized_commit.as_ref(),
+    ) {
+        record_control_plane_audit(
+            &state,
+            &auth,
+            "control.friendship_activated",
+            "friendship",
+            friendship.friendship_id.clone(),
+            serde_json::json!({
+                "friendshipId": friendship.friendship_id,
+                "userLowId": friendship.user_low_id,
+                "userHighId": friendship.user_high_id,
+                "eventId": friendship_commit.event_id
+            }),
+        );
+    }
+    if let (Some(direct_chat), Some(direct_chat_commit)) = (
+        accepted.direct_chat.as_ref(),
+        accepted.direct_chat_materialized_commit.as_ref(),
+    ) {
+        record_control_plane_audit(
+            &state,
+            &auth,
+            "control.direct_chat_bound",
+            "direct_chat",
+            direct_chat.direct_chat_id.clone(),
+            serde_json::json!({
+                "directChatId": direct_chat.direct_chat_id,
+                "leftActorId": direct_chat.left_actor_id,
+                "rightActorId": direct_chat.right_actor_id,
+                "conversationId": direct_chat.conversation_id,
+                "eventId": direct_chat_commit.event_id
+            }),
+        );
+    }
+
+    Ok(Json(SocialFriendRequestCommitResponse {
+        status: SocialFriendRequestWriteStatus::Accepted,
+        friend_request: accepted.friend_request,
+        latest_commit: accepted.latest_commit.into(),
+        persistence: accepted.persistence,
+        friendship: accepted.friendship,
+        friendship_latest_commit: accepted.friendship_materialized_commit.map(Into::into),
+        direct_chat: accepted.direct_chat,
+        direct_chat_latest_commit: accepted.direct_chat_materialized_commit.map(Into::into),
+    }))
+}
+
+async fn decline_friend_request(
+    Path(request_id): Path<String>,
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Json(request): Json<DeclineFriendRequestRequest>,
+) -> Result<Json<SocialFriendRequestCommitResponse>, ControlPlaneError> {
+    let auth = resolve_auth_context(&headers)?;
+    ensure_control_write_access(&auth)?;
+
+    let declined = state.social_runtime.decline_friend_request(
+        auth.tenant_id.as_str(),
+        &auth,
+        request_id.as_str(),
+        request,
+    )?;
+    record_control_plane_audit(
+        &state,
+        &auth,
+        "control.friend_request_declined",
+        "friend_request",
+        declined.friend_request.request_id.clone(),
+        serde_json::json!({
+            "requestId": declined.friend_request.request_id,
+            "requesterUserId": declined.friend_request.requester_user_id,
+            "targetUserId": declined.friend_request.target_user_id,
+            "eventId": declined.latest_commit.event_id
+        }),
+    );
+
+    Ok(Json(SocialFriendRequestCommitResponse {
+        status: SocialFriendRequestWriteStatus::Declined,
+        friend_request: declined.friend_request,
+        latest_commit: declined.latest_commit.into(),
+        persistence: declined.persistence,
+        friendship: None,
+        friendship_latest_commit: None,
+        direct_chat: None,
+        direct_chat_latest_commit: None,
+    }))
+}
+
+async fn cancel_friend_request(
+    Path(request_id): Path<String>,
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Json(request): Json<CancelFriendRequestRequest>,
+) -> Result<Json<SocialFriendRequestCommitResponse>, ControlPlaneError> {
+    let auth = resolve_auth_context(&headers)?;
+    ensure_control_write_access(&auth)?;
+
+    let canceled = state.social_runtime.cancel_friend_request(
+        auth.tenant_id.as_str(),
+        &auth,
+        request_id.as_str(),
+        request,
+    )?;
+    record_control_plane_audit(
+        &state,
+        &auth,
+        "control.friend_request_canceled",
+        "friend_request",
+        canceled.friend_request.request_id.clone(),
+        serde_json::json!({
+            "requestId": canceled.friend_request.request_id,
+            "requesterUserId": canceled.friend_request.requester_user_id,
+            "targetUserId": canceled.friend_request.target_user_id,
+            "eventId": canceled.latest_commit.event_id
+        }),
+    );
+
+    Ok(Json(SocialFriendRequestCommitResponse {
+        status: SocialFriendRequestWriteStatus::Canceled,
+        friend_request: canceled.friend_request,
+        latest_commit: canceled.latest_commit.into(),
+        persistence: canceled.persistence,
+        friendship: None,
+        friendship_latest_commit: None,
+        direct_chat: None,
+        direct_chat_latest_commit: None,
     }))
 }
 
@@ -7676,6 +9961,10 @@ async fn friend_request_snapshot(
     let auth = resolve_auth_context(&headers)?;
     ensure_control_read_access(&auth)?;
 
+    let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
+    state
+        .social_runtime
+        .refresh_state_from_authority_for_write()?;
     let snapshot = state
         .social_runtime
         .friend_request_snapshot(auth.tenant_id.as_str(), request_id.as_str())
@@ -7728,6 +10017,44 @@ async fn activate_friendship(
     }))
 }
 
+async fn remove_friendship(
+    Path(friendship_id): Path<String>,
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Json(request): Json<RemoveFriendshipRequest>,
+) -> Result<Json<SocialFriendshipCommitResponse>, ControlPlaneError> {
+    let auth = resolve_auth_context(&headers)?;
+    ensure_control_write_access(&auth)?;
+
+    let removed = state.social_runtime.remove_friendship(
+        auth.tenant_id.as_str(),
+        &auth,
+        friendship_id.as_str(),
+        request,
+    )?;
+    record_control_plane_audit(
+        &state,
+        &auth,
+        "control.friendship_removed",
+        "friendship",
+        removed.friendship.friendship_id.clone(),
+        serde_json::json!({
+            "friendshipId": removed.friendship.friendship_id,
+            "userLowId": removed.friendship.user_low_id,
+            "userHighId": removed.friendship.user_high_id,
+            "updatedAt": removed.friendship.updated_at,
+            "eventId": removed.latest_commit.event_id
+        }),
+    );
+
+    Ok(Json(SocialFriendshipCommitResponse {
+        status: SocialFriendshipWriteStatus::Removed,
+        friendship: removed.friendship,
+        latest_commit: removed.latest_commit.into(),
+        persistence: removed.persistence,
+    }))
+}
+
 async fn friendship_snapshot(
     Path(friendship_id): Path<String>,
     headers: HeaderMap,
@@ -7736,6 +10063,10 @@ async fn friendship_snapshot(
     let auth = resolve_auth_context(&headers)?;
     ensure_control_read_access(&auth)?;
 
+    let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
+    state
+        .social_runtime
+        .refresh_state_from_authority_for_write()?;
     let snapshot = state
         .social_runtime
         .friendship_snapshot(auth.tenant_id.as_str(), friendship_id.as_str())
@@ -7796,6 +10127,10 @@ async fn user_block_snapshot(
     let auth = resolve_auth_context(&headers)?;
     ensure_control_read_access(&auth)?;
 
+    let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
+    state
+        .social_runtime
+        .refresh_state_from_authority_for_write()?;
     let snapshot = state
         .social_runtime
         .user_block_snapshot(auth.tenant_id.as_str(), block_id.as_str())
@@ -7856,6 +10191,10 @@ async fn direct_chat_snapshot(
     let auth = resolve_auth_context(&headers)?;
     ensure_control_read_access(&auth)?;
 
+    let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
+    state
+        .social_runtime
+        .refresh_state_from_authority_for_write()?;
     let snapshot = state
         .social_runtime
         .direct_chat_snapshot(auth.tenant_id.as_str(), direct_chat_id.as_str())
@@ -7916,6 +10255,10 @@ async fn external_connection_snapshot(
     let auth = resolve_auth_context(&headers)?;
     ensure_control_read_access(&auth)?;
 
+    let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
+    state
+        .social_runtime
+        .refresh_state_from_authority_for_write()?;
     let snapshot = state
         .social_runtime
         .external_connection_snapshot(auth.tenant_id.as_str(), connection_id.as_str())
@@ -7978,6 +10321,10 @@ async fn external_member_link_snapshot(
     let auth = resolve_auth_context(&headers)?;
     ensure_control_read_access(&auth)?;
 
+    let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
+    state
+        .social_runtime
+        .refresh_state_from_authority_for_write()?;
     let snapshot = state
         .social_runtime
         .external_member_link_snapshot(auth.tenant_id.as_str(), link_id.as_str())
@@ -8041,6 +10388,10 @@ async fn shared_channel_policy_snapshot(
     let auth = resolve_auth_context(&headers)?;
     ensure_control_read_access(&auth)?;
 
+    let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
+    state
+        .social_runtime
+        .refresh_state_from_authority_for_write()?;
     let snapshot = state
         .social_runtime
         .shared_channel_policy_snapshot(auth.tenant_id.as_str(), policy_id.as_str())

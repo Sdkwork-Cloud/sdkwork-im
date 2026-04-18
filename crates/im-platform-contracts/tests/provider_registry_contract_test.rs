@@ -5,12 +5,13 @@ use im_platform_contracts::{
     DeviceAccessOwnerBindingRequest, DeviceAccessProvider, DeviceAccessRegistration,
     DeviceAccessRegistrationRequest, EffectiveProviderBinding, IotProtocolAdapter,
     IotProtocolDecodeRequest, IotProtocolEncodeRequest, IotProtocolEnvelope,
-    ObjectStorageDownloadUrlRequest, ObjectStorageObjectDescriptor, ObjectStorageProvider,
-    ObjectStoragePutRequest, ProviderDomain, ProviderHealthSnapshot, ProviderPluginDescriptor,
-    ProviderRegistry, RtcCallbackEvent, RtcCallbackRequest, RtcCreateSessionRequest,
-    RtcParticipantCredential, RtcProviderPort, RtcRecordingArtifact, RtcSessionHandle,
-    RuntimeProviderRegistry, StaticProviderRegistry, UserModuleCreateOrBindRequest,
-    UserModuleProvider, UserModuleUpdateProfileRequest, UserModuleUser,
+    ObjectStorageDownloadUrlRequest, ObjectStorageObjectDescriptor, ObjectStoragePresignedUpload,
+    ObjectStorageProvider, ObjectStoragePutRequest, ObjectStorageUploadUrlRequest, ProviderDomain,
+    ProviderHealthSnapshot, ProviderPluginDescriptor, ProviderRegistry, RtcCallbackEvent,
+    RtcCallbackRequest, RtcCreateSessionRequest, RtcParticipantCredential, RtcProviderPort,
+    RtcRecordingArtifact, RtcSessionHandle, RuntimeProviderRegistry, StaticProviderRegistry,
+    UserModuleCreateOrBindRequest, UserModuleProvider, UserModuleUpdateProfileRequest,
+    UserModuleUser,
 };
 
 #[derive(Clone)]
@@ -128,6 +129,21 @@ impl ObjectStorageProvider for StubObjectStorageProvider {
             object_key: request.object_key,
             content_length: request.content_length,
             etag: Some("etag-demo".into()),
+        })
+    }
+
+    fn signed_upload_url(
+        &self,
+        request: ObjectStorageUploadUrlRequest,
+    ) -> Result<ObjectStoragePresignedUpload, craw_chat_contract_core::ContractError> {
+        Ok(ObjectStoragePresignedUpload {
+            method: "PUT".into(),
+            url: format!(
+                "https://storage.example/{}/{}?ttl={}&upload=put",
+                request.bucket, request.object_key, request.expires_in_seconds
+            ),
+            headers: BTreeMap::new(),
+            expires_in_seconds: request.expires_in_seconds,
         })
     }
 

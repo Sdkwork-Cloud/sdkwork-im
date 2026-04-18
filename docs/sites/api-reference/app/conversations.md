@@ -1,9 +1,49 @@
 # Conversations and Handoff
 
 <p class="api-page-intro">
-  Conversation endpoints expose inbox projection reads, conversation creation flows, agent-dialog and
-  system-channel provisioning, and the full agent-handoff state machine.
+  Conversation endpoints expose inbox reads, conversation creation, agent dialogs, system channels,
+  and the full agent-handoff state machine.
 </p>
+
+<div class="api-link-list">
+  <a href="/api-reference/app/membership-and-read-state"><code>Membership</code> Roster mutations and read cursors are documented separately</a>
+  <a href="/api-reference/app/messages"><code>Messages</code> Timeline reads and message mutation flows live on their own page</a>
+  <a href="/sdk/app-sdk"><code>SDK</code> <code>@sdkwork/craw-chat-sdk</code> and <code>craw_chat_sdk</code> map these routes into conversation helpers such as <code>sdk.conversations</code></a>
+</div>
+
+## Recommended SDK Mapping
+
+For the TypeScript app SDK, creation and handoff routes map into `sdk.conversations`:
+
+- `sdk.conversations.create(...)`
+- `sdk.conversations.createAgentDialog(...)`
+- `sdk.conversations.createAgentHandoff(...)`
+- `sdk.conversations.createSystemChannel(...)`
+- `sdk.conversations.get(...)`
+- `sdk.conversations.getAgentHandoffState(...)`
+- `sdk.conversations.acceptAgentHandoff(...)`
+- `sdk.conversations.resolveAgentHandoff(...)`
+- `sdk.conversations.closeAgentHandoff(...)`
+
+The sibling pages for membership/read state and messages are still part of the same TypeScript
+module surface:
+
+- `sdk.conversations.listMembers(...)`
+- `sdk.conversations.addMember(...)`
+- `sdk.conversations.removeMember(...)`
+- `sdk.conversations.transferOwner(...)`
+- `sdk.conversations.changeMemberRole(...)`
+- `sdk.conversations.leave(...)`
+- `sdk.conversations.getReadCursor(...)`
+- `sdk.conversations.updateReadCursor(...)`
+- `sdk.conversations.listMessages(...)`
+- `sdk.conversations.postMessage(...)`
+- `sdk.conversations.postText(...)`
+- `sdk.conversations.publishSystemMessage(...)`
+- `sdk.conversations.publishSystemText(...)`
+
+Inbox is currently exposed through the generated transport boundary as
+`sdk.generated.inbox.getInbox()`.
 
 <a id="get-inbox"></a>
 <section class="api-op">
@@ -21,7 +61,7 @@ Returns the inbox view for the current principal.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / conversations</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.generated.inbox.getInbox()`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 InboxResponse`</span></div>
 </div>
@@ -58,7 +98,7 @@ Creates a regular conversation.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / conversations</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 CreateConversationResult`</span></div>
 </div>
@@ -100,7 +140,7 @@ Creates a one-to-one conversation with a specific agent.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / conversations</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 CreateConversationResult`</span></div>
 </div>
@@ -142,7 +182,7 @@ Creates a handoff conversation and initializes handoff state.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / conversations</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 CreateConversationResult`</span></div>
 </div>
@@ -184,7 +224,7 @@ Creates a system channel for the specified subscriber principal.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / conversations</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 CreateConversationResult`</span></div>
 </div>
@@ -226,7 +266,7 @@ Reads the conversation summary projection.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / conversations</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Active conversation member.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ConversationSummaryView`</span></div>
 </div>
@@ -265,7 +305,7 @@ Reads the current handoff state for the conversation.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / conversations</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Active conversation member.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 AgentHandoffStateView`</span></div>
 </div>
@@ -308,7 +348,7 @@ Accepts the handoff from the target side. No JSON request body is required.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / conversations</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Active conversation member with `handoff.accept` authority.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 AgentHandoffStateView`</span></div>
 </div>
@@ -356,7 +396,7 @@ Marks the handoff as resolved. No JSON request body is required.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / conversations</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Active conversation member with `handoff.resolve` authority.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 AgentHandoffStateView`</span></div>
 </div>
@@ -404,7 +444,7 @@ Closes the handoff. No JSON request body is required.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / conversations</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Active conversation member with `handoff.close` authority.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 AgentHandoffStateView`</span></div>
 </div>

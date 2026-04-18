@@ -295,7 +295,9 @@ fn test_deployment_profiles_and_templates_document_local_minimal_and_local_defau
         assert!(template_content.contains("CRAW_CHAT_BIND_ADDR="));
         assert!(template_content.contains("CRAW_CHAT_RUNTIME_DIR="));
         assert!(template_content.contains("CRAW_CHAT_RUNTIME_PROFILE="));
+        assert!(template_content.contains("CRAW_CHAT_BROWSER_ORIGINS="));
         assert!(template_content.contains("CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET="));
+        assert!(template_content.contains("CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET="));
         assert!(template_content.contains("CRAW_CHAT_PUBLIC_BEARER_REQUIRE_EXP="));
         assert!(template_content.contains("CRAW_CHAT_PUBLIC_BEARER_MAX_TTL_SECONDS="));
         assert!(template_content.contains("CRAW_CHAT_PUBLIC_BEARER_REQUIRED_ISS="));
@@ -340,6 +342,7 @@ fn test_deployment_profiles_and_templates_document_local_minimal_and_local_defau
     }
 
     for env_name in [
+        "CRAW_CHAT_BROWSER_ORIGINS",
         "CRAW_CHAT_PUBLIC_BEARER_REQUIRE_EXP",
         "CRAW_CHAT_PUBLIC_BEARER_MAX_TTL_SECONDS",
         "CRAW_CHAT_PUBLIC_BEARER_REQUIRED_ISS",
@@ -1944,6 +1947,10 @@ fn test_local_minimal_compose_injects_public_bearer_secret_for_public_smoke_cont
         compose.contains("CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET"),
         "local-minimal.yml must inject CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET so docker/public smoke can authenticate against build_public_app"
     );
+    assert!(
+        compose.contains("CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET"),
+        "local-minimal.yml must inject CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET so friend request cursors stay stable across restarts and replicas"
+    );
 }
 
 #[test]
@@ -1985,6 +1992,10 @@ fn test_local_minimal_install_doc_describes_signed_public_bearer_contract() {
     assert!(
         install_doc.contains("CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET"),
         "本地最小安装与运行.md must document the public bearer secret contract"
+    );
+    assert!(
+        install_doc.contains("CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET"),
+        "install doc must document the friend request cursor signing secret contract"
     );
     assert!(
         install_doc.contains("HS256"),
@@ -3299,6 +3310,7 @@ fn test_local_minimal_deployment_assets_exist_and_reference_expected_entrypoints
     assert!(bin_start_ps1.contains("Stop-ManagedProcessAndRemovePidFile"));
     assert!(bin_start_ps1.contains("CRAW_CHAT_RUNTIME_DIR"));
     assert!(bin_start_ps1.contains("CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET"));
+    assert!(bin_start_ps1.contains("CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET"));
     assert!(bin_start_sh.contains("local-minimal-node"));
     assert!(bin_start_sh.contains("nohup"));
     assert_eq!(first_non_empty_line(&bin_start_sh), "#!/usr/bin/env bash");
@@ -3314,6 +3326,7 @@ fn test_local_minimal_deployment_assets_exist_and_reference_expected_entrypoints
     assert!(bin_start_sh.contains("Neither curl nor wget is available for health verification."));
     assert!(bin_start_sh.contains("CRAW_CHAT_RUNTIME_DIR"));
     assert!(bin_start_sh.contains("CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET"));
+    assert!(bin_start_sh.contains("CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET"));
     assert!(bin_start_sh.contains("EXPECTED_PROCESS_NAME=\"local-minimal-node\""));
     assert!(bin_start_sh.contains("pid_matches_expected_process"));
     assert!(bin_start_sh.contains("stop_managed_process_and_remove_pid_file"));
@@ -3507,6 +3520,7 @@ fn test_local_minimal_deployment_assets_exist_and_reference_expected_entrypoints
     assert!(bin_init_config_ps1.contains("CRAW_CHAT_BIND_ADDR"));
     assert!(bin_init_config_ps1.contains("CRAW_CHAT_RUNTIME_DIR"));
     assert!(bin_init_config_ps1.contains("CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET"));
+    assert!(bin_init_config_ps1.contains("CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET"));
     assert!(bin_init_config_ps1.contains("local-minimal.env"));
     assert!(bin_init_config_ps1.contains("local-default.env"));
     assert!(bin_init_config_ps1.contains("state"));
@@ -3517,6 +3531,7 @@ fn test_local_minimal_deployment_assets_exist_and_reference_expected_entrypoints
     assert!(bin_init_config_sh.contains("CRAW_CHAT_BIND_ADDR"));
     assert!(bin_init_config_sh.contains("CRAW_CHAT_RUNTIME_DIR"));
     assert!(bin_init_config_sh.contains("CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET"));
+    assert!(bin_init_config_sh.contains("CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET"));
     assert!(bin_init_config_sh.contains("local-minimal.env"));
     assert!(bin_init_config_sh.contains("local-default.env"));
     assert!(bin_init_config_sh.contains("state"));
@@ -4321,6 +4336,10 @@ fn test_init_config_local_ps1_uses_local_default_profile_when_requested() {
         "init-config-local.ps1 must still materialize a bearer secret in the selected profile config. actual config: {config}"
     );
     assert!(
+        config.contains("CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET="),
+        "init-config-local.ps1 must materialize a stable friend request cursor signing secret in the selected profile config. actual config: {config}"
+    );
+    assert!(
         !local_minimal_config_file.exists(),
         "init-config-local.ps1 must not overwrite local-minimal.env when local-default is explicitly selected"
     );
@@ -4388,6 +4407,7 @@ fn test_init_config_cmd_normalizes_cmd_style_switches() {
     assert!(config.contains("CRAW_CHAT_BIND_ADDR=127.0.0.1:18101"));
     assert!(config.contains("CRAW_CHAT_RUNTIME_DIR="));
     assert!(config.contains("CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET="));
+    assert!(config.contains("CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET="));
 
     let _ = fs::remove_dir_all(&temp_root);
 }
@@ -4464,6 +4484,7 @@ fn test_install_local_cmd_rewrites_existing_config_when_bind_address_is_explicit
     assert!(config.contains("CRAW_CHAT_BIND_ADDR=127.0.0.1:18111"));
     assert!(config.contains("CRAW_CHAT_RUNTIME_DIR="));
     assert!(config.contains("CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET="));
+    assert!(config.contains("CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET="));
 
     let _ = fs::remove_dir_all(&temp_root);
 }

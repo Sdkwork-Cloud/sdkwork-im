@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { verifyLanguageWorkspace } from './verify-language-workspace-shared.mjs';
 
 function fail(message) {
   console.error(`[sdkwork-craw-chat-sdk] ${message}`);
@@ -91,6 +92,53 @@ function run(command, args, options = {}) {
 }
 
 const args = parseArgs(process.argv.slice(2));
+verifyLanguageWorkspace({
+  language: 'flutter',
+  workspace: 'sdkwork-craw-chat-sdk-flutter',
+  primaryClient: 'CrawChatClient',
+  maturityTier: 'tier-a',
+  requiredPackageLayers: ['generated', 'composed'],
+  readmeRequiredTerms: [
+    'sdk.createXxxMessage()',
+    'sdk.send()',
+    'sdk.decodeMessage()',
+    'TypeScript',
+    'craw_chat_sdk',
+    'backend_sdk',
+    'CrawChatClient',
+    'AuthApi',
+    'PortalApi',
+    'sdk.auth',
+    'sdk.portal',
+    'client.auth',
+    'client.portal',
+    'WebSocket adapter',
+  ],
+  generatedReadmeRequiredTerms: [
+    'package:backend_sdk/backend_sdk.dart',
+    'AuthApi',
+    'PortalApi',
+    'client.auth',
+    'client.portal',
+  ],
+  composedReadmeRequiredTerms: [
+    'manual-owned consumer layer',
+    'official Flutter app-consumer package',
+    'package:craw_chat_sdk/craw_chat_sdk.dart',
+    'AuthApi',
+    'PortalApi',
+    'sdk.auth',
+    'sdk.portal',
+    'client.auth',
+    'client.portal',
+    'WebSocket adapter',
+  ],
+  consumerPackage: {
+    name: 'craw_chat_sdk',
+    packagePath: 'sdkwork-craw-chat-sdk-flutter/composed',
+    manifestPath: 'sdkwork-craw-chat-sdk-flutter/composed/pubspec.yaml',
+  },
+});
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = path.resolve(scriptDir, '..');
 const generatedDir = path.join(

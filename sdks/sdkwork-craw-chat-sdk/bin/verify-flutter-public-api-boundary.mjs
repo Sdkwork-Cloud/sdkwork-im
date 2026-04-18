@@ -22,12 +22,14 @@ const flutterGeneratedPublicEntrypoint = path.join(
 
 const files = [
   'craw_chat_sdk.dart',
+  'src/auth_module.dart',
   'src/builders.dart',
   'src/conversations_module.dart',
   'src/device_module.dart',
   'src/inbox_module.dart',
   'src/media_module.dart',
   'src/messages_module.dart',
+  'src/portal_module.dart',
   'src/presence_module.dart',
   'src/realtime_module.dart',
   'src/rtc_module.dart',

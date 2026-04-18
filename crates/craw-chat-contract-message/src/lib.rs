@@ -23,6 +23,17 @@ impl CommitPosition {
 
 pub trait CommitJournal {
     fn append(&self, envelope: CommitEnvelope) -> Result<CommitPosition, ContractError>;
+
+    fn append_batch(
+        &self,
+        envelopes: Vec<CommitEnvelope>,
+    ) -> Result<Vec<CommitPosition>, ContractError> {
+        let mut positions = Vec::with_capacity(envelopes.len());
+        for envelope in envelopes {
+            positions.push(self.append(envelope)?);
+        }
+        Ok(positions)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

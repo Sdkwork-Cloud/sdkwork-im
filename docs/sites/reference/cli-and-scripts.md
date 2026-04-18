@@ -1,7 +1,8 @@
 # CLI and Scripts
 
 This page summarizes the user-visible command entry points that are already present in the
-repository.
+repository. Use it when you need the supported shell entrypoint rather than the HTTP API or SDK
+surface.
 
 ## Local Lifecycle Scripts
 
@@ -80,3 +81,9 @@ Examples:
    inlining a different local contract.
 3. Runtime repair and restore should use the managed scripts and binary entrypoints before editing
    `state/*.json` manually.
+
+## What To Read Next
+
+- [Deployment](/deployment/index)
+- [Runtime Operations](/deployment/runtime-operations)
+- [Quick Start](/getting-started/quick-start)

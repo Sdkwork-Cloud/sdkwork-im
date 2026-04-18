@@ -76,6 +76,10 @@ function defaultResolveFromRoot(root, specifier) {
   return createRequire(path.join(root, 'package.json')).resolve(specifier);
 }
 
+function nodeModulesHasPackage(nodeModulesPath, packageName, fileExists = defaultFileExists) {
+  return fileExists(path.join(nodeModulesPath, ...packageName.split('/'), 'package.json'));
+}
+
 export function probeReadableFile(
   filePath,
   {
@@ -132,19 +136,25 @@ export function ensureLocalNodeModules({
 
   const normalizedAppRoot = path.resolve(appRoot);
   const localNodeModulesPath = path.join(normalizedAppRoot, 'node_modules');
-  const hasRequiredPackages = requiredPackages.every((packageName) => fileExists(path.join(
-    localNodeModulesPath,
-    packageName,
-    'package.json',
-  )));
+  const hasRequiredPackages = requiredPackages.every((packageName) => (
+    nodeModulesHasPackage(localNodeModulesPath, packageName, fileExists)
+  ));
 
   if (fileExists(localNodeModulesPath) && hasRequiredPackages) {
     return localNodeModulesPath;
   }
 
-  const donorNodeModulesPath = donorRoots
+  const donorNodeModulesPaths = donorRoots
     .map((candidateRoot) => path.join(path.resolve(candidateRoot), 'node_modules'))
-    .find((candidatePath) => fileExists(candidatePath));
+    .filter((candidatePath, index, candidates) => (
+      candidates.indexOf(candidatePath) === index
+      && fileExists(candidatePath)
+    ));
+  const donorNodeModulesPath = donorNodeModulesPaths.find((candidatePath) => (
+    requiredPackages.every((packageName) => (
+      nodeModulesHasPackage(candidatePath, packageName, fileExists)
+    ))
+  )) ?? donorNodeModulesPaths[0];
 
   if (!donorNodeModulesPath) {
     throw new Error(

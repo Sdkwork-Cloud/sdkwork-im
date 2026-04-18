@@ -291,3 +291,70 @@ async fn test_default_app_boots_with_external_user_module_provider_missing_catal
 
     let _ = fs::remove_dir_all(runtime_dir);
 }
+
+#[tokio::test]
+async fn test_default_app_boots_with_invalid_user_module_provider_mode_and_surfaces_config_error() {
+    let _guard = user_module_env_guard().await;
+    let runtime_dir = unique_runtime_dir();
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+
+    let provider_key = "CRAW_CHAT_USER_MODULE_PROVIDER";
+    let catalog_key = "CRAW_CHAT_USER_MODULE_EXTERNAL_CATALOG_PATH";
+    let system_key = "CRAW_CHAT_USER_MODULE_EXTERNAL_SYSTEM";
+    let previous_provider = std::env::var(provider_key).ok();
+    let previous_catalog = std::env::var(catalog_key).ok();
+    let previous_system = std::env::var(system_key).ok();
+
+    unsafe {
+        std::env::set_var(provider_key, "rogue-provider");
+        std::env::remove_var(catalog_key);
+        std::env::remove_var(system_key);
+    }
+    let build_result = catch_unwind(AssertUnwindSafe(|| {
+        local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path())
+    }));
+    restore_env(provider_key, previous_provider);
+    restore_env(catalog_key, previous_catalog);
+    restore_env(system_key, previous_system);
+
+    let app = build_result.expect(
+        "invalid user-module provider mode should boot with an unavailable provider instead of panicking",
+    );
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/user-module/provider-health")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("provider health request should return response");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("provider health body should collect")
+        .to_bytes();
+    let response_json: serde_json::Value =
+        serde_json::from_slice(&body).expect("provider health response should be valid json");
+
+    assert_eq!(response_json["status"], "unavailable");
+    assert_eq!(response_json["details"]["configKey"], provider_key);
+    assert_eq!(
+        response_json["details"]["configuredValue"],
+        "rogue-provider"
+    );
+    assert!(
+        response_json["details"]["error"]
+            .as_str()
+            .is_some_and(|message| message.contains("local, external")),
+        "invalid provider mode should surface the allowed values. actual body: {response_json}"
+    );
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}

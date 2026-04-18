@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "name": "sdkwork-craw-chat-sdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "language": "typescript",
   "sdkType": "backend",
   "packageName": "@sdkwork/craw-chat-backend-sdk",

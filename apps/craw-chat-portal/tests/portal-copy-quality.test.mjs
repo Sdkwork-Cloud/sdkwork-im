@@ -3,7 +3,10 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { test } from 'node:test';
 
-const appRoot = path.resolve('apps/craw-chat-portal');
+import './helpers/installMockPortalDefaultDataSource.mjs';
+import { resolvePortalAppRoot } from './helpers/portal-paths.mjs';
+
+const appRoot = resolvePortalAppRoot(import.meta.url);
 
 async function importModule(relativePath) {
   return import(pathToFileURL(path.join(appRoot, relativePath)).href);

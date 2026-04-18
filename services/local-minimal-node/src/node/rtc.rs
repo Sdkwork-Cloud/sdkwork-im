@@ -5,7 +5,7 @@ pub(super) async fn create_rtc_session(
     State(state): State<AppState>,
     Json(request): Json<CreateRtcSessionRequest>,
 ) -> Result<Json<RtcSessionMutationResponse>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = access::resolve_active_auth_context(&state, &headers)?;
     access::ensure_rtc_create_access(&state, &auth, &request)?;
     let request_key = rtc_create_request_key(&auth, &request);
     let outcome = state
@@ -23,7 +23,7 @@ pub(super) async fn invite_rtc_session(
     State(state): State<AppState>,
     Json(request): Json<InviteRtcSessionRequest>,
 ) -> Result<Json<RtcSessionMutationResponse>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = access::resolve_active_auth_context(&state, &headers)?;
     access::ensure_rtc_session_conversation_write_access(
         &state,
         &auth,
@@ -51,7 +51,7 @@ pub(super) async fn accept_rtc_session(
     State(state): State<AppState>,
     Json(request): Json<UpdateRtcSessionRequest>,
 ) -> Result<Json<RtcSessionMutationResponse>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = access::resolve_active_auth_context(&state, &headers)?;
     access::ensure_rtc_session_conversation_write_access(
         &state,
         &auth,
@@ -79,7 +79,7 @@ pub(super) async fn reject_rtc_session(
     State(state): State<AppState>,
     Json(request): Json<UpdateRtcSessionRequest>,
 ) -> Result<Json<RtcSessionMutationResponse>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = access::resolve_active_auth_context(&state, &headers)?;
     access::ensure_rtc_session_conversation_write_access(
         &state,
         &auth,
@@ -107,7 +107,7 @@ pub(super) async fn end_rtc_session(
     State(state): State<AppState>,
     Json(request): Json<UpdateRtcSessionRequest>,
 ) -> Result<Json<RtcSessionMutationResponse>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = access::resolve_active_auth_context(&state, &headers)?;
     access::ensure_rtc_session_conversation_write_access(
         &state,
         &auth,
@@ -135,7 +135,7 @@ pub(super) async fn post_rtc_signal(
     State(state): State<AppState>,
     Json(request): Json<PostRtcSignalRequest>,
 ) -> Result<Json<im_domain_core::rtc::RtcSignalEvent>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = access::resolve_active_auth_context(&state, &headers)?;
     access::ensure_rtc_session_conversation_write_access(
         &state,
         &auth,
@@ -155,7 +155,7 @@ pub(super) async fn issue_rtc_participant_credential(
     State(state): State<AppState>,
     Json(request): Json<IssueRtcParticipantCredentialRequest>,
 ) -> Result<Json<im_platform_contracts::RtcParticipantCredential>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = access::resolve_active_auth_context(&state, &headers)?;
     access::ensure_rtc_session_conversation_write_access(
         &state,
         &auth,
@@ -174,7 +174,7 @@ pub(super) async fn get_rtc_recording_artifact(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<im_platform_contracts::RtcRecordingArtifact>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = access::resolve_active_auth_context(&state, &headers)?;
     access::ensure_rtc_session_conversation_write_access(
         &state,
         &auth,
@@ -193,7 +193,7 @@ pub(super) async fn map_rtc_provider_callback(
     State(state): State<AppState>,
     Json(request): Json<im_platform_contracts::RtcCallbackRequest>,
 ) -> Result<Json<im_platform_contracts::RtcCallbackEvent>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = access::resolve_active_auth_context(&state, &headers)?;
     Ok(Json(
         state.rtc_runtime.map_provider_callback(&auth, request)?,
     ))
@@ -203,7 +203,7 @@ pub(super) async fn get_rtc_provider_health(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<im_platform_contracts::ProviderHealthSnapshot>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = access::resolve_active_auth_context(&state, &headers)?;
     Ok(Json(
         state
             .rtc_runtime

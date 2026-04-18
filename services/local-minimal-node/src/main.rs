@@ -90,7 +90,7 @@ async fn run() -> Result<(), String> {
 
             let repair = local_minimal_node::repair_runtime_dir(
                 runtime_dir.unwrap_or_else(local_minimal_node::resolve_runtime_dir),
-            );
+            )?;
 
             if json_output {
                 print_json_pretty(&repair, "runtime-dir repair report")?;
@@ -244,7 +244,7 @@ async fn run() -> Result<(), String> {
 
             let catalog = local_minimal_node::list_runtime_backups(
                 runtime_dir.unwrap_or_else(local_minimal_node::resolve_runtime_dir),
-            );
+            )?;
 
             if json_output {
                 print_json_pretty(&catalog, "runtime-dir backup catalog")?;

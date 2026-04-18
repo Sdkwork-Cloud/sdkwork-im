@@ -67,6 +67,8 @@ function renderTypeScriptSdk() {
 import type { SdkworkBackendConfig } from './types/common';
 import type { AuthTokenManager } from '@sdkwork/sdk-common';
 
+import { AuthApi, createAuthApi } from './api/auth';
+import { PortalApi, createPortalApi } from './api/portal';
 import { SessionApi, createSessionApi } from './api/session';
 import { PresenceApi, createPresenceApi } from './api/presence';
 import { RealtimeApi, createRealtimeApi } from './api/realtime';
@@ -81,6 +83,8 @@ import { RtcApi, createRtcApi } from './api/rtc';
 export class SdkworkBackendClient {
   private readonly httpClient: HttpClient;
 
+  public readonly auth: AuthApi;
+  public readonly portal: PortalApi;
   public readonly session: SessionApi;
   public readonly presence: PresenceApi;
   public readonly realtime: RealtimeApi;
@@ -94,6 +98,8 @@ export class SdkworkBackendClient {
 
   constructor(config: SdkworkBackendConfig) {
     this.httpClient = createHttpClient(config);
+    this.auth = createAuthApi(this.httpClient);
+    this.portal = createPortalApi(this.httpClient);
     this.session = createSessionApi(this.httpClient);
     this.presence = createPresenceApi(this.httpClient);
     this.realtime = createRealtimeApi(this.httpClient);
@@ -337,51 +343,27 @@ export interface SdkworkBackendConfig {
 `;
 }
 
-function renderTypeScriptCommonShim() {
-  return `declare module '@sdkwork/sdk-common' {
-  export type QueryParams = Record<string, string | number | boolean | undefined>;
-
-  export interface Page<T = unknown> {
-    records?: T[];
-    total?: number;
-    current?: number;
-    size?: number;
-  }
-
-  export interface PageResult<T = unknown> {
-    records?: T[];
-    total?: number;
-    current?: number;
-    size?: number;
-  }
-
-  export interface RequestConfig {
-    timeout?: number;
-    headers?: Record<string, string>;
-  }
-
-  export interface RequestOptions extends RequestConfig {}
-
-  export interface AuthTokens {
-    authToken?: string;
-    refreshToken?: string;
-  }
-
-  export interface AuthTokenManager {
-    getTokens?: () => AuthTokens | Promise<AuthTokens>;
-    refreshTokens?: () => AuthTokens | Promise<AuthTokens>;
-  }
-
-  export const DEFAULT_TIMEOUT: number;
-  export const SUCCESS_CODES: number[];
-}
-`;
-}
-
 function renderTypeScriptReadme() {
-  return `# sdkwork-craw-chat-sdk
+  return `# @sdkwork/craw-chat-backend-sdk
 
-Professional TypeScript transport SDK for the Craw Chat app API.
+Generator-owned TypeScript transport SDK for the Craw Chat app API.
+
+## Position In The SDK Family
+
+This package is the low-level generated transport boundary.
+
+For most browser and Node.js app consumers, prefer the official root SDK package:
+
+\`\`\`bash
+npm install @sdkwork/craw-chat-sdk
+\`\`\`
+
+That root package exposes:
+
+- \`CrawChatSdkClient\` as the primary semantic client
+- \`SdkworkBackendClient\`, \`createGeneratedBackendClient\`, and the \`generated\` namespace from the same package when you still need low-level generated access
+
+Use \`@sdkwork/craw-chat-backend-sdk\` directly only when you explicitly want the standalone generated transport package.
 
 ## Installation
 
@@ -405,6 +387,20 @@ const client = new SdkworkBackendClient({
 });
 
 const result = await client.inbox.getInbox();
+\`\`\`
+
+If you want semantic modules and helpers from the official root package instead:
+
+\`\`\`typescript
+import { CrawChatSdkClient } from '@sdkwork/craw-chat-sdk';
+
+const sdk = new CrawChatSdkClient({
+  baseUrl: 'http://127.0.0.1:18090',
+  authToken: 'your-bearer-token',
+});
+
+const batch = await sdk.sync.catchUp({ limit: 20 });
+console.log(batch.items.length);
 \`\`\`
 
 ## Authentication
@@ -436,6 +432,8 @@ const client = new SdkworkBackendClient({
 
 ## API Modules
 
+- \`client.auth\` - portal authentication API
+- \`client.portal\` - tenant portal snapshot API
 - \`client.session\` - session API
 - \`client.presence\` - presence API
 - \`client.realtime\` - realtime API
@@ -463,6 +461,8 @@ MIT
 
 - Use only the package root entrypoint: \`@sdkwork/craw-chat-backend-sdk\`.
 - Internal generator subpaths are not part of the supported public API.
+- Treat this package as the generator-owned transport boundary, not as the preferred browser or Node.js app-consumer entrypoint.
+- Prefer \`@sdkwork/craw-chat-sdk\` when you want the official single-package TypeScript SDK surface.
 - The workspace normalization wrapper strips generator-only auth scaffolding and source-tree build residue before verification and packaging.
 
 ## Regeneration Contract
@@ -480,6 +480,8 @@ MIT
 function renderFlutterBackendClient() {
   return `import 'package:sdkwork_common_flutter/sdkwork_common_flutter.dart';
 import 'src/http/client.dart';
+import 'src/api/auth.dart';
+import 'src/api/portal.dart';
 import 'src/api/session.dart';
 import 'src/api/presence.dart';
 import 'src/api/realtime.dart';
@@ -517,6 +519,8 @@ class SdkworkBackendConfig {
 class SdkworkBackendClient {
   final HttpClient _httpClient;
 
+  late final AuthApi auth;
+  late final PortalApi portal;
   late final SessionApi session;
   late final PresenceApi presence;
   late final RealtimeApi realtime;
@@ -531,6 +535,8 @@ class SdkworkBackendClient {
   SdkworkBackendClient({
     required SdkworkBackendConfig config,
   }) : _httpClient = HttpClient(config: config.toSdkConfig()) {
+    auth = AuthApi(_httpClient);
+    portal = PortalApi(_httpClient);
     session = SessionApi(_httpClient);
     presence = PresenceApi(_httpClient);
     realtime = RealtimeApi(_httpClient);
@@ -571,20 +577,49 @@ class SdkworkBackendClient {
 }
 
 function renderFlutterReadme() {
-  return `# sdkwork-craw-chat-sdk (Flutter)
+  return `# backend_sdk
 
-Professional Flutter transport SDK for the Craw Chat app API.
+Generator-owned Flutter transport SDK for the Craw Chat app API.
+
+## Position In The SDK Family
+
+This package is the low-level generated transport boundary.
+
+For most Flutter app consumers, prefer the official app-facing package:
+
+\`\`\`yaml
+dependencies:
+  craw_chat_sdk: ^0.1.0
+\`\`\`
+
+That package exposes:
+
+- \`CrawChatClient\` as the primary semantic client
+- semantic modules and helper builders for app runtime flows
+- a root library at \`package:craw_chat_sdk/craw_chat_sdk.dart\`
+- a root library that re-exports \`backend_sdk\` when you still need generated transport types
+
+Use \`backend_sdk\` directly only when you explicitly want the standalone generated transport package.
 
 ## Installation
 
-Add to \`pubspec.yaml\`:
+Direct transport use:
 
 \`\`\`yaml
 dependencies:
   backend_sdk: ^0.1.0
 \`\`\`
 
+Most app consumers should instead depend on:
+
+\`\`\`yaml
+dependencies:
+  craw_chat_sdk: ^0.1.0
+\`\`\`
+
 ## Quick Start
+
+Direct transport:
 
 \`\`\`dart
 import 'package:backend_sdk/backend_sdk.dart';
@@ -598,6 +633,22 @@ final client = SdkworkBackendClient(
 
 final result = await client.inbox.getInbox();
 print(result);
+\`\`\`
+
+If you want semantic modules and helper builders from the official consumer package instead:
+
+\`\`\`dart
+import 'package:craw_chat_sdk/craw_chat_sdk.dart';
+
+final sdk = CrawChatClient.create(
+  baseUrl: 'http://127.0.0.1:18090',
+  authToken: 'your-bearer-token',
+);
+
+await sdk.conversations.postText(
+  'conversation-1',
+  text: 'hello world',
+);
 \`\`\`
 
 ## Authentication
@@ -629,6 +680,8 @@ final client = SdkworkBackendClient(
 
 ## API Modules
 
+- \`client.auth\` - portal authentication API
+- \`client.portal\` - tenant portal snapshot API
 - \`client.session\` - session API
 - \`client.presence\` - presence API
 - \`client.realtime\` - realtime API
@@ -655,7 +708,13 @@ MIT
 ## Package Boundary
 
 - Use only the package root entrypoint: \`package:backend_sdk/backend_sdk.dart\`.
+- The package root exports \`AuthApi\` and \`PortalApi\` alongside the rest of the generated transport APIs.
 - Generated \`src/\` imports are not part of the supported public API.
+- Treat this package as the generator-owned transport boundary, not as the preferred Flutter app-consumer entrypoint.
+- Prefer \`package:craw_chat_sdk/craw_chat_sdk.dart\` when you want the official Flutter SDK surface.
+- \`craw_chat_sdk\` re-exports \`backend_sdk\`, so most app consumers do not need a second direct dependency on the generated transport package.
+- \`SdkworkBackendClient\` now mounts \`client.auth\` and \`client.portal\` from the generated package root.
+- Realtime websocket runtime remains outside generated delivery; this generated package is HTTP coordination only today.
 - The workspace normalization wrapper strips generator-only auth scaffolding and source-tree build residue before verification and packaging.
 
 ## Regeneration Contract
@@ -684,7 +743,6 @@ function normalizeTypeScript(workspaceRoot) {
   writeIfChanged(path.join(generatedRoot, 'src', 'http', 'client.ts'), renderTypeScriptHttpClient());
   writeIfChanged(path.join(generatedRoot, 'src', 'types', 'common.ts'), renderTypeScriptCommonTypes());
   writeIfChanged(path.join(generatedRoot, 'README.md'), renderTypeScriptReadme());
-  writeIfChanged(path.join(composedRoot, 'src', 'shims-sdk-common.d.ts'), renderTypeScriptCommonShim());
   removeIfExists(path.join(generatedRoot, 'src', 'auth'));
   removeIfExists(path.join(generatedRoot, 'dist', 'auth'));
   removeIfExists(path.join(generatedRoot, 'src', 'index.js'));
@@ -703,13 +761,51 @@ function normalizeFlutter(workspaceRoot) {
   writeIfChanged(path.join(generatedRoot, 'README.md'), renderFlutterReadme());
 }
 
+function normalizeSwift(workspaceRoot) {
+  const generatedRoot = path.join(
+    workspaceRoot,
+    'sdkwork-craw-chat-sdk-swift',
+    'generated',
+    'server-openapi',
+  );
+  const packagePath = path.join(generatedRoot, 'Package.swift');
+  const readmePath = path.join(generatedRoot, 'README.md');
+
+  if (existsSync(packagePath)) {
+    const packageSource = readFileSync(packagePath, 'utf8')
+      .replace(/BackendSDK/g, 'CrawChatBackendSdk');
+    writeIfChanged(packagePath, packageSource);
+  }
+
+  if (existsSync(readmePath)) {
+    const readmeSource = readFileSync(readmePath, 'utf8')
+      .replace(/^# .*$/m, '# CrawChatBackendSdk')
+      .replace(/Professional Swift SDK for SDKWork API\./, 'Generator-owned Swift transport SDK for the Craw Chat app API.')
+      .replace(/backend-sdk-swift/g, 'craw-chat-backend-sdk-swift')
+      .replace(/\bBackendSDK\b/g, 'CrawChatBackendSdk');
+    writeIfChanged(readmePath, readmeSource);
+  }
+}
+
+const officialLanguages = [
+  'typescript',
+  'flutter',
+  'rust',
+  'java',
+  'csharp',
+  'swift',
+  'kotlin',
+  'go',
+  'python',
+];
+
 const args = parseArgs(process.argv.slice(2));
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = path.resolve(scriptDir, '..');
-const languageSet = new Set(args.languages.length > 0 ? args.languages : ['typescript', 'flutter']);
+const languageSet = new Set(args.languages.length > 0 ? args.languages : officialLanguages);
 
 for (const language of languageSet) {
-  if (!['typescript', 'flutter'].includes(language)) {
+  if (!officialLanguages.includes(language)) {
     fail(`Unsupported language: ${language}`);
   }
 }
@@ -720,6 +816,19 @@ if (languageSet.has('typescript')) {
 
 if (languageSet.has('flutter')) {
   normalizeFlutter(workspaceRoot);
+}
+
+if (languageSet.has('swift')) {
+  normalizeSwift(workspaceRoot);
+}
+
+for (const language of languageSet) {
+  if (language === 'typescript' || language === 'flutter' || language === 'swift') {
+    continue;
+  }
+  console.log(
+    `[sdkwork-craw-chat-sdk] No workspace-specific auth surface overrides are currently required for ${language}; generator defaults preserved.`,
+  );
 }
 
 console.log(

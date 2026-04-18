@@ -1,14 +1,68 @@
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
+use fs4::fs_std::FileExt;
 use http_body_util::BodyExt;
 use im_adapters_local_memory::MemoryRealtimeDisconnectFenceStore;
 use projection_service::TimelineProjectionService;
 use session_gateway::RealtimeClusterBridge;
-use std::sync::Arc;
+use sha2::{Digest, Sha256};
+use std::fs;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex, OnceLock};
+use std::time::Duration;
+use std::time::{SystemTime, UNIX_EPOCH};
+use tokio::time::{sleep, timeout};
 use tower::ServiceExt;
 
 const DEMO_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X2RlbW8iLCJzaWQiOiJzX2RlbW8ifQ.";
 const OTHER_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X290aGVyIiwic3ViIjoidV9vdGhlciIsInNpZCI6InNfb3RoZXIifQ.";
+static NEXT_TEST_RUNTIME_DIR_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+
+fn deterministic_social_id_for_test(prefix: &str, seed: &str) -> String {
+    let digest = Sha256::digest(seed.as_bytes());
+    let digest = format!("{digest:x}");
+    format!("{prefix}{}", &digest[..24])
+}
+
+fn unique_test_runtime_dir(prefix: &str) -> std::path::PathBuf {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("system clock should be after unix epoch")
+        .as_nanos();
+    let sequence = NEXT_TEST_RUNTIME_DIR_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+    std::env::temp_dir().join(format!("craw_chat_{prefix}_{unique}_{sequence}"))
+}
+
+struct ScopedEnvVar {
+    key: &'static str,
+}
+
+impl Drop for ScopedEnvVar {
+    fn drop(&mut self) {
+        unsafe {
+            std::env::remove_var(self.key);
+        }
+    }
+}
+
+fn set_scoped_env_var(key: &'static str, value: &str) -> ScopedEnvVar {
+    unsafe {
+        std::env::set_var(key, value);
+    }
+    ScopedEnvVar { key }
+}
+
+fn social_accept_delay_env_guard() -> &'static Mutex<()> {
+    static SOCIAL_ACCEPT_DELAY_ENV_GUARD: OnceLock<Mutex<()>> = OnceLock::new();
+    SOCIAL_ACCEPT_DELAY_ENV_GUARD.get_or_init(|| Mutex::new(()))
+}
+
+fn lock_social_accept_delay_env_guard() -> std::sync::MutexGuard<'static, ()> {
+    match social_accept_delay_env_guard().lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    }
+}
 
 fn friendship_activated_event(
     tenant_id: &str,
@@ -66,6 +120,254 @@ fn direct_chat_bound_event(
         })
         .to_string(),
     )
+}
+
+struct ActiveFriendshipDirectChatFixture {
+    friendship_id: String,
+    direct_chat_id: String,
+    conversation_id: String,
+}
+
+async fn create_active_friendship_direct_chat_fixture(
+    app: &axum::Router,
+) -> ActiveFriendshipDirectChatFixture {
+    let submit_request = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"hello bob"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("friend request submit should return response");
+    assert_eq!(submit_request.status(), StatusCode::OK);
+    let submit_request_body = submit_request
+        .into_body()
+        .collect()
+        .await
+        .expect("friend request submit body should collect")
+        .to_bytes();
+    let submit_request_json: serde_json::Value = serde_json::from_slice(&submit_request_body)
+        .expect("friend request submit body should be valid json");
+    let request_id = submit_request_json["friendRequest"]["requestId"]
+        .as_str()
+        .expect("friend request submit should return request id")
+        .to_owned();
+
+    let accept_request = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/v1/social/friend-requests/{request_id}/accept"
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_bob")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("friend request accept should return response");
+    assert_eq!(accept_request.status(), StatusCode::OK);
+    let accept_request_body = accept_request
+        .into_body()
+        .collect()
+        .await
+        .expect("friend request accept body should collect")
+        .to_bytes();
+    let accept_request_json: serde_json::Value = serde_json::from_slice(&accept_request_body)
+        .expect("friend request accept body should be valid json");
+
+    ActiveFriendshipDirectChatFixture {
+        friendship_id: accept_request_json["friendship"]["friendshipId"]
+            .as_str()
+            .expect("friend request accept should return friendship id")
+            .to_owned(),
+        direct_chat_id: accept_request_json["directChat"]["directChatId"]
+            .as_str()
+            .expect("friend request accept should return direct chat id")
+            .to_owned(),
+        conversation_id: accept_request_json["directChat"]["conversationId"]
+            .as_str()
+            .expect("friend request accept should return direct chat conversation id")
+            .to_owned(),
+    }
+}
+
+async fn create_active_friendship_direct_chat(app: &axum::Router) -> (String, String) {
+    let fixture = create_active_friendship_direct_chat_fixture(app).await;
+    (fixture.friendship_id, fixture.conversation_id)
+}
+
+async fn remove_friendship_for_test(
+    app: &axum::Router,
+    friendship_id: &str,
+    remover_user_id: &str,
+) {
+    let remove_request = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/v1/social/friendships/{friendship_id}/remove"))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", remover_user_id)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("friendship removal should return response");
+    assert_eq!(remove_request.status(), StatusCode::OK);
+}
+
+async fn block_direct_chat_for_test(
+    app: &axum::Router,
+    block_id: &str,
+    blocker_user_id: &str,
+    blocked_user_id: &str,
+    direct_chat_id: &str,
+) {
+    let block_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/control/social/user-blocks")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "blockId": block_id,
+                        "eventId": format!("evt_{block_id}"),
+                        "blockerUserId": blocker_user_id,
+                        "blockedUserId": blocked_user_id,
+                        "scope": "direct_chat",
+                        "directChatId": direct_chat_id,
+                        "effectiveAt": "2026-04-15T10:20:00Z"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("direct chat block should return response");
+    assert_eq!(block_response.status(), StatusCode::OK);
+}
+
+async fn post_standard_message_for_test(
+    app: &axum::Router,
+    conversation_id: &str,
+    sender_user_id: &str,
+    client_msg_id: &str,
+    summary: &str,
+) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/v1/conversations/{conversation_id}/messages"))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", sender_user_id)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "clientMsgId": client_msg_id,
+                        "summary": summary,
+                        "text": summary,
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("post message should return response")
+}
+
+async fn register_device_for_test(app: &axum::Router, user_id: &str, device_id: &str) {
+    let register = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/devices/register")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", user_id)
+                .header("x-device-id", device_id)
+                .header("content-type", "application/json")
+                .body(Body::from(format!(r#"{{"deviceId":"{device_id}"}}"#)))
+                .unwrap(),
+        )
+        .await
+        .expect("device register should return response");
+    assert_eq!(register.status(), StatusCode::OK);
+}
+
+async fn sync_conversation_realtime_subscription_for_test(
+    app: &axum::Router,
+    user_id: &str,
+    device_id: &str,
+    conversation_id: &str,
+) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/realtime/subscriptions/sync")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", user_id)
+                .header("x-device-id", device_id)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "items": [
+                            {
+                                "scopeType": "conversation",
+                                "scopeId": conversation_id,
+                                "eventTypes": ["message.posted"],
+                            }
+                        ]
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("realtime subscription sync should return response")
+}
+
+async fn list_realtime_events_for_test(
+    app: &axum::Router,
+    user_id: &str,
+    device_id: &str,
+    after_seq: u64,
+) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/v1/realtime/events?afterSeq={after_seq}&limit=10"
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", user_id)
+                .header("x-device-id", device_id)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("realtime events request should return response")
 }
 
 fn message_reaction_added_event(
@@ -552,6 +854,7 @@ async fn test_local_minimal_profile_runs_end_to_end_flow() {
                 .body(Body::from(
                     r#"{
                         "mediaAssetId":"ma_demo",
+                        "bucket":"local-media",
                         "resource":{
                             "uuid":"res_demo",
                             "type":"image",
@@ -582,7 +885,7 @@ async fn test_local_minimal_profile_runs_end_to_end_flow() {
                     r#"{
                         "bucket":"local-media",
                         "objectKey":"tenant/t_demo/ma_demo/demo.png",
-                        "storageProvider":"local",
+                        "storageProvider":"object-storage-volcengine",
                         "url":"https://cdn.example.com/ma_demo/demo.png",
                         "checksum":"sha256:demo"
                     }"#,
@@ -1051,6 +1354,66 @@ async fn test_local_minimal_profile_treats_duplicate_system_channel_create_as_id
         serde_json::from_slice(&conflicting_create_body)
             .expect("conflicting system channel create should be valid json");
     assert_eq!(conflicting_create_json["code"], "conversation_conflict");
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_rejects_system_channel_publish_from_subscriber_user() {
+    let app = local_minimal_node::build_default_app();
+
+    let create_channel = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/system-channels")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "svc_ops")
+                .header("x-actor-kind", "system")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_system_channel_publish_guard_local",
+                        "subscriberId":"u_demo"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("system channel create should return response");
+    assert_eq!(create_channel.status(), StatusCode::OK);
+
+    register_device_for_test(&app, "u_demo", "d_demo_phone").await;
+
+    let publish_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_system_channel_publish_guard_local/system-channel/publish")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-device-id", "d_demo_phone")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_system_channel_publish_guard_1",
+                        "summary":"should fail",
+                        "text":"should fail"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("system channel publish as subscriber should return response");
+    assert_eq!(publish_response.status(), StatusCode::FORBIDDEN);
+    let publish_body = publish_response
+        .into_body()
+        .collect()
+        .await
+        .expect("system channel publish forbidden body should collect")
+        .to_bytes();
+    let publish_json: serde_json::Value = serde_json::from_slice(&publish_body)
+        .expect("system channel publish forbidden body should be valid json");
+    assert_eq!(publish_json["code"], "conversation_permission_denied");
 }
 
 #[tokio::test]
@@ -1593,6 +1956,7 @@ async fn test_local_minimal_profile_treats_duplicate_media_upload_requests_as_id
 
     let create_request = r#"{
         "mediaAssetId":"ma_local_media_idempotent",
+        "bucket":"local-media",
         "resource":{
             "uuid":"res_local_media_idempotent",
             "type":"image",
@@ -1662,7 +2026,7 @@ async fn test_local_minimal_profile_treats_duplicate_media_upload_requests_as_id
     let complete_request = r#"{
         "bucket":"local-media",
         "objectKey":"tenant/t_demo/ma_local_media_idempotent/local-proof.png",
-        "storageProvider":"local",
+        "storageProvider":"object-storage-volcengine",
         "url":"https://cdn.example.com/ma_local_media_idempotent/local-proof.png",
         "checksum":"sha256:local-proof"
     }"#;
@@ -2786,6 +3150,182 @@ async fn test_local_minimal_profile_exposes_inbox_view() {
     let inbox_after_read_json: serde_json::Value = serde_json::from_slice(&inbox_after_read_body)
         .expect("inbox after read should be valid json");
     assert_eq!(inbox_after_read_json["items"][0]["unreadCount"], 0);
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_second_instance_reads_latest_conversation_summary_from_shared_runtime_dir()
+ {
+    let runtime_dir = unique_test_runtime_dir("projection_summary_second_instance");
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+
+    let app_a = local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
+    let app_b = local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
+
+    let create_conversation = app_a
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("authorization", DEMO_BEARER)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_cross_instance_summary",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation on first instance should succeed");
+    assert_eq!(create_conversation.status(), StatusCode::OK);
+
+    let post_message = app_a
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_cross_instance_summary/messages")
+                .header("authorization", DEMO_BEARER)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_cross_instance_summary_1",
+                        "summary":"hello from instance a",
+                        "text":"hello from instance a"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("post message on first instance should succeed");
+    assert_eq!(post_message.status(), StatusCode::OK);
+
+    let summary_from_second_instance = app_b
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/conversations/c_cross_instance_summary")
+                .header("authorization", DEMO_BEARER)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("conversation summary on second instance should return response");
+    assert_eq!(
+        summary_from_second_instance.status(),
+        StatusCode::OK,
+        "second instance should load latest conversation summary from the shared runtime dir without restart"
+    );
+    let summary_body = summary_from_second_instance
+        .into_body()
+        .collect()
+        .await
+        .expect("conversation summary on second instance body should collect")
+        .to_bytes();
+    let summary_json: serde_json::Value = serde_json::from_slice(&summary_body)
+        .expect("conversation summary on second instance should be valid json");
+    assert_eq!(
+        summary_json["lastMessageId"],
+        "msg_c_cross_instance_summary_1"
+    );
+    assert_eq!(summary_json["messageCount"], 1);
+    assert_eq!(summary_json["lastSummary"], "hello from instance a");
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_second_instance_reads_latest_inbox_from_shared_runtime_dir() {
+    let runtime_dir = unique_test_runtime_dir("projection_inbox_second_instance");
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+
+    let app_a = local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
+    let app_b = local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
+
+    let create_conversation = app_a
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("authorization", DEMO_BEARER)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_cross_instance_inbox",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation on first instance should succeed");
+    assert_eq!(create_conversation.status(), StatusCode::OK);
+
+    let post_message = app_a
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_cross_instance_inbox/messages")
+                .header("authorization", DEMO_BEARER)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_cross_instance_inbox_1",
+                        "summary":"hello inbox from instance a",
+                        "text":"hello inbox from instance a"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("post message on first instance should succeed");
+    assert_eq!(post_message.status(), StatusCode::OK);
+
+    let inbox_from_second_instance = app_b
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/inbox")
+                .header("authorization", DEMO_BEARER)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("inbox on second instance should return response");
+    assert_eq!(
+        inbox_from_second_instance.status(),
+        StatusCode::OK,
+        "second instance should load latest inbox entries from the shared runtime dir without restart"
+    );
+    let inbox_body = inbox_from_second_instance
+        .into_body()
+        .collect()
+        .await
+        .expect("inbox on second instance body should collect")
+        .to_bytes();
+    let inbox_json: serde_json::Value =
+        serde_json::from_slice(&inbox_body).expect("inbox on second instance should be valid json");
+    assert_eq!(
+        inbox_json["items"][0]["conversationId"],
+        "c_cross_instance_inbox"
+    );
+    assert_eq!(inbox_json["items"][0]["conversationType"], "group");
+    assert_eq!(inbox_json["items"][0]["messageCount"], 1);
+    assert_eq!(inbox_json["items"][0]["unreadCount"], 1);
+    assert_eq!(
+        inbox_json["items"][0]["lastMessageId"],
+        "msg_c_cross_instance_inbox_1"
+    );
+    assert_eq!(
+        inbox_json["items"][0]["lastSummary"],
+        "hello inbox from instance a"
+    );
+
+    let _ = fs::remove_dir_all(runtime_dir);
 }
 
 #[tokio::test]
@@ -5487,6 +6027,170 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_frames_to_other_
     assert_eq!(payload["scopeKind"], "conversation");
     assert_eq!(payload["scopeId"], "c_stream_realtime_fanout");
     assert_eq!(payload["frameSeq"], 1);
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_derives_standardized_summaries_for_rich_messages() {
+    let app = local_minimal_node::build_default_app();
+
+    let create_conversation = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("authorization", DEMO_BEARER)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_rich_summary",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation should succeed");
+    assert_eq!(create_conversation.status(), StatusCode::OK);
+
+    let post_location = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_rich_summary/messages")
+                .header("authorization", DEMO_BEARER)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_location",
+                        "parts":[
+                            {
+                                "kind":"data",
+                                "schemaRef":"urn:sdkwork:craw-chat:message:location",
+                                "encoding":"application/json",
+                                "payload":"{\"name\":\"The Bund\",\"latitude\":31.2400,\"longitude\":121.4900}"
+                            }
+                        ]
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("location rich message should succeed");
+    assert_eq!(post_location.status(), StatusCode::OK);
+
+    let post_custom = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_rich_summary/messages")
+                .header("authorization", DEMO_BEARER)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_custom",
+                        "parts":[
+                            {
+                                "kind":"data",
+                                "schemaRef":"urn:sdkwork:craw-chat:message:custom:workflow.approval",
+                                "encoding":"application/json",
+                                "payload":"{\"approvalId\":\"approval_demo\"}"
+                            }
+                        ]
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("custom rich message should succeed");
+    assert_eq!(post_custom.status(), StatusCode::OK);
+
+    let post_ai_image = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_rich_summary/messages")
+                .header("authorization", DEMO_BEARER)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_ai_image",
+                        "parts":[
+                            {
+                                "kind":"data",
+                                "schemaRef":"urn:sdkwork:craw-chat:message:ai_image",
+                                "encoding":"application/json",
+                                "payload":"{\"prompt\":\"Shanghai skyline at sunset\",\"status\":\"completed\",\"model\":\"gpt-image-1\"}"
+                            },
+                            {
+                                "kind":"media",
+                                "mediaAssetId":"asset_ai_generated_demo"
+                            }
+                        ]
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("ai image rich message should succeed");
+    assert_eq!(post_ai_image.status(), StatusCode::OK);
+
+    let timeline = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/conversations/c_rich_summary/messages")
+                .header("authorization", DEMO_BEARER)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("timeline should succeed");
+    assert_eq!(timeline.status(), StatusCode::OK);
+    let timeline_body = timeline
+        .into_body()
+        .collect()
+        .await
+        .expect("timeline body should collect")
+        .to_bytes();
+    let timeline_json: serde_json::Value =
+        serde_json::from_slice(&timeline_body).expect("timeline should be valid json");
+    let items = timeline_json["items"]
+        .as_array()
+        .expect("timeline items should be array");
+    assert_eq!(items.len(), 3);
+    assert_eq!(items[0]["summary"], "Location: The Bund");
+    assert_eq!(items[1]["summary"], "Custom: workflow.approval");
+    assert_eq!(items[2]["summary"], "AI image generated");
+
+    let conversation_summary = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/conversations/c_rich_summary")
+                .header("authorization", DEMO_BEARER)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("conversation summary should succeed");
+    assert_eq!(conversation_summary.status(), StatusCode::OK);
+    let conversation_summary_body = conversation_summary
+        .into_body()
+        .collect()
+        .await
+        .expect("conversation summary body should collect")
+        .to_bytes();
+    let conversation_summary_json: serde_json::Value =
+        serde_json::from_slice(&conversation_summary_body)
+            .expect("conversation summary should be valid json");
+    assert_eq!(
+        conversation_summary_json["lastSummary"],
+        "AI image generated"
+    );
+    assert_eq!(conversation_summary_json["messageCount"], 3);
 }
 
 #[tokio::test]
@@ -9498,36 +10202,11 @@ async fn test_local_minimal_profile_rejects_oversized_stream_id_on_list_frames_o
 
 #[tokio::test]
 async fn test_local_minimal_profile_exposes_projection_read_routes_for_contacts_directory_and_interactions()
- {
+{
+    let contacts_app = local_minimal_node::build_default_app();
+    let contacts_fixture = create_active_friendship_direct_chat_fixture(&contacts_app).await;
+
     let service = Arc::new(TimelineProjectionService::default());
-    service
-        .apply(&friendship_activated_event(
-            "t_demo",
-            "fs_local_001",
-            "u_alice",
-            "u_bob",
-            Some("dc_local_001"),
-            "2026-04-10T12:00:00Z",
-        ))
-        .expect("friendship projection should succeed");
-    service
-        .apply(&friendship_activated_event(
-            "t_demo",
-            "fs_local_002",
-            "u_alice",
-            "u_cathy",
-            None,
-            "2026-04-10T11:00:00Z",
-        ))
-        .expect("second friendship projection should succeed");
-    service
-        .apply(&direct_chat_bound_event(
-            "t_demo",
-            "dc_local_001",
-            "c_direct_local_001",
-            "2026-04-10T12:05:00Z",
-        ))
-        .expect("direct chat bind projection should succeed");
     service
         .apply(
             &im_domain_events::CommitEnvelope::minimal(
@@ -9649,14 +10328,14 @@ async fn test_local_minimal_profile_exposes_projection_read_routes_for_contacts_
         ))
         .expect("pin projection should succeed");
 
-    let app = local_minimal_node::build_app_with_dependencies(
+    let projection_app = local_minimal_node::build_app_with_dependencies(
         "local_projection_routes",
         "127.0.0.1:18124",
         service,
         Arc::new(RealtimeClusterBridge::default()),
     );
 
-    let contacts_response = app
+    let contacts_response = contacts_app
         .clone()
         .oneshot(
             Request::builder()
@@ -9680,12 +10359,12 @@ async fn test_local_minimal_profile_exposes_projection_read_routes_for_contacts_
     let contacts_items = contacts_value["items"]
         .as_array()
         .expect("contacts items should be an array");
-    assert_eq!(contacts_items.len(), 2);
+    assert_eq!(contacts_items.len(), 1);
     assert_eq!(contacts_items[0]["targetUserId"], "u_bob");
-    assert_eq!(contacts_items[0]["conversationId"], "c_direct_local_001");
-    assert_eq!(contacts_items[1]["targetUserId"], "u_cathy");
+    assert_eq!(contacts_items[0]["conversationId"], contacts_fixture.conversation_id);
+    assert_eq!(contacts_items[0]["friendshipId"], contacts_fixture.friendship_id);
 
-    let member_directory_response = app
+    let member_directory_response = projection_app
         .clone()
         .oneshot(
             Request::builder()
@@ -9713,7 +10392,7 @@ async fn test_local_minimal_profile_exposes_projection_read_routes_for_contacts_
     assert_eq!(directory_items[0]["principalId"], "u_owner");
     assert_eq!(directory_items[1]["attributes"]["displayName"], "Member");
 
-    let interaction_response = app
+    let interaction_response = projection_app
         .clone()
         .oneshot(
             Request::builder()
@@ -9742,7 +10421,7 @@ async fn test_local_minimal_profile_exposes_projection_read_routes_for_contacts_
     );
     assert_eq!(interaction_value["pin"]["pinnedBy"]["id"], "u_owner");
 
-    let pins_response = app
+    let pins_response = projection_app
         .oneshot(
             Request::builder()
                 .uri("/api/v1/conversations/c_projection_local/pins")
@@ -9823,6 +10502,6447 @@ async fn test_local_minimal_profile_rejects_same_actor_id_with_different_actor_k
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
     assert_eq!(value["code"], "contact_scope_forbidden");
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_hides_removed_friendship_from_contacts() {
+    let app = local_minimal_node::build_default_app();
+    let fixture = create_active_friendship_direct_chat_fixture(&app).await;
+
+    let contacts_before = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/contacts")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("contacts request before removal should return response");
+    assert_eq!(contacts_before.status(), StatusCode::OK);
+    let contacts_before_body = contacts_before
+        .into_body()
+        .collect()
+        .await
+        .expect("contacts before body should collect")
+        .to_bytes();
+    let contacts_before_json: serde_json::Value = serde_json::from_slice(&contacts_before_body)
+        .expect("contacts before body should be valid json");
+    let contacts_before_items = contacts_before_json["items"]
+        .as_array()
+        .expect("contacts before items should be an array");
+    assert_eq!(contacts_before_items.len(), 1);
+    assert_eq!(contacts_before_items[0]["targetUserId"], "u_bob");
+    assert_eq!(
+        contacts_before_items[0]["conversationId"],
+        fixture.conversation_id
+    );
+
+    let remove_request = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/v1/social/friendships/{}/remove",
+                    fixture.friendship_id
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("remove friendship should return response");
+    assert_eq!(remove_request.status(), StatusCode::OK);
+
+    let contacts_after = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/contacts")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("contacts request after removal should return response");
+    assert_eq!(contacts_after.status(), StatusCode::OK);
+    let contacts_after_body = contacts_after
+        .into_body()
+        .collect()
+        .await
+        .expect("contacts after body should collect")
+        .to_bytes();
+    let contacts_after_json: serde_json::Value = serde_json::from_slice(&contacts_after_body)
+        .expect("contacts after body should be valid json");
+    let contacts_after_items = contacts_after_json["items"]
+        .as_array()
+        .expect("contacts after items should be an array");
+    assert!(
+        contacts_after_items.is_empty(),
+        "removed friendship must no longer appear in active contacts"
+    );
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_treats_duplicate_friend_request_submit_as_idempotent() {
+    let app = local_minimal_node::build_default_app();
+
+    let first_submit = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"hello bob"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("first submit friend request should return response");
+    assert_eq!(first_submit.status(), StatusCode::OK);
+    let first_submit_body = first_submit
+        .into_body()
+        .collect()
+        .await
+        .expect("first submit friend request body should collect")
+        .to_bytes();
+    let first_submit_json: serde_json::Value = serde_json::from_slice(&first_submit_body)
+        .expect("first submit friend request body should be valid json");
+
+    let second_submit = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"hello bob"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("second submit friend request should return response");
+    assert_eq!(second_submit.status(), StatusCode::OK);
+    let second_submit_body = second_submit
+        .into_body()
+        .collect()
+        .await
+        .expect("second submit friend request body should collect")
+        .to_bytes();
+    let second_submit_json: serde_json::Value = serde_json::from_slice(&second_submit_body)
+        .expect("second submit friend request body should be valid json");
+
+    assert_eq!(first_submit_json["friendRequest"]["status"], "pending");
+    assert_eq!(second_submit_json["friendRequest"]["status"], "pending");
+    assert_eq!(
+        second_submit_json["friendRequest"]["requestId"],
+        first_submit_json["friendRequest"]["requestId"]
+    );
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_recovers_existing_pending_friend_request_for_same_pair() {
+    let app = local_minimal_node::build_default_app();
+
+    let control_plane_submit = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/control/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "requestId":"fr_legacy_same_pair",
+                        "eventId":"evt_legacy_same_pair_submit",
+                        "requesterUserId":"u_alice",
+                        "targetUserId":"u_bob",
+                        "requestMessage":"legacy hello",
+                        "requestedAt":"2026-04-15T10:00:00Z"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("control-plane friend request seed should return response");
+    assert_eq!(control_plane_submit.status(), StatusCode::OK);
+
+    let app_submit = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"hello bob"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("app-facing friend request submit should return response");
+    assert_eq!(app_submit.status(), StatusCode::OK);
+    let app_submit_body = app_submit
+        .into_body()
+        .collect()
+        .await
+        .expect("app-facing friend request submit body should collect")
+        .to_bytes();
+    let app_submit_json: serde_json::Value = serde_json::from_slice(&app_submit_body)
+        .expect("app-facing friend request submit body should be valid json");
+
+    assert_eq!(app_submit_json["friendRequest"]["status"], "pending");
+    assert_eq!(
+        app_submit_json["friendRequest"]["requestId"],
+        "fr_legacy_same_pair"
+    );
+    assert_eq!(
+        app_submit_json["friendRequest"]["requestMessage"],
+        "legacy hello"
+    );
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_friend_request_acceptance_creates_direct_chat_contact() {
+    let app = local_minimal_node::build_default_app();
+
+    let submit_request = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"hello bob"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("submit friend request should return response");
+    assert_eq!(submit_request.status(), StatusCode::OK);
+    let submit_request_body = submit_request
+        .into_body()
+        .collect()
+        .await
+        .expect("submit friend request body should collect")
+        .to_bytes();
+    let submit_request_json: serde_json::Value = serde_json::from_slice(&submit_request_body)
+        .expect("submit friend request body should be valid json");
+    let request_id = submit_request_json["friendRequest"]["requestId"]
+        .as_str()
+        .expect("request id should be present")
+        .to_owned();
+    assert_eq!(submit_request_json["friendRequest"]["status"], "pending");
+    assert_eq!(
+        submit_request_json["friendRequest"]["requesterUserId"],
+        "u_alice"
+    );
+    assert_eq!(
+        submit_request_json["friendRequest"]["targetUserId"],
+        "u_bob"
+    );
+
+    let accept_request = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/v1/social/friend-requests/{request_id}/accept"
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_bob")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("accept friend request should return response");
+    assert_eq!(accept_request.status(), StatusCode::OK);
+    let accept_request_body = accept_request
+        .into_body()
+        .collect()
+        .await
+        .expect("accept friend request body should collect")
+        .to_bytes();
+    let accept_request_json: serde_json::Value = serde_json::from_slice(&accept_request_body)
+        .expect("accept friend request body should be valid json");
+    assert_eq!(accept_request_json["friendRequest"]["status"], "accepted");
+    assert_eq!(accept_request_json["friendship"]["status"], "active");
+    let friendship_id = accept_request_json["friendship"]["friendshipId"]
+        .as_str()
+        .expect("friendship id should be present")
+        .to_owned();
+    let conversation_id = accept_request_json["conversation"]["conversationId"]
+        .as_str()
+        .expect("conversation id should be present")
+        .to_owned();
+    assert!(
+        !friendship_id.is_empty(),
+        "friendship id should be generated"
+    );
+
+    let contacts = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/contacts")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("contacts request should return response");
+    assert_eq!(contacts.status(), StatusCode::OK);
+    let contacts_body = contacts
+        .into_body()
+        .collect()
+        .await
+        .expect("contacts body should collect")
+        .to_bytes();
+    let contacts_json: serde_json::Value =
+        serde_json::from_slice(&contacts_body).expect("contacts body should be valid json");
+    let contact_items = contacts_json["items"]
+        .as_array()
+        .expect("contacts items should be an array");
+    assert_eq!(contact_items.len(), 1);
+    assert_eq!(contact_items[0]["targetUserId"], "u_bob");
+    assert_eq!(contact_items[0]["conversationId"], conversation_id);
+    assert_eq!(contact_items[0]["friendshipId"], friendship_id);
+
+    let members = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/v1/conversations/{conversation_id}/members"))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("members request should return response");
+    assert_eq!(members.status(), StatusCode::OK);
+    let members_body = members
+        .into_body()
+        .collect()
+        .await
+        .expect("members body should collect")
+        .to_bytes();
+    let members_json: serde_json::Value =
+        serde_json::from_slice(&members_body).expect("members body should be valid json");
+    let member_items = members_json["items"]
+        .as_array()
+        .expect("member items should be an array");
+    assert_eq!(member_items.len(), 2);
+    assert!(
+        member_items
+            .iter()
+            .any(|member| member["principalId"] == "u_alice"),
+        "alice should be a direct chat member"
+    );
+    assert!(
+        member_items
+            .iter()
+            .any(|member| member["principalId"] == "u_bob"),
+        "bob should be a direct chat member"
+    );
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_rejects_friend_request_submit_for_blocked_pair() {
+    let app = local_minimal_node::build_default_app();
+
+    let block_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/control/social/user-blocks")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "blockId":"ub_app_submit_blocked",
+                        "eventId":"evt_ub_app_submit_blocked",
+                        "blockerUserId":"u_bob",
+                        "blockedUserId":"u_alice",
+                        "scope":"friendship",
+                        "effectiveAt":"2026-04-10T09:59:00Z"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("control-plane user block before app submit should return response");
+    assert_eq!(block_response.status(), StatusCode::OK);
+
+    let submit_request = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"hello bob"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("blocked app-facing submit should return response");
+    assert_eq!(submit_request.status(), StatusCode::CONFLICT);
+    let submit_request_body = submit_request
+        .into_body()
+        .collect()
+        .await
+        .expect("blocked app-facing submit body should collect")
+        .to_bytes();
+    let submit_request_json: serde_json::Value = serde_json::from_slice(&submit_request_body)
+        .expect("blocked app-facing submit body should be valid json");
+    assert_eq!(submit_request_json["code"], "friend_request_blocked");
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_rejects_friend_request_accept_for_blocked_pair() {
+    let app = local_minimal_node::build_default_app();
+
+    let submit_request = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"hello bob"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("submit friend request before blocked app accept should return response");
+    assert_eq!(submit_request.status(), StatusCode::OK);
+    let submit_request_body = submit_request
+        .into_body()
+        .collect()
+        .await
+        .expect("submit friend request before blocked app accept body should collect")
+        .to_bytes();
+    let submit_request_json: serde_json::Value = serde_json::from_slice(&submit_request_body)
+        .expect("submit friend request before blocked app accept body should be valid json");
+    let request_id = submit_request_json["friendRequest"]["requestId"]
+        .as_str()
+        .expect("blocked app accept request id should be present")
+        .to_owned();
+
+    let block_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/control/social/user-blocks")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "blockId":"ub_app_accept_blocked",
+                        "eventId":"evt_ub_app_accept_blocked",
+                        "blockerUserId":"u_bob",
+                        "blockedUserId":"u_alice",
+                        "scope":"friendship",
+                        "effectiveAt":"2026-04-10T10:01:00Z"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("control-plane user block before app accept should return response");
+    assert_eq!(block_response.status(), StatusCode::OK);
+
+    let accept_request = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/v1/social/friend-requests/{request_id}/accept"
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_bob")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("blocked app-facing accept should return response");
+    assert_eq!(accept_request.status(), StatusCode::CONFLICT);
+    let accept_request_body = accept_request
+        .into_body()
+        .collect()
+        .await
+        .expect("blocked app-facing accept body should collect")
+        .to_bytes();
+    let accept_request_json: serde_json::Value = serde_json::from_slice(&accept_request_body)
+        .expect("blocked app-facing accept body should be valid json");
+    assert_eq!(accept_request_json["code"], "friend_request_blocked");
+
+    let request_snapshot = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!(
+                    "/api/v1/control/social/friend-requests/{request_id}"
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("friend request snapshot after blocked app accept should return response");
+    assert_eq!(request_snapshot.status(), StatusCode::OK);
+    let request_snapshot_body = request_snapshot
+        .into_body()
+        .collect()
+        .await
+        .expect("friend request snapshot after blocked app accept should collect")
+        .to_bytes();
+    let request_snapshot_json: serde_json::Value = serde_json::from_slice(&request_snapshot_body)
+        .expect("friend request snapshot after blocked app accept should be valid json");
+    assert_eq!(request_snapshot_json["friendRequest"]["status"], "pending");
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_treats_duplicate_friend_request_acceptance_as_idempotent() {
+    let app = local_minimal_node::build_default_app();
+
+    let submit_request = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"hello bob"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("submit friend request should return response");
+    assert_eq!(submit_request.status(), StatusCode::OK);
+    let submit_request_body = submit_request
+        .into_body()
+        .collect()
+        .await
+        .expect("submit friend request body should collect")
+        .to_bytes();
+    let submit_request_json: serde_json::Value = serde_json::from_slice(&submit_request_body)
+        .expect("submit friend request body should be valid json");
+    let request_id = submit_request_json["friendRequest"]["requestId"]
+        .as_str()
+        .expect("request id should be present")
+        .to_owned();
+
+    let accept_uri = format!("/api/v1/social/friend-requests/{request_id}/accept");
+    let first_accept = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(&accept_uri)
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_bob")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("first accept friend request should return response");
+    assert_eq!(first_accept.status(), StatusCode::OK);
+    let first_accept_body = first_accept
+        .into_body()
+        .collect()
+        .await
+        .expect("first accept friend request body should collect")
+        .to_bytes();
+    let first_accept_json: serde_json::Value = serde_json::from_slice(&first_accept_body)
+        .expect("first accept friend request body should be valid json");
+
+    let second_accept = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(&accept_uri)
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_bob")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("second accept friend request should return response");
+    let second_accept_status = second_accept.status();
+    let second_accept_body = second_accept
+        .into_body()
+        .collect()
+        .await
+        .expect("second accept friend request body should collect")
+        .to_bytes();
+    assert_eq!(second_accept_status, StatusCode::OK);
+    let second_accept_json: serde_json::Value = serde_json::from_slice(&second_accept_body)
+        .expect("second accept friend request body should be valid json");
+
+    assert_eq!(second_accept_json["friendRequest"]["status"], "accepted");
+    assert_eq!(
+        second_accept_json["friendship"]["friendshipId"],
+        first_accept_json["friendship"]["friendshipId"]
+    );
+    assert_eq!(
+        second_accept_json["directChat"]["directChatId"],
+        first_accept_json["directChat"]["directChatId"]
+    );
+    assert_eq!(
+        second_accept_json["conversation"]["conversationId"],
+        first_accept_json["conversation"]["conversationId"]
+    );
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_accept_converges_to_existing_external_friendship_and_direct_chat()
+ {
+    let app = local_minimal_node::build_default_app();
+
+    let submit_request = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"external social orchestration"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("submit friend request before external convergence test should return response");
+    assert_eq!(submit_request.status(), StatusCode::OK);
+    let submit_request_body = submit_request
+        .into_body()
+        .collect()
+        .await
+        .expect("submit friend request before external convergence test body should collect")
+        .to_bytes();
+    let submit_request_json: serde_json::Value = serde_json::from_slice(&submit_request_body)
+        .expect("submit friend request before external convergence test body should be valid json");
+    let request_id = submit_request_json["friendRequest"]["requestId"]
+        .as_str()
+        .expect("request id should be present")
+        .to_owned();
+
+    let activate_friendship = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/control/social/friendships")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "friendshipId":"fs_external_accept_001",
+                        "eventId": format!("evt_external_activate_{request_id}"),
+                        "initiatorUserId":"u_alice",
+                        "peerUserId":"u_bob",
+                        "directChatId":"dc_external_accept_001",
+                        "establishedAt":"2026-04-16T10:00:00Z"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("external friendship activation should return response");
+    assert_eq!(activate_friendship.status(), StatusCode::OK);
+
+    let bind_direct_chat = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/control/social/direct-chats/bindings")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "directChatId":"dc_external_accept_001",
+                        "eventId": format!("evt_external_bind_{request_id}"),
+                        "leftActorId":"u_alice",
+                        "rightActorId":"u_bob",
+                        "conversationId":"c_external_accept_001",
+                        "boundAt":"2026-04-16T10:00:00Z"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("external direct chat bind should return response");
+    assert_eq!(bind_direct_chat.status(), StatusCode::OK);
+
+    let accept_request = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/v1/social/friend-requests/{request_id}/accept"
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_bob")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect(
+            "app-facing accept should return response when external social graph already exists",
+        );
+    assert_eq!(accept_request.status(), StatusCode::OK);
+    let accept_request_body = accept_request
+        .into_body()
+        .collect()
+        .await
+        .expect("app-facing accept after external convergence should collect")
+        .to_bytes();
+    let accept_request_json: serde_json::Value = serde_json::from_slice(&accept_request_body)
+        .expect("app-facing accept after external convergence should be valid json");
+    assert_eq!(accept_request_json["friendRequest"]["status"], "accepted");
+    assert_eq!(
+        accept_request_json["friendship"]["friendshipId"],
+        "fs_external_accept_001"
+    );
+    assert_eq!(
+        accept_request_json["directChat"]["directChatId"],
+        "dc_external_accept_001"
+    );
+    assert_eq!(
+        accept_request_json["conversation"]["conversationId"],
+        "c_external_accept_001"
+    );
+
+    let members = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/conversations/c_external_accept_001/members")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("conversation members after external convergence accept should return response");
+    assert_eq!(members.status(), StatusCode::OK);
+    let members_body = members
+        .into_body()
+        .collect()
+        .await
+        .expect("conversation members after external convergence accept body should collect")
+        .to_bytes();
+    let members_json: serde_json::Value = serde_json::from_slice(&members_body)
+        .expect("conversation members after external convergence accept body should be valid json");
+    let member_items = members_json["items"]
+        .as_array()
+        .expect("conversation members after external convergence should include items");
+    assert_eq!(member_items.len(), 2);
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_accept_converges_when_request_was_externally_accepted_after_app_snapshot()
+{
+    let _env_lock = lock_social_accept_delay_env_guard();
+    let _accept_snapshot_delay =
+        set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_ACCEPT_PRE_COMMIT_DELAY_MS", "200");
+
+    let runtime_dir = unique_test_runtime_dir("friend_request_accept_external_after_snapshot");
+    fs::create_dir_all(runtime_dir.join("state")).expect("runtime dir state should be created");
+
+    let app = local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
+
+    let submit_request = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"external accept after stale app snapshot"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("submit friend request before external accept stale snapshot test should return response");
+    assert_eq!(submit_request.status(), StatusCode::OK);
+    let submit_request_body = submit_request
+        .into_body()
+        .collect()
+        .await
+        .expect("submit friend request before external accept stale snapshot test should collect")
+        .to_bytes();
+    let submit_request_json: serde_json::Value = serde_json::from_slice(&submit_request_body)
+        .expect(
+            "submit friend request before external accept stale snapshot test should be valid json",
+        );
+    let request_id = submit_request_json["friendRequest"]["requestId"]
+        .as_str()
+        .expect("request id for external accept stale snapshot test should be present")
+        .to_owned();
+
+    let accept_task = tokio::spawn({
+        let app = app.clone();
+        let request_id = request_id.clone();
+        async move {
+            app.oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(format!("/api/v1/social/friend-requests/{request_id}/accept"))
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "u_bob")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("app-facing accept after stale snapshot should return response")
+        }
+    });
+
+    sleep(Duration::from_millis(50)).await;
+
+    let external_accept = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/v1/control/social/friend-requests/{request_id}/accept"
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_bob")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "eventId": format!("evt_external_accept_after_snapshot_{request_id}"),
+                        "acceptedByUserId": "u_bob",
+                        "acceptedAt": "2026-04-16T10:00:00Z"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("external accept after stale app snapshot should return response");
+    assert_eq!(external_accept.status(), StatusCode::OK);
+
+    let accept_response = accept_task
+        .await
+        .expect("accept task after stale app snapshot should join");
+    assert_eq!(
+        accept_response.status(),
+        StatusCode::OK,
+        "app-facing accept should converge to the externally accepted request instead of surfacing friend_request_not_pending"
+    );
+    let accept_body = accept_response
+        .into_body()
+        .collect()
+        .await
+        .expect("accept response after stale app snapshot should collect")
+        .to_bytes();
+    let accept_json: serde_json::Value = serde_json::from_slice(&accept_body)
+        .expect("accept response after stale app snapshot should be valid json");
+    assert_eq!(accept_json["friendRequest"]["status"], "accepted");
+    assert_eq!(accept_json["friendship"]["status"], "active");
+    assert_eq!(accept_json["directChat"]["status"], "active");
+    assert!(
+        accept_json["conversation"]["conversationId"]
+            .as_str()
+            .is_some_and(|value| !value.trim().is_empty()),
+        "app-facing accept should still bind a conversation after converging to external acceptance"
+    );
+
+    let contacts = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/contacts")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("contacts after stale app snapshot accept convergence should return response");
+    assert_eq!(contacts.status(), StatusCode::OK);
+    let contacts_body = contacts
+        .into_body()
+        .collect()
+        .await
+        .expect("contacts after stale app snapshot accept convergence should collect")
+        .to_bytes();
+    let contacts_json: serde_json::Value = serde_json::from_slice(&contacts_body)
+        .expect("contacts after stale app snapshot accept convergence should be valid json");
+    let contacts_items = contacts_json["items"]
+        .as_array()
+        .expect("contacts after stale app snapshot accept convergence should include items");
+    assert_eq!(contacts_items.len(), 1);
+    assert_eq!(contacts_items[0]["targetUserId"], "u_bob");
+
+    let repair_store_path = runtime_dir
+        .join("state")
+        .join("social-friend-request-accept-repairs.json");
+    assert!(
+        !repair_store_path.exists(),
+        "accept repair entry should be cleared after app-facing accept converges to external acceptance"
+    );
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_decline_converges_when_request_was_externally_declined_after_app_snapshot()
+{
+    let _env_lock = lock_social_accept_delay_env_guard();
+    let _decline_snapshot_delay =
+        set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_DECLINE_PRE_COMMIT_DELAY_MS", "200");
+
+    let app = local_minimal_node::build_default_app();
+
+    let submit_request = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"external decline after stale app snapshot"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("submit friend request before external decline stale snapshot test should return response");
+    assert_eq!(submit_request.status(), StatusCode::OK);
+    let submit_request_body = submit_request
+        .into_body()
+        .collect()
+        .await
+        .expect("submit friend request before external decline stale snapshot test should collect")
+        .to_bytes();
+    let submit_request_json: serde_json::Value = serde_json::from_slice(&submit_request_body)
+        .expect(
+            "submit friend request before external decline stale snapshot test should be valid json",
+        );
+    let request_id = submit_request_json["friendRequest"]["requestId"]
+        .as_str()
+        .expect("request id for external decline stale snapshot test should be present")
+        .to_owned();
+
+    let decline_task = tokio::spawn({
+        let app = app.clone();
+        let request_id = request_id.clone();
+        async move {
+            app.oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(format!("/api/v1/social/friend-requests/{request_id}/decline"))
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "u_bob")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("app-facing decline after stale snapshot should return response")
+        }
+    });
+
+    sleep(Duration::from_millis(50)).await;
+
+    let external_decline = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/v1/control/social/friend-requests/{request_id}/decline"
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_bob")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "eventId": format!("evt_external_decline_after_snapshot_{request_id}"),
+                        "declinedByUserId": "u_bob",
+                        "declinedAt": "2026-04-16T10:10:00Z"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("external decline after stale app snapshot should return response");
+    assert_eq!(external_decline.status(), StatusCode::OK);
+
+    let decline_response = decline_task
+        .await
+        .expect("decline task after stale app snapshot should join");
+    assert_eq!(
+        decline_response.status(),
+        StatusCode::OK,
+        "app-facing decline should converge to the externally declined request instead of surfacing friend_request_not_pending"
+    );
+    let decline_body = decline_response
+        .into_body()
+        .collect()
+        .await
+        .expect("decline response after stale app snapshot should collect")
+        .to_bytes();
+    let decline_json: serde_json::Value = serde_json::from_slice(&decline_body)
+        .expect("decline response after stale app snapshot should be valid json");
+    assert_eq!(decline_json["friendRequest"]["status"], "declined");
+    assert_eq!(decline_json["friendRequest"]["targetUserId"], "u_bob");
+
+    let request_snapshot = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/v1/control/social/friend-requests/{request_id}"))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("request snapshot after stale app decline convergence should return response");
+    assert_eq!(request_snapshot.status(), StatusCode::OK);
+    let request_snapshot_body = request_snapshot
+        .into_body()
+        .collect()
+        .await
+        .expect("request snapshot after stale app decline convergence should collect")
+        .to_bytes();
+    let request_snapshot_json: serde_json::Value =
+        serde_json::from_slice(&request_snapshot_body)
+            .expect("request snapshot after stale app decline convergence should be valid json");
+    assert_eq!(request_snapshot_json["friendRequest"]["status"], "declined");
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_cancel_converges_when_request_was_externally_canceled_after_app_snapshot()
+{
+    let _env_lock = lock_social_accept_delay_env_guard();
+    let _cancel_snapshot_delay =
+        set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_CANCEL_PRE_COMMIT_DELAY_MS", "200");
+
+    let app = local_minimal_node::build_default_app();
+
+    let submit_request = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"external cancel after stale app snapshot"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("submit friend request before external cancel stale snapshot test should return response");
+    assert_eq!(submit_request.status(), StatusCode::OK);
+    let submit_request_body = submit_request
+        .into_body()
+        .collect()
+        .await
+        .expect("submit friend request before external cancel stale snapshot test should collect")
+        .to_bytes();
+    let submit_request_json: serde_json::Value = serde_json::from_slice(&submit_request_body)
+        .expect(
+            "submit friend request before external cancel stale snapshot test should be valid json",
+        );
+    let request_id = submit_request_json["friendRequest"]["requestId"]
+        .as_str()
+        .expect("request id for external cancel stale snapshot test should be present")
+        .to_owned();
+
+    let cancel_task = tokio::spawn({
+        let app = app.clone();
+        let request_id = request_id.clone();
+        async move {
+            app.oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(format!("/api/v1/social/friend-requests/{request_id}/cancel"))
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "u_alice")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("app-facing cancel after stale snapshot should return response")
+        }
+    });
+
+    sleep(Duration::from_millis(50)).await;
+
+    let external_cancel = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/v1/control/social/friend-requests/{request_id}/cancel"
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "eventId": format!("evt_external_cancel_after_snapshot_{request_id}"),
+                        "canceledByUserId": "u_alice",
+                        "canceledAt": "2026-04-16T10:20:00Z"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("external cancel after stale app snapshot should return response");
+    assert_eq!(external_cancel.status(), StatusCode::OK);
+
+    let cancel_response = cancel_task
+        .await
+        .expect("cancel task after stale app snapshot should join");
+    assert_eq!(
+        cancel_response.status(),
+        StatusCode::OK,
+        "app-facing cancel should converge to the externally canceled request instead of surfacing friend_request_not_pending"
+    );
+    let cancel_body = cancel_response
+        .into_body()
+        .collect()
+        .await
+        .expect("cancel response after stale app snapshot should collect")
+        .to_bytes();
+    let cancel_json: serde_json::Value = serde_json::from_slice(&cancel_body)
+        .expect("cancel response after stale app snapshot should be valid json");
+    assert_eq!(cancel_json["friendRequest"]["status"], "canceled");
+    assert_eq!(cancel_json["friendRequest"]["requesterUserId"], "u_alice");
+
+    let request_snapshot = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/v1/control/social/friend-requests/{request_id}"))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("request snapshot after stale app cancel convergence should return response");
+    assert_eq!(request_snapshot.status(), StatusCode::OK);
+    let request_snapshot_body = request_snapshot
+        .into_body()
+        .collect()
+        .await
+        .expect("request snapshot after stale app cancel convergence should collect")
+        .to_bytes();
+    let request_snapshot_json: serde_json::Value = serde_json::from_slice(&request_snapshot_body)
+        .expect("request snapshot after stale app cancel convergence should be valid json");
+    assert_eq!(request_snapshot_json["friendRequest"]["status"], "canceled");
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_cancel_after_accept_commit_is_rejected_without_tearing_social_graph()
+ {
+    let _env_lock = lock_social_accept_delay_env_guard();
+    let _accept_delay =
+        set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "50");
+
+    let app = local_minimal_node::build_default_app();
+
+    let submit_request = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"hello bob"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("submit friend request should return response");
+    assert_eq!(submit_request.status(), StatusCode::OK);
+    let submit_request_body = submit_request
+        .into_body()
+        .collect()
+        .await
+        .expect("submit friend request body should collect")
+        .to_bytes();
+    let submit_request_json: serde_json::Value = serde_json::from_slice(&submit_request_body)
+        .expect("submit friend request body should be valid json");
+    let request_id = submit_request_json["friendRequest"]["requestId"]
+        .as_str()
+        .expect("request id should be present")
+        .to_owned();
+    let friendship_id = deterministic_social_id_for_test("fs_", request_id.as_str());
+
+    let accept_uri = format!("/api/v1/social/friend-requests/{request_id}/accept");
+    let cancel_uri = format!("/api/v1/social/friend-requests/{request_id}/cancel");
+    let friendship_snapshot_uri = format!("/api/v1/control/social/friendships/{friendship_id}");
+    let request_snapshot_uri = format!("/api/v1/control/social/friend-requests/{request_id}");
+
+    let accept_app = app.clone();
+    let accept_task = tokio::spawn(async move {
+        accept_app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(accept_uri)
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "u_bob")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("accept friend request should return response")
+    });
+
+    let mut accepted_visible = false;
+    for _ in 0..200 {
+        let request_snapshot = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri(&request_snapshot_uri)
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "u_admin")
+                    .header("x-permissions", "control.read")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("friend request snapshot poll should return response");
+        if request_snapshot.status() == StatusCode::OK {
+            let request_snapshot_body = request_snapshot
+                .into_body()
+                .collect()
+                .await
+                .expect("friend request snapshot poll body should collect")
+                .to_bytes();
+            let request_snapshot_json: serde_json::Value =
+                serde_json::from_slice(&request_snapshot_body)
+                    .expect("friend request snapshot poll body should be valid json");
+            if request_snapshot_json["friendRequest"]["status"] == "accepted" {
+                accepted_visible = true;
+                break;
+            }
+        }
+        sleep(Duration::from_millis(1)).await;
+    }
+    assert!(
+        accepted_visible,
+        "friend request should become accepted before social side effects are created"
+    );
+
+    let friendship_before_accept_completion = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(&friendship_snapshot_uri)
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("friendship snapshot before accept completion should return response");
+    assert_eq!(
+        friendship_before_accept_completion.status(),
+        StatusCode::OK,
+        "atomic accept should materialize friendship before the delayed local side effects finish"
+    );
+
+    let cancel_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(cancel_uri)
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("cancel friend request should return response");
+    assert_eq!(
+        cancel_response.status(),
+        StatusCode::CONFLICT,
+        "cancel must be rejected once accept has already committed the request"
+    );
+    let cancel_response_body = cancel_response
+        .into_body()
+        .collect()
+        .await
+        .expect("cancel response body should collect")
+        .to_bytes();
+    let cancel_response_json: serde_json::Value = serde_json::from_slice(&cancel_response_body)
+        .expect("cancel response body should be valid json");
+    assert_eq!(cancel_response_json["code"], "friend_request_not_pending");
+
+    let accept_response = accept_task
+        .await
+        .expect("accept task should join successfully");
+    assert_eq!(accept_response.status(), StatusCode::OK);
+
+    let request_snapshot = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(request_snapshot_uri)
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("friend request snapshot should return response");
+    assert_eq!(request_snapshot.status(), StatusCode::OK);
+    let request_snapshot_body = request_snapshot
+        .into_body()
+        .collect()
+        .await
+        .expect("friend request snapshot body should collect")
+        .to_bytes();
+    let request_snapshot_json: serde_json::Value = serde_json::from_slice(&request_snapshot_body)
+        .expect("friend request snapshot body should be valid json");
+    assert_eq!(request_snapshot_json["friendRequest"]["status"], "accepted");
+
+    let friendship_after_accept = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!(
+                    "/api/v1/control/social/friendships/{friendship_id}"
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("friendship snapshot after accept should return response");
+    assert_eq!(
+        friendship_after_accept.status(),
+        StatusCode::OK,
+        "accepted request must converge to an active friendship"
+    );
+
+    let alice_contacts = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/contacts")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("alice contacts request should return response");
+    assert_eq!(alice_contacts.status(), StatusCode::OK);
+    let alice_contacts_body = alice_contacts
+        .into_body()
+        .collect()
+        .await
+        .expect("alice contacts body should collect")
+        .to_bytes();
+    let alice_contacts_json: serde_json::Value = serde_json::from_slice(&alice_contacts_body)
+        .expect("alice contacts body should be valid json");
+    let alice_contact_items = alice_contacts_json["items"]
+        .as_array()
+        .expect("alice contacts items should be an array");
+    assert_eq!(alice_contact_items.len(), 1);
+    assert_eq!(alice_contact_items[0]["targetUserId"], "u_bob");
+
+    let bob_contacts = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/contacts")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_bob")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("bob contacts request should return response");
+    assert_eq!(bob_contacts.status(), StatusCode::OK);
+    let bob_contacts_body = bob_contacts
+        .into_body()
+        .collect()
+        .await
+        .expect("bob contacts body should collect")
+        .to_bytes();
+    let bob_contacts_json: serde_json::Value =
+        serde_json::from_slice(&bob_contacts_body).expect("bob contacts body should be valid json");
+    let bob_contact_items = bob_contacts_json["items"]
+        .as_array()
+        .expect("bob contacts items should be an array");
+    assert_eq!(bob_contact_items.len(), 1);
+    assert_eq!(bob_contact_items[0]["targetUserId"], "u_alice");
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_repairs_pending_friend_request_acceptance_after_restart() {
+    let _env_lock = lock_social_accept_delay_env_guard();
+    let _accept_delay =
+        set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "500");
+
+    let runtime_dir = unique_test_runtime_dir("friend_request_accept_repair");
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+
+    let app = local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
+
+    let submit_request = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"repair after restart"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("submit friend request before restart repair should return response");
+    assert_eq!(submit_request.status(), StatusCode::OK);
+    let submit_request_body = submit_request
+        .into_body()
+        .collect()
+        .await
+        .expect("submit friend request before restart repair body should collect")
+        .to_bytes();
+    let submit_request_json: serde_json::Value = serde_json::from_slice(&submit_request_body)
+        .expect("submit friend request before restart repair body should be valid json");
+    let request_id = submit_request_json["friendRequest"]["requestId"]
+        .as_str()
+        .expect("request id should be present")
+        .to_owned();
+    let friendship_id = deterministic_social_id_for_test("fs_", request_id.as_str());
+
+    let accept_uri = format!("/api/v1/social/friend-requests/{request_id}/accept");
+    let request_snapshot_uri = format!("/api/v1/control/social/friend-requests/{request_id}");
+    let friendship_snapshot_uri = format!("/api/v1/control/social/friendships/{friendship_id}");
+
+    let accept_app = app.clone();
+    let accept_task = tokio::spawn(async move {
+        accept_app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(accept_uri)
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "u_bob")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("accept friend request before restart repair should return response")
+    });
+
+    let mut accepted_visible = false;
+    for _ in 0..200 {
+        let request_snapshot = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri(&request_snapshot_uri)
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "u_admin")
+                    .header("x-permissions", "control.read")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("request snapshot before restart repair should return response");
+        if request_snapshot.status() == StatusCode::OK {
+            let request_snapshot_body = request_snapshot
+                .into_body()
+                .collect()
+                .await
+                .expect("request snapshot before restart repair body should collect")
+                .to_bytes();
+            let request_snapshot_json: serde_json::Value =
+                serde_json::from_slice(&request_snapshot_body)
+                    .expect("request snapshot before restart repair body should be valid json");
+            if request_snapshot_json["friendRequest"]["status"] == "accepted" {
+                accepted_visible = true;
+                break;
+            }
+        }
+        sleep(Duration::from_millis(5)).await;
+    }
+    assert!(
+        accepted_visible,
+        "friend request should become accepted before aborting accept flow"
+    );
+
+    let friendship_snapshot = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(&friendship_snapshot_uri)
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("friendship snapshot before abort should return response");
+    assert_eq!(
+        friendship_snapshot.status(),
+        StatusCode::OK,
+        "control-plane friendship should already exist before aborting the delayed local accept flow"
+    );
+
+    accept_task.abort();
+    let _ = accept_task.await;
+    drop(app);
+
+    let app_after_restart =
+        local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
+
+    let mut repaired = false;
+    for _ in 0..50 {
+        let contacts = app_after_restart
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/api/v1/contacts")
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "u_alice")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("contacts after restart repair should return response");
+        assert_eq!(contacts.status(), StatusCode::OK);
+        let contacts_body = contacts
+            .into_body()
+            .collect()
+            .await
+            .expect("contacts after restart repair body should collect")
+            .to_bytes();
+        let contacts_json: serde_json::Value = serde_json::from_slice(&contacts_body)
+            .expect("contacts after restart repair body should be valid json");
+        let contact_items = contacts_json["items"]
+            .as_array()
+            .expect("contacts after restart repair should include items");
+        if contact_items.len() == 1 && contact_items[0]["targetUserId"] == "u_bob" {
+            repaired = true;
+            break;
+        }
+        sleep(Duration::from_millis(20)).await;
+    }
+    assert!(
+        repaired,
+        "restart should automatically repair accepted friend request side effects"
+    );
+
+    let friendship_after_restart = app_after_restart
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(&friendship_snapshot_uri)
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("friendship snapshot after restart repair should return response");
+    assert_eq!(friendship_after_restart.status(), StatusCode::OK);
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_contacts_read_repairs_pending_friend_request_acceptance_immediately_after_restart()
+ {
+    let _env_lock = lock_social_accept_delay_env_guard();
+    let _accept_delay =
+        set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "500");
+
+    let runtime_dir = unique_test_runtime_dir("friend_request_accept_repair_contacts");
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+
+    let app = local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
+
+    let submit_request = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"repair on first contacts read"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("submit friend request before contacts repair should return response");
+    assert_eq!(submit_request.status(), StatusCode::OK);
+    let submit_request_body = submit_request
+        .into_body()
+        .collect()
+        .await
+        .expect("submit friend request before contacts repair body should collect")
+        .to_bytes();
+    let submit_request_json: serde_json::Value = serde_json::from_slice(&submit_request_body)
+        .expect("submit friend request before contacts repair body should be valid json");
+    let request_id = submit_request_json["friendRequest"]["requestId"]
+        .as_str()
+        .expect("request id should be present")
+        .to_owned();
+
+    let request_snapshot_uri = format!("/api/v1/control/social/friend-requests/{request_id}");
+    let accept_uri = format!("/api/v1/social/friend-requests/{request_id}/accept");
+
+    let accept_app = app.clone();
+    let accept_task = tokio::spawn(async move {
+        accept_app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(accept_uri)
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "u_bob")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("accept friend request before contacts repair should return response")
+    });
+
+    let mut accepted_visible = false;
+    for _ in 0..200 {
+        let request_snapshot = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri(&request_snapshot_uri)
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "u_admin")
+                    .header("x-permissions", "control.read")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("request snapshot before contacts repair should return response");
+        if request_snapshot.status() == StatusCode::OK {
+            let request_snapshot_body = request_snapshot
+                .into_body()
+                .collect()
+                .await
+                .expect("request snapshot before contacts repair body should collect")
+                .to_bytes();
+            let request_snapshot_json: serde_json::Value =
+                serde_json::from_slice(&request_snapshot_body)
+                    .expect("request snapshot before contacts repair body should be valid json");
+            if request_snapshot_json["friendRequest"]["status"] == "accepted" {
+                accepted_visible = true;
+                break;
+            }
+        }
+        sleep(Duration::from_millis(5)).await;
+    }
+    assert!(
+        accepted_visible,
+        "friend request should become accepted before aborting accept flow"
+    );
+
+    accept_task.abort();
+    let _ = accept_task.await;
+    drop(app);
+
+    let app_after_restart =
+        local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
+
+    let contacts = app_after_restart
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/contacts")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("first contacts read after restart should return response");
+    assert_eq!(contacts.status(), StatusCode::OK);
+    let contacts_body = contacts
+        .into_body()
+        .collect()
+        .await
+        .expect("first contacts read after restart body should collect")
+        .to_bytes();
+    let contacts_json: serde_json::Value = serde_json::from_slice(&contacts_body)
+        .expect("first contacts read after restart body should be valid json");
+    let contact_items = contacts_json["items"]
+        .as_array()
+        .expect("first contacts read after restart should include items");
+    assert_eq!(
+        contact_items.len(),
+        1,
+        "first contacts read after restart should synchronously converge pending accepted friendship"
+    );
+    assert_eq!(contact_items[0]["targetUserId"], "u_bob");
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_second_instance_contacts_read_repairs_pending_friend_request_acceptance()
+ {
+    let _env_lock = lock_social_accept_delay_env_guard();
+    let _accept_delay =
+        set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "500");
+
+    let runtime_dir = unique_test_runtime_dir("friend_request_accept_repair_second_instance");
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+
+    let app_a = local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
+    let app_b = local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
+
+    let submit_request = app_a
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"repair from second instance"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("submit friend request before second instance repair should return response");
+    assert_eq!(submit_request.status(), StatusCode::OK);
+    let submit_request_body = submit_request
+        .into_body()
+        .collect()
+        .await
+        .expect("submit friend request before second instance repair body should collect")
+        .to_bytes();
+    let submit_request_json: serde_json::Value = serde_json::from_slice(&submit_request_body)
+        .expect("submit friend request before second instance repair body should be valid json");
+    let request_id = submit_request_json["friendRequest"]["requestId"]
+        .as_str()
+        .expect("request id should be present")
+        .to_owned();
+    let friendship_id = deterministic_social_id_for_test("fs_", request_id.as_str());
+    let repair_store_path = runtime_dir
+        .join("state")
+        .join("social-friend-request-accept-repairs.json");
+
+    let accept_uri = format!("/api/v1/social/friend-requests/{request_id}/accept");
+    let request_snapshot_uri = format!("/api/v1/control/social/friend-requests/{request_id}");
+    let friendship_snapshot_uri = format!("/api/v1/control/social/friendships/{friendship_id}");
+
+    let accept_app = app_a.clone();
+    let accept_task = tokio::spawn(async move {
+        accept_app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(accept_uri)
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "u_bob")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("accept friend request before second instance repair should return response")
+    });
+
+    let mut accepted_visible = false;
+    for _ in 0..200 {
+        let request_snapshot = app_b
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri(&request_snapshot_uri)
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "u_admin")
+                    .header("x-permissions", "control.read")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("request snapshot before second instance repair should return response");
+        if request_snapshot.status() == StatusCode::OK {
+            let request_snapshot_body = request_snapshot
+                .into_body()
+                .collect()
+                .await
+                .expect("request snapshot before second instance repair body should collect")
+                .to_bytes();
+            let request_snapshot_json: serde_json::Value = serde_json::from_slice(
+                &request_snapshot_body,
+            )
+            .expect("request snapshot before second instance repair body should be valid json");
+            if request_snapshot_json["friendRequest"]["status"] == "accepted" {
+                accepted_visible = true;
+                break;
+            }
+        }
+        sleep(Duration::from_millis(5)).await;
+    }
+    assert!(
+        accepted_visible,
+        "friend request should become accepted before aborting first instance accept flow"
+    );
+    assert!(
+        repair_store_path.exists(),
+        "pending accept repair store should be materialized for the second instance to observe"
+    );
+
+    let friendship_snapshot = app_b
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(&friendship_snapshot_uri)
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("friendship snapshot before second instance repair should return response");
+    assert_eq!(
+        friendship_snapshot.status(),
+        StatusCode::OK,
+        "control-plane friendship should already exist before the second instance repairs local contacts"
+    );
+
+    accept_task.abort();
+    let _ = accept_task.await;
+    drop(app_a);
+
+    let contacts = app_b
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/contacts")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("second instance contacts read should return response");
+    assert_eq!(contacts.status(), StatusCode::OK);
+    let contacts_body = contacts
+        .into_body()
+        .collect()
+        .await
+        .expect("second instance contacts read body should collect")
+        .to_bytes();
+    let contacts_json: serde_json::Value = serde_json::from_slice(&contacts_body)
+        .expect("second instance contacts read body should be valid json");
+    let contact_items = contacts_json["items"]
+        .as_array()
+        .expect("second instance contacts read should include items");
+    assert_eq!(
+        contact_items.len(),
+        1,
+        "second instance should synchronously observe and repair the shared pending accept entry"
+    );
+    assert_eq!(contact_items[0]["targetUserId"], "u_bob");
+
+    let friendship_after_repair = app_b
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(&friendship_snapshot_uri)
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("friendship snapshot after second instance repair should return response");
+    assert_eq!(friendship_after_repair.status(), StatusCode::OK);
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_same_instance_concurrent_contacts_wait_for_pending_accept_repair()
+ {
+    let _env_lock = lock_social_accept_delay_env_guard();
+    let _accept_delay =
+        set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "500");
+
+    let runtime_dir =
+        unique_test_runtime_dir("friend_request_accept_repair_same_instance_contacts_wait");
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+
+    let app_a = local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
+    let app_b = local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
+
+    let submit_request = app_a
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"same instance contacts wait"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("submit friend request before same-instance contacts wait should return response");
+    assert_eq!(submit_request.status(), StatusCode::OK);
+    let submit_request_body = submit_request
+        .into_body()
+        .collect()
+        .await
+        .expect("submit friend request before same-instance contacts wait body should collect")
+        .to_bytes();
+    let submit_request_json: serde_json::Value = serde_json::from_slice(&submit_request_body)
+        .expect(
+            "submit friend request before same-instance contacts wait body should be valid json",
+        );
+    let request_id = submit_request_json["friendRequest"]["requestId"]
+        .as_str()
+        .expect("request id should be present")
+        .to_owned();
+    let friendship_id = deterministic_social_id_for_test("fs_", request_id.as_str());
+
+    let accept_uri = format!("/api/v1/social/friend-requests/{request_id}/accept");
+    let request_snapshot_uri = format!("/api/v1/control/social/friend-requests/{request_id}");
+    let friendship_snapshot_uri = format!("/api/v1/control/social/friendships/{friendship_id}");
+
+    let accept_app = app_a.clone();
+    let accept_task = tokio::spawn(async move {
+        accept_app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(accept_uri)
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "u_bob")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect(
+                "accept friend request before same-instance contacts wait should return response",
+            )
+    });
+
+    let mut accepted_visible = false;
+    for _ in 0..200 {
+        let request_snapshot = app_b
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri(&request_snapshot_uri)
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "u_admin")
+                    .header("x-permissions", "control.read")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("request snapshot before same-instance contacts wait should return response");
+        if request_snapshot.status() == StatusCode::OK {
+            let request_snapshot_body = request_snapshot
+                .into_body()
+                .collect()
+                .await
+                .expect("request snapshot before same-instance contacts wait body should collect")
+                .to_bytes();
+            let request_snapshot_json: serde_json::Value =
+                serde_json::from_slice(&request_snapshot_body).expect(
+                    "request snapshot before same-instance contacts wait body should be valid json",
+                );
+            if request_snapshot_json["friendRequest"]["status"] == "accepted" {
+                accepted_visible = true;
+                break;
+            }
+        }
+        sleep(Duration::from_millis(5)).await;
+    }
+    assert!(
+        accepted_visible,
+        "friend request should become accepted before aborting accept flow"
+    );
+
+    let friendship_snapshot = app_b
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(&friendship_snapshot_uri)
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("friendship snapshot before same-instance contacts wait should return response");
+    assert_eq!(
+        friendship_snapshot.status(),
+        StatusCode::OK,
+        "control-plane friendship should already exist before same-instance repair begins"
+    );
+
+    accept_task.abort();
+    let _ = accept_task.await;
+    drop(app_a);
+
+    let run_lock_path = runtime_dir
+        .join("state")
+        .join("social-friend-request-accept-repairs.run.lock");
+    fs::create_dir_all(
+        run_lock_path
+            .parent()
+            .expect("repair run lock path should have parent dir"),
+    )
+    .expect("repair run lock parent dir should be created");
+    let run_lock_file = fs::OpenOptions::new()
+        .create(true)
+        .read(true)
+        .write(true)
+        .truncate(false)
+        .open(run_lock_path.as_path())
+        .expect("repair run lock file should open");
+    run_lock_file
+        .lock_exclusive()
+        .expect("test should acquire repair run lock");
+
+    let first_contacts_app = app_b.clone();
+    let mut first_contacts_task = tokio::spawn(async move {
+        first_contacts_app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/api/v1/contacts")
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "u_alice")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("first contacts read while holding repair run lock should return response")
+    });
+    assert!(
+        timeout(Duration::from_millis(50), &mut first_contacts_task)
+            .await
+            .is_err(),
+        "first contacts read should block while the repair run lock is held"
+    );
+
+    let second_contacts_app = app_b.clone();
+    let mut second_contacts_task = tokio::spawn(async move {
+        second_contacts_app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/api/v1/contacts")
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "u_alice")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("second contacts read while repair is in-flight should return response")
+    });
+    assert!(
+        timeout(Duration::from_millis(50), &mut second_contacts_task)
+            .await
+            .is_err(),
+        "second concurrent contacts read on the same instance should wait for the in-flight repair"
+    );
+
+    run_lock_file
+        .unlock()
+        .expect("test should release repair run lock");
+    drop(run_lock_file);
+
+    let first_contacts = first_contacts_task
+        .await
+        .expect("first contacts read task should complete after run lock release");
+    assert_eq!(first_contacts.status(), StatusCode::OK);
+    let first_contacts_body = first_contacts
+        .into_body()
+        .collect()
+        .await
+        .expect("first contacts read body should collect")
+        .to_bytes();
+    let first_contacts_json: serde_json::Value = serde_json::from_slice(&first_contacts_body)
+        .expect("first contacts read body should be valid json");
+    let first_items = first_contacts_json["items"]
+        .as_array()
+        .expect("first contacts read should include items");
+    assert_eq!(
+        first_items.len(),
+        1,
+        "first contacts read should converge the pending accept repair"
+    );
+    assert_eq!(first_items[0]["targetUserId"], "u_bob");
+
+    let second_contacts = second_contacts_task
+        .await
+        .expect("second contacts read task should complete after run lock release");
+    assert_eq!(second_contacts.status(), StatusCode::OK);
+    let second_contacts_body = second_contacts
+        .into_body()
+        .collect()
+        .await
+        .expect("second contacts read body should collect")
+        .to_bytes();
+    let second_contacts_json: serde_json::Value = serde_json::from_slice(&second_contacts_body)
+        .expect("second contacts read body should be valid json");
+    let second_items = second_contacts_json["items"]
+        .as_array()
+        .expect("second contacts read should include items");
+    assert_eq!(
+        second_items.len(),
+        1,
+        "second contacts read should observe the converged friendship after waiting for repair"
+    );
+    assert_eq!(second_items[0]["targetUserId"], "u_bob");
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_healthz_stays_responsive_while_repair_store_io_is_delayed() {
+    let _env_lock = lock_social_accept_delay_env_guard();
+    let _accept_delay =
+        set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "500");
+    let _repair_store_delay = set_scoped_env_var(
+        "CRAW_CHAT_TEST_SOCIAL_ACCEPT_REPAIR_STORE_IO_DELAY_MS",
+        "250",
+    );
+
+    let runtime_dir = unique_test_runtime_dir("friend_request_accept_repair_store_io_delay");
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+
+    let app_a = local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
+    let app_b = local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
+
+    let submit_request = app_a
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"repair store io delay"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("submit friend request before repair store io delay should return response");
+    assert_eq!(submit_request.status(), StatusCode::OK);
+    let submit_request_body = submit_request
+        .into_body()
+        .collect()
+        .await
+        .expect("submit friend request before repair store io delay body should collect")
+        .to_bytes();
+    let submit_request_json: serde_json::Value = serde_json::from_slice(&submit_request_body)
+        .expect("submit friend request before repair store io delay body should be valid json");
+    let request_id = submit_request_json["friendRequest"]["requestId"]
+        .as_str()
+        .expect("request id should be present")
+        .to_owned();
+    let friendship_id = deterministic_social_id_for_test("fs_", request_id.as_str());
+
+    let accept_uri = format!("/api/v1/social/friend-requests/{request_id}/accept");
+    let request_snapshot_uri = format!("/api/v1/control/social/friend-requests/{request_id}");
+    let friendship_snapshot_uri = format!("/api/v1/control/social/friendships/{friendship_id}");
+
+    let accept_app = app_a.clone();
+    let accept_task = tokio::spawn(async move {
+        accept_app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(accept_uri)
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "u_bob")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("accept friend request before repair store io delay should return response")
+    });
+
+    let mut accepted_visible = false;
+    for _ in 0..200 {
+        let request_snapshot = app_b
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri(&request_snapshot_uri)
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "u_admin")
+                    .header("x-permissions", "control.read")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("request snapshot before repair store io delay should return response");
+        if request_snapshot.status() == StatusCode::OK {
+            let request_snapshot_body = request_snapshot
+                .into_body()
+                .collect()
+                .await
+                .expect("request snapshot before repair store io delay body should collect")
+                .to_bytes();
+            let request_snapshot_json: serde_json::Value = serde_json::from_slice(
+                &request_snapshot_body,
+            )
+            .expect("request snapshot before repair store io delay body should be valid json");
+            if request_snapshot_json["friendRequest"]["status"] == "accepted" {
+                accepted_visible = true;
+                break;
+            }
+        }
+        sleep(Duration::from_millis(5)).await;
+    }
+    assert!(
+        accepted_visible,
+        "friend request should become accepted before aborting accept flow"
+    );
+
+    let friendship_snapshot = app_b
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(&friendship_snapshot_uri)
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("friendship snapshot before repair store io delay should return response");
+    assert_eq!(
+        friendship_snapshot.status(),
+        StatusCode::OK,
+        "control-plane friendship should already exist before local repair store convergence starts"
+    );
+
+    accept_task.abort();
+    let _ = accept_task.await;
+    drop(app_a);
+
+    let contacts_app = app_b.clone();
+    let mut contacts_task = tokio::spawn(async move {
+        contacts_app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/api/v1/contacts")
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "u_alice")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("contacts read during repair store io delay should return response")
+    });
+    assert!(
+        timeout(Duration::from_millis(50), &mut contacts_task)
+            .await
+            .is_err(),
+        "contacts repair should still be waiting while repair store io delay is active"
+    );
+
+    let healthz = timeout(
+        Duration::from_millis(50),
+        app_b.clone().oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/healthz")
+                .body(Body::empty())
+                .unwrap(),
+        ),
+    )
+    .await
+    .expect("healthz should stay responsive while repair store io is delayed")
+    .expect("healthz should return response while repair store io is delayed");
+    assert_eq!(healthz.status(), StatusCode::OK);
+
+    let contacts = contacts_task
+        .await
+        .expect("contacts task should finish after delayed repair store io completes");
+    assert_eq!(contacts.status(), StatusCode::OK);
+    let contacts_body = contacts
+        .into_body()
+        .collect()
+        .await
+        .expect("contacts body after delayed repair should collect")
+        .to_bytes();
+    let contacts_json: serde_json::Value = serde_json::from_slice(&contacts_body)
+        .expect("contacts body after delayed repair should be valid json");
+    let items = contacts_json["items"]
+        .as_array()
+        .expect("contacts body after delayed repair should include items");
+    assert_eq!(items.len(), 1);
+    assert_eq!(items[0]["targetUserId"], "u_bob");
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_cross_instance_pending_accept_repairs_preserve_multiple_entries()
+ {
+    let _env_lock = lock_social_accept_delay_env_guard();
+    let _accept_delay =
+        set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "500");
+
+    let runtime_dir = unique_test_runtime_dir("friend_request_accept_repair_multi_instance");
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+
+    let app_a = local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
+    let app_b = local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
+
+    let submit_first = app_a
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"first pending repair"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("first submit before multi-instance repair preservation should return response");
+    assert_eq!(submit_first.status(), StatusCode::OK);
+    let submit_first_body = submit_first
+        .into_body()
+        .collect()
+        .await
+        .expect("first submit before multi-instance repair preservation body should collect")
+        .to_bytes();
+    let submit_first_json: serde_json::Value = serde_json::from_slice(&submit_first_body)
+        .expect("first submit before multi-instance repair preservation body should be valid json");
+    let first_request_id = submit_first_json["friendRequest"]["requestId"]
+        .as_str()
+        .expect("first request id should be present")
+        .to_owned();
+    let first_friendship_id = deterministic_social_id_for_test("fs_", first_request_id.as_str());
+    let first_request_snapshot_uri =
+        format!("/api/v1/control/social/friend-requests/{first_request_id}");
+    let first_friendship_snapshot_uri =
+        format!("/api/v1/control/social/friendships/{first_friendship_id}");
+
+    let first_accept_uri = format!("/api/v1/social/friend-requests/{first_request_id}/accept");
+    let first_accept_app = app_a.clone();
+    let first_accept_task = tokio::spawn(async move {
+        first_accept_app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(first_accept_uri)
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "u_bob")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("first accept before multi-instance repair preservation should return response")
+    });
+
+    let mut first_accepted_visible = false;
+    for _ in 0..200 {
+        let request_snapshot = app_a
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri(&first_request_snapshot_uri)
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "u_admin")
+                    .header("x-permissions", "control.read")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("first request snapshot before multi-instance repair preservation should return response");
+        if request_snapshot.status() == StatusCode::OK {
+            let request_snapshot_body = request_snapshot
+                .into_body()
+                .collect()
+                .await
+                .expect("first request snapshot before multi-instance repair preservation body should collect")
+                .to_bytes();
+            let request_snapshot_json: serde_json::Value =
+                serde_json::from_slice(&request_snapshot_body)
+                    .expect("first request snapshot before multi-instance repair preservation body should be valid json");
+            if request_snapshot_json["friendRequest"]["status"] == "accepted" {
+                first_accepted_visible = true;
+                break;
+            }
+        }
+        sleep(Duration::from_millis(5)).await;
+    }
+    assert!(
+        first_accepted_visible,
+        "first friend request should become accepted before aborting accept flow"
+    );
+    let first_friendship_snapshot = app_a
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(&first_friendship_snapshot_uri)
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("first friendship snapshot before multi-instance repair preservation should return response");
+    assert_eq!(first_friendship_snapshot.status(), StatusCode::OK);
+    first_accept_task.abort();
+    let _ = first_accept_task.await;
+
+    let submit_second = app_b
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_carol")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"second pending repair"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("second submit before multi-instance repair preservation should return response");
+    assert_eq!(submit_second.status(), StatusCode::OK);
+    let submit_second_body = submit_second
+        .into_body()
+        .collect()
+        .await
+        .expect("second submit before multi-instance repair preservation body should collect")
+        .to_bytes();
+    let submit_second_json: serde_json::Value = serde_json::from_slice(&submit_second_body).expect(
+        "second submit before multi-instance repair preservation body should be valid json",
+    );
+    let second_request_id = submit_second_json["friendRequest"]["requestId"]
+        .as_str()
+        .expect("second request id should be present")
+        .to_owned();
+    let second_friendship_id = deterministic_social_id_for_test("fs_", second_request_id.as_str());
+    let second_request_snapshot_uri =
+        format!("/api/v1/control/social/friend-requests/{second_request_id}");
+    let second_friendship_snapshot_uri =
+        format!("/api/v1/control/social/friendships/{second_friendship_id}");
+
+    let second_accept_uri = format!("/api/v1/social/friend-requests/{second_request_id}/accept");
+    let second_accept_app = app_b.clone();
+    let second_accept_task = tokio::spawn(async move {
+        second_accept_app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(second_accept_uri)
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "u_bob")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect(
+                "second accept before multi-instance repair preservation should return response",
+            )
+    });
+
+    let mut second_accepted_visible = false;
+    for _ in 0..200 {
+        let request_snapshot = app_b
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri(&second_request_snapshot_uri)
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "u_admin")
+                    .header("x-permissions", "control.read")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("second request snapshot before multi-instance repair preservation should return response");
+        if request_snapshot.status() == StatusCode::OK {
+            let request_snapshot_body = request_snapshot
+                .into_body()
+                .collect()
+                .await
+                .expect("second request snapshot before multi-instance repair preservation body should collect")
+                .to_bytes();
+            let request_snapshot_json: serde_json::Value =
+                serde_json::from_slice(&request_snapshot_body)
+                    .expect("second request snapshot before multi-instance repair preservation body should be valid json");
+            if request_snapshot_json["friendRequest"]["status"] == "accepted" {
+                second_accepted_visible = true;
+                break;
+            }
+        }
+        sleep(Duration::from_millis(5)).await;
+    }
+    assert!(
+        second_accepted_visible,
+        "second friend request should become accepted before aborting accept flow"
+    );
+    let second_friendship_snapshot = app_b
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(&second_friendship_snapshot_uri)
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("second friendship snapshot before multi-instance repair preservation should return response");
+    assert_eq!(second_friendship_snapshot.status(), StatusCode::OK);
+    second_accept_task.abort();
+    let _ = second_accept_task.await;
+
+    drop(app_a);
+    drop(app_b);
+
+    let app_after_restart =
+        local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
+
+    let alice_contacts = app_after_restart
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/contacts")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("alice contacts after multi-instance repair preservation should return response");
+    assert_eq!(alice_contacts.status(), StatusCode::OK);
+    let alice_contacts_body = alice_contacts
+        .into_body()
+        .collect()
+        .await
+        .expect("alice contacts after multi-instance repair preservation body should collect")
+        .to_bytes();
+    let alice_contacts_json: serde_json::Value = serde_json::from_slice(&alice_contacts_body)
+        .expect(
+            "alice contacts after multi-instance repair preservation body should be valid json",
+        );
+    let alice_items = alice_contacts_json["items"]
+        .as_array()
+        .expect("alice contacts after multi-instance repair preservation should include items");
+    assert_eq!(
+        alice_items.len(),
+        1,
+        "first pending repair entry must survive the second instance write"
+    );
+    assert_eq!(alice_items[0]["targetUserId"], "u_bob");
+
+    let carol_contacts = app_after_restart
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/contacts")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_carol")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("carol contacts after multi-instance repair preservation should return response");
+    assert_eq!(carol_contacts.status(), StatusCode::OK);
+    let carol_contacts_body = carol_contacts
+        .into_body()
+        .collect()
+        .await
+        .expect("carol contacts after multi-instance repair preservation body should collect")
+        .to_bytes();
+    let carol_contacts_json: serde_json::Value = serde_json::from_slice(&carol_contacts_body)
+        .expect(
+            "carol contacts after multi-instance repair preservation body should be valid json",
+        );
+    let carol_items = carol_contacts_json["items"]
+        .as_array()
+        .expect("carol contacts after multi-instance repair preservation should include items");
+    assert_eq!(
+        carol_items.len(),
+        1,
+        "second pending repair entry must also converge after restart"
+    );
+    assert_eq!(carol_items[0]["targetUserId"], "u_bob");
+
+    let first_friendship_after_restart = app_after_restart
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(&first_friendship_snapshot_uri)
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("first friendship snapshot after multi-instance repair preservation should return response");
+    assert_eq!(first_friendship_after_restart.status(), StatusCode::OK);
+
+    let second_friendship_after_restart = app_after_restart
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(&second_friendship_snapshot_uri)
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("second friendship snapshot after multi-instance repair preservation should return response");
+    assert_eq!(second_friendship_after_restart.status(), StatusCode::OK);
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_discards_stale_pending_friend_request_accept_repair_when_friendship_was_removed()
+ {
+    let runtime_dir = unique_test_runtime_dir("friend_request_accept_repair_removed");
+    fs::create_dir_all(runtime_dir.join("state")).expect("runtime dir state should be created");
+
+    let app = local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
+
+    let submit_request = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"repair should discard stale removed friendship"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("submit friend request before stale repair scenario should return response");
+    assert_eq!(submit_request.status(), StatusCode::OK);
+    let submit_request_body = submit_request
+        .into_body()
+        .collect()
+        .await
+        .expect("submit friend request before stale repair scenario body should collect")
+        .to_bytes();
+    let submit_request_json: serde_json::Value = serde_json::from_slice(&submit_request_body)
+        .expect("submit friend request before stale repair scenario body should be valid json");
+    let request_id = submit_request_json["friendRequest"]["requestId"]
+        .as_str()
+        .expect("request id should be present")
+        .to_owned();
+    let friendship_id = deterministic_social_id_for_test("fs_", request_id.as_str());
+
+    let control_accept = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/v1/control/social/friend-requests/{request_id}/accept"
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_bob")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "eventId": format!("evt_control_accept_{request_id}"),
+                        "acceptedByUserId": "u_bob",
+                        "acceptedAt": "2026-04-16T09:00:00Z"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("control accept for stale repair scenario should return response");
+    assert_eq!(control_accept.status(), StatusCode::OK);
+
+    let friendship_snapshot_before_remove = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/v1/control/social/friendships/{friendship_id}"))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("friendship snapshot before stale repair removal should return response");
+    assert_eq!(friendship_snapshot_before_remove.status(), StatusCode::OK);
+
+    let remove_friendship = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/v1/control/social/friendships/{friendship_id}/remove"
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "eventId": format!("evt_remove_{request_id}"),
+                        "removedByUserId": "u_alice",
+                        "removedAt": "2026-04-16T09:05:00Z"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("friendship removal for stale repair scenario should return response");
+    assert_eq!(remove_friendship.status(), StatusCode::OK);
+
+    drop(app);
+
+    let repair_store_path = runtime_dir
+        .join("state")
+        .join("social-friend-request-accept-repairs.json");
+    fs::write(
+        repair_store_path.as_path(),
+        serde_json::json!({
+            request_id.as_str(): {
+                "tenant_id": "t_demo",
+                "request_id": request_id,
+                "requester_user_id": "u_alice",
+                "target_user_id": "u_bob",
+                "accepted_at": "2026-04-16T09:00:00Z"
+            }
+        })
+        .to_string(),
+    )
+    .expect("stale repair store should be writable");
+
+    let app_after_restart =
+        local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
+
+    let contacts = app_after_restart
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/contacts")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("contacts after stale repair restart should return response");
+    assert_eq!(contacts.status(), StatusCode::OK);
+    let contacts_body = contacts
+        .into_body()
+        .collect()
+        .await
+        .expect("contacts after stale repair restart body should collect")
+        .to_bytes();
+    let contacts_json: serde_json::Value = serde_json::from_slice(&contacts_body)
+        .expect("contacts after stale repair restart body should be valid json");
+    assert!(
+        contacts_json["items"]
+            .as_array()
+            .expect("contacts after stale repair restart should include items")
+            .is_empty(),
+        "removed friendship should not be resurrected by stale pending repair"
+    );
+    assert!(
+        !repair_store_path.exists(),
+        "stale pending repair should be discarded after convergence"
+    );
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_discards_blocked_pending_friend_request_accept_repair() {
+    let _env_lock = lock_social_accept_delay_env_guard();
+    let _accept_delay =
+        set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "400");
+
+    let runtime_dir = unique_test_runtime_dir("friend_request_accept_repair_blocked");
+    fs::create_dir_all(runtime_dir.join("state")).expect("runtime dir state should be created");
+
+    let app = local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
+
+    let submit_request = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"repair should discard blocked acceptance"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("submit friend request before blocked repair scenario should return response");
+    assert_eq!(submit_request.status(), StatusCode::OK);
+    let submit_request_body = submit_request
+        .into_body()
+        .collect()
+        .await
+        .expect("submit friend request before blocked repair scenario body should collect")
+        .to_bytes();
+    let submit_request_json: serde_json::Value = serde_json::from_slice(&submit_request_body)
+        .expect("submit friend request before blocked repair scenario body should be valid json");
+    let request_id = submit_request_json["friendRequest"]["requestId"]
+        .as_str()
+        .expect("blocked repair request id should be present")
+        .to_owned();
+
+    let accept_task = tokio::spawn({
+        let app = app.clone();
+        let request_id = request_id.clone();
+        async move {
+            app.oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(format!("/api/v1/social/friend-requests/{request_id}/accept"))
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "u_bob")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("blocked accept should return response")
+        }
+    });
+
+    sleep(Duration::from_millis(50)).await;
+
+    let block_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/control/social/user-blocks")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "blockId": format!("ub_blocked_repair_{request_id}"),
+                        "eventId": format!("evt_blocked_repair_{request_id}"),
+                        "blockerUserId": "u_bob",
+                        "blockedUserId": "u_alice",
+                        "scope": "friendship",
+                        "effectiveAt": "2026-04-16T09:11:00Z"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("friendship block for blocked repair scenario should return response");
+    assert_eq!(block_response.status(), StatusCode::OK);
+
+    let accept_response = accept_task
+        .await
+        .expect("blocked accept task should join successfully");
+    let accept_status = accept_response.status();
+    let accept_body = accept_response
+        .into_body()
+        .collect()
+        .await
+        .expect("blocked accept body should collect")
+        .to_bytes();
+    let accept_json: serde_json::Value =
+        serde_json::from_slice(&accept_body).expect("blocked accept body should be json");
+    assert_eq!(
+        accept_status,
+        StatusCode::OK,
+        "late friendship block should not roll back an already committed atomic accept: {accept_json}"
+    );
+    assert_eq!(accept_json["friendRequest"]["status"], "accepted");
+    assert_eq!(accept_json["friendship"]["status"], "active");
+
+    let contacts = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/contacts")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("contacts should return response for blocked repair scenario");
+    assert_eq!(
+        contacts.status(),
+        StatusCode::OK,
+        "blocked pending repair should be discarded instead of permanently failing contacts reads"
+    );
+    let contacts_body = contacts
+        .into_body()
+        .collect()
+        .await
+        .expect("contacts after blocked repair should collect")
+        .to_bytes();
+    let contacts_json: serde_json::Value =
+        serde_json::from_slice(&contacts_body).expect("contacts after blocked repair should be json");
+    let contact_items = contacts_json["items"]
+        .as_array()
+        .expect("contacts after blocked repair should include items");
+    assert!(
+        contact_items.is_empty()
+            || (contact_items.len() == 1 && contact_items[0]["targetUserId"] == "u_bob"),
+        "late block should not poison contact convergence regardless of whether friendship-scope blocks hide contacts: {contacts_json}"
+    );
+
+    let repair_store_path = runtime_dir
+        .join("state")
+        .join("social-friend-request-accept-repairs.json");
+    assert!(
+        !repair_store_path.exists(),
+        "blocked stale repair should be discarded after convergence"
+    );
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_discards_canceled_pending_friend_request_accept_repair_after_stale_pending_snapshot()
+{
+    let _env_lock = lock_social_accept_delay_env_guard();
+    let _repair_snapshot_delay = set_scoped_env_var(
+        "CRAW_CHAT_TEST_SOCIAL_ACCEPT_REPAIR_POST_SNAPSHOT_DELAY_MS",
+        "200",
+    );
+
+    let runtime_dir = unique_test_runtime_dir("friend_request_accept_repair_canceled");
+    fs::create_dir_all(runtime_dir.join("state")).expect("runtime dir state should be created");
+
+    let app = local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
+
+    let submit_request = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"repair should discard canceled acceptance after stale pending snapshot"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("submit friend request before canceled stale repair scenario should return response");
+    assert_eq!(submit_request.status(), StatusCode::OK);
+    let submit_request_body = submit_request
+        .into_body()
+        .collect()
+        .await
+        .expect("submit friend request before canceled stale repair scenario body should collect")
+        .to_bytes();
+    let submit_request_json: serde_json::Value = serde_json::from_slice(&submit_request_body)
+        .expect(
+            "submit friend request before canceled stale repair scenario body should be valid json",
+        );
+    let request_id = submit_request_json["friendRequest"]["requestId"]
+        .as_str()
+        .expect("canceled stale repair request id should be present")
+        .to_owned();
+
+    let repair_store_path = runtime_dir
+        .join("state")
+        .join("social-friend-request-accept-repairs.json");
+    fs::write(
+        repair_store_path.as_path(),
+        serde_json::json!({
+            request_id.as_str(): {
+                "tenant_id": "t_demo",
+                "request_id": request_id,
+                "requester_user_id": "u_alice",
+                "target_user_id": "u_bob",
+                "accepted_at": "2026-04-16T09:30:00Z"
+            }
+        })
+        .to_string(),
+    )
+    .expect("pending repair store for canceled stale repair scenario should be writable");
+
+    let contacts_task = tokio::spawn({
+        let app = app.clone();
+        async move {
+            app.oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/api/v1/contacts")
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "u_alice")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("contacts during canceled stale repair scenario should return response")
+        }
+    });
+
+    sleep(Duration::from_millis(50)).await;
+
+    let cancel_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/v1/control/social/friend-requests/{request_id}/cancel"
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "eventId": format!("evt_cancel_stale_repair_{request_id}"),
+                        "canceledByUserId": "u_alice",
+                        "canceledAt": "2026-04-16T09:31:00Z"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("control cancel during canceled stale repair scenario should return response");
+    assert_eq!(cancel_response.status(), StatusCode::OK);
+
+    let contacts_response = contacts_task
+        .await
+        .expect("contacts task for canceled stale repair scenario should join");
+    assert_eq!(
+        contacts_response.status(),
+        StatusCode::OK,
+        "stale pending repair canceled after snapshot should be discarded instead of breaking contacts reads"
+    );
+    let contacts_body = contacts_response
+        .into_body()
+        .collect()
+        .await
+        .expect("contacts after canceled stale repair scenario should collect")
+        .to_bytes();
+    let contacts_json: serde_json::Value = serde_json::from_slice(&contacts_body)
+        .expect("contacts after canceled stale repair scenario should be valid json");
+    assert!(
+        contacts_json["items"]
+            .as_array()
+            .expect("contacts after canceled stale repair scenario should include items")
+            .is_empty(),
+        "canceled friendship request must not materialize a contact after stale repair convergence"
+    );
+    assert!(
+        !repair_store_path.exists(),
+        "stale pending repair should be cleared after the request is canceled during repair"
+    );
+
+    let request_snapshot = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/v1/control/social/friend-requests/{request_id}"))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("request snapshot after canceled stale repair scenario should return response");
+    assert_eq!(request_snapshot.status(), StatusCode::OK);
+    let request_snapshot_body = request_snapshot
+        .into_body()
+        .collect()
+        .await
+        .expect("request snapshot after canceled stale repair scenario should collect")
+        .to_bytes();
+    let request_snapshot_json: serde_json::Value = serde_json::from_slice(&request_snapshot_body)
+        .expect("request snapshot after canceled stale repair scenario should be valid json");
+    assert_eq!(request_snapshot_json["friendRequest"]["status"], "canceled");
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_discards_pre_accept_blocked_pending_friend_request_accept_repair()
+{
+    let runtime_dir = unique_test_runtime_dir("friend_request_accept_repair_pre_accept_blocked");
+    fs::create_dir_all(runtime_dir.join("state")).expect("runtime dir state should be created");
+
+    let app = local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
+
+    let submit_request = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"repair should discard blocked pending acceptance before accept commit"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("submit friend request before pre-accept blocked repair scenario should return response");
+    assert_eq!(submit_request.status(), StatusCode::OK);
+    let submit_request_body = submit_request
+        .into_body()
+        .collect()
+        .await
+        .expect("submit friend request before pre-accept blocked repair scenario body should collect")
+        .to_bytes();
+    let submit_request_json: serde_json::Value = serde_json::from_slice(&submit_request_body)
+        .expect("submit friend request before pre-accept blocked repair scenario body should be valid json");
+    let request_id = submit_request_json["friendRequest"]["requestId"]
+        .as_str()
+        .expect("pre-accept blocked repair request id should be present")
+        .to_owned();
+
+    let block_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/control/social/user-blocks")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "blockId": format!("ub_pre_accept_blocked_repair_{request_id}"),
+                        "eventId": format!("evt_pre_accept_blocked_repair_{request_id}"),
+                        "blockerUserId": "u_bob",
+                        "blockedUserId": "u_alice",
+                        "scope": "friendship",
+                        "effectiveAt": "2026-04-16T09:13:00Z"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("friendship block before pre-accept blocked repair scenario should return response");
+    assert_eq!(block_response.status(), StatusCode::OK);
+
+    let request_snapshot = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/v1/control/social/friend-requests/{request_id}"))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("friend request snapshot before pre-accept blocked repair restart should return response");
+    assert_eq!(request_snapshot.status(), StatusCode::OK);
+    let request_snapshot_body = request_snapshot
+        .into_body()
+        .collect()
+        .await
+        .expect("friend request snapshot before pre-accept blocked repair restart body should collect")
+        .to_bytes();
+    let request_snapshot_json: serde_json::Value =
+        serde_json::from_slice(&request_snapshot_body).expect(
+            "friend request snapshot before pre-accept blocked repair restart body should be valid json",
+        );
+    assert_eq!(request_snapshot_json["friendRequest"]["status"], "pending");
+
+    drop(app);
+
+    let repair_store_path = runtime_dir
+        .join("state")
+        .join("social-friend-request-accept-repairs.json");
+    fs::write(
+        repair_store_path.as_path(),
+        serde_json::json!({
+            request_id.as_str(): {
+                "tenant_id": "t_demo",
+                "request_id": request_id,
+                "requester_user_id": "u_alice",
+                "target_user_id": "u_bob",
+                "accepted_at": "2026-04-16T09:14:00Z"
+            }
+        })
+        .to_string(),
+    )
+    .expect("pre-accept blocked repair store should be writable");
+
+    let app_after_restart =
+        local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
+
+    let contacts = app_after_restart
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/contacts")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("contacts after pre-accept blocked repair restart should return response");
+    assert_eq!(contacts.status(), StatusCode::OK);
+    let contacts_body = contacts
+        .into_body()
+        .collect()
+        .await
+        .expect("contacts after pre-accept blocked repair restart body should collect")
+        .to_bytes();
+    let contacts_json: serde_json::Value = serde_json::from_slice(&contacts_body)
+        .expect("contacts after pre-accept blocked repair restart body should be valid json");
+    assert!(
+        contacts_json["items"]
+            .as_array()
+            .expect("contacts after pre-accept blocked repair restart should include items")
+            .is_empty(),
+        "pre-accept blocked pending repair should not materialize a friendship contact"
+    );
+    assert!(
+        !repair_store_path.exists(),
+        "pre-accept blocked pending repair should be discarded after convergence"
+    );
+
+    let request_snapshot_after_restart = app_after_restart
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/v1/control/social/friend-requests/{request_id}"))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("friend request snapshot after pre-accept blocked repair restart should return response");
+    assert_eq!(request_snapshot_after_restart.status(), StatusCode::OK);
+    let request_snapshot_after_restart_body = request_snapshot_after_restart
+        .into_body()
+        .collect()
+        .await
+        .expect("friend request snapshot after pre-accept blocked repair restart body should collect")
+        .to_bytes();
+    let request_snapshot_after_restart_json: serde_json::Value =
+        serde_json::from_slice(&request_snapshot_after_restart_body).expect(
+            "friend request snapshot after pre-accept blocked repair restart body should be valid json",
+        );
+    assert_eq!(
+        request_snapshot_after_restart_json["friendRequest"]["status"],
+        "pending",
+        "pre-accept blocked repair should leave the original request pending"
+    );
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_concurrent_accepts_converge_idempotently_across_instances() {
+    let _env_lock = lock_social_accept_delay_env_guard();
+    let _repair_store_delay = set_scoped_env_var(
+        "CRAW_CHAT_TEST_SOCIAL_ACCEPT_REPAIR_STORE_IO_DELAY_MS",
+        "250",
+    );
+
+    let runtime_dir = unique_test_runtime_dir("friend_request_accept_concurrent_idempotent");
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+
+    let app_a = local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
+    let app_b = local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
+
+    let submit_request = app_a
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"concurrent accept idempotent"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("submit friend request before concurrent accept idempotent scenario should return response");
+    assert_eq!(submit_request.status(), StatusCode::OK);
+    let submit_request_body = submit_request
+        .into_body()
+        .collect()
+        .await
+        .expect("submit friend request before concurrent accept idempotent scenario body should collect")
+        .to_bytes();
+    let submit_request_json: serde_json::Value = serde_json::from_slice(&submit_request_body)
+        .expect("submit friend request before concurrent accept idempotent scenario body should be valid json");
+    let request_id = submit_request_json["friendRequest"]["requestId"]
+        .as_str()
+        .expect("concurrent accept idempotent request id should be present")
+        .to_owned();
+
+    let accept_uri = format!("/api/v1/social/friend-requests/{request_id}/accept");
+
+    let first_accept_task = tokio::spawn({
+        let app = app_a.clone();
+        let accept_uri = accept_uri.clone();
+        async move {
+            app.oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(accept_uri)
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "u_bob")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("first concurrent accept should return response")
+        }
+    });
+
+    let second_accept_task = tokio::spawn({
+        let app = app_b.clone();
+        let accept_uri = accept_uri.clone();
+        async move {
+            app.oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(accept_uri)
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "u_bob")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("second concurrent accept should return response")
+        }
+    });
+
+    let first_accept = first_accept_task
+        .await
+        .expect("first concurrent accept task should join");
+    let second_accept = second_accept_task
+        .await
+        .expect("second concurrent accept task should join");
+
+    let first_accept_status = first_accept.status();
+    let first_accept_body = first_accept
+        .into_body()
+        .collect()
+        .await
+        .expect("first concurrent accept body should collect")
+        .to_bytes();
+    let first_accept_json: serde_json::Value = serde_json::from_slice(&first_accept_body)
+        .expect("first concurrent accept body should be valid json");
+    assert_eq!(
+        first_accept_status,
+        StatusCode::OK,
+        "first concurrent accept should converge successfully: {first_accept_json}"
+    );
+
+    let second_accept_status = second_accept.status();
+    let second_accept_body = second_accept
+        .into_body()
+        .collect()
+        .await
+        .expect("second concurrent accept body should collect")
+        .to_bytes();
+    let second_accept_json: serde_json::Value = serde_json::from_slice(&second_accept_body)
+        .expect("second concurrent accept body should be valid json");
+    assert_eq!(
+        second_accept_status,
+        StatusCode::OK,
+        "second concurrent accept should converge successfully instead of surfacing a stale not-pending conflict: {second_accept_json}"
+    );
+
+    assert_eq!(first_accept_json["friendRequest"]["status"], "accepted");
+    assert_eq!(second_accept_json["friendRequest"]["status"], "accepted");
+    assert_eq!(
+        second_accept_json["friendship"]["friendshipId"],
+        first_accept_json["friendship"]["friendshipId"]
+    );
+    assert_eq!(
+        second_accept_json["directChat"]["directChatId"],
+        first_accept_json["directChat"]["directChatId"]
+    );
+    assert_eq!(
+        second_accept_json["conversation"]["conversationId"],
+        first_accept_json["conversation"]["conversationId"]
+    );
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_friendship_removal_hides_contacts_via_app_social_route() {
+    let app = local_minimal_node::build_default_app();
+
+    let submit_request = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"hello bob"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("submit friend request should return response");
+    assert_eq!(submit_request.status(), StatusCode::OK);
+    let submit_request_body = submit_request
+        .into_body()
+        .collect()
+        .await
+        .expect("submit friend request body should collect")
+        .to_bytes();
+    let submit_request_json: serde_json::Value = serde_json::from_slice(&submit_request_body)
+        .expect("submit friend request body should be valid json");
+    let request_id = submit_request_json["friendRequest"]["requestId"]
+        .as_str()
+        .expect("request id should be present")
+        .to_owned();
+
+    let accept_request = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/v1/social/friend-requests/{request_id}/accept"
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_bob")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("accept friend request should return response");
+    assert_eq!(accept_request.status(), StatusCode::OK);
+    let accept_request_body = accept_request
+        .into_body()
+        .collect()
+        .await
+        .expect("accept friend request body should collect")
+        .to_bytes();
+    let accept_request_json: serde_json::Value = serde_json::from_slice(&accept_request_body)
+        .expect("accept friend request body should be valid json");
+    let friendship_id = accept_request_json["friendship"]["friendshipId"]
+        .as_str()
+        .expect("friendship id should be present")
+        .to_owned();
+
+    let remove_request = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/v1/social/friendships/{friendship_id}/remove"))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("remove friendship should return response");
+    assert_eq!(remove_request.status(), StatusCode::OK);
+    let remove_request_body = remove_request
+        .into_body()
+        .collect()
+        .await
+        .expect("remove friendship body should collect")
+        .to_bytes();
+    let remove_request_json: serde_json::Value = serde_json::from_slice(&remove_request_body)
+        .expect("remove friendship body should be valid json");
+    assert_eq!(remove_request_json["friendship"]["status"], "removed");
+
+    let alice_contacts = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/contacts")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("alice contacts request should return response");
+    assert_eq!(alice_contacts.status(), StatusCode::OK);
+    let alice_contacts_body = alice_contacts
+        .into_body()
+        .collect()
+        .await
+        .expect("alice contacts body should collect")
+        .to_bytes();
+    let alice_contacts_json: serde_json::Value = serde_json::from_slice(&alice_contacts_body)
+        .expect("alice contacts body should be valid json");
+    let alice_contact_items = alice_contacts_json["items"]
+        .as_array()
+        .expect("alice contacts items should be an array");
+    assert!(
+        alice_contact_items.is_empty(),
+        "removed friendship must disappear from requester contacts"
+    );
+
+    let bob_contacts = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/contacts")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_bob")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("bob contacts request should return response");
+    assert_eq!(bob_contacts.status(), StatusCode::OK);
+    let bob_contacts_body = bob_contacts
+        .into_body()
+        .collect()
+        .await
+        .expect("bob contacts body should collect")
+        .to_bytes();
+    let bob_contacts_json: serde_json::Value =
+        serde_json::from_slice(&bob_contacts_body).expect("bob contacts body should be valid json");
+    let bob_contact_items = bob_contacts_json["items"]
+        .as_array()
+        .expect("bob contacts items should be an array");
+    assert!(
+        bob_contact_items.is_empty(),
+        "removed friendship must disappear from target contacts"
+    );
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_friendship_scope_block_hides_contacts() {
+    let app = local_minimal_node::build_default_app();
+    let fixture = create_active_friendship_direct_chat_fixture(&app).await;
+
+    let contacts_before = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/contacts")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("contacts request before friendship block should return response");
+    assert_eq!(contacts_before.status(), StatusCode::OK);
+    let contacts_before_body = contacts_before
+        .into_body()
+        .collect()
+        .await
+        .expect("contacts before friendship block body should collect")
+        .to_bytes();
+    let contacts_before_json: serde_json::Value = serde_json::from_slice(&contacts_before_body)
+        .expect("contacts before friendship block body should be valid json");
+    let contacts_before_items = contacts_before_json["items"]
+        .as_array()
+        .expect("contacts before friendship block items should be an array");
+    assert_eq!(contacts_before_items.len(), 1);
+    assert_eq!(contacts_before_items[0]["targetUserId"], "u_bob");
+    assert_eq!(
+        contacts_before_items[0]["friendshipId"],
+        fixture.friendship_id.as_str()
+    );
+
+    let block_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/control/social/user-blocks")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "blockId": "ub_friendship_contacts_blocked",
+                        "eventId": "evt_ub_friendship_contacts_blocked",
+                        "blockerUserId": "u_bob",
+                        "blockedUserId": "u_alice",
+                        "scope": "friendship",
+                        "effectiveAt": "2026-04-16T12:10:00Z"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("friendship scope block should return response");
+    assert_eq!(block_response.status(), StatusCode::OK);
+
+    let alice_contacts_after = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/contacts")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("alice contacts request after friendship block should return response");
+    assert_eq!(alice_contacts_after.status(), StatusCode::OK);
+    let alice_contacts_after_body = alice_contacts_after
+        .into_body()
+        .collect()
+        .await
+        .expect("alice contacts after friendship block body should collect")
+        .to_bytes();
+    let alice_contacts_after_json: serde_json::Value =
+        serde_json::from_slice(&alice_contacts_after_body)
+            .expect("alice contacts after friendship block body should be valid json");
+    assert!(
+        alice_contacts_after_json["items"]
+            .as_array()
+            .expect("alice contacts after friendship block items should be an array")
+            .is_empty(),
+        "friendship scope block must hide the blocked pair from requester contacts"
+    );
+
+    let bob_contacts_after = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/contacts")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_bob")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("bob contacts request after friendship block should return response");
+    assert_eq!(bob_contacts_after.status(), StatusCode::OK);
+    let bob_contacts_after_body = bob_contacts_after
+        .into_body()
+        .collect()
+        .await
+        .expect("bob contacts after friendship block body should collect")
+        .to_bytes();
+    let bob_contacts_after_json: serde_json::Value = serde_json::from_slice(&bob_contacts_after_body)
+        .expect("bob contacts after friendship block body should be valid json");
+    assert!(
+        bob_contacts_after_json["items"]
+            .as_array()
+            .expect("bob contacts after friendship block items should be an array")
+            .is_empty(),
+        "friendship scope block must hide the blocked pair from target contacts"
+    );
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_friendship_remove_converges_when_friendship_was_externally_removed_after_app_snapshot()
+{
+    let _env_lock = lock_social_accept_delay_env_guard();
+    let _remove_snapshot_delay =
+        set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_REMOVE_PRE_COMMIT_DELAY_MS", "200");
+
+    let app = local_minimal_node::build_default_app();
+    let fixture = create_active_friendship_direct_chat_fixture(&app).await;
+
+    let remove_task = tokio::spawn({
+        let app = app.clone();
+        let friendship_id = fixture.friendship_id.clone();
+        async move {
+            app.oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(format!("/api/v1/social/friendships/{friendship_id}/remove"))
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "u_alice")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("app-facing friendship remove after stale snapshot should return response")
+        }
+    });
+
+    sleep(Duration::from_millis(50)).await;
+
+    let external_remove = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/v1/control/social/friendships/{}/remove",
+                    fixture.friendship_id
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "eventId": format!("evt_external_remove_after_snapshot_{}", fixture.friendship_id),
+                        "removedByUserId": "u_alice",
+                        "removedAt": "2026-04-16T10:30:00Z"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("external remove after stale app snapshot should return response");
+    assert_eq!(external_remove.status(), StatusCode::OK);
+
+    let remove_response = remove_task
+        .await
+        .expect("remove task after stale app snapshot should join");
+    assert_eq!(
+        remove_response.status(),
+        StatusCode::OK,
+        "app-facing remove should converge to the externally removed friendship instead of surfacing friendship_not_active"
+    );
+    let remove_body = remove_response
+        .into_body()
+        .collect()
+        .await
+        .expect("remove response after stale app snapshot should collect")
+        .to_bytes();
+    let remove_json: serde_json::Value = serde_json::from_slice(&remove_body)
+        .expect("remove response after stale app snapshot should be valid json");
+    assert_eq!(remove_json["friendship"]["status"], "removed");
+    assert_eq!(remove_json["friendship"]["friendshipId"], fixture.friendship_id);
+
+    let contacts = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/contacts")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("contacts after stale app remove convergence should return response");
+    assert_eq!(contacts.status(), StatusCode::OK);
+    let contacts_body = contacts
+        .into_body()
+        .collect()
+        .await
+        .expect("contacts after stale app remove convergence should collect")
+        .to_bytes();
+    let contacts_json: serde_json::Value = serde_json::from_slice(&contacts_body)
+        .expect("contacts after stale app remove convergence should be valid json");
+    assert!(
+        contacts_json["items"]
+            .as_array()
+            .expect("contacts after stale app remove convergence should include items")
+            .is_empty(),
+        "removed friendship must not remain in contacts after stale app remove convergence"
+    );
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_can_submit_new_friend_request_after_friendship_removal() {
+    let app = local_minimal_node::build_default_app();
+
+    let submit_request = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"first hello"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("first submit friend request should return response");
+    assert_eq!(submit_request.status(), StatusCode::OK);
+    let submit_request_body = submit_request
+        .into_body()
+        .collect()
+        .await
+        .expect("first submit friend request body should collect")
+        .to_bytes();
+    let submit_request_json: serde_json::Value = serde_json::from_slice(&submit_request_body)
+        .expect("first submit friend request body should be valid json");
+    let first_request_id = submit_request_json["friendRequest"]["requestId"]
+        .as_str()
+        .expect("first request id should be present")
+        .to_owned();
+
+    let accept_request = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/v1/social/friend-requests/{first_request_id}/accept"
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_bob")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("accept friend request should return response");
+    assert_eq!(accept_request.status(), StatusCode::OK);
+    let accept_request_body = accept_request
+        .into_body()
+        .collect()
+        .await
+        .expect("accept friend request body should collect")
+        .to_bytes();
+    let accept_request_json: serde_json::Value = serde_json::from_slice(&accept_request_body)
+        .expect("accept friend request body should be valid json");
+    let friendship_id = accept_request_json["friendship"]["friendshipId"]
+        .as_str()
+        .expect("friendship id should be present")
+        .to_owned();
+
+    let remove_request = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/v1/social/friendships/{friendship_id}/remove"))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("remove friendship should return response");
+    assert_eq!(remove_request.status(), StatusCode::OK);
+
+    let resubmit_request = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"second hello"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("resubmit friend request should return response");
+    assert_eq!(resubmit_request.status(), StatusCode::OK);
+    let resubmit_request_body = resubmit_request
+        .into_body()
+        .collect()
+        .await
+        .expect("resubmit friend request body should collect")
+        .to_bytes();
+    let resubmit_request_json: serde_json::Value = serde_json::from_slice(&resubmit_request_body)
+        .expect("resubmit friend request body should be valid json");
+
+    assert_eq!(resubmit_request_json["friendRequest"]["status"], "pending");
+    assert_ne!(
+        resubmit_request_json["friendRequest"]["requestId"],
+        first_request_id
+    );
+    assert_eq!(
+        resubmit_request_json["friendRequest"]["requestMessage"],
+        "second hello"
+    );
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_can_accept_resubmitted_friend_request_after_friendship_removal()
+{
+    let app = local_minimal_node::build_default_app();
+
+    let first_submit = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"first hello"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("first submit before removal reaccept should return response");
+    assert_eq!(first_submit.status(), StatusCode::OK);
+    let first_submit_body = first_submit
+        .into_body()
+        .collect()
+        .await
+        .expect("first submit before removal reaccept body should collect")
+        .to_bytes();
+    let first_submit_json: serde_json::Value = serde_json::from_slice(&first_submit_body)
+        .expect("first submit before removal reaccept body should be valid json");
+    let first_request_id = first_submit_json["friendRequest"]["requestId"]
+        .as_str()
+        .expect("first request id should be present")
+        .to_owned();
+
+    let first_accept = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/v1/social/friend-requests/{first_request_id}/accept"
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_bob")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("first accept before removal reaccept should return response");
+    assert_eq!(first_accept.status(), StatusCode::OK);
+    let first_accept_body = first_accept
+        .into_body()
+        .collect()
+        .await
+        .expect("first accept before removal reaccept body should collect")
+        .to_bytes();
+    let first_accept_json: serde_json::Value = serde_json::from_slice(&first_accept_body)
+        .expect("first accept before removal reaccept body should be valid json");
+    let first_friendship_id = first_accept_json["friendship"]["friendshipId"]
+        .as_str()
+        .expect("first friendship id should be present")
+        .to_owned();
+
+    let remove_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/v1/social/friendships/{first_friendship_id}/remove"
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("remove friendship before removal reaccept should return response");
+    assert_eq!(remove_response.status(), StatusCode::OK);
+
+    let second_submit = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"second hello"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("second submit before removal reaccept should return response");
+    assert_eq!(second_submit.status(), StatusCode::OK);
+    let second_submit_body = second_submit
+        .into_body()
+        .collect()
+        .await
+        .expect("second submit before removal reaccept body should collect")
+        .to_bytes();
+    let second_submit_json: serde_json::Value = serde_json::from_slice(&second_submit_body)
+        .expect("second submit before removal reaccept body should be valid json");
+    let second_request_id = second_submit_json["friendRequest"]["requestId"]
+        .as_str()
+        .expect("second request id should be present")
+        .to_owned();
+
+    let second_accept = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/v1/social/friend-requests/{second_request_id}/accept"
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_bob")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("second accept after friendship removal should return response");
+    assert_eq!(
+        second_accept.status(),
+        StatusCode::OK,
+        "resubmitted friend request should be acceptable after friendship removal"
+    );
+    let second_accept_body = second_accept
+        .into_body()
+        .collect()
+        .await
+        .expect("second accept after friendship removal body should collect")
+        .to_bytes();
+    let second_accept_json: serde_json::Value = serde_json::from_slice(&second_accept_body)
+        .expect("second accept after friendship removal body should be valid json");
+    assert_eq!(second_accept_json["friendRequest"]["status"], "accepted");
+    assert_eq!(second_accept_json["friendship"]["status"], "active");
+
+    let alice_contacts = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/contacts")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("contacts after removal reaccept should return response");
+    assert_eq!(alice_contacts.status(), StatusCode::OK);
+    let alice_contacts_body = alice_contacts
+        .into_body()
+        .collect()
+        .await
+        .expect("contacts after removal reaccept body should collect")
+        .to_bytes();
+    let alice_contacts_json: serde_json::Value = serde_json::from_slice(&alice_contacts_body)
+        .expect("contacts after removal reaccept body should be valid json");
+    let alice_contact_items = alice_contacts_json["items"]
+        .as_array()
+        .expect("contacts after removal reaccept should include items");
+    assert_eq!(alice_contact_items.len(), 1);
+    assert_eq!(alice_contact_items[0]["targetUserId"], "u_bob");
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_hides_archived_direct_chat_from_inbox_after_friendship_removal()
+{
+    let app = local_minimal_node::build_default_app();
+    let (friendship_id, conversation_id) = create_active_friendship_direct_chat(&app).await;
+
+    let initial_post = post_standard_message_for_test(
+        &app,
+        conversation_id.as_str(),
+        "u_alice",
+        "client_archived_inbox_1",
+        "before removal",
+    )
+    .await;
+    assert_eq!(initial_post.status(), StatusCode::OK);
+
+    let inbox_before = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/inbox")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("inbox before friendship removal should return response");
+    assert_eq!(inbox_before.status(), StatusCode::OK);
+    let inbox_before_body = inbox_before
+        .into_body()
+        .collect()
+        .await
+        .expect("inbox before friendship removal body should collect")
+        .to_bytes();
+    let inbox_before_json: serde_json::Value = serde_json::from_slice(&inbox_before_body)
+        .expect("inbox before friendship removal body should be valid json");
+    assert!(
+        inbox_before_json["items"]
+            .as_array()
+            .expect("inbox before friendship removal should include items")
+            .iter()
+            .any(|item| item["conversationId"] == conversation_id),
+        "active direct chat should appear in inbox before friendship removal"
+    );
+
+    remove_friendship_for_test(&app, friendship_id.as_str(), "u_alice").await;
+
+    let inbox_after = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/inbox")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("inbox after friendship removal should return response");
+    assert_eq!(inbox_after.status(), StatusCode::OK);
+    let inbox_after_body = inbox_after
+        .into_body()
+        .collect()
+        .await
+        .expect("inbox after friendship removal body should collect")
+        .to_bytes();
+    let inbox_after_json: serde_json::Value = serde_json::from_slice(&inbox_after_body)
+        .expect("inbox after friendship removal body should be valid json");
+    assert!(
+        inbox_after_json["items"]
+            .as_array()
+            .expect("inbox after friendship removal should include items")
+            .iter()
+            .all(|item| item["conversationId"] != conversation_id),
+        "archived direct chat must disappear from inbox after friendship removal"
+    );
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_rejects_archived_direct_chat_summary_after_friendship_removal()
+{
+    let app = local_minimal_node::build_default_app();
+    let (friendship_id, conversation_id) = create_active_friendship_direct_chat(&app).await;
+
+    let initial_post = post_standard_message_for_test(
+        &app,
+        conversation_id.as_str(),
+        "u_alice",
+        "client_archived_summary_1",
+        "before removal",
+    )
+    .await;
+    assert_eq!(initial_post.status(), StatusCode::OK);
+
+    remove_friendship_for_test(&app, friendship_id.as_str(), "u_alice").await;
+
+    let summary_response = app
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/v1/conversations/{conversation_id}"))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("conversation summary after friendship removal should return response");
+    assert_eq!(summary_response.status(), StatusCode::FORBIDDEN);
+    let summary_body = summary_response
+        .into_body()
+        .collect()
+        .await
+        .expect("conversation summary after friendship removal body should collect")
+        .to_bytes();
+    let summary_json: serde_json::Value = serde_json::from_slice(&summary_body)
+        .expect("conversation summary after friendship removal body should be valid json");
+    assert_eq!(summary_json["code"], "conversation_archived");
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_rejects_archived_direct_chat_edge_reads_after_friendship_removal()
+ {
+    let app = local_minimal_node::build_default_app();
+    let (friendship_id, conversation_id) = create_active_friendship_direct_chat(&app).await;
+
+    let members_before = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/v1/conversations/{conversation_id}/members"))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("members before friendship removal should return response");
+    assert_eq!(members_before.status(), StatusCode::OK);
+
+    let member_directory_before = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/v1/conversations/{conversation_id}/member-directory"
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("member directory before friendship removal should return response");
+    assert_eq!(member_directory_before.status(), StatusCode::OK);
+
+    let pins_before = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/v1/conversations/{conversation_id}/pins"))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("pins before friendship removal should return response");
+    assert_eq!(pins_before.status(), StatusCode::OK);
+
+    let post_message = post_standard_message_for_test(
+        &app,
+        conversation_id.as_str(),
+        "u_alice",
+        "client_archived_edge_reads_1",
+        "before removal",
+    )
+    .await;
+    assert_eq!(post_message.status(), StatusCode::OK);
+    let post_message_body = post_message
+        .into_body()
+        .collect()
+        .await
+        .expect("edge read seed message body should collect")
+        .to_bytes();
+    let post_message_json: serde_json::Value = serde_json::from_slice(&post_message_body)
+        .expect("edge read seed message body should be valid json");
+    let message_id = post_message_json["messageId"]
+        .as_str()
+        .expect("edge read seed message id should exist")
+        .to_owned();
+
+    let interaction_before = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/v1/conversations/{conversation_id}/messages/{message_id}/interaction-summary"
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("interaction summary before friendship removal should return response");
+    assert_eq!(interaction_before.status(), StatusCode::OK);
+
+    remove_friendship_for_test(&app, friendship_id.as_str(), "u_alice").await;
+
+    for uri in [
+        format!("/api/v1/conversations/{conversation_id}/members"),
+        format!("/api/v1/conversations/{conversation_id}/member-directory"),
+        format!("/api/v1/conversations/{conversation_id}/pins"),
+        format!(
+            "/api/v1/conversations/{conversation_id}/messages/{message_id}/interaction-summary"
+        ),
+    ] {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri(uri.as_str())
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "u_alice")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("archived edge read should return response");
+        assert_eq!(
+            response.status(),
+            StatusCode::FORBIDDEN,
+            "archived direct chat edge read must be forbidden: {uri}"
+        );
+        let body = response
+            .into_body()
+            .collect()
+            .await
+            .expect("archived edge read body should collect")
+            .to_bytes();
+        let json: serde_json::Value =
+            serde_json::from_slice(&body).expect("archived edge read body should be valid json");
+        assert_eq!(
+            json["code"], "conversation_archived",
+            "archived direct chat edge read must expose conversation_archived: {uri}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_rejects_archived_direct_chat_timeline_after_friendship_removal()
+{
+    let app = local_minimal_node::build_default_app();
+    let (friendship_id, conversation_id) = create_active_friendship_direct_chat(&app).await;
+
+    let initial_post = post_standard_message_for_test(
+        &app,
+        conversation_id.as_str(),
+        "u_alice",
+        "client_archived_timeline_1",
+        "before removal",
+    )
+    .await;
+    assert_eq!(initial_post.status(), StatusCode::OK);
+
+    let timeline_before = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/v1/conversations/{conversation_id}/messages"))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("timeline before friendship removal should return response");
+    assert_eq!(timeline_before.status(), StatusCode::OK);
+
+    remove_friendship_for_test(&app, friendship_id.as_str(), "u_alice").await;
+
+    let timeline_after = app
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/v1/conversations/{conversation_id}/messages"))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("timeline after friendship removal should return response");
+    assert_eq!(timeline_after.status(), StatusCode::FORBIDDEN);
+    let timeline_after_body = timeline_after
+        .into_body()
+        .collect()
+        .await
+        .expect("timeline after friendship removal body should collect")
+        .to_bytes();
+    let timeline_after_json: serde_json::Value = serde_json::from_slice(&timeline_after_body)
+        .expect("timeline after friendship removal body should be valid json");
+    assert_eq!(timeline_after_json["code"], "conversation_archived");
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_rejects_archived_direct_chat_read_cursor_access_after_friendship_removal()
+ {
+    let app = local_minimal_node::build_default_app();
+    let (friendship_id, conversation_id) = create_active_friendship_direct_chat(&app).await;
+
+    register_device_for_test(&app, "u_alice", "d_alice_phone").await;
+
+    let post_message = post_standard_message_for_test(
+        &app,
+        conversation_id.as_str(),
+        "u_alice",
+        "client_archived_read_cursor_1",
+        "before removal",
+    )
+    .await;
+    assert_eq!(post_message.status(), StatusCode::OK);
+    let post_message_body = post_message
+        .into_body()
+        .collect()
+        .await
+        .expect("read cursor seed message body should collect")
+        .to_bytes();
+    let post_message_json: serde_json::Value = serde_json::from_slice(&post_message_body)
+        .expect("read cursor seed message body should be valid json");
+    let message_id = post_message_json["messageId"]
+        .as_str()
+        .expect("read cursor seed message id should exist")
+        .to_owned();
+
+    let read_cursor_before = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/v1/conversations/{conversation_id}/read-cursor"
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("read cursor before friendship removal should return response");
+    assert_eq!(read_cursor_before.status(), StatusCode::OK);
+
+    let update_read_cursor_before = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/v1/conversations/{conversation_id}/read-cursor"
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("x-device-id", "d_alice_phone")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "readSeq": 1,
+                        "lastReadMessageId": message_id,
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("read cursor update before friendship removal should return response");
+    assert_eq!(update_read_cursor_before.status(), StatusCode::OK);
+
+    remove_friendship_for_test(&app, friendship_id.as_str(), "u_alice").await;
+
+    let read_cursor_after = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/v1/conversations/{conversation_id}/read-cursor"
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("read cursor after friendship removal should return response");
+    assert_eq!(read_cursor_after.status(), StatusCode::FORBIDDEN);
+    let read_cursor_after_body = read_cursor_after
+        .into_body()
+        .collect()
+        .await
+        .expect("read cursor after friendship removal body should collect")
+        .to_bytes();
+    let read_cursor_after_json: serde_json::Value = serde_json::from_slice(&read_cursor_after_body)
+        .expect("read cursor after friendship removal body should be valid json");
+    assert_eq!(read_cursor_after_json["code"], "conversation_archived");
+
+    let update_read_cursor_after = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/v1/conversations/{conversation_id}/read-cursor"
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("x-device-id", "d_alice_phone")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "readSeq": 1,
+                        "lastReadMessageId": message_id,
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("read cursor update after friendship removal should return response");
+    assert_eq!(update_read_cursor_after.status(), StatusCode::FORBIDDEN);
+    let update_read_cursor_after_body = update_read_cursor_after
+        .into_body()
+        .collect()
+        .await
+        .expect("read cursor update after friendship removal body should collect")
+        .to_bytes();
+    let update_read_cursor_after_json: serde_json::Value =
+        serde_json::from_slice(&update_read_cursor_after_body)
+            .expect("read cursor update after friendship removal body should be valid json");
+    assert_eq!(
+        update_read_cursor_after_json["code"],
+        "conversation_archived"
+    );
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_rejects_post_message_to_archived_direct_chat_after_friendship_removal()
+ {
+    let app = local_minimal_node::build_default_app();
+    let (friendship_id, conversation_id) = create_active_friendship_direct_chat(&app).await;
+
+    let initial_post = post_standard_message_for_test(
+        &app,
+        conversation_id.as_str(),
+        "u_alice",
+        "client_archived_write_1",
+        "before removal",
+    )
+    .await;
+    assert_eq!(initial_post.status(), StatusCode::OK);
+
+    remove_friendship_for_test(&app, friendship_id.as_str(), "u_alice").await;
+
+    let archived_post = post_standard_message_for_test(
+        &app,
+        conversation_id.as_str(),
+        "u_alice",
+        "client_archived_write_2",
+        "after removal",
+    )
+    .await;
+    assert_eq!(archived_post.status(), StatusCode::FORBIDDEN);
+    let archived_post_body = archived_post
+        .into_body()
+        .collect()
+        .await
+        .expect("archived direct chat post body should collect")
+        .to_bytes();
+    let archived_post_json: serde_json::Value = serde_json::from_slice(&archived_post_body)
+        .expect("archived direct chat post body should be valid json");
+    assert_eq!(archived_post_json["code"], "conversation_archived");
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_rejects_archived_direct_chat_rtc_create_after_friendship_removal()
+ {
+    let app = local_minimal_node::build_default_app();
+    let (friendship_id, conversation_id) = create_active_friendship_direct_chat(&app).await;
+
+    let create_rtc_before = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/rtc/sessions")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "rtcSessionId": "rtc_archived_before_removal",
+                        "conversationId": conversation_id,
+                        "rtcMode": "voice",
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("rtc create before friendship removal should return response");
+    assert_eq!(create_rtc_before.status(), StatusCode::OK);
+
+    remove_friendship_for_test(&app, friendship_id.as_str(), "u_alice").await;
+
+    let create_rtc_after = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/rtc/sessions")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "rtcSessionId": "rtc_archived_after_removal",
+                        "conversationId": conversation_id,
+                        "rtcMode": "voice",
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("rtc create after friendship removal should return response");
+    assert_eq!(create_rtc_after.status(), StatusCode::FORBIDDEN);
+    let create_rtc_after_body = create_rtc_after
+        .into_body()
+        .collect()
+        .await
+        .expect("rtc create after friendship removal body should collect")
+        .to_bytes();
+    let create_rtc_after_json: serde_json::Value = serde_json::from_slice(&create_rtc_after_body)
+        .expect("rtc create after friendship removal body should be valid json");
+    assert_eq!(create_rtc_after_json["code"], "conversation_archived");
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_rejects_archived_direct_chat_stream_open_after_friendship_removal()
+ {
+    let app = local_minimal_node::build_default_app();
+    let (friendship_id, conversation_id) = create_active_friendship_direct_chat(&app).await;
+
+    let open_stream_before = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "streamId": "st_archived_before_removal",
+                        "streamType": "custom.delta.text",
+                        "scopeKind": "conversation",
+                        "scopeId": conversation_id,
+                        "durabilityClass": "durableSession",
+                        "schemaRef": "custom.delta.text.v1",
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("stream open before friendship removal should return response");
+    assert_eq!(open_stream_before.status(), StatusCode::OK);
+
+    remove_friendship_for_test(&app, friendship_id.as_str(), "u_alice").await;
+
+    let open_stream_after = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "streamId": "st_archived_after_removal",
+                        "streamType": "custom.delta.text",
+                        "scopeKind": "conversation",
+                        "scopeId": conversation_id,
+                        "durabilityClass": "durableSession",
+                        "schemaRef": "custom.delta.text.v1",
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("stream open after friendship removal should return response");
+    assert_eq!(open_stream_after.status(), StatusCode::FORBIDDEN);
+    let open_stream_after_body = open_stream_after
+        .into_body()
+        .collect()
+        .await
+        .expect("stream open after friendship removal body should collect")
+        .to_bytes();
+    let open_stream_after_json: serde_json::Value = serde_json::from_slice(&open_stream_after_body)
+        .expect("stream open after friendship removal body should be valid json");
+    assert_eq!(open_stream_after_json["code"], "conversation_archived");
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_rejects_archived_direct_chat_existing_stream_access_after_friendship_removal()
+ {
+    let app = local_minimal_node::build_default_app();
+    let (friendship_id, conversation_id) = create_active_friendship_direct_chat(&app).await;
+    let stream_id = "st_archived_existing_stream";
+
+    let open_stream = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/streams")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "streamId": stream_id,
+                        "streamType": "custom.delta.text",
+                        "scopeKind": "conversation",
+                        "scopeId": conversation_id,
+                        "durabilityClass": "durableSession",
+                        "schemaRef": "custom.delta.text.v1",
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("existing stream open before friendship removal should return response");
+    assert_eq!(open_stream.status(), StatusCode::OK);
+
+    let append_before = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/v1/streams/{stream_id}/frames"))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "frameSeq": 1,
+                        "frameType": "delta",
+                        "schemaRef": "custom.delta.text.v1",
+                        "encoding": "json",
+                        "payload": "{\"delta\":\"before removal\"}",
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("existing stream append before friendship removal should return response");
+    assert_eq!(append_before.status(), StatusCode::OK);
+
+    let list_before = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/v1/streams/{stream_id}/frames?afterFrameSeq=0&limit=10"
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("existing stream list before friendship removal should return response");
+    assert_eq!(list_before.status(), StatusCode::OK);
+
+    remove_friendship_for_test(&app, friendship_id.as_str(), "u_alice").await;
+
+    let list_after = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/v1/streams/{stream_id}/frames?afterFrameSeq=0&limit=10"
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("existing stream list after friendship removal should return response");
+    assert_eq!(list_after.status(), StatusCode::FORBIDDEN);
+    let list_after_body = list_after
+        .into_body()
+        .collect()
+        .await
+        .expect("existing stream list after friendship removal body should collect")
+        .to_bytes();
+    let list_after_json: serde_json::Value = serde_json::from_slice(&list_after_body)
+        .expect("existing stream list after friendship removal body should be valid json");
+    assert_eq!(list_after_json["code"], "conversation_archived");
+
+    let append_after = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/v1/streams/{stream_id}/frames"))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "frameSeq": 2,
+                        "frameType": "delta",
+                        "schemaRef": "custom.delta.text.v1",
+                        "encoding": "json",
+                        "payload": "{\"delta\":\"after removal\"}",
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("existing stream append after friendship removal should return response");
+    assert_eq!(append_after.status(), StatusCode::FORBIDDEN);
+    let append_after_body = append_after
+        .into_body()
+        .collect()
+        .await
+        .expect("existing stream append after friendship removal body should collect")
+        .to_bytes();
+    let append_after_json: serde_json::Value = serde_json::from_slice(&append_after_body)
+        .expect("existing stream append after friendship removal body should be valid json");
+    assert_eq!(append_after_json["code"], "conversation_archived");
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_rejects_archived_direct_chat_existing_rtc_capability_after_friendship_removal()
+ {
+    let app = local_minimal_node::build_default_app();
+    let (friendship_id, conversation_id) = create_active_friendship_direct_chat(&app).await;
+    let rtc_session_id = "rtc_archived_existing_session";
+
+    let create_rtc = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/rtc/sessions")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "rtcSessionId": rtc_session_id,
+                        "conversationId": conversation_id,
+                        "rtcMode": "voice",
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("existing rtc session create before friendship removal should return response");
+    assert_eq!(create_rtc.status(), StatusCode::OK);
+
+    let credential_before = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/v1/rtc/sessions/{rtc_session_id}/credentials"))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "participantId": "u_bob",
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("existing rtc credential before friendship removal should return response");
+    assert_eq!(credential_before.status(), StatusCode::OK);
+
+    remove_friendship_for_test(&app, friendship_id.as_str(), "u_alice").await;
+
+    let credential_after = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/v1/rtc/sessions/{rtc_session_id}/credentials"))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "participantId": "u_bob",
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("existing rtc credential after friendship removal should return response");
+    assert_eq!(credential_after.status(), StatusCode::FORBIDDEN);
+    let credential_after_body = credential_after
+        .into_body()
+        .collect()
+        .await
+        .expect("existing rtc credential after friendship removal body should collect")
+        .to_bytes();
+    let credential_after_json: serde_json::Value = serde_json::from_slice(&credential_after_body)
+        .expect("existing rtc credential after friendship removal body should be valid json");
+    assert_eq!(credential_after_json["code"], "conversation_archived");
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_hides_archived_direct_chat_entries_from_device_sync_feed_after_friendship_removal()
+ {
+    let app = local_minimal_node::build_default_app();
+    let (friendship_id, conversation_id) = create_active_friendship_direct_chat(&app).await;
+
+    register_device_for_test(&app, "u_alice", "d_alice_phone").await;
+    register_device_for_test(&app, "u_alice", "d_alice_pad").await;
+
+    let post_message = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/v1/conversations/{conversation_id}/messages"))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("x-device-id", "d_alice_phone")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_archived_sync_feed_1",
+                        "summary":"before removal",
+                        "text":"before removal"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("device sync seed message should return response");
+    assert_eq!(post_message.status(), StatusCode::OK);
+
+    let sync_feed_before = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/devices/d_alice_pad/sync-feed?afterSeq=0")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("x-device-id", "d_alice_pad")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("device sync feed before friendship removal should return response");
+    assert_eq!(sync_feed_before.status(), StatusCode::OK);
+    let sync_feed_before_body = sync_feed_before
+        .into_body()
+        .collect()
+        .await
+        .expect("device sync feed before friendship removal body should collect")
+        .to_bytes();
+    let sync_feed_before_json: serde_json::Value = serde_json::from_slice(&sync_feed_before_body)
+        .expect("device sync feed before friendship removal body should be valid json");
+    assert!(
+        sync_feed_before_json["items"]
+            .as_array()
+            .expect("device sync feed before friendship removal should include items")
+            .iter()
+            .any(|item| item["conversationId"] == conversation_id),
+        "active direct chat should be visible in device sync feed before friendship removal"
+    );
+
+    remove_friendship_for_test(&app, friendship_id.as_str(), "u_alice").await;
+
+    let sync_feed_after = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/devices/d_alice_pad/sync-feed?afterSeq=0")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("x-device-id", "d_alice_pad")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("device sync feed after friendship removal should return response");
+    assert_eq!(sync_feed_after.status(), StatusCode::OK);
+    let sync_feed_after_body = sync_feed_after
+        .into_body()
+        .collect()
+        .await
+        .expect("device sync feed after friendship removal body should collect")
+        .to_bytes();
+    let sync_feed_after_json: serde_json::Value = serde_json::from_slice(&sync_feed_after_body)
+        .expect("device sync feed after friendship removal body should be valid json");
+    assert!(
+        sync_feed_after_json["items"]
+            .as_array()
+            .expect("device sync feed after friendship removal should include items")
+            .iter()
+            .all(|item| item["conversationId"] != conversation_id),
+        "archived direct chat must disappear from device sync feed after friendship removal"
+    );
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_hides_archived_direct_chat_realtime_events_after_friendship_removal()
+ {
+    let app = local_minimal_node::build_default_app();
+    let (friendship_id, conversation_id) = create_active_friendship_direct_chat(&app).await;
+
+    register_device_for_test(&app, "u_alice", "d_alice_phone").await;
+    register_device_for_test(&app, "u_alice", "d_alice_pad").await;
+
+    let sync_subscription = sync_conversation_realtime_subscription_for_test(
+        &app,
+        "u_alice",
+        "d_alice_pad",
+        conversation_id.as_str(),
+    )
+    .await;
+    assert_eq!(sync_subscription.status(), StatusCode::OK);
+
+    let post_message = post_standard_message_for_test(
+        &app,
+        conversation_id.as_str(),
+        "u_alice",
+        "client_archived_realtime_1",
+        "before removal",
+    )
+    .await;
+    assert_eq!(post_message.status(), StatusCode::OK);
+
+    let realtime_before = list_realtime_events_for_test(&app, "u_alice", "d_alice_pad", 0).await;
+    assert_eq!(realtime_before.status(), StatusCode::OK);
+    let realtime_before_body = realtime_before
+        .into_body()
+        .collect()
+        .await
+        .expect("realtime events before friendship removal body should collect")
+        .to_bytes();
+    let realtime_before_json: serde_json::Value = serde_json::from_slice(&realtime_before_body)
+        .expect("realtime events before friendship removal body should be valid json");
+    assert!(
+        realtime_before_json["items"]
+            .as_array()
+            .expect("realtime events before friendship removal should include items")
+            .iter()
+            .any(|item| item["scopeId"] == conversation_id),
+        "active direct chat should be visible in realtime events before friendship removal"
+    );
+
+    remove_friendship_for_test(&app, friendship_id.as_str(), "u_alice").await;
+
+    let realtime_after = list_realtime_events_for_test(&app, "u_alice", "d_alice_pad", 0).await;
+    assert_eq!(realtime_after.status(), StatusCode::OK);
+    let realtime_after_body = realtime_after
+        .into_body()
+        .collect()
+        .await
+        .expect("realtime events after friendship removal body should collect")
+        .to_bytes();
+    let realtime_after_json: serde_json::Value = serde_json::from_slice(&realtime_after_body)
+        .expect("realtime events after friendship removal body should be valid json");
+    assert!(
+        realtime_after_json["items"]
+            .as_array()
+            .expect("realtime events after friendship removal should include items")
+            .iter()
+            .all(|item| item["scopeId"] != conversation_id),
+        "archived direct chat must disappear from realtime event windows after friendship removal"
+    );
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_rejects_archived_direct_chat_realtime_subscription_after_friendship_removal()
+ {
+    let app = local_minimal_node::build_default_app();
+    let (friendship_id, conversation_id) = create_active_friendship_direct_chat(&app).await;
+
+    register_device_for_test(&app, "u_alice", "d_alice_pad").await;
+    remove_friendship_for_test(&app, friendship_id.as_str(), "u_alice").await;
+
+    let sync_subscription = sync_conversation_realtime_subscription_for_test(
+        &app,
+        "u_alice",
+        "d_alice_pad",
+        conversation_id.as_str(),
+    )
+    .await;
+    assert_eq!(sync_subscription.status(), StatusCode::FORBIDDEN);
+    let sync_subscription_body = sync_subscription
+        .into_body()
+        .collect()
+        .await
+        .expect("archived realtime subscription body should collect")
+        .to_bytes();
+    let sync_subscription_json: serde_json::Value = serde_json::from_slice(&sync_subscription_body)
+        .expect("archived realtime subscription body should be valid json");
+    assert_eq!(sync_subscription_json["code"], "conversation_archived");
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_rejects_direct_chat_summary_when_direct_chat_scope_block_is_active()
+ {
+    let app = local_minimal_node::build_default_app();
+    let fixture = create_active_friendship_direct_chat_fixture(&app).await;
+
+    let initial_post = post_standard_message_for_test(
+        &app,
+        fixture.conversation_id.as_str(),
+        "u_alice",
+        "client_direct_chat_block_summary_1",
+        "before block",
+    )
+    .await;
+    assert_eq!(initial_post.status(), StatusCode::OK);
+
+    block_direct_chat_for_test(
+        &app,
+        "ub_direct_chat_summary_blocked",
+        "u_bob",
+        "u_alice",
+        fixture.direct_chat_id.as_str(),
+    )
+    .await;
+
+    let summary_response = app
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/v1/conversations/{}", fixture.conversation_id))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("blocked direct chat summary should return response");
+    assert_eq!(summary_response.status(), StatusCode::FORBIDDEN);
+    let summary_body = summary_response
+        .into_body()
+        .collect()
+        .await
+        .expect("blocked direct chat summary body should collect")
+        .to_bytes();
+    let summary_json: serde_json::Value =
+        serde_json::from_slice(&summary_body).expect("blocked direct chat summary should be json");
+    assert_eq!(summary_json["code"], "conversation_blocked");
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_rejects_post_message_when_direct_chat_scope_block_is_active() {
+    let app = local_minimal_node::build_default_app();
+    let fixture = create_active_friendship_direct_chat_fixture(&app).await;
+
+    block_direct_chat_for_test(
+        &app,
+        "ub_direct_chat_post_blocked",
+        "u_bob",
+        "u_alice",
+        fixture.direct_chat_id.as_str(),
+    )
+    .await;
+
+    let blocked_post = post_standard_message_for_test(
+        &app,
+        fixture.conversation_id.as_str(),
+        "u_alice",
+        "client_direct_chat_block_post_1",
+        "after block",
+    )
+    .await;
+    assert_eq!(blocked_post.status(), StatusCode::FORBIDDEN);
+    let blocked_post_body = blocked_post
+        .into_body()
+        .collect()
+        .await
+        .expect("blocked direct chat post body should collect")
+        .to_bytes();
+    let blocked_post_json: serde_json::Value = serde_json::from_slice(&blocked_post_body)
+        .expect("blocked direct chat post should be json");
+    assert_eq!(blocked_post_json["code"], "conversation_blocked");
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_hides_direct_chat_from_inbox_when_direct_chat_scope_block_is_active()
+ {
+    let app = local_minimal_node::build_default_app();
+    let fixture = create_active_friendship_direct_chat_fixture(&app).await;
+
+    let initial_post = post_standard_message_for_test(
+        &app,
+        fixture.conversation_id.as_str(),
+        "u_alice",
+        "client_direct_chat_block_inbox_1",
+        "before block",
+    )
+    .await;
+    assert_eq!(initial_post.status(), StatusCode::OK);
+
+    block_direct_chat_for_test(
+        &app,
+        "ub_direct_chat_inbox_blocked",
+        "u_bob",
+        "u_alice",
+        fixture.direct_chat_id.as_str(),
+    )
+    .await;
+
+    let inbox_response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/inbox")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("blocked direct chat inbox should return response");
+    assert_eq!(inbox_response.status(), StatusCode::OK);
+    let inbox_body = inbox_response
+        .into_body()
+        .collect()
+        .await
+        .expect("blocked direct chat inbox body should collect")
+        .to_bytes();
+    let inbox_json: serde_json::Value =
+        serde_json::from_slice(&inbox_body).expect("blocked direct chat inbox should be json");
+    assert!(
+        inbox_json["items"]
+            .as_array()
+            .expect("blocked direct chat inbox should include items")
+            .iter()
+            .all(|item| item["conversationId"] != fixture.conversation_id),
+        "blocked direct chat must disappear from inbox"
+    );
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_hides_direct_chat_from_device_sync_feed_when_direct_chat_scope_block_is_active()
+ {
+    let app = local_minimal_node::build_default_app();
+    let fixture = create_active_friendship_direct_chat_fixture(&app).await;
+
+    register_device_for_test(&app, "u_alice", "d_alice_phone").await;
+    register_device_for_test(&app, "u_alice", "d_alice_pad").await;
+
+    let initial_post = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/v1/conversations/{}/messages",
+                    fixture.conversation_id
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("x-device-id", "d_alice_phone")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_direct_chat_block_sync_feed_1",
+                        "summary":"before block",
+                        "text":"before block"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("blocked direct chat sync feed seed message should return response");
+    assert_eq!(initial_post.status(), StatusCode::OK);
+
+    block_direct_chat_for_test(
+        &app,
+        "ub_direct_chat_sync_feed_blocked",
+        "u_bob",
+        "u_alice",
+        fixture.direct_chat_id.as_str(),
+    )
+    .await;
+
+    let sync_feed_response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/devices/d_alice_pad/sync-feed?afterSeq=0")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("x-device-id", "d_alice_pad")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("blocked direct chat sync feed should return response");
+    assert_eq!(sync_feed_response.status(), StatusCode::OK);
+    let sync_feed_body = sync_feed_response
+        .into_body()
+        .collect()
+        .await
+        .expect("blocked direct chat sync feed body should collect")
+        .to_bytes();
+    let sync_feed_json: serde_json::Value = serde_json::from_slice(&sync_feed_body)
+        .expect("blocked direct chat sync feed should be json");
+    assert!(
+        sync_feed_json["items"]
+            .as_array()
+            .expect("blocked direct chat sync feed should include items")
+            .iter()
+            .all(|item| item["conversationId"] != fixture.conversation_id),
+        "blocked direct chat must disappear from device sync feed"
+    );
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_filters_direct_chat_realtime_events_when_direct_chat_scope_block_is_active()
+ {
+    let app = local_minimal_node::build_default_app();
+    let fixture = create_active_friendship_direct_chat_fixture(&app).await;
+
+    register_device_for_test(&app, "u_alice", "d_alice_phone").await;
+    register_device_for_test(&app, "u_alice", "d_alice_pad").await;
+
+    let sync_subscription = sync_conversation_realtime_subscription_for_test(
+        &app,
+        "u_alice",
+        "d_alice_pad",
+        fixture.conversation_id.as_str(),
+    )
+    .await;
+    assert_eq!(sync_subscription.status(), StatusCode::OK);
+
+    let post_message = post_standard_message_for_test(
+        &app,
+        fixture.conversation_id.as_str(),
+        "u_bob",
+        "client_direct_chat_block_realtime_1",
+        "before block",
+    )
+    .await;
+    assert_eq!(post_message.status(), StatusCode::OK);
+
+    block_direct_chat_for_test(
+        &app,
+        "ub_direct_chat_realtime_blocked",
+        "u_bob",
+        "u_alice",
+        fixture.direct_chat_id.as_str(),
+    )
+    .await;
+
+    let realtime_after = list_realtime_events_for_test(&app, "u_alice", "d_alice_pad", 0).await;
+    assert_eq!(realtime_after.status(), StatusCode::OK);
+    let realtime_after_body = realtime_after
+        .into_body()
+        .collect()
+        .await
+        .expect("blocked realtime events body should collect")
+        .to_bytes();
+    let realtime_after_json: serde_json::Value = serde_json::from_slice(&realtime_after_body)
+        .expect("blocked realtime events should be json");
+    assert!(
+        realtime_after_json["items"]
+            .as_array()
+            .expect("blocked realtime events should include items")
+            .iter()
+            .all(|item| item["scopeId"] != fixture.conversation_id),
+        "blocked direct chat must disappear from realtime event windows"
+    );
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_rejects_direct_chat_realtime_subscription_when_direct_chat_scope_block_is_active()
+ {
+    let app = local_minimal_node::build_default_app();
+    let fixture = create_active_friendship_direct_chat_fixture(&app).await;
+
+    register_device_for_test(&app, "u_alice", "d_alice_pad").await;
+    block_direct_chat_for_test(
+        &app,
+        "ub_direct_chat_subscription_blocked",
+        "u_bob",
+        "u_alice",
+        fixture.direct_chat_id.as_str(),
+    )
+    .await;
+
+    let sync_subscription = sync_conversation_realtime_subscription_for_test(
+        &app,
+        "u_alice",
+        "d_alice_pad",
+        fixture.conversation_id.as_str(),
+    )
+    .await;
+    assert_eq!(sync_subscription.status(), StatusCode::FORBIDDEN);
+    let sync_subscription_body = sync_subscription
+        .into_body()
+        .collect()
+        .await
+        .expect("blocked realtime subscription body should collect")
+        .to_bytes();
+    let sync_subscription_json: serde_json::Value = serde_json::from_slice(&sync_subscription_body)
+        .expect("blocked realtime subscription body should be valid json");
+    assert_eq!(sync_subscription_json["code"], "conversation_blocked");
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_can_resubmit_friend_request_after_decline() {
+    let app = local_minimal_node::build_default_app();
+
+    let submit_request = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"please add me"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("submit friend request before decline should return response");
+    assert_eq!(submit_request.status(), StatusCode::OK);
+    let submit_request_body = submit_request
+        .into_body()
+        .collect()
+        .await
+        .expect("submit friend request before decline body should collect")
+        .to_bytes();
+    let submit_request_json: serde_json::Value = serde_json::from_slice(&submit_request_body)
+        .expect("submit friend request before decline body should be valid json");
+    let first_request_id = submit_request_json["friendRequest"]["requestId"]
+        .as_str()
+        .expect("first declined request id should be present")
+        .to_owned();
+
+    let decline_request = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/v1/social/friend-requests/{first_request_id}/decline"
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_bob")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("decline friend request should return response");
+    assert_eq!(decline_request.status(), StatusCode::OK);
+    let decline_request_body = decline_request
+        .into_body()
+        .collect()
+        .await
+        .expect("decline friend request body should collect")
+        .to_bytes();
+    let decline_request_json: serde_json::Value = serde_json::from_slice(&decline_request_body)
+        .expect("decline friend request body should be valid json");
+    assert_eq!(decline_request_json["friendRequest"]["status"], "declined");
+
+    let resubmit_request = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"please add me again"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("resubmit friend request after decline should return response");
+    assert_eq!(resubmit_request.status(), StatusCode::OK);
+    let resubmit_request_body = resubmit_request
+        .into_body()
+        .collect()
+        .await
+        .expect("resubmit friend request after decline body should collect")
+        .to_bytes();
+    let resubmit_request_json: serde_json::Value = serde_json::from_slice(&resubmit_request_body)
+        .expect("resubmit friend request after decline body should be valid json");
+
+    assert_eq!(resubmit_request_json["friendRequest"]["status"], "pending");
+    assert_ne!(
+        resubmit_request_json["friendRequest"]["requestId"],
+        first_request_id
+    );
+    assert_eq!(
+        resubmit_request_json["friendRequest"]["requestMessage"],
+        "please add me again"
+    );
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_can_resubmit_friend_request_after_cancel() {
+    let app = local_minimal_node::build_default_app();
+
+    let submit_request = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"please add me"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("submit friend request before cancel should return response");
+    assert_eq!(submit_request.status(), StatusCode::OK);
+    let submit_request_body = submit_request
+        .into_body()
+        .collect()
+        .await
+        .expect("submit friend request before cancel body should collect")
+        .to_bytes();
+    let submit_request_json: serde_json::Value = serde_json::from_slice(&submit_request_body)
+        .expect("submit friend request before cancel body should be valid json");
+    let first_request_id = submit_request_json["friendRequest"]["requestId"]
+        .as_str()
+        .expect("first canceled request id should be present")
+        .to_owned();
+
+    let cancel_request = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/v1/social/friend-requests/{first_request_id}/cancel"
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("cancel friend request should return response");
+    assert_eq!(cancel_request.status(), StatusCode::OK);
+    let cancel_request_body = cancel_request
+        .into_body()
+        .collect()
+        .await
+        .expect("cancel friend request body should collect")
+        .to_bytes();
+    let cancel_request_json: serde_json::Value = serde_json::from_slice(&cancel_request_body)
+        .expect("cancel friend request body should be valid json");
+    assert_eq!(cancel_request_json["friendRequest"]["status"], "canceled");
+
+    let resubmit_request = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"please add me again"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("resubmit friend request after cancel should return response");
+    assert_eq!(resubmit_request.status(), StatusCode::OK);
+    let resubmit_request_body = resubmit_request
+        .into_body()
+        .collect()
+        .await
+        .expect("resubmit friend request after cancel body should collect")
+        .to_bytes();
+    let resubmit_request_json: serde_json::Value = serde_json::from_slice(&resubmit_request_body)
+        .expect("resubmit friend request after cancel body should be valid json");
+
+    assert_eq!(resubmit_request_json["friendRequest"]["status"], "pending");
+    assert_ne!(
+        resubmit_request_json["friendRequest"]["requestId"],
+        first_request_id
+    );
+    assert_eq!(
+        resubmit_request_json["friendRequest"]["requestMessage"],
+        "please add me again"
+    );
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_lists_incoming_and_outgoing_friend_requests() {
+    let app = local_minimal_node::build_default_app();
+
+    let submit_request = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"please add me"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("submit friend request before list should return response");
+    assert_eq!(submit_request.status(), StatusCode::OK);
+    let submit_request_body = submit_request
+        .into_body()
+        .collect()
+        .await
+        .expect("submit friend request before list body should collect")
+        .to_bytes();
+    let submit_request_json: serde_json::Value = serde_json::from_slice(&submit_request_body)
+        .expect("submit friend request before list body should be valid json");
+    let request_id = submit_request_json["friendRequest"]["requestId"]
+        .as_str()
+        .expect("request id before list should be present")
+        .to_owned();
+
+    let incoming_pending = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/social/friend-requests?direction=incoming")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_bob")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("incoming friend request list should return response");
+    assert_eq!(incoming_pending.status(), StatusCode::OK);
+    let incoming_pending_body = incoming_pending
+        .into_body()
+        .collect()
+        .await
+        .expect("incoming friend request list body should collect")
+        .to_bytes();
+    let incoming_pending_json: serde_json::Value = serde_json::from_slice(&incoming_pending_body)
+        .expect("incoming friend request list body should be valid json");
+    let incoming_pending_items = incoming_pending_json["items"]
+        .as_array()
+        .expect("incoming friend request list should include items");
+    assert_eq!(incoming_pending_items.len(), 1);
+    assert_eq!(incoming_pending_items[0]["requestId"], request_id);
+    assert_eq!(incoming_pending_items[0]["status"], "pending");
+
+    let outgoing_pending = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/social/friend-requests?direction=outgoing")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("outgoing friend request list should return response");
+    assert_eq!(outgoing_pending.status(), StatusCode::OK);
+    let outgoing_pending_body = outgoing_pending
+        .into_body()
+        .collect()
+        .await
+        .expect("outgoing friend request list body should collect")
+        .to_bytes();
+    let outgoing_pending_json: serde_json::Value = serde_json::from_slice(&outgoing_pending_body)
+        .expect("outgoing friend request list body should be valid json");
+    let outgoing_pending_items = outgoing_pending_json["items"]
+        .as_array()
+        .expect("outgoing friend request list should include items");
+    assert_eq!(outgoing_pending_items.len(), 1);
+    assert_eq!(outgoing_pending_items[0]["requestId"], request_id);
+    assert_eq!(outgoing_pending_items[0]["status"], "pending");
+
+    let decline_request = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/v1/social/friend-requests/{request_id}/decline"
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_bob")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("decline friend request before filtered list should return response");
+    assert_eq!(decline_request.status(), StatusCode::OK);
+
+    let incoming_after_decline = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/social/friend-requests?direction=incoming")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_bob")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("incoming pending friend request list after decline should return response");
+    assert_eq!(incoming_after_decline.status(), StatusCode::OK);
+    let incoming_after_decline_body = incoming_after_decline
+        .into_body()
+        .collect()
+        .await
+        .expect("incoming pending friend request list after decline body should collect")
+        .to_bytes();
+    let incoming_after_decline_json: serde_json::Value =
+        serde_json::from_slice(&incoming_after_decline_body)
+            .expect("incoming pending friend request list after decline body should be valid json");
+    let incoming_after_decline_items = incoming_after_decline_json["items"]
+        .as_array()
+        .expect("incoming pending friend request list after decline should include items");
+    assert!(incoming_after_decline_items.is_empty());
+
+    let outgoing_declined = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/social/friend-requests?direction=outgoing&status=declined")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("outgoing declined friend request list should return response");
+    assert_eq!(outgoing_declined.status(), StatusCode::OK);
+    let outgoing_declined_body = outgoing_declined
+        .into_body()
+        .collect()
+        .await
+        .expect("outgoing declined friend request list body should collect")
+        .to_bytes();
+    let outgoing_declined_json: serde_json::Value = serde_json::from_slice(&outgoing_declined_body)
+        .expect("outgoing declined friend request list body should be valid json");
+    let outgoing_declined_items = outgoing_declined_json["items"]
+        .as_array()
+        .expect("outgoing declined friend request list should include items");
+    assert_eq!(outgoing_declined_items.len(), 1);
+    assert_eq!(outgoing_declined_items[0]["requestId"], request_id);
+    assert_eq!(outgoing_declined_items[0]["status"], "declined");
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_friend_request_list_applies_limit_after_sorting() {
+    let app = local_minimal_node::build_default_app();
+
+    let first_submit = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"first"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("first submit before limited list should return response");
+    assert_eq!(first_submit.status(), StatusCode::OK);
+
+    sleep(Duration::from_millis(2)).await;
+
+    let second_submit = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_carol",
+                        "requestMessage":"second"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("second submit before limited list should return response");
+    assert_eq!(second_submit.status(), StatusCode::OK);
+
+    let limited_list = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/social/friend-requests?direction=outgoing&limit=1")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("limited app-facing friend request list should return response");
+    assert_eq!(limited_list.status(), StatusCode::OK);
+    let limited_list_body = limited_list
+        .into_body()
+        .collect()
+        .await
+        .expect("limited app-facing friend request list body should collect")
+        .to_bytes();
+    let limited_list_json: serde_json::Value = serde_json::from_slice(&limited_list_body)
+        .expect("limited app-facing friend request list body should be valid json");
+    let items = limited_list_json["items"]
+        .as_array()
+        .expect("limited app-facing friend request list should include items");
+    assert_eq!(items.len(), 1);
+    assert_eq!(items[0]["targetUserId"], "u_carol");
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_friend_request_list_preserves_plus_in_actor_id() {
+    let app = local_minimal_node::build_default_app();
+
+    let submit_request = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice+plus")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"plus identity"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("submit friend request for plus actor should return response");
+    assert_eq!(submit_request.status(), StatusCode::OK);
+
+    let list_request = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/social/friend-requests?direction=outgoing")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice+plus")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("friend request list for plus actor should return response");
+    assert_eq!(list_request.status(), StatusCode::OK);
+    let list_body = list_request
+        .into_body()
+        .collect()
+        .await
+        .expect("friend request list for plus actor body should collect")
+        .to_bytes();
+    let list_json: serde_json::Value = serde_json::from_slice(&list_body)
+        .expect("friend request list for plus actor body should be valid json");
+    let items = list_json["items"]
+        .as_array()
+        .expect("friend request list for plus actor should include items");
+    assert_eq!(items.len(), 1);
+    assert_eq!(items[0]["requesterUserId"], "u_alice+plus");
+    assert_eq!(items[0]["targetUserId"], "u_bob");
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_friend_request_list_uses_cursor_for_next_page() {
+    let app = local_minimal_node::build_default_app();
+
+    let first_submit = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"first"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("first submit before cursor list should return response");
+    assert_eq!(first_submit.status(), StatusCode::OK);
+
+    sleep(Duration::from_millis(2)).await;
+
+    let second_submit = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_carol",
+                        "requestMessage":"second"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("second submit before cursor list should return response");
+    assert_eq!(second_submit.status(), StatusCode::OK);
+
+    let first_page = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/social/friend-requests?direction=outgoing&limit=1")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("first app-facing cursor page should return response");
+    assert_eq!(first_page.status(), StatusCode::OK);
+    let first_page_body = first_page
+        .into_body()
+        .collect()
+        .await
+        .expect("first app-facing cursor page body should collect")
+        .to_bytes();
+    let first_page_json: serde_json::Value = serde_json::from_slice(&first_page_body)
+        .expect("first app-facing cursor page body should be valid json");
+    let first_items = first_page_json["items"]
+        .as_array()
+        .expect("first app-facing cursor page should include items");
+    assert_eq!(first_items.len(), 1);
+    assert_eq!(first_items[0]["targetUserId"], "u_carol");
+    let next_cursor = first_page_json["nextCursor"]
+        .as_str()
+        .expect("first app-facing cursor page should include nextCursor");
+
+    let second_page = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!(
+                    "/api/v1/social/friend-requests?direction=outgoing&limit=1&cursor={next_cursor}"
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("second app-facing cursor page should return response");
+    assert_eq!(second_page.status(), StatusCode::OK);
+    let second_page_body = second_page
+        .into_body()
+        .collect()
+        .await
+        .expect("second app-facing cursor page body should collect")
+        .to_bytes();
+    let second_page_json: serde_json::Value = serde_json::from_slice(&second_page_body)
+        .expect("second app-facing cursor page body should be valid json");
+    let second_items = second_page_json["items"]
+        .as_array()
+        .expect("second app-facing cursor page should include items");
+    assert_eq!(second_items.len(), 1);
+    assert_eq!(second_items[0]["targetUserId"], "u_bob");
+    assert!(second_page_json["nextCursor"].is_null());
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_friend_request_list_rejects_invalid_cursor() {
+    let app = local_minimal_node::build_default_app();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/social/friend-requests?direction=outgoing&cursor=not-valid")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("invalid app-facing cursor inventory request should return response");
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("invalid app-facing cursor inventory body should collect")
+        .to_bytes();
+    let json: serde_json::Value = serde_json::from_slice(&body)
+        .expect("invalid app-facing cursor inventory body should be valid json");
+    assert_eq!(json["code"], "cursor_invalid");
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_rejects_friend_request_decline_from_non_target_user() {
+    let app = local_minimal_node::build_default_app();
+
+    let submit_request = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"please add me"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("submit friend request before forbidden decline should return response");
+    assert_eq!(submit_request.status(), StatusCode::OK);
+    let submit_request_body = submit_request
+        .into_body()
+        .collect()
+        .await
+        .expect("submit friend request before forbidden decline body should collect")
+        .to_bytes();
+    let submit_request_json: serde_json::Value = serde_json::from_slice(&submit_request_body)
+        .expect("submit friend request before forbidden decline body should be valid json");
+    let request_id = submit_request_json["friendRequest"]["requestId"]
+        .as_str()
+        .expect("request id for forbidden decline should be present")
+        .to_owned();
+
+    let forbidden_decline = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/v1/social/friend-requests/{request_id}/decline"
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_charlie")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("forbidden decline should return response");
+    assert_eq!(forbidden_decline.status(), StatusCode::FORBIDDEN);
+    let forbidden_decline_body = forbidden_decline
+        .into_body()
+        .collect()
+        .await
+        .expect("forbidden decline body should collect")
+        .to_bytes();
+    let forbidden_decline_json: serde_json::Value = serde_json::from_slice(&forbidden_decline_body)
+        .expect("forbidden decline body should be valid json");
+    assert_eq!(
+        forbidden_decline_json["code"],
+        "friend_request_decline_forbidden"
+    );
+
+    let allowed_decline = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/v1/social/friend-requests/{request_id}/decline"
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_bob")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("allowed decline should return response");
+    assert_eq!(allowed_decline.status(), StatusCode::OK);
+    let allowed_decline_body = allowed_decline
+        .into_body()
+        .collect()
+        .await
+        .expect("allowed decline body should collect")
+        .to_bytes();
+    let allowed_decline_json: serde_json::Value = serde_json::from_slice(&allowed_decline_body)
+        .expect("allowed decline body should be valid json");
+    assert_eq!(allowed_decline_json["friendRequest"]["status"], "declined");
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_rejects_friend_request_cancel_from_non_requester_user() {
+    let app = local_minimal_node::build_default_app();
+
+    let submit_request = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_bob",
+                        "requestMessage":"please add me"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("submit friend request before forbidden cancel should return response");
+    assert_eq!(submit_request.status(), StatusCode::OK);
+    let submit_request_body = submit_request
+        .into_body()
+        .collect()
+        .await
+        .expect("submit friend request before forbidden cancel body should collect")
+        .to_bytes();
+    let submit_request_json: serde_json::Value = serde_json::from_slice(&submit_request_body)
+        .expect("submit friend request before forbidden cancel body should be valid json");
+    let request_id = submit_request_json["friendRequest"]["requestId"]
+        .as_str()
+        .expect("request id for forbidden cancel should be present")
+        .to_owned();
+
+    let forbidden_cancel = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/v1/social/friend-requests/{request_id}/cancel"
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_bob")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("forbidden cancel should return response");
+    assert_eq!(forbidden_cancel.status(), StatusCode::FORBIDDEN);
+    let forbidden_cancel_body = forbidden_cancel
+        .into_body()
+        .collect()
+        .await
+        .expect("forbidden cancel body should collect")
+        .to_bytes();
+    let forbidden_cancel_json: serde_json::Value = serde_json::from_slice(&forbidden_cancel_body)
+        .expect("forbidden cancel body should be valid json");
+    assert_eq!(
+        forbidden_cancel_json["code"],
+        "friend_request_cancel_forbidden"
+    );
+
+    let allowed_cancel = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/v1/social/friend-requests/{request_id}/cancel"
+                ))
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("allowed cancel should return response");
+    assert_eq!(allowed_cancel.status(), StatusCode::OK);
+    let allowed_cancel_body = allowed_cancel
+        .into_body()
+        .collect()
+        .await
+        .expect("allowed cancel body should collect")
+        .to_bytes();
+    let allowed_cancel_json: serde_json::Value = serde_json::from_slice(&allowed_cancel_body)
+        .expect("allowed cancel body should be valid json");
+    assert_eq!(allowed_cancel_json["friendRequest"]["status"], "canceled");
 }
 
 #[tokio::test]

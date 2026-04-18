@@ -6,6 +6,9 @@ use crate::{AggregateType, CommitEnvelope, EventActor};
 #[serde(rename_all = "snake_case")]
 pub enum SocialEventType {
     FriendRequestSubmitted,
+    FriendRequestAccepted,
+    FriendRequestDeclined,
+    FriendRequestCanceled,
     FriendshipActivated,
     FriendshipRemoved,
     ExternalConnectionEstablished,
@@ -21,6 +24,9 @@ impl SocialEventType {
     pub fn as_wire_value(&self) -> &'static str {
         match self {
             Self::FriendRequestSubmitted => "friend_request.submitted",
+            Self::FriendRequestAccepted => "friend_request.accepted",
+            Self::FriendRequestDeclined => "friend_request.declined",
+            Self::FriendRequestCanceled => "friend_request.canceled",
             Self::FriendshipActivated => "friendship.activated",
             Self::FriendshipRemoved => "friendship.removed",
             Self::ExternalConnectionEstablished => "external_connection.established",
@@ -36,6 +42,9 @@ impl SocialEventType {
     pub fn payload_schema(&self) -> &'static str {
         match self {
             Self::FriendRequestSubmitted => "social.friend_request.submitted.v1",
+            Self::FriendRequestAccepted => "social.friend_request.accepted.v1",
+            Self::FriendRequestDeclined => "social.friend_request.declined.v1",
+            Self::FriendRequestCanceled => "social.friend_request.canceled.v1",
             Self::FriendshipActivated => "social.friendship.activated.v1",
             Self::FriendshipRemoved => "social.friendship.removed.v1",
             Self::ExternalConnectionEstablished => "social.external_connection.established.v1",
@@ -61,6 +70,30 @@ pub struct FriendRequestSubmittedPayload {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct FriendRequestAcceptedPayload {
+    pub request_id: String,
+    pub accepted_by_user_id: String,
+    pub accepted_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FriendRequestDeclinedPayload {
+    pub request_id: String,
+    pub declined_by_user_id: String,
+    pub declined_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FriendRequestCanceledPayload {
+    pub request_id: String,
+    pub canceled_by_user_id: String,
+    pub canceled_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FriendshipActivatedPayload {
     pub friendship_id: String,
     pub user_low_id: String,
@@ -68,6 +101,16 @@ pub struct FriendshipActivatedPayload {
     pub initiator_user_id: String,
     pub direct_chat_id: Option<String>,
     pub established_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FriendshipRemovedPayload {
+    pub friendship_id: String,
+    pub user_low_id: String,
+    pub user_high_id: String,
+    pub removed_by_user_id: String,
+    pub removed_at: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

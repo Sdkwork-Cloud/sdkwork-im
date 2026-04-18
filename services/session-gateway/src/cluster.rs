@@ -8,6 +8,7 @@ use craw_chat_runtime_route::{
     RouteRuntimeError,
 };
 use im_time::utc_now_rfc3339_millis;
+use tokio::sync::watch;
 
 use crate::{
     RealtimeDeliveryRuntime,
@@ -54,6 +55,7 @@ pub struct RealtimeClusterError {
 pub struct RealtimeClusterBridge {
     node_runtimes: Arc<Mutex<HashMap<String, Arc<RealtimeDeliveryRuntime>>>>,
     route_directory: RouteDirectory,
+    route_epoch_notifiers: Arc<Mutex<HashMap<String, watch::Sender<u64>>>>,
     disconnect_fences: Arc<Mutex<HashMap<String, RealtimeDisconnectFence>>>,
     disconnect_fence_store: Arc<dyn RealtimeDisconnectFenceStore>,
 }
@@ -79,6 +81,7 @@ impl RealtimeClusterBridge {
         Self {
             node_runtimes: Arc::new(Mutex::new(HashMap::new())),
             route_directory: RouteDirectory::default(),
+            route_epoch_notifiers: Arc::new(Mutex::new(HashMap::new())),
             disconnect_fences: Arc::new(Mutex::new(HashMap::new())),
             disconnect_fence_store,
         }
@@ -232,7 +235,8 @@ impl RealtimeClusterBridge {
             }
         }
 
-        self.route_directory
+        let binding = self
+            .route_directory
             .bind(
                 RouteBindingRequest::new(tenant_id, principal_id, device_id, owner_node_id)
                     .with_principal_kind(principal_kind)
@@ -240,7 +244,15 @@ impl RealtimeClusterBridge {
                     .with_connection_kind(connection_kind)
                     .with_bound_at(cluster_timestamp()),
             )
-            .map_err(|error| self.route_error(error))
+            .map_err(|error| self.route_error(error))?;
+        self.observe_route_epoch_internal(
+            tenant_id,
+            principal_id,
+            principal_kind,
+            device_id,
+            binding.route_epoch,
+        );
+        Ok(binding)
     }
 
     pub fn ensure_route_session_current(
@@ -424,6 +436,46 @@ impl RealtimeClusterBridge {
         )
     }
 
+    pub fn subscribe_device_route_epoch_for_principal_kind(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: &str,
+        device_id: &str,
+    ) -> watch::Receiver<u64> {
+        self.subscribe_device_route_epoch_internal(
+            tenant_id,
+            principal_id,
+            Some(principal_kind),
+            device_id,
+        )
+    }
+
+    fn subscribe_device_route_epoch_internal(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: Option<&str>,
+        device_id: &str,
+    ) -> watch::Receiver<u64> {
+        let scope_key = device_scope_key(tenant_id, principal_id, principal_kind, device_id);
+        let current_epoch = self
+            .resolve_device_route_internal(tenant_id, principal_id, principal_kind, device_id)
+            .map(|route| route.route_epoch)
+            .unwrap_or(0);
+        let sender = lock_cluster_mutex(&self.route_epoch_notifiers, "route_epoch_notifiers")
+            .entry(scope_key)
+            .or_insert_with(|| {
+                let (sender, _) = watch::channel(current_epoch);
+                sender
+            })
+            .clone();
+        if *sender.borrow() != current_epoch {
+            let _ = sender.send(current_epoch);
+        }
+        sender.subscribe()
+    }
+
     pub fn release_device_route(
         &self,
         tenant_id: &str,
@@ -595,9 +647,27 @@ impl RealtimeClusterBridge {
             }
         }
 
-        self.route_directory
+        let migration = self
+            .route_directory
             .migrate_routes_at(source_node_id, target_node_id, cluster_timestamp().as_str())
-            .map_err(|error| self.route_error(error))
+            .map_err(|error| self.route_error(error))?;
+        for route in routes {
+            if let Some(current_route) = self.resolve_device_route_internal(
+                route.tenant_id.as_str(),
+                route.principal_id.as_str(),
+                route.principal_kind.as_deref(),
+                route.device_id.as_str(),
+            ) {
+                self.observe_route_epoch_internal(
+                    current_route.tenant_id.as_str(),
+                    current_route.principal_id.as_str(),
+                    current_route.principal_kind.as_deref(),
+                    current_route.device_id.as_str(),
+                    current_route.route_epoch,
+                );
+            }
+        }
+        Ok(migration)
     }
 
     // The route publish entrypoint intentionally keeps the delivery identity
@@ -793,6 +863,27 @@ impl RealtimeClusterBridge {
 
     fn route_error(&self, error: RouteRuntimeError) -> RealtimeClusterError {
         self.node_error(error.code, error.node_id.as_str(), error.message)
+    }
+
+    fn observe_route_epoch_internal(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: Option<&str>,
+        device_id: &str,
+        route_epoch: u64,
+    ) {
+        let scope_key = device_scope_key(tenant_id, principal_id, principal_kind, device_id);
+        let sender = lock_cluster_mutex(&self.route_epoch_notifiers, "route_epoch_notifiers")
+            .entry(scope_key)
+            .or_insert_with(|| {
+                let (sender, _) = watch::channel(route_epoch);
+                sender
+            })
+            .clone();
+        if *sender.borrow() != route_epoch {
+            let _ = sender.send(route_epoch);
+        }
     }
 }
 

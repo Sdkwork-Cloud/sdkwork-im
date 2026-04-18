@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 
 use im_platform_contracts::{ContractError, DeviceTwinRecord, DeviceTwinStore};
 
-use crate::shared::{device_twin_scope_key, read_json_records_or_default, write_json_records};
+use crate::shared::{device_twin_scope_key, read_json_records_or_default, update_json_records};
 
 #[derive(Clone, Debug)]
 pub struct FileDeviceTwinStore {
@@ -26,13 +26,6 @@ impl FileDeviceTwinStore {
 
     fn read_records(&self) -> Result<BTreeMap<String, DeviceTwinRecord>, ContractError> {
         read_json_records_or_default(self.file_path.as_path(), "device twin store")
-    }
-
-    fn write_records(
-        &self,
-        records: &BTreeMap<String, DeviceTwinRecord>,
-    ) -> Result<(), ContractError> {
-        write_json_records(self.file_path.as_path(), records, "device twin store")
     }
 }
 
@@ -56,12 +49,16 @@ impl DeviceTwinStore for FileDeviceTwinStore {
             .io_lock
             .lock()
             .expect("device twin file store lock should lock");
-        let mut records = self.read_records()?;
-        records.insert(
-            device_twin_scope_key(record.tenant_id.as_str(), record.device_id.as_str()),
-            record,
-        );
-        self.write_records(&records)
+        update_json_records(
+            self.file_path.as_path(),
+            "device twin store",
+            |records: &mut BTreeMap<String, DeviceTwinRecord>| {
+                records.insert(
+                    device_twin_scope_key(record.tenant_id.as_str(), record.device_id.as_str()),
+                    record,
+                );
+            },
+        )
     }
 }
 

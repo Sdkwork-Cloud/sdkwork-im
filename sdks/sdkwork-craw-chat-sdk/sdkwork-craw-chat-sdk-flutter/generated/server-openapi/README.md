@@ -1,17 +1,46 @@
-# sdkwork-craw-chat-sdk (Flutter)
+# backend_sdk
 
-Professional Flutter transport SDK for the Craw Chat app API.
+Generator-owned Flutter transport SDK for the Craw Chat app API.
+
+## Position In The SDK Family
+
+This package is the low-level generated transport boundary.
+
+For most Flutter app consumers, prefer the official app-facing package:
+
+```yaml
+dependencies:
+  craw_chat_sdk: ^0.1.0
+```
+
+That package exposes:
+
+- `CrawChatClient` as the primary semantic client
+- semantic modules and helper builders for app runtime flows
+- a root library at `package:craw_chat_sdk/craw_chat_sdk.dart`
+- a root library that re-exports `backend_sdk` when you still need generated transport types
+
+Use `backend_sdk` directly only when you explicitly want the standalone generated transport package.
 
 ## Installation
 
-Add to `pubspec.yaml`:
+Direct transport use:
 
 ```yaml
 dependencies:
   backend_sdk: ^0.1.0
 ```
 
+Most app consumers should instead depend on:
+
+```yaml
+dependencies:
+  craw_chat_sdk: ^0.1.0
+```
+
 ## Quick Start
+
+Direct transport:
 
 ```dart
 import 'package:backend_sdk/backend_sdk.dart';
@@ -25,6 +54,22 @@ final client = SdkworkBackendClient(
 
 final result = await client.inbox.getInbox();
 print(result);
+```
+
+If you want semantic modules and helper builders from the official consumer package instead:
+
+```dart
+import 'package:craw_chat_sdk/craw_chat_sdk.dart';
+
+final sdk = CrawChatClient.create(
+  baseUrl: 'http://127.0.0.1:18090',
+  authToken: 'your-bearer-token',
+);
+
+await sdk.conversations.postText(
+  'conversation-1',
+  text: 'hello world',
+);
 ```
 
 ## Authentication
@@ -56,6 +101,8 @@ final client = SdkworkBackendClient(
 
 ## API Modules
 
+- `client.auth` - portal authentication API
+- `client.portal` - tenant portal snapshot API
 - `client.session` - session API
 - `client.presence` - presence API
 - `client.realtime` - realtime API
@@ -82,7 +129,13 @@ MIT
 ## Package Boundary
 
 - Use only the package root entrypoint: `package:backend_sdk/backend_sdk.dart`.
+- The package root exports `AuthApi` and `PortalApi` alongside the rest of the generated transport APIs.
 - Generated `src/` imports are not part of the supported public API.
+- Treat this package as the generator-owned transport boundary, not as the preferred Flutter app-consumer entrypoint.
+- Prefer `package:craw_chat_sdk/craw_chat_sdk.dart` when you want the official Flutter SDK surface.
+- `craw_chat_sdk` re-exports `backend_sdk`, so most app consumers do not need a second direct dependency on the generated transport package.
+- `SdkworkBackendClient` now mounts `client.auth` and `client.portal` from the generated package root.
+- Realtime websocket runtime remains outside generated delivery; this generated package is HTTP coordination only today.
 - The workspace normalization wrapper strips generator-only auth scaffolding and source-tree build residue before verification and packaging.
 
 ## Regeneration Contract

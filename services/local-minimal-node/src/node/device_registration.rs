@@ -3,6 +3,7 @@ use im_platform_contracts::{
     ContractError, DeviceAccessOwnerBindingRequest, DeviceAccessProvider,
     DeviceAccessRegistrationRequest, ProviderHealthSnapshot,
 };
+use tokio::sync::watch;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum DisconnectActiveDeviceRouteOutcome {
@@ -295,5 +296,62 @@ impl LocalNodeDeviceRegistration {
 
     pub(crate) fn provider_descriptor(&self) -> im_platform_contracts::ProviderPluginDescriptor {
         self.device_access_provider.descriptor()
+    }
+}
+
+impl session_gateway::RealtimeRouteOwner for LocalNodeDeviceRegistration {
+    fn ensure_active_device_route_current_session(
+        &self,
+        auth: &AuthContext,
+        device_id: &str,
+    ) -> Result<(), session_gateway::RealtimeRouteOwnerError> {
+        self.ensure_route_session_current(
+            auth.tenant_id.as_str(),
+            auth.actor_id.as_str(),
+            auth.actor_kind.as_str(),
+            device_id,
+            auth.session_id.as_deref(),
+        )
+        .map_err(|error| session_gateway::RealtimeRouteOwnerError::new(error.code, error.message))
+    }
+
+    fn subscribe_active_device_route_epoch(
+        &self,
+        auth: &AuthContext,
+        device_id: &str,
+    ) -> Result<watch::Receiver<u64>, session_gateway::RealtimeRouteOwnerError> {
+        Ok(self
+            .realtime_cluster
+            .subscribe_device_route_epoch_for_principal_kind(
+                auth.tenant_id.as_str(),
+                auth.actor_id.as_str(),
+                auth.actor_kind.as_str(),
+                device_id,
+            ))
+    }
+
+    fn release_active_device_route_if_current_session(&self, auth: &AuthContext, device_id: &str) {
+        if self
+            .ensure_route_session_current(
+                auth.tenant_id.as_str(),
+                auth.actor_id.as_str(),
+                auth.actor_kind.as_str(),
+                device_id,
+                auth.session_id.as_deref(),
+            )
+            .is_err()
+        {
+            return;
+        }
+
+        let _ = self
+            .realtime_cluster
+            .release_device_route_for_principal_kind(
+                auth.tenant_id.as_str(),
+                auth.actor_id.as_str(),
+                auth.actor_kind.as_str(),
+                device_id,
+                self.node_id.as_str(),
+            );
     }
 }

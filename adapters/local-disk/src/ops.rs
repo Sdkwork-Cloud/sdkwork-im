@@ -9,7 +9,7 @@ use im_platform_contracts::{
 
 use crate::shared::{
     execution_scope_key, legacy_execution_scope_key, notification_scope_key,
-    read_json_records_or_default, write_json_records,
+    read_json_records_or_default, update_json_records,
 };
 
 #[derive(Clone, Debug)]
@@ -33,13 +33,6 @@ impl FileNotificationTaskStore {
     fn read_records(&self) -> Result<BTreeMap<String, NotificationTaskRecord>, ContractError> {
         read_json_records_or_default(self.file_path.as_path(), "notification task store")
     }
-
-    fn write_records(
-        &self,
-        records: &BTreeMap<String, NotificationTaskRecord>,
-    ) -> Result<(), ContractError> {
-        write_json_records(self.file_path.as_path(), records, "notification task store")
-    }
 }
 
 impl NotificationTaskStore for FileNotificationTaskStore {
@@ -62,12 +55,19 @@ impl NotificationTaskStore for FileNotificationTaskStore {
             .io_lock
             .lock()
             .expect("notification task file store lock should lock");
-        let mut records = self.read_records()?;
-        records.insert(
-            notification_scope_key(record.tenant_id.as_str(), record.notification_id.as_str()),
-            record,
-        );
-        self.write_records(&records)
+        update_json_records(
+            self.file_path.as_path(),
+            "notification task store",
+            |records: &mut BTreeMap<String, NotificationTaskRecord>| {
+                records.insert(
+                    notification_scope_key(
+                        record.tenant_id.as_str(),
+                        record.notification_id.as_str(),
+                    ),
+                    record,
+                );
+            },
+        )
     }
 
     fn list_tasks_for_recipient(
@@ -110,17 +110,6 @@ impl FileAutomationExecutionStore {
     fn read_records(&self) -> Result<BTreeMap<String, AutomationExecutionRecord>, ContractError> {
         read_json_records_or_default(self.file_path.as_path(), "automation execution store")
     }
-
-    fn write_records(
-        &self,
-        records: &BTreeMap<String, AutomationExecutionRecord>,
-    ) -> Result<(), ContractError> {
-        write_json_records(
-            self.file_path.as_path(),
-            records,
-            "automation execution store",
-        )
-    }
 }
 
 impl AutomationExecutionStore for FileAutomationExecutionStore {
@@ -152,17 +141,21 @@ impl AutomationExecutionStore for FileAutomationExecutionStore {
             .io_lock
             .lock()
             .expect("automation execution file store lock should lock");
-        let mut records = self.read_records()?;
-        records.insert(
-            execution_scope_key(
-                record.tenant_id.as_str(),
-                record.execution.principal_kind.as_str(),
-                record.principal_id.as_str(),
-                record.execution_id.as_str(),
-            ),
-            record,
-        );
-        self.write_records(&records)
+        update_json_records(
+            self.file_path.as_path(),
+            "automation execution store",
+            |records: &mut BTreeMap<String, AutomationExecutionRecord>| {
+                records.insert(
+                    execution_scope_key(
+                        record.tenant_id.as_str(),
+                        record.execution.principal_kind.as_str(),
+                        record.principal_id.as_str(),
+                        record.execution_id.as_str(),
+                    ),
+                    record,
+                );
+            },
+        )
     }
 }
 

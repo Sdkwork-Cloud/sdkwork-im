@@ -47,7 +47,11 @@ use self::support::{
     resolve_active_member_id, resolve_active_member_id_with_kind, resolve_active_member_with_kind,
     upsert_member, upsert_read_cursor,
 };
-pub use http::{build_default_app, build_public_app};
+pub use http::{
+    PrincipalDirectory, PrincipalDirectoryError, StaticPrincipalDirectory, build_default_app,
+    build_default_app_with_principal_directory, build_public_app,
+    build_public_app_with_principal_directory,
+};
 
 const CONVERSATION_MAX_ID_BYTES: usize = 256;
 const CONVERSATION_MAX_KIND_BYTES: usize = 64;
@@ -526,7 +530,6 @@ enum PostMessageMutation {
     Applied {
         result: PostMessageResult,
         message: Message,
-        retention_class: String,
     },
     Replayed(PostMessageResult),
 }
@@ -1399,6 +1402,19 @@ impl CommitJournal for InMemoryJournal {
         events.push(envelope);
         Ok(CommitPosition::new("p0", events.len() as u64))
     }
+
+    fn append_batch(
+        &self,
+        envelopes: Vec<CommitEnvelope>,
+    ) -> Result<Vec<CommitPosition>, ContractError> {
+        let mut events = lock_runtime_mutex(&self.events, "in-memory-journal.events");
+        let start_offset = events.len() as u64 + 1;
+        let batch_len = envelopes.len() as u64;
+        events.extend(envelopes);
+        Ok((0..batch_len)
+            .map(|index| CommitPosition::new("p0", start_offset + index))
+            .collect())
+    }
 }
 
 pub struct ConversationRuntime<J> {
@@ -1415,6 +1431,10 @@ where
             journal,
             state: Mutex::new(RuntimeState::default()),
         }
+    }
+
+    pub fn reset_for_recovery(&self) {
+        *lock_runtime_mutex(&self.state, "runtime state") = RuntimeState::default();
     }
 
     pub fn post_message(
@@ -1511,7 +1531,7 @@ where
                             )?
                         }
                     }
-                    let message_seq = conversation.message_log.next_message_seq();
+                    let message_seq = conversation.message_log.high_watermark() + 1;
 
                     let mut sender = command.sender.clone();
                     if sender.member_id.is_none() {
@@ -1538,6 +1558,43 @@ where
                         occurred_at: message_timestamp.clone(),
                         committed_at: Some(message_timestamp),
                     };
+                    let event_id = format!("evt_{}_posted", message.message_id);
+                    let retention_class = conversation_retention_class(conversation);
+                    let envelope = CommitEnvelope {
+                        event_id: event_id.clone(),
+                        tenant_id: command.tenant_id.clone(),
+                        event_type: "message.posted".into(),
+                        event_version: 1,
+                        aggregate_type: AggregateType::Conversation,
+                        aggregate_id: command.conversation_id.clone(),
+                        scope_type: "conversation".into(),
+                        scope_id: command.conversation_id.clone(),
+                        ordering_key: CommitEnvelope::ordering_key(
+                            command.tenant_id.as_str(),
+                            command.conversation_id.as_str(),
+                        ),
+                        ordering_seq: message.message_seq,
+                        causation_id: None,
+                        correlation_id: None,
+                        idempotency_key: command.client_msg_id.clone(),
+                        actor: EventActor {
+                            actor_id: message.sender.id.clone(),
+                            actor_kind: message.sender.kind.clone(),
+                            actor_session_id: message.sender.session_id.clone(),
+                        },
+                        occurred_at: message.occurred_at.clone(),
+                        committed_at: message
+                            .committed_at
+                            .clone()
+                            .unwrap_or_else(|| message.occurred_at.clone()),
+                        payload_schema: Some("message.posted.v1".into()),
+                        payload: serde_json::to_string(&message)
+                            .expect("message payload should serialize into commit envelope"),
+                        retention_class,
+                        audit_class: "default".into(),
+                    };
+
+                    self.journal.append(envelope)?;
                     conversation.message_log.store_posted(message.clone());
                     if let Some(request_key) = request_key.as_ref() {
                         conversation.posted_message_requests.insert(
@@ -1551,16 +1608,14 @@ where
                             },
                         );
                     }
-                    let retention_class = conversation_retention_class(conversation);
                     PostMessageMutation::Applied {
                         result: PostMessageResult::applied(
                             message_id,
                             message_seq,
-                            format!("evt_{}_posted", message.message_id),
+                            event_id,
                             request_key.clone(),
                         ),
                         message,
-                        retention_class,
                     }
                 }
             };
@@ -1574,49 +1629,7 @@ where
 
         match mutation {
             PostMessageMutation::Replayed(result) => Ok(result),
-            PostMessageMutation::Applied {
-                result,
-                message,
-                retention_class,
-            } => {
-                let envelope = CommitEnvelope {
-                    event_id: result.event_id.clone(),
-                    tenant_id: command.tenant_id.clone(),
-                    event_type: "message.posted".into(),
-                    event_version: 1,
-                    aggregate_type: AggregateType::Conversation,
-                    aggregate_id: command.conversation_id.clone(),
-                    scope_type: "conversation".into(),
-                    scope_id: command.conversation_id.clone(),
-                    ordering_key: CommitEnvelope::ordering_key(
-                        command.tenant_id.as_str(),
-                        command.conversation_id.as_str(),
-                    ),
-                    ordering_seq: message.message_seq,
-                    causation_id: None,
-                    correlation_id: None,
-                    idempotency_key: command.client_msg_id,
-                    actor: EventActor {
-                        actor_id: message.sender.id.clone(),
-                        actor_kind: message.sender.kind.clone(),
-                        actor_session_id: message.sender.session_id.clone(),
-                    },
-                    occurred_at: message.occurred_at.clone(),
-                    committed_at: message
-                        .committed_at
-                        .clone()
-                        .unwrap_or_else(|| message.occurred_at.clone()),
-                    payload_schema: Some("message.posted.v1".into()),
-                    payload: serde_json::to_string(&message)
-                        .expect("message payload should serialize into commit envelope"),
-                    retention_class,
-                    audit_class: "default".into(),
-                };
-
-                self.journal.append(envelope)?;
-
-                Ok(result)
-            }
+            PostMessageMutation::Applied { result, .. } => Ok(result),
         }
     }
 
@@ -1631,7 +1644,7 @@ where
         )?;
         validate_sender_payload_size("editor", &command.editor)?;
         validate_message_body_size(&command.body)?;
-        let (edited, retention_class) = {
+        let edited = {
             let mut state =
                 lock_runtime_mutex(&self.state, "conversation-runtime.state.edit_message");
             let conversation_id = state
@@ -1686,20 +1699,20 @@ where
                 editor,
                 edited_at,
             };
+            let retention_class = conversation_retention_class(conversation);
+            self.journal.append(build_message_edited_envelope(
+                &edited,
+                format!("evt_{}_edited", edited.message_id).as_str(),
+                retention_class.as_str(),
+            ))?;
             conversation
                 .message_log
                 .apply_edited(&edited)
                 .expect("stored message should exist before edit mutation");
-            let retention_class = conversation_retention_class(conversation);
-            (edited, retention_class)
+            edited
         };
 
         let event_id = format!("evt_{}_edited", edited.message_id);
-        self.journal.append(build_message_edited_envelope(
-            &edited,
-            event_id.as_str(),
-            retention_class.as_str(),
-        ))?;
 
         Ok(MessageMutationResult {
             conversation_id: edited.conversation_id,
@@ -1719,7 +1732,7 @@ where
             CONVERSATION_MAX_ID_BYTES,
         )?;
         validate_sender_payload_size("recalledBy", &command.recalled_by)?;
-        let (recalled, retention_class) = {
+        let recalled = {
             let mut state =
                 lock_runtime_mutex(&self.state, "conversation-runtime.state.recall_message");
             let conversation_id = state
@@ -1776,20 +1789,20 @@ where
                 recalled_by,
                 recalled_at,
             };
+            let retention_class = conversation_retention_class(conversation);
+            self.journal.append(build_message_recalled_envelope(
+                &recalled,
+                format!("evt_{}_recalled", recalled.message_id).as_str(),
+                retention_class.as_str(),
+            ))?;
             conversation
                 .message_log
                 .apply_recalled(&recalled)
                 .expect("stored message should exist before recall mutation");
-            let retention_class = conversation_retention_class(conversation);
-            (recalled, retention_class)
+            recalled
         };
 
         let event_id = format!("evt_{}_recalled", recalled.message_id);
-        self.journal.append(build_message_recalled_envelope(
-            &recalled,
-            event_id.as_str(),
-            retention_class.as_str(),
-        ))?;
 
         Ok(MessageMutationResult {
             conversation_id: recalled.conversation_id,
@@ -1814,7 +1827,7 @@ where
             MESSAGE_REACTION_KEY_MAX_BYTES,
         )?;
         validate_sender_payload_size("reactedBy", &command.reacted_by)?;
-        let (reaction, changed, retention_class) = {
+        let (reaction, changed) = {
             let mut state = lock_runtime_mutex(
                 &self.state,
                 "conversation-runtime.state.add_message_reaction",
@@ -1865,28 +1878,40 @@ where
                 reacted_by,
                 reacted_at: conversation_timestamp(),
             };
-            let changed = conversation
-                .message_log
-                .apply_reaction_added(&reaction)
-                .expect("stored message should exist before reaction add");
-            let retention_class = conversation_retention_class(conversation);
-            (reaction, changed, retention_class)
+            let changed = !stored
+                .reactions
+                .get(reaction.reaction_key.as_str())
+                .is_some_and(|actors| actors.contains(reaction.reacted_by.id.as_str()));
+            if changed {
+                let retention_class = conversation_retention_class(conversation);
+                self.journal.append(build_message_reaction_added_envelope(
+                    &reaction,
+                    format!(
+                        "evt_{}_reaction_added_{}_{}_{}",
+                        reaction.message_id,
+                        event_id_component(reaction.reaction_key.as_str()),
+                        event_id_component(reaction.reacted_by.id.as_str()),
+                        event_id_component(reaction.reacted_at.as_str())
+                    )
+                    .as_str(),
+                    retention_class.as_str(),
+                ))?;
+                conversation
+                    .message_log
+                    .apply_reaction_added(&reaction)
+                    .expect("stored message should exist before reaction add");
+            }
+            (reaction, changed)
         };
 
         let event_id = if changed {
-            let event_id = format!(
+            Some(format!(
                 "evt_{}_reaction_added_{}_{}_{}",
                 reaction.message_id,
                 event_id_component(reaction.reaction_key.as_str()),
                 event_id_component(reaction.reacted_by.id.as_str()),
                 event_id_component(reaction.reacted_at.as_str())
-            );
-            self.journal.append(build_message_reaction_added_envelope(
-                &reaction,
-                event_id.as_str(),
-                retention_class.as_str(),
-            ))?;
-            Some(event_id)
+            ))
         } else {
             None
         };
@@ -1916,7 +1941,7 @@ where
             MESSAGE_REACTION_KEY_MAX_BYTES,
         )?;
         validate_sender_payload_size("removedBy", &command.removed_by)?;
-        let (reaction, changed, retention_class) = {
+        let (reaction, changed) = {
             let mut state = lock_runtime_mutex(
                 &self.state,
                 "conversation-runtime.state.remove_message_reaction",
@@ -1967,29 +1992,41 @@ where
                 removed_by,
                 removed_at: conversation_timestamp(),
             };
-            let changed = conversation
-                .message_log
-                .apply_reaction_removed(&reaction)
-                .expect("stored message should exist before reaction remove");
-            let retention_class = conversation_retention_class(conversation);
-            (reaction, changed, retention_class)
+            let changed = stored
+                .reactions
+                .get(reaction.reaction_key.as_str())
+                .is_some_and(|actors| actors.contains(reaction.removed_by.id.as_str()));
+            if changed {
+                let retention_class = conversation_retention_class(conversation);
+                self.journal
+                    .append(build_message_reaction_removed_envelope(
+                        &reaction,
+                        format!(
+                            "evt_{}_reaction_removed_{}_{}_{}",
+                            reaction.message_id,
+                            event_id_component(reaction.reaction_key.as_str()),
+                            event_id_component(reaction.removed_by.id.as_str()),
+                            event_id_component(reaction.removed_at.as_str())
+                        )
+                        .as_str(),
+                        retention_class.as_str(),
+                    ))?;
+                conversation
+                    .message_log
+                    .apply_reaction_removed(&reaction)
+                    .expect("stored message should exist before reaction remove");
+            }
+            (reaction, changed)
         };
 
         let event_id = if changed {
-            let event_id = format!(
+            Some(format!(
                 "evt_{}_reaction_removed_{}_{}_{}",
                 reaction.message_id,
                 event_id_component(reaction.reaction_key.as_str()),
                 event_id_component(reaction.removed_by.id.as_str()),
                 event_id_component(reaction.removed_at.as_str())
-            );
-            self.journal
-                .append(build_message_reaction_removed_envelope(
-                    &reaction,
-                    event_id.as_str(),
-                    retention_class.as_str(),
-                ))?;
-            Some(event_id)
+            ))
         } else {
             None
         };
@@ -2014,7 +2051,7 @@ where
             CONVERSATION_MAX_ID_BYTES,
         )?;
         validate_sender_payload_size("pinnedBy", &command.pinned_by)?;
-        let (pin, changed, retention_class) = {
+        let (pin, changed) = {
             let mut state =
                 lock_runtime_mutex(&self.state, "conversation-runtime.state.pin_message");
             let conversation_id = state
@@ -2062,27 +2099,35 @@ where
                 pinned_by,
                 pinned_at: conversation_timestamp(),
             };
-            let changed = conversation
-                .message_log
-                .apply_pinned(&pin)
-                .expect("stored message should exist before pin");
-            let retention_class = conversation_retention_class(conversation);
-            (pin, changed, retention_class)
+            let changed = stored.pin.is_none();
+            if changed {
+                let retention_class = conversation_retention_class(conversation);
+                self.journal.append(build_message_pinned_envelope(
+                    &pin,
+                    format!(
+                        "evt_{}_pin_added_{}_{}",
+                        pin.message_id,
+                        event_id_component(pin.pinned_by.id.as_str()),
+                        event_id_component(pin.pinned_at.as_str())
+                    )
+                    .as_str(),
+                    retention_class.as_str(),
+                ))?;
+                conversation
+                    .message_log
+                    .apply_pinned(&pin)
+                    .expect("stored message should exist before pin");
+            }
+            (pin, changed)
         };
 
         let event_id = if changed {
-            let event_id = format!(
+            Some(format!(
                 "evt_{}_pin_added_{}_{}",
                 pin.message_id,
                 event_id_component(pin.pinned_by.id.as_str()),
                 event_id_component(pin.pinned_at.as_str())
-            );
-            self.journal.append(build_message_pinned_envelope(
-                &pin,
-                event_id.as_str(),
-                retention_class.as_str(),
-            ))?;
-            Some(event_id)
+            ))
         } else {
             None
         };
@@ -2106,7 +2151,7 @@ where
             CONVERSATION_MAX_ID_BYTES,
         )?;
         validate_sender_payload_size("unpinnedBy", &command.unpinned_by)?;
-        let (pin, changed, retention_class) = {
+        let (pin, changed) = {
             let mut state =
                 lock_runtime_mutex(&self.state, "conversation-runtime.state.unpin_message");
             let conversation_id = state
@@ -2154,27 +2199,35 @@ where
                 unpinned_by,
                 unpinned_at: conversation_timestamp(),
             };
-            let changed = conversation
-                .message_log
-                .apply_unpinned(&pin)
-                .expect("stored message should exist before unpin");
-            let retention_class = conversation_retention_class(conversation);
-            (pin, changed, retention_class)
+            let changed = stored.pin.is_some();
+            if changed {
+                let retention_class = conversation_retention_class(conversation);
+                self.journal.append(build_message_unpinned_envelope(
+                    &pin,
+                    format!(
+                        "evt_{}_pin_removed_{}_{}",
+                        pin.message_id,
+                        event_id_component(pin.unpinned_by.id.as_str()),
+                        event_id_component(pin.unpinned_at.as_str())
+                    )
+                    .as_str(),
+                    retention_class.as_str(),
+                ))?;
+                conversation
+                    .message_log
+                    .apply_unpinned(&pin)
+                    .expect("stored message should exist before unpin");
+            }
+            (pin, changed)
         };
 
         let event_id = if changed {
-            let event_id = format!(
+            Some(format!(
                 "evt_{}_pin_removed_{}_{}",
                 pin.message_id,
                 event_id_component(pin.unpinned_by.id.as_str()),
                 event_id_component(pin.unpinned_at.as_str())
-            );
-            self.journal.append(build_message_unpinned_envelope(
-                &pin,
-                event_id.as_str(),
-                retention_class.as_str(),
-            ))?;
-            Some(event_id)
+            ))
         } else {
             None
         };
@@ -2260,6 +2313,30 @@ where
         let actor_member = resolve_active_member_with_kind(conversation, principal_id, actor_kind)?;
         policy::ensure_actor_kind_matches_member(&actor_member, actor_kind)?;
         policy::ensure_conversation_bound_write_allowed(conversation, &actor_member, capability)
+    }
+
+    pub fn conversation_id_for_message_from_auth_context(
+        &self,
+        auth: &AuthContext,
+        message_id: &str,
+    ) -> Result<String, RuntimeError> {
+        self.conversation_id_for_message(auth.tenant_id.as_str(), message_id)
+    }
+
+    pub fn conversation_id_for_message(
+        &self,
+        tenant_id: &str,
+        message_id: &str,
+    ) -> Result<String, RuntimeError> {
+        let state = lock_runtime_mutex(
+            &self.state,
+            "conversation-runtime.state.conversation_id_for_message",
+        );
+        state
+            .message_locator
+            .conversation_id(tenant_id, message_id)
+            .map(str::to_owned)
+            .ok_or_else(|| RuntimeError::MessageNotFound(message_id.into()))
     }
 
     pub fn require_active_member_with_kind(

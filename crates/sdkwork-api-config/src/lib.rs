@@ -1,5 +1,9 @@
 use anyhow::{Context, Result};
-use std::env;
+use std::{
+    env,
+    net::{IpAddr, SocketAddr},
+};
+use url::Url;
 
 const DEFAULT_RUNTIME_BIND_ADDR: &str = "127.0.0.1:0";
 
@@ -7,6 +11,7 @@ const DEFAULT_RUNTIME_BIND_ADDR: &str = "127.0.0.1:0";
 pub struct StandaloneConfig {
     pub runtime_bind_addr: String,
     pub admin_proxy_target: String,
+    pub portal_api_base_url: String,
     pub admin_sandbox_enabled: bool,
 }
 
@@ -21,6 +26,8 @@ impl StandaloneConfigLoader {
                 runtime_bind_addr: resolve_runtime_bind_addr(),
                 admin_proxy_target: resolve_admin_proxy_target()
                     .context("failed to resolve desktop admin proxy target")?,
+                portal_api_base_url: resolve_portal_api_base_url()
+                    .context("failed to resolve desktop portal api base url")?,
                 admin_sandbox_enabled: resolve_admin_sandbox_enabled(),
             },
         ))
@@ -48,6 +55,31 @@ fn resolve_admin_proxy_target() -> Result<String> {
     }
 }
 
+fn resolve_portal_api_base_url() -> Result<String> {
+    for key in [
+        "CRAW_CHAT_PORTAL_API_BASE_URL",
+        "SDKWORK_PORTAL_API_BASE_URL",
+    ] {
+        if let Some(value) = env::var(key)
+            .ok()
+            .map(|value| value.trim().to_owned())
+            .filter(|value| !value.is_empty())
+        {
+            return normalize_explicit_portal_api_base_url(key, value.as_str());
+        }
+    }
+
+    if let Some(value) = env::var("CRAW_CHAT_BIND_ADDR")
+        .ok()
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
+    {
+        return normalize_portal_api_base_url_from_bind_addr(value.as_str());
+    }
+
+    Ok("http://127.0.0.1:18090".to_owned())
+}
+
 fn normalize_upstream_url(value: &str) -> Result<String> {
     let trimmed = value.trim().trim_end_matches('/');
     if trimmed.is_empty() {
@@ -61,6 +93,77 @@ fn normalize_upstream_url(value: &str) -> Result<String> {
     Ok(format!("http://{trimmed}"))
 }
 
+fn normalize_explicit_portal_api_base_url(env_name: &str, value: &str) -> Result<String> {
+    let trimmed = value.trim().trim_end_matches('/');
+    if trimmed.is_empty() {
+        anyhow::bail!("{env_name} cannot be empty");
+    }
+
+    let url = Url::parse(trimmed)
+        .with_context(|| format!("{env_name} must be an absolute http(s) url: {trimmed}"))?;
+    if !matches!(url.scheme(), "http" | "https") {
+        anyhow::bail!("{env_name} must use http:// or https://");
+    }
+
+    let host = url
+        .host_str()
+        .with_context(|| format!("{env_name} must include a host"))?;
+    if is_unspecified_host(host) {
+        anyhow::bail!(
+            "{env_name} must not use an unspecified bind host like 0.0.0.0 or ::; set a browser-reachable url"
+        );
+    }
+
+    Ok(trimmed.to_owned())
+}
+
+fn normalize_portal_api_base_url_from_bind_addr(value: &str) -> Result<String> {
+    let trimmed = value.trim().trim_end_matches('/');
+    if trimmed.is_empty() {
+        anyhow::bail!("CRAW_CHAT_BIND_ADDR cannot be empty when used as a portal api fallback");
+    }
+
+    if let Ok(socket_addr) = trimmed.parse::<SocketAddr>() {
+        return Ok(format!(
+            "http://{}:{}",
+            loopback_safe_host_for_ip(socket_addr.ip()),
+            socket_addr.port()
+        ));
+    }
+
+    let mut url = Url::parse(normalize_upstream_url(trimmed)?.as_str()).with_context(|| {
+        format!("CRAW_CHAT_BIND_ADDR must be a host:port or absolute url: {trimmed}")
+    })?;
+
+    let Some(host) = url.host_str().map(str::to_owned) else {
+        anyhow::bail!("CRAW_CHAT_BIND_ADDR must include a host");
+    };
+    if is_unspecified_host(host.as_str()) {
+        let normalized_host = if matches!(url.host(), Some(url::Host::Ipv6(_))) {
+            "::1"
+        } else {
+            "127.0.0.1"
+        };
+        url.set_host(Some(normalized_host))
+            .expect("loopback replacement host should be valid");
+    }
+
+    Ok(url.to_string().trim_end_matches('/').to_owned())
+}
+
+fn is_unspecified_host(host: &str) -> bool {
+    matches!(host, "0.0.0.0" | "::")
+}
+
+fn loopback_safe_host_for_ip(ip: IpAddr) -> String {
+    match ip {
+        IpAddr::V4(ip) if ip.is_unspecified() => "127.0.0.1".into(),
+        IpAddr::V4(ip) => ip.to_string(),
+        IpAddr::V6(ip) if ip.is_unspecified() => "[::1]".into(),
+        IpAddr::V6(ip) => format!("[{ip}]"),
+    }
+}
+
 fn resolve_admin_sandbox_enabled() -> bool {
     ["SDKWORK_ADMIN_SANDBOX", "SDKWORK_ADMIN_SANDBOX_MODE"]
         .iter()
@@ -72,4 +175,94 @@ fn resolve_admin_sandbox_enabled() -> bool {
             )
         })
         .unwrap_or(false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::{Mutex, OnceLock};
+
+    fn env_guard() -> std::sync::MutexGuard<'static, ()> {
+        static GUARD: OnceLock<Mutex<()>> = OnceLock::new();
+        GUARD
+            .get_or_init(|| Mutex::new(()))
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+    }
+
+    fn restore_env(name: &str, previous: Option<String>) {
+        match previous {
+            Some(value) => unsafe {
+                env::set_var(name, value);
+            },
+            None => unsafe {
+                env::remove_var(name);
+            },
+        }
+    }
+
+    #[test]
+    fn resolve_portal_api_base_url_prefers_explicit_url_and_falls_back_to_bind_addr() {
+        let _guard = env_guard();
+        let explicit_key = "CRAW_CHAT_PORTAL_API_BASE_URL";
+        let bind_key = "CRAW_CHAT_BIND_ADDR";
+        let previous_explicit = env::var(explicit_key).ok();
+        let previous_bind = env::var(bind_key).ok();
+
+        unsafe {
+            env::set_var(
+                explicit_key,
+                " https://portal-api.example.com/runtime-edge/ ",
+            );
+            env::set_var(bind_key, "127.0.0.1:19990");
+        }
+        assert_eq!(
+            resolve_portal_api_base_url().expect("explicit portal api base url should resolve"),
+            "https://portal-api.example.com/runtime-edge"
+        );
+
+        unsafe {
+            env::remove_var(explicit_key);
+        }
+        assert_eq!(
+            resolve_portal_api_base_url().expect("bind addr fallback should resolve"),
+            "http://127.0.0.1:19990"
+        );
+
+        unsafe {
+            env::set_var(bind_key, "0.0.0.0:29990");
+        }
+        assert_eq!(
+            resolve_portal_api_base_url().expect("wildcard ipv4 bind should normalize"),
+            "http://127.0.0.1:29990"
+        );
+
+        unsafe {
+            env::set_var(bind_key, "[::]:39990");
+        }
+        assert_eq!(
+            resolve_portal_api_base_url().expect("wildcard ipv6 bind should normalize"),
+            "http://[::1]:39990"
+        );
+
+        restore_env(explicit_key, previous_explicit);
+        restore_env(bind_key, previous_bind);
+    }
+
+    #[test]
+    fn resolve_portal_api_base_url_rejects_unspecified_explicit_public_url() {
+        let _guard = env_guard();
+        let explicit_key = "CRAW_CHAT_PORTAL_API_BASE_URL";
+        let previous_explicit = env::var(explicit_key).ok();
+
+        unsafe {
+            env::set_var(explicit_key, "http://0.0.0.0:18090");
+        }
+
+        let error = resolve_portal_api_base_url()
+            .expect_err("unspecified explicit public url should be rejected");
+        assert!(error.to_string().contains("CRAW_CHAT_PORTAL_API_BASE_URL"));
+
+        restore_env(explicit_key, previous_explicit);
+    }
 }

@@ -5,13 +5,17 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
+use hex::encode as hex_encode;
 use http_body_util::BodyExt;
 use im_auth_context::PUBLIC_BEARER_HS256_SECRET_ENV;
+use pbkdf2::pbkdf2_hmac_array;
 use serde_json::{Value, json};
+use sha2::Sha256;
 use tokio::sync::{Mutex, MutexGuard};
 use tower::ServiceExt;
 
 const TEST_PUBLIC_SECRET: &str = "public-test-secret";
+const TEST_PASSWORD_ITERATIONS: u32 = 120_000;
 
 struct ScopedEnvVar {
     name: &'static str,
@@ -207,6 +211,44 @@ fn write_auth_refresh_sessions(runtime_dir: &Path, sessions: &[Value]) {
             path.display()
         )
     });
+}
+
+fn derive_password_hash(password: &str, salt: &[u8], iterations: u32) -> String {
+    let derived = pbkdf2_hmac_array::<Sha256, 32>(password.as_bytes(), salt, iterations);
+    hex_encode(derived)
+}
+
+fn provision_portal_operator_account(runtime_dir: &Path, login: &str, password: &str) {
+    provision_portal_operator_account_for_tenant(runtime_dir, "t_demo", login, password);
+}
+
+fn provision_portal_operator_account_for_tenant(
+    runtime_dir: &Path,
+    tenant_id: &str,
+    login: &str,
+    password: &str,
+) {
+    let mut accounts = read_auth_accounts(runtime_dir);
+    let salt = [0x42_u8; 16];
+
+    accounts.push(json!({
+        "tenantId": tenant_id,
+        "accountId": format!("acct_{login}"),
+        "login": login,
+        "clientKind": "portal_operator",
+        "actorId": login,
+        "actorKind": "user",
+        "name": "Provisioned Portal Operator",
+        "role": "Tenant Operations Lead",
+        "email": format!("{login}@nebula-commerce.example"),
+        "passwordHash": derive_password_hash(password, &salt, TEST_PASSWORD_ITERATIONS),
+        "passwordSalt": hex_encode(salt),
+        "passwordIterations": TEST_PASSWORD_ITERATIONS,
+        "permissions": ["portal.access", "portal.read", "ops.read", "audit.read"],
+        "disabled": false
+    }));
+
+    write_auth_accounts(runtime_dir, &accounts);
 }
 
 #[tokio::test]
@@ -672,6 +714,31 @@ async fn test_portal_public_snapshots_are_open_but_workspace_requires_operator_t
     assert_eq!(auth.status(), StatusCode::OK);
     let auth_body = read_json(auth).await;
     assert!(auth_body["title"].is_string());
+    let auth_body_text = auth_body.to_string();
+    assert!(
+        !auth_body_text.contains("ops_demo"),
+        "portal auth snapshot must not leak demo operator logins: {auth_body_text}"
+    );
+    assert!(
+        !auth_body_text.contains("Portal#2026"),
+        "portal auth snapshot must not leak demo password hints: {auth_body_text}"
+    );
+    assert!(
+        !auth_body_text.contains("seeded operator account"),
+        "portal auth snapshot must not instruct users to sign in with seeded demo credentials: {auth_body_text}"
+    );
+    assert!(
+        auth_body.get("defaultTenantId").is_none(),
+        "portal auth snapshot must not prefill a tenant id: {auth_body_text}"
+    );
+    assert!(
+        auth_body.get("defaultLogin").is_none(),
+        "portal auth snapshot must not prefill a login: {auth_body_text}"
+    );
+    assert!(
+        auth_body.get("passwordHint").is_none(),
+        "portal auth snapshot must not publish password hints: {auth_body_text}"
+    );
 
     let unauthenticated_workspace = get_json(&app, "/api/v1/portal/workspace").await;
     assert_eq!(unauthenticated_workspace.status(), StatusCode::UNAUTHORIZED);
@@ -702,7 +769,7 @@ async fn test_portal_public_snapshots_are_open_but_workspace_requires_operator_t
     let forbidden_body = read_json(forbidden_workspace).await;
     assert_eq!(forbidden_body["code"], "permission_denied");
 
-    let portal_login = post_json(
+    let default_portal_login = post_json(
         &app,
         "/api/v1/auth/login",
         json!({
@@ -715,6 +782,33 @@ async fn test_portal_public_snapshots_are_open_but_workspace_requires_operator_t
         }),
     )
     .await;
+
+    assert_eq!(default_portal_login.status(), StatusCode::UNAUTHORIZED);
+    let default_portal_login_body = read_json(default_portal_login).await;
+    assert_eq!(default_portal_login_body["code"], "auth_login_invalid");
+
+    provision_portal_operator_account(
+        runtime_dir.as_path(),
+        "ops_portal",
+        "ProvisionedPortal#2026",
+    );
+    let provisioned_app =
+        local_minimal_node::build_public_app_with_runtime_dir(runtime_dir.as_path());
+
+    let portal_login = post_json(
+        &provisioned_app,
+        "/api/v1/auth/login",
+        json!({
+            "tenantId": "t_demo",
+            "login": "ops_portal",
+            "password": "ProvisionedPortal#2026",
+            "clientKind": "portal_operator",
+            "deviceId": "d_portal_demo",
+            "sessionId": "s_portal_demo"
+        }),
+    )
+    .await;
+
     assert_eq!(portal_login.status(), StatusCode::OK);
     let portal_body = read_json(portal_login).await;
     assert_eq!(portal_body["user"]["clientKind"], "portal_operator");
@@ -723,17 +817,81 @@ async fn test_portal_public_snapshots_are_open_but_workspace_requires_operator_t
     let portal_access_token = portal_body["accessToken"]
         .as_str()
         .expect("portal access token should be present");
-    let workspace =
-        get_json_with_bearer(&app, "/api/v1/portal/workspace", portal_access_token).await;
+    let workspace = get_json_with_bearer(
+        &provisioned_app,
+        "/api/v1/portal/workspace",
+        portal_access_token,
+    )
+    .await;
     assert_eq!(workspace.status(), StatusCode::OK);
     let workspace_body = read_json(workspace).await;
     assert_eq!(workspace_body["slug"], "nebula-commerce-im");
 
-    let dashboard =
-        get_json_with_bearer(&app, "/api/v1/portal/dashboard", portal_access_token).await;
+    let dashboard = get_json_with_bearer(
+        &provisioned_app,
+        "/api/v1/portal/dashboard",
+        portal_access_token,
+    )
+    .await;
     assert_eq!(dashboard.status(), StatusCode::OK);
     let dashboard_body = read_json(dashboard).await;
     assert!(dashboard_body["hero"]["title"].is_string());
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
+async fn test_portal_workspace_snapshot_tracks_provisioned_operator_tenant() {
+    let (_guard, _secret) = configure_public_bearer_secret().await;
+    let runtime_dir = unique_runtime_dir();
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+    let _ = local_minimal_node::build_public_app_with_runtime_dir(runtime_dir.as_path());
+
+    provision_portal_operator_account_for_tenant(
+        runtime_dir.as_path(),
+        "tenant-acme",
+        "ops_acme",
+        "ProvisionedPortal#2026",
+    );
+    let app = local_minimal_node::build_public_app_with_runtime_dir(runtime_dir.as_path());
+
+    let portal_login = post_json(
+        &app,
+        "/api/v1/auth/login",
+        json!({
+            "tenantId": "tenant-acme",
+            "login": "ops_acme",
+            "password": "ProvisionedPortal#2026",
+            "clientKind": "portal_operator",
+            "deviceId": "d_portal_acme",
+            "sessionId": "s_portal_acme"
+        }),
+    )
+    .await;
+
+    assert_eq!(portal_login.status(), StatusCode::OK);
+    let portal_body = read_json(portal_login).await;
+    assert_eq!(portal_body["workspace"]["name"], "Acme Commerce IM");
+    assert_eq!(portal_body["workspace"]["slug"], "acme-commerce-im");
+    assert_ne!(portal_body["workspace"]["slug"], "nebula-commerce-im");
+
+    let portal_access_token = portal_body["accessToken"]
+        .as_str()
+        .expect("portal access token should be present");
+
+    let me = get_json_with_bearer(&app, "/api/v1/auth/me", portal_access_token).await;
+    assert_eq!(me.status(), StatusCode::OK);
+    let me_body = read_json(me).await;
+    assert_eq!(me_body["tenantId"], "tenant-acme");
+    assert_eq!(me_body["workspace"]["name"], "Acme Commerce IM");
+    assert_eq!(me_body["workspace"]["slug"], "acme-commerce-im");
+
+    let workspace =
+        get_json_with_bearer(&app, "/api/v1/portal/workspace", portal_access_token).await;
+    assert_eq!(workspace.status(), StatusCode::OK);
+    let workspace_body = read_json(workspace).await;
+    assert_eq!(workspace_body["name"], "Acme Commerce IM");
+    assert_eq!(workspace_body["slug"], "acme-commerce-im");
 
     let _ = fs::remove_dir_all(runtime_dir);
 }

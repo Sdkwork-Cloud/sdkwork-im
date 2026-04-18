@@ -9,6 +9,7 @@ pub(super) fn post_message_with_side_effects(
     body: MessageBody,
 ) -> Result<PostMessageResult, ApiError> {
     access::ensure_registered_device(state, auth)?;
+    access::ensure_conversation_member(state, auth, conversation_id.as_str())?;
     let summary = body.summary.clone();
     let message_type_name = match &message_type {
         MessageType::Standard => "standard",
@@ -415,7 +416,8 @@ pub(super) fn build_message_body(
         summary,
         parts: resolved_parts,
         render_hints,
-    })
+    }
+    .with_derived_summary())
 }
 
 pub(super) fn emit_rtc_signal_message(

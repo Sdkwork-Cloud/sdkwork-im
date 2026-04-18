@@ -1,6 +1,23 @@
-# sdkwork-craw-chat-sdk
+# @sdkwork/craw-chat-backend-sdk
 
-Professional TypeScript transport SDK for the Craw Chat app API.
+Generator-owned TypeScript transport SDK for the Craw Chat app API.
+
+## Position In The SDK Family
+
+This package is the low-level generated transport boundary.
+
+For most browser and Node.js app consumers, prefer the official root SDK package:
+
+```bash
+npm install @sdkwork/craw-chat-sdk
+```
+
+That root package exposes:
+
+- `CrawChatSdkClient` as the primary semantic client
+- `SdkworkBackendClient`, `createGeneratedBackendClient`, and the `generated` namespace from the same package when you still need low-level generated access
+
+Use `@sdkwork/craw-chat-backend-sdk` directly only when you explicitly want the standalone generated transport package.
 
 ## Installation
 
@@ -24,6 +41,20 @@ const client = new SdkworkBackendClient({
 });
 
 const result = await client.inbox.getInbox();
+```
+
+If you want semantic modules and helpers from the official root package instead:
+
+```typescript
+import { CrawChatSdkClient } from '@sdkwork/craw-chat-sdk';
+
+const sdk = new CrawChatSdkClient({
+  baseUrl: 'http://127.0.0.1:18090',
+  authToken: 'your-bearer-token',
+});
+
+const batch = await sdk.sync.catchUp({ limit: 20 });
+console.log(batch.items.length);
 ```
 
 ## Authentication
@@ -55,6 +86,8 @@ const client = new SdkworkBackendClient({
 
 ## API Modules
 
+- `client.auth` - portal authentication API
+- `client.portal` - tenant portal snapshot API
 - `client.session` - session API
 - `client.presence` - presence API
 - `client.realtime` - realtime API
@@ -82,6 +115,8 @@ MIT
 
 - Use only the package root entrypoint: `@sdkwork/craw-chat-backend-sdk`.
 - Internal generator subpaths are not part of the supported public API.
+- Treat this package as the generator-owned transport boundary, not as the preferred browser or Node.js app-consumer entrypoint.
+- Prefer `@sdkwork/craw-chat-sdk` when you want the official single-package TypeScript SDK surface.
 - The workspace normalization wrapper strips generator-only auth scaffolding and source-tree build residue before verification and packaging.
 
 ## Regeneration Contract

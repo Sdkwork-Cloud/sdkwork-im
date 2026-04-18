@@ -17,7 +17,7 @@ pub(super) async fn get_workspace(
         .map_err(ApiError::from)
         .map_err(IntoResponse::into_response)?;
     access::ensure_portal_access(&auth).map_err(IntoResponse::into_response)?;
-    Ok(Json(workspace_snapshot()))
+    Ok(Json(workspace_snapshot_for_tenant(auth.tenant_id.as_str())))
 }
 
 pub(super) async fn get_dashboard(
@@ -105,24 +105,22 @@ fn auth_snapshot() -> Value {
     json!({
         "eyebrow": "Tenant Access",
         "title": "Sign in to Nebula Commerce IM",
-        "description": "Use the seeded operator account to enter the real tenant console backed by local auth and snapshot APIs.",
+        "description": "Use the operator credentials issued for your tenant workspace to enter the real tenant console backed by local auth and snapshot APIs.",
         "details": [
             { "label": "Workspace", "value": "Nebula Commerce IM" },
             { "label": "Role", "value": "Tenant Operations Lead" },
-            { "label": "Login", "value": "ops_demo" }
+            { "label": "Access", "value": "Managed operator credentials required" }
         ],
         "primaryActionLabel": "Sign in",
-        "secondaryActionLabel": "Back to home",
-        "defaultTenantId": "t_demo",
-        "defaultLogin": "ops_demo",
-        "passwordHint": "Portal#2026"
+        "secondaryActionLabel": "Back to home"
     })
 }
 
-pub(super) fn workspace_snapshot() -> Value {
+pub(super) fn workspace_snapshot_for_tenant(tenant_id: &str) -> Value {
+    let (name, slug) = workspace_identity_for_tenant(tenant_id);
     json!({
-        "name": "Nebula Commerce IM",
-        "slug": "nebula-commerce-im",
+        "name": name,
+        "slug": slug,
         "tier": "Enterprise",
         "region": "CN-East / Multi-AZ",
         "supportPlan": "Platinum",
@@ -130,6 +128,53 @@ pub(super) fn workspace_snapshot() -> Value {
         "activeBrands": 12,
         "uptime": "99.983%"
     })
+}
+
+fn workspace_identity_for_tenant(tenant_id: &str) -> (String, String) {
+    if tenant_id.trim().eq_ignore_ascii_case("t_demo") {
+        return ("Nebula Commerce IM".into(), "nebula-commerce-im".into());
+    }
+
+    let mut segments = tenant_id
+        .trim()
+        .to_ascii_lowercase()
+        .split(|value: char| !value.is_ascii_alphanumeric())
+        .filter(|segment| !segment.is_empty())
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
+
+    if segments.len() > 1
+        && matches!(
+            segments.first().map(String::as_str),
+            Some("tenant") | Some("t")
+        )
+    {
+        segments.remove(0);
+    }
+
+    if segments.is_empty() {
+        segments.push("tenant".into());
+    }
+
+    let slug_stem = segments.join("-");
+    let brand = segments
+        .iter()
+        .map(|segment| title_case_segment(segment))
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    (
+        format!("{brand} Commerce IM"),
+        format!("{slug_stem}-commerce-im"),
+    )
+}
+
+fn title_case_segment(segment: &str) -> String {
+    let mut chars = segment.chars();
+    match chars.next() {
+        Some(first) => format!("{}{}", first.to_ascii_uppercase(), chars.as_str()),
+        None => String::new(),
+    }
 }
 
 fn dashboard_snapshot() -> Value {

@@ -88,5 +88,11 @@ The current preview flow provides typed diff summaries for at least these manage
 - RTC state
 - projection snapshots
 
-That makes restore preview more useful than a raw file-copy diff because it can summarize business
-state movement such as checkpoint advance, frame rewind, signal changes, or timestamp-only updates.
+That makes restore preview more useful than a raw file-copy diff because it can summarize state
+movement such as checkpoint advance, frame rewind, signal changes, or timestamp-only updates.
+
+## What To Read Next
+
+- [Runtime Directory](/reference/runtime-directory)
+- [Local Binary](/deployment/local-binary)
+- [CLI and Scripts](/reference/cli-and-scripts)

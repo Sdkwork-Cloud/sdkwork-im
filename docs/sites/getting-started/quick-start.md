@@ -55,6 +55,9 @@ CRAW_CHAT_RUNTIME_DIR=.runtime/local-minimal
 CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET=<generated-or-manually-set-secret>
 ```
 
+If the browser UI is not served from the default local preview origins, also set
+`CRAW_CHAT_BROWSER_ORIGINS` to the explicit comma-separated allowlist for that deployment.
+
 If `CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET` is missing, `start-local.*` refuses to start the public
 app node.
 
@@ -167,12 +170,12 @@ posts a message, and verifies the resulting conversation summary.
 ./bin/chat-window.ps1 -Help
 ```
 
-These scripts are for local verification and demo workflows. They are not substitutes for the
-generated SDK families.
+These scripts are for local verification and demo workflows. They do not replace the generated SDK
+families.
 
 ## 8. First Manual API Call
 
-The easiest path is to reuse the smoke script, but if you call the HTTP API directly, use:
+The easiest path is to reuse the smoke script. If you call the HTTP API directly, use:
 
 - `Authorization: Bearer <HS256 JWT>`
 - The same signing secret configured in `CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET`
@@ -185,3 +188,9 @@ If you only need a stable local verification path, use `local-minimal` first. Th
 name is already wired into scripts and config, but it still resolves to the current
 `local-minimal` runtime contract.
 :::
+
+## What To Read Next
+
+- [Deployment](/deployment/index)
+- [API Reference](/api-reference/index)
+- [SDK Overview](/sdk/index)

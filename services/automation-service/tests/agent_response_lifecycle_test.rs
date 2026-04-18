@@ -1271,26 +1271,25 @@ fn test_start_agent_response_rejects_oversized_stream_contract_fields() {
             )
             .expect("execution request should succeed");
 
-        let error = runtime
-            .start_agent_response(
-                &auth,
-                automation_service::StartAgentResponseRequest {
-                    execution_id: execution_id.into(),
-                    stream_id: stream_id.into(),
-                    stream_type,
-                    conversation_id,
-                    schema_ref,
-                    member_id: Some("cm_agent".into()),
-                    agent: AgentSubject {
-                        agent_id: "ag_demo".into(),
-                        session_id: Some("s_agent".into()),
-                        metadata: BTreeMap::from([
-                            ("agentMode".into(), "assistant".into()),
-                            ("capabilityProfileId".into(), "stable-agent".into()),
-                        ]),
-                    },
+        let error = runtime.start_agent_response(
+            &auth,
+            automation_service::StartAgentResponseRequest {
+                execution_id: execution_id.into(),
+                stream_id: stream_id.into(),
+                stream_type,
+                conversation_id,
+                schema_ref,
+                member_id: Some("cm_agent".into()),
+                agent: AgentSubject {
+                    agent_id: "ag_demo".into(),
+                    session_id: Some("s_agent".into()),
+                    metadata: BTreeMap::from([
+                        ("agentMode".into(), "assistant".into()),
+                        ("capabilityProfileId".into(), "stable-agent".into()),
+                    ]),
                 },
-            );
+            },
+        );
         let error = match error {
             Ok(session) => panic!("{field} should be rejected: {session:?}"),
             Err(error) => error,
@@ -1332,26 +1331,25 @@ fn test_start_agent_response_rejects_oversized_member_id() {
         )
         .expect("execution request should succeed");
 
-    let error = runtime
-        .start_agent_response(
-            &auth,
-            automation_service::StartAgentResponseRequest {
-                execution_id: "ae_oversized_member_id".into(),
-                stream_id: "st_oversized_member_id".into(),
-                stream_type: "agent.response.delta".into(),
-                conversation_id: "c_demo".into(),
-                schema_ref: Some("schema://agent/response.delta".into()),
-                member_id: Some("m".repeat(257)),
-                agent: AgentSubject {
-                    agent_id: "ag_demo".into(),
-                    session_id: Some("s_agent".into()),
-                    metadata: BTreeMap::from([
-                        ("agentMode".into(), "assistant".into()),
-                        ("capabilityProfileId".into(), "stable-agent".into()),
-                    ]),
-                },
+    let error = runtime.start_agent_response(
+        &auth,
+        automation_service::StartAgentResponseRequest {
+            execution_id: "ae_oversized_member_id".into(),
+            stream_id: "st_oversized_member_id".into(),
+            stream_type: "agent.response.delta".into(),
+            conversation_id: "c_demo".into(),
+            schema_ref: Some("schema://agent/response.delta".into()),
+            member_id: Some("m".repeat(257)),
+            agent: AgentSubject {
+                agent_id: "ag_demo".into(),
+                session_id: Some("s_agent".into()),
+                metadata: BTreeMap::from([
+                    ("agentMode".into(), "assistant".into()),
+                    ("capabilityProfileId".into(), "stable-agent".into()),
+                ]),
             },
-        );
+        },
+    );
     let error = match error {
         Ok(session) => panic!("memberId should be rejected: {session:?}"),
         Err(error) => error,
@@ -1428,23 +1426,22 @@ fn test_start_agent_response_rejects_oversized_agent_metadata() {
         )
         .expect("execution request should succeed");
 
-    let error = runtime
-        .start_agent_response(
-            &auth,
-            automation_service::StartAgentResponseRequest {
-                execution_id: "ae_oversized_agent_metadata".into(),
-                stream_id: "st_oversized_agent_metadata".into(),
-                stream_type: "agent.response.delta".into(),
-                conversation_id: "c_demo".into(),
-                schema_ref: Some("schema://agent/response.delta".into()),
-                member_id: Some("cm_agent".into()),
-                agent: AgentSubject {
-                    agent_id: "ag_demo".into(),
-                    session_id: Some("s_agent".into()),
-                    metadata: BTreeMap::from([("trace".into(), "x".repeat(65_537))]),
-                },
+    let error = runtime.start_agent_response(
+        &auth,
+        automation_service::StartAgentResponseRequest {
+            execution_id: "ae_oversized_agent_metadata".into(),
+            stream_id: "st_oversized_agent_metadata".into(),
+            stream_type: "agent.response.delta".into(),
+            conversation_id: "c_demo".into(),
+            schema_ref: Some("schema://agent/response.delta".into()),
+            member_id: Some("cm_agent".into()),
+            agent: AgentSubject {
+                agent_id: "ag_demo".into(),
+                session_id: Some("s_agent".into()),
+                metadata: BTreeMap::from([("trace".into(), "x".repeat(65_537))]),
             },
-        );
+        },
+    );
     let error = match error {
         Ok(session) => panic!("agent.metadata should be rejected: {session:?}"),
         Err(error) => error,
@@ -1520,8 +1517,16 @@ fn test_complete_agent_response_rejects_oversized_result_message_id() {
 #[test]
 fn test_start_agent_response_rejects_oversized_agent_identity_fields() {
     for (field, agent_id, session_id) in [
-        ("agent.agent_id", "a".repeat(257), Some("s_agent".to_string())),
-        ("agent.session_id", "ag_demo".to_string(), Some("s".repeat(257))),
+        (
+            "agent.agent_id",
+            "a".repeat(257),
+            Some("s_agent".to_string()),
+        ),
+        (
+            "agent.session_id",
+            "ag_demo".to_string(),
+            Some("s".repeat(257)),
+        ),
     ] {
         let runtime = automation_service::AutomationRuntime::default();
         let auth = AuthContext {

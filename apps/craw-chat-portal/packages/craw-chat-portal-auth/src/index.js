@@ -17,9 +17,10 @@ export async function renderPortalAuthPage() {
               autocomplete="organization"
               autocapitalize="none"
               name="tenantId"
+              placeholder="Enter tenant ID"
+              required
               spellcheck="false"
               type="text"
-              value="t_demo"
             />
           </label>
           <label class="portal-auth__field">
@@ -28,9 +29,10 @@ export async function renderPortalAuthPage() {
               autocomplete="username"
               autocapitalize="none"
               name="login"
+              placeholder="Enter login"
+              required
               spellcheck="false"
               type="text"
-              value="ops_demo"
             />
           </label>
           <label class="portal-auth__field">
@@ -38,8 +40,9 @@ export async function renderPortalAuthPage() {
             <input
               autocomplete="current-password"
               name="password"
+              placeholder="Enter password"
+              required
               type="password"
-              value="Portal#2026"
             />
           </label>
           <div class="portal-auth__actions">

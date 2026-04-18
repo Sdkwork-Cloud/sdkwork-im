@@ -488,7 +488,8 @@ fn test_step11_local_restore_recovery_drill_emits_metrics() {
     let baseline = load_local_drill_baseline();
     let runtime_dir = unique_path("step11_restore_runtime");
     fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
-    let _ = local_minimal_node::repair_runtime_dir(runtime_dir.as_path());
+    let _ = local_minimal_node::repair_runtime_dir(runtime_dir.as_path())
+        .expect("repair should succeed");
 
     write_state_file(
         runtime_dir.as_path(),

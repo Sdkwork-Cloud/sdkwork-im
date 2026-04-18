@@ -3,7 +3,7 @@
 <p class="api-page-intro">
   Platform APIs expose business automation, operator tooling, audit, and provider health surfaces
   implemented behind the `local-minimal-node` profile. These endpoints are typically consumed by
-  administrative consoles, internal services, and operational tooling.
+  administrative consoles, internal services, and operator tooling.
 </p>
 
 <div class="api-overview-grid">
@@ -31,8 +31,21 @@
 
 ## SDK Alignment
 
-- These endpoints are typically consumed through the administrative or backend SDK layer rather than the public app SDK.
+- These endpoints are typically consumed through administrative or backend SDK layers rather than the public app SDK.
 - Permission requirements are documented in [Authentication and Errors](/api-reference/auth-and-errors) and repeated on operation pages when they are mandatory.
+- This site does not document a separate published Platform SDK family. Treat these APIs as HTTP-first surfaces unless a repo backend or admin consumer layer is documented elsewhere.
+
+## How To Use This Page
+
+- Start with [Authentication and Errors](/api-reference/auth-and-errors) for shared bearer and permission rules.
+- Use the linked operation groups below for exact route semantics.
+- Switch to [SDK Overview](/sdk/index) only when you need to understand whether a backend-facing
+  package surface is documented as published or only present as repo workspace state.
+
+## What To Read Next
+
+- [Authentication and Errors](/api-reference/auth-and-errors)
+- [SDK Overview](/sdk/index)
 
 ## Platform API Domains
 

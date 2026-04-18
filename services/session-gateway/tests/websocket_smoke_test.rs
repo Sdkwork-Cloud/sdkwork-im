@@ -2,13 +2,15 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use axum::Router;
+use axum::http::Request;
 use craw_chat_ccp_binding_ws::{CCP_WS_SUBPROTOCOL, WsBinding, WsBindingMessage, WsOpcode};
 use craw_chat_ccp_codec::CcpCodec;
 use craw_chat_ccp_codec_json::JsonEnvelopeCodec;
 use craw_chat_ccp_control::{AuthBindFrame, ControlFrame, HelloFrame};
-use craw_chat_ccp_core::{CapabilitySet, CcpEnvelope, ProtocolVersion, TransportBinding};
+use craw_chat_ccp_core::{CapabilitySet, CcpEnvelope, CcpRoute, ProtocolVersion, TransportBinding};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::json;
+use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
 use tokio::time::timeout;
 use tokio_tungstenite::connect_async;
@@ -60,6 +62,15 @@ fn encode_ccp_text_frame(
     kind: &str,
     payload: serde_json::Value,
 ) -> tokio_tungstenite::tungstenite::Message {
+    encode_ccp_text_frame_with_route(schema, kind, None, payload)
+}
+
+fn encode_ccp_text_frame_with_route(
+    schema: &str,
+    kind: &str,
+    route: Option<CcpRoute>,
+    payload: serde_json::Value,
+) -> tokio_tungstenite::tungstenite::Message {
     let codec = JsonEnvelopeCodec::new();
     let binding = WsBinding::new();
     let envelope = CcpEnvelope::new(
@@ -68,7 +79,7 @@ fn encode_ccp_text_frame(
         kind,
         schema,
         None,
-        None,
+        route,
         Vec::<String>::new(),
         None,
         payload.to_string(),
@@ -111,6 +122,31 @@ fn decode_ccp_envelope(message: Message) -> CcpEnvelope {
 
 fn envelope_payload_json(envelope: &CcpEnvelope) -> serde_json::Value {
     serde_json::from_str(envelope.payload.as_str()).expect("ccp payload should be valid json")
+}
+
+fn assert_policy_close_with_reason(message: Message, reason: &str) {
+    match message {
+        Message::Close(Some(frame)) => {
+            assert_eq!(
+                frame.code,
+                tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode::Policy
+            );
+            assert_eq!(frame.reason.as_str(), reason);
+        }
+        other => panic!("expected policy close frame, got {other:?}"),
+    }
+}
+
+fn assert_connection_closed_after_oversized_message(
+    message: Option<Result<Message, tokio_tungstenite::tungstenite::Error>>,
+) {
+    match message {
+        Some(Ok(Message::Close(_))) | Some(Err(_)) => {}
+        Some(Ok(other)) => {
+            panic!("expected websocket close after oversized message, got {other:?}")
+        }
+        None => panic!("expected websocket close after oversized message"),
+    }
 }
 
 #[tokio::test]
@@ -350,6 +386,50 @@ async fn test_realtime_websocket_rejects_oversized_frame_type() {
 }
 
 #[tokio::test]
+async fn test_realtime_websocket_closes_connection_for_oversized_raw_message() {
+    let app = session_gateway::build_app();
+    let (address, handle) = spawn_server(app).await;
+    let mut request = format!("ws://{address}/api/v1/realtime/ws")
+        .into_client_request()
+        .expect("websocket request should build");
+    request.headers_mut().insert(
+        "x-tenant-id",
+        "t_demo".parse().expect("tenant header should parse"),
+    );
+    request.headers_mut().insert(
+        "x-user-id",
+        "u_demo".parse().expect("user header should parse"),
+    );
+    request.headers_mut().insert(
+        "x-session-id",
+        "s_pad".parse().expect("session header should parse"),
+    );
+    request.headers_mut().insert(
+        "x-device-id",
+        "d_pad".parse().expect("device header should parse"),
+    );
+
+    let (mut socket, _) = connect_async(request)
+        .await
+        .expect("websocket connection should succeed");
+
+    let _connected = next_text_json(&mut socket).await;
+
+    socket
+        .send(Message::Text("x".repeat(700_000).into()))
+        .await
+        .expect("oversized websocket message should send");
+
+    let next = timeout(Duration::from_secs(5), socket.next())
+        .await
+        .expect("oversized websocket message should trigger a close");
+    assert_connection_closed_after_oversized_message(next);
+
+    handle.abort();
+    let _ = handle.await;
+}
+
+#[tokio::test]
 async fn test_realtime_websocket_negotiates_ccp_subprotocol_and_wraps_business_frames() {
     let app = session_gateway::build_app();
     let (address, handle) = spawn_server(app).await;
@@ -498,6 +578,1109 @@ async fn test_realtime_websocket_negotiates_ccp_subprotocol_and_wraps_business_f
     assert_eq!(acked_payload["ack"]["deviceId"], "d_pad");
 
     let _ = socket.close(None).await;
+    handle.abort();
+    let _ = handle.await;
+}
+
+#[tokio::test]
+async fn test_realtime_websocket_rejects_ccp_business_frame_with_control_kind_after_handshake() {
+    let app = session_gateway::build_app();
+    let (address, handle) = spawn_server(app).await;
+    let request = ClientRequestBuilder::new(
+        format!("ws://{address}/api/v1/realtime/ws")
+            .parse()
+            .unwrap(),
+    )
+    .with_sub_protocol(CCP_WS_SUBPROTOCOL)
+    .with_header("x-tenant-id", "t_demo")
+    .with_header("x-user-id", "u_demo")
+    .with_header("x-session-id", "s_pad")
+    .with_header("x-device-id", "d_pad");
+
+    let (mut socket, _) = connect_async(request)
+        .await
+        .expect("websocket connection should succeed");
+
+    socket
+        .send(encode_ccp_text_frame(
+            "cc.control.hello.v1",
+            "control",
+            serde_json::to_value(ControlFrame::Hello(HelloFrame {
+                protocol: ProtocolVersion::new("ccp", 1, 0),
+                binding: TransportBinding::Ws1,
+                capabilities: CapabilitySet::from_iter(["payload.json"]),
+                trace_id: Some("trace-hello-invalid-kind".into()),
+            }))
+            .expect("hello frame should serialize"),
+        ))
+        .await
+        .expect("hello frame should send");
+    let hello_ack = decode_ccp_envelope(next_message(&mut socket).await);
+    assert_eq!(hello_ack.schema, "cc.control.hello_ack.v1");
+
+    socket
+        .send(encode_ccp_text_frame(
+            "cc.control.auth_bind.v1",
+            "control",
+            serde_json::to_value(ControlFrame::AuthBind(AuthBindFrame {
+                principal_id: "u_demo".into(),
+                device_id: Some("d_pad".into()),
+                session_id: Some("s_pad".into()),
+                actor_kind: "user".into(),
+            }))
+            .expect("auth bind frame should serialize"),
+        ))
+        .await
+        .expect("auth bind frame should send");
+    let auth_ok = decode_ccp_envelope(next_message(&mut socket).await);
+    assert_eq!(auth_ok.schema, "cc.control.auth_ok.v1");
+
+    let connected = decode_ccp_envelope(next_message(&mut socket).await);
+    assert_eq!(connected.schema, "cc.realtime.connected.v1");
+
+    socket
+        .send(encode_ccp_text_frame(
+            "cc.control.auth_bind.v1",
+            "control",
+            json!({
+                "type":"events.pull",
+                "requestId":"req_pull_wrong_kind_1",
+                "afterSeq":0,
+                "limit":10
+            }),
+        ))
+        .await
+        .expect("wrong-kind business frame should send");
+
+    let error = decode_ccp_envelope(next_message(&mut socket).await);
+    assert_eq!(error.kind, "error");
+    assert_eq!(error.schema, "cc.realtime.error.v1");
+    let error_payload = envelope_payload_json(&error);
+    assert_eq!(error_payload["type"], "error");
+    assert_eq!(error_payload["requestId"], "req_pull_wrong_kind_1");
+    assert_eq!(error_payload["code"], "invalid_frame");
+    assert!(
+        error_payload["message"]
+            .as_str()
+            .expect("message should be a string")
+            .contains("kind"),
+        "error should explain CCP kind mismatch, got: {error_payload:?}"
+    );
+
+    socket
+        .send(encode_ccp_text_frame(
+            "cc.realtime.events.pull.v1",
+            "cmd",
+            json!({
+                "type":"events.pull",
+                "requestId":"req_pull_after_invalid_kind_1",
+                "afterSeq":0,
+                "limit":10
+            }),
+        ))
+        .await
+        .expect("valid pull frame should send");
+
+    let window = decode_ccp_envelope(next_message(&mut socket).await);
+    assert_eq!(window.kind, "evt");
+    assert_eq!(window.schema, "cc.realtime.event.window.v1");
+    let window_payload = envelope_payload_json(&window);
+    assert_eq!(window_payload["type"], "event.window");
+    assert_eq!(window_payload["requestId"], "req_pull_after_invalid_kind_1");
+
+    let _ = socket.close(None).await;
+    handle.abort();
+    let _ = handle.await;
+}
+
+#[tokio::test]
+async fn test_realtime_websocket_rejects_ccp_business_frame_with_wrong_schema_after_handshake() {
+    let app = session_gateway::build_app();
+    let (address, handle) = spawn_server(app).await;
+    let request = ClientRequestBuilder::new(
+        format!("ws://{address}/api/v1/realtime/ws")
+            .parse()
+            .unwrap(),
+    )
+    .with_sub_protocol(CCP_WS_SUBPROTOCOL)
+    .with_header("x-tenant-id", "t_demo")
+    .with_header("x-user-id", "u_demo")
+    .with_header("x-session-id", "s_pad")
+    .with_header("x-device-id", "d_pad");
+
+    let (mut socket, _) = connect_async(request)
+        .await
+        .expect("websocket connection should succeed");
+
+    socket
+        .send(encode_ccp_text_frame(
+            "cc.control.hello.v1",
+            "control",
+            serde_json::to_value(ControlFrame::Hello(HelloFrame {
+                protocol: ProtocolVersion::new("ccp", 1, 0),
+                binding: TransportBinding::Ws1,
+                capabilities: CapabilitySet::from_iter(["payload.json"]),
+                trace_id: Some("trace-hello-invalid-schema".into()),
+            }))
+            .expect("hello frame should serialize"),
+        ))
+        .await
+        .expect("hello frame should send");
+    let hello_ack = decode_ccp_envelope(next_message(&mut socket).await);
+    assert_eq!(hello_ack.schema, "cc.control.hello_ack.v1");
+
+    socket
+        .send(encode_ccp_text_frame(
+            "cc.control.auth_bind.v1",
+            "control",
+            serde_json::to_value(ControlFrame::AuthBind(AuthBindFrame {
+                principal_id: "u_demo".into(),
+                device_id: Some("d_pad".into()),
+                session_id: Some("s_pad".into()),
+                actor_kind: "user".into(),
+            }))
+            .expect("auth bind frame should serialize"),
+        ))
+        .await
+        .expect("auth bind frame should send");
+    let auth_ok = decode_ccp_envelope(next_message(&mut socket).await);
+    assert_eq!(auth_ok.schema, "cc.control.auth_ok.v1");
+
+    let connected = decode_ccp_envelope(next_message(&mut socket).await);
+    assert_eq!(connected.schema, "cc.realtime.connected.v1");
+
+    socket
+        .send(encode_ccp_text_frame(
+            "cc.realtime.events.ack.v1",
+            "cmd",
+            json!({
+                "type":"events.pull",
+                "requestId":"req_pull_wrong_schema_1",
+                "afterSeq":0,
+                "limit":10
+            }),
+        ))
+        .await
+        .expect("wrong-schema business frame should send");
+
+    let error = decode_ccp_envelope(next_message(&mut socket).await);
+    assert_eq!(error.kind, "error");
+    assert_eq!(error.schema, "cc.realtime.error.v1");
+    let error_payload = envelope_payload_json(&error);
+    assert_eq!(error_payload["type"], "error");
+    assert_eq!(error_payload["requestId"], "req_pull_wrong_schema_1");
+    assert_eq!(error_payload["code"], "invalid_frame");
+    assert!(
+        error_payload["message"]
+            .as_str()
+            .expect("message should be a string")
+            .contains("schema"),
+        "error should explain CCP schema mismatch, got: {error_payload:?}"
+    );
+
+    socket
+        .send(encode_ccp_text_frame(
+            "cc.realtime.events.pull.v1",
+            "cmd",
+            json!({
+                "type":"events.pull",
+                "requestId":"req_pull_after_invalid_schema_1",
+                "afterSeq":0,
+                "limit":10
+            }),
+        ))
+        .await
+        .expect("valid pull frame should send");
+
+    let window = decode_ccp_envelope(next_message(&mut socket).await);
+    assert_eq!(window.kind, "evt");
+    assert_eq!(window.schema, "cc.realtime.event.window.v1");
+    let window_payload = envelope_payload_json(&window);
+    assert_eq!(window_payload["type"], "event.window");
+    assert_eq!(
+        window_payload["requestId"],
+        "req_pull_after_invalid_schema_1"
+    );
+
+    let _ = socket.close(None).await;
+    handle.abort();
+    let _ = handle.await;
+}
+
+#[tokio::test]
+async fn test_realtime_websocket_accepts_ccp_heartbeat_control_frame_after_handshake() {
+    let app = session_gateway::build_app();
+    let (address, handle) = spawn_server(app).await;
+    let request = ClientRequestBuilder::new(
+        format!("ws://{address}/api/v1/realtime/ws")
+            .parse()
+            .unwrap(),
+    )
+    .with_sub_protocol(CCP_WS_SUBPROTOCOL)
+    .with_header("x-tenant-id", "t_demo")
+    .with_header("x-user-id", "u_demo")
+    .with_header("x-session-id", "s_pad")
+    .with_header("x-device-id", "d_pad");
+
+    let (mut socket, _) = connect_async(request)
+        .await
+        .expect("websocket connection should succeed");
+
+    socket
+        .send(encode_ccp_text_frame(
+            "cc.control.hello.v1",
+            "control",
+            serde_json::to_value(ControlFrame::Hello(HelloFrame {
+                protocol: ProtocolVersion::new("ccp", 1, 0),
+                binding: TransportBinding::Ws1,
+                capabilities: CapabilitySet::from_iter(["payload.json"]),
+                trace_id: Some("trace-hello-heartbeat".into()),
+            }))
+            .expect("hello frame should serialize"),
+        ))
+        .await
+        .expect("hello frame should send");
+    let hello_ack = decode_ccp_envelope(next_message(&mut socket).await);
+    assert_eq!(hello_ack.schema, "cc.control.hello_ack.v1");
+
+    socket
+        .send(encode_ccp_text_frame(
+            "cc.control.auth_bind.v1",
+            "control",
+            serde_json::to_value(ControlFrame::AuthBind(AuthBindFrame {
+                principal_id: "u_demo".into(),
+                device_id: Some("d_pad".into()),
+                session_id: Some("s_pad".into()),
+                actor_kind: "user".into(),
+            }))
+            .expect("auth bind frame should serialize"),
+        ))
+        .await
+        .expect("auth bind frame should send");
+    let auth_ok = decode_ccp_envelope(next_message(&mut socket).await);
+    assert_eq!(auth_ok.schema, "cc.control.auth_ok.v1");
+
+    let connected = decode_ccp_envelope(next_message(&mut socket).await);
+    assert_eq!(connected.schema, "cc.realtime.connected.v1");
+
+    socket
+        .send(encode_ccp_text_frame(
+            "cc.control.heartbeat.v1",
+            "control",
+            serde_json::to_value(ControlFrame::Heartbeat(
+                craw_chat_ccp_control::HeartbeatFrame { sequence: Some(1) },
+            ))
+            .expect("heartbeat frame should serialize"),
+        ))
+        .await
+        .expect("heartbeat frame should send");
+
+    socket
+        .send(encode_ccp_text_frame(
+            "cc.realtime.events.pull.v1",
+            "cmd",
+            json!({
+                "type":"events.pull",
+                "requestId":"req_pull_after_heartbeat_1",
+                "afterSeq":0,
+                "limit":10
+            }),
+        ))
+        .await
+        .expect("pull frame after heartbeat should send");
+
+    let first_response = decode_ccp_envelope(next_message(&mut socket).await);
+    assert_eq!(first_response.kind, "evt");
+    assert_eq!(first_response.schema, "cc.realtime.event.window.v1");
+    let first_response_payload = envelope_payload_json(&first_response);
+    assert_eq!(first_response_payload["type"], "event.window");
+    assert_eq!(
+        first_response_payload["requestId"],
+        "req_pull_after_heartbeat_1"
+    );
+
+    let _ = socket.close(None).await;
+    handle.abort();
+    let _ = handle.await;
+}
+
+#[tokio::test]
+async fn test_realtime_websocket_rejects_ccp_business_frame_with_client_route_metadata() {
+    let app = session_gateway::build_app();
+    let (address, handle) = spawn_server(app).await;
+    let request = ClientRequestBuilder::new(
+        format!("ws://{address}/api/v1/realtime/ws")
+            .parse()
+            .unwrap(),
+    )
+    .with_sub_protocol(CCP_WS_SUBPROTOCOL)
+    .with_header("x-tenant-id", "t_demo")
+    .with_header("x-user-id", "u_demo")
+    .with_header("x-session-id", "s_pad")
+    .with_header("x-device-id", "d_pad");
+
+    let (mut socket, _) = connect_async(request)
+        .await
+        .expect("websocket connection should succeed");
+
+    socket
+        .send(encode_ccp_text_frame(
+            "cc.control.hello.v1",
+            "control",
+            serde_json::to_value(ControlFrame::Hello(HelloFrame {
+                protocol: ProtocolVersion::new("ccp", 1, 0),
+                binding: TransportBinding::Ws1,
+                capabilities: CapabilitySet::from_iter(["payload.json"]),
+                trace_id: Some("trace-hello-client-route".into()),
+            }))
+            .expect("hello frame should serialize"),
+        ))
+        .await
+        .expect("hello frame should send");
+    let hello_ack = decode_ccp_envelope(next_message(&mut socket).await);
+    assert_eq!(hello_ack.schema, "cc.control.hello_ack.v1");
+
+    socket
+        .send(encode_ccp_text_frame(
+            "cc.control.auth_bind.v1",
+            "control",
+            serde_json::to_value(ControlFrame::AuthBind(AuthBindFrame {
+                principal_id: "u_demo".into(),
+                device_id: Some("d_pad".into()),
+                session_id: Some("s_pad".into()),
+                actor_kind: "user".into(),
+            }))
+            .expect("auth bind frame should serialize"),
+        ))
+        .await
+        .expect("auth bind frame should send");
+    let auth_ok = decode_ccp_envelope(next_message(&mut socket).await);
+    assert_eq!(auth_ok.schema, "cc.control.auth_ok.v1");
+
+    let connected = decode_ccp_envelope(next_message(&mut socket).await);
+    assert_eq!(connected.schema, "cc.realtime.connected.v1");
+
+    socket
+        .send(encode_ccp_text_frame_with_route(
+            "cc.realtime.events.pull.v1",
+            "cmd",
+            Some(CcpRoute::new(
+                "t_forged",
+                Some("u_forged".into()),
+                Some("d_forged".into()),
+            )),
+            json!({
+                "type":"events.pull",
+                "requestId":"req_pull_client_route_1",
+                "afterSeq":0,
+                "limit":10
+            }),
+        ))
+        .await
+        .expect("client-route pull frame should send");
+
+    let error = decode_ccp_envelope(next_message(&mut socket).await);
+    assert_eq!(error.kind, "error");
+    assert_eq!(error.schema, "cc.realtime.error.v1");
+    let error_payload = envelope_payload_json(&error);
+    assert_eq!(error_payload["type"], "error");
+    assert_eq!(error_payload["requestId"], "req_pull_client_route_1");
+    assert_eq!(error_payload["code"], "invalid_frame");
+    assert!(
+        error_payload["message"]
+            .as_str()
+            .expect("message should be a string")
+            .contains("route"),
+        "error should explain client route metadata is forbidden, got: {error_payload:?}"
+    );
+
+    socket
+        .send(encode_ccp_text_frame(
+            "cc.realtime.events.pull.v1",
+            "cmd",
+            json!({
+                "type":"events.pull",
+                "requestId":"req_pull_after_client_route_1",
+                "afterSeq":0,
+                "limit":10
+            }),
+        ))
+        .await
+        .expect("valid pull frame should send");
+
+    let window = decode_ccp_envelope(next_message(&mut socket).await);
+    assert_eq!(window.kind, "evt");
+    assert_eq!(window.schema, "cc.realtime.event.window.v1");
+    let window_payload = envelope_payload_json(&window);
+    assert_eq!(window_payload["type"], "event.window");
+    assert_eq!(window_payload["requestId"], "req_pull_after_client_route_1");
+
+    let _ = socket.close(None).await;
+    handle.abort();
+    let _ = handle.await;
+}
+
+#[tokio::test]
+async fn test_realtime_websocket_closes_with_policy_after_ccp_handshake_starts_without_hello() {
+    let app = session_gateway::build_app();
+    let (address, handle) = spawn_server(app).await;
+    let request = ClientRequestBuilder::new(
+        format!("ws://{address}/api/v1/realtime/ws")
+            .parse()
+            .unwrap(),
+    )
+    .with_sub_protocol(CCP_WS_SUBPROTOCOL)
+    .with_header("x-tenant-id", "t_demo")
+    .with_header("x-user-id", "u_demo")
+    .with_header("x-session-id", "s_pad")
+    .with_header("x-device-id", "d_pad");
+
+    let (mut socket, _) = connect_async(request)
+        .await
+        .expect("websocket connection should succeed");
+
+    socket
+        .send(encode_ccp_text_frame(
+            "cc.control.auth_bind.v1",
+            "control",
+            serde_json::to_value(ControlFrame::AuthBind(AuthBindFrame {
+                principal_id: "u_demo".into(),
+                device_id: Some("d_pad".into()),
+                session_id: Some("s_pad".into()),
+                actor_kind: "user".into(),
+            }))
+            .expect("auth bind frame should serialize"),
+        ))
+        .await
+        .expect("out-of-order auth bind frame should send");
+
+    let error = decode_ccp_envelope(next_message(&mut socket).await);
+    assert_eq!(error.kind, "control");
+    assert_eq!(error.schema, "cc.control.error.v1");
+    let error_payload = envelope_payload_json(&error);
+    assert_eq!(error_payload["type"], "error");
+    assert_eq!(error_payload["data"]["code"], "CCP_HELLO_REQUIRED");
+
+    let close = next_message(&mut socket).await;
+    assert_policy_close_with_reason(close, "ccp.protocol_error");
+
+    handle.abort();
+    let _ = handle.await;
+}
+
+#[tokio::test]
+async fn test_realtime_websocket_releases_route_after_ccp_handshake_protocol_close() {
+    let cluster = Arc::new(session_gateway::RealtimeClusterBridge::default());
+    let app = session_gateway::build_app_with_cluster_runtime_and_presence(
+        cluster.clone(),
+        Arc::new(session_gateway::RealtimeDeliveryRuntime::default()),
+        Arc::new(session_gateway::SessionPresenceRuntime::default()),
+    );
+    let (address, handle) = spawn_server(app).await;
+    let request = ClientRequestBuilder::new(
+        format!("ws://{address}/api/v1/realtime/ws")
+            .parse()
+            .unwrap(),
+    )
+    .with_sub_protocol(CCP_WS_SUBPROTOCOL)
+    .with_header("x-tenant-id", "t_demo")
+    .with_header("x-user-id", "u_demo")
+    .with_header("x-session-id", "s_pad")
+    .with_header("x-device-id", "d_pad");
+
+    let (mut socket, _) = connect_async(request)
+        .await
+        .expect("websocket connection should succeed");
+
+    socket
+        .send(encode_ccp_text_frame(
+            "cc.control.auth_bind.v1",
+            "control",
+            serde_json::to_value(ControlFrame::AuthBind(AuthBindFrame {
+                principal_id: "u_demo".into(),
+                device_id: Some("d_pad".into()),
+                session_id: Some("s_pad".into()),
+                actor_kind: "user".into(),
+            }))
+            .expect("auth bind frame should serialize"),
+        ))
+        .await
+        .expect("out-of-order auth bind frame should send");
+
+    let error = decode_ccp_envelope(next_message(&mut socket).await);
+    assert_eq!(error.kind, "control");
+    assert_eq!(error.schema, "cc.control.error.v1");
+    let error_payload = envelope_payload_json(&error);
+    assert_eq!(error_payload["data"]["code"], "CCP_HELLO_REQUIRED");
+
+    let close = next_message(&mut socket).await;
+    assert_policy_close_with_reason(close, "ccp.protocol_error");
+
+    timeout(Duration::from_secs(5), async {
+        loop {
+            if cluster
+                .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+                .is_none()
+            {
+                break;
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("route should be released after handshake protocol close");
+
+    assert!(
+        cluster
+            .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+            .is_none(),
+        "ccp handshake failure must not leave a ghost route bound to the node"
+    );
+
+    handle.abort();
+    let _ = handle.await;
+}
+
+#[tokio::test]
+async fn test_realtime_websocket_releases_route_after_client_close() {
+    let cluster = Arc::new(session_gateway::RealtimeClusterBridge::default());
+    let app = session_gateway::build_app_with_cluster(cluster.clone());
+    let (address, handle) = spawn_server(app).await;
+    let mut request = format!("ws://{address}/api/v1/realtime/ws")
+        .into_client_request()
+        .expect("websocket request should build");
+    request.headers_mut().insert(
+        "x-tenant-id",
+        "t_demo".parse().expect("tenant header should parse"),
+    );
+    request.headers_mut().insert(
+        "x-user-id",
+        "u_demo".parse().expect("user header should parse"),
+    );
+    request.headers_mut().insert(
+        "x-session-id",
+        "s_pad".parse().expect("session header should parse"),
+    );
+    request.headers_mut().insert(
+        "x-device-id",
+        "d_pad".parse().expect("device header should parse"),
+    );
+
+    let (mut socket, _) = connect_async(request)
+        .await
+        .expect("websocket connection should succeed");
+
+    let connected = next_text_json(&mut socket).await;
+    assert_eq!(connected["type"], "realtime.connected");
+
+    socket
+        .close(None)
+        .await
+        .expect("client close should send successfully");
+
+    timeout(Duration::from_secs(5), async {
+        loop {
+            if cluster
+                .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+                .is_none()
+            {
+                break;
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("route should be released after client websocket close");
+
+    assert!(
+        cluster
+            .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+            .is_none(),
+        "closed websocket must not leave a ghost route bound to the node"
+    );
+
+    handle.abort();
+    let _ = handle.await;
+}
+
+#[tokio::test]
+async fn test_realtime_websocket_releases_route_when_upgrade_client_disconnects_before_socket_handoff()
+ {
+    let cluster = Arc::new(session_gateway::RealtimeClusterBridge::default());
+    let app = session_gateway::build_app_with_cluster(cluster.clone());
+    let (address, handle) = spawn_server(app).await;
+
+    let mut stream = tokio::net::TcpStream::connect(address.as_str())
+        .await
+        .expect("raw tcp connection should succeed");
+    let upgrade_request = format!(
+        "GET /api/v1/realtime/ws HTTP/1.1\r\n\
+Host: {address}\r\n\
+Connection: Upgrade\r\n\
+Upgrade: websocket\r\n\
+Sec-WebSocket-Version: 13\r\n\
+Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\
+Sec-WebSocket-Protocol: {CCP_WS_SUBPROTOCOL}\r\n\
+x-tenant-id: t_demo\r\n\
+x-user-id: u_demo\r\n\
+x-session-id: s_pad\r\n\
+x-device-id: d_pad\r\n\
+\r\n"
+    );
+    stream
+        .write_all(upgrade_request.as_bytes())
+        .await
+        .expect("upgrade request should write");
+    stream
+        .shutdown()
+        .await
+        .expect("client shutdown should succeed");
+    drop(stream);
+
+    timeout(Duration::from_secs(5), async {
+        loop {
+            if cluster
+                .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+                .is_none()
+            {
+                break;
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("route should be released when upgrade client disconnects before websocket handoff");
+
+    assert!(
+        cluster
+            .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+            .is_none(),
+        "aborted websocket upgrade must not leave a ghost route bound to the node"
+    );
+
+    handle.abort();
+    let _ = handle.await;
+}
+
+#[tokio::test]
+async fn test_realtime_websocket_rejects_stale_session_frames_after_http_resume_takeover() {
+    let app = session_gateway::build_app();
+    let http_app = app.clone();
+    let (address, handle) = spawn_server(app).await;
+    let mut request = format!("ws://{address}/api/v1/realtime/ws")
+        .into_client_request()
+        .expect("websocket request should build");
+    request.headers_mut().insert(
+        "x-tenant-id",
+        "t_demo".parse().expect("tenant header should parse"),
+    );
+    request.headers_mut().insert(
+        "x-user-id",
+        "u_demo".parse().expect("user header should parse"),
+    );
+    request.headers_mut().insert(
+        "x-session-id",
+        "s_old".parse().expect("session header should parse"),
+    );
+    request.headers_mut().insert(
+        "x-device-id",
+        "d_demo".parse().expect("device header should parse"),
+    );
+
+    let (mut socket, _) = connect_async(request)
+        .await
+        .expect("websocket connection should succeed");
+
+    let connected = next_text_json(&mut socket).await;
+    assert_eq!(connected["type"], "realtime.connected");
+
+    let resume_new = http_app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/sessions/resume")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-session-id", "s_new")
+                .header("x-device-id", "d_demo")
+                .header("content-type", "application/json")
+                .body(axum::body::Body::from(r#"{"lastSeenSyncSeq":0}"#))
+                .unwrap(),
+        )
+        .await
+        .expect("fresh resume should succeed");
+    assert_eq!(resume_new.status(), axum::http::StatusCode::OK);
+
+    socket
+        .send(Message::Text(
+            json!({
+                "type":"events.pull",
+                "requestId":"req_stale_after_resume_1",
+                "afterSeq":0,
+                "limit":10
+            })
+            .to_string()
+            .into(),
+        ))
+        .await
+        .expect("stale websocket frame should send");
+
+    let error = next_text_json(&mut socket).await;
+    assert_eq!(error["type"], "error");
+    assert_eq!(error["requestId"], "req_stale_after_resume_1");
+    assert_eq!(error["code"], "stale_session");
+
+    let _ = socket.close(None).await;
+    handle.abort();
+    let _ = handle.await;
+}
+
+#[tokio::test]
+async fn test_realtime_websocket_closes_stale_session_before_push_after_http_resume_takeover() {
+    let runtime = Arc::new(session_gateway::RealtimeDeliveryRuntime::default());
+    let app = session_gateway::build_app_with_cluster_and_runtime(
+        Arc::new(session_gateway::RealtimeClusterBridge::default()),
+        runtime.clone(),
+    );
+    let http_app = app.clone();
+    let (address, handle) = spawn_server(app).await;
+    let mut request = format!("ws://{address}/api/v1/realtime/ws")
+        .into_client_request()
+        .expect("websocket request should build");
+    request.headers_mut().insert(
+        "x-tenant-id",
+        "t_demo".parse().expect("tenant header should parse"),
+    );
+    request.headers_mut().insert(
+        "x-user-id",
+        "u_demo".parse().expect("user header should parse"),
+    );
+    request.headers_mut().insert(
+        "x-session-id",
+        "s_old".parse().expect("session header should parse"),
+    );
+    request.headers_mut().insert(
+        "x-device-id",
+        "d_demo".parse().expect("device header should parse"),
+    );
+
+    let (mut socket, _) = connect_async(request)
+        .await
+        .expect("websocket connection should succeed");
+
+    let connected = next_text_json(&mut socket).await;
+    assert_eq!(connected["type"], "realtime.connected");
+
+    socket
+        .send(Message::Text(
+            json!({
+                "type":"subscriptions.sync",
+                "requestId":"req_sync_stale_push_1",
+                "items":[
+                    {
+                        "scopeType":"conversation",
+                        "scopeId":"c_demo",
+                        "eventTypes":["message.posted"]
+                    }
+                ]
+            })
+            .to_string()
+            .into(),
+        ))
+        .await
+        .expect("subscription sync frame should send");
+
+    let synced = next_text_json(&mut socket).await;
+    assert_eq!(synced["type"], "subscriptions.synced");
+    assert_eq!(synced["requestId"], "req_sync_stale_push_1");
+
+    let resume_new = http_app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/sessions/resume")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-session-id", "s_new")
+                .header("x-device-id", "d_demo")
+                .header("content-type", "application/json")
+                .body(axum::body::Body::from(r#"{"lastSeenSyncSeq":0}"#))
+                .unwrap(),
+        )
+        .await
+        .expect("fresh resume should succeed");
+    assert_eq!(resume_new.status(), axum::http::StatusCode::OK);
+
+    runtime
+        .publish_scope_event_for_principal_kind(
+            "t_demo",
+            "u_demo",
+            "user",
+            "conversation",
+            "c_demo",
+            "message.posted",
+            json!({
+                "type": "message.posted",
+                "messageId": "msg_stale_push_1",
+                "summary": "stale websocket must not receive this push"
+            })
+            .to_string(),
+            vec!["d_demo".into()],
+        )
+        .expect("publish after resume takeover should succeed");
+
+    let close = next_message(&mut socket).await;
+    assert_policy_close_with_reason(close, "stale_session");
+
+    handle.abort();
+    let _ = handle.await;
+}
+
+#[tokio::test]
+async fn test_realtime_websocket_closes_idle_stale_session_after_http_resume_takeover() {
+    let app = session_gateway::build_app();
+    let http_app = app.clone();
+    let (address, handle) = spawn_server(app).await;
+    let mut request = format!("ws://{address}/api/v1/realtime/ws")
+        .into_client_request()
+        .expect("websocket request should build");
+    request.headers_mut().insert(
+        "x-tenant-id",
+        "t_demo".parse().expect("tenant header should parse"),
+    );
+    request.headers_mut().insert(
+        "x-user-id",
+        "u_demo".parse().expect("user header should parse"),
+    );
+    request.headers_mut().insert(
+        "x-session-id",
+        "s_old".parse().expect("session header should parse"),
+    );
+    request.headers_mut().insert(
+        "x-device-id",
+        "d_demo".parse().expect("device header should parse"),
+    );
+
+    let (mut socket, _) = connect_async(request)
+        .await
+        .expect("websocket connection should succeed");
+
+    let connected = next_text_json(&mut socket).await;
+    assert_eq!(connected["type"], "realtime.connected");
+
+    let resume_new = http_app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/sessions/resume")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-session-id", "s_new")
+                .header("x-device-id", "d_demo")
+                .header("content-type", "application/json")
+                .body(axum::body::Body::from(r#"{"lastSeenSyncSeq":0}"#))
+                .unwrap(),
+        )
+        .await
+        .expect("fresh resume should succeed");
+    assert_eq!(resume_new.status(), axum::http::StatusCode::OK);
+
+    let close = timeout(Duration::from_secs(1), socket.next())
+        .await
+        .expect("stale idle websocket should be closed promptly after takeover")
+        .expect("websocket stream should yield a close frame")
+        .expect("websocket close frame should decode");
+    assert_policy_close_with_reason(close, "stale_session");
+
+    handle.abort();
+    let _ = handle.await;
+}
+
+#[tokio::test]
+async fn test_realtime_websocket_closes_stale_ccp_handshake_after_http_resume_takeover() {
+    let app = session_gateway::build_app();
+    let http_app = app.clone();
+    let (address, handle) = spawn_server(app).await;
+    let request = ClientRequestBuilder::new(
+        format!("ws://{address}/api/v1/realtime/ws")
+            .parse()
+            .unwrap(),
+    )
+    .with_sub_protocol(CCP_WS_SUBPROTOCOL)
+    .with_header("x-tenant-id", "t_demo")
+    .with_header("x-user-id", "u_demo")
+    .with_header("x-session-id", "s_old")
+    .with_header("x-device-id", "d_demo");
+
+    let (mut socket, _) = connect_async(request)
+        .await
+        .expect("websocket connection should succeed");
+
+    socket
+        .send(encode_ccp_text_frame(
+            "cc.control.hello.v1",
+            "control",
+            serde_json::to_value(ControlFrame::Hello(HelloFrame {
+                protocol: ProtocolVersion::new("ccp", 1, 0),
+                binding: TransportBinding::Ws1,
+                capabilities: CapabilitySet::from_iter(["payload.json"]),
+                trace_id: Some("trace-stale-handshake-takeover".into()),
+            }))
+            .expect("hello frame should serialize"),
+        ))
+        .await
+        .expect("hello frame should send");
+
+    let hello_ack = decode_ccp_envelope(next_message(&mut socket).await);
+    assert_eq!(hello_ack.schema, "cc.control.hello_ack.v1");
+
+    let resume_new = http_app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/sessions/resume")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-session-id", "s_new")
+                .header("x-device-id", "d_demo")
+                .header("content-type", "application/json")
+                .body(axum::body::Body::from(r#"{"lastSeenSyncSeq":0}"#))
+                .unwrap(),
+        )
+        .await
+        .expect("fresh resume should succeed");
+    assert_eq!(resume_new.status(), axum::http::StatusCode::OK);
+
+    socket
+        .send(encode_ccp_text_frame(
+            "cc.control.auth_bind.v1",
+            "control",
+            serde_json::to_value(ControlFrame::AuthBind(AuthBindFrame {
+                principal_id: "u_demo".into(),
+                device_id: Some("d_demo".into()),
+                session_id: Some("s_old".into()),
+                actor_kind: "user".into(),
+            }))
+            .expect("auth bind frame should serialize"),
+        ))
+        .await
+        .expect("stale auth bind frame should send");
+
+    let close = next_message(&mut socket).await;
+    assert_policy_close_with_reason(close, "stale_session");
+
+    handle.abort();
+    let _ = handle.await;
+}
+
+#[tokio::test]
+async fn test_realtime_websocket_closes_with_policy_after_ccp_hello_uses_wrong_schema() {
+    let app = session_gateway::build_app();
+    let (address, handle) = spawn_server(app).await;
+    let request = ClientRequestBuilder::new(
+        format!("ws://{address}/api/v1/realtime/ws")
+            .parse()
+            .unwrap(),
+    )
+    .with_sub_protocol(CCP_WS_SUBPROTOCOL)
+    .with_header("x-tenant-id", "t_demo")
+    .with_header("x-user-id", "u_demo")
+    .with_header("x-session-id", "s_pad")
+    .with_header("x-device-id", "d_pad");
+
+    let (mut socket, _) = connect_async(request)
+        .await
+        .expect("websocket connection should succeed");
+
+    socket
+        .send(encode_ccp_text_frame(
+            "cc.control.auth_bind.v1",
+            "control",
+            serde_json::to_value(ControlFrame::Hello(HelloFrame {
+                protocol: ProtocolVersion::new("ccp", 1, 0),
+                binding: TransportBinding::Ws1,
+                capabilities: CapabilitySet::from_iter(["payload.json"]),
+                trace_id: Some("trace-hello-wrong-schema".into()),
+            }))
+            .expect("hello frame should serialize"),
+        ))
+        .await
+        .expect("wrong-schema hello frame should send");
+
+    let error = decode_ccp_envelope(next_message(&mut socket).await);
+    assert_eq!(error.kind, "control");
+    assert_eq!(error.schema, "cc.control.error.v1");
+    let error_payload = envelope_payload_json(&error);
+    assert_eq!(error_payload["type"], "error");
+    assert_eq!(error_payload["data"]["code"], "CCP_SCHEMA_INCOMPATIBLE");
+    assert!(
+        error_payload["data"]["message"]
+            .as_str()
+            .expect("message should be a string")
+            .contains("schema"),
+        "error should explain CCP control schema mismatch, got: {error_payload:?}"
+    );
+
+    let close = next_message(&mut socket).await;
+    assert_policy_close_with_reason(close, "ccp.protocol_error");
+
+    handle.abort();
+    let _ = handle.await;
+}
+
+#[tokio::test]
+async fn test_realtime_websocket_closes_with_policy_after_ccp_handshake_receives_hello_twice() {
+    let app = session_gateway::build_app();
+    let (address, handle) = spawn_server(app).await;
+    let request = ClientRequestBuilder::new(
+        format!("ws://{address}/api/v1/realtime/ws")
+            .parse()
+            .unwrap(),
+    )
+    .with_sub_protocol(CCP_WS_SUBPROTOCOL)
+    .with_header("x-tenant-id", "t_demo")
+    .with_header("x-user-id", "u_demo")
+    .with_header("x-session-id", "s_pad")
+    .with_header("x-device-id", "d_pad");
+
+    let (mut socket, _) = connect_async(request)
+        .await
+        .expect("websocket connection should succeed");
+
+    let hello_message = encode_ccp_text_frame(
+        "cc.control.hello.v1",
+        "control",
+        serde_json::to_value(ControlFrame::Hello(HelloFrame {
+            protocol: ProtocolVersion::new("ccp", 1, 0),
+            binding: TransportBinding::Ws1,
+            capabilities: CapabilitySet::from_iter(["payload.json"]),
+            trace_id: Some("trace-hello-order".into()),
+        }))
+        .expect("hello frame should serialize"),
+    );
+
+    socket
+        .send(hello_message.clone())
+        .await
+        .expect("hello frame should send");
+    let hello_ack = decode_ccp_envelope(next_message(&mut socket).await);
+    assert_eq!(hello_ack.schema, "cc.control.hello_ack.v1");
+
+    socket
+        .send(hello_message)
+        .await
+        .expect("duplicate hello frame should send");
+
+    let error = decode_ccp_envelope(next_message(&mut socket).await);
+    assert_eq!(error.kind, "control");
+    assert_eq!(error.schema, "cc.control.error.v1");
+    let error_payload = envelope_payload_json(&error);
+    assert_eq!(error_payload["type"], "error");
+    assert_eq!(error_payload["data"]["code"], "CCP_AUTH_BIND_REQUIRED");
+
+    let close = next_message(&mut socket).await;
+    assert_policy_close_with_reason(close, "ccp.protocol_error");
+
     handle.abort();
     let _ = handle.await;
 }

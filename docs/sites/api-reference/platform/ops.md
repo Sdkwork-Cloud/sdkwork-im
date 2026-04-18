@@ -5,6 +5,12 @@
   inspection, provider binding mirrors, and diagnostic bundles from the active node.
 </p>
 
+<div class="api-link-list">
+  <a href="/deployment/runtime-operations"><code>Runtime Ops</code> Local runtime inspection, repair, preview, and restore workflows are documented separately</a>
+  <a href="/reference/runtime-directory"><code>Runtime Dir</code> Managed state files and restore semantics are documented in the reference section</a>
+  <a href="/sdk/index"><code>SDK</code> Treat these routes as HTTP-first operational surfaces unless a repo consumer layer is documented elsewhere</a>
+</div>
+
 <a id="get-ops-health"></a>
 <section class="api-op">
 

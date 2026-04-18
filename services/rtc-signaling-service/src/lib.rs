@@ -1374,7 +1374,9 @@ fn validate_post_rtc_signal_request_payload_size(
     Ok(())
 }
 
-fn validate_rtc_callback_request_payload_size(request: &RtcCallbackRequest) -> Result<(), RtcError> {
+fn validate_rtc_callback_request_payload_size(
+    request: &RtcCallbackRequest,
+) -> Result<(), RtcError> {
     validate_payload_size(
         "rtcSessionId",
         request.rtc_session_id.as_str(),

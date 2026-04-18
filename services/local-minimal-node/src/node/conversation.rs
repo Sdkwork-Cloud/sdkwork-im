@@ -53,7 +53,7 @@ pub(super) async fn create_agent_handoff(
     State(state): State<AppState>,
     Json(request): Json<CreateAgentHandoffRequest>,
 ) -> Result<Json<CreateConversationResult>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = access::resolve_active_auth_context(&state, &headers)?;
     let (target_kind, target_attributes) = user_module::resolve_member_principal(
         &state,
         auth.tenant_id.as_str(),
@@ -80,7 +80,7 @@ pub(super) async fn create_system_channel(
     State(state): State<AppState>,
     Json(request): Json<CreateSystemChannelRequest>,
 ) -> Result<Json<CreateConversationResult>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = access::resolve_active_auth_context(&state, &headers)?;
     let (_, subscriber_attributes) = user_module::resolve_member_principal(
         &state,
         auth.tenant_id.as_str(),
@@ -104,7 +104,7 @@ pub(super) async fn create_thread_conversation(
     State(state): State<AppState>,
     Json(request): Json<CreateThreadConversationRequest>,
 ) -> Result<Json<CreateConversationResult>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = access::resolve_active_auth_context(&state, &headers)?;
     Ok(Json(
         state
             .conversation_runtime
@@ -122,7 +122,19 @@ pub(super) async fn bind_direct_chat_conversation(
     State(state): State<AppState>,
     Json(request): Json<BindDirectChatConversationRequest>,
 ) -> Result<Json<CreateConversationResult>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = access::resolve_active_auth_context(&state, &headers)?;
+    user_module::ensure_active_principal(
+        &state,
+        auth.tenant_id.as_str(),
+        request.left_actor_id.as_str(),
+        request.left_actor_kind.as_str(),
+    )?;
+    user_module::ensure_active_principal(
+        &state,
+        auth.tenant_id.as_str(),
+        request.right_actor_id.as_str(),
+        request.right_actor_kind.as_str(),
+    )?;
     Ok(Json(
         state
             .conversation_runtime

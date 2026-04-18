@@ -1,12 +1,17 @@
 import { httpPortalDataSource } from './dataSources/httpPortalDataSource.js';
-import { mockPortalDataSource } from './dataSources/mockPortalDataSource.js';
+
+function resolveTestingPortalDataSource() {
+  const testingDataSource = globalThis.__CRAW_CHAT_PORTAL_DEFAULT_DATA_SOURCE__;
+  return isPlainObject(testingDataSource) ? testingDataSource : null;
+}
 
 function resolveBasePortalDataSource() {
-  if (typeof window !== 'undefined' && typeof window.fetch === 'function') {
-    return httpPortalDataSource;
+  const testingDataSource = resolveTestingPortalDataSource();
+  if (testingDataSource) {
+    return testingDataSource;
   }
 
-  return mockPortalDataSource;
+  return httpPortalDataSource;
 }
 
 function isPlainObject(value) {

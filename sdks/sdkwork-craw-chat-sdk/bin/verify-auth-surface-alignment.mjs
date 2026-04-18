@@ -73,6 +73,7 @@ const failures = [];
 
 if (languageSet.has('typescript')) {
   const expectedGeneratedRuntimeExports = [
+    'AuthApi',
     'BaseApi',
     'ConversationApi',
     'DEFAULT_TIMEOUT',
@@ -80,6 +81,7 @@ if (languageSet.has('typescript')) {
     'InboxApi',
     'MediaApi',
     'MessageApi',
+    'PortalApi',
     'PresenceApi',
     'RealtimeApi',
     'RtcApi',
@@ -88,12 +90,14 @@ if (languageSet.has('typescript')) {
     'SessionApi',
     'StreamApi',
     'backendApiPath',
+    'createAuthApi',
     'createClient',
     'createConversationApi',
     'createDeviceApi',
     'createInboxApi',
     'createMediaApi',
     'createMessageApi',
+    'createPortalApi',
     'createPresenceApi',
     'createRealtimeApi',
     'createRtcApi',
@@ -203,7 +207,13 @@ if (languageSet.has('typescript')) {
   const composedSdkSource = read('sdkwork-craw-chat-sdk-typescript/composed/src/sdk.ts');
   const composedContextSource = read('sdkwork-craw-chat-sdk-typescript/composed/src/sdk-context.ts');
   const composedTypesSource = read('sdkwork-craw-chat-sdk-typescript/composed/src/types.ts');
-  const composedShimSource = read('sdkwork-craw-chat-sdk-typescript/composed/src/shims-sdk-common.d.ts');
+  const composedShimPath = path.join(
+    workspaceRoot,
+    'sdkwork-craw-chat-sdk-typescript',
+    'composed',
+    'src',
+    'shims-sdk-common.d.ts',
+  );
 
   assertAbsent(
     failures,
@@ -243,6 +253,30 @@ if (languageSet.has('typescript')) {
     generatedSdkSource,
     /\bget http\s*\(/,
     'TypeScript generated backend client must not expose the raw http getter.',
+  );
+  assertPresent(
+    failures,
+    generatedSdkSource,
+    /\bpublic readonly auth:\s*AuthApi;/,
+    'TypeScript generated backend client must expose auth API wiring.',
+  );
+  assertPresent(
+    failures,
+    generatedSdkSource,
+    /\bpublic readonly portal:\s*PortalApi;/,
+    'TypeScript generated backend client must expose portal API wiring.',
+  );
+  assertPresent(
+    failures,
+    generatedSdkSource,
+    /\bthis\.auth = createAuthApi\(this\.httpClient\);/,
+    'TypeScript generated backend client must construct auth API from the shared http client.',
+  );
+  assertPresent(
+    failures,
+    generatedSdkSource,
+    /\bthis\.portal = createPortalApi\(this\.httpClient\);/,
+    'TypeScript generated backend client must construct portal API from the shared http client.',
   );
   assertPresent(
     failures,
@@ -486,11 +520,23 @@ if (languageSet.has('typescript')) {
     /\bsetAccessToken\s*\(/,
     'TypeScript composed client must not expose setAccessToken(...).',
   );
-  assertPresent(
+  assertAbsent(
     failures,
     composedSdkSource,
     /\bsetAuthToken\s*\(/,
-    'TypeScript composed client must expose setAuthToken(...).',
+    'TypeScript composed client must not expose root-level setAuthToken(...); auth must live under sdk.auth.',
+  );
+  assertPresent(
+    failures,
+    composedSdkSource,
+    /\breadonly auth:/,
+    'TypeScript composed client must expose an auth domain module.',
+  );
+  assertPresent(
+    failures,
+    composedSdkSource,
+    /\bconnect\s*\(/,
+    'TypeScript composed client must expose connect(...) as the live runtime entrypoint.',
   );
   assertAbsent(
     failures,
@@ -516,30 +562,11 @@ if (languageSet.has('typescript')) {
     /\bsetAccessToken\?\s*\(/,
     'TypeScript composed backend client contract must not include setAccessToken(...).',
   );
-  assertAbsent(
-    failures,
-    composedShimSource,
-    /\baccessToken\?:/,
-    'TypeScript composed sdk-common shim must not expose accessToken.',
-  );
-  assertAbsent(
-    failures,
-    composedShimSource,
-    /\bapiKey\b/,
-    'TypeScript composed sdk-common shim must not expose apiKey auth mode.',
-  );
-  assertPresent(
-    failures,
-    composedShimSource,
-    /\bauthToken\?:/,
-    'TypeScript composed sdk-common shim must expose authToken.',
-  );
-  assertAbsent(
-    failures,
-    composedShimSource,
-    /\bAuthMode\b/,
-    'TypeScript composed sdk-common shim must not expose AuthMode.',
-  );
+  if (existsSync(composedShimPath)) {
+    failures.push(
+      'TypeScript composed layer must not ship the legacy shims-sdk-common.d.ts override once real @sdkwork/sdk-common runtime types are available.',
+    );
+  }
 }
 
 if (languageSet.has('flutter')) {
@@ -549,6 +576,12 @@ if (languageSet.has('flutter')) {
   const generatedReadmeSource = read('sdkwork-craw-chat-sdk-flutter/generated/server-openapi/README.md');
   const composedSdkSource = read('sdkwork-craw-chat-sdk-flutter/composed/lib/craw_chat_sdk.dart');
   const composedContextSource = read('sdkwork-craw-chat-sdk-flutter/composed/lib/src/context.dart');
+  const composedAuthModuleSource = read(
+    'sdkwork-craw-chat-sdk-flutter/composed/lib/src/auth_module.dart',
+  );
+  const composedPortalModuleSource = read(
+    'sdkwork-craw-chat-sdk-flutter/composed/lib/src/portal_module.dart',
+  );
 
   assertPresent(
     failures,
@@ -586,6 +619,30 @@ if (languageSet.has('flutter')) {
     /\bsetAuthToken\s*\(/,
     'Flutter generated backend client must expose setAuthToken(...).',
   );
+  assertPresent(
+    failures,
+    generatedBackendClientSource,
+    /\blate final AuthApi auth;/,
+    'Flutter generated backend client must expose auth API wiring.',
+  );
+  assertPresent(
+    failures,
+    generatedBackendClientSource,
+    /\blate final PortalApi portal;/,
+    'Flutter generated backend client must expose portal API wiring.',
+  );
+  assertPresent(
+    failures,
+    generatedBackendClientSource,
+    /\bauth = AuthApi\(_httpClient\);/,
+    'Flutter generated backend client must construct auth API from the shared http client.',
+  );
+  assertPresent(
+    failures,
+    generatedBackendClientSource,
+    /\bportal = PortalApi\(_httpClient\);/,
+    'Flutter generated backend client must construct portal API from the shared http client.',
+  );
   assertAbsent(
     failures,
     generatedReadmeSource,
@@ -609,6 +666,18 @@ if (languageSet.has('flutter')) {
     generatedReadmeSource,
     /Generated `src\/` imports are not part of the supported public API\./,
     'Flutter generated README must forbid generated src imports as public API.',
+  );
+  assertPresent(
+    failures,
+    generatedReadmeSource,
+    /`client\.auth`/,
+    'Flutter generated README must document client.auth as a mounted generated API group.',
+  );
+  assertPresent(
+    failures,
+    generatedReadmeSource,
+    /`client\.portal`/,
+    'Flutter generated README must document client.portal as a mounted generated API group.',
   );
   assertAbsent(
     failures,
@@ -640,6 +709,30 @@ if (languageSet.has('flutter')) {
     /\bsetAuthToken\s*\(/,
     'Flutter composed client must expose setAuthToken(...).',
   );
+  assertPresent(
+    failures,
+    composedSdkSource,
+    /\blate final CrawChatAuthModule auth;/,
+    'Flutter composed client must expose an auth domain module.',
+  );
+  assertPresent(
+    failures,
+    composedSdkSource,
+    /\blate final CrawChatPortalModule portal;/,
+    'Flutter composed client must expose a portal domain module.',
+  );
+  assertPresent(
+    failures,
+    composedSdkSource,
+    /\bauth = CrawChatAuthModule\(_context\);/,
+    'Flutter composed client must construct its auth domain from the shared context.',
+  );
+  assertPresent(
+    failures,
+    composedSdkSource,
+    /\bportal = CrawChatPortalModule\(_context\);/,
+    'Flutter composed client must construct its portal domain from the shared context.',
+  );
   assertAbsent(
     failures,
     composedContextSource,
@@ -652,6 +745,72 @@ if (languageSet.has('flutter')) {
     /\bsetAccessToken\s*\(/,
     'Flutter composed context must not proxy setAccessToken(...).',
   );
+  assertPresent(
+    failures,
+    composedContextSource,
+    /\bclearAuthToken\s*\(/,
+    'Flutter composed context must expose clearAuthToken(...).',
+  );
+  assertPresent(
+    failures,
+    composedContextSource,
+    /\bsetAuthToken\(''\);/,
+    'Flutter composed context clearAuthToken() must clear bearer auth through setAuthToken(\'\').',
+  );
+  assertPresent(
+    failures,
+    composedAuthModuleSource,
+    /\bclass CrawChatAuthModule\b/,
+    'Flutter composed layer must define CrawChatAuthModule.',
+  );
+  assertPresent(
+    failures,
+    composedAuthModuleSource,
+    /\blogin\s*\(PortalLoginRequest body\)/,
+    'Flutter auth module must expose login(PortalLoginRequest body).',
+  );
+  assertPresent(
+    failures,
+    composedAuthModuleSource,
+    /\bme\s*\(\)/,
+    'Flutter auth module must expose me().',
+  );
+  assertPresent(
+    failures,
+    composedAuthModuleSource,
+    /\buseToken\s*\(String token\)/,
+    'Flutter auth module must expose useToken(String token).',
+  );
+  assertPresent(
+    failures,
+    composedAuthModuleSource,
+    /\bclearToken\s*\(\)/,
+    'Flutter auth module must expose clearToken().',
+  );
+  assertPresent(
+    failures,
+    composedPortalModuleSource,
+    /\bclass CrawChatPortalModule\b/,
+    'Flutter composed layer must define CrawChatPortalModule.',
+  );
+  for (const portalMethod of [
+    'getHome',
+    'getAuth',
+    'getWorkspace',
+    'getDashboard',
+    'getConversations',
+    'getRealtime',
+    'getMedia',
+    'getAutomation',
+    'getGovernance',
+  ]) {
+    assertPresent(
+      failures,
+      composedPortalModuleSource,
+      new RegExp(`\\b${portalMethod}\\s*\\(`),
+      `Flutter portal module must expose ${portalMethod}().`,
+    );
+  }
 }
 
 if (failures.length > 0) {

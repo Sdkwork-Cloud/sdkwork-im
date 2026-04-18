@@ -11,10 +11,11 @@ use im_adapter_rtc_volcengine::VolcengineRtcProvider;
 use im_adapters_local_memory::MemoryRtcStateStore;
 use im_auth_context::AuthContext;
 use im_platform_contracts::{
-    ObjectStorageDownloadUrlRequest, ObjectStorageObjectDescriptor, ObjectStorageProvider,
-    ObjectStoragePutRequest, ProviderDomain, ProviderHealthSnapshot, ProviderPluginDescriptor,
-    RtcCallbackEvent, RtcCallbackRequest, RtcCreateSessionRequest, RtcParticipantCredential,
-    RtcProviderPort, RtcRecordingArtifact, RtcSessionHandle, StaticProviderRegistry,
+    ObjectStorageDownloadUrlRequest, ObjectStorageObjectDescriptor, ObjectStoragePresignedUpload,
+    ObjectStorageProvider, ObjectStoragePutRequest, ObjectStorageUploadUrlRequest, ProviderDomain,
+    ProviderHealthSnapshot, ProviderPluginDescriptor, RtcCallbackEvent, RtcCallbackRequest,
+    RtcCreateSessionRequest, RtcParticipantCredential, RtcProviderPort, RtcRecordingArtifact,
+    RtcSessionHandle, StaticProviderRegistry,
 };
 use tower::ServiceExt;
 
@@ -238,6 +239,25 @@ impl ObjectStorageProvider for TrackingObjectStorageProvider {
             object_key: request.object_key,
             content_length: request.content_length,
             etag: Some("etag-demo".into()),
+        })
+    }
+
+    fn signed_upload_url(
+        &self,
+        request: ObjectStorageUploadUrlRequest,
+    ) -> Result<ObjectStoragePresignedUpload, ContractError> {
+        Ok(ObjectStoragePresignedUpload {
+            method: "PUT".into(),
+            url: format!(
+                "{}/{}/{}?provider={}&expires={}&upload=put",
+                self.endpoint.trim_end_matches('/'),
+                request.bucket,
+                request.object_key,
+                self.plugin_id,
+                request.expires_in_seconds
+            ),
+            headers: std::collections::BTreeMap::new(),
+            expires_in_seconds: request.expires_in_seconds,
         })
     }
 

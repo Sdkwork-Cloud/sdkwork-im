@@ -619,6 +619,191 @@ fn test_device_sync_feed_projects_registered_devices_for_message_and_read_cursor
 }
 
 #[test]
+fn test_device_sync_feed_from_auth_context_hides_archived_direct_chat_entries() {
+    let service = TimelineProjectionService::default();
+
+    for event in [
+        im_domain_events::CommitEnvelope::minimal(
+            "evt_direct_member_alice",
+            "t_demo",
+            "conversation.member_joined",
+            "conversation",
+            "c_direct_archived_sync",
+            1,
+        )
+        .with_payload(
+            "conversation.member.v1",
+            r#"{
+                "tenantId":"t_demo",
+                "conversationId":"c_direct_archived_sync",
+                "memberId":"cm_direct_archived_sync_alice",
+                "principalId":"u_alice",
+                "principalKind":"user",
+                "role":"owner",
+                "state":"joined",
+                "invitedBy":null,
+                "joinedAt":"2026-04-15T10:00:00Z",
+                "removedAt":null,
+                "attributes":{}
+            }"#,
+        ),
+        im_domain_events::CommitEnvelope::minimal(
+            "evt_direct_member_bob",
+            "t_demo",
+            "conversation.member_joined",
+            "conversation",
+            "c_direct_archived_sync",
+            2,
+        )
+        .with_payload(
+            "conversation.member.v1",
+            r#"{
+                "tenantId":"t_demo",
+                "conversationId":"c_direct_archived_sync",
+                "memberId":"cm_direct_archived_sync_bob",
+                "principalId":"u_bob",
+                "principalKind":"user",
+                "role":"member",
+                "state":"joined",
+                "invitedBy":"u_alice",
+                "joinedAt":"2026-04-15T10:00:01Z",
+                "removedAt":null,
+                "attributes":{}
+            }"#,
+        ),
+        im_domain_events::CommitEnvelope::minimal(
+            "evt_friendship_activated_archived_sync",
+            "t_demo",
+            "friendship.activated",
+            "friendship",
+            "fr_archived_sync",
+            1,
+        )
+        .with_payload(
+            "social.friendship.activated.v1",
+            r#"{
+                "friendshipId":"fr_archived_sync",
+                "userLowId":"u_alice",
+                "userHighId":"u_bob",
+                "initiatorUserId":"u_alice",
+                "directChatId":"dc_archived_sync",
+                "establishedAt":"2026-04-15T10:00:02Z"
+            }"#,
+        ),
+        im_domain_events::CommitEnvelope::minimal(
+            "evt_direct_chat_bound_archived_sync",
+            "t_demo",
+            "direct_chat.bound",
+            "direct_chat",
+            "dc_archived_sync",
+            1,
+        )
+        .with_payload(
+            "social.direct_chat.bound.v1",
+            r#"{
+                "directChatId":"dc_archived_sync",
+                "conversationId":"c_direct_archived_sync",
+                "leftActorId":"actor_alice",
+                "rightActorId":"actor_bob",
+                "pairHash":"actor_alice:actor_bob",
+                "boundAt":"2026-04-15T10:00:03Z"
+            }"#,
+        ),
+    ] {
+        service
+            .apply(&event)
+            .expect("direct chat setup projection should succeed");
+    }
+
+    service.register_device_for_principal_kind("t_demo", "u_alice", "user", "d_alice_phone");
+    service.register_device_for_principal_kind("t_demo", "u_alice", "user", "d_alice_pad");
+
+    let alice_auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u_alice".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_archived_sync_alice".into()),
+        device_id: Some("d_alice_pad".into()),
+        permissions: Default::default(),
+    };
+
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_archived_sync_message",
+                "t_demo",
+                "message.posted",
+                "conversation",
+                "c_direct_archived_sync",
+                3,
+            )
+            .with_payload(
+                "message.posted.v1",
+                r#"{
+                    "tenantId":"t_demo",
+                    "conversationId":"c_direct_archived_sync",
+                    "messageId":"msg_archived_sync_1",
+                    "messageSeq":1,
+                    "sender":{"id":"u_alice","kind":"user","memberId":"cm_direct_archived_sync_alice","deviceId":"d_alice_phone","sessionId":"s_archived_sync_alice","metadata":{}},
+                    "messageType":"standard",
+                    "deliveryMode":"discrete",
+                    "clientMsgId":"client_archived_sync_1",
+                    "streamSessionId":null,
+                    "rtcSessionId":null,
+                    "body":{"summary":"before removal","parts":[{"kind":"text","text":"before removal"}],"renderHints":{}},
+                    "attributes":{},
+                    "metadata":{},
+                    "occurredAt":"2026-04-15T10:00:04Z",
+                    "committedAt":"2026-04-15T10:00:04Z"
+                }"#,
+            ),
+        )
+        .expect("seed message projection should succeed");
+
+    let feed_before = service
+        .device_sync_feed_from_auth_context(&alice_auth, "d_alice_pad", Some(0))
+        .expect("active direct chat sync feed should be accessible");
+    assert_eq!(feed_before.len(), 1);
+    assert_eq!(
+        feed_before[0].conversation_id.as_deref(),
+        Some("c_direct_archived_sync")
+    );
+
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_friendship_removed_archived_sync",
+                "t_demo",
+                "friendship.removed",
+                "friendship",
+                "fr_archived_sync",
+                2,
+            )
+            .with_payload(
+                "social.friendship.removed.v1",
+                r#"{
+                    "friendshipId":"fr_archived_sync",
+                    "userLowId":"u_alice",
+                    "userHighId":"u_bob",
+                    "removedByUserId":"u_alice",
+                    "removedAt":"2026-04-15T10:00:05Z"
+                }"#,
+            ),
+        )
+        .expect("friendship removal projection should succeed");
+
+    assert!(service.is_archived_direct_chat_conversation("t_demo", "c_direct_archived_sync"));
+
+    let feed_after = service
+        .device_sync_feed_from_auth_context(&alice_auth, "d_alice_pad", Some(0))
+        .expect("archived direct chat sync feed should remain accessible");
+    assert!(
+        feed_after.is_empty(),
+        "archived direct chat entries must disappear from device sync feed"
+    );
+}
+
+#[test]
 fn test_member_governance_events_project_typed_sync_feed_deltas() {
     let service = TimelineProjectionService::default();
 

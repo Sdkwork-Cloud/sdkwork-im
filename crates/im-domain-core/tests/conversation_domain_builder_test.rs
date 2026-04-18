@@ -9,7 +9,8 @@ use im_domain_core::conversation::{
     member_id,
 };
 use im_domain_core::message::{
-    ContentPart, ConversationMessageLog, Message, MessageBody, MessageEdited, MessageLocatorIndex,
+    CRAW_CHAT_MESSAGE_SCHEMA_CARD, CRAW_CHAT_MESSAGE_SCHEMA_LOCATION, ContentPart,
+    ConversationMessageLog, DataPart, Message, MessageBody, MessageEdited, MessageLocatorIndex,
     MessageRecalled, MessageType, Sender,
 };
 
@@ -279,6 +280,66 @@ fn test_conversation_message_log_applies_edit_and_recall_mutations() {
     );
     assert_eq!(log.high_watermark(), 7);
     assert_eq!(log.unread_count_since(3), 4);
+}
+
+#[test]
+fn test_conversation_message_log_derives_summary_for_missing_rich_message_summaries() {
+    let mut log = ConversationMessageLog::default();
+    let mut message = demo_message(8);
+    message.body = MessageBody {
+        summary: None,
+        parts: vec![ContentPart::Data(DataPart {
+            schema_ref: CRAW_CHAT_MESSAGE_SCHEMA_LOCATION.into(),
+            encoding: "application/json".into(),
+            payload: serde_json::json!({
+                "name": "The Bund",
+                "latitude": 31.2400,
+                "longitude": 121.4900
+            })
+            .to_string(),
+        })],
+        render_hints: BTreeMap::new(),
+    };
+    log.store_posted(message.clone());
+
+    let stored = log
+        .message(message.message_id.as_str())
+        .expect("stored message should exist after derived summary");
+    assert_eq!(
+        stored.message.body.summary.as_deref(),
+        Some("Location: The Bund")
+    );
+
+    let edited = MessageEdited {
+        tenant_id: message.tenant_id.clone(),
+        conversation_id: message.conversation_id.clone(),
+        message_id: message.message_id.clone(),
+        message_seq: message.message_seq,
+        body: MessageBody {
+            summary: None,
+            parts: vec![ContentPart::Data(DataPart {
+                schema_ref: CRAW_CHAT_MESSAGE_SCHEMA_CARD.into(),
+                encoding: "application/json".into(),
+                payload: serde_json::json!({
+                    "title": "Escalation runbook"
+                })
+                .to_string(),
+            })],
+            render_hints: BTreeMap::new(),
+        },
+        editor: demo_sender(),
+        edited_at: "2026-04-07T12:08:30.000Z".into(),
+    };
+    log.apply_edited(&edited)
+        .expect("edited message should stay stored");
+
+    let stored_after_edit = log
+        .message(message.message_id.as_str())
+        .expect("stored message should exist after edit");
+    assert_eq!(
+        stored_after_edit.message.body.summary.as_deref(),
+        Some("Card: Escalation runbook")
+    );
 }
 
 #[test]

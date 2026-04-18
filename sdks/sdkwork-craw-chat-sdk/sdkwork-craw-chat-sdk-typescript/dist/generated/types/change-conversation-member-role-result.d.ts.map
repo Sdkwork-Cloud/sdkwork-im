@@ -1,0 +1,1 @@
+{"version":3,"file":"change-conversation-member-role-result.d.ts","sourceRoot":"","sources":["../../../src/generated/types/change-conversation-member-role-result.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,kBAAkB,EAAE,MAAM,0BAA0B,CAAC;AAEnE,MAAM,WAAW,kCAAkC;IACjD,OAAO,EAAE,MAAM,CAAC;IAChB,SAAS,EAAE,MAAM,CAAC;IAClB,cAAc,EAAE,kBAAkB,CAAC;IACnC,aAAa,EAAE,kBAAkB,CAAC;CACnC"}

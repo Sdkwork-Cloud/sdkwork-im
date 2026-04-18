@@ -2,6 +2,21 @@
 
 This workspace owns the Flutter package surface for the Craw Chat app SDK family.
 
+## Consumer Package Standard
+
+The official Flutter app-consumer package in this workspace is `craw_chat_sdk`.
+
+- package name: `craw_chat_sdk`
+- library entrypoint: `package:craw_chat_sdk/craw_chat_sdk.dart`
+- primary client: `CrawChatClient`
+- manual-owned consumer layer: `composed`
+- generator-owned transport boundary: `backend_sdk`
+- low-level generated entrypoint: `package:backend_sdk/backend_sdk.dart`
+
+For most Flutter app integrations, import `craw_chat_sdk`.
+That root library re-exports the generated `backend_sdk` package, so generated models and low-level
+transport stay reachable without making `backend_sdk` the default app-consumer dependency.
+
 ## Layout
 
 - `generated/server-openapi`
@@ -19,6 +34,8 @@ This workspace follows the layered Flutter IM-family pattern:
 
 - generated HTTP SDK lives in `generated/server-openapi`
 - composed Flutter SDK lives in `composed`
+- `craw_chat_sdk` is the official app-facing Flutter package
+- `craw_chat_sdk` re-exports `package:backend_sdk/backend_sdk.dart`
 - any future handwritten realtime adapter must live outside generated output
 
 Do not hand-edit the generated package. Change the root OpenAPI inputs or generator wrappers and regenerate.
@@ -32,11 +49,31 @@ The manual `composed` layer consumes the generated package only through `package
 The primary app-facing Flutter package is `composed/pubspec.yaml`:
 
 - package name: `craw_chat_sdk`
-- library entrypoint: `composed/lib/craw_chat_sdk.dart`
+- library entrypoint: `package:craw_chat_sdk/craw_chat_sdk.dart`
 - main capabilities:
   - `CrawChatClient`
   - business modules for sessions, presence, realtime HTTP, devices, inbox, conversations, messages, media, streams, and RTC
   - convenience builders for text messages, text stream frames, and JSON RTC signals
+- the root library re-exports the generated `backend_sdk` package for low-level transport access
+
+## Current Surface Reality
+
+The checked-in Flutter SDK is intentionally narrower than the TypeScript package:
+
+- `craw_chat_sdk` re-exports `backend_sdk`, whose package root now exports generated `AuthApi` and
+  `PortalApi` symbols.
+- `SdkworkBackendClient` mounts `client.auth` and `client.portal`, and `CrawChatClient` exposes
+  those capabilities as `sdk.auth` and `sdk.portal`.
+- `sdk.auth.login(...)` automatically applies the returned `accessToken` when the backend returns
+  one, while `sdk.auth.useToken(...)` and `sdk.auth.clearToken()` provide explicit token control.
+- The checked-in Flutter SDK has no delivered WebSocket adapter and does not ship `sdk.connect(...)`.
+- The checked-in Flutter SDK does not yet ship a `sdk.createXxxMessage()` / `sdk.send()` /
+  `sdk.decodeMessage()` message-first surface; that richer outbound builder family still lives in
+  TypeScript today.
+- Dart consumers currently post outbound text and route-aligned messages through
+  `sdk.conversations.postText(...)`, `sdk.conversations.publishSystemText(...)`,
+  `sdk.media.attachText(...)`, and `CrawChatBuilders.*`.
+- Realtime in the checked-in Flutter SDK is HTTP coordination only today.
 
 ## Generate
 
@@ -84,8 +121,9 @@ On Windows, that native Dart path resolves Flutter's bundled `dart.exe`, isolate
 
 ## Current Round Scope
 
-This round generates the app-facing HTTP SDK for:
+This round generates Flutter transport and composed coverage for:
 
+- mounted portal auth and portal snapshot APIs on both generated and composed Flutter clients
 - sessions
 - presence
 - realtime HTTP coordination
@@ -96,7 +134,8 @@ This round generates the app-facing HTTP SDK for:
 - streams
 - RTC
 
-The websocket transport is documented at the workspace root but is not implemented as a handwritten Flutter adapter in this round.
+The websocket transport is documented at the workspace root but is not implemented as a handwritten
+Flutter adapter in this round.
 
 ## Release Placeholder Boundary
 

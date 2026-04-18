@@ -2,6 +2,7 @@ library craw_chat_sdk;
 
 export 'package:backend_sdk/backend_sdk.dart';
 
+export 'src/auth_module.dart';
 export 'src/builders.dart';
 export 'src/context.dart';
 export 'src/conversations_module.dart';
@@ -9,6 +10,7 @@ export 'src/device_module.dart';
 export 'src/inbox_module.dart';
 export 'src/media_module.dart';
 export 'src/messages_module.dart';
+export 'src/portal_module.dart';
 export 'src/presence_module.dart';
 export 'src/realtime_module.dart';
 export 'src/rtc_module.dart';
@@ -18,12 +20,14 @@ export 'src/types.dart';
 
 import 'package:backend_sdk/backend_sdk.dart';
 
+import 'src/auth_module.dart';
 import 'src/context.dart';
 import 'src/conversations_module.dart';
 import 'src/device_module.dart';
 import 'src/inbox_module.dart';
 import 'src/media_module.dart';
 import 'src/messages_module.dart';
+import 'src/portal_module.dart';
 import 'src/presence_module.dart';
 import 'src/realtime_module.dart';
 import 'src/rtc_module.dart';
@@ -36,6 +40,8 @@ class CrawChatClient {
 
   final SdkworkBackendClient backendClient;
 
+  late final CrawChatAuthModule auth;
+  late final CrawChatPortalModule portal;
   late final CrawChatSessionModule session;
   late final CrawChatPresenceModule presence;
   late final CrawChatRealtimeModule realtime;
@@ -50,6 +56,8 @@ class CrawChatClient {
   CrawChatClient(CrawChatClientOptions options)
       : backendClient = options.backendClient,
         _context = CrawChatSdkContext(options.backendClient) {
+    auth = CrawChatAuthModule(_context);
+    portal = CrawChatPortalModule(_context);
     session = CrawChatSessionModule(_context);
     presence = CrawChatPresenceModule(_context);
     realtime = CrawChatRealtimeModule(_context);

@@ -7,8 +7,12 @@ version.workspace = true
 [dependencies]
 audit-service = { path = "../audit-service" }
 axum.workspace = true
+base64 = "0.22.1"
 bytes = "1.11.1"
 craw-chat-ccp-registry = { path = "../../crates/craw-chat-ccp-registry" }
+fs4 = "0.13.1"
+getrandom = "0.3.4"
+hmac = "0.12.1"
 http-body-util.workspace = true
 hyper = { version = "1.9.0", features = ["client", "http1"] }
 hyper-util = { version = "0.1.20", features = ["client", "client-legacy", "http1", "tokio"] }

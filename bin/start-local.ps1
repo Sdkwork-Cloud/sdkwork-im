@@ -266,6 +266,18 @@ else {
 if ([string]::IsNullOrWhiteSpace($resolvedPublicBearerSecret)) {
     throw "CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET must be configured before starting local-minimal-node."
 }
+$configFriendRequestCursorSecret = Resolve-ConfigValueFromProfile -Root $root -ProfileName $ProfileName -Key "CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET"
+$resolvedFriendRequestCursorSecret = if ([string]::IsNullOrWhiteSpace($configFriendRequestCursorSecret)) {
+    if ([string]::IsNullOrWhiteSpace($env:CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET)) {
+        $resolvedPublicBearerSecret
+    }
+    else {
+        $env:CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET
+    }
+}
+else {
+    $configFriendRequestCursorSecret
+}
 
 $previousBindAddress = $env:CRAW_CHAT_BIND_ADDR
 $hadPreviousBindAddress = $null -ne $previousBindAddress
@@ -273,9 +285,12 @@ $previousRuntimeDir = $env:CRAW_CHAT_RUNTIME_DIR
 $hadPreviousRuntimeDir = $null -ne $previousRuntimeDir
 $previousPublicBearerSecret = $env:CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET
 $hadPreviousPublicBearerSecret = $null -ne $previousPublicBearerSecret
+$previousFriendRequestCursorSecret = $env:CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET
+$hadPreviousFriendRequestCursorSecret = $null -ne $previousFriendRequestCursorSecret
 $env:CRAW_CHAT_BIND_ADDR = $resolvedBindAddress
 $env:CRAW_CHAT_RUNTIME_DIR = $resolvedRuntimeDir
 $env:CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET = $resolvedPublicBearerSecret
+$env:CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET = $resolvedFriendRequestCursorSecret
 
 try {
     if ($Foreground) {
@@ -352,5 +367,12 @@ finally {
     }
     else {
         Remove-Item Env:CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET -ErrorAction SilentlyContinue
+    }
+
+    if ($hadPreviousFriendRequestCursorSecret) {
+        $env:CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET = $previousFriendRequestCursorSecret
+    }
+    else {
+        Remove-Item Env:CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET -ErrorAction SilentlyContinue
     }
 }

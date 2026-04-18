@@ -5,6 +5,11 @@
   current principal.
 </p>
 
+<div class="api-link-list">
+  <a href="/api-reference/platform/automation"><code>Automation</code> Automation executions are documented separately</a>
+  <a href="/sdk/index"><code>SDK</code> Treat notifications as an HTTP-first operational surface unless a backend consumer layer is explicitly documented</a>
+</div>
+
 <a id="request-notification"></a>
 <section class="api-op">
 

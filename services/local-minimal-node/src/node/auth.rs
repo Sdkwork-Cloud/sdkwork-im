@@ -188,19 +188,6 @@ const SEEDED_ACCOUNTS: &[SeedAccountDefinition] = &[
             "stream.*",
         ],
     },
-    SeedAccountDefinition {
-        tenant_id: "t_demo",
-        account_id: "acct_portal_demo",
-        login: "ops_demo",
-        password: "Portal#2026",
-        client_kind: CLIENT_KIND_PORTAL_OPERATOR,
-        actor_id: "ops_demo",
-        actor_kind: "user",
-        name: "Lin Tao",
-        role: "Tenant Operations Lead",
-        email: "lin.tao@nebula-commerce.example",
-        permissions: &["portal.access", "portal.read", "ops.read", "audit.read"],
-    },
 ];
 
 impl AuthRuntime {
@@ -536,7 +523,9 @@ fn account_user_view(account: &AuthAccountRecord) -> AuthUserView {
 
 fn workspace_for_account(account: &AuthAccountRecord) -> Option<Value> {
     if account.client_kind == CLIENT_KIND_PORTAL_OPERATOR {
-        Some(super::portal::workspace_snapshot())
+        Some(super::portal::workspace_snapshot_for_tenant(
+            account.tenant_id.as_str(),
+        ))
     } else {
         None
     }

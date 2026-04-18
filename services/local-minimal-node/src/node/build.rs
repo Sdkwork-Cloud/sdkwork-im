@@ -248,7 +248,10 @@ fn build_default_app_with_bind_addr_and_runtime_dir_and_user_module_provider(
     let runtime_dir = runtime_dir.as_ref().to_path_buf();
     let projection_snapshot_stores =
         build_local_minimal_projection_snapshot_stores(runtime_dir.as_path());
-    let realtime_plane = build_local_minimal_realtime_plane(runtime_dir.as_path());
+    let realtime_scope_policy =
+        realtime_policy::direct_chat_realtime_policy(projection_service.clone());
+    let realtime_plane =
+        build_local_minimal_realtime_plane(runtime_dir.as_path(), realtime_scope_policy.clone());
     let journal = ProjectionJournal::new_file(
         projection_service.clone(),
         runtime_dir
@@ -264,6 +267,7 @@ fn build_default_app_with_bind_addr_and_runtime_dir_and_user_module_provider(
         projection_service.clone(),
         realtime_plane,
         journal.clone(),
+        Some(realtime_scope_policy),
         build_local_minimal_streaming_runtime(runtime_dir.as_path()),
         build_local_minimal_rtc_runtime(runtime_dir.as_path()),
         build_local_minimal_notification_runtime(
@@ -287,7 +291,10 @@ fn build_default_app_with_bind_addr_and_runtime_dir_and_device_access_provider(
     let runtime_dir = runtime_dir.as_ref().to_path_buf();
     let projection_snapshot_stores =
         build_local_minimal_projection_snapshot_stores(runtime_dir.as_path());
-    let realtime_plane = build_local_minimal_realtime_plane(runtime_dir.as_path());
+    let realtime_scope_policy =
+        realtime_policy::direct_chat_realtime_policy(projection_service.clone());
+    let realtime_plane =
+        build_local_minimal_realtime_plane(runtime_dir.as_path(), realtime_scope_policy.clone());
     let journal = ProjectionJournal::new_file(
         projection_service.clone(),
         runtime_dir
@@ -303,6 +310,7 @@ fn build_default_app_with_bind_addr_and_runtime_dir_and_device_access_provider(
         projection_service.clone(),
         realtime_plane,
         journal.clone(),
+        Some(realtime_scope_policy),
         build_local_minimal_streaming_runtime(runtime_dir.as_path()),
         build_local_minimal_rtc_runtime(runtime_dir.as_path()),
         build_local_minimal_notification_runtime(
@@ -326,7 +334,10 @@ fn build_default_app_with_bind_addr_and_runtime_dir_and_iot_protocol_adapter(
     let runtime_dir = runtime_dir.as_ref().to_path_buf();
     let projection_snapshot_stores =
         build_local_minimal_projection_snapshot_stores(runtime_dir.as_path());
-    let realtime_plane = build_local_minimal_realtime_plane(runtime_dir.as_path());
+    let realtime_scope_policy =
+        realtime_policy::direct_chat_realtime_policy(projection_service.clone());
+    let realtime_plane =
+        build_local_minimal_realtime_plane(runtime_dir.as_path(), realtime_scope_policy.clone());
     let journal = ProjectionJournal::new_file(
         projection_service.clone(),
         runtime_dir
@@ -342,6 +353,7 @@ fn build_default_app_with_bind_addr_and_runtime_dir_and_iot_protocol_adapter(
         projection_service.clone(),
         realtime_plane,
         journal.clone(),
+        Some(realtime_scope_policy),
         build_local_minimal_streaming_runtime(runtime_dir.as_path()),
         build_local_minimal_rtc_runtime(runtime_dir.as_path()),
         build_local_minimal_notification_runtime(
@@ -364,7 +376,10 @@ fn build_public_app_with_bind_addr_and_runtime_dir(
     let runtime_dir = runtime_dir.as_ref().to_path_buf();
     let projection_snapshot_stores =
         build_local_minimal_projection_snapshot_stores(runtime_dir.as_path());
-    let realtime_plane = build_local_minimal_realtime_plane(runtime_dir.as_path());
+    let realtime_scope_policy =
+        realtime_policy::direct_chat_realtime_policy(projection_service.clone());
+    let realtime_plane =
+        build_local_minimal_realtime_plane(runtime_dir.as_path(), realtime_scope_policy.clone());
     let journal = ProjectionJournal::new_file(
         projection_service.clone(),
         runtime_dir
@@ -380,6 +395,7 @@ fn build_public_app_with_bind_addr_and_runtime_dir(
         projection_service.clone(),
         realtime_plane,
         journal.clone(),
+        Some(realtime_scope_policy),
         build_local_minimal_streaming_runtime(runtime_dir.as_path()),
         build_local_minimal_rtc_runtime(runtime_dir.as_path()),
         build_local_minimal_notification_runtime(
@@ -397,10 +413,14 @@ fn build_public_app_with_bind_addr_and_runtime_dir(
 }
 
 fn build_public_browser_cors_layer() -> CorsLayer {
-    let allowed_origins = [
-        "http://127.0.0.1:4176".parse().expect("valid localhost origin"),
-        "http://localhost:4176".parse().expect("valid localhost origin"),
-    ];
+    let allowed_origins = resolve_public_browser_origins()
+        .into_iter()
+        .map(|origin| {
+            origin
+                .parse::<axum::http::HeaderValue>()
+                .expect("configured browser origin should be a valid header value")
+        })
+        .collect::<Vec<_>>();
     CorsLayer::new()
         .allow_origin(AllowOrigin::list(allowed_origins))
         .allow_methods(AllowMethods::list([
@@ -414,32 +434,47 @@ fn build_public_browser_cors_layer() -> CorsLayer {
         ]))
 }
 
-fn build_local_minimal_realtime_plane(runtime_dir: impl AsRef<StdPath>) -> RealtimePlaneAssembly {
-    RealtimePlaneAssembly::with_stores(
-        Arc::new(FileRealtimeDisconnectFenceStore::new(
-            runtime_dir
-                .as_ref()
-                .join("state")
-                .join("realtime-disconnect-fences.json"),
+fn build_local_minimal_realtime_plane(
+    runtime_dir: impl AsRef<StdPath>,
+    scope_access_policy: Arc<dyn RealtimeScopeAccessPolicy>,
+) -> RealtimePlaneAssembly {
+    let disconnect_fence_store = Arc::new(FileRealtimeDisconnectFenceStore::new(
+        runtime_dir
+            .as_ref()
+            .join("state")
+            .join("realtime-disconnect-fences.json"),
+    ));
+    let checkpoint_store = Arc::new(FileRealtimeCheckpointStore::new(
+        runtime_dir
+            .as_ref()
+            .join("state")
+            .join("realtime-checkpoints.json"),
+    ));
+    let subscription_store = Arc::new(FileRealtimeSubscriptionStore::new(
+        runtime_dir
+            .as_ref()
+            .join("state")
+            .join("realtime-subscriptions.json"),
+    ));
+    let presence_state_store = Arc::new(FilePresenceStateStore::new(
+        runtime_dir
+            .as_ref()
+            .join("state")
+            .join("presence-state.json"),
+    ));
+
+    RealtimePlaneAssembly::new(
+        Arc::new(RealtimeClusterBridge::with_disconnect_fence_store(
+            disconnect_fence_store,
         )),
-        Arc::new(FileRealtimeCheckpointStore::new(
-            runtime_dir
-                .as_ref()
-                .join("state")
-                .join("realtime-checkpoints.json"),
-        )),
-        Arc::new(FileRealtimeSubscriptionStore::new(
-            runtime_dir
-                .as_ref()
-                .join("state")
-                .join("realtime-subscriptions.json"),
-        )),
-        Arc::new(FilePresenceStateStore::new(
-            runtime_dir
-                .as_ref()
-                .join("state")
-                .join("presence-state.json"),
-        )),
+        Arc::new(
+            RealtimeDeliveryRuntime::with_stores_and_scope_access_policy(
+                checkpoint_store,
+                subscription_store,
+                scope_access_policy,
+            ),
+        ),
+        Arc::new(SessionPresenceRuntime::with_store(presence_state_store)),
     )
 }
 
@@ -514,21 +549,21 @@ fn build_local_minimal_control_plane_app(
     ops_runtime: Arc<OpsRuntime>,
     audit_runtime: Arc<AuditRuntime>,
     runtime_dir: Option<&StdPath>,
-) -> Router {
+) -> (Router, Arc<control_plane_api::SocialControlQuery>) {
     let shared_channel_sync_trigger: Arc<dyn SharedChannelLinkedMemberSyncTrigger> =
         Arc::new(LocalMinimalSharedChannelLinkedMemberSyncTrigger {
             conversation_runtime,
         });
 
     match runtime_dir {
-        Some(runtime_dir) => control_plane_api::build_control_surface_with_cluster_and_governance_sinks_and_runtime_dir_and_shared_channel_sync_trigger(
+        Some(runtime_dir) => control_plane_api::build_control_surface_with_cluster_and_governance_sinks_and_runtime_dir_and_shared_channel_sync_trigger_with_social_query(
             realtime_cluster,
             ops_runtime,
             audit_runtime,
             runtime_dir,
             shared_channel_sync_trigger,
         ),
-        None => control_plane_api::build_control_surface_with_cluster_and_governance_sinks_and_shared_channel_sync_trigger(
+        None => control_plane_api::build_control_surface_with_cluster_and_governance_sinks_and_shared_channel_sync_trigger_with_social_query(
             realtime_cluster,
             ops_runtime,
             audit_runtime,
@@ -563,10 +598,15 @@ fn build_app_with_dependencies_and_provider_ports(
     device_access_provider: Arc<dyn DeviceAccessProvider>,
     iot_protocol_adapter: Arc<dyn IotProtocolAdapter>,
 ) -> Router {
+    let realtime_scope_policy =
+        realtime_policy::direct_chat_realtime_policy(projection_service.clone());
     let journal = ProjectionJournal::new_memory(projection_service.clone());
-    let realtime_runtime = Arc::new(RealtimeDeliveryRuntime::with_checkpoint_store(Arc::new(
-        MemoryRealtimeCheckpointStore::default(),
-    )));
+    let realtime_runtime = Arc::new(
+        RealtimeDeliveryRuntime::with_checkpoint_store_and_scope_access_policy(
+            Arc::new(MemoryRealtimeCheckpointStore::default()),
+            realtime_scope_policy.clone(),
+        ),
+    );
     build_app_with_dependencies_and_runtime_and_journal(
         node_id,
         bind_addr,
@@ -574,6 +614,7 @@ fn build_app_with_dependencies_and_provider_ports(
         projection_service.clone(),
         RealtimePlaneAssembly::with_cluster_and_runtime(realtime_cluster, realtime_runtime),
         journal.clone(),
+        Some(realtime_scope_policy),
         Arc::new(StreamingRuntime::default()),
         Arc::new(RtcRuntime::default()),
         Arc::new(NotificationRuntime::with_journal_and_projection(
@@ -602,6 +643,7 @@ pub fn build_app_with_dependencies_and_runtime(
         projection_service.clone(),
         RealtimePlaneAssembly::with_cluster_and_runtime(realtime_cluster, realtime_runtime),
         journal.clone(),
+        None,
         Arc::new(StreamingRuntime::default()),
         Arc::new(RtcRuntime::default()),
         Arc::new(NotificationRuntime::with_journal_and_projection(
@@ -625,6 +667,7 @@ fn build_app_with_dependencies_and_runtime_and_journal(
     projection_service: Arc<TimelineProjectionService>,
     realtime_plane: RealtimePlaneAssembly,
     journal: ProjectionJournal,
+    realtime_scope_policy: Option<Arc<realtime_policy::DirectChatRealtimePolicy>>,
     streaming_runtime: Arc<StreamingRuntime>,
     rtc_runtime: Arc<RtcRuntime>,
     notification_runtime: Arc<NotificationRuntime>,
@@ -645,6 +688,7 @@ fn build_app_with_dependencies_and_runtime_and_journal(
         projection_service.as_ref(),
         conversation_runtime.as_ref(),
     );
+    journal.set_applied_event_count(replay_summary.recorded_event_count);
     projection_service.record_projection_replay_metrics(
         replay_summary.backlog_size,
         replay_summary.replayed_event_count,
@@ -677,13 +721,16 @@ fn build_app_with_dependencies_and_runtime_and_journal(
     ));
     ops_runtime.update_projection_replay_lag(replay_summary.lag_items);
     let audit_runtime = Arc::new(AuditRuntime::default());
-    let control_plane_app = build_local_minimal_control_plane_app(
+    let (control_plane_app, social_query) = build_local_minimal_control_plane_app(
         realtime_cluster.clone(),
         conversation_runtime.clone(),
         ops_runtime.clone(),
         audit_runtime.clone(),
         runtime_dir.as_deref(),
     );
+    if let Some(realtime_scope_policy) = realtime_scope_policy.as_ref() {
+        realtime_scope_policy.bind_social_query(social_query.clone());
+    }
     let device_registration = LocalNodeDeviceRegistration::new(
         node_id.clone(),
         realtime_cluster.clone(),
@@ -703,10 +750,14 @@ fn build_app_with_dependencies_and_runtime_and_journal(
         None => Arc::new(MemoryDeviceTwinStore::default()),
     };
     let auth_runtime = Arc::new(auth::AuthRuntime::new(runtime_dir.clone()));
+    let pending_friend_request_accept_repairs =
+        social::load_pending_friend_request_accept_repairs(runtime_dir.as_deref());
     let state = AppState {
         node_id: node_id.clone(),
         runtime_dir,
         auth_runtime,
+        control_plane_app: control_plane_app.clone(),
+        social_query,
         realtime_cluster,
         conversation_runtime,
         user_module_provider,
@@ -723,7 +774,13 @@ fn build_app_with_dependencies_and_runtime_and_journal(
         automation_runtime,
         audit_runtime,
         ops_runtime,
+        projection_replay_state: journal.replay_state(),
+        pending_friend_request_accept_repairs: Arc::new(std::sync::Mutex::new(
+            pending_friend_request_accept_repairs,
+        )),
+        friend_request_accept_repair_gate: Arc::new(tokio::sync::Mutex::new(())),
     };
+    social::spawn_pending_friend_request_accept_repair(state.clone());
     platform::refresh_node_operational_view(&state);
     build_app(state).merge(control_plane_app)
 }
@@ -731,6 +788,7 @@ fn build_app_with_dependencies_and_runtime_and_journal(
 struct ProjectionReplaySummary {
     backlog_size: u64,
     replayed_event_count: u64,
+    recorded_event_count: usize,
     duration_ms: u64,
     rebuild_duration_ms: u64,
     lag_items: Vec<LagItem>,
@@ -826,9 +884,12 @@ fn replay_projection_journal(
         }
     }
 
+    journal.mark_social_projection_events(recorded.iter());
+
     ProjectionReplaySummary {
         backlog_size,
         replayed_event_count,
+        recorded_event_count: recorded.len(),
         duration_ms: if replayed_event_count == 0 {
             0
         } else {
@@ -847,6 +908,7 @@ fn build_app(state: AppState) -> Router {
     Router::new()
         .route("/healthz", get(healthz))
         .route("/readyz", get(readyz))
+        .route(APP_OPENAPI_SCHEMA_PATH, get(export_app_openapi_schema))
         .route("/api/v1/auth/login", post(auth::login))
         .route("/api/v1/auth/refresh", post(auth::refresh))
         .route("/api/v1/auth/me", get(auth::me))
@@ -854,7 +916,10 @@ fn build_app(state: AppState) -> Router {
         .route("/api/v1/portal/auth", get(portal::get_auth))
         .route("/api/v1/portal/workspace", get(portal::get_workspace))
         .route("/api/v1/portal/dashboard", get(portal::get_dashboard))
-        .route("/api/v1/portal/conversations", get(portal::get_conversations))
+        .route(
+            "/api/v1/portal/conversations",
+            get(portal::get_conversations),
+        )
         .route("/api/v1/portal/realtime", get(portal::get_realtime))
         .route("/api/v1/portal/media", get(portal::get_media))
         .route("/api/v1/portal/automation", get(portal::get_automation))
@@ -898,6 +963,26 @@ fn build_app(state: AppState) -> Router {
         .route(
             "/api/v1/devices/{device_id}/twin/reported",
             post(twin::update_device_twin_reported),
+        )
+        .route(
+            "/api/v1/social/friend-requests",
+            get(social::list_friend_requests).post(social::submit_friend_request),
+        )
+        .route(
+            "/api/v1/social/friend-requests/{request_id}/accept",
+            post(social::accept_friend_request),
+        )
+        .route(
+            "/api/v1/social/friend-requests/{request_id}/decline",
+            post(social::decline_friend_request),
+        )
+        .route(
+            "/api/v1/social/friend-requests/{request_id}/cancel",
+            post(social::cancel_friend_request),
+        )
+        .route(
+            "/api/v1/social/friendships/{friendship_id}/remove",
+            post(social::remove_friendship),
         )
         .route("/api/v1/contacts", get(projection::get_contacts))
         .route("/api/v1/inbox", get(projection::get_inbox))

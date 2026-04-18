@@ -10,6 +10,8 @@ servers:
 security:
   - bearerAuth: []
 tags:
+  - name: auth
+  - name: portal
   - name: session
   - name: realtime
   - name: device
@@ -22,6 +24,189 @@ tags:
   - name: stream
   - name: rtc
 paths:
+  /api/v1/auth/login:
+    post:
+      tags: [auth]
+      operationId: login
+      summary: Sign in to the tenant portal
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PortalLoginRequest'
+      responses:
+        '200':
+          description: Signed-in portal session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalLoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '413':
+          $ref: '#/components/responses/BadRequestError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailableError'
+  /api/v1/auth/me:
+    get:
+      tags: [auth]
+      operationId: me
+      summary: Read the current portal session
+      responses:
+        '200':
+          description: Current portal session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalMeResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailableError'
+  /api/v1/portal/home:
+    get:
+      tags: [portal]
+      operationId: getHome
+      summary: Read the tenant portal home snapshot
+      security: []
+      responses:
+        '200':
+          description: Tenant portal home snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalSnapshot'
+  /api/v1/portal/auth:
+    get:
+      tags: [portal]
+      operationId: getAuth
+      summary: Read the tenant portal sign-in snapshot
+      security: []
+      responses:
+        '200':
+          description: Tenant portal sign-in snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalSnapshot'
+  /api/v1/portal/workspace:
+    get:
+      tags: [portal]
+      operationId: getWorkspace
+      summary: Read the current tenant workspace snapshot
+      responses:
+        '200':
+          description: Tenant workspace snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalWorkspaceView'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+  /api/v1/portal/dashboard:
+    get:
+      tags: [portal]
+      operationId: getDashboard
+      summary: Read the tenant dashboard snapshot
+      responses:
+        '200':
+          description: Tenant dashboard snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalSnapshot'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+  /api/v1/portal/conversations:
+    get:
+      tags: [portal]
+      operationId: getConversations
+      summary: Read the tenant conversations snapshot
+      responses:
+        '200':
+          description: Tenant conversations snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalSnapshot'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+  /api/v1/portal/realtime:
+    get:
+      tags: [portal]
+      operationId: getRealtime
+      summary: Read the tenant realtime snapshot
+      responses:
+        '200':
+          description: Tenant realtime snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalSnapshot'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+  /api/v1/portal/media:
+    get:
+      tags: [portal]
+      operationId: getMedia
+      summary: Read the tenant media snapshot
+      responses:
+        '200':
+          description: Tenant media snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalSnapshot'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+  /api/v1/portal/automation:
+    get:
+      tags: [portal]
+      operationId: getAutomation
+      summary: Read the tenant automation snapshot
+      responses:
+        '200':
+          description: Tenant automation snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalSnapshot'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+  /api/v1/portal/governance:
+    get:
+      tags: [portal]
+      operationId: getGovernance
+      summary: Read the tenant governance snapshot
+      responses:
+        '200':
+          description: Tenant governance snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalSnapshot'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
   /api/v1/sessions/resume:
     post:
       tags: [session]
@@ -834,11 +1019,11 @@ paths:
               $ref: '#/components/schemas/CreateUploadRequest'
       responses:
         '200':
-          description: Media asset upload record
+          description: Media asset upload session
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MediaAsset'
+                $ref: '#/components/schemas/MediaUploadSessionResponse'
         '400':
           $ref: '#/components/responses/BadRequestError'
         '401':
@@ -1476,6 +1661,111 @@ components:
           type: string
         message:
           type: string
+    PortalSnapshot:
+      type: object
+      additionalProperties: true
+    PortalLoginRequest:
+      type: object
+      required: [tenantId, login, password]
+      properties:
+        tenantId:
+          type: string
+        login:
+          type: string
+        password:
+          type: string
+        deviceId:
+          type: string
+        sessionId:
+          type: string
+        clientKind:
+          type: string
+    PortalUserView:
+      type: object
+      required:
+        - id
+        - login
+        - name
+        - role
+        - email
+        - actorKind
+        - clientKind
+        - permissions
+      properties:
+        id:
+          type: string
+        login:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+        email:
+          type: string
+          format: email
+        actorKind:
+          type: string
+        clientKind:
+          type: string
+        permissions:
+          type: array
+          items:
+            type: string
+    PortalWorkspaceView:
+      type: object
+      required:
+        - name
+        - slug
+        - tier
+        - region
+        - supportPlan
+        - seats
+        - activeBrands
+        - uptime
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+        tier:
+          type: string
+        region:
+          type: string
+        supportPlan:
+          type: string
+        seats:
+          type: integer
+          format: int32
+        activeBrands:
+          type: integer
+          format: int32
+        uptime:
+          type: string
+    PortalLoginResponse:
+      type: object
+      required: [accessToken, refreshToken, expiresAt, user]
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        expiresAt:
+          type: integer
+          format: int64
+        user:
+          $ref: '#/components/schemas/PortalUserView'
+        workspace:
+          $ref: '#/components/schemas/PortalWorkspaceView'
+    PortalMeResponse:
+      type: object
+      required: [tenantId, user]
+      properties:
+        tenantId:
+          type: string
+        user:
+          $ref: '#/components/schemas/PortalUserView'
+        workspace:
+          $ref: '#/components/schemas/PortalWorkspaceView'
     ResumeSessionRequest:
       type: object
       properties:
@@ -2319,10 +2609,17 @@ components:
           type: string
     CreateUploadRequest:
       type: object
-      required: [mediaAssetId, resource]
+      required: [mediaAssetId, bucket, resource]
       properties:
         mediaAssetId:
           type: string
+        bucket:
+          type: string
+        objectKey:
+          type: string
+        expiresInSeconds:
+          type: integer
+          format: int32
         resource:
           $ref: '#/components/schemas/MediaResource'
     CompleteUploadRequest:
@@ -2340,6 +2637,8 @@ components:
           format: uri
         checksum:
           type: string
+        etag:
+          type: string
     MediaDownloadUrlResponse:
       type: object
       required: [mediaAssetId, storageProvider, downloadUrl, expiresInSeconds]
@@ -2354,6 +2653,51 @@ components:
         expiresInSeconds:
           type: integer
           format: int32
+    MediaUploadSessionResponse:
+      type: object
+      required:
+        - mediaAssetId
+        - mediaAsset
+        - bucket
+        - objectKey
+        - storageProvider
+        - uploadMethod
+        - uploadUrl
+        - uploadHeaders
+        - uploadExpiresInSeconds
+        - requestKey
+        - deliveryStatus
+        - proofVersion
+      properties:
+        mediaAssetId:
+          type: string
+        mediaAsset:
+          $ref: '#/components/schemas/MediaAsset'
+        bucket:
+          type: string
+        objectKey:
+          type: string
+        storageProvider:
+          type: string
+        uploadMethod:
+          type: string
+        uploadUrl:
+          type: string
+          format: uri
+        uploadHeaders:
+          type: object
+          additionalProperties:
+            type: string
+        uploadExpiresInSeconds:
+          type: integer
+          format: int32
+        requestKey:
+          type: string
+        deliveryStatus:
+          type: string
+          enum: [applied, replayed]
+        proofVersion:
+          type: string
     MediaResourceType:
       type: string
       enum: [image, video, audio, file]

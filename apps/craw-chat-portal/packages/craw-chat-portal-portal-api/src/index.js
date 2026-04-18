@@ -2,34 +2,95 @@ import { activePortalDataSource } from './runtime/activeDataSource.js';
 
 const PORTAL_SESSION_STORAGE_KEY = 'craw-chat-portal.session.v1';
 
-function withSessionStorage(onAvailable, fallback = null) {
+function withBrowserStorage(storageKey, onAvailable, fallback = null) {
   if (typeof window === 'undefined') {
     return fallback;
   }
 
   try {
-    return onAvailable(window.localStorage);
+    const storage = window[storageKey];
+    if (!storage) {
+      return fallback;
+    }
+
+    return onAvailable(storage);
   } catch {
     return fallback;
   }
+}
+
+function withSessionStorage(onAvailable, fallback = null) {
+  return withBrowserStorage('sessionStorage', onAvailable, fallback);
+}
+
+function withLegacyLocalStorage(onAvailable, fallback = null) {
+  return withBrowserStorage('localStorage', onAvailable, fallback);
 }
 
 function isValidPortalSessionToken(token) {
   return typeof token === 'string' && token.trim().length > 0;
 }
 
-export function readPortalSessionToken() {
-  const token = withSessionStorage(
+function readSessionStorageToken() {
+  return withSessionStorage(
     (storage) => storage.getItem(PORTAL_SESSION_STORAGE_KEY),
     null,
   );
+}
 
-  if (isValidPortalSessionToken(token)) {
-    return token;
+function readLegacyLocalStorageToken() {
+  return withLegacyLocalStorage(
+    (storage) => storage.getItem(PORTAL_SESSION_STORAGE_KEY),
+    null,
+  );
+}
+
+function removeSessionStorageToken() {
+  withSessionStorage((storage) => {
+    storage.removeItem(PORTAL_SESSION_STORAGE_KEY);
+    return null;
+  });
+}
+
+function removeLegacyLocalStorageToken() {
+  withLegacyLocalStorage((storage) => {
+    storage.removeItem(PORTAL_SESSION_STORAGE_KEY);
+    return null;
+  });
+}
+
+function writeSessionStorageToken(token) {
+  return withSessionStorage(
+    (storage) => {
+      storage.setItem(PORTAL_SESSION_STORAGE_KEY, token);
+      return true;
+    },
+    false,
+  );
+}
+
+export function readPortalSessionToken() {
+  const sessionToken = readSessionStorageToken();
+
+  if (isValidPortalSessionToken(sessionToken)) {
+    return sessionToken;
   }
 
-  if (token !== null) {
-    clearPortalSessionToken();
+  if (sessionToken !== null) {
+    removeSessionStorageToken();
+  }
+
+  const legacyToken = readLegacyLocalStorageToken();
+  if (isValidPortalSessionToken(legacyToken)) {
+    if (writeSessionStorageToken(legacyToken)) {
+      removeLegacyLocalStorageToken();
+    }
+
+    return legacyToken;
+  }
+
+  if (legacyToken !== null) {
+    removeLegacyLocalStorageToken();
   }
 
   return null;
@@ -40,17 +101,14 @@ export function persistPortalSessionToken(token) {
     throw new TypeError('Portal session token must be a non-empty string.');
   }
 
-  withSessionStorage((storage) => {
-    storage.setItem(PORTAL_SESSION_STORAGE_KEY, token);
-    return null;
-  });
+  if (writeSessionStorageToken(token)) {
+    removeLegacyLocalStorageToken();
+  }
 }
 
 export function clearPortalSessionToken() {
-  withSessionStorage((storage) => {
-    storage.removeItem(PORTAL_SESSION_STORAGE_KEY);
-    return null;
-  });
+  removeSessionStorageToken();
+  removeLegacyLocalStorageToken();
 }
 
 function resolveProtectedPortalToken(token = readPortalSessionToken()) {

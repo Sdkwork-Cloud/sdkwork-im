@@ -1,13 +1,21 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   groupedPages,
   markdownPathFor,
   operationMarkdownPath,
 } from "../.vitepress/api-reference-sidebar.mjs";
 
-const repoRoot = process.cwd();
-const operationsRoot = path.join(repoRoot, "api-reference", "operations");
+const currentDir = path.dirname(fileURLToPath(import.meta.url));
+const docsRoot = path.resolve(currentDir, "..");
+const operationsRoot = path.join(docsRoot, "api-reference", "operations");
+const domainOverviewLinks = {
+  "App API": "/api-reference/app-api",
+  "Platform API": "/api-reference/platform-api",
+  "IoT API": "/api-reference/iot-api",
+  "Control Plane API": "/api-reference/control-plane-api",
+};
 
 function sourceGroupFor(pageLink) {
   for (const group of groupedPages) {
@@ -39,15 +47,18 @@ function operationBlocks(pageLink) {
 function operationFileContent(pageLink, operationTitle, body) {
   const { domain, page } = sourceGroupFor(pageLink);
   const cleanBody = body.replace(/^\s+/, "");
+  const domainOverviewLink = domainOverviewLinks[domain] ?? "/api-reference/index";
 
   return `# \`${operationTitle}\`
 
 <p class="api-page-intro">
-  OpenAPI-style operation reference for <strong>${page}</strong> in the <strong>${domain}</strong>.
+  Exact request and response contract for <strong>${page}</strong> in the <strong>${domain}</strong>.
 </p>
 
 <div class="api-link-list">
-  <a href="${pageLink}">Back to ${page}</a>
+  <a href="${pageLink}"><code>${page}</code> Return to the group page for workflow context and related operations</a>
+  <a href="${domainOverviewLink}"><code>${domain}</code> Return to the domain overview</a>
+  <a href="/api-reference/auth-and-errors"><code>Auth</code> Shared bearer, trusted-header, and error-envelope rules</a>
 </div>
 
 <section class="api-op api-op-single">

@@ -23,6 +23,7 @@ const REALTIME_MAX_SCOPE_ID_BYTES: usize = 512;
 const REALTIME_MAX_EVENT_TYPE_BYTES: usize = 128;
 const REALTIME_MAX_EVENT_TYPES_TOTAL_BYTES: usize = 16 * 1024;
 const REALTIME_MAX_SUBSCRIPTION_ITEMS: usize = 256;
+const REALTIME_MAX_SUBSCRIPTION_ITEMS_TOTAL_BYTES: usize = 256 * 1024;
 pub(crate) const REALTIME_EVENT_WINDOW_MAX_LIMIT: usize = 1000;
 
 #[derive(Debug, Deserialize)]
@@ -131,6 +132,34 @@ impl RealtimeRuntimeError {
     }
 }
 
+pub trait RealtimeScopeAccessPolicy: Send + Sync {
+    fn validate_subscription_scope(
+        &self,
+        _tenant_id: &str,
+        _principal_id: &str,
+        _principal_kind: Option<&str>,
+        _scope_type: &str,
+        _scope_id: &str,
+    ) -> Result<(), RealtimeRuntimeError> {
+        Ok(())
+    }
+
+    fn is_event_visible(
+        &self,
+        _tenant_id: &str,
+        _principal_id: &str,
+        _principal_kind: Option<&str>,
+        _event: &RealtimeEvent,
+    ) -> bool {
+        true
+    }
+}
+
+#[derive(Default)]
+struct AllowAllRealtimeScopeAccessPolicy;
+
+impl RealtimeScopeAccessPolicy for AllowAllRealtimeScopeAccessPolicy {}
+
 #[derive(Clone)]
 pub struct RealtimeDeliveryRuntime {
     subscriptions: Arc<Mutex<HashMap<String, Vec<RealtimeSubscription>>>>,
@@ -143,6 +172,7 @@ pub struct RealtimeDeliveryRuntime {
     disconnect_notifiers: Arc<Mutex<HashMap<String, watch::Sender<u64>>>>,
     checkpoint_store: Arc<dyn RealtimeCheckpointStore>,
     subscription_store: Arc<dyn RealtimeSubscriptionStore>,
+    scope_access_policy: Arc<dyn RealtimeScopeAccessPolicy>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -180,15 +210,39 @@ impl fmt::Debug for RealtimeDeliveryRuntime {
 
 impl RealtimeDeliveryRuntime {
     pub fn with_checkpoint_store(checkpoint_store: Arc<dyn RealtimeCheckpointStore>) -> Self {
-        Self::with_stores(
+        Self::with_stores_and_scope_access_policy(
             checkpoint_store,
             Arc::new(RuntimeMemorySubscriptionStore::default()),
+            Arc::new(AllowAllRealtimeScopeAccessPolicy),
         )
     }
 
     pub fn with_stores(
         checkpoint_store: Arc<dyn RealtimeCheckpointStore>,
         subscription_store: Arc<dyn RealtimeSubscriptionStore>,
+    ) -> Self {
+        Self::with_stores_and_scope_access_policy(
+            checkpoint_store,
+            subscription_store,
+            Arc::new(AllowAllRealtimeScopeAccessPolicy),
+        )
+    }
+
+    pub fn with_checkpoint_store_and_scope_access_policy(
+        checkpoint_store: Arc<dyn RealtimeCheckpointStore>,
+        scope_access_policy: Arc<dyn RealtimeScopeAccessPolicy>,
+    ) -> Self {
+        Self::with_stores_and_scope_access_policy(
+            checkpoint_store,
+            Arc::new(RuntimeMemorySubscriptionStore::default()),
+            scope_access_policy,
+        )
+    }
+
+    pub fn with_stores_and_scope_access_policy(
+        checkpoint_store: Arc<dyn RealtimeCheckpointStore>,
+        subscription_store: Arc<dyn RealtimeSubscriptionStore>,
+        scope_access_policy: Arc<dyn RealtimeScopeAccessPolicy>,
     ) -> Self {
         Self {
             subscriptions: Arc::new(Mutex::new(HashMap::new())),
@@ -201,6 +255,7 @@ impl RealtimeDeliveryRuntime {
             disconnect_notifiers: Arc::new(Mutex::new(HashMap::new())),
             checkpoint_store,
             subscription_store,
+            scope_access_policy,
         }
     }
 
@@ -589,6 +644,15 @@ impl RealtimeDeliveryRuntime {
         validate_realtime_subscription_items(&items)?;
         let synced_at = realtime_timestamp();
         self.ensure_device_state_internal(tenant_id, principal_id, principal_kind, device_id)?;
+        for item in &items {
+            self.scope_access_policy.validate_subscription_scope(
+                tenant_id,
+                principal_id,
+                principal_kind,
+                item.scope_type.as_str(),
+                item.scope_id.as_str(),
+            )?;
+        }
         let subscriptions = items
             .into_iter()
             .map(|item| RealtimeSubscription {
@@ -702,25 +766,40 @@ impl RealtimeDeliveryRuntime {
                 .copied()
                 .unwrap_or(0);
         let windows = lock_realtime_mutex(&self.windows, "realtime window store");
-        let total_after = windows
-            .get(scope_key.as_str())
-            .map(|items| {
-                items
-                    .iter()
-                    .filter(|item| item.realtime_seq > after_seq)
-                    .count()
-            })
-            .unwrap_or(0);
+        let mut has_more = false;
+        let mut last_examined_seq = None;
         let items = windows
             .get(scope_key.as_str())
-            .into_iter()
-            .flat_map(|items| items.iter())
-            .filter(|item| item.realtime_seq > after_seq)
-            .take(limit)
-            .cloned()
-            .collect::<Vec<_>>();
-        let has_more = total_after > items.len();
-        let next_after_seq = items.last().map(|item| item.realtime_seq);
+            .map(|scope_events| {
+                let mut visible = Vec::new();
+                for event in scope_events
+                    .iter()
+                    .filter(|item| item.realtime_seq > after_seq)
+                {
+                    last_examined_seq = Some(event.realtime_seq);
+                    if !self.scope_access_policy.is_event_visible(
+                        tenant_id,
+                        principal_id,
+                        principal_kind,
+                        event,
+                    ) {
+                        continue;
+                    }
+                    if visible.len() < limit {
+                        visible.push(event.clone());
+                        continue;
+                    }
+                    has_more = true;
+                    break;
+                }
+                visible
+            })
+            .unwrap_or_default();
+        let next_after_seq = if has_more {
+            items.last().map(|item| item.realtime_seq)
+        } else {
+            last_examined_seq
+        };
 
         Ok(RealtimeEventWindow {
             device_id: device_id.into(),
@@ -1127,6 +1206,19 @@ fn validate_realtime_subscription_items(
             items.len(),
         ));
     }
+    let total_item_bytes = items.iter().fold(0usize, |total, item| {
+        total
+            .saturating_add(item.scope_type.len())
+            .saturating_add(item.scope_id.len())
+            .saturating_add(item.event_types.iter().map(String::len).sum::<usize>())
+    });
+    if total_item_bytes > REALTIME_MAX_SUBSCRIPTION_ITEMS_TOTAL_BYTES {
+        return Err(RealtimeRuntimeError::payload_too_large(
+            "items",
+            REALTIME_MAX_SUBSCRIPTION_ITEMS_TOTAL_BYTES,
+            total_item_bytes,
+        ));
+    }
     for item in items {
         validate_payload_size(
             "scopeType",
@@ -1138,10 +1230,9 @@ fn validate_realtime_subscription_items(
             item.scope_id.as_str(),
             REALTIME_MAX_SCOPE_ID_BYTES,
         )?;
-        let event_types_total_bytes = item
-            .event_types
-            .iter()
-            .fold(0usize, |total, event_type| total.saturating_add(event_type.len()));
+        let event_types_total_bytes = item.event_types.iter().fold(0usize, |total, event_type| {
+            total.saturating_add(event_type.len())
+        });
         if event_types_total_bytes > REALTIME_MAX_EVENT_TYPES_TOTAL_BYTES {
             return Err(RealtimeRuntimeError::payload_too_large(
                 "eventTypes",
@@ -1387,6 +1478,111 @@ mod tests {
         assert_eq!(checkpoint.latest_realtime_seq, 0);
         assert_eq!(checkpoint.acked_through_seq, 0);
         assert_eq!(checkpoint.trimmed_through_seq, 0);
+    }
+
+    #[test]
+    fn test_sync_subscriptions_rejects_archived_conversation_scope_when_policy_denies() {
+        let runtime = RealtimeDeliveryRuntime::with_checkpoint_store_and_scope_access_policy(
+            Arc::new(MemoryRealtimeCheckpointStore::default()),
+            Arc::new(ArchivedConversationPolicy),
+        );
+
+        let error = runtime
+            .sync_subscriptions_for_principal_kind(
+                "t_demo",
+                "u_demo",
+                "user",
+                "d_pad",
+                vec![RealtimeSubscriptionItemInput {
+                    scope_type: "conversation".into(),
+                    scope_id: "c_archived".into(),
+                    event_types: vec!["message.posted".into()],
+                }],
+            )
+            .expect_err("archived conversation subscription should be rejected");
+
+        assert_eq!(error.code, "conversation_archived");
+    }
+
+    #[test]
+    fn test_list_events_filters_hidden_conversation_scopes_and_advances_cursor() {
+        let runtime = RealtimeDeliveryRuntime::with_checkpoint_store_and_scope_access_policy(
+            Arc::new(MemoryRealtimeCheckpointStore::default()),
+            Arc::new(ArchivedConversationPolicy),
+        );
+        let scope_key = device_scope_key("t_demo", "u_demo", Some("user"), "d_pad");
+        lock_realtime_mutex(&runtime.windows, "realtime window store").insert(
+            scope_key.clone(),
+            vec![
+                RealtimeEvent {
+                    tenant_id: "t_demo".into(),
+                    principal_id: "u_demo".into(),
+                    device_id: "d_pad".into(),
+                    realtime_seq: 1,
+                    scope_type: "conversation".into(),
+                    scope_id: "c_visible".into(),
+                    event_type: "message.posted".into(),
+                    delivery_class: "ephemeral".into(),
+                    payload: "{}".into(),
+                    occurred_at: "2026-04-15T10:00:00Z".into(),
+                },
+                RealtimeEvent {
+                    tenant_id: "t_demo".into(),
+                    principal_id: "u_demo".into(),
+                    device_id: "d_pad".into(),
+                    realtime_seq: 2,
+                    scope_type: "conversation".into(),
+                    scope_id: "c_archived".into(),
+                    event_type: "message.posted".into(),
+                    delivery_class: "ephemeral".into(),
+                    payload: "{}".into(),
+                    occurred_at: "2026-04-15T10:00:01Z".into(),
+                },
+            ],
+        );
+        lock_realtime_mutex(&runtime.latest_sequences, "realtime sequence store")
+            .insert(scope_key, 2);
+
+        let window = runtime
+            .list_events_for_principal_kind("t_demo", "u_demo", "user", "d_pad", 0, 10)
+            .expect("filtered realtime window should be readable");
+
+        assert_eq!(window.items.len(), 1);
+        assert_eq!(window.items[0].scope_id, "c_visible");
+        assert_eq!(window.next_after_seq, Some(2));
+        assert!(!window.has_more);
+    }
+
+    struct ArchivedConversationPolicy;
+
+    impl RealtimeScopeAccessPolicy for ArchivedConversationPolicy {
+        fn validate_subscription_scope(
+            &self,
+            _tenant_id: &str,
+            _principal_id: &str,
+            _principal_kind: Option<&str>,
+            scope_type: &str,
+            scope_id: &str,
+        ) -> Result<(), RealtimeRuntimeError> {
+            if scope_type == "conversation" && scope_id == "c_archived" {
+                return Err(RealtimeRuntimeError {
+                    code: "conversation_archived",
+                    message: format!("direct chat conversation is archived: {scope_id}"),
+                });
+            }
+
+            Ok(())
+        }
+
+        fn is_event_visible(
+            &self,
+            _tenant_id: &str,
+            _principal_id: &str,
+            _principal_kind: Option<&str>,
+            event: &RealtimeEvent,
+        ) -> bool {
+            event.scope_type != "conversation" || event.scope_id != "c_archived"
+        }
     }
 
     fn subscription(

@@ -45,6 +45,9 @@ fn test_complete_upload_appends_media_asset_created_event() {
             &auth,
             media_service::CreateUploadRequest {
                 media_asset_id: "ma_demo".into(),
+                bucket: "local-media".into(),
+                object_key: None,
+                expires_in_seconds: None,
                 resource: MediaResource {
                     id: None,
                     uuid: Some("res_demo".into()),
@@ -72,7 +75,7 @@ fn test_complete_upload_appends_media_asset_created_event() {
             media_service::CompleteUploadRequest {
                 bucket: "local-media".into(),
                 object_key: "tenant/t_demo/ma_demo/demo.png".into(),
-                storage_provider: Some("local".into()),
+                storage_provider: Some("object-storage-volcengine".into()),
                 url: "https://cdn.example.com/ma_demo/demo.png".into(),
                 checksum: Some("sha256:demo".into()),
             },
@@ -128,6 +131,9 @@ fn test_media_asset_created_events_use_distinct_commit_timestamps() {
             &auth,
             media_service::CreateUploadRequest {
                 media_asset_id: "ma_event_one".into(),
+                bucket: "local-media".into(),
+                object_key: None,
+                expires_in_seconds: None,
                 resource: MediaResource {
                     id: None,
                     uuid: Some("res_event_one".into()),
@@ -154,7 +160,7 @@ fn test_media_asset_created_events_use_distinct_commit_timestamps() {
             media_service::CompleteUploadRequest {
                 bucket: "local-media".into(),
                 object_key: "tenant/t_demo/ma_event_one/one.png".into(),
-                storage_provider: Some("local".into()),
+                storage_provider: Some("object-storage-volcengine".into()),
                 url: "https://cdn.example.com/ma_event_one/one.png".into(),
                 checksum: None,
             },
@@ -168,6 +174,9 @@ fn test_media_asset_created_events_use_distinct_commit_timestamps() {
             &auth,
             media_service::CreateUploadRequest {
                 media_asset_id: "ma_event_two".into(),
+                bucket: "local-media".into(),
+                object_key: None,
+                expires_in_seconds: None,
                 resource: MediaResource {
                     id: None,
                     uuid: Some("res_event_two".into()),
@@ -194,7 +203,7 @@ fn test_media_asset_created_events_use_distinct_commit_timestamps() {
             media_service::CompleteUploadRequest {
                 bucket: "local-media".into(),
                 object_key: "tenant/t_demo/ma_event_two/two.png".into(),
-                storage_provider: Some("local".into()),
+                storage_provider: Some("object-storage-volcengine".into()),
                 url: "https://cdn.example.com/ma_event_two/two.png".into(),
                 checksum: None,
             },

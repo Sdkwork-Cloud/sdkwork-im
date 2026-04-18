@@ -1,10 +1,24 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value as JsonValue;
 
-use crate::media::MediaResource;
+use crate::media::{MediaResource, MediaResourceType};
 
 pub type MessageAttributes = BTreeMap<String, String>;
+
+pub const CRAW_CHAT_JSON_ENCODING: &str = "application/json";
+pub const CRAW_CHAT_MESSAGE_SCHEMA_LOCATION: &str = "urn:sdkwork:craw-chat:message:location";
+pub const CRAW_CHAT_MESSAGE_SCHEMA_LINK: &str = "urn:sdkwork:craw-chat:message:link";
+pub const CRAW_CHAT_MESSAGE_SCHEMA_CARD: &str = "urn:sdkwork:craw-chat:message:card";
+pub const CRAW_CHAT_MESSAGE_SCHEMA_MUSIC: &str = "urn:sdkwork:craw-chat:message:music";
+pub const CRAW_CHAT_MESSAGE_SCHEMA_CONTACT: &str = "urn:sdkwork:craw-chat:message:contact";
+pub const CRAW_CHAT_MESSAGE_SCHEMA_STICKER: &str = "urn:sdkwork:craw-chat:message:sticker";
+pub const CRAW_CHAT_MESSAGE_SCHEMA_VOICE: &str = "urn:sdkwork:craw-chat:message:voice";
+pub const CRAW_CHAT_MESSAGE_SCHEMA_AGENT: &str = "urn:sdkwork:craw-chat:message:agent";
+pub const CRAW_CHAT_MESSAGE_SCHEMA_AI_IMAGE: &str = "urn:sdkwork:craw-chat:message:ai_image";
+pub const CRAW_CHAT_MESSAGE_SCHEMA_AI_VIDEO: &str = "urn:sdkwork:craw-chat:message:ai_video";
+pub const CRAW_CHAT_CUSTOM_MESSAGE_SCHEMA_PREFIX: &str = "urn:sdkwork:craw-chat:message:custom:";
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -171,6 +185,8 @@ impl ConversationMessageLog {
     }
 
     pub fn store_posted(&mut self, message: Message) {
+        let mut message = message;
+        message.body = message.body.with_derived_summary();
         self.high_watermark = self.high_watermark.max(message.message_seq);
         self.messages.insert(
             message.message_id.clone(),
@@ -185,7 +201,7 @@ impl ConversationMessageLog {
 
     pub fn apply_edited(&mut self, edited: &MessageEdited) -> Option<&StoredMessage> {
         let stored = self.messages.get_mut(edited.message_id.as_str())?;
-        stored.message.body = edited.body.clone();
+        stored.message.body = edited.body.clone().with_derived_summary();
         stored.message.committed_at = Some(edited.edited_at.clone());
         Some(stored)
     }
@@ -314,6 +330,36 @@ pub struct StreamRefPart {
     pub state: String,
 }
 
+impl MessageBody {
+    pub fn derived_summary(&self) -> Option<String> {
+        self.parts
+            .iter()
+            .filter_map(ContentPart::structured_summary)
+            .next()
+            .or_else(|| {
+                self.parts
+                    .iter()
+                    .filter_map(ContentPart::fallback_summary)
+                    .next()
+            })
+            .or_else(|| {
+                self.parts
+                    .iter()
+                    .filter_map(ContentPart::text_summary)
+                    .next()
+            })
+    }
+
+    pub fn summary_or_derived(&self) -> Option<String> {
+        normalize_summary(self.summary.clone()).or_else(|| self.derived_summary())
+    }
+
+    pub fn with_derived_summary(mut self) -> Self {
+        self.summary = normalize_summary(self.summary.take()).or_else(|| self.derived_summary());
+        self
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 // Keeping the content variants inline preserves the public message contract and
@@ -353,4 +399,146 @@ impl ContentPart {
             _ => None,
         }
     }
+
+    fn structured_summary(&self) -> Option<String> {
+        match self {
+            Self::Data(part) => summarize_structured_data_part(part),
+            _ => None,
+        }
+    }
+
+    fn fallback_summary(&self) -> Option<String> {
+        match self {
+            Self::Media(part) => summarize_media_part(part),
+            Self::Signal(part) => compact_summary_text(part.signal_type.as_str()),
+            Self::StreamRef(part) => compact_summary_text(part.stream_type.as_str())
+                .map(|stream_type| format!("Stream: {stream_type}"))
+                .or_else(|| Some("Stream".into())),
+            Self::Data(_) | Self::Text(_) => None,
+        }
+    }
+
+    fn text_summary(&self) -> Option<String> {
+        match self {
+            Self::Text(part) => compact_summary_text(part.text.as_str()),
+            _ => None,
+        }
+    }
+}
+
+fn normalize_summary(summary: Option<String>) -> Option<String> {
+    summary.and_then(|value| compact_summary_text(value.as_str()))
+}
+
+fn summarize_structured_data_part(part: &DataPart) -> Option<String> {
+    let payload = parse_json_payload(part.payload.as_str());
+    match part.schema_ref.as_str() {
+        CRAW_CHAT_MESSAGE_SCHEMA_LOCATION => summarize_location_payload(payload.as_ref()),
+        CRAW_CHAT_MESSAGE_SCHEMA_LINK => payload
+            .as_ref()
+            .and_then(|value| string_field(value, &["title", "url"]))
+            .map(|value| format!("Link: {value}"))
+            .or_else(|| Some("Link".into())),
+        CRAW_CHAT_MESSAGE_SCHEMA_CARD => payload
+            .as_ref()
+            .and_then(|value| string_field(value, &["title", "subtitle"]))
+            .map(|value| format!("Card: {value}"))
+            .or_else(|| Some("Card".into())),
+        CRAW_CHAT_MESSAGE_SCHEMA_MUSIC => payload
+            .as_ref()
+            .and_then(|value| string_field(value, &["title", "artist", "url"]))
+            .map(|value| format!("Music: {value}"))
+            .or_else(|| Some("Music".into())),
+        CRAW_CHAT_MESSAGE_SCHEMA_CONTACT => payload
+            .as_ref()
+            .and_then(|value| string_field(value, &["displayName", "contactId"]))
+            .map(|value| format!("Contact: {value}"))
+            .or_else(|| Some("Contact".into())),
+        CRAW_CHAT_MESSAGE_SCHEMA_STICKER => Some("Sticker".into()),
+        CRAW_CHAT_MESSAGE_SCHEMA_VOICE => Some("Voice message".into()),
+        CRAW_CHAT_MESSAGE_SCHEMA_AGENT => payload
+            .as_ref()
+            .and_then(|value| string_field(value, &["agentName", "agentId"]))
+            .map(|value| format!("Agent: {value}"))
+            .or_else(|| Some("Agent".into())),
+        CRAW_CHAT_MESSAGE_SCHEMA_AI_IMAGE => Some("AI image generated".into()),
+        CRAW_CHAT_MESSAGE_SCHEMA_AI_VIDEO => Some("AI video generated".into()),
+        schema_ref => schema_ref
+            .strip_prefix(CRAW_CHAT_CUSTOM_MESSAGE_SCHEMA_PREFIX)
+            .and_then(compact_summary_text)
+            .map(|custom_type| format!("Custom: {custom_type}")),
+    }
+}
+
+fn summarize_location_payload(payload: Option<&JsonValue>) -> Option<String> {
+    let Some(payload) = payload else {
+        return Some("Location".into());
+    };
+
+    if let Some(name) = string_field(payload, &["name", "address"]) {
+        return Some(format!("Location: {name}"));
+    }
+
+    let latitude = payload.get("latitude").and_then(JsonValue::as_f64);
+    let longitude = payload.get("longitude").and_then(JsonValue::as_f64);
+    match (latitude, longitude) {
+        (Some(latitude), Some(longitude)) => {
+            Some(format!("Location: {latitude:.4}, {longitude:.4}"))
+        }
+        _ => Some("Location".into()),
+    }
+}
+
+fn summarize_media_part(part: &MediaPart) -> Option<String> {
+    match part
+        .resource
+        .as_ref()
+        .and_then(|resource| resource.resource_type.as_ref())
+    {
+        Some(MediaResourceType::Image) => Some("Image".into()),
+        Some(MediaResourceType::Video) => Some("Video".into()),
+        Some(MediaResourceType::Audio) => Some("Audio".into()),
+        Some(MediaResourceType::File) => Some("File".into()),
+        None => None,
+    }
+}
+
+fn parse_json_payload(payload: &str) -> Option<JsonValue> {
+    if payload.trim().is_empty() {
+        return None;
+    }
+
+    serde_json::from_str(payload).ok()
+}
+
+fn string_field(payload: &JsonValue, keys: &[&str]) -> Option<String> {
+    keys.iter().find_map(|key| {
+        payload
+            .get(*key)
+            .and_then(JsonValue::as_str)
+            .and_then(compact_summary_text)
+    })
+}
+
+fn compact_summary_text(value: &str) -> Option<String> {
+    let normalized = value.split_whitespace().collect::<Vec<_>>().join(" ");
+    if normalized.is_empty() {
+        return None;
+    }
+
+    let mut chars = normalized.chars();
+    let mut compact = String::new();
+    for _ in 0..120 {
+        let Some(ch) = chars.next() else {
+            return Some(normalized);
+        };
+        compact.push(ch);
+    }
+
+    if chars.next().is_some() {
+        compact.push_str("...");
+        return Some(compact);
+    }
+
+    Some(normalized)
 }

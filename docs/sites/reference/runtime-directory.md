@@ -1,6 +1,7 @@
 # Runtime Directory
 
-The runtime directory is a core part of the current `local-minimal-node` contract.
+The runtime directory is a core part of the current `local-minimal-node` contract, not an optional
+side folder.
 
 ## Default Structure
 
@@ -53,8 +54,8 @@ Backups are tracked under the runtime `backups/` directory and surfaced through 
 
 ### Archive
 
-Archive keeps the restore path and writes archive metadata and reports rather than simply deleting
-the backup from the active view.
+Archive preserves the restore path and writes archive metadata and reports rather than simply
+deleting the backup from the active view.
 
 ### Restore preview
 
@@ -72,7 +73,8 @@ Preview is read-only. It exists to:
 --expected-preview-fingerprint <value>
 ```
 
-This guard protects operators from previewing one snapshot and restoring a different one by mistake.
+This guard protects operators from previewing one snapshot and restoring a different one by
+mistake.
 
 ## Typed Diff Coverage
 
@@ -89,3 +91,9 @@ That gives operators meaningful domain-level insight instead of a plain file-by-
 
 Use the managed inspect, repair, preview, and restore entrypoints first. Manual edits to
 `state/*.json` should be the exception, not the default workflow.
+
+## What To Read Next
+
+- [Runtime Operations](/deployment/runtime-operations)
+- [Local Binary](/deployment/local-binary)
+- [Architecture Overview](/architecture/overview)

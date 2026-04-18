@@ -2,8 +2,14 @@
 
 <p class="api-page-intro">
   Node operation endpoints manage drain state, reactivation, and realtime route migration between
-  nodes in the cluster.
+  cluster nodes.
 </p>
+
+<div class="api-link-list">
+  <a href="/api-reference/control-plane/protocol"><code>Protocol</code> Protocol governance snapshots are documented separately</a>
+  <a href="/api-reference/control-plane/providers"><code>Providers</code> Provider registry and binding policy flows are documented separately</a>
+  <a href="/sdk/admin-sdk"><code>Admin SDK</code> Admin SDK docs explain the current control-plane consumer boundary</a>
+</div>
 
 <a id="drain-node"></a>
 <section class="api-op">

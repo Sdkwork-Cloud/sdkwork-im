@@ -1,5 +1,6 @@
 import { appConversationSchemas } from "./app-conversation";
 import { appMediaStreamSchemas } from "./app-media-stream";
+import { appPortalAuthSchemas } from "./app-portal-auth";
 import { appRtcIotSchemas } from "./app-rtc-iot";
 import { appSessionSchemas } from "./app-session";
 import { commonApiSchemas } from "./common";
@@ -16,6 +17,7 @@ export type {
 
 export const apiSchemas = {
   ...commonApiSchemas,
+  ...appPortalAuthSchemas,
   ...appSessionSchemas,
   ...appConversationSchemas,
   ...appMediaStreamSchemas,

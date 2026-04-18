@@ -46,6 +46,19 @@ impl CommitJournal for MemoryCommitJournal {
             events.len() as u64,
         ))
     }
+
+    fn append_batch(
+        &self,
+        envelopes: Vec<CommitEnvelope>,
+    ) -> Result<Vec<CommitPosition>, ContractError> {
+        let mut events = self.events.lock().expect("journal should lock");
+        let start_offset = events.len() as u64 + 1;
+        let batch_len = envelopes.len() as u64;
+        events.extend(envelopes);
+        Ok((0..batch_len)
+            .map(|index| CommitPosition::new(self.partition.as_str(), start_offset + index))
+            .collect())
+    }
 }
 
 #[derive(Clone, Default)]

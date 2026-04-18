@@ -1,11 +1,13 @@
 # `GET /api/v1/user-module/provider-health`
 
 <p class="api-page-intro">
-  OpenAPI-style operation reference for <strong>Provider Health</strong> in the <strong>Platform API</strong>.
+  Exact request and response contract for <strong>Provider Health</strong> in the <strong>Platform API</strong>.
 </p>
 
 <div class="api-link-list">
-  <a href="/api-reference/platform/provider-health">Back to Provider Health</a>
+  <a href="/api-reference/platform/provider-health"><code>Provider Health</code> Return to the group page for workflow context and related operations</a>
+  <a href="/api-reference/platform-api"><code>Platform API</code> Return to the domain overview</a>
+  <a href="/api-reference/auth-and-errors"><code>Auth</code> Shared bearer, trusted-header, and error-envelope rules</a>
 </div>
 
 <section class="api-op api-op-single">

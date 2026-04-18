@@ -1,5 +1,7 @@
 export { BaseApi } from './base';
 export { backendApiPath } from './paths';
+export { AuthApi, createAuthApi } from './auth';
+export { PortalApi, createPortalApi } from './portal';
 export { SessionApi, createSessionApi } from './session';
 export { PresenceApi, createPresenceApi } from './presence';
 export { RealtimeApi, createRealtimeApi } from './realtime';

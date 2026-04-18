@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   createAdminSandboxState,
+  getAdminSandboxCredentials,
   handleAdminSandboxRequest,
   isAdminSandboxEnabled,
 } from '../dev/admin-sandbox.mjs';
@@ -32,6 +33,7 @@ test('admin sandbox opt-in flag parser only enables explicit truthy env values',
 
 test('admin sandbox login establishes a session and guards protected routes', async () => {
   const state = createAdminSandboxState();
+  const credentials = getAdminSandboxCredentials(state);
 
   const unauthenticated = await sandboxRequest(state, {
     path: '/auth/me',
@@ -42,12 +44,12 @@ test('admin sandbox login establishes a session and guards protected routes', as
     method: 'POST',
     path: '/auth/login',
     body: {
-      email: 'admin@sdkwork.local',
-      password: 'ChangeMe123!',
+      email: credentials.email,
+      password: credentials.password,
     },
   });
   assert.equal(login.status, 200);
-  assert.equal(login.json.user.email, 'admin@sdkwork.local');
+  assert.equal(login.json.user.email, credentials.email);
   assert.match(login.json.token, /sandbox-admin-session/);
 
   const me = await sandboxRequest(state, {
@@ -55,17 +57,18 @@ test('admin sandbox login establishes a session and guards protected routes', as
     token: login.json.token,
   });
   assert.equal(me.status, 200);
-  assert.equal(me.json.email, 'admin@sdkwork.local');
+  assert.equal(me.json.email, credentials.email);
 });
 
 test('admin sandbox persists tenant, project, and api key mutations across refresh reads', async () => {
   const state = createAdminSandboxState();
+  const credentials = getAdminSandboxCredentials(state);
   const login = await sandboxRequest(state, {
     method: 'POST',
     path: '/auth/login',
     body: {
-      email: 'admin@sdkwork.local',
-      password: 'ChangeMe123!',
+      email: credentials.email,
+      password: credentials.password,
     },
   });
   const token = login.json.token;
@@ -127,12 +130,13 @@ test('admin sandbox persists tenant, project, and api key mutations across refre
 
 test('admin sandbox creates a matching window for new rate limit policies', async () => {
   const state = createAdminSandboxState();
+  const credentials = getAdminSandboxCredentials(state);
   const login = await sandboxRequest(state, {
     method: 'POST',
     path: '/auth/login',
     body: {
-      email: 'admin@sdkwork.local',
-      password: 'ChangeMe123!',
+      email: credentials.email,
+      password: credentials.password,
     },
   });
   const token = login.json.token;
@@ -161,4 +165,34 @@ test('admin sandbox creates a matching window for new rate limit policies', asyn
     windows.json.some((windowRecord) => windowRecord.policy_id === 'policy_demo'),
     true,
   );
+});
+
+test('admin sandbox accepts explicitly provisioned login credentials instead of relying on a fixed repo password', async () => {
+  const state = createAdminSandboxState({
+    sandboxCredentials: {
+      email: 'ops-sandbox@example.invalid',
+      password: 'Sandbox#Custom2026',
+    },
+  });
+
+  const legacyLogin = await sandboxRequest(state, {
+    method: 'POST',
+    path: '/auth/login',
+    body: {
+      email: 'admin@sdkwork.local',
+      password: 'ChangeMe123!',
+    },
+  });
+  assert.equal(legacyLogin.status, 401);
+
+  const login = await sandboxRequest(state, {
+    method: 'POST',
+    path: '/auth/login',
+    body: {
+      email: 'ops-sandbox@example.invalid',
+      password: 'Sandbox#Custom2026',
+    },
+  });
+  assert.equal(login.status, 200);
+  assert.equal(login.json.user.email, 'ops-sandbox@example.invalid');
 });

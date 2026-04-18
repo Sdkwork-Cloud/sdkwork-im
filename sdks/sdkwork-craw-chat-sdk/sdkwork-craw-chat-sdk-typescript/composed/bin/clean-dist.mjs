@@ -7,6 +7,16 @@ const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const packageRoot = path.resolve(scriptDir, '..');
 const distRoot = path.join(packageRoot, 'dist');
 const promotedBuildRoot = path.join(distRoot, 'composed', 'src');
+const transientBuildDirectories = new Set(['composed', 'generated']);
+
+if (existsSync(distRoot)) {
+  for (const entry of readdirSync(distRoot, { withFileTypes: true })) {
+    if (transientBuildDirectories.has(entry.name)) {
+      continue;
+    }
+    rmSync(path.join(distRoot, entry.name), { recursive: true, force: true });
+  }
+}
 
 if (existsSync(promotedBuildRoot)) {
   for (const entry of readdirSync(promotedBuildRoot, { withFileTypes: true })) {

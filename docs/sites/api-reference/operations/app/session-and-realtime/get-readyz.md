@@ -1,11 +1,13 @@
 # `GET /readyz`
 
 <p class="api-page-intro">
-  OpenAPI-style operation reference for <strong>Session and Realtime</strong> in the <strong>App API</strong>.
+  Exact request and response contract for <strong>Session and Realtime</strong> in the <strong>App API</strong>.
 </p>
 
 <div class="api-link-list">
-  <a href="/api-reference/app/session-and-realtime">Back to Session and Realtime</a>
+  <a href="/api-reference/app/session-and-realtime"><code>Session and Realtime</code> Return to the group page for workflow context and related operations</a>
+  <a href="/api-reference/app-api"><code>App API</code> Return to the domain overview</a>
+  <a href="/api-reference/auth-and-errors"><code>Auth</code> Shared bearer, trusted-header, and error-envelope rules</a>
 </div>
 
 <section class="api-op api-op-single">
@@ -21,7 +23,7 @@ Returns process readiness for the app runtime.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Open endpoint</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / session</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>Direct HTTP probe</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Not required</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 HealthResponse`</span></div>
 </div>

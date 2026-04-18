@@ -3,12 +3,14 @@ use std::sync::Arc;
 use axum::http::HeaderMap;
 use im_auth_context::{AuthContext, resolve_auth_context};
 
+use crate::device_registration::SessionDeviceRegistration;
 use crate::{ApiError, AppState, RealtimeDeliveryRuntime, resolve_requested_device_id};
 
 pub(crate) struct RealtimeWebsocketRouteContext {
     pub auth: AuthContext,
     pub device_id: String,
     pub runtime: Arc<RealtimeDeliveryRuntime>,
+    pub route_owner: SessionDeviceRegistration,
 }
 
 pub(crate) fn prepare_realtime_websocket_route(
@@ -22,5 +24,6 @@ pub(crate) fn prepare_realtime_websocket_route(
         auth,
         device_id,
         runtime: state.realtime_runtime.clone(),
+        route_owner: state.device_registration.clone(),
     })
 }

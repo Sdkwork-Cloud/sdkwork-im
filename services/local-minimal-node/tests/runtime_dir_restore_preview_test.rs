@@ -386,7 +386,8 @@ fn rtc_state_snapshot_with_options(entries: &[RtcStateSnapshotEntry<'_>]) -> Str
 fn test_preview_restore_runtime_dir_reports_ready_without_mutation_for_full_snapshot() {
     let runtime_dir = unique_path("runtime_dir_preview_restore_ready");
     fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
-    let _ = local_minimal_node::repair_runtime_dir(runtime_dir.as_path());
+    let _ = local_minimal_node::repair_runtime_dir(runtime_dir.as_path())
+        .expect("repair should succeed");
 
     write_state_file(
         runtime_dir.as_path(),
@@ -472,7 +473,8 @@ fn test_preview_restore_runtime_dir_reports_ready_without_mutation_for_full_snap
 fn test_preview_restore_runtime_dir_reports_partial_for_sparse_snapshot() {
     let runtime_dir = unique_path("runtime_dir_preview_restore_partial");
     fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
-    let _ = local_minimal_node::repair_runtime_dir(runtime_dir.as_path());
+    let _ = local_minimal_node::repair_runtime_dir(runtime_dir.as_path())
+        .expect("repair should succeed");
     fs::remove_file(state_file(runtime_dir.as_path(), "notification-tasks.json"))
         .expect("notification task file should be removed");
 
@@ -535,7 +537,8 @@ fn test_preview_restore_runtime_dir_reports_partial_for_sparse_snapshot() {
 fn test_preview_restore_runtime_dir_tracks_projection_snapshot_files() {
     let runtime_dir = unique_path("runtime_dir_preview_restore_projection_snapshot");
     fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
-    let _ = local_minimal_node::repair_runtime_dir(runtime_dir.as_path());
+    let _ = local_minimal_node::repair_runtime_dir(runtime_dir.as_path())
+        .expect("repair should succeed");
 
     write_state_file(
         runtime_dir.as_path(),
@@ -638,7 +641,8 @@ fn test_preview_restore_runtime_dir_tracks_projection_snapshot_files() {
 fn test_preview_restore_runtime_dir_reports_json_object_key_change_summary() {
     let runtime_dir = unique_path("runtime_dir_preview_restore_diff_summary");
     fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
-    let _ = local_minimal_node::repair_runtime_dir(runtime_dir.as_path());
+    let _ = local_minimal_node::repair_runtime_dir(runtime_dir.as_path())
+        .expect("repair should succeed");
 
     write_state_file(
         runtime_dir.as_path(),
@@ -750,7 +754,8 @@ fn test_preview_restore_runtime_dir_reports_json_object_key_change_summary() {
 fn test_preview_restore_runtime_dir_reports_disconnect_fence_typed_summary() {
     let runtime_dir = unique_path("runtime_dir_preview_restore_disconnect_fence_typed");
     fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
-    let _ = local_minimal_node::repair_runtime_dir(runtime_dir.as_path());
+    let _ = local_minimal_node::repair_runtime_dir(runtime_dir.as_path())
+        .expect("repair should succeed");
 
     write_state_file(
         runtime_dir.as_path(),
@@ -914,7 +919,8 @@ fn test_preview_restore_runtime_dir_reports_disconnect_fence_typed_summary() {
 fn test_preview_restore_runtime_dir_reports_checkpoint_typed_summary() {
     let runtime_dir = unique_path("runtime_dir_preview_restore_checkpoint_typed");
     fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
-    let _ = local_minimal_node::repair_runtime_dir(runtime_dir.as_path());
+    let _ = local_minimal_node::repair_runtime_dir(runtime_dir.as_path())
+        .expect("repair should succeed");
 
     write_state_file(
         runtime_dir.as_path(),
@@ -1211,7 +1217,8 @@ fn test_preview_restore_runtime_dir_reports_checkpoint_typed_summary() {
 fn test_preview_restore_runtime_dir_reports_subscription_typed_summary() {
     let runtime_dir = unique_path("runtime_dir_preview_restore_subscription_typed");
     fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
-    let _ = local_minimal_node::repair_runtime_dir(runtime_dir.as_path());
+    let _ = local_minimal_node::repair_runtime_dir(runtime_dir.as_path())
+        .expect("repair should succeed");
 
     write_state_file(
         runtime_dir.as_path(),
@@ -1488,7 +1495,8 @@ fn test_preview_restore_runtime_dir_reports_subscription_typed_summary() {
 fn test_preview_restore_runtime_dir_reports_stream_typed_summary() {
     let runtime_dir = unique_path("runtime_dir_preview_restore_stream_typed");
     fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
-    let _ = local_minimal_node::repair_runtime_dir(runtime_dir.as_path());
+    let _ = local_minimal_node::repair_runtime_dir(runtime_dir.as_path())
+        .expect("repair should succeed");
 
     let base_session = StreamSessionFixture {
         owner_principal_id: Some("u_demo"),
@@ -1926,7 +1934,8 @@ fn test_preview_restore_runtime_dir_reports_stream_typed_summary() {
 fn test_preview_restore_runtime_dir_reports_rtc_typed_summary() {
     let runtime_dir = unique_path("runtime_dir_preview_restore_rtc_typed");
     fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
-    let _ = local_minimal_node::repair_runtime_dir(runtime_dir.as_path());
+    let _ = local_minimal_node::repair_runtime_dir(runtime_dir.as_path())
+        .expect("repair should succeed");
 
     let base_rtc_session = RtcSessionFixture {
         conversation_id: Some("c_rtc"),

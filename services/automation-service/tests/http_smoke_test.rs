@@ -1286,8 +1286,16 @@ async fn test_complete_agent_response_rejects_oversized_stream_id_path_over_http
 #[tokio::test]
 async fn test_start_agent_response_rejects_oversized_agent_identity_fields_over_http() {
     for (field, agent_id, session_id) in [
-        ("agent.agent_id", serde_json::Value::String("a".repeat(257)), serde_json::Value::String("s_agent".into())),
-        ("agent.session_id", serde_json::Value::String("ag_demo".into()), serde_json::Value::String("s".repeat(257))),
+        (
+            "agent.agent_id",
+            serde_json::Value::String("a".repeat(257)),
+            serde_json::Value::String("s_agent".into()),
+        ),
+        (
+            "agent.session_id",
+            serde_json::Value::String("ag_demo".into()),
+            serde_json::Value::String("s".repeat(257)),
+        ),
     ] {
         let app = automation_service::build_default_app();
 

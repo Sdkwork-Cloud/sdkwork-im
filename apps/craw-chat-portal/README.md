@@ -84,13 +84,14 @@ That alignment now also applies to `home` and `auth`, so public entry surfaces f
 
 ## Replaceable Data Boundary
 
-The current round uses a mock-backed active data source, but the boundary is already shaped so generated SDK wiring can replace it later without rewriting feature packages.
+The default runtime now uses an HTTP-backed default data source that resolves the generated Craw Chat TypeScript SDK at runtime, so public pages and protected console modules share one authenticated control-plane path without handwritten request assembly in feature code.
 
 Relevant files:
 
 - `packages/craw-chat-portal-portal-api/src/index.js`
 - `packages/craw-chat-portal-portal-api/src/runtime/activeDataSource.js`
 - `packages/craw-chat-portal-portal-api/src/runtime/createPortalDataSource.js`
+- `packages/craw-chat-portal-portal-api/src/runtime/sdk/createPortalSdkClient.js`
 - `packages/craw-chat-portal-portal-api/src/runtime/dataSources/mockPortalDataSource.js`
 - `packages/craw-chat-portal-core/src/application/router/navigation.js`
 
@@ -105,7 +106,9 @@ The runtime data source can now be swapped explicitly for future SDK-backed work
 
 Runtime overrides are validated before activation so the swap payload itself must be a plain object, required control-plane methods cannot be replaced with invalid non-function values, typoed override keys fail fast instead of being accepted silently, and the active runtime data source stays immutable to consumers. The exported `activePortalDataSource` surface also remains enumerable and introspection-safe for future SDK-backed consumers that inspect available seam methods before wiring adapters. Auth bootstrap and sign-in flows now also fail closed on malformed session or workspace payloads instead of persisting or promoting partial auth state, and session-token persistence rejects malformed values before touching browser storage while clearing malformed stored values during reads.
 
-That makes `portal-api` the only integration seam that needs to change once the admin-facing TypeScript SDK is actually generated and materialized.
+`mockPortalDataSource` remains available for explicit override and isolated tests, but it is no longer the default runtime path.
+
+That makes `portal-api` the only integration seam that needs to change once deeper admin-facing orchestration is added around the same SDK surface.
 
 ## Runtime Resilience
 

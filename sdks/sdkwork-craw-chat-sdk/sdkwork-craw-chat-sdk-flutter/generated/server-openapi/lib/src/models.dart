@@ -36,6 +36,227 @@ class ApiError {
   }
 }
 
+class PortalLoginRequest {
+  final String? tenantId;
+  final String? login;
+  final String? password;
+  final String? deviceId;
+  final String? sessionId;
+  final String? clientKind;
+
+  PortalLoginRequest({
+    this.tenantId,
+    this.login,
+    this.password,
+    this.deviceId,
+    this.sessionId,
+    this.clientKind
+  });
+
+  factory PortalLoginRequest.fromJson(Map<String, dynamic> json) {
+    return PortalLoginRequest(
+      tenantId: json['tenantId']?.toString(),
+      login: json['login']?.toString(),
+      password: json['password']?.toString(),
+      deviceId: json['deviceId']?.toString(),
+      sessionId: json['sessionId']?.toString(),
+      clientKind: json['clientKind']?.toString()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'tenantId': tenantId,
+      'login': login,
+      'password': password,
+      'deviceId': deviceId,
+      'sessionId': sessionId,
+      'clientKind': clientKind,
+    };
+  }
+}
+
+class PortalUserView {
+  final String? id;
+  final String? login;
+  final String? name;
+  final String? role;
+  final String? email;
+  final String? actorKind;
+  final String? clientKind;
+  final List<String>? permissions;
+
+  PortalUserView({
+    this.id,
+    this.login,
+    this.name,
+    this.role,
+    this.email,
+    this.actorKind,
+    this.clientKind,
+    this.permissions
+  });
+
+  factory PortalUserView.fromJson(Map<String, dynamic> json) {
+    return PortalUserView(
+      id: json['id']?.toString(),
+      login: json['login']?.toString(),
+      name: json['name']?.toString(),
+      role: json['role']?.toString(),
+      email: json['email']?.toString(),
+      actorKind: json['actorKind']?.toString(),
+      clientKind: json['clientKind']?.toString(),
+      permissions: (() {
+        final list = _sdkworkAsList(json['permissions']);
+        if (list == null) {
+          return null;
+        }
+        return list
+            .map((item) => item?.toString())
+            .whereType<String>()
+            .toList();
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'id': id,
+      'login': login,
+      'name': name,
+      'role': role,
+      'email': email,
+      'actorKind': actorKind,
+      'clientKind': clientKind,
+      'permissions': permissions?.map((item) => item).toList(),
+    };
+  }
+}
+
+class PortalWorkspaceView {
+  final String? name;
+  final String? slug;
+  final String? tier;
+  final String? region;
+  final String? supportPlan;
+  final int? seats;
+  final int? activeBrands;
+  final String? uptime;
+
+  PortalWorkspaceView({
+    this.name,
+    this.slug,
+    this.tier,
+    this.region,
+    this.supportPlan,
+    this.seats,
+    this.activeBrands,
+    this.uptime
+  });
+
+  factory PortalWorkspaceView.fromJson(Map<String, dynamic> json) {
+    return PortalWorkspaceView(
+      name: json['name']?.toString(),
+      slug: json['slug']?.toString(),
+      tier: json['tier']?.toString(),
+      region: json['region']?.toString(),
+      supportPlan: json['supportPlan']?.toString(),
+      seats: json['seats'] is int ? json['seats'] : null,
+      activeBrands: json['activeBrands'] is int ? json['activeBrands'] : null,
+      uptime: json['uptime']?.toString()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'name': name,
+      'slug': slug,
+      'tier': tier,
+      'region': region,
+      'supportPlan': supportPlan,
+      'seats': seats,
+      'activeBrands': activeBrands,
+      'uptime': uptime,
+    };
+  }
+}
+
+class PortalLoginResponse {
+  final String? accessToken;
+  final String? refreshToken;
+  final int? expiresAt;
+  final PortalUserView? user;
+  final PortalWorkspaceView? workspace;
+
+  PortalLoginResponse({
+    this.accessToken,
+    this.refreshToken,
+    this.expiresAt,
+    this.user,
+    this.workspace
+  });
+
+  factory PortalLoginResponse.fromJson(Map<String, dynamic> json) {
+    return PortalLoginResponse(
+      accessToken: json['accessToken']?.toString(),
+      refreshToken: json['refreshToken']?.toString(),
+      expiresAt: json['expiresAt'] is int ? json['expiresAt'] : null,
+      user: (() {
+        final map = _sdkworkAsMap(json['user']);
+        return map == null ? null : PortalUserView.fromJson(map);
+      })(),
+      workspace: (() {
+        final map = _sdkworkAsMap(json['workspace']);
+        return map == null ? null : PortalWorkspaceView.fromJson(map);
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'accessToken': accessToken,
+      'refreshToken': refreshToken,
+      'expiresAt': expiresAt,
+      'user': user?.toJson(),
+      'workspace': workspace?.toJson(),
+    };
+  }
+}
+
+class PortalMeResponse {
+  final String? tenantId;
+  final PortalUserView? user;
+  final PortalWorkspaceView? workspace;
+
+  PortalMeResponse({
+    this.tenantId,
+    this.user,
+    this.workspace
+  });
+
+  factory PortalMeResponse.fromJson(Map<String, dynamic> json) {
+    return PortalMeResponse(
+      tenantId: json['tenantId']?.toString(),
+      user: (() {
+        final map = _sdkworkAsMap(json['user']);
+        return map == null ? null : PortalUserView.fromJson(map);
+      })(),
+      workspace: (() {
+        final map = _sdkworkAsMap(json['workspace']);
+        return map == null ? null : PortalWorkspaceView.fromJson(map);
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'tenantId': tenantId,
+      'user': user?.toJson(),
+      'workspace': workspace?.toJson(),
+    };
+  }
+}
+
 class ResumeSessionRequest {
   final String? deviceId;
   final int? lastSeenSyncSeq;

@@ -1291,9 +1291,12 @@ mod tests {
             CONTACT_CATALOG_SCOPE,
             CONTACT_DIRECT_CHAT_BINDINGS_KEY,
             &vec![crate::model::ContactDirectChatBindingView {
+                tenant_id: Some("t_demo".into()),
                 direct_chat_id: "dc_demo".into(),
                 conversation_id: "c_demo".into(),
                 bound_at: "2026-04-01T00:00:00.000Z".into(),
+                status: im_domain_core::social::DirectChatStatus::Active,
+                updated_at: Some("2026-04-01T00:00:00.000Z".into()),
             }],
         )
         .expect("contact direct-chat binding snapshot should persist");

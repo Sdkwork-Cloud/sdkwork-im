@@ -6,6 +6,7 @@ pub(super) async fn list_members(
     State(state): State<AppState>,
 ) -> Result<Json<ListMembersResponse>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
+    access::ensure_conversation_member(&state, &auth, conversation_id.as_str())?;
     Ok(Json(ListMembersResponse {
         items: state
             .conversation_runtime

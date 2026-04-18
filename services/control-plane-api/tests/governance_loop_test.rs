@@ -849,7 +849,7 @@ async fn test_control_plane_stale_provider_policy_confirm_write_does_not_touch_o
 
 #[tokio::test]
 async fn test_control_plane_rejects_empty_tenant_provider_bindings_query_without_polluting_ops_runtime()
-{
+ {
     let cluster = Arc::new(RealtimeClusterBridge::default());
     let ops_runtime = Arc::new(OpsRuntime::new(
         "node_a",
@@ -927,7 +927,7 @@ async fn test_control_plane_rejects_empty_tenant_provider_bindings_query_without
 
 #[tokio::test]
 async fn test_control_plane_rejects_empty_tenant_provider_policy_write_without_mutating_ops_or_audit()
-{
+ {
     let cluster = Arc::new(RealtimeClusterBridge::default());
     let ops_runtime = Arc::new(OpsRuntime::new(
         "node_a",
@@ -1002,7 +1002,7 @@ async fn test_control_plane_rejects_empty_tenant_provider_policy_write_without_m
 
 #[tokio::test]
 async fn test_control_plane_rejects_oversized_tenant_provider_bindings_query_without_polluting_ops_runtime()
-{
+ {
     let cluster = Arc::new(RealtimeClusterBridge::default());
     let ops_runtime = Arc::new(OpsRuntime::new(
         "node_a",
@@ -1045,7 +1045,9 @@ async fn test_control_plane_rejects_oversized_tenant_provider_bindings_query_wit
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri(format!("/api/v1/control/provider-bindings?tenantId={tenant_id}"))
+                .uri(format!(
+                    "/api/v1/control/provider-bindings?tenantId={tenant_id}"
+                ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
                 .header("x-permissions", "control.read")
@@ -1081,7 +1083,7 @@ async fn test_control_plane_rejects_oversized_tenant_provider_bindings_query_wit
 
 #[tokio::test]
 async fn test_control_plane_rejects_oversized_tenant_provider_policy_write_without_mutating_ops_or_audit()
-{
+ {
     let cluster = Arc::new(RealtimeClusterBridge::default());
     let ops_runtime = Arc::new(OpsRuntime::new(
         "node_a",
@@ -1126,8 +1128,8 @@ async fn test_control_plane_rejects_oversized_tenant_provider_policy_write_witho
         .await
         .expect("oversized tenant provider policy body should collect")
         .to_bytes();
-    let json: serde_json::Value =
-        serde_json::from_slice(&body).expect("oversized tenant provider policy body should be json");
+    let json: serde_json::Value = serde_json::from_slice(&body)
+        .expect("oversized tenant provider policy body should be json");
     assert_eq!(json["status"], "invalid");
     assert_eq!(json["code"], "payload_too_large");
     assert!(

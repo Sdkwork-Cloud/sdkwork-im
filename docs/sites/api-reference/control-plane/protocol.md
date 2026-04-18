@@ -5,6 +5,11 @@
   and the effective governance snapshot applied to compatible clients.
 </p>
 
+<div class="api-link-list">
+  <a href="/api-reference/control-plane/providers"><code>Providers</code> Provider registry, bindings, preview, and rollback flows are documented separately</a>
+  <a href="/sdk/admin-sdk"><code>Admin SDK</code> Read the admin SDK page for audience boundaries and release-state limits</a>
+</div>
+
 <a id="get-control-healthz"></a>
 <section class="api-op">
 

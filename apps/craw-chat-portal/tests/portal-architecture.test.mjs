@@ -3,7 +3,9 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { test } from 'node:test';
 
-const root = path.resolve('apps/craw-chat-portal');
+import { resolvePortalAppRoot } from './helpers/portal-paths.mjs';
+
+const root = resolvePortalAppRoot(import.meta.url);
 
 test('portal scaffold and route manifest align to the reference architecture', async () => {
   const routeManifestModulePath = path.join(

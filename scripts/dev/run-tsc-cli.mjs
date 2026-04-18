@@ -8,8 +8,10 @@ import {
   resolveReadablePackageEntry,
   resolveWorkspaceDonorRoots,
 } from './vite-runtime-lib.mjs';
+import { ensureSdkworkUiDist } from './sdkwork-ui-runtime-lib.mjs';
 
 const REQUIRED_APP_PACKAGES = [
+  '@sdkwork/ui-pc-react',
   '@tailwindcss/vite',
   '@types/react',
   '@types/react-dom',
@@ -40,6 +42,7 @@ export function resolveReadableTypeScriptCliPath({
 
 const appRoot = process.cwd();
 const donorRoots = resolveWorkspaceDonorRoots(appRoot);
+ensureSdkworkUiDist({ appRoot });
 ensureLocalNodeModules({
   appRoot,
   donorRoots,

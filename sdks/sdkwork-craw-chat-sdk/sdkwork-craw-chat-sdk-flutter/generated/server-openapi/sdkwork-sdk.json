@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "name": "sdkwork-craw-chat-sdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "language": "flutter",
   "sdkType": "backend",
   "packageName": "backend_sdk",
   "generator": "@sdkwork/sdk-generator",
   "capabilities": {
-    "supportsGeneratedTests": false,
+    "supportsGeneratedTests": true,
     "supportsReadme": true,
     "supportsCustomScaffold": true,
     "supportsPublishWorkflow": true,

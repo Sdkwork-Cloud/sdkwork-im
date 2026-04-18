@@ -1,9 +1,118 @@
 # Media
 
 <p class="api-page-intro">
-  Media endpoints manage upload registration, upload completion, metadata reads, signed download URL
-  generation, and attachment of ready media assets to conversation messages.
+  Media endpoints cover upload registration, upload completion, metadata reads, signed download
+  URLs, and attachment of ready assets to conversation messages.
 </p>
+
+<div class="api-link-list">
+  <a href="/api-reference/app/messages"><code>Messages</code> Media attachment targets are conversation messages documented on a separate page</a>
+  <a href="/sdk/app-sdk"><code>SDK</code> <code>@sdkwork/craw-chat-sdk</code> and <code>craw_chat_sdk</code> both expose media helpers above these transport routes</a>
+</div>
+
+## Recommended SDK Mapping
+
+Use `sdk.media` for route-aligned upload and attachment control, and prefer `sdk.upload(...)` for
+the standard client-side S3 presigned upload flow:
+
+- `sdk.media.createUploadSession(...)`
+- `sdk.media.createUpload(...)` as the low-level route alias
+- `sdk.media.upload(...)`
+- `sdk.media.uploadAndComplete(...)`
+- `sdk.upload(...)`
+- `sdk.media.completeUpload(...)`
+- `sdk.media.getDownloadUrl(...)`
+- `sdk.media.get(...)`
+- `sdk.media.attach(...)`
+- `sdk.media.attachText(...)`
+
+### Typical Client Upload Flow
+
+For normal browser and Node.js application code, use the semantic upload helper. It creates the
+pending asset, uploads the binary through the returned presigned S3-compatible request, completes
+the asset, and gives you `mediaAssetId`, the final asset metadata, and the resolved CDN/download
+URL.
+
+```ts
+const uploaded = await sdk.upload({
+  mediaAssetId: 'asset-image-1',
+  bucket: 'tenant-media',
+  objectKey: 'conversation-1/storefront.png',
+  resource: {
+    type: 'image',
+    name: 'storefront.png',
+    mimeType: 'image/png',
+    size: file.size,
+  },
+  body: file,
+});
+
+await sdk.media.attachText(uploaded.mediaAssetId, {
+  conversationId: 'conversation-1',
+  text: 'Uploaded storefront concept',
+  summary: 'Storefront concept',
+});
+
+const download = await sdk.media.getDownloadUrl(uploaded.mediaAssetId, {
+  expiresInSeconds: 600,
+});
+
+console.log(uploaded.url, download.downloadUrl);
+```
+
+`sdk.upload(...)` is the preferred root helper for application code. `sdk.media.upload(...)` and
+`sdk.media.uploadAndComplete(...)` provide the same presigned upload behavior from the namespaced
+media module.
+
+### Namespaced Upload Alias
+
+```ts
+const uploaded = await sdk.media.uploadAndComplete({
+  mediaAssetId: 'asset-file-1',
+  bucket: 'tenant-media',
+  objectKey: 'conversation-1/brief.pdf',
+  resource: {
+    type: 'file',
+    name: 'brief.pdf',
+    mimeType: 'application/pdf',
+    size: file.size,
+  },
+  body: file,
+});
+
+console.log(uploaded.mediaAssetId, uploaded.asset.processingState);
+```
+
+### Manual Presigned Upload Flow
+
+When you need full control over the upload transaction, work directly with the upload session:
+
+```ts
+const session = await sdk.media.createUploadSession({
+  mediaAssetId: 'asset-image-1',
+  bucket: 'tenant-media',
+  resource: {
+    type: 'image',
+    name: 'storefront.png',
+    mimeType: 'image/png',
+    size: file.size,
+  },
+});
+
+const uploadResponse = await fetch(session.uploadUrl, {
+  method: session.uploadMethod,
+  headers: session.uploadHeaders,
+  body: file,
+});
+
+await sdk.media.completeUpload(session.mediaAssetId, {
+  bucket: session.bucket,
+  objectKey: session.objectKey,
+  storageProvider: session.storageProvider,
+  url: session.uploadUrl,
+  etag: uploadResponse.headers.get('etag') ?? undefined,
+});
+```
 
 <a id="create-media-upload"></a>
 <section class="api-op">
@@ -21,9 +130,9 @@ Registers a pending media asset before the binary upload is completed.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / media</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.media`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal with media asset ownership checks.</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 MediaAsset`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200 MediaUploadSessionResponse`</span></div>
 </div>
 
 ### Request Body
@@ -32,7 +141,7 @@ Registers a pending media asset before the binary upload is completed.
 
 ### Response `200`
 
-<ApiSchemaTable schema="MediaAsset" />
+<ApiSchemaTable schema="MediaUploadSessionResponse" />
 
 
 ### Error Responses
@@ -58,12 +167,12 @@ Registers a pending media asset before the binary upload is completed.
   <span class="api-op-id">operationId: completeMediaUpload</span>
 </div>
 
-Marks the upload as complete and stores the final object metadata.
+Marks the presigned upload as complete and stores the final object metadata.
 
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / media</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.media`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal with media asset ownership checks.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 MediaAsset`</span></div>
 </div>
@@ -111,7 +220,7 @@ Reads the media asset metadata.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / media</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.media`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal with media asset ownership checks.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 MediaAsset`</span></div>
 </div>
@@ -154,7 +263,7 @@ Generates a signed download URL for the media asset.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / media</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.media`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal with media asset ownership checks.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 MediaDownloadUrlResponse`</span></div>
 </div>
@@ -203,7 +312,7 @@ Attaches a ready media asset to a conversation by emitting a message containing 
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / media</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.media`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal with media asset ownership and target conversation write access.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PostMessageResult`</span></div>
 </div>

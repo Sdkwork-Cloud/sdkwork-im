@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -7,6 +8,7 @@ const sandboxSeed = JSON.parse(
   readFileSync(path.join(moduleDir, 'admin-sandbox-seed.json'), 'utf8'),
 );
 const jsonContentType = 'application/json; charset=utf-8';
+const DEFAULT_ADMIN_SANDBOX_EMAIL = 'admin@sdkwork.local';
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -20,12 +22,88 @@ export function isAdminSandboxEnabled(env = process.env) {
   return parseBooleanEnv(env.SDKWORK_ADMIN_SANDBOX ?? env.SDKWORK_ADMIN_SANDBOX_MODE);
 }
 
-export function createAdminSandboxState() {
+function normalizeCredentialString(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function defaultSandboxEmail(seed = sandboxSeed) {
+  return normalizeCredentialString(
+    seed?.authSession?.user?.email
+      ?? seed?.operatorUsers?.[0]?.email
+      ?? DEFAULT_ADMIN_SANDBOX_EMAIL,
+  ) || DEFAULT_ADMIN_SANDBOX_EMAIL;
+}
+
+function generateSandboxPassword() {
+  return randomBytes(18).toString('base64url');
+}
+
+function applySandboxCredentials(state, credentials) {
+  const primaryOperatorId = state?.authSession?.user?.id ?? state?.operatorUsers?.[0]?.id ?? null;
+
+  state.sandboxPassword = credentials.password;
+  state.sandboxCredentials = { ...credentials };
+
+  if (state.authSession?.user && primaryOperatorId && state.authSession.user.id === primaryOperatorId) {
+    state.authSession.user.email = credentials.email;
+  }
+
+  for (const operatorUser of state.operatorUsers ?? []) {
+    if (operatorUser?.id === primaryOperatorId) {
+      operatorUser.email = credentials.email;
+    }
+  }
+}
+
+export function resolveAdminSandboxCredentials({
+  env = process.env,
+  sandboxCredentials = {},
+  seed = sandboxSeed,
+} = {}) {
+  const explicitEmail = normalizeCredentialString(sandboxCredentials.email);
+  const explicitPassword = normalizeCredentialString(sandboxCredentials.password);
+  const envEmail = normalizeCredentialString(env.SDKWORK_ADMIN_SANDBOX_EMAIL);
+  const envPassword = normalizeCredentialString(env.SDKWORK_ADMIN_SANDBOX_PASSWORD);
+
+  const email = explicitEmail || envEmail || defaultSandboxEmail(seed);
+  const password = explicitPassword || envPassword || generateSandboxPassword();
+
+  return {
+    email,
+    password,
+    source:
+      explicitPassword
+        ? 'explicit'
+        : envPassword
+          ? 'env'
+          : 'generated',
+  };
+}
+
+export function getAdminSandboxCredentials(state) {
+  if (state?.sandboxCredentials?.email && state?.sandboxCredentials?.password) {
+    return clone(state.sandboxCredentials);
+  }
+
+  return {
+    email: defaultSandboxEmail(state),
+    password: typeof state?.sandboxPassword === 'string' ? state.sandboxPassword : '',
+    source: 'state',
+  };
+}
+
+export function createAdminSandboxState(options = {}) {
   const state = clone(sandboxSeed);
+  const credentials = resolveAdminSandboxCredentials({
+    env: options.env,
+    sandboxCredentials: options.sandboxCredentials,
+    seed: state,
+  });
   state.meta = {
     clockMs: Number(state.clockMs ?? Date.now()),
     sequence: 0,
   };
+  applySandboxCredentials(state, credentials);
   syncProviderCredentialReadiness(state);
   return state;
 }
@@ -885,7 +963,14 @@ export async function handleAdminSandboxRequest({
   return errorResponse(404, `Admin sandbox route not implemented for ${normalizedMethod} ${requestPathFromUrl(url)}.`);
 }
 
-export function createAdminSandboxMiddleware({ state = createAdminSandboxState() } = {}) {
+export function createAdminSandboxMiddleware({
+  state = createAdminSandboxState(),
+  onSandboxCredentialsResolved,
+} = {}) {
+  if (typeof onSandboxCredentialsResolved === 'function') {
+    onSandboxCredentialsResolved(getAdminSandboxCredentials(state));
+  }
+
   return async function adminSandboxMiddleware(req, res, next) {
     if (!req.url?.startsWith('/api/admin')) {
       next();

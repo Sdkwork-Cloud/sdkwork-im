@@ -417,9 +417,14 @@ async fn login_seeded_im_user(
 }
 
 async fn prepare_real_login_conversation(base_url: &str, conversation_id: &str) {
-    let (owner_user_id, owner_bearer) =
-        login_seeded_im_user(base_url, "u_owner", "Owner#2026", "s_owner_setup", "d_owner_setup")
-            .await;
+    let (owner_user_id, owner_bearer) = login_seeded_im_user(
+        base_url,
+        "u_owner",
+        "Owner#2026",
+        "s_owner_setup",
+        "d_owner_setup",
+    )
+    .await;
 
     let create_output = execute_command(
         parse_cli_args([
@@ -1382,7 +1387,10 @@ async fn test_chat_window_cmd_wrapper_accepts_gnu_style_named_flags_for_interact
         .arg("guest-gnu")
         .arg("--message-prefix")
         .arg("[gnu] ")
-        .env(im_auth_context::PUBLIC_BEARER_HS256_SECRET_ENV, "bogus-wrapper-secret")
+        .env(
+            im_auth_context::PUBLIC_BEARER_HS256_SECRET_ENV,
+            "bogus-wrapper-secret",
+        )
         .current_dir(&repo_root)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -2578,7 +2586,10 @@ async fn test_open_chat_test_powershell_rtc_scripted_validation_emits_json_summa
     });
 
     assert_eq!(summary["mode"], "rtc-scripted");
-    assert_eq!(summary["conversationId"], "c_cli_open_chat_rtc_scripted_demo");
+    assert_eq!(
+        summary["conversationId"],
+        "c_cli_open_chat_rtc_scripted_demo"
+    );
     assert_eq!(summary["rtcMode"], "video");
     assert_eq!(
         summary["timelineSummaries"],

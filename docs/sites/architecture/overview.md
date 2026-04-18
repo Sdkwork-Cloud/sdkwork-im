@@ -1,7 +1,7 @@
 # Architecture Overview
 
 Craw Chat is a multi-service Rust workspace, not a single binary with optional extras. The current
-documentation is easiest to understand through four architectural lenses:
+documentation is easiest to read through four architectural lenses:
 
 1. The workspace layout and contract crates
 2. The app-facing `local-minimal-node`
@@ -81,3 +81,9 @@ profile still reuses the current `local-minimal` service contract:
 
 The docs therefore treat `local-default` as a compatibility and naming layer, not as a separate
 completed topology.
+
+## What To Read Next
+
+- [Runtime Topology](/architecture/runtime-topology)
+- [Module Map](/architecture/module-map)
+- [Runtime Directory](/reference/runtime-directory)

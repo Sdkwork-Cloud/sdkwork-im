@@ -1,7 +1,7 @@
 # Getting Started
 
 This section is for engineers, integrators, and operators who need to run the current Craw Chat
-repository with the fewest surprises.
+repository with minimal surprises.
 
 ## What You Get
 
@@ -63,11 +63,11 @@ The control-plane surface also uses public bearer auth and adds permission check
 - `control.read` for read operations
 - `control.write` for mutating operations
 
-The implementation allows `control.write` to satisfy read access as well.
+The implementation also allows `control.write` to satisfy read access.
 
-## Where To Start
+## What To Read Next
 
-- Want the shortest runnable path: [Quick Start](/getting-started/quick-start)
+- Want the shortest verified path: [Quick Start](/getting-started/quick-start)
 - Want the runtime model first: [Architecture Overview](/architecture/overview)
 - Want the full endpoint inventory: [API Reference](/api-reference/index)
 - Want to understand SDK reality before promising packages: [SDK Overview](/sdk/index)

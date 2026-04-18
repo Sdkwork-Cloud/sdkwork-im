@@ -135,9 +135,7 @@ where
             &mut conversation,
             build_default_read_cursor(&creator_member),
         );
-        state.conversations.insert(scope_key, conversation);
-        drop(state);
-
+        let creation_members = vec![(creator_member.clone(), creator_ordering_seq)];
         let envelope = CommitEnvelope {
             event_id: event_id.clone(),
             tenant_id: command.tenant_id.clone(),
@@ -171,18 +169,17 @@ where
             retention_class: "standard".into(),
             audit_class: "default".into(),
         };
-
-        self.journal.append(envelope)?;
-        self.journal.append(build_member_envelope(
+        append_conversation_creation_batch(
+            &self.journal,
+            envelope,
             command.tenant_id.as_str(),
             command.conversation_id.as_str(),
-            "conversation.member_joined",
-            creator_member.clone(),
-            creator_ordering_seq,
-            "standard",
+            creation_members.as_slice(),
             creator_id.as_str(),
             creator_kind,
-        ))?;
+        )?;
+        state.conversations.insert(scope_key, conversation);
+        drop(state);
 
         Ok(CreateConversationResult::applied_with_request_key(
             command.conversation_id,
@@ -287,86 +284,130 @@ where
         );
         let event_id = format!("evt_{}_created", command.conversation_id);
 
-        let thread_members = {
-            let mut state = lock_runtime_mutex(&self.state, "conversation-runtime.state.creation");
-            if let Some(existing_conversation) = state.conversations.get(scope_key.as_str()) {
-                if let Some(existing) = existing_conversation.thread_create_request.as_ref() {
-                    if thread_conversation_create_replay_matches(existing, &command, creator_kind) {
-                        return Ok(CreateConversationResult::replayed_with_request_key(
-                            command.conversation_id.clone(),
-                            existing.event_id.clone(),
-                            request_key,
-                        ));
-                    }
-                    return Err(RuntimeError::Conflict(format!(
-                        "thread create request conflicts with existing conversation idempotency key: {request_key}"
-                    )));
+        let mut state = lock_runtime_mutex(&self.state, "conversation-runtime.state.creation");
+        if let Some(existing_conversation) = state.conversations.get(scope_key.as_str()) {
+            if let Some(existing) = existing_conversation.thread_create_request.as_ref() {
+                if thread_conversation_create_replay_matches(existing, &command, creator_kind) {
+                    return Ok(CreateConversationResult::replayed_with_request_key(
+                        command.conversation_id.clone(),
+                        existing.event_id.clone(),
+                        request_key,
+                    ));
                 }
                 return Err(RuntimeError::Conflict(format!(
-                    "thread create request conflicts with existing conversation id: {}",
-                    command.conversation_id
+                    "thread create request conflicts with existing conversation idempotency key: {request_key}"
                 )));
             }
-            if let Some(existing_conversation_id) =
-                state.business_index.get(business_scope_key.as_str())
-            {
-                return Err(RuntimeError::Conflict(format!(
-                    "thread root message {} already mapped to conversation {existing_conversation_id}",
-                    command.root_message_id
-                )));
-            }
+            return Err(RuntimeError::Conflict(format!(
+                "thread create request conflicts with existing conversation id: {}",
+                command.conversation_id
+            )));
+        }
+        if let Some(existing_conversation_id) = state.business_index.get(business_scope_key.as_str())
+        {
+            return Err(RuntimeError::Conflict(format!(
+                "thread root message {} already mapped to conversation {existing_conversation_id}",
+                command.root_message_id
+            )));
+        }
 
-            let located_parent_id = state
-                .message_locator
-                .conversation_id(command.tenant_id.as_str(), command.root_message_id.as_str())
-                .ok_or_else(|| RuntimeError::MessageNotFound(command.root_message_id.clone()))?
-                .to_owned();
-            if located_parent_id != command.parent_conversation_id {
-                return Err(RuntimeError::InvalidInput(format!(
-                    "thread root message {} does not belong to parent conversation {}",
-                    command.root_message_id, command.parent_conversation_id
-                )));
-            }
+        let located_parent_id = state
+            .message_locator
+            .conversation_id(command.tenant_id.as_str(), command.root_message_id.as_str())
+            .ok_or_else(|| RuntimeError::MessageNotFound(command.root_message_id.clone()))?
+            .to_owned();
+        if located_parent_id != command.parent_conversation_id {
+            return Err(RuntimeError::InvalidInput(format!(
+                "thread root message {} does not belong to parent conversation {}",
+                command.root_message_id, command.parent_conversation_id
+            )));
+        }
 
-            let parent_conversation = state
-                .conversations
-                .get(parent_scope_key.as_str())
-                .ok_or_else(|| {
-                    RuntimeError::ConversationNotFound(command.parent_conversation_id.clone())
-                })?;
-            if parent_conversation.aggregate.scenario() != ConversationScenario::Group {
-                return Err(RuntimeError::ConversationTypeInvalid(format!(
-                    "thread parent conversation {} must be group, got {}",
-                    command.parent_conversation_id,
-                    parent_conversation.aggregate.conversation_type()
-                )));
-            }
-            let parent_creator = resolve_active_member_with_kind(
-                parent_conversation,
-                command.creator_id.as_str(),
-                creator_kind,
-            )?;
-            policy::ensure_actor_kind_matches_member(&parent_creator, creator_kind)?;
-            let root_message = parent_conversation
-                .message_log
-                .message(command.root_message_id.as_str())
-                .ok_or_else(|| RuntimeError::MessageNotFound(command.root_message_id.clone()))?;
-            if root_message.recalled {
-                return Err(RuntimeError::InvalidInput(format!(
-                    "thread root message {} is already recalled",
-                    command.root_message_id
-                )));
-            }
-            let auto_subscribed_root_author = parent_conversation
-                .roster
-                .resolve_active_member_with_kind(
-                    root_message.message.sender.id.as_str(),
-                    root_message.message.sender.kind.as_str(),
-                )
-                .filter(|member| member.principal_id != command.creator_id);
+        let parent_conversation = state
+            .conversations
+            .get(parent_scope_key.as_str())
+            .ok_or_else(|| RuntimeError::ConversationNotFound(command.parent_conversation_id.clone()))?;
+        if parent_conversation.aggregate.scenario() != ConversationScenario::Group {
+            return Err(RuntimeError::ConversationTypeInvalid(format!(
+                "thread parent conversation {} must be group, got {}",
+                command.parent_conversation_id,
+                parent_conversation.aggregate.conversation_type()
+            )));
+        }
+        let parent_creator = resolve_active_member_with_kind(
+            parent_conversation,
+            command.creator_id.as_str(),
+            creator_kind,
+        )?;
+        policy::ensure_actor_kind_matches_member(&parent_creator, creator_kind)?;
+        let root_message = parent_conversation
+            .message_log
+            .message(command.root_message_id.as_str())
+            .ok_or_else(|| RuntimeError::MessageNotFound(command.root_message_id.clone()))?;
+        if root_message.recalled {
+            return Err(RuntimeError::InvalidInput(format!(
+                "thread root message {} is already recalled",
+                command.root_message_id
+            )));
+        }
+        let auto_subscribed_root_author = parent_conversation
+            .roster
+            .resolve_active_member_with_kind(
+                root_message.message.sender.id.as_str(),
+                root_message.message.sender.kind.as_str(),
+            )
+            .filter(|member| member.principal_id != command.creator_id);
 
-            let thread_owner_attributes = BTreeMap::from([
-                ("threadRole".into(), "owner".into()),
+        let thread_owner_attributes = BTreeMap::from([
+            ("threadRole".into(), "owner".into()),
+            (
+                "parentConversationId".into(),
+                command.parent_conversation_id.clone(),
+            ),
+            ("rootMessageId".into(), command.root_message_id.clone()),
+        ]);
+        validate_member_attributes_payload_size(
+            "threadOwnerAttributes",
+            &thread_owner_attributes,
+        )?;
+        let thread_owner = build_conversation_member_with_attributes(
+            command.tenant_id.as_str(),
+            command.conversation_id.as_str(),
+            member_id(command.conversation_id.as_str(), command.creator_id.as_str()),
+            command.creator_id.as_str(),
+            creator_kind,
+            MembershipRole::Owner,
+            Some(command.creator_id.clone()),
+            created_at.clone(),
+            thread_owner_attributes,
+        );
+
+        let mut thread_conversation = ConversationState {
+            aggregate: ConversationAggregateState::new("thread"),
+            thread_create_request: Some(ThreadConversationCreateReplayRecord {
+                creator_id: command.creator_id.clone(),
+                creator_kind: creator_kind.into(),
+                parent_conversation_id: command.parent_conversation_id.clone(),
+                root_message_id: command.root_message_id.clone(),
+                event_id: event_id.clone(),
+            }),
+            ..ConversationState::default()
+        };
+        thread_conversation
+            .aggregate
+            .replace_business_binding(Some(business_binding.clone()));
+        let mut thread_members = Vec::new();
+        let owner_ordering_seq = thread_conversation.aggregate.next_member_epoch();
+        upsert_member(&mut thread_conversation, thread_owner.clone());
+        upsert_read_cursor(
+            &mut thread_conversation,
+            build_default_read_cursor(&thread_owner),
+        );
+        thread_members.push((thread_owner, owner_ordering_seq));
+
+        if let Some(root_author) = auto_subscribed_root_author {
+            let root_author_attributes = BTreeMap::from([
+                ("threadRole".into(), "root_author".into()),
                 (
                     "parentConversationId".into(),
                     command.parent_conversation_id.clone(),
@@ -374,93 +415,33 @@ where
                 ("rootMessageId".into(), command.root_message_id.clone()),
             ]);
             validate_member_attributes_payload_size(
-                "threadOwnerAttributes",
-                &thread_owner_attributes,
+                "rootAuthorAttributes",
+                &root_author_attributes,
             )?;
-            let thread_owner = build_conversation_member_with_attributes(
+            let root_author_member = build_conversation_member_with_attributes(
                 command.tenant_id.as_str(),
                 command.conversation_id.as_str(),
                 member_id(
                     command.conversation_id.as_str(),
-                    command.creator_id.as_str(),
+                    root_author.principal_id.as_str(),
                 ),
-                command.creator_id.as_str(),
-                creator_kind,
-                MembershipRole::Owner,
+                root_author.principal_id.as_str(),
+                root_author.principal_kind.as_str(),
+                MembershipRole::Member,
                 Some(command.creator_id.clone()),
                 created_at.clone(),
-                thread_owner_attributes,
+                root_author_attributes,
             );
-
-            let mut thread_conversation = ConversationState {
-                aggregate: ConversationAggregateState::new("thread"),
-                thread_create_request: Some(ThreadConversationCreateReplayRecord {
-                    creator_id: command.creator_id.clone(),
-                    creator_kind: creator_kind.into(),
-                    parent_conversation_id: command.parent_conversation_id.clone(),
-                    root_message_id: command.root_message_id.clone(),
-                    event_id: event_id.clone(),
-                }),
-                ..ConversationState::default()
-            };
-            thread_conversation
-                .aggregate
-                .replace_business_binding(Some(business_binding.clone()));
-            let mut thread_members = Vec::new();
-            let owner_ordering_seq = thread_conversation.aggregate.next_member_epoch();
-            upsert_member(&mut thread_conversation, thread_owner.clone());
+            let root_author_ordering_seq = thread_conversation.aggregate.next_member_epoch();
+            upsert_member(&mut thread_conversation, root_author_member.clone());
             upsert_read_cursor(
                 &mut thread_conversation,
-                build_default_read_cursor(&thread_owner),
+                build_default_read_cursor(&root_author_member),
             );
-            thread_members.push((thread_owner, owner_ordering_seq));
+            thread_members.push((root_author_member, root_author_ordering_seq));
+        }
 
-            if let Some(root_author) = auto_subscribed_root_author {
-                let root_author_attributes = BTreeMap::from([
-                    ("threadRole".into(), "root_author".into()),
-                    (
-                        "parentConversationId".into(),
-                        command.parent_conversation_id.clone(),
-                    ),
-                    ("rootMessageId".into(), command.root_message_id.clone()),
-                ]);
-                validate_member_attributes_payload_size(
-                    "rootAuthorAttributes",
-                    &root_author_attributes,
-                )?;
-                let root_author_member = build_conversation_member_with_attributes(
-                    command.tenant_id.as_str(),
-                    command.conversation_id.as_str(),
-                    member_id(
-                        command.conversation_id.as_str(),
-                        root_author.principal_id.as_str(),
-                    ),
-                    root_author.principal_id.as_str(),
-                    root_author.principal_kind.as_str(),
-                    MembershipRole::Member,
-                    Some(command.creator_id.clone()),
-                    created_at.clone(),
-                    root_author_attributes,
-                );
-                let root_author_ordering_seq = thread_conversation.aggregate.next_member_epoch();
-                upsert_member(&mut thread_conversation, root_author_member.clone());
-                upsert_read_cursor(
-                    &mut thread_conversation,
-                    build_default_read_cursor(&root_author_member),
-                );
-                thread_members.push((root_author_member, root_author_ordering_seq));
-            }
-
-            state
-                .conversations
-                .insert(scope_key.clone(), thread_conversation);
-            state
-                .business_index
-                .insert(business_scope_key, command.conversation_id.clone());
-            debug_assert_eq!(owner_ordering_seq, 1);
-            thread_members
-        };
-
+        debug_assert_eq!(owner_ordering_seq, 1);
         let envelope = CommitEnvelope {
             event_id: event_id.clone(),
             tenant_id: command.tenant_id.clone(),
@@ -487,31 +468,33 @@ where
             committed_at: created_at.clone(),
             payload_schema: Some("conversation.created.v1".into()),
             payload: json!({
-                "conversationId": command.conversation_id,
+                "conversationId": command.conversation_id.clone(),
                 "conversationType": "thread",
-                "businessType": business_binding.business_type,
-                "businessId": business_binding.business_id,
-                "parentConversationId": command.parent_conversation_id,
-                "rootMessageId": command.root_message_id
+                "businessType": business_binding.business_type.clone(),
+                "businessId": business_binding.business_id.clone(),
+                "parentConversationId": command.parent_conversation_id.clone(),
+                "rootMessageId": command.root_message_id.clone()
             })
             .to_string(),
             retention_class: "standard".into(),
             audit_class: "default".into(),
         };
-
-        self.journal.append(envelope)?;
-        for (thread_member, ordering_seq) in thread_members {
-            self.journal.append(build_member_envelope(
-                command.tenant_id.as_str(),
-                command.conversation_id.as_str(),
-                "conversation.member_joined",
-                thread_member,
-                ordering_seq,
-                "standard",
-                command.creator_id.as_str(),
-                creator_kind,
-            ))?;
-        }
+        append_conversation_creation_batch(
+            &self.journal,
+            envelope,
+            command.tenant_id.as_str(),
+            command.conversation_id.as_str(),
+            thread_members.as_slice(),
+            command.creator_id.as_str(),
+            creator_kind,
+        )?;
+        state
+            .conversations
+            .insert(scope_key.clone(), thread_conversation);
+        state
+            .business_index
+            .insert(business_scope_key, command.conversation_id.clone());
+        drop(state);
 
         Ok(CreateConversationResult::applied_with_request_key(
             command.conversation_id,
@@ -744,13 +727,10 @@ where
         let peer_ordering_seq = conversation.aggregate.next_member_epoch();
         upsert_member(&mut conversation, peer_member.clone());
         upsert_read_cursor(&mut conversation, build_default_read_cursor(&peer_member));
-
-        state.conversations.insert(scope_key, conversation);
-        state
-            .business_index
-            .insert(business_scope_key, command.conversation_id.clone());
-        drop(state);
-
+        let creation_members = vec![
+            (anchor_member.clone(), anchor_ordering_seq),
+            (peer_member.clone(), peer_ordering_seq),
+        ];
         let envelope = CommitEnvelope {
             event_id: event_id.clone(),
             tenant_id: command.tenant_id.clone(),
@@ -794,28 +774,20 @@ where
             retention_class: "standard".into(),
             audit_class: "default".into(),
         };
-
-        self.journal.append(envelope)?;
-        self.journal.append(build_member_envelope(
+        append_conversation_creation_batch(
+            &self.journal,
+            envelope,
             command.tenant_id.as_str(),
             command.conversation_id.as_str(),
-            "conversation.member_joined",
-            anchor_member,
-            anchor_ordering_seq,
-            "standard",
+            creation_members.as_slice(),
             command.bound_by.as_str(),
             binder_kind,
-        ))?;
-        self.journal.append(build_member_envelope(
-            command.tenant_id.as_str(),
-            command.conversation_id.as_str(),
-            "conversation.member_joined",
-            peer_member,
-            peer_ordering_seq,
-            "standard",
-            command.bound_by.as_str(),
-            binder_kind,
-        ))?;
+        )?;
+        state.conversations.insert(scope_key, conversation);
+        state
+            .business_index
+            .insert(business_scope_key, command.conversation_id.clone());
+        drop(state);
 
         Ok(CreateConversationResult::applied_with_request_key(
             command.conversation_id,
@@ -986,9 +958,10 @@ where
         let agent_ordering_seq = conversation.aggregate.next_member_epoch();
         upsert_member(&mut conversation, agent_member.clone());
         upsert_read_cursor(&mut conversation, build_default_read_cursor(&agent_member));
-        state.conversations.insert(scope_key, conversation);
-        drop(state);
-
+        let creation_members = vec![
+            (requester_member.clone(), requester_ordering_seq),
+            (agent_member.clone(), agent_ordering_seq),
+        ];
         let envelope = CommitEnvelope {
             event_id: event_id.clone(),
             tenant_id: command.tenant_id.clone(),
@@ -1025,28 +998,17 @@ where
             retention_class: "standard".into(),
             audit_class: "default".into(),
         };
-
-        self.journal.append(envelope)?;
-        self.journal.append(build_member_envelope(
+        append_conversation_creation_batch(
+            &self.journal,
+            envelope,
             command.tenant_id.as_str(),
             command.conversation_id.as_str(),
-            "conversation.member_joined",
-            requester_member,
-            requester_ordering_seq,
-            "standard",
+            creation_members.as_slice(),
             command.requester_id.as_str(),
             requester_kind,
-        ))?;
-        self.journal.append(build_member_envelope(
-            command.tenant_id.as_str(),
-            command.conversation_id.as_str(),
-            "conversation.member_joined",
-            agent_member,
-            agent_ordering_seq,
-            "standard",
-            command.requester_id.as_str(),
-            requester_kind,
-        ))?;
+        )?;
+        state.conversations.insert(scope_key, conversation);
+        drop(state);
 
         Ok(CreateConversationResult::applied_with_request_key(
             command.conversation_id,
@@ -1231,9 +1193,10 @@ where
             &mut conversation,
             build_default_read_cursor(&subscriber_member),
         );
-        state.conversations.insert(scope_key, conversation);
-        drop(state);
-
+        let creation_members = vec![
+            (publisher_member.clone(), publisher_ordering_seq),
+            (subscriber_member.clone(), subscriber_ordering_seq),
+        ];
         let envelope = CommitEnvelope {
             event_id: event_id.clone(),
             tenant_id: command.tenant_id.clone(),
@@ -1270,28 +1233,17 @@ where
             retention_class: "standard".into(),
             audit_class: "default".into(),
         };
-
-        self.journal.append(envelope)?;
-        self.journal.append(build_member_envelope(
+        append_conversation_creation_batch(
+            &self.journal,
+            envelope,
             command.tenant_id.as_str(),
             command.conversation_id.as_str(),
-            "conversation.member_joined",
-            publisher_member,
-            publisher_ordering_seq,
-            "standard",
+            creation_members.as_slice(),
             command.requester_id.as_str(),
             requester_kind,
-        ))?;
-        self.journal.append(build_member_envelope(
-            command.tenant_id.as_str(),
-            command.conversation_id.as_str(),
-            "conversation.member_joined",
-            subscriber_member,
-            subscriber_ordering_seq,
-            "standard",
-            command.requester_id.as_str(),
-            requester_kind,
-        ))?;
+        )?;
+        state.conversations.insert(scope_key, conversation);
+        drop(state);
 
         Ok(CreateConversationResult::applied_with_request_key(
             command.conversation_id,
@@ -1535,9 +1487,10 @@ where
         let target_ordering_seq = conversation.aggregate.next_member_epoch();
         upsert_member(&mut conversation, target_member.clone());
         upsert_read_cursor(&mut conversation, build_default_read_cursor(&target_member));
-        state.conversations.insert(scope_key, conversation);
-        drop(state);
-
+        let creation_members = vec![
+            (source_member.clone(), source_ordering_seq),
+            (target_member.clone(), target_ordering_seq),
+        ];
         let envelope = CommitEnvelope {
             event_id: event_id.clone(),
             tenant_id: command.tenant_id.clone(),
@@ -1584,28 +1537,17 @@ where
             retention_class: "standard".into(),
             audit_class: "default".into(),
         };
-
-        self.journal.append(envelope)?;
-        self.journal.append(build_member_envelope(
+        append_conversation_creation_batch(
+            &self.journal,
+            envelope,
             command.tenant_id.as_str(),
             command.conversation_id.as_str(),
-            "conversation.member_joined",
-            source_member,
-            source_ordering_seq,
-            "standard",
+            creation_members.as_slice(),
             command.source_id.as_str(),
             source_kind,
-        ))?;
-        self.journal.append(build_member_envelope(
-            command.tenant_id.as_str(),
-            command.conversation_id.as_str(),
-            "conversation.member_joined",
-            target_member,
-            target_ordering_seq,
-            "standard",
-            command.source_id.as_str(),
-            source_kind,
-        ))?;
+        )?;
+        state.conversations.insert(scope_key, conversation);
+        drop(state);
 
         Ok(CreateConversationResult::applied_with_request_key(
             command.conversation_id,
@@ -1613,4 +1555,34 @@ where
             request_key,
         ))
     }
+}
+
+fn append_conversation_creation_batch<J>(
+    journal: &J,
+    created_envelope: CommitEnvelope,
+    tenant_id: &str,
+    conversation_id: &str,
+    members: &[(ConversationMember, u64)],
+    actor_id: &str,
+    actor_kind: &str,
+) -> Result<(), RuntimeError>
+where
+    J: CommitJournal,
+{
+    let mut envelopes = Vec::with_capacity(members.len() + 1);
+    envelopes.push(created_envelope);
+    for (member, ordering_seq) in members {
+        envelopes.push(build_member_envelope(
+            tenant_id,
+            conversation_id,
+            "conversation.member_joined",
+            member.clone(),
+            *ordering_seq,
+            "standard",
+            actor_id,
+            actor_kind,
+        ));
+    }
+    journal.append_batch(envelopes)?;
+    Ok(())
 }

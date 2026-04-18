@@ -1,7 +1,7 @@
 # Module Map
 
-Understanding the workspace module map is the fastest way to understand where behavior lives and
-which directories are stable enough to document as product surfaces.
+Understanding the workspace module map is the fastest way to locate behavior and to see which
+directories are stable enough to document as product surfaces.
 
 ## Top-level Directories
 
@@ -50,7 +50,12 @@ which directories are stable enough to document as product surfaces.
 - `apps/craw-chat-admin` and `apps/craw-chat-portal` are not documented as complete products.
 - SDK workspaces are documented separately from actual release status.
 - OpenAPI authority currently exists for the app SDK workspace, but not as a checked-in admin SDK
-  source under `sdks/sdkwork-craw-chat-sdk-admin/`.
+  source file under `sdks/sdkwork-craw-chat-sdk-admin/`.
 
-That distinction is important for a mature documentation standard: directory presence alone is not
-treated as product delivery.
+That distinction matters: directory presence alone is not treated as product delivery.
+
+## What To Read Next
+
+- [SDK Overview](/sdk/index)
+- [Architecture Overview](/architecture/overview)
+- [Control Plane API Overview](/api-reference/control-plane-api)

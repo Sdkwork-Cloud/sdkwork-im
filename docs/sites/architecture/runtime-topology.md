@@ -1,6 +1,6 @@
 # Runtime Topology
 
-This page describes the topology that is implemented now, not a future target topology.
+This page describes the topology that is implemented today, not a future target topology.
 
 ## App-facing Topology
 
@@ -101,3 +101,9 @@ Public runtime entry uses `build_public_app()`:
 Internal tests and embedded compositions often use `build_default_app()` and trusted headers for
 auth-context injection. That is an implementation and testing convenience layer, not the public
 internet-facing consumer contract.
+
+## What To Read Next
+
+- [Architecture Overview](/architecture/overview)
+- [Profiles and Environment](/deployment/profiles-and-env)
+- [Runtime Directory](/reference/runtime-directory)

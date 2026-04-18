@@ -8,7 +8,7 @@ use im_platform_contracts::{
 };
 
 use crate::shared::{
-    read_json_records_or_default, rtc_scope_key, scope_key, stream_scope_key, write_json_records,
+    read_json_records_or_default, rtc_scope_key, scope_key, stream_scope_key, update_json_records,
 };
 
 #[derive(Clone, Debug)]
@@ -32,13 +32,6 @@ impl FileStreamStateStore {
     fn read_records(&self) -> Result<BTreeMap<String, StreamStateRecord>, ContractError> {
         read_json_records_or_default(self.file_path.as_path(), "stream state store")
     }
-
-    fn write_records(
-        &self,
-        records: &BTreeMap<String, StreamStateRecord>,
-    ) -> Result<(), ContractError> {
-        write_json_records(self.file_path.as_path(), records, "stream state store")
-    }
 }
 
 impl StreamStateStore for FileStreamStateStore {
@@ -61,12 +54,16 @@ impl StreamStateStore for FileStreamStateStore {
             .io_lock
             .lock()
             .expect("stream state file store lock should lock");
-        let mut records = self.read_records()?;
-        records.insert(
-            stream_scope_key(record.tenant_id.as_str(), record.stream_id.as_str()),
-            record,
-        );
-        self.write_records(&records)
+        update_json_records(
+            self.file_path.as_path(),
+            "stream state store",
+            |records: &mut BTreeMap<String, StreamStateRecord>| {
+                records.insert(
+                    stream_scope_key(record.tenant_id.as_str(), record.stream_id.as_str()),
+                    record,
+                );
+            },
+        )
     }
 
     fn clear_state(&self, tenant_id: &str, stream_id: &str) -> Result<bool, ContractError> {
@@ -74,12 +71,15 @@ impl StreamStateStore for FileStreamStateStore {
             .io_lock
             .lock()
             .expect("stream state file store lock should lock");
-        let mut records = self.read_records()?;
-        let removed = records
-            .remove(stream_scope_key(tenant_id, stream_id).as_str())
-            .is_some();
-        self.write_records(&records)?;
-        Ok(removed)
+        update_json_records(
+            self.file_path.as_path(),
+            "stream state store",
+            |records: &mut BTreeMap<String, StreamStateRecord>| {
+                records
+                    .remove(stream_scope_key(tenant_id, stream_id).as_str())
+                    .is_some()
+            },
+        )
     }
 }
 
@@ -104,13 +104,6 @@ impl FileRtcStateStore {
     fn read_records(&self) -> Result<BTreeMap<String, RtcStateRecord>, ContractError> {
         read_json_records_or_default(self.file_path.as_path(), "rtc state store")
     }
-
-    fn write_records(
-        &self,
-        records: &BTreeMap<String, RtcStateRecord>,
-    ) -> Result<(), ContractError> {
-        write_json_records(self.file_path.as_path(), records, "rtc state store")
-    }
 }
 
 impl RtcStateStore for FileRtcStateStore {
@@ -133,12 +126,16 @@ impl RtcStateStore for FileRtcStateStore {
             .io_lock
             .lock()
             .expect("rtc state file store lock should lock");
-        let mut records = self.read_records()?;
-        records.insert(
-            rtc_scope_key(record.tenant_id.as_str(), record.rtc_session_id.as_str()),
-            record,
-        );
-        self.write_records(&records)
+        update_json_records(
+            self.file_path.as_path(),
+            "rtc state store",
+            |records: &mut BTreeMap<String, RtcStateRecord>| {
+                records.insert(
+                    rtc_scope_key(record.tenant_id.as_str(), record.rtc_session_id.as_str()),
+                    record,
+                );
+            },
+        )
     }
 
     fn clear_state(&self, tenant_id: &str, rtc_session_id: &str) -> Result<bool, ContractError> {
@@ -146,12 +143,15 @@ impl RtcStateStore for FileRtcStateStore {
             .io_lock
             .lock()
             .expect("rtc state file store lock should lock");
-        let mut records = self.read_records()?;
-        let removed = records
-            .remove(rtc_scope_key(tenant_id, rtc_session_id).as_str())
-            .is_some();
-        self.write_records(&records)?;
-        Ok(removed)
+        update_json_records(
+            self.file_path.as_path(),
+            "rtc state store",
+            |records: &mut BTreeMap<String, RtcStateRecord>| {
+                records
+                    .remove(rtc_scope_key(tenant_id, rtc_session_id).as_str())
+                    .is_some()
+            },
+        )
     }
 }
 
@@ -176,13 +176,6 @@ impl FilePresenceStateStore {
     fn read_records(&self) -> Result<BTreeMap<String, PresenceStateRecord>, ContractError> {
         read_json_records_or_default(self.file_path.as_path(), "presence state store")
     }
-
-    fn write_records(
-        &self,
-        records: &BTreeMap<String, PresenceStateRecord>,
-    ) -> Result<(), ContractError> {
-        write_json_records(self.file_path.as_path(), records, "presence state store")
-    }
 }
 
 impl PresenceStateStore for FilePresenceStateStore {
@@ -206,16 +199,20 @@ impl PresenceStateStore for FilePresenceStateStore {
             .io_lock
             .lock()
             .expect("presence state file store lock should lock");
-        let mut records = self.read_records()?;
-        records.insert(
-            scope_key(
-                record.tenant_id.as_str(),
-                record.principal_id.as_str(),
-                record.device_id.as_str(),
-            ),
-            record,
-        );
-        self.write_records(&records)
+        update_json_records(
+            self.file_path.as_path(),
+            "presence state store",
+            |records: &mut BTreeMap<String, PresenceStateRecord>| {
+                records.insert(
+                    scope_key(
+                        record.tenant_id.as_str(),
+                        record.principal_id.as_str(),
+                        record.device_id.as_str(),
+                    ),
+                    record,
+                );
+            },
+        )
     }
 
     fn list_states_for_principal(

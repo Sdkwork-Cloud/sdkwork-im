@@ -24,8 +24,8 @@ pub(super) struct LocalUserModuleProvider {
 
 pub(super) fn build_default_user_module_provider() -> Arc<dyn UserModuleProvider> {
     match resolve_default_user_module_provider_mode() {
-        DefaultUserModuleProviderMode::Local => Arc::new(LocalUserModuleProvider::default()),
-        DefaultUserModuleProviderMode::External => {
+        Ok(DefaultUserModuleProviderMode::Local) => Arc::new(LocalUserModuleProvider::default()),
+        Ok(DefaultUserModuleProviderMode::External) => {
             let default_external_system = resolve_external_user_module_system();
             match resolve_external_user_module_catalog_path() {
                 Ok(catalog_path) => Arc::new(ExternalUserModuleProvider::new(
@@ -45,6 +45,14 @@ pub(super) fn build_default_user_module_provider() -> Arc<dyn UserModuleProvider
                 )),
             }
         }
+        Err((configured_value, error_message)) => Arc::new(UnavailableUserModuleProvider::new(
+            UnavailableUserModuleProvider::invalid_config_descriptor_static(),
+            error_message,
+            BTreeMap::from([
+                ("configKey".into(), USER_MODULE_PROVIDER_ENV.into()),
+                ("configuredValue".into(), configured_value),
+            ]),
+        )),
     }
 }
 
@@ -53,18 +61,17 @@ enum DefaultUserModuleProviderMode {
     External,
 }
 
-fn resolve_default_user_module_provider_mode() -> DefaultUserModuleProviderMode {
-    match std::env::var(USER_MODULE_PROVIDER_ENV)
-        .unwrap_or_else(|_| "local".into())
-        .trim()
-        .to_ascii_lowercase()
-        .as_str()
-    {
-        "" | "local" => DefaultUserModuleProviderMode::Local,
-        "external" => DefaultUserModuleProviderMode::External,
-        other => {
-            panic!("{USER_MODULE_PROVIDER_ENV} must be one of: local, external; received {other}")
-        }
+fn resolve_default_user_module_provider_mode()
+-> Result<DefaultUserModuleProviderMode, (String, String)> {
+    let configured_value =
+        std::env::var(USER_MODULE_PROVIDER_ENV).unwrap_or_else(|_| "local".into());
+    match configured_value.trim().to_ascii_lowercase().as_str() {
+        "" | "local" => Ok(DefaultUserModuleProviderMode::Local),
+        "external" => Ok(DefaultUserModuleProviderMode::External),
+        other => Err((
+            other.into(),
+            format!("{USER_MODULE_PROVIDER_ENV} must be one of: local, external; received {other}"),
+        )),
     }
 }
 
@@ -137,6 +144,28 @@ pub(super) fn resolve_member_principal(
     let descriptor = state.user_module_provider.descriptor();
     let user = resolve_user(state.user_module_provider.as_ref(), tenant_id, principal_id)?;
     Ok(("user".into(), user_metadata(&descriptor, &user)))
+}
+
+pub(super) fn ensure_active_user(
+    state: &AppState,
+    tenant_id: &str,
+    user_id: &str,
+) -> Result<UserModuleUser, ApiError> {
+    resolve_user(state.user_module_provider.as_ref(), tenant_id, user_id)
+}
+
+pub(super) fn ensure_active_principal(
+    state: &AppState,
+    tenant_id: &str,
+    principal_id: &str,
+    principal_kind: &str,
+) -> Result<(), ApiError> {
+    if principal_kind != "user" {
+        return Ok(());
+    }
+
+    resolve_user(state.user_module_provider.as_ref(), tenant_id, principal_id)?;
+    Ok(())
 }
 
 fn resolve_user(
@@ -241,6 +270,16 @@ struct UnavailableUserModuleProvider {
 }
 
 impl UnavailableUserModuleProvider {
+    fn invalid_config_descriptor_static() -> ProviderPluginDescriptor {
+        ProviderPluginDescriptor::new(
+            "user-module-invalid-config",
+            ProviderDomain::UserModule,
+            "invalid-config",
+            "Invalid User Module Configuration",
+        )
+        .with_required_capabilities(["query", "profile", "bind"])
+    }
+
     fn new(
         descriptor: ProviderPluginDescriptor,
         error_message: String,

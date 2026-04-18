@@ -2,8 +2,13 @@
 
 <p class="api-page-intro">
   Provider health endpoints expose the active node's view of media, RTC, and user-module provider
-  plugin health.
+  plugins.
 </p>
+
+<div class="api-link-list">
+  <a href="/api-reference/iot/protocol-and-health"><code>IoT</code> IoT access and protocol provider health are documented on a separate page</a>
+  <a href="/api-reference/platform/ops"><code>Ops</code> Broader runtime diagnostics and provider-binding views are documented separately</a>
+</div>
 
 <a id="get-media-provider-health"></a>
 <section class="api-op">

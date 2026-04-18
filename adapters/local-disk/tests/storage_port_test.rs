@@ -1,14 +1,16 @@
 use std::fs;
 use std::path::PathBuf;
+use std::sync::{Arc, Barrier};
+use std::thread;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use im_adapters_local_disk::{
-    FileMetadataStore, FileTimelineProjectionStore, validate_metadata_store_file,
-    validate_timeline_projection_store_file,
+    FileCommitJournal, FileMetadataStore, FileTimelineProjectionStore, read_commit_journal_file,
+    validate_metadata_store_file, validate_timeline_projection_store_file,
 };
 use im_platform_contracts::{
-    ContractError, MetadataSnapshotRecord, MetadataStore, TimelineProjectionBatch,
-    TimelineProjectionRecord, TimelineProjectionStore,
+    CommitEnvelope, CommitJournal, ContractError, MetadataSnapshotRecord, MetadataStore,
+    TimelineProjectionBatch, TimelineProjectionRecord, TimelineProjectionStore,
 };
 
 fn unique_store_file(prefix: &str) -> PathBuf {
@@ -17,6 +19,17 @@ fn unique_store_file(prefix: &str) -> PathBuf {
         .expect("system time should be after epoch")
         .as_nanos();
     std::env::temp_dir().join(format!("craw_chat_{prefix}_{unique}.json"))
+}
+
+fn commit_envelope(thread_id: usize, seq: usize) -> CommitEnvelope {
+    CommitEnvelope::minimal(
+        &format!("evt_thread_{thread_id}_{seq}"),
+        "t_demo",
+        "test.appended",
+        "test",
+        &format!("agg_{thread_id}"),
+        seq as u64,
+    )
 }
 
 #[test]
@@ -48,6 +61,142 @@ fn test_file_metadata_store_persists_latest_snapshot_across_reopen() {
     );
 
     let _ = fs::remove_file(file_path);
+}
+
+#[test]
+fn test_file_commit_journal_preserves_cross_instance_appends() {
+    let file_path = unique_store_file("commit_journal_concurrent");
+    let thread_count = 4;
+    let appends_per_thread = 64;
+    let barrier = Arc::new(Barrier::new(thread_count));
+    let mut handles = Vec::new();
+
+    for thread_id in 0..thread_count {
+        let barrier = barrier.clone();
+        let file_path = file_path.clone();
+        handles.push(thread::spawn(move || {
+            let journal = FileCommitJournal::new("local-disk-test", &file_path);
+            for seq in 0..appends_per_thread {
+                barrier.wait();
+                journal
+                    .append(commit_envelope(thread_id, seq))
+                    .expect("cross-instance append should succeed");
+            }
+        }));
+    }
+
+    for handle in handles {
+        handle.join().expect("writer thread should join");
+    }
+
+    let events = read_commit_journal_file(&file_path)
+        .expect("commit journal should remain readable after concurrent appends");
+    assert_eq!(
+        events.len(),
+        thread_count * appends_per_thread,
+        "concurrent appends from distinct journal instances should not lose events"
+    );
+
+    let _ = fs::remove_file(&file_path);
+    let _ = fs::remove_file(file_path.with_extension("json.lock"));
+}
+
+#[test]
+fn test_file_metadata_store_preserves_cross_instance_snapshot_updates() {
+    let file_path = unique_store_file("metadata_store_concurrent");
+    let thread_count = 4;
+    let writes_per_thread = 32;
+    let barrier = Arc::new(Barrier::new(thread_count));
+    let mut handles = Vec::new();
+
+    for thread_id in 0..thread_count {
+        let barrier = barrier.clone();
+        let file_path = file_path.clone();
+        handles.push(thread::spawn(move || {
+            let store = FileMetadataStore::new(&file_path);
+            for seq in 0..writes_per_thread {
+                let key = format!("conversation:c_{thread_id}_{seq}");
+                let value = format!("{{\"thread\":{thread_id},\"seq\":{seq}}}");
+                barrier.wait();
+                store
+                    .put_snapshot("tenant:t_demo", key.as_str(), value.as_str())
+                    .expect("cross-instance metadata snapshot should succeed");
+            }
+        }));
+    }
+
+    for handle in handles {
+        handle.join().expect("metadata writer thread should join");
+    }
+
+    let reopened = FileMetadataStore::new(&file_path);
+    for thread_id in 0..thread_count {
+        for seq in 0..writes_per_thread {
+            let key = format!("conversation:c_{thread_id}_{seq}");
+            let expected = format!("{{\"thread\":{thread_id},\"seq\":{seq}}}");
+            assert_eq!(
+                reopened.snapshot("tenant:t_demo", key.as_str()).as_deref(),
+                Some(expected.as_str()),
+                "cross-instance metadata updates should retain every unique key"
+            );
+        }
+    }
+
+    let _ = fs::remove_file(&file_path);
+    let _ = fs::remove_file(file_path.with_extension("json.lock"));
+}
+
+#[test]
+fn test_file_timeline_projection_store_preserves_cross_instance_entries() {
+    let file_path = unique_store_file("timeline_projection_store_concurrent");
+    let conversation_id = "t_demo:c_concurrent";
+    let thread_count = 4;
+    let writes_per_thread = 32;
+    let barrier = Arc::new(Barrier::new(thread_count));
+    let mut handles = Vec::new();
+
+    for thread_id in 0..thread_count {
+        let barrier = barrier.clone();
+        let file_path = file_path.clone();
+        handles.push(thread::spawn(move || {
+            let store = FileTimelineProjectionStore::new(&file_path);
+            for seq in 0..writes_per_thread {
+                let message_seq = (thread_id * writes_per_thread + seq + 1) as u64;
+                let payload = format!("{{\"thread\":{thread_id},\"seq\":{seq}}}");
+                barrier.wait();
+                store
+                    .upsert_timeline_entry(conversation_id, message_seq, payload.as_str())
+                    .expect("cross-instance timeline upsert should succeed");
+            }
+        }));
+    }
+
+    for handle in handles {
+        handle.join().expect("timeline writer thread should join");
+    }
+
+    let reopened = FileTimelineProjectionStore::new(&file_path);
+    let entries = reopened.entries(conversation_id);
+    assert_eq!(
+        entries.len(),
+        thread_count * writes_per_thread,
+        "cross-instance timeline upserts should retain every unique message sequence"
+    );
+    for thread_id in 0..thread_count {
+        for seq in 0..writes_per_thread {
+            let message_seq = (thread_id * writes_per_thread + seq + 1) as u64;
+            let payload = format!("{{\"thread\":{thread_id},\"seq\":{seq}}}");
+            assert!(
+                entries.iter().any(|(stored_seq, stored_payload)| {
+                    *stored_seq == message_seq && stored_payload == &payload
+                }),
+                "missing timeline projection entry for message_seq={message_seq}"
+            );
+        }
+    }
+
+    let _ = fs::remove_file(&file_path);
+    let _ = fs::remove_file(file_path.with_extension("json.lock"));
 }
 
 #[test]

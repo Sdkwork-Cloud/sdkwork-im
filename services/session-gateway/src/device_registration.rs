@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use im_auth_context::AuthContext;
+use tokio::sync::watch;
 
 use super::ApiError;
 use super::cluster::RealtimeClusterBridge;
@@ -119,6 +120,56 @@ impl SessionDeviceRegistration {
         self.ensure_route_session_current(auth, device_id, auth.session_id.as_deref())?;
         self.register_device(auth, device_id, connection_kind, allow_session_takeover)?;
         Ok(())
+    }
+
+    pub(crate) fn release_active_device_route_if_current_session(
+        &self,
+        auth: &AuthContext,
+        device_id: &str,
+    ) {
+        if self
+            .ensure_route_session_current(auth, device_id, auth.session_id.as_deref())
+            .is_err()
+        {
+            return;
+        }
+
+        let _ = self
+            .realtime_cluster
+            .release_device_route_for_principal_kind(
+                auth.tenant_id.as_str(),
+                auth.actor_id.as_str(),
+                auth.actor_kind.as_str(),
+                device_id,
+                self.node_id.as_str(),
+            );
+    }
+
+    pub(crate) fn ensure_active_device_route_current_session(
+        &self,
+        auth: &AuthContext,
+        device_id: &str,
+    ) -> Result<(), ApiError> {
+        self.session_state
+            .ensure_device_kind_available(auth, device_id)?;
+        self.ensure_route_session_current(auth, device_id, auth.session_id.as_deref())
+    }
+
+    pub(crate) fn subscribe_active_device_route_epoch(
+        &self,
+        auth: &AuthContext,
+        device_id: &str,
+    ) -> Result<watch::Receiver<u64>, ApiError> {
+        self.session_state
+            .ensure_device_kind_available(auth, device_id)?;
+        Ok(self
+            .realtime_cluster
+            .subscribe_device_route_epoch_for_principal_kind(
+                auth.tenant_id.as_str(),
+                auth.actor_id.as_str(),
+                auth.actor_kind.as_str(),
+                device_id,
+            ))
     }
 
     pub(crate) fn disconnect_active_device_route(

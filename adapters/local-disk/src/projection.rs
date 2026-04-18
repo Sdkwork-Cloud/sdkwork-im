@@ -6,7 +6,7 @@ use im_platform_contracts::{
     ContractError, TimelineProjectionBatch, TimelineProjectionRecord, TimelineProjectionStore,
 };
 
-use crate::shared::{read_json_records_or_default, write_json_records};
+use crate::shared::{read_json_records_or_default, update_json_records};
 
 #[derive(Clone, Debug)]
 pub struct FileTimelineProjectionStore {
@@ -46,17 +46,6 @@ impl FileTimelineProjectionStore {
     fn read_records(&self) -> Result<BTreeMap<String, BTreeMap<u64, String>>, ContractError> {
         read_json_records_or_default(self.file_path.as_path(), "timeline projection store")
     }
-
-    fn write_records(
-        &self,
-        records: &BTreeMap<String, BTreeMap<u64, String>>,
-    ) -> Result<(), ContractError> {
-        write_json_records(
-            self.file_path.as_path(),
-            records,
-            "timeline projection store",
-        )
-    }
 }
 
 impl TimelineProjectionStore for FileTimelineProjectionStore {
@@ -70,12 +59,16 @@ impl TimelineProjectionStore for FileTimelineProjectionStore {
             .io_lock
             .lock()
             .expect("timeline projection file store lock should lock");
-        let mut records = self.read_records()?;
-        records
-            .entry(conversation_id.to_string())
-            .or_default()
-            .insert(message_seq, payload.to_string());
-        self.write_records(&records)
+        update_json_records(
+            self.file_path.as_path(),
+            "timeline projection store",
+            |records: &mut BTreeMap<String, BTreeMap<u64, String>>| {
+                records
+                    .entry(conversation_id.to_string())
+                    .or_default()
+                    .insert(message_seq, payload.to_string());
+            },
+        )
     }
 
     fn load_timeline(&self, conversation_id: &str) -> Result<Vec<(u64, String)>, ContractError> {
@@ -91,12 +84,16 @@ impl TimelineProjectionStore for FileTimelineProjectionStore {
             .io_lock
             .lock()
             .expect("timeline projection file store lock should lock");
-        let mut stored = self.read_records()?;
-        let scope_entries = stored.entry(conversation_id.to_string()).or_default();
-        for record in records {
-            scope_entries.insert(record.message_seq, record.payload.clone());
-        }
-        self.write_records(&stored)
+        update_json_records(
+            self.file_path.as_path(),
+            "timeline projection store",
+            |stored: &mut BTreeMap<String, BTreeMap<u64, String>>| {
+                let scope_entries = stored.entry(conversation_id.to_string()).or_default();
+                for record in records {
+                    scope_entries.insert(record.message_seq, record.payload.clone());
+                }
+            },
+        )
     }
 
     fn upsert_timeline_batches(
@@ -107,14 +104,18 @@ impl TimelineProjectionStore for FileTimelineProjectionStore {
             .io_lock
             .lock()
             .expect("timeline projection file store lock should lock");
-        let mut stored = self.read_records()?;
-        for batch in batches {
-            let scope_entries = stored.entry(batch.conversation_id.clone()).or_default();
-            for record in &batch.records {
-                scope_entries.insert(record.message_seq, record.payload.clone());
-            }
-        }
-        self.write_records(&stored)
+        update_json_records(
+            self.file_path.as_path(),
+            "timeline projection store",
+            |stored: &mut BTreeMap<String, BTreeMap<u64, String>>| {
+                for batch in batches {
+                    let scope_entries = stored.entry(batch.conversation_id.clone()).or_default();
+                    for record in &batch.records {
+                        scope_entries.insert(record.message_seq, record.payload.clone());
+                    }
+                }
+            },
+        )
     }
 }
 

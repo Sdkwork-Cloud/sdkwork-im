@@ -2,8 +2,14 @@
 
 <p class="api-page-intro">
   Provider governance endpoints expose the provider registry, effective bindings, policy history,
-  policy diffs, preview flows, and rollback operations.
+  diffs, previews, and rollback operations.
 </p>
+
+<div class="api-link-list">
+  <a href="/api-reference/control-plane/protocol"><code>Protocol</code> Protocol registry and governance snapshots are documented separately</a>
+  <a href="/api-reference/control-plane/nodes"><code>Nodes</code> Drain, activate, and route migration are documented separately</a>
+  <a href="/sdk/admin-sdk"><code>Admin SDK</code> Admin SDK docs explain why consumer imports are still documented conservatively</a>
+</div>
 
 <a id="get-provider-registry"></a>
 <section class="api-op">

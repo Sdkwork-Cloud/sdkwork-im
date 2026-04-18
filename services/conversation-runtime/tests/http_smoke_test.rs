@@ -1,7 +1,66 @@
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
+use std::fs;
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH};
 use tower::ServiceExt;
+
+static UNIQUE_CATALOG_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+fn unique_principal_catalog_path() -> PathBuf {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("system time should be after epoch")
+        .as_nanos();
+    let counter = UNIQUE_CATALOG_COUNTER.fetch_add(1, Ordering::Relaxed);
+    std::env::temp_dir().join(format!(
+        "conversation_runtime_principal_catalog_{unique}_{counter}.json"
+    ))
+}
+
+#[derive(Clone)]
+struct StrictKnownPrincipalDirectory {
+    known_user_ids: Arc<Vec<&'static str>>,
+}
+
+impl StrictKnownPrincipalDirectory {
+    fn new(known_user_ids: &[&'static str]) -> Self {
+        Self {
+            known_user_ids: Arc::new(known_user_ids.to_vec()),
+        }
+    }
+}
+
+impl conversation_runtime::PrincipalDirectory for StrictKnownPrincipalDirectory {
+    fn ensure_active_principal(
+        &self,
+        _tenant_id: &str,
+        principal_id: &str,
+        principal_kind: &str,
+    ) -> Result<(), conversation_runtime::PrincipalDirectoryError> {
+        if principal_kind != "user" {
+            return Ok(());
+        }
+        if self
+            .known_user_ids
+            .iter()
+            .any(|known| *known == principal_id)
+        {
+            return Ok(());
+        }
+
+        Err(
+            conversation_runtime::PrincipalDirectoryError::PrincipalNotFound {
+                tenant_id: "t_demo".into(),
+                principal_id: principal_id.into(),
+                principal_kind: principal_kind.into(),
+            },
+        )
+    }
+}
 
 #[tokio::test]
 async fn test_create_conversation_and_post_message_over_http() {
@@ -370,6 +429,43 @@ async fn test_create_conversation_rejects_unknown_type_over_http() {
 }
 
 #[tokio::test]
+async fn test_create_conversation_rejects_unknown_user_creator_over_http() {
+    let app = conversation_runtime::build_default_app_with_principal_directory(Arc::new(
+        StrictKnownPrincipalDirectory::new(&["actor_a"]),
+    ));
+
+    let create_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "actor_missing")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_unknown_creator_http",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation with unknown creator should return response");
+
+    assert_eq!(create_response.status(), StatusCode::BAD_REQUEST);
+    let body = create_response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["code"], "conversation_principal_not_found");
+}
+
+#[tokio::test]
 async fn test_create_conversation_rejects_oversized_conversation_id_over_http() {
     let app = conversation_runtime::build_default_app();
     let request_body = serde_json::json!({
@@ -718,6 +814,43 @@ async fn test_create_agent_dialog_rejects_non_user_actor_over_http() {
 }
 
 #[tokio::test]
+async fn test_create_agent_dialog_rejects_unknown_user_requester_over_http() {
+    let app = conversation_runtime::build_default_app_with_principal_directory(Arc::new(
+        StrictKnownPrincipalDirectory::new(&["actor_a"]),
+    ));
+
+    let create_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/agent-dialogs")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "actor_missing")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_agent_dialog_unknown_requester_http",
+                        "agentId":"ag_demo"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create agent dialog with unknown requester should return response");
+
+    assert_eq!(create_response.status(), StatusCode::BAD_REQUEST);
+    let body = create_response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["code"], "conversation_principal_not_found");
+}
+
+#[tokio::test]
 async fn test_create_agent_handoff_over_http() {
     let app = conversation_runtime::build_default_app();
 
@@ -820,6 +953,47 @@ async fn test_create_agent_handoff_rejects_non_agent_actor_over_http() {
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
     assert_eq!(value["code"], "conversation_permission_denied");
+}
+
+#[tokio::test]
+async fn test_create_agent_handoff_rejects_unknown_user_target_over_http() {
+    let app = conversation_runtime::build_default_app_with_principal_directory(Arc::new(
+        StrictKnownPrincipalDirectory::new(&["actor_a"]),
+    ));
+
+    let create_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/agent-handoffs")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "ag_source")
+                .header("x-actor-kind", "agent")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_agent_handoff_unknown_target_http",
+                        "targetId":"actor_missing",
+                        "targetKind":"user",
+                        "handoffSessionId":"hs_unknown_target_http",
+                        "handoffReason":"manual_escalation"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create agent handoff with unknown target should return response");
+
+    assert_eq!(create_response.status(), StatusCode::BAD_REQUEST);
+    let body = create_response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["code"], "conversation_principal_not_found");
 }
 
 #[tokio::test]
@@ -1300,6 +1474,44 @@ async fn test_create_system_channel_rejects_non_system_actor_over_http() {
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
     assert_eq!(value["code"], "conversation_permission_denied");
+}
+
+#[tokio::test]
+async fn test_create_system_channel_rejects_unknown_user_subscriber_over_http() {
+    let app = conversation_runtime::build_default_app_with_principal_directory(Arc::new(
+        StrictKnownPrincipalDirectory::new(&["actor_a"]),
+    ));
+
+    let create_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/system-channels")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "svc_ops")
+                .header("x-actor-kind", "system")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_system_channel_unknown_subscriber_http",
+                        "subscriberId":"actor_missing"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create system channel with unknown subscriber should return response");
+
+    assert_eq!(create_response.status(), StatusCode::BAD_REQUEST);
+    let body = create_response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["code"], "conversation_principal_not_found");
 }
 
 #[tokio::test]
@@ -1889,6 +2101,65 @@ async fn test_add_member_rejects_oversized_attributes_over_http() {
             .expect("message should be present")
             .contains("memberAttributes")
     );
+}
+
+#[tokio::test]
+async fn test_add_member_rejects_unknown_user_principal_over_http() {
+    let app = conversation_runtime::build_default_app_with_principal_directory(Arc::new(
+        StrictKnownPrincipalDirectory::new(&["u_owner"]),
+    ));
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_members_unknown_principal_http",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation request should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let add_member_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_members_unknown_principal_http/members/add")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "principalId":"u_missing",
+                        "principalKind":"user",
+                        "role":"member"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("add unknown member request should return response");
+
+    assert_eq!(add_member_response.status(), StatusCode::BAD_REQUEST);
+    let body = add_member_response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["code"], "conversation_principal_not_found");
 }
 
 #[tokio::test]
@@ -3196,6 +3467,110 @@ async fn test_bind_direct_chat_conversation_over_http_and_query_binding() {
 }
 
 #[tokio::test]
+async fn test_bind_direct_chat_conversation_rejects_unknown_user_participant_over_http() {
+    let app = conversation_runtime::build_default_app_with_principal_directory(Arc::new(
+        StrictKnownPrincipalDirectory::new(&["actor_a"]),
+    ));
+
+    let bind_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/direct-chats/bindings")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "svc_control")
+                .header("x-actor-kind", "system")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_direct_binding_http_unknown",
+                        "directChatId":"dc_http_unknown",
+                        "leftActorId":"actor_a",
+                        "leftActorKind":"user",
+                        "rightActorId":"actor_missing",
+                        "rightActorKind":"user"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("direct chat binding request should return response");
+    assert_eq!(bind_response.status(), StatusCode::BAD_REQUEST);
+    let bind_body = bind_response
+        .into_body()
+        .collect()
+        .await
+        .expect("bind body should collect")
+        .to_bytes();
+    let bind_json: serde_json::Value =
+        serde_json::from_slice(&bind_body).expect("bind response should be valid json");
+    assert_eq!(bind_json["code"], "conversation_principal_not_found");
+}
+
+#[tokio::test]
+async fn test_bind_direct_chat_conversation_rejects_unknown_user_participant_with_static_catalog_over_http()
+ {
+    let catalog_path = unique_principal_catalog_path();
+    fs::write(
+        &catalog_path,
+        r#"{
+            "principals":[
+                {
+                    "tenantId":"t_demo",
+                    "principalId":"actor_a",
+                    "principalKind":"user"
+                }
+            ]
+        }"#,
+    )
+    .expect("principal catalog should be written");
+    let principal_directory =
+        conversation_runtime::StaticPrincipalDirectory::from_json_file(catalog_path.as_path())
+            .expect("static principal directory should load catalog");
+    let app = conversation_runtime::build_default_app_with_principal_directory(Arc::new(
+        principal_directory,
+    ));
+
+    let bind_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/direct-chats/bindings")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "svc_control")
+                .header("x-actor-kind", "system")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_direct_binding_http_static_unknown",
+                        "directChatId":"dc_http_static_unknown",
+                        "leftActorId":"actor_a",
+                        "leftActorKind":"user",
+                        "rightActorId":"actor_missing",
+                        "rightActorKind":"user"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("direct chat binding request should return response");
+    assert_eq!(bind_response.status(), StatusCode::BAD_REQUEST);
+    let bind_body = bind_response
+        .into_body()
+        .collect()
+        .await
+        .expect("bind body should collect")
+        .to_bytes();
+    let bind_json: serde_json::Value =
+        serde_json::from_slice(&bind_body).expect("bind response should be valid json");
+    assert_eq!(bind_json["code"], "conversation_principal_not_found");
+
+    let _ = fs::remove_file(catalog_path);
+}
+
+#[tokio::test]
 async fn test_duplicate_bind_direct_chat_conversation_request_is_idempotent_and_conflicting_retry_is_rejected_over_http()
  {
     let app = conversation_runtime::build_default_app();
@@ -4206,6 +4581,73 @@ async fn test_sync_shared_channel_linked_member_over_http_materializes_linked_hi
         resync_json["attributes"]["sharedChannelSyncRequestKey"],
         "t_demo|c_history_shared_sync_http|scp_sync_http|ec_sync_http|u_partner_external_sync|user|partner::sync-user"
     );
+}
+
+#[tokio::test]
+async fn test_sync_shared_channel_linked_member_rejects_unknown_user_local_actor_over_http() {
+    let app = conversation_runtime::build_default_app_with_principal_directory(Arc::new(
+        StrictKnownPrincipalDirectory::new(&["u_owner"]),
+    ));
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_history_shared_sync_unknown_http",
+                        "conversationType":"group",
+                        "policyVersion":"group.policy.v1",
+                        "historyVisibility":"shared",
+                        "retentionPolicyRef":"tenant.standard"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create shared-history conversation request should return response");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let sync_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/shared-channel-links/sync")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "control-plane-sync")
+                .header("x-actor-kind", "system")
+                .header("x-permissions", "conversation.shared_channel.sync")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_history_shared_sync_unknown_http",
+                        "sharedChannelPolicyId":"scp_sync_unknown_http",
+                        "externalConnectionId":"ec_sync_unknown_http",
+                        "localActorId":"u_missing",
+                        "localActorKind":"user",
+                        "externalMemberId":"partner::unknown-user"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("shared channel sync with unknown local actor should return response");
+
+    assert_eq!(sync_response.status(), StatusCode::BAD_REQUEST);
+    let body = sync_response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["code"], "conversation_principal_not_found");
 }
 
 #[tokio::test]

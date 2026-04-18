@@ -2,8 +2,9 @@ use std::collections::BTreeMap;
 
 use craw_chat_contract_core::ContractError;
 use im_platform_contracts::{
-    ObjectStorageDownloadUrlRequest, ObjectStorageObjectDescriptor, ObjectStorageProvider,
-    ObjectStoragePutRequest, ProviderDomain, ProviderHealthSnapshot, ProviderPluginDescriptor,
+    ObjectStorageDownloadUrlRequest, ObjectStorageObjectDescriptor, ObjectStoragePresignedUpload,
+    ObjectStorageProvider, ObjectStoragePutRequest, ObjectStorageUploadUrlRequest, ProviderDomain,
+    ProviderHealthSnapshot, ProviderPluginDescriptor,
 };
 use im_time::utc_now_rfc3339_millis;
 
@@ -136,6 +137,30 @@ impl ObjectStorageProvider for S3CompatibleObjectStorageProvider {
                 "{}:{}:{}",
                 self.config.provider_kind, request.object_key, request.content_length
             )),
+        })
+    }
+
+    fn signed_upload_url(
+        &self,
+        request: ObjectStorageUploadUrlRequest,
+    ) -> Result<ObjectStoragePresignedUpload, ContractError> {
+        let mut headers = BTreeMap::new();
+        if let Some(content_type) = request.content_type.as_ref() {
+            headers.insert("content-type".into(), content_type.clone());
+        }
+
+        Ok(ObjectStoragePresignedUpload {
+            method: "PUT".into(),
+            url: format!(
+                "{}/{}/{}?provider={}&expires={}&upload=put",
+                self.config.endpoint.trim_end_matches('/'),
+                request.bucket,
+                request.object_key,
+                self.config.plugin_id,
+                request.expires_in_seconds
+            ),
+            headers,
+            expires_in_seconds: request.expires_in_seconds,
         })
     }
 

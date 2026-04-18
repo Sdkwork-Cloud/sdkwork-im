@@ -64,7 +64,8 @@ fn write_valid_backup_snapshot(root: &Path, owner_node_id: &str) {
 fn test_restore_runtime_dir_restores_selected_snapshot_and_creates_pre_restore_backup() {
     let runtime_dir = unique_path("runtime_dir_restore");
     fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
-    let _ = local_minimal_node::repair_runtime_dir(runtime_dir.as_path());
+    let _ = local_minimal_node::repair_runtime_dir(runtime_dir.as_path())
+        .expect("repair should succeed");
 
     write_state_file(
         runtime_dir.as_path(),
@@ -196,7 +197,8 @@ fn test_restore_runtime_dir_rejects_missing_backup_dir_without_mutation() {
 fn test_restore_runtime_dir_rejects_mismatched_preview_fingerprint_without_mutation() {
     let runtime_dir = unique_path("runtime_dir_restore_mismatched_preview_fingerprint");
     fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
-    let _ = local_minimal_node::repair_runtime_dir(runtime_dir.as_path());
+    let _ = local_minimal_node::repair_runtime_dir(runtime_dir.as_path())
+        .expect("repair should succeed");
 
     write_state_file(
         runtime_dir.as_path(),

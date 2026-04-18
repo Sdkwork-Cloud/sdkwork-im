@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.build.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [
+    "contract-tests/live-contract.ts"
+  ],
+  "exclude": [
+    "dist/node_modules"
+  ]
+}

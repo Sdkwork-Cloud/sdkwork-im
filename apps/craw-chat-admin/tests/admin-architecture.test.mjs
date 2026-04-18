@@ -10,6 +10,7 @@ import {
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { pathToFileURL } from 'node:url';
 
 import * as tauriCliRunner from '../../../scripts/run-tauri-cli.mjs';
 import * as viteRuntimeLib from '../../../scripts/dev/vite-runtime-lib.mjs';
@@ -19,6 +20,19 @@ const workspaceRoot = path.resolve(appRoot, '..', '..');
 
 function read(relativePath) {
   return readFileSync(path.join(appRoot, relativePath), 'utf8');
+}
+
+function writePackageManifest(packageRoot, packageName = 'test-package') {
+  mkdirSync(packageRoot, { recursive: true });
+  writeFileSync(
+    path.join(packageRoot, 'package.json'),
+    JSON.stringify({ name: packageName, version: '0.0.0-test' }),
+  );
+}
+
+function addNodeModulesPackage(appPackageRoot, packageName) {
+  const packageRoot = path.join(appPackageRoot, 'node_modules', ...packageName.split('/'));
+  writePackageManifest(packageRoot, packageName);
 }
 
 const requiredPackages = [
@@ -267,20 +281,21 @@ test('tauri cli runner ignores stale wix bundle artifacts from earlier builds', 
   assert.equal(artifacts, null);
 });
 
-test('workspace donor roots include verified worktree app dependencies', () => {
+test('workspace donor roots include at least one available sibling or worktree dependency donor', () => {
   const donorRoots = viteRuntimeLib.resolveWorkspaceDonorRoots(appRoot);
-  const expectedWorktreeAppRoot = path.join(
-    workspaceRoot,
-    '.worktrees',
-    'craw-chat-admin-bootstrap',
-    'apps',
-    'craw-chat-admin',
-  );
+  const expectedDonorCandidates = [
+    path.join(workspaceRoot, '.worktrees', 'gate-reliability', 'apps', 'craw-chat-admin'),
+    path.resolve(workspaceRoot, '..', 'claw-studio'),
+  ].filter((candidateRoot) => (
+    existsSync(path.join(candidateRoot, 'package.json'))
+    && existsSync(path.join(candidateRoot, 'node_modules'))
+  ));
 
+  assert.notEqual(expectedDonorCandidates.length, 0, 'test requires at least one available donor root');
   assert.equal(
-    donorRoots.includes(expectedWorktreeAppRoot),
+    expectedDonorCandidates.some((candidateRoot) => donorRoots.includes(candidateRoot)),
     true,
-    'official app should discover the verified worktree as a dependency donor root',
+    'official app should discover at least one available sibling or worktree donor root',
   );
 });
 
@@ -337,6 +352,46 @@ test('workspace runtime library replaces incomplete local node_modules when requ
   assert.equal(localNodeModulesPath, path.join(isolatedAppRoot, 'node_modules'));
   assert.equal(
     existsSync(path.join(isolatedAppRoot, 'node_modules', 'react', 'package.json')),
+    true,
+  );
+});
+
+test('workspace runtime library prefers donor roots that satisfy all required packages', () => {
+  const sandboxRoot = mkdtempSync(path.join(os.tmpdir(), 'craw-chat-admin-runtime-lib-complete-'));
+  const isolatedAppRoot = path.join(sandboxRoot, 'official-app');
+  const incompleteDonorAppRoot = path.join(sandboxRoot, 'incomplete-donor-app');
+  const completeDonorAppRoot = path.join(sandboxRoot, 'complete-donor-app');
+  const requiredPackages = ['react', 'react-router-dom', '@sdkwork/ui-pc-react'];
+
+  mkdirSync(isolatedAppRoot, { recursive: true });
+  mkdirSync(incompleteDonorAppRoot, { recursive: true });
+  mkdirSync(completeDonorAppRoot, { recursive: true });
+  writeFileSync(path.join(isolatedAppRoot, 'package.json'), '{"name":"official-app"}');
+  writeFileSync(path.join(incompleteDonorAppRoot, 'package.json'), '{"name":"incomplete-donor-app"}');
+  writeFileSync(path.join(completeDonorAppRoot, 'package.json'), '{"name":"complete-donor-app"}');
+
+  addNodeModulesPackage(incompleteDonorAppRoot, 'react');
+  for (const packageName of requiredPackages) {
+    addNodeModulesPackage(completeDonorAppRoot, packageName);
+  }
+
+  const localNodeModulesPath = viteRuntimeLib.ensureLocalNodeModules({
+    appRoot: isolatedAppRoot,
+    donorRoots: [incompleteDonorAppRoot, completeDonorAppRoot],
+    requiredPackages,
+  });
+
+  assert.equal(localNodeModulesPath, path.join(isolatedAppRoot, 'node_modules'));
+  assert.equal(
+    existsSync(path.join(localNodeModulesPath, 'react', 'package.json')),
+    true,
+  );
+  assert.equal(
+    existsSync(path.join(localNodeModulesPath, 'react-router-dom', 'package.json')),
+    true,
+  );
+  assert.equal(
+    existsSync(path.join(localNodeModulesPath, '@sdkwork', 'ui-pc-react', 'package.json')),
     true,
   );
 });
@@ -399,6 +454,14 @@ test('shell owns router and auth isolation', () => {
   assert.doesNotMatch(layout, /Craw Chat Admin|API Router|Catalog/);
 });
 
+test('auth login page only prefills sandbox credentials from explicit dev environment variables', () => {
+  const authPage = read('packages/sdkwork-craw-chat-admin-auth/src/index.tsx');
+
+  assert.match(authPage, /VITE_ADMIN_SANDBOX_EMAIL/);
+  assert.match(authPage, /VITE_ADMIN_SANDBOX_PASSWORD/);
+  assert.doesNotMatch(authPage, /admin@sdkwork\.local|ChangeMe123!/);
+});
+
 test('vite config serves the admin shell from /admin/', () => {
   const viteConfig = read('vite.config.ts');
 
@@ -441,6 +504,7 @@ test('tauri config uses craw-chat desktop asset orchestration instead of router-
 
 test('tauri desktop host keeps runtime compatibility crates inside the craw-chat workspace', () => {
   const cargoToml = read('src-tauri/Cargo.toml');
+  const tauriMain = read('src-tauri/src/main.rs');
   const localConfigCrate = path.join(workspaceRoot, 'crates', 'sdkwork-api-config');
   const localRuntimeCrate = path.join(workspaceRoot, 'crates', 'sdkwork-api-product-runtime');
 
@@ -456,6 +520,9 @@ test('tauri desktop host keeps runtime compatibility crates inside the craw-chat
   assert.equal(existsSync(path.join(localConfigCrate, 'src', 'lib.rs')), true);
   assert.equal(existsSync(path.join(localRuntimeCrate, 'Cargo.toml')), true);
   assert.equal(existsSync(path.join(localRuntimeCrate, 'src', 'lib.rs')), true);
+  assert.match(tauriMain, /choose_site_dir_for_runtime/);
+  assert.match(tauriMain, /cfg!\(debug_assertions\)/);
+  assert.match(tauriMain, /bundle\.resources/);
   assert.doesNotMatch(cargoToml, /sdkwork-api-router/);
 });
 
@@ -471,10 +538,191 @@ test('desktop asset build script mirrors router-admin pnpm launch safety while t
   assert.match(desktopAssetBuildScript, /craw-chat-admin/);
   assert.match(desktopAssetBuildScript, /craw-chat-portal/);
   assert.match(desktopAssetBuildScript, /dist-portal/);
+  assert.match(desktopAssetBuildScript, /assertPortalDistReleaseSafe/);
   assert.doesNotMatch(desktopAssetBuildScript, /spawn\(step\.command, step\.args, \{[\s\S]*shell:\s*false/);
 });
 
-test('tsconfig mirrors router-admin ui type shims for root and grouped ui entries', () => {
+test('desktop asset build script syncs the portal release dist into dist-portal and removes stale files', async () => {
+  const desktopAssetBuildModule = await import(
+    pathToFileURL(path.join(workspaceRoot, 'scripts', 'build-craw-chat-desktop-assets.mjs')).href
+  );
+
+  const sandboxRoot = mkdtempSync(path.join(os.tmpdir(), 'craw-chat-desktop-assets-'));
+  const adminDistRoot = path.join(sandboxRoot, 'apps', 'craw-chat-admin', 'dist');
+  const portalDistRoot = path.join(sandboxRoot, 'apps', 'craw-chat-portal', 'dist');
+  const adminDistPortalRoot = path.join(sandboxRoot, 'apps', 'craw-chat-admin', 'dist-portal');
+
+  mkdirSync(adminDistRoot, { recursive: true });
+  mkdirSync(path.join(portalDistRoot, '__vendor__', 'sdkwork-craw-chat-sdk'), { recursive: true });
+  mkdirSync(path.join(portalDistRoot, '__vendor__', 'sdkwork-craw-chat-backend-sdk'), { recursive: true });
+  mkdirSync(path.join(portalDistRoot, 'src'), { recursive: true });
+  mkdirSync(path.join(portalDistRoot, 'packages', 'craw-chat-portal-core'), { recursive: true });
+  mkdirSync(adminDistPortalRoot, { recursive: true });
+
+  writeFileSync(path.join(adminDistRoot, 'index.html'), '<!doctype html><title>admin-dist</title>');
+  writeFileSync(path.join(portalDistRoot, 'index.html'), '<!doctype html><title>portal-dist</title>');
+  writeFileSync(
+    path.join(portalDistRoot, '__vendor__', 'sdkwork-craw-chat-sdk', 'index.js'),
+    'export const source = "portal-dist-vendor";',
+  );
+  writeFileSync(
+    path.join(portalDistRoot, '__vendor__', 'sdkwork-craw-chat-backend-sdk', 'index.js'),
+    'export const source = "portal-dist-backend-vendor";',
+  );
+  writeFileSync(
+    path.join(portalDistRoot, 'src', 'main.js'),
+    'export const source = "portal-dist-main";',
+  );
+  writeFileSync(
+    path.join(portalDistRoot, 'packages', 'craw-chat-portal-core', 'index.js'),
+    'export const source = "portal-dist-package";',
+  );
+  writeFileSync(path.join(adminDistPortalRoot, 'stale.txt'), 'stale-desktop-artifact');
+
+  await desktopAssetBuildModule.syncPortalDesktopAssets({
+    workspaceRoot: sandboxRoot,
+  });
+
+  assert.equal(existsSync(path.join(adminDistPortalRoot, 'stale.txt')), false);
+  assert.equal(
+    readFileSync(path.join(adminDistPortalRoot, 'index.html'), 'utf8'),
+    '<!doctype html><title>portal-dist</title>',
+  );
+  assert.equal(
+    readFileSync(
+      path.join(adminDistPortalRoot, '__vendor__', 'sdkwork-craw-chat-sdk', 'index.js'),
+      'utf8',
+    ),
+    'export const source = "portal-dist-vendor";',
+  );
+  assert.equal(
+    readFileSync(
+      path.join(adminDistPortalRoot, '__vendor__', 'sdkwork-craw-chat-backend-sdk', 'index.js'),
+      'utf8',
+    ),
+    'export const source = "portal-dist-backend-vendor";',
+  );
+  assert.equal(
+    readFileSync(path.join(adminDistPortalRoot, 'src', 'main.js'), 'utf8'),
+    'export const source = "portal-dist-main";',
+  );
+  assert.equal(
+    readFileSync(
+      path.join(adminDistPortalRoot, 'packages', 'craw-chat-portal-core', 'index.js'),
+      'utf8',
+    ),
+    'export const source = "portal-dist-package";',
+  );
+
+  await assert.doesNotReject(() => desktopAssetBuildModule.assertDesktopEmbeddedSitesReady({
+    workspaceRoot: sandboxRoot,
+  }));
+});
+
+test('desktop asset build script rejects portal bundles that are missing vendored sdk assets', async () => {
+  const desktopAssetBuildModule = await import(
+    pathToFileURL(path.join(workspaceRoot, 'scripts', 'build-craw-chat-desktop-assets.mjs')).href
+  );
+
+  const sandboxRoot = mkdtempSync(path.join(os.tmpdir(), 'craw-chat-desktop-assets-invalid-'));
+  const adminDistRoot = path.join(sandboxRoot, 'apps', 'craw-chat-admin', 'dist');
+  const portalDistRoot = path.join(sandboxRoot, 'apps', 'craw-chat-portal', 'dist');
+
+  mkdirSync(adminDistRoot, { recursive: true });
+  mkdirSync(portalDistRoot, { recursive: true });
+  writeFileSync(path.join(adminDistRoot, 'index.html'), '<!doctype html><title>admin-dist</title>');
+  writeFileSync(path.join(portalDistRoot, 'index.html'), '<!doctype html><title>portal-dist</title>');
+
+  await assert.rejects(
+    () => desktopAssetBuildModule.assertDesktopEmbeddedSitesReady({
+      workspaceRoot: sandboxRoot,
+    }),
+    /portal site build required asset is missing: .*sdkwork-craw-chat-sdk[\\/]index\.js/i,
+  );
+});
+
+test('desktop asset build script rejects embedded portal bundles that contain retired demo credentials', async () => {
+  const desktopAssetBuildModule = await import(
+    pathToFileURL(path.join(workspaceRoot, 'scripts', 'build-craw-chat-desktop-assets.mjs')).href
+  );
+
+  const sandboxRoot = mkdtempSync(path.join(os.tmpdir(), 'craw-chat-desktop-assets-leaky-'));
+  const adminDistRoot = path.join(sandboxRoot, 'apps', 'craw-chat-admin', 'dist');
+  const portalDistRoot = path.join(sandboxRoot, 'apps', 'craw-chat-portal', 'dist');
+
+  mkdirSync(adminDistRoot, { recursive: true });
+  mkdirSync(path.join(portalDistRoot, '__vendor__', 'sdkwork-craw-chat-sdk'), { recursive: true });
+  mkdirSync(path.join(portalDistRoot, '__vendor__', 'sdkwork-craw-chat-backend-sdk'), { recursive: true });
+  mkdirSync(path.join(portalDistRoot, 'packages', 'craw-chat-portal-auth', 'src'), {
+    recursive: true,
+  });
+
+  writeFileSync(path.join(adminDistRoot, 'index.html'), '<!doctype html><title>admin-dist</title>');
+  writeFileSync(path.join(portalDistRoot, 'index.html'), '<!doctype html><title>portal-dist</title>');
+  writeFileSync(
+    path.join(portalDistRoot, '__vendor__', 'sdkwork-craw-chat-sdk', 'index.js'),
+    'export const source = "portal-dist-vendor";',
+  );
+  writeFileSync(
+    path.join(portalDistRoot, '__vendor__', 'sdkwork-craw-chat-backend-sdk', 'index.js'),
+    'export const source = "portal-dist-backend-vendor";',
+  );
+  writeFileSync(
+    path.join(portalDistRoot, 'packages', 'craw-chat-portal-auth', 'src', 'index.js'),
+    'export const leakedPassword = "Portal#2026";',
+  );
+
+  await desktopAssetBuildModule.syncPortalDesktopAssets({
+    workspaceRoot: sandboxRoot,
+  });
+
+  await assert.rejects(
+    () => desktopAssetBuildModule.assertDesktopEmbeddedSitesReady({
+      workspaceRoot: sandboxRoot,
+    }),
+    /Portal#2026/,
+  );
+});
+
+test('vite cli runner requires the shared ui package before reusing donor node_modules', () => {
+  const runViteCli = readFileSync(
+    path.join(workspaceRoot, 'scripts', 'dev', 'run-vite-cli.mjs'),
+    'utf8',
+  );
+
+  assert.match(runViteCli, /'@sdkwork\/ui-pc-react'/);
+});
+
+test('workspace cli runners prebuild sdkwork ui dist before build and typecheck', () => {
+  const runViteCli = readFileSync(
+    path.join(workspaceRoot, 'scripts', 'dev', 'run-vite-cli.mjs'),
+    'utf8',
+  );
+  const runTscCli = readFileSync(
+    path.join(workspaceRoot, 'scripts', 'dev', 'run-tsc-cli.mjs'),
+    'utf8',
+  );
+
+  assert.match(runViteCli, /ensureSdkworkUiDist/);
+  assert.match(runTscCli, /ensureSdkworkUiDist/);
+});
+
+test('vite config resolves @sdkwork/ui-pc-react through dist entries after prebuild', () => {
+  const viteConfig = read('vite.config.ts');
+
+  assert.match(viteConfig, /sdkwork-ui-pc-react'\)/);
+  assert.match(viteConfig, /path\.join\(packageRoot, 'dist', entryPath\)/);
+  assert.match(viteConfig, /sdkwork-ui\.css/);
+  assert.match(viteConfig, /theme\.js/);
+  assert.match(viteConfig, /components-ui\.js/);
+  assert.match(viteConfig, /ui-feedback\.js/);
+  assert.match(viteConfig, /patterns-app-shell\.js/);
+  assert.match(viteConfig, /patterns-desktop-shell\.js/);
+  assert.match(viteConfig, /index\.js/);
+  assert.doesNotMatch(viteConfig, /path\.join\(packageRoot, 'src', \.\.\.sourceSegments\)/);
+});
+
+test('tsconfig mirrors dist-backed ui type shims for root and grouped ui entries', () => {
   const tsconfig = read('tsconfig.json');
   const uiShim = read('src/types/sdkwork-ui-pc-react-shim.d.ts');
 
@@ -498,14 +746,14 @@ test('tsconfig mirrors router-admin ui type shims for root and grouped ui entrie
   assert.match(uiShim, /export \* from '[^']*sdkwork-ui-pc-react\/dist\/index';/);
 });
 
-test('ui shim and tsconfig path targets resolve to real sdkwork-ui type assets', () => {
+test('ui shim and tsconfig path targets resolve to real sdkwork-ui dist assets', () => {
   const shimPath = path.join(appRoot, 'src', 'types', 'sdkwork-ui-pc-react-shim.d.ts');
   const shimSource = readFileSync(shimPath, 'utf8');
   const shimMatch = shimSource.match(/export \* from '([^']+)'/);
   const shimTargetPath = path.resolve(path.dirname(shimPath), shimMatch[1]);
   assert.notEqual(shimMatch, null, 'shim should re-export the sdkwork-ui dist index');
   assert.equal(
-    existsSync(shimTargetPath) || existsSync(`${shimTargetPath}.d.ts`),
+    existsSync(shimTargetPath) || existsSync(`${shimTargetPath}.js`) || existsSync(`${shimTargetPath}.d.ts`),
     true,
     'shim target should resolve to a real sdkwork-ui dist index file',
   );
@@ -870,6 +1118,7 @@ test('desktop runtime config does not ship a fake admin backend fallback', () =>
   );
 
   assert.match(runtimeConfigSource, /SDKWORK_ADMIN_PROXY_TARGET|SDKWORK_ADMIN_BIND/);
+  assert.match(runtimeConfigSource, /CRAW_CHAT_PORTAL_API_BASE_URL|CRAW_CHAT_BIND_ADDR/);
   assert.doesNotMatch(runtimeConfigSource, /127\.0\.0\.1:9981/);
 });
 
@@ -887,6 +1136,7 @@ test('README documents the IM admin runtime contract without router-admin residu
 
   assert.match(readme, /Craw Chat Admin/);
   assert.match(readme, /SDKWORK_ADMIN_PROXY_TARGET/);
+  assert.match(readme, /CRAW_CHAT_PORTAL_API_BASE_URL/);
   assert.match(readme, /SDKWORK_ADMIN_SANDBOX/);
   assert.match(readme, /\/api\/admin/);
   assert.match(readme, /\/api\/v1\/control/);
@@ -903,10 +1153,14 @@ test('admin workspace ships an explicit opt-in sandbox backend implementation', 
   assert.equal(existsSync(sandboxSeedPath), true);
 
   const sandboxModule = readFileSync(sandboxModulePath, 'utf8');
+  const sandboxSeed = readFileSync(sandboxSeedPath, 'utf8');
 
   assert.match(sandboxModule, /createAdminSandboxState/);
   assert.match(sandboxModule, /handleAdminSandboxRequest/);
   assert.match(sandboxModule, /SDKWORK_ADMIN_SANDBOX/);
+  assert.match(sandboxModule, /SDKWORK_ADMIN_SANDBOX_PASSWORD/);
+  assert.match(sandboxModule, /randomBytes/);
+  assert.doesNotMatch(sandboxSeed, /"sandboxPassword"\s*:/);
 });
 
 test('vite config supports explicit sandbox mode before falling back to 503 guidance', () => {
@@ -916,4 +1170,100 @@ test('vite config supports explicit sandbox mode before falling back to 503 guid
   assert.match(viteConfig, /createAdminSandboxState|handleAdminSandboxRequest|createAdminSandboxMiddleware/);
   assert.match(viteConfig, /adminProxyTarget/);
   assert.match(viteConfig, /503/);
+});
+
+test('shared web security headers define the required browser hardening baseline', async () => {
+  const securityHeadersModule = await import(
+    pathToFileURL(path.join(workspaceRoot, 'scripts', 'dev', 'web-security-headers.mjs')).href
+  );
+
+  assert.equal(
+    securityHeadersModule.WEB_SECURITY_HEADERS['X-Content-Type-Options'],
+    'nosniff',
+  );
+  assert.equal(
+    securityHeadersModule.WEB_SECURITY_HEADERS['X-Frame-Options'],
+    'DENY',
+  );
+  assert.equal(
+    securityHeadersModule.WEB_SECURITY_HEADERS['Referrer-Policy'],
+    'strict-origin-when-cross-origin',
+  );
+  assert.match(
+    securityHeadersModule.WEB_SECURITY_HEADERS['Content-Security-Policy'],
+    /default-src 'self'/,
+  );
+  assert.match(
+    securityHeadersModule.WEB_SECURITY_HEADERS['Permissions-Policy'],
+    /camera=\(\)/,
+  );
+});
+
+test('release safety blocks production builds when the admin sandbox is enabled', async () => {
+  const releaseSafetyModule = await import(
+    pathToFileURL(path.join(appRoot, 'dev', 'release-safety.mjs')).href
+  );
+
+  assert.throws(
+    () => {
+      releaseSafetyModule.assertAdminReleaseSafety({
+        command: 'build',
+        env: { SDKWORK_ADMIN_SANDBOX: '1' },
+      });
+    },
+    /SDKWORK_ADMIN_SANDBOX/,
+  );
+
+  assert.doesNotThrow(() => {
+    releaseSafetyModule.assertAdminReleaseSafety({
+      command: 'serve',
+      env: { SDKWORK_ADMIN_SANDBOX: '1' },
+    });
+  });
+
+  assert.doesNotThrow(() => {
+    releaseSafetyModule.assertAdminReleaseSafety({
+      command: 'build',
+      env: { SDKWORK_ADMIN_SANDBOX: '0' },
+    });
+  });
+});
+
+test('release safety rejects forbidden sandbox and demo credentials from admin bundles', async () => {
+  const releaseSafetyModule = await import(
+    pathToFileURL(path.join(appRoot, 'dev', 'release-safety.mjs')).href
+  );
+
+  assert.throws(
+    () => {
+      releaseSafetyModule.assertAdminBundleContentSafe({
+        'assets/index.js': {
+          type: 'chunk',
+          code: 'const password = "ChangeMe123"; const email = "admin@sdkwork.local";',
+        },
+      });
+    },
+    /ChangeMe123|admin@sdkwork\.local/,
+  );
+
+  assert.doesNotThrow(() => {
+    releaseSafetyModule.assertAdminBundleContentSafe({
+      'assets/index.js': {
+        type: 'chunk',
+        code: 'const mode = "production-release";',
+      },
+      'assets/index.css': {
+        type: 'asset',
+        source: 'body{color:#111;}',
+      },
+    });
+  });
+});
+
+test('vite config wires shared security headers and release safety into the admin runtime', () => {
+  const viteConfig = read('vite.config.ts');
+
+  assert.match(viteConfig, /web-security-headers/);
+  assert.match(viteConfig, /headers:\s*createWebSecurityHeaders\(\)/);
+  assert.match(viteConfig, /assertAdminReleaseSafety|createAdminReleaseSafetyPlugin/);
 });

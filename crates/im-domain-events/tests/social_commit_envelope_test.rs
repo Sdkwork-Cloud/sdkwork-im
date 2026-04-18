@@ -1,9 +1,10 @@
 use im_domain_events::{
     AggregateType, CommitEnvelope, EventActor,
     social::{
-        DirectChatBoundPayload, ExternalMemberLinkBoundPayload, FriendRequestSubmittedPayload,
-        FriendshipActivatedPayload, SocialCommitEnvelopeInput, SocialEventType, UserBlockedPayload,
-        social_commit_envelope,
+        DirectChatBoundPayload, ExternalMemberLinkBoundPayload, FriendRequestAcceptedPayload,
+        FriendRequestCanceledPayload, FriendRequestDeclinedPayload, FriendRequestSubmittedPayload,
+        FriendshipActivatedPayload, FriendshipRemovedPayload, SocialCommitEnvelopeInput,
+        SocialEventType, UserBlockedPayload, social_commit_envelope,
     },
 };
 use serde_json::Value;
@@ -26,8 +27,24 @@ fn test_social_event_type_exposes_wire_and_schema_values() {
         "friend_request.submitted"
     );
     assert_eq!(
+        SocialEventType::FriendRequestAccepted.as_wire_value(),
+        "friend_request.accepted"
+    );
+    assert_eq!(
+        SocialEventType::FriendRequestDeclined.as_wire_value(),
+        "friend_request.declined"
+    );
+    assert_eq!(
+        SocialEventType::FriendRequestCanceled.as_wire_value(),
+        "friend_request.canceled"
+    );
+    assert_eq!(
         SocialEventType::UserBlocked.as_wire_value(),
         "user_block.blocked"
+    );
+    assert_eq!(
+        SocialEventType::FriendshipRemoved.as_wire_value(),
+        "friendship.removed"
     );
     assert_eq!(
         SocialEventType::FriendshipActivated.payload_schema(),
@@ -48,6 +65,21 @@ fn test_social_payloads_serialize_expected_shape() {
         request_message: None,
         requested_at: "2026-04-10T10:00:00Z".into(),
     };
+    let accepted = FriendRequestAcceptedPayload {
+        request_id: "fr_demo".into(),
+        accepted_by_user_id: "user_b".into(),
+        accepted_at: "2026-04-10T10:00:30Z".into(),
+    };
+    let declined = FriendRequestDeclinedPayload {
+        request_id: "fr_demo".into(),
+        declined_by_user_id: "user_b".into(),
+        declined_at: "2026-04-10T10:00:45Z".into(),
+    };
+    let canceled = FriendRequestCanceledPayload {
+        request_id: "fr_demo".into(),
+        canceled_by_user_id: "user_a".into(),
+        canceled_at: "2026-04-10T10:00:50Z".into(),
+    };
     let friendship = FriendshipActivatedPayload {
         friendship_id: "fs_demo".into(),
         user_low_id: "user_a".into(),
@@ -55,6 +87,13 @@ fn test_social_payloads_serialize_expected_shape() {
         initiator_user_id: "user_a".into(),
         direct_chat_id: Some("dc_demo".into()),
         established_at: "2026-04-10T10:01:00Z".into(),
+    };
+    let removed = FriendshipRemovedPayload {
+        friendship_id: "fs_demo".into(),
+        user_low_id: "user_a".into(),
+        user_high_id: "user_b".into(),
+        removed_by_user_id: "user_b".into(),
+        removed_at: "2026-04-10T10:01:30Z".into(),
     };
     let blocked = UserBlockedPayload {
         block_id: "blk_demo".into(),
@@ -84,7 +123,11 @@ fn test_social_payloads_serialize_expected_shape() {
     };
 
     let request_value = serde_json::to_value(request).expect("request should serialize");
+    let accepted_value = serde_json::to_value(accepted).expect("accepted should serialize");
+    let declined_value = serde_json::to_value(declined).expect("declined should serialize");
+    let canceled_value = serde_json::to_value(canceled).expect("canceled should serialize");
     let friendship_value = serde_json::to_value(friendship).expect("friendship should serialize");
+    let removed_value = serde_json::to_value(removed).expect("removed payload should serialize");
     let blocked_value = serde_json::to_value(blocked).expect("block should serialize");
     let bound_value = serde_json::to_value(bound).expect("bound should serialize");
     let external_member_link_value =
@@ -92,8 +135,24 @@ fn test_social_payloads_serialize_expected_shape() {
 
     assert_eq!(request_value["requestId"], Value::String("fr_demo".into()));
     assert_eq!(
+        accepted_value["acceptedByUserId"],
+        Value::String("user_b".into())
+    );
+    assert_eq!(
+        declined_value["declinedByUserId"],
+        Value::String("user_b".into())
+    );
+    assert_eq!(
+        canceled_value["canceledByUserId"],
+        Value::String("user_a".into())
+    );
+    assert_eq!(
         friendship_value["directChatId"],
         Value::String("dc_demo".into())
+    );
+    assert_eq!(
+        removed_value["removedByUserId"],
+        Value::String("user_b".into())
     );
     assert_eq!(blocked_value["scope"], Value::String("all".into()));
     assert_eq!(

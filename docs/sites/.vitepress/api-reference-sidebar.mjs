@@ -18,6 +18,7 @@ export const groupedPages = [
   {
     text: "App API",
     pages: [
+      { text: "Portal and Auth", link: "/api-reference/app/portal-and-auth" },
       { text: "Session and Realtime", link: "/api-reference/app/session-and-realtime" },
       { text: "Device Sync", link: "/api-reference/app/device-sync" },
       { text: "Conversations and Handoff", link: "/api-reference/app/conversations" },
@@ -53,6 +54,28 @@ export const groupedPages = [
 ];
 
 export const pageOperationGroups = {
+  "/api-reference/app/portal-and-auth": [
+    {
+      text: "Authentication",
+      anchors: ["login", "me"],
+    },
+    {
+      text: "Public Portal Snapshots",
+      anchors: ["get-home", "get-auth"],
+    },
+    {
+      text: "Authenticated Portal Views",
+      anchors: [
+        "get-workspace",
+        "get-dashboard",
+        "get-conversations",
+        "get-realtime",
+        "get-media",
+        "get-automation",
+        "get-governance",
+      ],
+    },
+  ],
   "/api-reference/app/session-and-realtime": [
     { text: "Health and Probes", anchors: ["get-healthz", "get-readyz"] },
     { text: "Session Lifecycle", anchors: ["resume-session", "disconnect-session"] },

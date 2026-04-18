@@ -294,7 +294,7 @@ const ADMIN_ZH_PRODUCT_EXPERIENCE_TRANSLATIONS: Record<string, string> = {
   'Keep the left rail expanded or collapse it into icon-only navigation.': '\u4fdd\u6301\u5de6\u4fa7\u5bfc\u822a\u680f\u5c55\u5f00\uff0c\u6216\u5c06\u5176\u6536\u8d77\u4e3a\u4ec5\u56fe\u6807\u5bfc\u822a\u3002',
   'Light': '\u660e\u4eae',
   'Live': '\u5b9e\u65f6',
-  'Local dev credentials are prefilled: {email} / {password}.': '\u672c\u5730\u5f00\u53d1\u51ed\u8bc1\u5df2\u9884\u586b\uff1a{email} / {password}\u3002',
+  'Local dev login is prefilled from VITE_ADMIN_SANDBOX_EMAIL and VITE_ADMIN_SANDBOX_PASSWORD.': '\u672c\u5730\u5f00\u53d1\u767b\u5f55\u9884\u586b\u6765\u81ea VITE_ADMIN_SANDBOX_EMAIL \u4e0e VITE_ADMIN_SANDBOX_PASSWORD\u3002',
   'Low-glare operator shell tuned for long moderation and transcript review sessions.': '\u4e3a\u957f\u65f6\u95f4\u98ce\u63a7\u548c\u8f6c\u5f55\u5ba1\u9605\u4f18\u5316\u7684\u4f4e\u53cd\u5149\u64cd\u4f5c\u58f3\u5c42\u3002',
   'Name': '\u59d3\u540d',
   'Navigation': '\u5bfc\u822a',

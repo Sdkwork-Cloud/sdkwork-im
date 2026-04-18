@@ -3,7 +3,10 @@ use std::sync::{Arc, Mutex};
 
 use im_platform_contracts::{CommitEnvelope, CommitJournal, CommitPosition, ContractError};
 
-use crate::shared::{read_json_records_or_default, write_json_records};
+use crate::shared::{
+    read_json_records_or_default, read_json_records_or_default_unlocked, with_store_file_lock,
+    write_json_records_unlocked,
+};
 
 #[derive(Clone, Debug)]
 pub struct FileCommitJournal {
@@ -37,8 +40,12 @@ impl FileCommitJournal {
         read_json_records_or_default(self.file_path.as_path(), "commit journal")
     }
 
-    fn write_events(&self, events: &[CommitEnvelope]) -> Result<(), ContractError> {
-        write_json_records(self.file_path.as_path(), events, "commit journal")
+    fn read_events_unlocked(&self) -> Result<Vec<CommitEnvelope>, ContractError> {
+        read_json_records_or_default_unlocked(self.file_path.as_path(), "commit journal")
+    }
+
+    fn write_events_unlocked(&self, events: &[CommitEnvelope]) -> Result<(), ContractError> {
+        write_json_records_unlocked(self.file_path.as_path(), events, "commit journal")
     }
 }
 
@@ -48,13 +55,35 @@ impl CommitJournal for FileCommitJournal {
             .io_lock
             .lock()
             .expect("commit journal file store lock should lock");
-        let mut events = self.read_events()?;
-        events.push(envelope);
-        self.write_events(&events)?;
-        Ok(CommitPosition::new(
-            self.partition.as_str(),
-            events.len() as u64,
-        ))
+        with_store_file_lock(self.file_path.as_path(), "commit journal", || {
+            let mut events = self.read_events_unlocked()?;
+            events.push(envelope);
+            self.write_events_unlocked(&events)?;
+            Ok(CommitPosition::new(
+                self.partition.as_str(),
+                events.len() as u64,
+            ))
+        })
+    }
+
+    fn append_batch(
+        &self,
+        envelopes: Vec<CommitEnvelope>,
+    ) -> Result<Vec<CommitPosition>, ContractError> {
+        let _guard = self
+            .io_lock
+            .lock()
+            .expect("commit journal file store lock should lock");
+        with_store_file_lock(self.file_path.as_path(), "commit journal", || {
+            let mut events = self.read_events_unlocked()?;
+            let start_offset = events.len() as u64 + 1;
+            let batch_len = envelopes.len() as u64;
+            events.extend(envelopes);
+            self.write_events_unlocked(&events)?;
+            Ok((0..batch_len)
+                .map(|index| CommitPosition::new(self.partition.as_str(), start_offset + index))
+                .collect())
+        })
     }
 }
 

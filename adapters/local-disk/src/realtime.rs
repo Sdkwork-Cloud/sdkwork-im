@@ -8,7 +8,7 @@ use im_platform_contracts::{
     RealtimeSubscriptionStore,
 };
 
-use crate::shared::{read_json_records_or_default, scope_key, write_json_records};
+use crate::shared::{read_json_records_or_default, scope_key, update_json_records};
 
 #[derive(Clone, Debug)]
 pub struct FileRealtimeCheckpointStore {
@@ -30,17 +30,6 @@ impl FileRealtimeCheckpointStore {
 
     fn read_records(&self) -> Result<BTreeMap<String, RealtimeCheckpointRecord>, ContractError> {
         read_json_records_or_default(self.file_path.as_path(), "realtime checkpoint store")
-    }
-
-    fn write_records(
-        &self,
-        records: &BTreeMap<String, RealtimeCheckpointRecord>,
-    ) -> Result<(), ContractError> {
-        write_json_records(
-            self.file_path.as_path(),
-            records,
-            "realtime checkpoint store",
-        )
     }
 }
 
@@ -65,16 +54,20 @@ impl RealtimeCheckpointStore for FileRealtimeCheckpointStore {
             .io_lock
             .lock()
             .expect("checkpoint file store lock should lock");
-        let mut records = self.read_records()?;
-        records.insert(
-            scope_key(
-                record.tenant_id.as_str(),
-                record.principal_id.as_str(),
-                record.device_id.as_str(),
-            ),
-            record,
-        );
-        self.write_records(&records)
+        update_json_records(
+            self.file_path.as_path(),
+            "realtime checkpoint store",
+            |records: &mut BTreeMap<String, RealtimeCheckpointRecord>| {
+                records.insert(
+                    scope_key(
+                        record.tenant_id.as_str(),
+                        record.principal_id.as_str(),
+                        record.device_id.as_str(),
+                    ),
+                    record,
+                );
+            },
+        )
     }
 }
 
@@ -101,13 +94,6 @@ impl FileRealtimeDisconnectFenceStore {
     ) -> Result<BTreeMap<String, RealtimeDisconnectFenceRecord>, ContractError> {
         read_json_records_or_default(self.file_path.as_path(), "disconnect fence store")
     }
-
-    fn write_records(
-        &self,
-        records: &BTreeMap<String, RealtimeDisconnectFenceRecord>,
-    ) -> Result<(), ContractError> {
-        write_json_records(self.file_path.as_path(), records, "disconnect fence store")
-    }
 }
 
 impl RealtimeDisconnectFenceStore for FileRealtimeDisconnectFenceStore {
@@ -131,16 +117,20 @@ impl RealtimeDisconnectFenceStore for FileRealtimeDisconnectFenceStore {
             .io_lock
             .lock()
             .expect("disconnect fence file store lock should lock");
-        let mut records = self.read_records()?;
-        records.insert(
-            scope_key(
-                record.tenant_id.as_str(),
-                record.principal_id.as_str(),
-                record.device_id.as_str(),
-            ),
-            record,
-        );
-        self.write_records(&records)
+        update_json_records(
+            self.file_path.as_path(),
+            "disconnect fence store",
+            |records: &mut BTreeMap<String, RealtimeDisconnectFenceRecord>| {
+                records.insert(
+                    scope_key(
+                        record.tenant_id.as_str(),
+                        record.principal_id.as_str(),
+                        record.device_id.as_str(),
+                    ),
+                    record,
+                );
+            },
+        )
     }
 
     fn clear_fence(
@@ -153,12 +143,15 @@ impl RealtimeDisconnectFenceStore for FileRealtimeDisconnectFenceStore {
             .io_lock
             .lock()
             .expect("disconnect fence file store lock should lock");
-        let mut records = self.read_records()?;
-        let removed = records
-            .remove(scope_key(tenant_id, principal_id, device_id).as_str())
-            .is_some();
-        self.write_records(&records)?;
-        Ok(removed)
+        update_json_records(
+            self.file_path.as_path(),
+            "disconnect fence store",
+            |records: &mut BTreeMap<String, RealtimeDisconnectFenceRecord>| {
+                records
+                    .remove(scope_key(tenant_id, principal_id, device_id).as_str())
+                    .is_some()
+            },
+        )
     }
 }
 
@@ -183,17 +176,6 @@ impl FileRealtimeSubscriptionStore {
     fn read_records(&self) -> Result<BTreeMap<String, RealtimeSubscriptionRecord>, ContractError> {
         read_json_records_or_default(self.file_path.as_path(), "realtime subscription store")
     }
-
-    fn write_records(
-        &self,
-        records: &BTreeMap<String, RealtimeSubscriptionRecord>,
-    ) -> Result<(), ContractError> {
-        write_json_records(
-            self.file_path.as_path(),
-            records,
-            "realtime subscription store",
-        )
-    }
 }
 
 impl RealtimeSubscriptionStore for FileRealtimeSubscriptionStore {
@@ -217,16 +199,20 @@ impl RealtimeSubscriptionStore for FileRealtimeSubscriptionStore {
             .io_lock
             .lock()
             .expect("subscription file store lock should lock");
-        let mut records = self.read_records()?;
-        records.insert(
-            scope_key(
-                record.tenant_id.as_str(),
-                record.principal_id.as_str(),
-                record.device_id.as_str(),
-            ),
-            record,
-        );
-        self.write_records(&records)
+        update_json_records(
+            self.file_path.as_path(),
+            "realtime subscription store",
+            |records: &mut BTreeMap<String, RealtimeSubscriptionRecord>| {
+                records.insert(
+                    scope_key(
+                        record.tenant_id.as_str(),
+                        record.principal_id.as_str(),
+                        record.device_id.as_str(),
+                    ),
+                    record,
+                );
+            },
+        )
     }
 
     fn clear_subscriptions(
@@ -239,12 +225,15 @@ impl RealtimeSubscriptionStore for FileRealtimeSubscriptionStore {
             .io_lock
             .lock()
             .expect("subscription file store lock should lock");
-        let mut records = self.read_records()?;
-        let removed = records
-            .remove(scope_key(tenant_id, principal_id, device_id).as_str())
-            .is_some();
-        self.write_records(&records)?;
-        Ok(removed)
+        update_json_records(
+            self.file_path.as_path(),
+            "realtime subscription store",
+            |records: &mut BTreeMap<String, RealtimeSubscriptionRecord>| {
+                records
+                    .remove(scope_key(tenant_id, principal_id, device_id).as_str())
+                    .is_some()
+            },
+        )
     }
 }
 

@@ -2,6 +2,8 @@ import { HttpClient, createHttpClient } from './http/client';
 import type { SdkworkBackendConfig } from './types/common';
 import type { AuthTokenManager } from '@sdkwork/sdk-common';
 
+import { AuthApi, createAuthApi } from './api/auth';
+import { PortalApi, createPortalApi } from './api/portal';
 import { SessionApi, createSessionApi } from './api/session';
 import { PresenceApi, createPresenceApi } from './api/presence';
 import { RealtimeApi, createRealtimeApi } from './api/realtime';
@@ -16,6 +18,8 @@ import { RtcApi, createRtcApi } from './api/rtc';
 export class SdkworkBackendClient {
   private readonly httpClient: HttpClient;
 
+  public readonly auth: AuthApi;
+  public readonly portal: PortalApi;
   public readonly session: SessionApi;
   public readonly presence: PresenceApi;
   public readonly realtime: RealtimeApi;
@@ -29,6 +33,8 @@ export class SdkworkBackendClient {
 
   constructor(config: SdkworkBackendConfig) {
     this.httpClient = createHttpClient(config);
+    this.auth = createAuthApi(this.httpClient);
+    this.portal = createPortalApi(this.httpClient);
     this.session = createSessionApi(this.httpClient);
     this.presence = createPresenceApi(this.httpClient);
     this.realtime = createRealtimeApi(this.httpClient);

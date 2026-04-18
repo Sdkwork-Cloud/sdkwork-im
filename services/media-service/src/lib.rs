@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use axum::extract::{Path, Query, State};
@@ -22,14 +22,15 @@ use im_auth_context::{
 use im_domain_core::media::{MediaAsset, MediaProcessingState, MediaResource};
 use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
 use im_platform_contracts::{
-    EffectiveProviderBinding, ObjectStorageDownloadUrlRequest, ObjectStorageProvider,
-    ObjectStoragePutRequest, ProviderDomain, ProviderHealthSnapshot, ProviderRegistry,
-    StaticProviderRegistry,
+    EffectiveProviderBinding, ObjectStorageDownloadUrlRequest, ObjectStoragePresignedUpload,
+    ObjectStorageProvider, ObjectStoragePutRequest, ObjectStorageUploadUrlRequest, ProviderDomain,
+    ProviderHealthSnapshot, ProviderRegistry, StaticProviderRegistry,
 };
 use im_time::utc_now_rfc3339_millis;
 use serde::{Deserialize, Serialize};
 
 const DEFAULT_MEDIA_DOWNLOAD_URL_TTL_SECONDS: u32 = 3600;
+const DEFAULT_MEDIA_UPLOAD_URL_TTL_SECONDS: u32 = 900;
 const MEDIA_UPLOAD_DELIVERY_PROOF_VERSION: &str = "media.upload.delivery-proof.v1";
 const MEDIA_MAX_ASSET_ID_BYTES: usize = 256;
 const MEDIA_MAX_BUCKET_BYTES: usize = 256;
@@ -79,6 +80,9 @@ impl Default for MediaRuntime {
 #[serde(rename_all = "camelCase")]
 pub struct CreateUploadRequest {
     pub media_asset_id: String,
+    pub bucket: String,
+    pub object_key: Option<String>,
+    pub expires_in_seconds: Option<u32>,
     pub resource: MediaResource,
 }
 
@@ -113,6 +117,16 @@ pub struct MediaUploadMutationOutcome {
     pub applied: bool,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MediaUploadSessionOutcome {
+    pub asset: MediaAsset,
+    pub applied: bool,
+    pub bucket: String,
+    pub object_key: String,
+    pub storage_provider: String,
+    pub upload: ObjectStoragePresignedUpload,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MediaUploadDeliveryStatus {
@@ -134,6 +148,46 @@ impl MediaUploadMutationResponse {
     pub fn from_outcome(outcome: MediaUploadMutationOutcome, request_key: String) -> Self {
         Self {
             asset: outcome.asset,
+            request_key,
+            delivery_status: if outcome.applied {
+                MediaUploadDeliveryStatus::Applied
+            } else {
+                MediaUploadDeliveryStatus::Replayed
+            },
+            proof_version: MEDIA_UPLOAD_DELIVERY_PROOF_VERSION.into(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MediaUploadSessionResponse {
+    pub media_asset_id: String,
+    pub media_asset: MediaAsset,
+    pub bucket: String,
+    pub object_key: String,
+    pub storage_provider: String,
+    pub upload_method: String,
+    pub upload_url: String,
+    pub upload_headers: BTreeMap<String, String>,
+    pub upload_expires_in_seconds: u32,
+    pub request_key: String,
+    pub delivery_status: MediaUploadDeliveryStatus,
+    pub proof_version: String,
+}
+
+impl MediaUploadSessionResponse {
+    pub fn from_outcome(outcome: MediaUploadSessionOutcome, request_key: String) -> Self {
+        Self {
+            media_asset_id: outcome.asset.media_asset_id.clone(),
+            media_asset: outcome.asset,
+            bucket: outcome.bucket,
+            object_key: outcome.object_key,
+            storage_provider: outcome.storage_provider,
+            upload_method: outcome.upload.method,
+            upload_url: outcome.upload.url,
+            upload_headers: outcome.upload.headers,
+            upload_expires_in_seconds: outcome.upload.expires_in_seconds,
             request_key,
             delivery_status: if outcome.applied {
                 MediaUploadDeliveryStatus::Applied
@@ -208,9 +262,7 @@ impl MediaError {
         Self {
             status: axum::http::StatusCode::BAD_REQUEST,
             code: "invalid_expires_in_seconds",
-            message: format!(
-                "expiresInSeconds must be greater than zero: {expires_in_seconds}"
-            ),
+            message: format!("expiresInSeconds must be greater than zero: {expires_in_seconds}"),
         }
     }
 
@@ -334,8 +386,15 @@ impl MediaRuntime {
         &self,
         auth: &AuthContext,
         request: CreateUploadRequest,
-    ) -> Result<MediaUploadMutationOutcome, MediaError> {
+    ) -> Result<MediaUploadSessionOutcome, MediaError> {
         validate_create_upload_request_payload_size(&request)?;
+        let provider_plugin_id = self.selected_provider_plugin_id(auth.tenant_id.as_str(), None)?;
+        let bucket = request.bucket.clone();
+        let object_key = resolve_media_object_key(auth.tenant_id.as_str(), &request);
+        let expires_in_seconds = request
+            .expires_in_seconds
+            .unwrap_or(DEFAULT_MEDIA_UPLOAD_URL_TTL_SECONDS);
+        validate_download_url_expires_in_seconds(expires_in_seconds)?;
         let scope = media_scope_key(auth.tenant_id.as_str(), request.media_asset_id.as_str());
         if let Some(existing) = self
             .lock_assets("create_upload")
@@ -343,11 +402,23 @@ impl MediaRuntime {
             .cloned()
         {
             if is_asset_owner(&existing, auth) {
-                if create_upload_matches_existing(&existing, &request) {
-                    return Ok(MediaUploadMutationOutcome {
-                        asset: existing,
-                        applied: false,
-                    });
+                if existing.processing_state == MediaProcessingState::PendingUpload
+                    && create_upload_matches_existing(
+                        &existing,
+                        &request,
+                        bucket.as_str(),
+                        object_key.as_str(),
+                        provider_plugin_id.as_str(),
+                    )
+                {
+                    return self.build_upload_session_outcome(
+                        existing,
+                        false,
+                        bucket.as_str(),
+                        object_key.as_str(),
+                        provider_plugin_id.as_str(),
+                        expires_in_seconds,
+                    );
                 }
 
                 return Err(MediaError::conflict(request.media_asset_id.as_str()));
@@ -362,9 +433,9 @@ impl MediaRuntime {
             principal_id: auth.actor_id.clone(),
             principal_kind: auth.actor_kind.clone(),
             media_asset_id: request.media_asset_id.clone(),
-            bucket: None,
-            object_key: None,
-            storage_provider: None,
+            bucket: Some(bucket.clone()),
+            object_key: Some(object_key.clone()),
+            storage_provider: Some(provider_plugin_id.clone()),
             checksum: None,
             processing_state: MediaProcessingState::PendingUpload,
             resource: request.resource,
@@ -375,10 +446,14 @@ impl MediaRuntime {
         self.lock_assets("create_upload")
             .insert(scope, asset.clone());
 
-        Ok(MediaUploadMutationOutcome {
+        self.build_upload_session_outcome(
             asset,
-            applied: true,
-        })
+            true,
+            bucket.as_str(),
+            object_key.as_str(),
+            provider_plugin_id.as_str(),
+            expires_in_seconds,
+        )
     }
 
     pub fn complete_upload(
@@ -400,8 +475,6 @@ impl MediaRuntime {
     ) -> Result<MediaUploadMutationOutcome, MediaError> {
         validate_media_asset_id(media_asset_id)?;
         validate_complete_upload_request_payload_size(&request)?;
-        let provider_plugin_id = self.selected_provider_plugin_id(auth.tenant_id.as_str(), None)?;
-        let provider = self.object_storage_provider(provider_plugin_id.as_str())?;
         let mut assets = self.lock_assets("complete_upload");
         let asset = assets
             .get_mut(media_scope_key(auth.tenant_id.as_str(), media_asset_id).as_str())
@@ -409,12 +482,32 @@ impl MediaRuntime {
         if !is_asset_owner(asset, auth) {
             return Err(MediaError::not_found(media_asset_id));
         }
+        let provider_plugin_id = asset
+            .storage_provider
+            .clone()
+            .ok_or_else(|| MediaError::conflict(media_asset_id))?;
+        let provider = self.object_storage_provider(provider_plugin_id.as_str())?;
+        let bucket = asset
+            .bucket
+            .clone()
+            .ok_or_else(|| MediaError::conflict(media_asset_id))?;
+        let object_key = asset
+            .object_key
+            .clone()
+            .ok_or_else(|| MediaError::conflict(media_asset_id))?;
+
+        if request.bucket != bucket
+            || request.object_key != object_key
+            || request.storage_provider.as_deref() != Some(provider_plugin_id.as_str())
+        {
+            return Err(MediaError::conflict(media_asset_id));
+        }
 
         if asset.processing_state == MediaProcessingState::Ready {
             if complete_upload_request_matches_existing(
                 asset,
-                request.bucket.as_str(),
-                request.object_key.as_str(),
+                bucket.as_str(),
+                object_key.as_str(),
                 provider_plugin_id.as_str(),
                 request.checksum.as_ref(),
             ) {
@@ -429,8 +522,8 @@ impl MediaRuntime {
 
         let object_descriptor = provider
             .put_object(ObjectStoragePutRequest {
-                bucket: request.bucket.clone(),
-                object_key: request.object_key.clone(),
+                bucket: bucket.clone(),
+                object_key: object_key.clone(),
                 content_length: asset.resource.size.unwrap_or_default(),
                 content_type: asset.resource.mime_type.clone(),
                 storage_class: None,
@@ -544,6 +637,36 @@ impl MediaRuntime {
                     "object storage provider binding is missing for the current scope",
                 )
             })
+    }
+
+    fn build_upload_session_outcome(
+        &self,
+        asset: MediaAsset,
+        applied: bool,
+        bucket: &str,
+        object_key: &str,
+        storage_provider: &str,
+        expires_in_seconds: u32,
+    ) -> Result<MediaUploadSessionOutcome, MediaError> {
+        let provider = self.object_storage_provider(storage_provider)?;
+        let upload = provider
+            .signed_upload_url(ObjectStorageUploadUrlRequest {
+                bucket: bucket.into(),
+                object_key: object_key.into(),
+                content_length: asset.resource.size.unwrap_or_default(),
+                content_type: asset.resource.mime_type.clone(),
+                expires_in_seconds,
+            })
+            .map_err(MediaError::object_storage_provider)?;
+
+        Ok(MediaUploadSessionOutcome {
+            asset,
+            applied,
+            bucket: bucket.into(),
+            object_key: object_key.into(),
+            storage_provider: storage_provider.into(),
+            upload,
+        })
     }
 
     fn selected_provider_plugin_id(
@@ -697,10 +820,10 @@ async fn create_upload(
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<CreateUploadRequest>,
-) -> Result<Json<MediaUploadMutationResponse>, MediaError> {
+) -> Result<Json<MediaUploadSessionResponse>, MediaError> {
     let auth = resolve_auth_context(&headers)?;
     let request_key = media_create_upload_request_key(&auth, request.media_asset_id.as_str());
-    Ok(Json(MediaUploadMutationResponse::from_outcome(
+    Ok(Json(MediaUploadSessionResponse::from_outcome(
         state.runtime.create_upload_with_outcome(&auth, request)?,
         request_key,
     )))
@@ -909,6 +1032,15 @@ fn validate_create_upload_request_payload_size(
     request: &CreateUploadRequest,
 ) -> Result<(), MediaError> {
     validate_media_asset_id(request.media_asset_id.as_str())?;
+    validate_payload_size("bucket", request.bucket.as_str(), MEDIA_MAX_BUCKET_BYTES)?;
+    validate_optional_payload_size(
+        "objectKey",
+        request.object_key.as_deref(),
+        MEDIA_MAX_OBJECT_KEY_BYTES,
+    )?;
+    if let Some(expires_in_seconds) = request.expires_in_seconds {
+        validate_download_url_expires_in_seconds(expires_in_seconds)?;
+    }
     validate_media_resource_payload_size(&request.resource)?;
     Ok(())
 }
@@ -958,8 +1090,17 @@ fn is_asset_owner(asset: &MediaAsset, auth: &AuthContext) -> bool {
     asset.principal_id == auth.actor_id && asset.principal_kind == auth.actor_kind
 }
 
-fn create_upload_matches_existing(asset: &MediaAsset, request: &CreateUploadRequest) -> bool {
+fn create_upload_matches_existing(
+    asset: &MediaAsset,
+    request: &CreateUploadRequest,
+    bucket: &str,
+    object_key: &str,
+    storage_provider: &str,
+) -> bool {
     asset.resource == request.resource
+        && asset.bucket.as_deref() == Some(bucket)
+        && asset.object_key.as_deref() == Some(object_key)
+        && asset.storage_provider.as_deref() == Some(storage_provider)
 }
 
 fn complete_upload_request_matches_existing(
@@ -973,4 +1114,23 @@ fn complete_upload_request_matches_existing(
         && asset.object_key.as_deref() == Some(object_key)
         && asset.storage_provider.as_deref() == Some(storage_provider)
         && asset.checksum.as_ref() == checksum
+}
+
+fn resolve_media_object_key(tenant_id: &str, request: &CreateUploadRequest) -> String {
+    if let Some(object_key) = request.object_key.as_ref() {
+        return object_key.clone();
+    }
+
+    let file_name = request
+        .resource
+        .name
+        .as_deref()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or(request.media_asset_id.as_str())
+        .replace(['\\', '/'], "_");
+
+    format!(
+        "tenant/{tenant_id}/{}/{}",
+        request.media_asset_id, file_name
+    )
 }

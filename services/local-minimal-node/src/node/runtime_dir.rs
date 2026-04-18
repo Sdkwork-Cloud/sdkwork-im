@@ -451,14 +451,18 @@ fn validate_runtime_backup_source(
     Ok((source_state_dir, summary))
 }
 
-fn snapshot_runtime_state_files(state_dir: &StdPath, backup_dir: &StdPath) {
+fn snapshot_runtime_state_files(
+    state_dir: &StdPath,
+    backup_dir: &StdPath,
+    operation: &str,
+) -> Result<(), String> {
     let backup_state_dir = backup_dir.join("state");
-    fs::create_dir_all(&backup_state_dir).unwrap_or_else(|error| {
-        panic!(
-            "failed to create runtime-dir repair backup state dir {}: {error}",
+    fs::create_dir_all(&backup_state_dir).map_err(|error| {
+        format!(
+            "failed to create runtime-dir {operation} backup state dir {}: {error}",
             backup_state_dir.display()
         )
-    });
+    })?;
 
     for file_name in EXPECTED_RUNTIME_STATE_FILES {
         let source = state_dir.join(file_name);
@@ -467,62 +471,81 @@ fn snapshot_runtime_state_files(state_dir: &StdPath, backup_dir: &StdPath) {
         }
 
         let target = backup_state_dir.join(file_name);
-        fs::copy(&source, &target).unwrap_or_else(|error| {
-            panic!(
-                "failed to snapshot runtime-dir state file {} to {}: {error}",
+        fs::copy(&source, &target).map_err(|error| {
+            format!(
+                "failed to snapshot runtime-dir state file {} to {} during {operation}: {error}",
                 source.display(),
                 target.display()
             )
-        });
+        })?;
     }
+
+    Ok(())
 }
 
-fn write_runtime_dir_repair_report(backup_dir: &StdPath, report: &RuntimeDirRepairView) {
+fn write_runtime_dir_repair_report(
+    backup_dir: &StdPath,
+    report: &RuntimeDirRepairView,
+) -> Result<(), String> {
     let report_path = backup_dir.join("repair-report.json");
     let payload = serde_json::to_vec_pretty(report)
-        .expect("runtime-dir repair report should serialize to json");
-    fs::write(&report_path, payload).unwrap_or_else(|error| {
-        panic!(
+        .map_err(|error| format!("runtime-dir repair report should serialize to json: {error}"))?;
+    fs::write(&report_path, payload).map_err(|error| {
+        format!(
             "failed to write runtime-dir repair report {}: {error}",
             report_path.display()
         )
-    });
+    })?;
+    Ok(())
 }
 
-fn write_runtime_dir_restore_report(backup_dir: &StdPath, report: &RuntimeDirRestoreView) {
+fn write_runtime_dir_restore_report(
+    backup_dir: &StdPath,
+    report: &RuntimeDirRestoreView,
+) -> Result<(), String> {
     let report_path = backup_dir.join("restore-report.json");
     let payload = serde_json::to_vec_pretty(report)
-        .expect("runtime-dir restore report should serialize to json");
-    fs::write(&report_path, payload).unwrap_or_else(|error| {
-        panic!(
+        .map_err(|error| format!("runtime-dir restore report should serialize to json: {error}"))?;
+    fs::write(&report_path, payload).map_err(|error| {
+        format!(
             "failed to write runtime-dir restore report {}: {error}",
             report_path.display()
         )
-    });
+    })?;
+    Ok(())
 }
 
-fn write_runtime_dir_archive_report(backup_dir: &StdPath, report: &RuntimeDirArchiveView) {
+fn write_runtime_dir_archive_report(
+    backup_dir: &StdPath,
+    report: &RuntimeDirArchiveView,
+) -> Result<(), String> {
     let report_path = backup_dir.join("archive-report.json");
     let payload = serde_json::to_vec_pretty(report)
-        .expect("runtime-dir archive report should serialize to json");
-    fs::write(&report_path, payload).unwrap_or_else(|error| {
-        panic!(
+        .map_err(|error| format!("runtime-dir archive report should serialize to json: {error}"))?;
+    fs::write(&report_path, payload).map_err(|error| {
+        format!(
             "failed to write runtime-dir archive report {}: {error}",
             report_path.display()
         )
-    });
+    })?;
+    Ok(())
 }
 
-fn write_runtime_dir_archive_metadata(backup_dir: &StdPath, metadata: &RuntimeDirArchiveMetadata) {
+fn write_runtime_dir_archive_metadata(
+    backup_dir: &StdPath,
+    metadata: &RuntimeDirArchiveMetadata,
+) -> Result<(), String> {
     let metadata_path = runtime_backup_archive_metadata_path(backup_dir);
-    let payload = serde_json::to_vec_pretty(metadata)
-        .expect("runtime-dir archive metadata should serialize to json");
-    fs::write(&metadata_path, payload).unwrap_or_else(|error| {
-        panic!(
+    let payload = serde_json::to_vec_pretty(metadata).map_err(|error| {
+        format!("runtime-dir archive metadata should serialize to json: {error}")
+    })?;
+    fs::write(&metadata_path, payload).map_err(|error| {
+        format!(
             "failed to write runtime-dir archive metadata {}: {error}",
             metadata_path.display()
         )
-    });
+    })?;
+    Ok(())
 }
 
 fn current_unix_seconds() -> u64 {
@@ -540,25 +563,27 @@ fn archive_retention_elapsed(metadata: &RuntimeDirArchiveMetadata) -> bool {
             .saturating_add(retention_seconds)
 }
 
-pub fn repair_runtime_dir(runtime_dir: impl AsRef<StdPath>) -> RuntimeDirRepairView {
+pub fn repair_runtime_dir(
+    runtime_dir: impl AsRef<StdPath>,
+) -> Result<RuntimeDirRepairView, String> {
     let runtime_dir = runtime_dir.as_ref();
     let state_dir = runtime_dir.join("state");
     let before = inspect_runtime_dir(runtime_dir);
     let backup_dir = runtime_dir_repair_backup_dir(runtime_dir);
 
-    fs::create_dir_all(&state_dir).unwrap_or_else(|error| {
-        panic!(
+    fs::create_dir_all(&state_dir).map_err(|error| {
+        format!(
             "failed to create runtime-dir state dir {} before repair: {error}",
             state_dir.display()
         )
-    });
-    fs::create_dir_all(&backup_dir).unwrap_or_else(|error| {
-        panic!(
+    })?;
+    fs::create_dir_all(&backup_dir).map_err(|error| {
+        format!(
             "failed to create runtime-dir repair backup dir {}: {error}",
             backup_dir.display()
         )
-    });
-    snapshot_runtime_state_files(state_dir.as_path(), backup_dir.as_path());
+    })?;
+    snapshot_runtime_state_files(state_dir.as_path(), backup_dir.as_path(), "repair")?;
 
     let mut actions = Vec::new();
     let mut repaired_file_count = 0usize;
@@ -572,12 +597,12 @@ pub fn repair_runtime_dir(runtime_dir: impl AsRef<StdPath>) -> RuntimeDirRepairV
                     &target_path,
                     empty_runtime_state_file_content(file.file_name.as_str()),
                 )
-                .unwrap_or_else(|error| {
-                    panic!(
+                .map_err(|error| {
+                    format!(
                         "failed to recreate missing runtime-dir file {}: {error}",
                         target_path.display()
                     )
-                });
+                })?;
                 actions.push(RuntimeDirRepairActionView {
                     file_name: file.file_name.clone(),
                     path: target_path.display().to_string(),
@@ -618,8 +643,8 @@ pub fn repair_runtime_dir(runtime_dir: impl AsRef<StdPath>) -> RuntimeDirRepairV
         after,
         actions,
     };
-    write_runtime_dir_repair_report(backup_dir.as_path(), &report);
-    report
+    write_runtime_dir_repair_report(backup_dir.as_path(), &report)?;
+    Ok(report)
 }
 
 pub fn restore_runtime_dir(
@@ -668,7 +693,11 @@ pub fn restore_runtime_dir_with_expected_preview_fingerprint(
             pre_restore_backup_dir.display()
         )
     })?;
-    snapshot_runtime_state_files(state_dir.as_path(), pre_restore_backup_dir.as_path());
+    snapshot_runtime_state_files(
+        state_dir.as_path(),
+        pre_restore_backup_dir.as_path(),
+        "restore",
+    )?;
 
     let mut actions = Vec::new();
     let mut restored_file_count = 0usize;
@@ -724,7 +753,7 @@ pub fn restore_runtime_dir_with_expected_preview_fingerprint(
         after,
         actions,
     };
-    write_runtime_dir_restore_report(pre_restore_backup_dir.as_path(), &report);
+    write_runtime_dir_restore_report(pre_restore_backup_dir.as_path(), &report)?;
     Ok(report)
 }
 
@@ -818,7 +847,7 @@ pub fn archive_runtime_backup_with_policy(
         archived_at: utc_now_rfc3339_millis(),
         archived_at_unix_seconds: current_unix_seconds(),
     };
-    write_runtime_dir_archive_metadata(archived_backup_dir.as_path(), &archive_metadata);
+    write_runtime_dir_archive_metadata(archived_backup_dir.as_path(), &archive_metadata)?;
     let report = RuntimeDirArchiveView {
         status: "archived".into(),
         runtime_dir: runtime_dir.display().to_string(),
@@ -837,7 +866,7 @@ pub fn archive_runtime_backup_with_policy(
         archived_at: archive_metadata.archived_at.clone(),
         restore_from_backup_dir: archived_backup_dir_text,
     };
-    write_runtime_dir_archive_report(archived_backup_dir.as_path(), &report);
+    write_runtime_dir_archive_report(archived_backup_dir.as_path(), &report)?;
     Ok(report)
 }
 
@@ -940,26 +969,28 @@ pub fn prune_archived_runtime_backups(
     })
 }
 
-pub fn list_runtime_backups(runtime_dir: impl AsRef<StdPath>) -> RuntimeDirBackupCatalogView {
+pub fn list_runtime_backups(
+    runtime_dir: impl AsRef<StdPath>,
+) -> Result<RuntimeDirBackupCatalogView, String> {
     let runtime_dir = runtime_dir.as_ref();
     let backups_dir = runtime_dir.join("backups");
     let mut items = Vec::new();
 
     if backups_dir.exists() {
-        let entries = fs::read_dir(&backups_dir).unwrap_or_else(|error| {
-            panic!(
+        let entries = fs::read_dir(&backups_dir).map_err(|error| {
+            format!(
                 "failed to read runtime-dir backups dir {}: {error}",
                 backups_dir.display()
             )
-        });
+        })?;
 
         for entry in entries {
-            let entry = entry.unwrap_or_else(|error| {
-                panic!(
+            let entry = entry.map_err(|error| {
+                format!(
                     "failed to read runtime-dir backup directory entry under {}: {error}",
                     backups_dir.display()
                 )
-            });
+            })?;
             let backup_dir = entry.path();
             if !backup_dir.is_dir() {
                 continue;
@@ -993,13 +1024,13 @@ pub fn list_runtime_backups(runtime_dir: impl AsRef<StdPath>) -> RuntimeDirBacku
 
     items.sort_by(|left, right| right.backup_name.cmp(&left.backup_name));
 
-    RuntimeDirBackupCatalogView {
+    Ok(RuntimeDirBackupCatalogView {
         status: if items.is_empty() { "empty" } else { "ok" }.into(),
         runtime_dir: runtime_dir.display().to_string(),
         backups_dir: backups_dir.display().to_string(),
         backup_count: items.len(),
         items,
-    }
+    })
 }
 
 pub fn inspect_runtime_dir(runtime_dir: impl AsRef<StdPath>) -> RuntimeDirInspectionView {

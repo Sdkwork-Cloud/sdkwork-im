@@ -5,6 +5,11 @@
   for audit evidence.
 </p>
 
+<div class="api-link-list">
+  <a href="/api-reference/platform/ops"><code>Ops</code> Runtime diagnostics and cluster views are documented separately</a>
+  <a href="/sdk/index"><code>SDK</code> Treat audit flows as HTTP-first surfaces unless a repo consumer layer is documented elsewhere</a>
+</div>
+
 <a id="record-audit-anchor"></a>
 <section class="api-op">
 

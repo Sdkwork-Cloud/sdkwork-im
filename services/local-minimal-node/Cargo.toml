@@ -10,9 +10,11 @@ automation-service = { path = "../automation-service" }
 axum.workspace = true
 control-plane-api = { path = "../control-plane-api" }
 conversation-runtime = { path = "../conversation-runtime" }
+fs4 = "0.13.1"
 futures-util.workspace = true
 getrandom = "0.3.4"
 hex = "0.4.3"
+http-body-util.workspace = true
 im-adapter-iot-access-local = { path = "../../adapters/iot-access-local" }
 im-adapter-iot-mqtt = { path = "../../adapters/iot-mqtt" }
 im-adapters-local-disk = { path = "../../adapters/local-disk" }
@@ -35,6 +37,7 @@ sha2 = "0.10"
 streaming-service = { path = "../streaming-service" }
 subtle = "2.6.1"
 tokio.workspace = true
+tower.workspace = true
 tower-http = { version = "0.6.6", features = ["cors"] }
 
 [dev-dependencies]
@@ -42,6 +45,4 @@ craw-chat-ccp-control = { path = "../../crates/craw-chat-ccp-control" }
 craw-chat-ccp-core = { path = "../../crates/craw-chat-ccp-core" }
 craw-chat-ccp-registry = { path = "../../crates/craw-chat-ccp-registry" }
 craw-chat-runtime-link = { path = "../../crates/craw-chat-runtime-link" }
-http-body-util.workspace = true
 tokio-tungstenite = "0.28.0"
-tower.workspace = true

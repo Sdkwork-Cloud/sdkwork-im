@@ -1,0 +1,1 @@
+{"version":3,"file":"message-body.d.ts","sourceRoot":"","sources":["../../../src/generated/types/message-body.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,WAAW,EAAE,MAAM,mBAAmB,CAAC;AACrD,OAAO,KAAK,EAAE,SAAS,EAAE,MAAM,iBAAiB,CAAC;AAEjD,MAAM,WAAW,WAAW;IAC1B,OAAO,CAAC,EAAE,MAAM,CAAC;IACjB,KAAK,EAAE,WAAW,EAAE,CAAC;IACrB,WAAW,EAAE,SAAS,CAAC;CACxB"}

@@ -177,6 +177,14 @@ pub(crate) fn device_sync_feed_for_principal_kind(
         .unwrap_or_default()
         .into_iter()
         .filter(|entry| entry.sync_seq > min_seq)
+        .filter(|entry| {
+            entry
+                .conversation_id
+                .as_deref()
+                .is_none_or(|conversation_id| {
+                    !service.is_archived_direct_chat_conversation(tenant_id, conversation_id)
+                })
+        })
         .collect()
 }
 
@@ -316,6 +324,14 @@ impl TimelineProjectionService {
             .unwrap_or_default()
             .into_iter()
             .filter(|entry| entry.sync_seq > min_seq)
+            .filter(|entry| {
+                entry
+                    .conversation_id
+                    .as_deref()
+                    .is_none_or(|conversation_id| {
+                        !self.is_archived_direct_chat_conversation(tenant_id, conversation_id)
+                    })
+            })
             .collect()
     }
 

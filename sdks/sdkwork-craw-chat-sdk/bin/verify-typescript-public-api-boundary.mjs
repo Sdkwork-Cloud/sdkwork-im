@@ -82,6 +82,33 @@ for (const absolutePath of collectFiles(composedSourceRoot)) {
   if (relativePath === 'types.ts' && !source.includes("from './generated-backend-types.js'")) {
     failures.push('types.ts must source generated backend types through ./generated-backend-types.js.');
   }
+
+  if (relativePath === 'types.ts') {
+    const liveConnectionBlockMatch = source.match(
+      /export interface CrawChatLiveConnection \{([\s\S]*?)\n\}/,
+    );
+
+    if (!liveConnectionBlockMatch) {
+      failures.push('types.ts must define export interface CrawChatLiveConnection.');
+    } else {
+      const liveConnectionBlock = liveConnectionBlockMatch[1];
+      for (const legacySignature of [
+        'onMessage(',
+        'onConversationMessage(',
+        'onData(',
+        'onSignal(',
+        'onRawEvent(',
+        'onStateChange(',
+        'onError(',
+      ]) {
+        if (liveConnectionBlock.includes(legacySignature)) {
+          failures.push(
+            `types.ts must not expose legacy live flat callbacks on CrawChatLiveConnection: ${legacySignature}`,
+          );
+        }
+      }
+    }
+  }
 }
 
 if (failures.length > 0) {

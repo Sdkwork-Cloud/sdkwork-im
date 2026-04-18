@@ -5,6 +5,7 @@ use axum::{
     Json,
 };
 use bytes::Bytes;
+use rand::random;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -15,6 +16,7 @@ const ADMIN_SANDBOX_SEED_JSON: &str =
 #[derive(Clone)]
 pub struct SharedAdminSandboxState {
     inner: Arc<Mutex<AdminSandboxState>>,
+    login_credentials: AdminSandboxCredentials,
 }
 
 #[derive(Clone)]
@@ -28,18 +30,41 @@ struct AdminSandboxState {
 #[serde(rename_all = "camelCase")]
 struct AdminSandboxSeed {
     clock_ms: u64,
-    #[allow(dead_code)]
-    sandbox_password: String,
     #[serde(flatten)]
     store: std::collections::BTreeMap<String, Value>,
+}
+
+#[derive(Clone)]
+pub struct AdminSandboxCredentials {
+    pub email: String,
+    pub password: String,
+    pub source: &'static str,
 }
 
 type SandboxErrorResponse = Box<Response>;
 
 impl SharedAdminSandboxState {
     pub fn seeded() -> Self {
+        let credentials = resolve_admin_sandbox_credentials_from_env();
+        Self::seeded_from_credentials(credentials)
+    }
+
+    pub fn seeded_with_credentials(email: impl Into<String>, password: impl Into<String>) -> Self {
+        Self::seeded_from_credentials(AdminSandboxCredentials {
+            email: email.into(),
+            password: password.into(),
+            source: "explicit",
+        })
+    }
+
+    pub fn login_credentials(&self) -> AdminSandboxCredentials {
+        self.login_credentials.clone()
+    }
+
+    fn seeded_from_credentials(credentials: AdminSandboxCredentials) -> Self {
         Self {
-            inner: Arc::new(Mutex::new(AdminSandboxState::seeded())),
+            inner: Arc::new(Mutex::new(AdminSandboxState::seeded(&credentials))),
+            login_credentials: credentials,
         }
     }
 
@@ -57,11 +82,11 @@ impl SharedAdminSandboxState {
 }
 
 impl AdminSandboxState {
-    fn seeded() -> Self {
+    fn seeded(credentials: &AdminSandboxCredentials) -> Self {
         let seed: AdminSandboxSeed =
             serde_json::from_str(ADMIN_SANDBOX_SEED_JSON).expect("admin sandbox seed should parse");
         let mut store = Value::Object(seed.store.into_iter().collect());
-        store["sandboxPassword"] = Value::String(seed.sandbox_password);
+        apply_login_credentials_to_store(&mut store, credentials);
         sync_provider_credential_readiness(&mut store);
 
         Self {
@@ -83,6 +108,68 @@ impl AdminSandboxState {
 
     fn next_id(&mut self, prefix: &str) -> String {
         format!("{prefix}_{}", self.next_sequence())
+    }
+}
+
+fn trimmed_env_var(key: &str) -> Option<String> {
+    std::env::var(key)
+        .ok()
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
+}
+
+fn default_sandbox_login_email(store: &Value) -> String {
+    auth_user(store)
+        .get("email")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or("admin@sdkwork.local")
+        .to_owned()
+}
+
+fn generated_sandbox_password() -> String {
+    format!("{:032x}", random::<u128>())
+}
+
+fn resolve_admin_sandbox_credentials_from_env() -> AdminSandboxCredentials {
+    let seed: AdminSandboxSeed =
+        serde_json::from_str(ADMIN_SANDBOX_SEED_JSON).expect("admin sandbox seed should parse");
+    let store = Value::Object(seed.store.into_iter().collect());
+    let email = trimmed_env_var("SDKWORK_ADMIN_SANDBOX_EMAIL")
+        .unwrap_or_else(|| default_sandbox_login_email(&store));
+
+    match trimmed_env_var("SDKWORK_ADMIN_SANDBOX_PASSWORD") {
+        Some(password) => AdminSandboxCredentials {
+            email,
+            password,
+            source: "env",
+        },
+        None => AdminSandboxCredentials {
+            email,
+            password: generated_sandbox_password(),
+            source: "generated",
+        },
+    }
+}
+
+fn apply_login_credentials_to_store(store: &mut Value, credentials: &AdminSandboxCredentials) {
+    let auth_user_id = store
+        .pointer("/authSession/user/id")
+        .and_then(Value::as_str)
+        .map(str::to_owned);
+    store["sandboxPassword"] = Value::String(credentials.password.clone());
+
+    if let Some(user) = store.pointer_mut("/authSession/user") {
+        user["email"] = Value::String(credentials.email.clone());
+    }
+
+    if let Some(auth_user_id) = auth_user_id {
+        for operator in array_mut(store, "operatorUsers") {
+            if string_field(operator, "id") == Some(auth_user_id.as_str()) {
+                operator["email"] = Value::String(credentials.email.clone());
+            }
+        }
     }
 }
 
@@ -1569,14 +1656,15 @@ mod tests {
     }
 
     async fn login(state: &SharedAdminSandboxState) -> String {
+        let credentials = state.login_credentials();
         let (status, payload) = send_request(
             state,
             Method::POST,
             "/api/admin/auth/login",
             None,
             Some(json!({
-                "email": "admin@sdkwork.local",
-                "password": "ChangeMe123!",
+                "email": credentials.email,
+                "password": credentials.password,
             })),
         )
         .await;
@@ -2146,5 +2234,48 @@ mod tests {
             assert_eq!(status, expected_status, "delete route should succeed for {path}");
             assert!(payload.is_none(), "delete routes should not return a payload");
         }
+    }
+
+    #[tokio::test]
+    async fn sandbox_login_accepts_explicit_credentials_overrides() {
+        let state = SharedAdminSandboxState::seeded_with_credentials(
+            "ops-sandbox@example.invalid",
+            "Sandbox#Custom2026",
+        );
+
+        let (status, payload) = send_request(
+            &state,
+            Method::POST,
+            "/api/admin/auth/login",
+            None,
+            Some(json!({
+                "email": "ops-sandbox@example.invalid",
+                "password": "Sandbox#Custom2026",
+            })),
+        )
+        .await;
+
+        assert_eq!(status, StatusCode::OK);
+        let login = payload.expect("sandbox login should return a payload");
+        assert_eq!(
+            login
+                .get("user")
+                .and_then(|value| value.get("email"))
+                .and_then(Value::as_str),
+            Some("ops-sandbox@example.invalid")
+        );
+
+        let (legacy_status, _) = send_request(
+            &state,
+            Method::POST,
+            "/api/admin/auth/login",
+            None,
+            Some(json!({
+                "email": "admin@sdkwork.local",
+                "password": "legacy-password",
+            })),
+        )
+        .await;
+        assert_eq!(legacy_status, StatusCode::UNAUTHORIZED);
     }
 }

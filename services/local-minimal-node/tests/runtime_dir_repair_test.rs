@@ -29,7 +29,8 @@ fn test_repair_runtime_dir_recreates_missing_files_with_backup_first_flow() {
     let runtime_dir = unique_runtime_dir();
     fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
 
-    let report = local_minimal_node::repair_runtime_dir(runtime_dir.as_path());
+    let report = local_minimal_node::repair_runtime_dir(runtime_dir.as_path())
+        .expect("repair should succeed");
 
     assert_eq!(report.status, "repaired");
     assert_eq!(report.before.status, "degraded");
@@ -88,7 +89,8 @@ fn test_repair_runtime_dir_leaves_corrupt_files_untouched_while_fixing_missing_f
     fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
     write_runtime_state_file(runtime_dir.as_path(), "rtc-state.json", "{not-valid-json");
 
-    let report = local_minimal_node::repair_runtime_dir(runtime_dir.as_path());
+    let report = local_minimal_node::repair_runtime_dir(runtime_dir.as_path())
+        .expect("repair should succeed");
 
     assert_eq!(report.status, "partial");
     assert_eq!(report.before.missing_file_count, 11);

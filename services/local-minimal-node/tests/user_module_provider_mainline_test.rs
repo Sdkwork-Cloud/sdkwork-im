@@ -304,6 +304,123 @@ impl UserModuleProvider for StubExternalUserModuleProvider {
 #[derive(Clone)]
 struct OversizedLocalUserModuleProvider;
 
+#[derive(Clone)]
+struct SelectivelyDisabledLocalUserModuleProvider {
+    disabled_user_ids: Arc<Vec<&'static str>>,
+}
+
+impl SelectivelyDisabledLocalUserModuleProvider {
+    fn new(disabled_user_ids: &[&'static str]) -> Self {
+        Self {
+            disabled_user_ids: Arc::new(disabled_user_ids.to_vec()),
+        }
+    }
+
+    fn is_disabled(&self, user_id: &str) -> bool {
+        self.disabled_user_ids
+            .iter()
+            .any(|disabled| *disabled == user_id)
+    }
+}
+
+impl UserModuleProvider for SelectivelyDisabledLocalUserModuleProvider {
+    fn descriptor(&self) -> ProviderPluginDescriptor {
+        ProviderPluginDescriptor::new(
+            "user-module-local",
+            ProviderDomain::UserModule,
+            "local",
+            "Local User Module",
+        )
+        .with_default_selected(true)
+        .with_required_capabilities(["query", "profile", "bind"])
+    }
+
+    fn get_user(
+        &self,
+        tenant_id: &str,
+        user_id: &str,
+    ) -> Result<Option<UserModuleUser>, ContractError> {
+        Ok(Some(UserModuleUser {
+            tenant_id: tenant_id.into(),
+            user_id: user_id.into(),
+            display_name: format!("Local {user_id}"),
+            external_system: None,
+            external_principal_id: None,
+            attributes: BTreeMap::from([("source".into(), "local".into())]),
+            disabled: self.is_disabled(user_id),
+        }))
+    }
+
+    fn batch_get_users(
+        &self,
+        tenant_id: &str,
+        user_ids: &[String],
+    ) -> Result<Vec<UserModuleUser>, ContractError> {
+        user_ids
+            .iter()
+            .map(|user_id| self.get_user(tenant_id, user_id))
+            .collect::<Result<Vec<_>, _>>()
+            .map(|users| users.into_iter().flatten().collect())
+    }
+
+    fn search_users(
+        &self,
+        tenant_id: &str,
+        keyword: &str,
+    ) -> Result<Vec<UserModuleUser>, ContractError> {
+        Ok(self.get_user(tenant_id, keyword)?.into_iter().collect())
+    }
+
+    fn create_or_bind_user(
+        &self,
+        request: UserModuleCreateOrBindRequest,
+    ) -> Result<UserModuleUser, ContractError> {
+        Ok(UserModuleUser {
+            tenant_id: request.tenant_id,
+            user_id: request.user_id,
+            display_name: request.display_name,
+            external_system: request.external_system,
+            external_principal_id: request.external_principal_id,
+            attributes: BTreeMap::from([("bindingMode".into(), "local".into())]),
+            disabled: false,
+        })
+    }
+
+    fn update_user_profile(
+        &self,
+        request: UserModuleUpdateProfileRequest,
+    ) -> Result<UserModuleUser, ContractError> {
+        Ok(UserModuleUser {
+            tenant_id: request.tenant_id,
+            user_id: request.user_id,
+            display_name: request
+                .display_name
+                .unwrap_or_else(|| "Updated Local".into()),
+            external_system: None,
+            external_principal_id: None,
+            attributes: request.attributes,
+            disabled: false,
+        })
+    }
+
+    fn disable_user(&self, _tenant_id: &str, _user_id: &str) -> Result<bool, ContractError> {
+        Ok(true)
+    }
+
+    fn map_external_principal(
+        &self,
+        _tenant_id: &str,
+        _external_system: &str,
+        _external_principal_id: &str,
+    ) -> Result<Option<UserModuleUser>, ContractError> {
+        Ok(None)
+    }
+
+    fn provider_health_snapshot(&self) -> ProviderHealthSnapshot {
+        ProviderHealthSnapshot::healthy("user-module-local", "2026-04-08T00:00:00Z")
+    }
+}
+
 impl UserModuleProvider for OversizedLocalUserModuleProvider {
     fn descriptor(&self) -> ProviderPluginDescriptor {
         ProviderPluginDescriptor::new(
@@ -511,6 +628,128 @@ impl UserModuleProvider for EscalatingLocalUserModuleProvider {
     }
 }
 
+#[derive(Clone)]
+struct StrictKnownUserModuleProvider {
+    known_user_ids: Arc<Vec<&'static str>>,
+}
+
+impl StrictKnownUserModuleProvider {
+    fn new(known_user_ids: &[&'static str]) -> Self {
+        Self {
+            known_user_ids: Arc::new(known_user_ids.to_vec()),
+        }
+    }
+
+    fn known_user(&self, tenant_id: &str, user_id: &str) -> Option<UserModuleUser> {
+        self.known_user_ids
+            .iter()
+            .copied()
+            .find(|known_user_id| *known_user_id == user_id)
+            .map(|known_user_id| UserModuleUser {
+                tenant_id: tenant_id.into(),
+                user_id: known_user_id.into(),
+                display_name: format!("Known {known_user_id}"),
+                external_system: None,
+                external_principal_id: None,
+                attributes: BTreeMap::from([("source".into(), "strict-known".into())]),
+                disabled: false,
+            })
+    }
+}
+
+impl UserModuleProvider for StrictKnownUserModuleProvider {
+    fn descriptor(&self) -> ProviderPluginDescriptor {
+        ProviderPluginDescriptor::new(
+            "user-module-local",
+            ProviderDomain::UserModule,
+            "local",
+            "Local User Module",
+        )
+        .with_default_selected(true)
+        .with_required_capabilities(["query", "profile", "bind"])
+    }
+
+    fn get_user(
+        &self,
+        tenant_id: &str,
+        user_id: &str,
+    ) -> Result<Option<UserModuleUser>, ContractError> {
+        Ok(self.known_user(tenant_id, user_id))
+    }
+
+    fn batch_get_users(
+        &self,
+        tenant_id: &str,
+        user_ids: &[String],
+    ) -> Result<Vec<UserModuleUser>, ContractError> {
+        Ok(user_ids
+            .iter()
+            .filter_map(|user_id| self.known_user(tenant_id, user_id.as_str()))
+            .collect())
+    }
+
+    fn search_users(
+        &self,
+        tenant_id: &str,
+        keyword: &str,
+    ) -> Result<Vec<UserModuleUser>, ContractError> {
+        Ok(self
+            .known_user_ids
+            .iter()
+            .copied()
+            .filter(|user_id| user_id.contains(keyword))
+            .filter_map(|user_id| self.known_user(tenant_id, user_id))
+            .collect())
+    }
+
+    fn create_or_bind_user(
+        &self,
+        request: UserModuleCreateOrBindRequest,
+    ) -> Result<UserModuleUser, ContractError> {
+        Ok(UserModuleUser {
+            tenant_id: request.tenant_id,
+            user_id: request.user_id,
+            display_name: request.display_name,
+            external_system: request.external_system,
+            external_principal_id: request.external_principal_id,
+            attributes: BTreeMap::from([("bindingMode".into(), "strict-known".into())]),
+            disabled: false,
+        })
+    }
+
+    fn update_user_profile(
+        &self,
+        request: UserModuleUpdateProfileRequest,
+    ) -> Result<UserModuleUser, ContractError> {
+        Ok(UserModuleUser {
+            tenant_id: request.tenant_id,
+            user_id: request.user_id.clone(),
+            display_name: request.display_name.unwrap_or(request.user_id),
+            external_system: None,
+            external_principal_id: None,
+            attributes: request.attributes,
+            disabled: false,
+        })
+    }
+
+    fn disable_user(&self, _tenant_id: &str, _user_id: &str) -> Result<bool, ContractError> {
+        Ok(true)
+    }
+
+    fn map_external_principal(
+        &self,
+        _tenant_id: &str,
+        _external_system: &str,
+        _external_principal_id: &str,
+    ) -> Result<Option<UserModuleUser>, ContractError> {
+        Ok(None)
+    }
+
+    fn provider_health_snapshot(&self) -> ProviderHealthSnapshot {
+        ProviderHealthSnapshot::healthy("user-module-local", "2026-04-08T00:00:00Z")
+    }
+}
+
 #[tokio::test]
 async fn test_local_user_module_provider_enriches_user_message_sender_and_member_attributes() {
     let runtime_dir = unique_runtime_dir();
@@ -638,8 +877,548 @@ async fn test_local_user_module_provider_enriches_user_message_sender_and_member
 }
 
 #[tokio::test]
+async fn test_social_friend_request_submit_rejects_unknown_target_user() {
+    let runtime_dir = unique_runtime_dir();
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+    let app = local_minimal_node::build_default_app_with_runtime_dir_and_user_module_provider(
+        runtime_dir.as_path(),
+        Arc::new(StrictKnownUserModuleProvider::new(&["u_alice"])),
+    );
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_missing",
+                        "requestMessage":"hello missing"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("submit friend request should return response");
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("submit friend request body should collect")
+        .to_bytes();
+    let json: serde_json::Value =
+        serde_json::from_slice(&body).expect("submit friend request body should be valid json");
+    assert_eq!(json["code"], "user_module_user_not_found");
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
+async fn test_social_friend_request_accept_rejects_unknown_requester_user() {
+    let runtime_dir = unique_runtime_dir();
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+    let app = local_minimal_node::build_default_app_with_runtime_dir_and_user_module_provider(
+        runtime_dir.as_path(),
+        Arc::new(StrictKnownUserModuleProvider::new(&["u_bob"])),
+    );
+
+    let seed_request = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/control/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "requestId":"fr_unknown_requester",
+                        "eventId":"evt_fr_unknown_requester_submit",
+                        "requesterUserId":"u_missing",
+                        "targetUserId":"u_bob",
+                        "requestMessage":"hello bob",
+                        "requestedAt":"2026-04-15T10:00:00Z"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("control-plane friend request seed should return response");
+    assert_eq!(seed_request.status(), StatusCode::OK);
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests/fr_unknown_requester/accept")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_bob")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("accept friend request should return response");
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("accept friend request body should collect")
+        .to_bytes();
+    let json: serde_json::Value =
+        serde_json::from_slice(&body).expect("accept friend request body should be valid json");
+    assert_eq!(json["code"], "user_module_user_not_found");
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
+async fn test_direct_chat_binding_rejects_unknown_user_participant() {
+    let runtime_dir = unique_runtime_dir();
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+    let app = local_minimal_node::build_default_app_with_runtime_dir_and_user_module_provider(
+        runtime_dir.as_path(),
+        Arc::new(StrictKnownUserModuleProvider::new(&["actor_a"])),
+    );
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/direct-chats/bindings")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "svc_control")
+                .header("x-actor-kind", "system")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_direct_strict_unknown",
+                        "directChatId":"dc_direct_strict_unknown",
+                        "leftActorId":"actor_a",
+                        "leftActorKind":"user",
+                        "rightActorId":"actor_missing",
+                        "rightActorKind":"user"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("direct chat binding should return response");
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("direct chat binding body should collect")
+        .to_bytes();
+    let json: serde_json::Value =
+        serde_json::from_slice(&body).expect("direct chat binding body should be valid json");
+    assert_eq!(json["code"], "user_module_user_not_found");
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
+async fn test_timeline_query_rejects_unknown_user_member_after_restart_with_strict_provider() {
+    let runtime_dir = unique_runtime_dir();
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+    let seed_app = local_minimal_node::build_default_app_with_runtime_dir_and_user_module_provider(
+        runtime_dir.as_path(),
+        Arc::new(StubLocalUserModuleProvider),
+    );
+
+    let create_conversation = seed_app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_strict_restart_timeline",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("seed create conversation should return response");
+    assert_eq!(create_conversation.status(), StatusCode::OK);
+
+    let add_member = seed_app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_strict_restart_timeline/members/add")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "principalId":"u_missing",
+                        "principalKind":"user",
+                        "role":"member"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("seed add member should return response");
+    assert_eq!(add_member.status(), StatusCode::OK);
+
+    let post_message = seed_app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_strict_restart_timeline/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("x-device-id", "d_owner")
+                .header("x-session-id", "s_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_strict_restart_timeline",
+                        "summary":"hello ghost",
+                        "text":"hello ghost"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("seed post message should return response");
+    assert_eq!(post_message.status(), StatusCode::OK);
+
+    drop(seed_app);
+
+    let strict_app =
+        local_minimal_node::build_default_app_with_runtime_dir_and_user_module_provider(
+            runtime_dir.as_path(),
+            Arc::new(StrictKnownUserModuleProvider::new(&["u_owner"])),
+        );
+
+    let response = strict_app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/conversations/c_strict_restart_timeline/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_missing")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("timeline request should return response");
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("timeline body should collect")
+        .to_bytes();
+    let json: serde_json::Value =
+        serde_json::from_slice(&body).expect("timeline body should be valid json");
+    assert_eq!(json["code"], "user_module_user_not_found");
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
+async fn test_list_members_rejects_unknown_user_member_after_restart_with_strict_provider() {
+    let runtime_dir = unique_runtime_dir();
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+    let seed_app = local_minimal_node::build_default_app_with_runtime_dir_and_user_module_provider(
+        runtime_dir.as_path(),
+        Arc::new(StubLocalUserModuleProvider),
+    );
+
+    let create_conversation = seed_app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_strict_restart_members",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("seed create conversation should return response");
+    assert_eq!(create_conversation.status(), StatusCode::OK);
+
+    let add_member = seed_app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_strict_restart_members/members/add")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "principalId":"u_missing",
+                        "principalKind":"user",
+                        "role":"member"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("seed add member should return response");
+    assert_eq!(add_member.status(), StatusCode::OK);
+
+    drop(seed_app);
+
+    let strict_app =
+        local_minimal_node::build_default_app_with_runtime_dir_and_user_module_provider(
+            runtime_dir.as_path(),
+            Arc::new(StrictKnownUserModuleProvider::new(&["u_owner"])),
+        );
+
+    let response = strict_app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/conversations/c_strict_restart_members/members")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_missing")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("list members request should return response");
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("list members body should collect")
+        .to_bytes();
+    let json: serde_json::Value =
+        serde_json::from_slice(&body).expect("list members body should be valid json");
+    assert_eq!(json["code"], "user_module_user_not_found");
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
+async fn test_thread_create_rejects_unknown_user_member_after_restart_with_strict_provider() {
+    let runtime_dir = unique_runtime_dir();
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+    let seed_app = local_minimal_node::build_default_app_with_runtime_dir_and_user_module_provider(
+        runtime_dir.as_path(),
+        Arc::new(StubLocalUserModuleProvider),
+    );
+
+    let create_conversation = seed_app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_strict_restart_thread_parent",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("seed create parent conversation should return response");
+    assert_eq!(create_conversation.status(), StatusCode::OK);
+
+    let add_member = seed_app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_strict_restart_thread_parent/members/add")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "principalId":"u_missing",
+                        "principalKind":"user",
+                        "role":"member"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("seed add member should return response");
+    assert_eq!(add_member.status(), StatusCode::OK);
+
+    let post_message = seed_app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_strict_restart_thread_parent/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("x-device-id", "d_owner")
+                .header("x-session-id", "s_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_strict_restart_thread_parent",
+                        "summary":"root",
+                        "text":"root"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("seed post parent message should return response");
+    assert_eq!(post_message.status(), StatusCode::OK);
+    let post_message_body = post_message
+        .into_body()
+        .collect()
+        .await
+        .expect("seed post parent message body should collect")
+        .to_bytes();
+    let post_message_json: serde_json::Value = serde_json::from_slice(&post_message_body)
+        .expect("seed post parent message body should be valid json");
+    let root_message_id = post_message_json["messageId"]
+        .as_str()
+        .expect("root message id should exist")
+        .to_owned();
+
+    drop(seed_app);
+
+    let strict_app =
+        local_minimal_node::build_default_app_with_runtime_dir_and_user_module_provider(
+            runtime_dir.as_path(),
+            Arc::new(StrictKnownUserModuleProvider::new(&["u_owner"])),
+        );
+
+    let response = strict_app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/threads")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_missing")
+                .header("content-type", "application/json")
+                .body(Body::from(format!(
+                    r#"{{
+                        "conversationId":"c_strict_restart_thread_child",
+                        "parentConversationId":"c_strict_restart_thread_parent",
+                        "rootMessageId":"{root_message_id}"
+                    }}"#
+                )))
+                .unwrap(),
+        )
+        .await
+        .expect("thread create request should return response");
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("thread create body should collect")
+        .to_bytes();
+    let json: serde_json::Value =
+        serde_json::from_slice(&body).expect("thread create body should be valid json");
+    assert_eq!(json["code"], "user_module_user_not_found");
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
+async fn test_friend_request_list_rejects_unknown_user_after_restart_with_strict_provider() {
+    let runtime_dir = unique_runtime_dir();
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+    let seed_app = local_minimal_node::build_default_app_with_runtime_dir_and_user_module_provider(
+        runtime_dir.as_path(),
+        Arc::new(StubLocalUserModuleProvider),
+    );
+
+    let submit_response = seed_app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_missing")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_owner",
+                        "requestMessage":"ghost request"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("friend request submit should return response");
+    assert_eq!(submit_response.status(), StatusCode::OK);
+
+    drop(seed_app);
+
+    let strict_app =
+        local_minimal_node::build_default_app_with_runtime_dir_and_user_module_provider(
+            runtime_dir.as_path(),
+            Arc::new(StrictKnownUserModuleProvider::new(&["u_owner"])),
+        );
+
+    let response = strict_app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/social/friend-requests?direction=outgoing")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_missing")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("friend request list should return response");
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("friend request list body should collect")
+        .to_bytes();
+    let json: serde_json::Value =
+        serde_json::from_slice(&body).expect("friend request list body should be valid json");
+    assert_eq!(json["code"], "user_module_user_not_found");
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
 async fn test_local_user_module_provider_rejects_oversized_creator_attributes_on_create_conversation()
-{
+ {
     let runtime_dir = unique_runtime_dir();
     fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
     let app = local_minimal_node::build_default_app_with_runtime_dir_and_user_module_provider(
@@ -830,7 +1609,10 @@ async fn test_local_user_module_provider_merges_add_member_request_attributes() 
         .to_bytes();
     let add_member_json: serde_json::Value =
         serde_json::from_slice(&add_member_body).expect("member response should be valid json");
-    assert_eq!(add_member_json["attributes"]["displayName"], "Local u_other_demo");
+    assert_eq!(
+        add_member_json["attributes"]["displayName"],
+        "Local u_other_demo"
+    );
     assert_eq!(add_member_json["attributes"]["department"], "platform");
     assert_eq!(add_member_json["attributes"]["project"], "apollo");
 
@@ -1182,6 +1964,100 @@ async fn test_local_user_module_provider_enriches_bootstrap_user_members_across_
     assert_eq!(
         handoff_target["attributes"]["userModulePluginId"],
         "user-module-local"
+    );
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
+async fn test_local_user_module_provider_rejects_disabled_user_group_create() {
+    let runtime_dir = unique_runtime_dir();
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+    let app = local_minimal_node::build_default_app_with_runtime_dir_and_user_module_provider(
+        runtime_dir.as_path(),
+        Arc::new(SelectivelyDisabledLocalUserModuleProvider::new(&[
+            "u_disabled_creator",
+        ])),
+    );
+
+    let create_group = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_disabled_creator")
+                .header("x-device-id", "d_disabled_creator")
+                .header("x-session-id", "s_disabled_creator")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_disabled_creator_group",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("disabled user group create should return response");
+    assert_eq!(create_group.status(), StatusCode::FORBIDDEN);
+    let create_group_body = create_group
+        .into_body()
+        .collect()
+        .await
+        .expect("disabled user group create body should collect")
+        .to_bytes();
+    let create_group_json: serde_json::Value = serde_json::from_slice(&create_group_body)
+        .expect("disabled user group create response should be valid json");
+    assert_eq!(create_group_json["code"], "user_module_user_disabled");
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
+async fn test_local_user_module_provider_rejects_disabled_user_agent_dialog_create() {
+    let runtime_dir = unique_runtime_dir();
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+    let app = local_minimal_node::build_default_app_with_runtime_dir_and_user_module_provider(
+        runtime_dir.as_path(),
+        Arc::new(SelectivelyDisabledLocalUserModuleProvider::new(&[
+            "u_disabled_dialog_owner",
+        ])),
+    );
+
+    let create_agent_dialog = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/agent-dialogs")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_disabled_dialog_owner")
+                .header("x-device-id", "d_disabled_dialog_owner")
+                .header("x-session-id", "s_disabled_dialog_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_disabled_creator_agent_dialog",
+                        "agentId":"ag_disabled_target"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("disabled user agent dialog create should return response");
+    assert_eq!(create_agent_dialog.status(), StatusCode::FORBIDDEN);
+    let create_agent_dialog_body = create_agent_dialog
+        .into_body()
+        .collect()
+        .await
+        .expect("disabled user agent dialog create body should collect")
+        .to_bytes();
+    let create_agent_dialog_json: serde_json::Value =
+        serde_json::from_slice(&create_agent_dialog_body)
+            .expect("disabled user agent dialog create response should be valid json");
+    assert_eq!(
+        create_agent_dialog_json["code"],
+        "user_module_user_disabled"
     );
 
     let _ = fs::remove_dir_all(runtime_dir);

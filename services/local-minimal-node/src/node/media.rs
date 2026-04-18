@@ -4,15 +4,17 @@ pub(super) async fn create_media_upload(
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<CreateUploadRequest>,
-) -> Result<Json<MediaUploadMutationResponse>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+) -> Result<Json<media_service::MediaUploadSessionResponse>, ApiError> {
+    let auth = access::resolve_active_auth_context(&state, &headers)?;
     let request_key = media_create_upload_request_key(&auth, request.media_asset_id.as_str());
-    Ok(Json(MediaUploadMutationResponse::from_outcome(
-        state
-            .media_runtime
-            .create_upload_with_outcome(&auth, request)?,
-        request_key,
-    )))
+    Ok(Json(
+        media_service::MediaUploadSessionResponse::from_outcome(
+            state
+                .media_runtime
+                .create_upload_with_outcome(&auth, request)?,
+            request_key,
+        ),
+    ))
 }
 
 pub(super) async fn complete_media_upload(
@@ -21,7 +23,7 @@ pub(super) async fn complete_media_upload(
     State(state): State<AppState>,
     Json(request): Json<CompleteUploadRequest>,
 ) -> Result<Json<MediaUploadMutationResponse>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = access::resolve_active_auth_context(&state, &headers)?;
     let request_key = media_complete_upload_request_key(&auth, media_asset_id.as_str());
     Ok(Json(MediaUploadMutationResponse::from_outcome(
         state.media_runtime.complete_upload_with_outcome(
@@ -38,7 +40,7 @@ pub(super) async fn get_media(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<im_domain_core::media::MediaAsset>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = access::resolve_active_auth_context(&state, &headers)?;
     Ok(Json(
         state
             .media_runtime
@@ -52,7 +54,7 @@ pub(super) async fn get_media_download_url(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<media_service::MediaDownloadUrlResponse>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = access::resolve_active_auth_context(&state, &headers)?;
     Ok(Json(state.media_runtime.download_url(
         &auth,
         media_asset_id.as_str(),
@@ -64,7 +66,7 @@ pub(super) async fn get_media_provider_health(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<im_platform_contracts::ProviderHealthSnapshot>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = access::resolve_active_auth_context(&state, &headers)?;
     Ok(Json(
         state
             .media_runtime
@@ -78,7 +80,7 @@ pub(super) async fn attach_media(
     State(state): State<AppState>,
     Json(request): Json<AttachMediaRequest>,
 ) -> Result<Json<PostMessageResult>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = access::resolve_active_auth_context(&state, &headers)?;
     let asset = state
         .media_runtime
         .get_asset(&auth, media_asset_id.as_str())?;

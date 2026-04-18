@@ -68,6 +68,26 @@ pub struct TimelineProjectionService {
 }
 
 impl TimelineProjectionService {
+    pub fn reset_for_recovery(&self) {
+        lock_projection_mutex(&self.entries, "projection store").clear();
+        lock_projection_mutex(&self.summaries, "summary store").clear();
+        lock_projection_mutex(&self.members, "member store").clear();
+        lock_projection_mutex(&self.read_cursors, "cursor store").clear();
+        lock_projection_mutex(&self.conversations, "conversation store").clear();
+        lock_projection_mutex(&self.contacts, "contact store").clear();
+        lock_projection_mutex(
+            &self.direct_chat_bindings,
+            "contact direct chat binding store",
+        )
+        .clear();
+        lock_projection_mutex(&self.message_interactions, "message interaction store").clear();
+        lock_projection_mutex(&self.registered_devices, "registered device store").clear();
+        lock_projection_mutex(&self.device_sync_feeds, "device sync feed store").clear();
+        lock_projection_mutex(&self.device_sync_sequences, "device sync sequence store").clear();
+        *lock_projection_mutex(&self.observability, "projection observability store") =
+            ProjectionObservabilityState::default();
+    }
+
     pub fn is_active_member(
         &self,
         tenant_id: &str,
@@ -106,6 +126,7 @@ impl TimelineProjectionService {
             "conversation.member_left" => self.apply_member_left(event),
             "conversation.read_cursor_updated" => self.apply_read_cursor_updated(event),
             "friendship.activated" => self.apply_friendship_activated(event),
+            "friendship.removed" => self.apply_friendship_removed(event),
             "direct_chat.bound" => self.apply_direct_chat_bound(event),
             _ => Ok(()),
         };

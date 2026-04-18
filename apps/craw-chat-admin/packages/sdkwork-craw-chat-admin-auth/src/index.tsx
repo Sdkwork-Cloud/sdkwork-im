@@ -25,10 +25,6 @@ import { ADMIN_ROUTE_PATHS, useAdminI18n } from 'sdkwork-craw-chat-admin-core';
 type AuthMode = 'login' | 'register' | 'forgot';
 
 const DEFAULT_LOGIN_STATUS = 'Authenticate to open the IM operator workspace.';
-const DEV_ADMIN_CREDENTIALS = {
-  email: 'admin@sdkwork.local',
-  password: 'ChangeMe123!',
-};
 
 type AuthBadgeProps = {
   children?: ReactNode;
@@ -161,17 +157,28 @@ export function AdminLoginPage({
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const mode = resolveAuthMode(location.pathname);
+  const rawDevAdminPrefillEmail = import.meta.env.VITE_ADMIN_SANDBOX_EMAIL;
+  const rawDevAdminPrefillPassword = import.meta.env.VITE_ADMIN_SANDBOX_PASSWORD;
+  const devAdminPrefillEmail =
+    import.meta.env.DEV && mode === 'login' && typeof rawDevAdminPrefillEmail === 'string'
+      ? rawDevAdminPrefillEmail.trim()
+      : '';
+  const devAdminPrefillPassword =
+    import.meta.env.DEV && mode === 'login' && typeof rawDevAdminPrefillPassword === 'string'
+      ? rawDevAdminPrefillPassword
+      : '';
+  const showDevCredentials =
+    devAdminPrefillEmail.length > 0 && devAdminPrefillPassword.length > 0;
   const redirectTarget = resolveRedirectTarget(searchParams.get('redirect'));
   const copy = authCopy(mode);
   const [email, setEmail] = useState(
-    import.meta.env.DEV && mode === 'login' ? DEV_ADMIN_CREDENTIALS.email : '',
+    showDevCredentials ? devAdminPrefillEmail : '',
   );
   const [password, setPassword] = useState(
-    import.meta.env.DEV && mode === 'login' ? DEV_ADMIN_CREDENTIALS.password : '',
+    showDevCredentials ? devAdminPrefillPassword : '',
   );
   const [name, setName] = useState('');
   const [feedback, setFeedback] = useState('');
-  const showDevCredentials = import.meta.env.DEV && mode === 'login';
   const operatorSignals = [
     {
       id: 'handoff',
@@ -209,9 +216,9 @@ export function AdminLoginPage({
       return;
     }
 
-    setEmail((current) => current.trim() || DEV_ADMIN_CREDENTIALS.email);
-    setPassword((current) => current || DEV_ADMIN_CREDENTIALS.password);
-  }, [showDevCredentials]);
+    setEmail((current) => current.trim() || devAdminPrefillEmail);
+    setPassword((current) => current || devAdminPrefillPassword);
+  }, [devAdminPrefillEmail, devAdminPrefillPassword, showDevCredentials]);
 
   function withRedirect(pathname: string, extra: Record<string, string> = {}) {
     const params = new URLSearchParams();
@@ -471,8 +478,7 @@ export function AdminLoginPage({
             {showDevCredentials ? (
               <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">
                 {t(
-                  'Local dev credentials are prefilled: {email} / {password}.',
-                  DEV_ADMIN_CREDENTIALS,
+                  'Local dev login is prefilled from VITE_ADMIN_SANDBOX_EMAIL and VITE_ADMIN_SANDBOX_PASSWORD.',
                 )}
               </p>
             ) : null}

@@ -777,7 +777,7 @@ export function createPortalProductApp(root) {
         return;
       case 'demo-sign-in':
         event.preventDefault?.();
-        retrySignIn();
+        retrySignIn(lastSignInCredentials ?? readPortalSignInCredentials(root));
         return;
       case 'sign-out':
         closeSettings();

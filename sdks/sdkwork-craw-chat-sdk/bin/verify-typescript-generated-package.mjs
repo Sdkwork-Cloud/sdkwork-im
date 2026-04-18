@@ -1,5 +1,14 @@
 #!/usr/bin/env node
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, rmdirSync } from 'node:fs';
+import {
+  closeSync,
+  existsSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  rmSync,
+  rmdirSync,
+  writeFileSync,
+} from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -13,13 +22,29 @@ const generatedRoot = path.join(
   'generated',
   'server-openapi',
 );
+const verificationRunId = `run-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
+const cacheDir = path.join(
+  workspaceRoot,
+  '.sdkwork',
+  'tmp',
+  'verify-typescript-generated-package',
+  verificationRunId,
+  'npm-cache',
+);
 const packageJsonPath = path.join(generatedRoot, 'package.json');
 const distRoot = path.join(generatedRoot, 'dist');
+const browserRoot = path.join(generatedRoot, 'browser');
+const locksRoot = path.join(generatedRoot, '.sdkwork', 'locks');
+const generatedArtifactsLockDir = path.join(locksRoot, 'stable-typescript-generated-build.lock');
+const lockInfoPath = path.join(generatedArtifactsLockDir, 'owner.json');
+const lockTimeoutMs = 5 * 60 * 1000;
+const lockPollMs = 200;
 const requiredArtifacts = [
   'index.js',
   'index.cjs',
   'index.d.ts',
 ];
+let generatedArtifactsLockHeld = false;
 
 function fail(message) {
   console.error(`[sdkwork-craw-chat-sdk] ${message}`);
@@ -119,110 +144,199 @@ function parseJson(step, source) {
   fail(`${step} produced invalid JSON output.`);
 }
 
-if (!existsSync(packageJsonPath)) {
-  fail('TypeScript generated package.json is missing.');
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+  process.on(signal, () => {
+    releaseGeneratedArtifactsLock();
+    process.exit(1);
+  });
 }
-
-const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
-if (packageJson.main !== './dist/index.cjs') {
-  fail('TypeScript generated package main must stay on ./dist/index.cjs.');
-}
-if (packageJson.module !== './dist/index.js') {
-  fail('TypeScript generated package module must stay on ./dist/index.js.');
-}
-if (packageJson.types !== './dist/index.d.ts') {
-  fail('TypeScript generated package types must stay on ./dist/index.d.ts.');
-}
-
-const missingArtifacts = requiredArtifacts.filter(
-  (relativePath) => !existsSync(path.join(distRoot, relativePath)),
-);
-if (missingArtifacts.length > 0) {
-  fail(
-    `TypeScript generated package is missing required dist artifacts: ${missingArtifacts.join(', ')}`,
-  );
-}
-
-const cacheDir = path.join(generatedRoot, '.npm-cache');
-run('node', ['./bin/publish-core.mjs', '--language', 'typescript', '--project-dir', '.', '--action', 'check'], {
-  step: 'typescript-generated:publish-core-check',
-  env: {
-    ...process.env,
-    NPM_CONFIG_CACHE: cacheDir,
-  },
+process.on('exit', () => {
+  releaseGeneratedArtifactsLock();
 });
 
-const npmCliPath = path.join(path.dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js');
-if (!existsSync(npmCliPath)) {
-  fail(`TypeScript generated package verification could not find npm CLI at ${npmCliPath}.`);
-}
-const packCommand = 'node';
-const packArgs = [npmCliPath, 'pack', '--dry-run', '--json'];
-const packOutput = run(packCommand, packArgs, {
-  step: 'typescript-generated:pack-dry-run',
-  captureOutput: true,
-  env: {
-    ...process.env,
-    NPM_CONFIG_CACHE: cacheDir,
-  },
-});
-const packManifest = parseJson('typescript-generated:pack-dry-run', packOutput);
-const packEntries = Array.isArray(packManifest) ? packManifest : [packManifest];
-if (packEntries.length === 0) {
-  fail('TypeScript generated npm pack manifest must include at least one package entry.');
-}
-const packedFiles = Array.isArray(packEntries[0]?.files) ? packEntries[0].files : [];
-if (packedFiles.length === 0) {
-  fail('TypeScript generated npm pack manifest must list packaged files.');
-}
-const packedPaths = packedFiles
-  .map((entry) => String(entry?.path || '').replace(/\\/g, '/'))
-  .filter(Boolean);
-const requiredPackedPaths = ['README.md', 'package.json', ...requiredArtifacts.map((relativePath) => `dist/${relativePath}`)];
-const missingPackedPaths = requiredPackedPaths.filter((relativePath) => !packedPaths.includes(relativePath));
-if (missingPackedPaths.length > 0) {
-  fail(
-    `TypeScript generated npm pack manifest is missing required files: ${missingPackedPaths.join(', ')}`,
-  );
-}
-const unexpectedPackedPaths = packedPaths.filter(
-  (relativePath) =>
-    relativePath !== 'README.md' &&
-    relativePath !== 'package.json' &&
-    !relativePath.startsWith('dist/'),
-);
-if (unexpectedPackedPaths.length > 0) {
-  fail(
-    `TypeScript generated npm pack manifest must only ship README.md, package.json, and dist/* files, but found: ${unexpectedPackedPaths.join(', ')}`,
-  );
-}
-const forbiddenPackedPaths = packedPaths.filter(
-  (relativePath) =>
-    relativePath.startsWith('src/') ||
-    relativePath === 'dist/auth' ||
-    relativePath.startsWith('dist/auth/'),
-);
-if (forbiddenPackedPaths.length > 0) {
-  fail(
-    `TypeScript generated npm pack manifest must not ship private source files or dead auth scaffolding: ${forbiddenPackedPaths.join(', ')}`,
-  );
-}
+await acquireGeneratedArtifactsLock();
 
-const esmModule = await import(pathToFileURL(path.join(distRoot, 'index.js')).href);
-const require = createRequire(import.meta.url);
-const cjsModule = require(path.join(distRoot, 'index.cjs'));
-
-for (const [moduleName, moduleValue] of [
-  ['esm:SdkworkBackendClient', esmModule.SdkworkBackendClient],
-  ['esm:createClient', esmModule.createClient],
-  ['esm:DEFAULT_TIMEOUT', esmModule.DEFAULT_TIMEOUT],
-  ['cjs:SdkworkBackendClient', cjsModule.SdkworkBackendClient],
-  ['cjs:createClient', cjsModule.createClient],
-  ['cjs:DEFAULT_TIMEOUT', cjsModule.DEFAULT_TIMEOUT],
-]) {
-  if (moduleValue == null) {
-    fail(`TypeScript generated package smoke check missing export ${moduleName}.`);
+try {
+  if (!existsSync(packageJsonPath)) {
+    fail('TypeScript generated package.json is missing.');
   }
+
+  const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
+  if (packageJson.main !== './dist/index.cjs') {
+    fail('TypeScript generated package main must stay on ./dist/index.cjs.');
+  }
+  if (packageJson.module !== './dist/index.js') {
+    fail('TypeScript generated package module must stay on ./dist/index.js.');
+  }
+  if (packageJson.types !== './dist/index.d.ts') {
+    fail('TypeScript generated package types must stay on ./dist/index.d.ts.');
+  }
+
+  const missingArtifacts = requiredArtifacts.filter(
+    (relativePath) => !existsSync(path.join(distRoot, relativePath)),
+  );
+  if (missingArtifacts.length > 0) {
+    fail(
+      `TypeScript generated package is missing required dist artifacts: ${missingArtifacts.join(', ')}`,
+    );
+  }
+  if (!existsSync(path.join(browserRoot, 'index.js'))) {
+    fail('TypeScript generated browser/index.js is missing.');
+  }
+
+  const distIndexSource = readFileSync(path.join(distRoot, 'index.js'), 'utf8');
+  if (/['"]\.\/index\.cjs['"]/.test(distIndexSource)) {
+    fail('TypeScript generated dist/index.js must not reference ./index.cjs; it must remain browser-safe pure ESM.');
+  }
+
+  mkdirSync(cacheDir, { recursive: true });
+
+  run('node', ['./bin/publish-core.mjs', '--language', 'typescript', '--project-dir', '.', '--action', 'check'], {
+    step: 'typescript-generated:publish-core-check',
+    env: {
+      ...process.env,
+      NPM_CONFIG_CACHE: cacheDir,
+    },
+  });
+
+  const npmCliPath = path.join(path.dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js');
+  if (!existsSync(npmCliPath)) {
+    fail(`TypeScript generated package verification could not find npm CLI at ${npmCliPath}.`);
+  }
+  const packCommand = 'node';
+  const packArgs = [npmCliPath, 'pack', '--dry-run', '--json'];
+  const packOutput = run(packCommand, packArgs, {
+    step: 'typescript-generated:pack-dry-run',
+    captureOutput: true,
+    env: {
+      ...process.env,
+      NPM_CONFIG_CACHE: cacheDir,
+    },
+  });
+  const packManifest = parseJson('typescript-generated:pack-dry-run', packOutput);
+  const packEntries = Array.isArray(packManifest) ? packManifest : [packManifest];
+  if (packEntries.length === 0) {
+    fail('TypeScript generated npm pack manifest must include at least one package entry.');
+  }
+  const packedFiles = Array.isArray(packEntries[0]?.files) ? packEntries[0].files : [];
+  if (packedFiles.length === 0) {
+    fail('TypeScript generated npm pack manifest must list packaged files.');
+  }
+  const packedPaths = packedFiles
+    .map((entry) => String(entry?.path || '').replace(/\\/g, '/'))
+    .filter(Boolean);
+  const requiredPackedPaths = ['README.md', 'package.json', ...requiredArtifacts.map((relativePath) => `dist/${relativePath}`)];
+  const missingPackedPaths = requiredPackedPaths.filter((relativePath) => !packedPaths.includes(relativePath));
+  if (missingPackedPaths.length > 0) {
+    fail(
+      `TypeScript generated npm pack manifest is missing required files: ${missingPackedPaths.join(', ')}`,
+    );
+  }
+  const unexpectedPackedPaths = packedPaths.filter(
+    (relativePath) =>
+      relativePath !== 'README.md' &&
+      relativePath !== 'package.json' &&
+      !relativePath.startsWith('dist/'),
+  );
+  if (unexpectedPackedPaths.length > 0) {
+    fail(
+      `TypeScript generated npm pack manifest must only ship README.md, package.json, and dist/* files, but found: ${unexpectedPackedPaths.join(', ')}`,
+    );
+  }
+  const forbiddenPackedPaths = packedPaths.filter(
+    (relativePath) =>
+      relativePath.startsWith('src/') ||
+      relativePath === 'dist/auth' ||
+      relativePath.startsWith('dist/auth/'),
+  );
+  if (forbiddenPackedPaths.length > 0) {
+    fail(
+      `TypeScript generated npm pack manifest must not ship private source files or dead auth scaffolding: ${forbiddenPackedPaths.join(', ')}`,
+    );
+  }
+
+  const esmModule = await import(pathToFileURL(path.join(distRoot, 'index.js')).href);
+  const require = createRequire(import.meta.url);
+  const cjsModule = require(path.join(distRoot, 'index.cjs'));
+
+  for (const [moduleName, moduleValue] of [
+    ['esm:SdkworkBackendClient', esmModule.SdkworkBackendClient],
+    ['esm:createClient', esmModule.createClient],
+    ['esm:DEFAULT_TIMEOUT', esmModule.DEFAULT_TIMEOUT],
+    ['cjs:SdkworkBackendClient', cjsModule.SdkworkBackendClient],
+    ['cjs:createClient', cjsModule.createClient],
+    ['cjs:DEFAULT_TIMEOUT', cjsModule.DEFAULT_TIMEOUT],
+  ]) {
+    if (moduleValue == null) {
+      fail(`TypeScript generated package smoke check missing export ${moduleName}.`);
+    }
+  }
+} finally {
+  if (existsSync(cacheDir)) {
+    rmSync(cacheDir, { recursive: true, force: true });
+  }
+  releaseGeneratedArtifactsLock();
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+function describeLockOwner() {
+  if (!existsSync(lockInfoPath)) {
+    return 'unknown owner';
+  }
+
+  try {
+    const lockInfo = JSON.parse(readFileSync(lockInfoPath, 'utf8'));
+    return `pid=${lockInfo.pid ?? 'unknown'}, startedAt=${lockInfo.startedAt ?? 'unknown'}`;
+  } catch {
+    return 'unknown owner';
+  }
+}
+
+async function acquireGeneratedArtifactsLock() {
+  mkdirSync(locksRoot, { recursive: true });
+  const startedAt = Date.now();
+
+  while (true) {
+    try {
+      mkdirSync(generatedArtifactsLockDir);
+      writeFileSync(lockInfoPath, JSON.stringify({
+        pid: process.pid,
+        startedAt: new Date().toISOString(),
+        workspaceRoot: generatedRoot,
+        purpose: 'verify-typescript-generated-package',
+      }, null, 2), 'utf8');
+      generatedArtifactsLockHeld = true;
+      return;
+    } catch (error) {
+      if (error && error.code !== 'EEXIST') {
+        fail(`Failed to acquire TypeScript generated artifacts lock: ${error.message}`);
+      }
+    }
+
+    if (Date.now() - startedAt >= lockTimeoutMs) {
+      fail(
+        `Timed out waiting for TypeScript generated artifacts lock after ${lockTimeoutMs}ms (${describeLockOwner()}).`,
+      );
+    }
+
+    await sleep(lockPollMs);
+  }
+}
+
+function releaseGeneratedArtifactsLock() {
+  if (!generatedArtifactsLockHeld) {
+    return;
+  }
+
+  if (existsSync(generatedArtifactsLockDir)) {
+    rmSync(generatedArtifactsLockDir, { recursive: true, force: true });
+  }
+  generatedArtifactsLockHeld = false;
 }
 
 console.log('[sdkwork-craw-chat-sdk] TypeScript generated package verification passed.');

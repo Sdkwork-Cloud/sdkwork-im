@@ -21,10 +21,12 @@ use im_auth_context::AuthContext;
 use im_domain_core::realtime::RealtimeEventWindow;
 use serde::Deserialize;
 use serde_json::{Value, json};
+use tokio::sync::watch;
+use tokio::time::{Duration, timeout};
 
 use crate::{
     RealtimeDeliveryRuntime, RealtimeRuntimeError, RealtimeSubscriptionItemInput,
-    realtime::RealtimeWindowCheckpoint,
+    device_registration::SessionDeviceRegistration, realtime::RealtimeWindowCheckpoint,
 };
 
 pub const CCP_WEBSOCKET_SUBPROTOCOL: &str = LINK_WEBSOCKET_SUBPROTOCOL;
@@ -32,8 +34,10 @@ pub const SESSION_DISCONNECT_CLOSE_CODE: u16 = RUNTIME_LINK_SESSION_DISCONNECT_C
 pub const SESSION_DISCONNECT_CLOSE_REASON: &str = RUNTIME_LINK_SESSION_DISCONNECT_CLOSE_REASON;
 pub const REALTIME_OVERLOAD_CLOSE_CODE: u16 = RUNTIME_LINK_REALTIME_OVERLOAD_CLOSE_CODE;
 pub const REALTIME_OVERLOAD_CLOSE_REASON: &str = RUNTIME_LINK_REALTIME_OVERLOAD_CLOSE_REASON;
+const CCP_PROTOCOL_ERROR_CLOSE_REASON: &str = "ccp.protocol_error";
 const REALTIME_MAX_WEBSOCKET_FRAME_TYPE_BYTES: usize = 64;
 const REALTIME_MAX_WEBSOCKET_REQUEST_ID_BYTES: usize = 256;
+const ROUTE_CHANGE_CLOSE_GRACE_MS: u64 = 25;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RealtimeWebsocketMode {
@@ -52,6 +56,65 @@ struct ClientFrameEnvelope {
     after_seq: Option<u64>,
     limit: Option<usize>,
     acked_seq: Option<u64>,
+}
+
+#[derive(Debug)]
+struct ClientFrameDecodeError {
+    request_id: Option<String>,
+    message: String,
+}
+
+impl ClientFrameDecodeError {
+    fn without_request_id(message: impl Into<String>) -> Self {
+        Self {
+            request_id: None,
+            message: message.into(),
+        }
+    }
+
+    fn with_request_id(request_id: Option<String>, message: impl Into<String>) -> Self {
+        Self {
+            request_id,
+            message: message.into(),
+        }
+    }
+}
+
+#[derive(Debug)]
+enum DecodedClientFrame {
+    Business(ClientFrameEnvelope),
+    Heartbeat,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RealtimeRouteOwnerError {
+    pub code: &'static str,
+    pub message: String,
+}
+
+impl RealtimeRouteOwnerError {
+    pub fn new(code: &'static str, message: impl Into<String>) -> Self {
+        Self {
+            code,
+            message: message.into(),
+        }
+    }
+}
+
+pub trait RealtimeRouteOwner: Send + Sync {
+    fn ensure_active_device_route_current_session(
+        &self,
+        auth: &AuthContext,
+        device_id: &str,
+    ) -> Result<(), RealtimeRouteOwnerError>;
+
+    fn subscribe_active_device_route_epoch(
+        &self,
+        auth: &AuthContext,
+        device_id: &str,
+    ) -> Result<watch::Receiver<u64>, RealtimeRouteOwnerError>;
+
+    fn release_active_device_route_if_current_session(&self, auth: &AuthContext, device_id: &str);
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -95,6 +158,99 @@ fn validate_client_frame_type(frame: &ClientFrameEnvelope) -> Result<(), Realtim
         ));
     }
     Ok(())
+}
+
+fn expected_ccp_business_contract(frame_type: &str) -> Option<(&'static str, &'static str)> {
+    match frame_type {
+        "subscriptions.sync" => Some(("cmd", "cc.realtime.subscriptions.sync.v1")),
+        "events.pull" => Some(("cmd", "cc.realtime.events.pull.v1")),
+        "events.ack" => Some(("ack", "cc.realtime.events.ack.v1")),
+        _ => None,
+    }
+}
+
+fn validate_ccp_client_business_envelope(
+    envelope: &CcpEnvelope,
+    frame: &ClientFrameEnvelope,
+) -> Result<(), ClientFrameDecodeError> {
+    if !matches!(envelope.kind.as_str(), "cmd" | "ack") {
+        return Err(ClientFrameDecodeError::with_request_id(
+            frame.request_id.clone(),
+            format!(
+                "ccp client business frame kind must be cmd or ack, got {}",
+                envelope.kind
+            ),
+        ));
+    }
+
+    let Some((expected_kind, expected_schema)) = expected_ccp_business_contract(&frame.frame_type)
+    else {
+        return Ok(());
+    };
+
+    if envelope.kind != expected_kind {
+        return Err(ClientFrameDecodeError::with_request_id(
+            frame.request_id.clone(),
+            format!(
+                "ccp frame type {} must use kind {}, got {}",
+                frame.frame_type, expected_kind, envelope.kind
+            ),
+        ));
+    }
+
+    if envelope.schema != expected_schema {
+        return Err(ClientFrameDecodeError::with_request_id(
+            frame.request_id.clone(),
+            format!(
+                "ccp frame type {} must use schema {}, got {}",
+                frame.frame_type, expected_schema, envelope.schema
+            ),
+        ));
+    }
+
+    Ok(())
+}
+
+fn validate_ccp_control_envelope(
+    envelope: &CcpEnvelope,
+    frame: &ControlFrame,
+) -> Result<(), String> {
+    let expected_schema = control_schema(frame);
+    if envelope.schema != expected_schema {
+        return Err(format!(
+            "control frame schema mismatch: expected {}, got {}",
+            expected_schema, envelope.schema
+        ));
+    }
+    Ok(())
+}
+
+fn ccp_client_route_metadata_error() -> String {
+    "client websocket frames must not supply ccp route metadata".into()
+}
+
+impl RealtimeRouteOwner for SessionDeviceRegistration {
+    fn ensure_active_device_route_current_session(
+        &self,
+        auth: &AuthContext,
+        device_id: &str,
+    ) -> Result<(), RealtimeRouteOwnerError> {
+        self.ensure_active_device_route_current_session(auth, device_id)
+            .map_err(|error| RealtimeRouteOwnerError::new(error.code, error.message))
+    }
+
+    fn subscribe_active_device_route_epoch(
+        &self,
+        auth: &AuthContext,
+        device_id: &str,
+    ) -> Result<watch::Receiver<u64>, RealtimeRouteOwnerError> {
+        self.subscribe_active_device_route_epoch(auth, device_id)
+            .map_err(|error| RealtimeRouteOwnerError::new(error.code, error.message))
+    }
+
+    fn release_active_device_route_if_current_session(&self, auth: &AuthContext, device_id: &str) {
+        self.release_active_device_route_if_current_session(auth, device_id);
+    }
 }
 
 impl CcpWebsocketRuntime {
@@ -199,11 +355,12 @@ impl CcpWebsocketRuntime {
     }
 }
 
-pub async fn serve_realtime_websocket(
+pub async fn serve_realtime_websocket<R: RealtimeRouteOwner>(
     socket: WebSocket,
     auth: AuthContext,
     device_id: String,
     runtime: Arc<RealtimeDeliveryRuntime>,
+    route_owner: R,
     wire_mode: RealtimeWebsocketMode,
 ) {
     let tenant_id = auth.tenant_id.clone();
@@ -218,6 +375,16 @@ pub async fn serve_realtime_websocket(
     let ccp_runtime = CcpWebsocketRuntime::default();
     let sender_id = authority.sender.sender_id();
     let mut socket = socket;
+    if !ensure_current_route_session_or_close(&mut socket, &route_owner, &auth, device_id.as_str())
+        .await
+    {
+        return;
+    }
+    let mut route_epoch_receiver =
+        match route_owner.subscribe_active_device_route_epoch(&auth, device_id.as_str()) {
+            Ok(receiver) => receiver,
+            Err(_) => return,
+        };
     if let Err(error) = runtime.ensure_device_state_for_principal_kind(
         tenant_id.as_str(),
         principal_id.as_str(),
@@ -296,6 +463,10 @@ pub async fn serve_realtime_websocket(
             &route,
             &mut link_session,
             &checkpoint,
+            &mut route_epoch_receiver,
+            &route_owner,
+            &auth,
+            device_id.as_str(),
         )
         .await
         else {
@@ -310,6 +481,11 @@ pub async fn serve_realtime_websocket(
     let mut outbound_queue =
         link_session.start_outbound_queue(resume_after_seq, checkpoint.latest_realtime_seq);
 
+    if !ensure_current_route_session_or_close(&mut socket, &route_owner, &auth, device_id.as_str())
+        .await
+    {
+        return;
+    }
     if send_business_payload(
         &mut socket,
         wire_mode,
@@ -344,6 +520,16 @@ pub async fn serve_realtime_websocket(
     }
 
     if let Some(catchup_plan) = outbound_queue.plan_catchup() {
+        if !ensure_current_route_session_or_close(
+            &mut socket,
+            &route_owner,
+            &auth,
+            device_id.as_str(),
+        )
+        .await
+        {
+            return;
+        }
         let catchup = match runtime.list_events_for_principal_kind(
             auth.tenant_id.as_str(),
             auth.actor_id.as_str(),
@@ -362,6 +548,16 @@ pub async fn serve_realtime_websocket(
         };
         if !catchup.items.is_empty() {
             let next_after_seq = catchup.next_after_seq;
+            if !ensure_current_route_session_or_close(
+                &mut socket,
+                &route_owner,
+                &auth,
+                device_id.as_str(),
+            )
+            .await
+            {
+                return;
+            }
             if send_business_payload(
                 &mut socket,
                 wire_mode,
@@ -387,6 +583,29 @@ pub async fn serve_realtime_websocket(
 
     loop {
         tokio::select! {
+            route_epoch_changed = route_epoch_receiver.changed() => {
+                if route_epoch_changed.is_err() {
+                    break;
+                }
+                if !handle_route_epoch_change(
+                    &mut socket,
+                    &runtime,
+                    &route_owner,
+                    &auth,
+                    auth.tenant_id.as_str(),
+                    auth.actor_id.as_str(),
+                    auth.actor_kind.as_str(),
+                    device_id.as_str(),
+                    &mut outbound_queue,
+                    wire_mode,
+                    &ccp_runtime,
+                    &route,
+                )
+                .await
+                {
+                    break;
+                }
+            }
             changed = receiver.changed() => {
                 if changed.is_err() {
                     break;
@@ -396,13 +615,15 @@ pub async fn serve_realtime_websocket(
                 let push_plan = outbound_queue.observe_latest_realtime_seq(latest_realtime_seq);
                 if !drain_runtime_owned_buffered_push(
                     &mut socket,
-                        runtime.as_ref(),
-                        auth.tenant_id.as_str(),
-                        auth.actor_id.as_str(),
-                        auth.actor_kind.as_str(),
-                        device_id.as_str(),
-                        &mut outbound_queue,
-                        push_plan,
+                    runtime.as_ref(),
+                    &route_owner,
+                    &auth,
+                    auth.tenant_id.as_str(),
+                    auth.actor_id.as_str(),
+                    auth.actor_kind.as_str(),
+                    device_id.as_str(),
+                    &mut outbound_queue,
+                    push_plan,
                     wire_mode,
                     &ccp_runtime,
                     &route,
@@ -438,6 +659,16 @@ pub async fn serve_realtime_websocket(
                 };
                 if current_disconnect_generation != disconnect_generation
                 {
+                    if !ensure_current_route_session_or_close(
+                        &mut socket,
+                        &route_owner,
+                        &auth,
+                        device_id.as_str(),
+                    )
+                    .await
+                    {
+                        break;
+                    }
                     send_session_disconnect_signal(
                         &mut socket,
                         wire_mode,
@@ -477,6 +708,16 @@ pub async fn serve_realtime_websocket(
                 };
                 if current_disconnect_generation != disconnect_generation
                 {
+                    if !ensure_current_route_session_or_close(
+                        &mut socket,
+                        &route_owner,
+                        &auth,
+                        device_id.as_str(),
+                    )
+                    .await
+                    {
+                        break;
+                    }
                     send_session_disconnect_signal(
                         &mut socket,
                         wire_mode,
@@ -490,6 +731,8 @@ pub async fn serve_realtime_websocket(
                 let keep_open = handle_client_message(
                     &mut socket,
                     &runtime,
+                    &route_owner,
+                    &auth,
                     auth.tenant_id.as_str(),
                     auth.actor_id.as_str(),
                     auth.actor_kind.as_str(),
@@ -510,21 +753,87 @@ pub async fn serve_realtime_websocket(
     link_session.mark_draining();
 }
 
+#[allow(clippy::too_many_arguments)]
+async fn handle_route_epoch_change(
+    socket: &mut WebSocket,
+    runtime: &RealtimeDeliveryRuntime,
+    route_owner: &dyn RealtimeRouteOwner,
+    auth: &AuthContext,
+    tenant_id: &str,
+    principal_id: &str,
+    principal_kind: &str,
+    device_id: &str,
+    outbound_queue: &mut LinkOutboundQueueState,
+    wire_mode: RealtimeWebsocketMode,
+    ccp_runtime: &CcpWebsocketRuntime,
+    route: &CcpRoute,
+) -> bool {
+    match timeout(
+        Duration::from_millis(ROUTE_CHANGE_CLOSE_GRACE_MS),
+        socket.next(),
+    )
+    .await
+    {
+        Ok(Some(Ok(message))) => {
+            let keep_open = handle_client_message(
+                socket,
+                runtime,
+                route_owner,
+                auth,
+                tenant_id,
+                principal_id,
+                principal_kind,
+                device_id,
+                outbound_queue,
+                message,
+                wire_mode,
+                ccp_runtime,
+                route,
+            )
+            .await;
+            if !keep_open {
+                return false;
+            }
+            ensure_current_route_session_or_close(socket, route_owner, auth, device_id).await
+        }
+        Ok(Some(Err(_))) | Ok(None) => false,
+        Err(_) => ensure_current_route_session_or_close(socket, route_owner, auth, device_id).await,
+    }
+}
+
 async fn complete_ccp_handshake(
     socket: &mut WebSocket,
     ccp_runtime: &CcpWebsocketRuntime,
     route: &CcpRoute,
     link_session: &mut LinkSession,
     checkpoint: &RealtimeWindowCheckpoint,
+    route_epoch_receiver: &mut watch::Receiver<u64>,
+    route_owner: &dyn RealtimeRouteOwner,
+    auth: &AuthContext,
+    device_id: &str,
 ) -> Option<u64> {
-    let hello = match receive_next_control_frame(socket, ccp_runtime, route).await {
+    if !ensure_current_route_session_or_close(socket, route_owner, auth, device_id).await {
+        return None;
+    }
+
+    let hello = match receive_next_control_frame(
+        socket,
+        ccp_runtime,
+        route,
+        route_epoch_receiver,
+        route_owner,
+        auth,
+        device_id,
+    )
+    .await
+    {
         Ok(frame) => frame,
         Err(()) => return None,
     };
     let hello = match hello {
         ControlFrame::Hello(frame) => frame,
         other => {
-            let _ = send_control_error(
+            let _ = send_control_error_and_close(
                 socket,
                 ccp_runtime,
                 route,
@@ -539,12 +848,21 @@ async fn complete_ccp_handshake(
     let hello_ack = match link_session.negotiate_hello(&hello) {
         Ok(hello_ack) => hello_ack,
         Err(error) => {
-            let _ =
-                send_control_error(socket, ccp_runtime, route, error.code(), error.message()).await;
+            let _ = send_control_error_and_close(
+                socket,
+                ccp_runtime,
+                route,
+                error.code(),
+                error.message(),
+            )
+            .await;
             return None;
         }
     };
     let resume_negotiated = hello_ack.capabilities.supports("session.resume");
+    if !ensure_current_route_session_or_close(socket, route_owner, auth, device_id).await {
+        return None;
+    }
     if ccp_runtime
         .send_control_frame(socket, route, &ControlFrame::HelloAck(hello_ack))
         .await
@@ -553,14 +871,24 @@ async fn complete_ccp_handshake(
         return None;
     }
 
-    let auth_bind = match receive_next_control_frame(socket, ccp_runtime, route).await {
+    let auth_bind = match receive_next_control_frame(
+        socket,
+        ccp_runtime,
+        route,
+        route_epoch_receiver,
+        route_owner,
+        auth,
+        device_id,
+    )
+    .await
+    {
         Ok(frame) => frame,
         Err(()) => return None,
     };
     let auth_bind = match auth_bind {
         ControlFrame::AuthBind(frame) => frame,
         other => {
-            let _ = send_control_error(
+            let _ = send_control_error_and_close(
                 socket,
                 ccp_runtime,
                 route,
@@ -572,6 +900,9 @@ async fn complete_ccp_handshake(
         }
     };
 
+    if !ensure_current_route_session_or_close(socket, route_owner, auth, device_id).await {
+        return None;
+    }
     if !link_session.matches_auth_bind(
         auth_bind.principal_id.as_str(),
         auth_bind.actor_kind.as_str(),
@@ -615,14 +946,24 @@ async fn complete_ccp_handshake(
         return Some(checkpoint.acked_through_seq);
     }
 
-    let session_resume = match receive_next_control_frame(socket, ccp_runtime, route).await {
+    let session_resume = match receive_next_control_frame(
+        socket,
+        ccp_runtime,
+        route,
+        route_epoch_receiver,
+        route_owner,
+        auth,
+        device_id,
+    )
+    .await
+    {
         Ok(frame) => frame,
         Err(()) => return None,
     };
     let session_resume = match session_resume {
         ControlFrame::SessionResume(frame) => frame,
         other => {
-            let _ = send_control_error(
+            let _ = send_control_error_and_close(
                 socket,
                 ccp_runtime,
                 route,
@@ -641,8 +982,14 @@ async fn complete_ccp_handshake(
     ) {
         Ok(directive) => directive,
         Err(error) => {
-            let _ =
-                send_control_error(socket, ccp_runtime, route, error.code(), error.message()).await;
+            let _ = send_control_error_and_close(
+                socket,
+                ccp_runtime,
+                route,
+                error.code(),
+                error.message(),
+            )
+            .await;
             return None;
         }
     };
@@ -650,6 +997,9 @@ async fn complete_ccp_handshake(
         .catchup_after_seq
         .max(checkpoint.trimmed_through_seq);
     let session_resumed = ControlFrame::SessionResumed(directive.frame);
+    if !ensure_current_route_session_or_close(socket, route_owner, auth, device_id).await {
+        return None;
+    }
     if ccp_runtime
         .send_control_frame(socket, route, &session_resumed)
         .await
@@ -665,66 +1015,117 @@ async fn receive_next_control_frame(
     socket: &mut WebSocket,
     ccp_runtime: &CcpWebsocketRuntime,
     route: &CcpRoute,
+    route_epoch_receiver: &mut watch::Receiver<u64>,
+    route_owner: &dyn RealtimeRouteOwner,
+    auth: &AuthContext,
+    device_id: &str,
 ) -> Result<ControlFrame, ()> {
     loop {
-        let Some(message) = socket.next().await else {
-            return Err(());
-        };
-        let Ok(message) = message else {
-            return Err(());
-        };
-        match message {
-            Message::Ping(payload) => {
-                if socket.send(Message::Pong(payload)).await.is_err() {
+        tokio::select! {
+            route_epoch_changed = route_epoch_receiver.changed() => {
+                if route_epoch_changed.is_err() {
                     return Err(());
                 }
-            }
-            Message::Pong(_) => {}
-            Message::Close(frame) => {
-                let _ = socket.send(Message::Close(frame)).await;
-                return Err(());
-            }
-            Message::Text(_) | Message::Binary(_) => {
-                let envelope = match ccp_runtime.decode_message(message) {
-                    Ok(envelope) => envelope,
-                    Err(error) => {
-                        let _ = send_control_error(
-                            socket,
-                            ccp_runtime,
-                            route,
-                            "CCP_SCHEMA_INCOMPATIBLE",
-                            error,
-                        )
-                        .await;
-                        return Err(());
-                    }
-                };
-                if envelope.kind != "control" {
-                    let _ = send_control_error(
-                        socket,
-                        ccp_runtime,
-                        route,
-                        "CCP_CONTROL_REQUIRED",
-                        format!("expected control envelope, got kind {}", envelope.kind),
+                if route_owner
+                    .ensure_active_device_route_current_session(auth, device_id)
+                    .is_err()
+                {
+                    let _ = timeout(
+                        Duration::from_millis(ROUTE_CHANGE_CLOSE_GRACE_MS),
+                        socket.next(),
                     )
                     .await;
+                }
+                if !ensure_current_route_session_or_close(socket, route_owner, auth, device_id).await {
                     return Err(());
                 }
-                let control: ControlFrame = match serde_json::from_str(envelope.payload.as_str()) {
-                    Ok(frame) => frame,
-                    Err(error) => {
-                        let _ = send_control_error(
-                            socket,
-                            ccp_runtime,
-                            route,
-                            "CCP_SCHEMA_INCOMPATIBLE",
-                            format!("control payload decode failed: {error}"),
-                        )
-                        .await;
+            }
+            next_message = socket.next() => {
+                let Some(message) = next_message else {
+                    return Err(());
+                };
+                let Ok(message) = message else {
+                    return Err(());
+                };
+                if !ensure_current_route_session_or_close(socket, route_owner, auth, device_id).await {
+                    return Err(());
+                }
+                match message {
+                    Message::Ping(payload) => {
+                        if socket.send(Message::Pong(payload)).await.is_err() {
+                            return Err(());
+                        }
+                    }
+                    Message::Pong(_) => {}
+                    Message::Close(frame) => {
+                        let _ = socket.send(Message::Close(frame)).await;
                         return Err(());
                     }
-                };
-                return Ok(control);
+                    Message::Text(_) | Message::Binary(_) => {
+                        let envelope = match ccp_runtime.decode_message(message) {
+                            Ok(envelope) => envelope,
+                            Err(error) => {
+                                let _ = send_control_error_and_close(
+                                    socket,
+                                    ccp_runtime,
+                                    route,
+                                    "CCP_SCHEMA_INCOMPATIBLE",
+                                    error,
+                                )
+                                .await;
+                                return Err(());
+                            }
+                        };
+                        if envelope.route.is_some() {
+                            let _ = send_control_error_and_close(
+                                socket,
+                                ccp_runtime,
+                                route,
+                                "CCP_SCHEMA_INCOMPATIBLE",
+                                ccp_client_route_metadata_error(),
+                            )
+                            .await;
+                            return Err(());
+                        }
+                        if envelope.kind != "control" {
+                            let _ = send_control_error_and_close(
+                                socket,
+                                ccp_runtime,
+                                route,
+                                "CCP_CONTROL_REQUIRED",
+                                format!("expected control envelope, got kind {}", envelope.kind),
+                            )
+                            .await;
+                            return Err(());
+                        }
+                        let control: ControlFrame = match serde_json::from_str(envelope.payload.as_str()) {
+                            Ok(frame) => frame,
+                            Err(error) => {
+                                let _ = send_control_error_and_close(
+                                    socket,
+                                    ccp_runtime,
+                                    route,
+                                    "CCP_SCHEMA_INCOMPATIBLE",
+                                    format!("control payload decode failed: {error}"),
+                                )
+                                .await;
+                                return Err(());
+                            }
+                        };
+                        if let Err(error) = validate_ccp_control_envelope(&envelope, &control) {
+                            let _ = send_control_error_and_close(
+                                socket,
+                                ccp_runtime,
+                                route,
+                                "CCP_SCHEMA_INCOMPATIBLE",
+                                error,
+                            )
+                            .await;
+                            return Err(());
+                        }
+                        return Ok(control);
+                    }
+                }
             }
         }
     }
@@ -772,12 +1173,15 @@ fn session_disconnect_close_message(directive: &LinkGoAwayDirective) -> Message 
 #[derive(Debug)]
 enum BufferedPushDrainError {
     Runtime(RealtimeRuntimeError),
+    Fence(&'static str),
     Send,
 }
 
 struct BufferedPushDrainDriver<'a> {
     socket: &'a mut WebSocket,
     runtime: &'a RealtimeDeliveryRuntime,
+    route_owner: &'a dyn RealtimeRouteOwner,
+    auth: &'a AuthContext,
     tenant_id: &'a str,
     principal_id: &'a str,
     principal_kind: &'a str,
@@ -796,6 +1200,7 @@ impl LinkBufferedPushDrainDriver for BufferedPushDrainDriver<'_> {
         after_seq: u64,
         limit: usize,
     ) -> Result<LinkBufferedPushFetchedWindow<Self::Window>, Self::Error> {
+        self.ensure_current_route_session()?;
         let window = self
             .runtime
             .list_events_for_principal_kind(
@@ -817,6 +1222,7 @@ impl LinkBufferedPushDrainDriver for BufferedPushDrainDriver<'_> {
     }
 
     async fn send_window(&mut self, window: Self::Window) -> Result<(), Self::Error> {
+        self.ensure_current_route_session()?;
         send_business_payload(
             self.socket,
             self.wire_mode,
@@ -836,12 +1242,22 @@ impl LinkBufferedPushDrainDriver for BufferedPushDrainDriver<'_> {
     }
 }
 
+impl BufferedPushDrainDriver<'_> {
+    fn ensure_current_route_session(&self) -> Result<(), BufferedPushDrainError> {
+        self.route_owner
+            .ensure_active_device_route_current_session(self.auth, self.device_id)
+            .map_err(|error| BufferedPushDrainError::Fence(error.code))
+    }
+}
+
 // The websocket message loop is a boundary adapter that needs the full runtime,
 // queue, transport, and routing context visible while decoding client frames.
 #[allow(clippy::too_many_arguments)]
 async fn handle_client_message(
     socket: &mut WebSocket,
     runtime: &RealtimeDeliveryRuntime,
+    route_owner: &dyn RealtimeRouteOwner,
+    auth: &AuthContext,
     tenant_id: &str,
     principal_id: &str,
     principal_kind: &str,
@@ -854,7 +1270,7 @@ async fn handle_client_message(
 ) -> bool {
     match message {
         Message::Text(_) | Message::Binary(_) => {
-            let frame = match decode_client_frame(message, wire_mode, ccp_runtime) {
+            let decoded = match decode_client_frame(message, wire_mode, ccp_runtime) {
                 Ok(frame) => frame,
                 Err(error) => {
                     let _ = send_business_error(
@@ -862,24 +1278,20 @@ async fn handle_client_message(
                         wire_mode,
                         ccp_runtime,
                         route,
-                        None,
+                        error.request_id,
                         "invalid_frame",
-                        error,
+                        error.message,
                     )
                     .await;
                     return true;
                 }
             };
+            let DecodedClientFrame::Business(frame) = decoded else {
+                return true;
+            };
             if let Err(error) = validate_client_request_id(&frame) {
-                let _ = send_runtime_error(
-                    socket,
-                    wire_mode,
-                    ccp_runtime,
-                    route,
-                    None,
-                    &error,
-                )
-                .await;
+                let _ =
+                    send_runtime_error(socket, wire_mode, ccp_runtime, route, None, &error).await;
                 return true;
             }
             if let Err(error) = validate_client_frame_type(&frame) {
@@ -893,6 +1305,20 @@ async fn handle_client_message(
                 )
                 .await;
                 return true;
+            }
+            if !ensure_current_route_session_for_request_or_close(
+                socket,
+                route_owner,
+                auth,
+                device_id,
+                wire_mode,
+                ccp_runtime,
+                route,
+                frame.request_id.clone(),
+            )
+            .await
+            {
+                return false;
             }
 
             match frame.frame_type.as_str() {
@@ -1019,6 +1445,8 @@ async fn handle_client_message(
                     if !drain_runtime_owned_buffered_push(
                         socket,
                         runtime,
+                        route_owner,
+                        auth,
                         tenant_id,
                         principal_id,
                         principal_kind,
@@ -1116,6 +1544,8 @@ async fn handle_client_message(
 async fn drain_runtime_owned_buffered_push(
     socket: &mut WebSocket,
     runtime: &RealtimeDeliveryRuntime,
+    route_owner: &dyn RealtimeRouteOwner,
+    auth: &AuthContext,
     tenant_id: &str,
     principal_id: &str,
     principal_kind: &str,
@@ -1129,6 +1559,8 @@ async fn drain_runtime_owned_buffered_push(
     let mut driver = BufferedPushDrainDriver {
         socket,
         runtime,
+        route_owner,
+        auth,
         tenant_id,
         principal_id,
         principal_kind,
@@ -1153,6 +1585,10 @@ async fn drain_runtime_owned_buffered_push(
             let _ = send_runtime_error(socket, wire_mode, ccp_runtime, route, None, &error).await;
             false
         }
+        Err(BufferedPushDrainError::Fence(code)) => {
+            close_policy_with_reason(socket, code).await;
+            false
+        }
         Err(BufferedPushDrainError::Send) => false,
     }
 }
@@ -1161,20 +1597,57 @@ fn decode_client_frame(
     message: Message,
     wire_mode: RealtimeWebsocketMode,
     ccp_runtime: &CcpWebsocketRuntime,
-) -> Result<ClientFrameEnvelope, String> {
+) -> Result<DecodedClientFrame, ClientFrameDecodeError> {
     match wire_mode {
         RealtimeWebsocketMode::LegacyJson => match message {
             Message::Text(text) => serde_json::from_str(text.as_str())
-                .map_err(|_| "frame must be valid json".to_owned()),
-            Message::Binary(_) => Err("binary websocket frames are not supported".into()),
-            Message::Ping(_) | Message::Pong(_) | Message::Close(_) => {
-                Err("unexpected websocket control message".into())
-            }
+                .map(DecodedClientFrame::Business)
+                .map_err(|_| {
+                    ClientFrameDecodeError::without_request_id("frame must be valid json")
+                }),
+            Message::Binary(_) => Err(ClientFrameDecodeError::without_request_id(
+                "binary websocket frames are not supported",
+            )),
+            Message::Ping(_) | Message::Pong(_) | Message::Close(_) => Err(
+                ClientFrameDecodeError::without_request_id("unexpected websocket control message"),
+            ),
         },
         RealtimeWebsocketMode::CcpJson => {
-            let envelope = ccp_runtime.decode_message(message)?;
-            serde_json::from_str(envelope.payload.as_str())
-                .map_err(|error| format!("ccp payload must be valid json: {error}"))
+            let envelope = ccp_runtime
+                .decode_message(message)
+                .map_err(ClientFrameDecodeError::without_request_id)?;
+            if envelope.kind == "control"
+                && let Ok(control) = serde_json::from_str::<ControlFrame>(envelope.payload.as_str())
+            {
+                if envelope.route.is_some() {
+                    return Err(ClientFrameDecodeError::without_request_id(
+                        ccp_client_route_metadata_error(),
+                    ));
+                }
+                validate_ccp_control_envelope(&envelope, &control)
+                    .map_err(ClientFrameDecodeError::without_request_id)?;
+                return match control {
+                    ControlFrame::Heartbeat(_) => Ok(DecodedClientFrame::Heartbeat),
+                    other => Err(ClientFrameDecodeError::without_request_id(format!(
+                        "unexpected ccp control frame after handshake: {}",
+                        other.frame_type()
+                    ))),
+                };
+            }
+            let frame: ClientFrameEnvelope = serde_json::from_str(envelope.payload.as_str())
+                .map_err(|error| {
+                    ClientFrameDecodeError::without_request_id(format!(
+                        "ccp payload must be valid json: {error}"
+                    ))
+                })?;
+            if envelope.route.is_some() {
+                return Err(ClientFrameDecodeError::with_request_id(
+                    frame.request_id.clone(),
+                    ccp_client_route_metadata_error(),
+                ));
+            }
+            validate_ccp_client_business_envelope(&envelope, &frame)?;
+            Ok(DecodedClientFrame::Business(frame))
         }
     }
 }
@@ -1225,6 +1698,78 @@ async fn send_control_error(
         retryable: false,
     });
     ccp_runtime.send_control_frame(socket, route, &frame).await
+}
+
+async fn send_control_error_and_close(
+    socket: &mut WebSocket,
+    ccp_runtime: &CcpWebsocketRuntime,
+    route: &CcpRoute,
+    code: impl Into<String>,
+    message: impl Into<String>,
+) -> Result<(), axum::Error> {
+    let send_result = send_control_error(socket, ccp_runtime, route, code, message).await;
+    let close_result = socket
+        .send(Message::Close(Some(CloseFrame {
+            code: close_code::POLICY,
+            reason: Utf8Bytes::from_static(CCP_PROTOCOL_ERROR_CLOSE_REASON),
+        })))
+        .await;
+    send_result?;
+    close_result
+}
+
+async fn ensure_current_route_session_or_close(
+    socket: &mut WebSocket,
+    route_owner: &dyn RealtimeRouteOwner,
+    auth: &AuthContext,
+    device_id: &str,
+) -> bool {
+    match route_owner.ensure_active_device_route_current_session(auth, device_id) {
+        Ok(()) => true,
+        Err(error) => {
+            close_policy_with_reason(socket, error.code).await;
+            false
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn ensure_current_route_session_for_request_or_close(
+    socket: &mut WebSocket,
+    route_owner: &dyn RealtimeRouteOwner,
+    auth: &AuthContext,
+    device_id: &str,
+    wire_mode: RealtimeWebsocketMode,
+    ccp_runtime: &CcpWebsocketRuntime,
+    route: &CcpRoute,
+    request_id: Option<String>,
+) -> bool {
+    match route_owner.ensure_active_device_route_current_session(auth, device_id) {
+        Ok(()) => true,
+        Err(error) => {
+            let _ = send_business_error(
+                socket,
+                wire_mode,
+                ccp_runtime,
+                route,
+                request_id,
+                error.code,
+                error.message.clone(),
+            )
+            .await;
+            close_policy_with_reason(socket, error.code).await;
+            false
+        }
+    }
+}
+
+async fn close_policy_with_reason(socket: &mut WebSocket, reason: &'static str) {
+    let _ = socket
+        .send(Message::Close(Some(CloseFrame {
+            code: close_code::POLICY,
+            reason: Utf8Bytes::from_static(reason),
+        })))
+        .await;
 }
 
 async fn send_business_error(

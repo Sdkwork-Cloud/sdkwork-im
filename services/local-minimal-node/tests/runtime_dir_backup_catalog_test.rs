@@ -75,7 +75,8 @@ fn test_list_runtime_backups_classifies_snapshot_quality_and_previews_report_met
     )
     .expect("restore report should be written");
 
-    let catalog = local_minimal_node::list_runtime_backups(runtime_dir.as_path());
+    let catalog = local_minimal_node::list_runtime_backups(runtime_dir.as_path())
+        .expect("catalog should load successfully");
 
     assert_eq!(catalog.status, "ok");
     assert_eq!(catalog.backup_count, 3);
@@ -166,7 +167,8 @@ fn test_archive_runtime_backup_moves_snapshot_and_preserves_restore_path() {
         "archived backup should record archive metadata"
     );
 
-    let catalog = local_minimal_node::list_runtime_backups(runtime_dir.as_path());
+    let catalog = local_minimal_node::list_runtime_backups(runtime_dir.as_path())
+        .expect("catalog should load successfully");
     assert_eq!(catalog.status, "ok");
     assert_eq!(catalog.backup_count, 1);
     assert_eq!(
@@ -280,7 +282,8 @@ fn test_prune_archived_runtime_backups_respects_retention_and_legal_hold() {
         "legal-hold archive should remain"
     );
 
-    let catalog = local_minimal_node::list_runtime_backups(runtime_dir.as_path());
+    let catalog = local_minimal_node::list_runtime_backups(runtime_dir.as_path())
+        .expect("catalog should load successfully");
     assert_eq!(catalog.status, "ok");
     assert_eq!(catalog.backup_count, 1);
     assert_eq!(
@@ -298,7 +301,8 @@ fn test_list_runtime_backups_returns_empty_catalog_when_backups_dir_is_missing()
     let runtime_dir = unique_runtime_dir("runtime_backup_catalog_missing");
     fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
 
-    let catalog = local_minimal_node::list_runtime_backups(runtime_dir.as_path());
+    let catalog = local_minimal_node::list_runtime_backups(runtime_dir.as_path())
+        .expect("catalog should load successfully");
 
     assert_eq!(catalog.status, "empty");
     assert_eq!(catalog.backup_count, 0);

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import {
   existsSync,
+  realpathSync,
   mkdirSync,
   readFileSync,
   readdirSync,
@@ -20,8 +21,11 @@ const generatedRoot = path.join(
   'generated',
   'server-openapi',
 );
+const packageLockPath = path.join(generatedRoot, 'package-lock.json');
 const cacheDir = path.join(generatedRoot, '.npm-cache');
 const distRoot = path.join(generatedRoot, 'dist');
+const browserRoot = path.join(generatedRoot, 'browser');
+const nodeModulesRoot = path.join(generatedRoot, 'node_modules');
 const locksRoot = path.join(generatedRoot, '.sdkwork', 'locks');
 const buildLockDir = path.join(locksRoot, 'stable-typescript-generated-build.lock');
 const lockInfoPath = path.join(buildLockDir, 'owner.json');
@@ -29,11 +33,17 @@ const buildRunId = `run-${process.pid}-${Date.now()}-${Math.random().toString(16
 const tmpWorkspaceRoot = path.join(generatedRoot, '.sdkwork', 'tmp', 'stable-typescript-build');
 const tmpRoot = path.join(tmpWorkspaceRoot, buildRunId);
 const esmTmpRoot = path.join(tmpRoot, 'esm');
+const staleOutputsRoot = path.join(generatedRoot, '.sdkwork', 'tmp', 'stable-typescript-build-stale');
 const tscBin = path.join(generatedRoot, 'node_modules', 'typescript', 'bin', 'tsc');
 const rollupBin = path.join(generatedRoot, 'node_modules', 'rollup', 'dist', 'bin', 'rollup');
-const staleDistRoot = path.join(tmpWorkspaceRoot, `${buildRunId}-previous-dist`);
 const lockTimeoutMs = 5 * 60 * 1000;
 const lockPollMs = 200;
+const cleanupRetryCount = process.platform === 'win32' ? 8 : 2;
+const cleanupRetryDelayMs = process.platform === 'win32' ? 150 : 25;
+const npmCliCandidates = [
+  process.env.npm_execpath,
+  path.join(path.dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+];
 let buildLockHeld = false;
 
 function fail(message) {
@@ -68,11 +78,14 @@ function run(command, args, options = {}) {
 }
 
 function runNpm(args, options = {}) {
-  if (process.platform === 'win32') {
-    run('cmd.exe', ['/d', '/s', '/c', 'npm', ...args], options);
-    return;
+  for (const npmCliPath of npmCliCandidates) {
+    if (npmCliPath && existsSync(npmCliPath)) {
+      run(process.execPath, [npmCliPath, ...args], options);
+      return;
+    }
   }
-  run('npm', args, options);
+
+  fail('Unable to locate npm CLI for TypeScript generated package builds.');
 }
 
 function walkFiles(rootDirectory) {
@@ -140,9 +153,181 @@ function rewriteEsmSpecifiers(rootDirectory) {
   }
 }
 
+function copyDirectory(sourceRoot, targetRoot) {
+  mkdirSync(targetRoot, { recursive: true });
+
+  for (const absolutePath of walkFiles(sourceRoot)) {
+    const relativePath = path.relative(sourceRoot, absolutePath);
+    const targetPath = path.join(targetRoot, relativePath);
+    mkdirSync(path.dirname(targetPath), { recursive: true });
+    writeFileSync(targetPath, readFileSync(absolutePath));
+  }
+}
+
+function isPathInside(parentPath, candidatePath) {
+  const normalizedParent = withPosixSeparators(path.resolve(parentPath)).replace(/\/+$/, '');
+  const normalizedCandidate = withPosixSeparators(path.resolve(candidatePath)).replace(/\/+$/, '');
+  return normalizedCandidate === normalizedParent || normalizedCandidate.startsWith(`${normalizedParent}/`);
+}
+
+function resolveExistingRealPath(targetPath) {
+  try {
+    if (!existsSync(targetPath)) {
+      return null;
+    }
+    return realpathSync(targetPath);
+  } catch {
+    return null;
+  }
+}
+
+function hasUnsafeToolingInstall() {
+  if (!existsSync(nodeModulesRoot)) {
+    return false;
+  }
+
+  for (const toolDirectory of ['typescript', 'rollup', 'vite', 'vite-plugin-dts']) {
+    const toolPath = path.join(nodeModulesRoot, toolDirectory);
+    const resolvedToolPath = resolveExistingRealPath(toolPath);
+
+    if (!resolvedToolPath) {
+      return true;
+    }
+    if (!isPathInside(nodeModulesRoot, resolvedToolPath)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function resetToolingInstall() {
+  if (!existsSync(nodeModulesRoot)) {
+    return;
+  }
+
+  const resolvedNodeModulesRoot = path.resolve(nodeModulesRoot);
+  if (!isPathInside(generatedRoot, resolvedNodeModulesRoot)) {
+    fail(`Refusing to remove node_modules outside generated workspace: ${resolvedNodeModulesRoot}`);
+  }
+
+  rmSync(resolvedNodeModulesRoot, { recursive: true, force: true });
+}
+
+function ensurePathInside(parentPath, candidatePath, description) {
+  if (!isPathInside(parentPath, candidatePath)) {
+    fail(`${description} escapes the allowed root: ${candidatePath}`);
+  }
+}
+
+function listChildDirectories(rootDirectory) {
+  if (!existsSync(rootDirectory)) {
+    return [];
+  }
+
+  return readdirSync(rootDirectory, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => path.join(rootDirectory, entry.name));
+}
+
+function isRetriableCleanupError(error) {
+  return Boolean(error && ['EPERM', 'EBUSY', 'ENOTEMPTY'].includes(error.code));
+}
+
+async function removePathWithRetries(targetPath, description, tolerateFailure = false) {
+  if (!existsSync(targetPath)) {
+    return true;
+  }
+
+  let lastError = null;
+  for (let attempt = 0; attempt <= cleanupRetryCount; attempt += 1) {
+    try {
+      rmSync(targetPath, { recursive: true, force: true });
+      return true;
+    } catch (error) {
+      lastError = error;
+      if (!isRetriableCleanupError(error) || attempt === cleanupRetryCount) {
+        break;
+      }
+
+      await sleep(cleanupRetryDelayMs * (attempt + 1));
+    }
+  }
+
+  if (tolerateFailure) {
+    return false;
+  }
+
+  fail(`${description} could not be removed: ${lastError?.message || 'unknown cleanup error'}`);
+}
+
+function stageOutputForCleanup(sourcePath, label) {
+  if (!existsSync(sourcePath)) {
+    return null;
+  }
+
+  const resolvedSourcePath = path.resolve(sourcePath);
+  ensurePathInside(generatedRoot, resolvedSourcePath, `TypeScript generated ${label} output`);
+
+  mkdirSync(staleOutputsRoot, { recursive: true });
+  const stagedOutputPath = path.join(staleOutputsRoot, `${buildRunId}-${label}`);
+  ensurePathInside(staleOutputsRoot, stagedOutputPath, `TypeScript generated staged ${label} output`);
+  renameSync(resolvedSourcePath, stagedOutputPath);
+  return stagedOutputPath;
+}
+
+async function disposeStagedOutput(sourcePath, label) {
+  const stagedOutputPath = stageOutputForCleanup(sourcePath, label);
+  if (!stagedOutputPath) {
+    return;
+  }
+
+  const removed = await removePathWithRetries(
+    stagedOutputPath,
+    `TypeScript generated staged ${label} output`,
+    true,
+  );
+  if (!removed) {
+    console.warn(
+      `[sdkwork-craw-chat-sdk] Retaining staged TypeScript generated output for later cleanup: ${stagedOutputPath}`,
+    );
+  }
+}
+
+async function tryPruneRetainedBuildRoots() {
+  for (const retainedBuildRoot of listChildDirectories(tmpWorkspaceRoot)) {
+    ensurePathInside(tmpWorkspaceRoot, retainedBuildRoot, 'Retained TypeScript generated build root');
+    if (path.resolve(retainedBuildRoot) === path.resolve(tmpRoot)) {
+      continue;
+    }
+    await removePathWithRetries(
+      retainedBuildRoot,
+      `Retained TypeScript generated build root ${retainedBuildRoot}`,
+      true,
+    );
+  }
+}
+
+async function tryPruneRetainedStaleOutputs() {
+  for (const retainedStaleOutputRoot of listChildDirectories(staleOutputsRoot)) {
+    ensurePathInside(staleOutputsRoot, retainedStaleOutputRoot, 'Retained TypeScript generated stale output root');
+    await removePathWithRetries(
+      retainedStaleOutputRoot,
+      `Retained TypeScript generated stale output root ${retainedStaleOutputRoot}`,
+      true,
+    );
+  }
+}
+
 function ensureToolingInstalled() {
-  runNpm(['install', '--ignore-scripts'], {
-    step: 'typescript-generated:npm-install-ignore-scripts',
+  if (hasUnsafeToolingInstall()) {
+    resetToolingInstall();
+  }
+
+  runNpm(existsSync(packageLockPath) ? ['ci', '--ignore-scripts'] : ['install', '--ignore-scripts'], {
+    step: existsSync(packageLockPath)
+      ? 'typescript-generated:npm-ci-ignore-scripts'
+      : 'typescript-generated:npm-install-ignore-scripts',
   });
 
   if (!existsSync(tscBin)) {
@@ -207,26 +392,14 @@ function releaseBuildLock() {
   buildLockHeld = false;
 }
 
-function resetBuildOutputs() {
-  if (existsSync(tmpWorkspaceRoot)) {
-    const resolvedTmpWorkspaceRoot = path.resolve(tmpWorkspaceRoot);
-    if (!resolvedTmpWorkspaceRoot.startsWith(path.resolve(generatedRoot))) {
-      fail(`Refusing to remove path outside generated workspace: ${resolvedTmpWorkspaceRoot}`);
-    }
-    rmSync(resolvedTmpWorkspaceRoot, { recursive: true, force: true });
-  }
-
+async function resetBuildOutputs() {
   mkdirSync(cacheDir, { recursive: true });
+  mkdirSync(tmpWorkspaceRoot, { recursive: true });
+  await tryPruneRetainedBuildRoots();
+  await tryPruneRetainedStaleOutputs();
+  await disposeStagedOutput(distRoot, 'dist');
+  await disposeStagedOutput(browserRoot, 'browser');
   mkdirSync(esmTmpRoot, { recursive: true });
-
-  if (existsSync(distRoot)) {
-    const resolvedDistRoot = path.resolve(distRoot);
-    if (!resolvedDistRoot.startsWith(path.resolve(generatedRoot))) {
-      fail(`Refusing to move path outside generated workspace: ${resolvedDistRoot}`);
-    }
-    renameSync(resolvedDistRoot, staleDistRoot);
-    rmSync(staleDistRoot, { recursive: true, force: true });
-  }
 }
 
 function toPosixRelative(input) {
@@ -261,27 +434,48 @@ function sanitizeCjsSourceMap() {
   writeFileSync(sourceMapPath, `${JSON.stringify(sourceMap)}\n`, 'utf8');
 }
 
-function cleanupTmpWorkspaceRoot() {
-  if (!existsSync(tmpWorkspaceRoot)) {
-    return;
+async function cleanupTmpWorkspaceRoot() {
+  if (existsSync(tmpRoot)) {
+    const removed = await removePathWithRetries(
+      tmpRoot,
+      'TypeScript generated temporary build workspace',
+      true,
+    );
+    if (!removed) {
+      console.warn(
+        `[sdkwork-craw-chat-sdk] Retaining TypeScript generated temporary build workspace for later cleanup: ${tmpRoot}`,
+      );
+    }
   }
 
-  const resolvedTmpWorkspaceRoot = path.resolve(tmpWorkspaceRoot);
-  if (!resolvedTmpWorkspaceRoot.startsWith(path.resolve(generatedRoot))) {
-    fail(`Refusing to remove path outside generated workspace: ${resolvedTmpWorkspaceRoot}`);
+  await tryPruneRetainedBuildRoots();
+  await tryPruneRetainedStaleOutputs();
+
+  if (existsSync(tmpWorkspaceRoot) && readdirSync(tmpWorkspaceRoot).length === 0) {
+    await removePathWithRetries(
+      tmpWorkspaceRoot,
+      'TypeScript generated temporary build root',
+      true,
+    );
   }
-  rmSync(resolvedTmpWorkspaceRoot, { recursive: true, force: true });
+  if (existsSync(staleOutputsRoot) && readdirSync(staleOutputsRoot).length === 0) {
+    await removePathWithRetries(
+      staleOutputsRoot,
+      'TypeScript generated stale output root',
+      true,
+    );
+  }
 }
 
 function compileDeclarations() {
-  run('node', [tscBin, '-p', 'tsconfig.json', '--emitDeclarationOnly', '--outDir', distRoot], {
+  run(process.execPath, [tscBin, '-p', 'tsconfig.json', '--emitDeclarationOnly', '--outDir', distRoot], {
     step: 'typescript-generated:tsc-declarations',
   });
 }
 
 function compileEsmTree() {
   run(
-    'node',
+    process.execPath,
     [
       tscBin,
       '-p',
@@ -304,7 +498,7 @@ function compileEsmTree() {
 
 function bundleCjs() {
   run(
-    'node',
+    process.execPath,
     [
       rollupBin,
       path.join(esmTmpRoot, 'index.js'),
@@ -322,51 +516,27 @@ function bundleCjs() {
   );
 }
 
-function collectCjsExports() {
-  const cjsSource = readFileSync(path.join(distRoot, 'index.cjs'), 'utf8');
-  const exportNames = new Set();
-  const requiredRuntimeExports = [
-    'DEFAULT_TIMEOUT',
-    'DefaultAuthTokenManager',
-    'SUCCESS_CODES',
-    'createTokenManager',
-  ];
-  const exportPatterns = [
-    /exports\.([A-Za-z0-9_$]+)\s*=/g,
-    /Object\.defineProperty\(exports,\s*"([A-Za-z0-9_$]+)"/g,
-  ];
-
-  for (const exportPattern of exportPatterns) {
-    let match = exportPattern.exec(cjsSource);
-    while (match) {
-      exportNames.add(match[1]);
-      match = exportPattern.exec(cjsSource);
-    }
-  }
-
-  for (const requiredRuntimeExport of requiredRuntimeExports) {
-    if (cjsSource.includes(`"${requiredRuntimeExport}"`) || cjsSource.includes(`exports.${requiredRuntimeExport}`)) {
-      exportNames.add(requiredRuntimeExport);
-    }
-  }
-
-  return [...exportNames].sort();
+function bundleEsm() {
+  run(
+    process.execPath,
+    [
+      rollupBin,
+      path.join(esmTmpRoot, 'index.js'),
+      '--format',
+      'esm',
+      '--file',
+      path.join(distRoot, 'index.js'),
+      '--external',
+      '@sdkwork/sdk-common',
+    ],
+    {
+      step: 'typescript-generated:rollup-esm',
+    },
+  );
 }
 
-function writeEsmWrapper() {
-  const exportNames = collectCjsExports();
-  if (exportNames.length === 0) {
-    fail('TypeScript generated CJS bundle did not expose any named exports.');
-  }
-
-  const wrapperSource = [
-    "import backend from './index.cjs';",
-    `const { ${exportNames.join(', ')} } = backend;`,
-    `export { ${exportNames.join(', ')} };`,
-    '',
-  ].join('\n');
-
-  writeFileSync(path.join(distRoot, 'index.js'), wrapperSource, 'utf8');
+function publishBrowserTree() {
+  copyDirectory(esmTmpRoot, browserRoot);
 }
 
 for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
@@ -383,12 +553,13 @@ await acquireBuildLock();
 
 try {
   ensureToolingInstalled();
-  resetBuildOutputs();
+  await resetBuildOutputs();
   compileDeclarations();
   compileEsmTree();
   bundleCjs();
+  bundleEsm();
+  publishBrowserTree();
   sanitizeCjsSourceMap();
-  writeEsmWrapper();
 
   if (!existsSync(path.join(distRoot, 'index.js'))) {
     fail('TypeScript generated dist/index.js was not produced.');
@@ -399,8 +570,11 @@ try {
   if (!existsSync(path.join(distRoot, 'index.d.ts'))) {
     fail('TypeScript generated dist/index.d.ts was not produced.');
   }
+  if (!existsSync(path.join(browserRoot, 'index.js'))) {
+    fail('TypeScript generated browser/index.js was not produced.');
+  }
 
-  cleanupTmpWorkspaceRoot();
+  await cleanupTmpWorkspaceRoot();
 } finally {
   releaseBuildLock();
 }

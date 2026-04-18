@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 
 use im_platform_contracts::{ContractError, MetadataSnapshotRecord, MetadataStore};
 
-use crate::shared::{read_json_records_or_default, write_json_records};
+use crate::shared::{read_json_records_or_default, update_json_records};
 
 #[derive(Clone, Debug)]
 pub struct FileMetadataStore {
@@ -56,10 +56,6 @@ impl FileMetadataStore {
     fn read_records(&self) -> Result<BTreeMap<String, String>, ContractError> {
         read_json_records_or_default(self.file_path.as_path(), "metadata store")
     }
-
-    fn write_records(&self, records: &BTreeMap<String, String>) -> Result<(), ContractError> {
-        write_json_records(self.file_path.as_path(), records, "metadata store")
-    }
 }
 
 impl MetadataStore for FileMetadataStore {
@@ -68,9 +64,13 @@ impl MetadataStore for FileMetadataStore {
             .io_lock
             .lock()
             .expect("metadata file store lock should lock");
-        let mut records = self.read_records()?;
-        records.insert(snapshot_key(scope, key), value.to_string());
-        self.write_records(&records)
+        update_json_records(
+            self.file_path.as_path(),
+            "metadata store",
+            |records: &mut BTreeMap<String, String>| {
+                records.insert(snapshot_key(scope, key), value.to_string());
+            },
+        )
     }
 
     fn load_snapshot(&self, scope: &str, key: &str) -> Result<Option<String>, ContractError> {
@@ -82,14 +82,18 @@ impl MetadataStore for FileMetadataStore {
             .io_lock
             .lock()
             .expect("metadata file store lock should lock");
-        let mut records = self.read_records()?;
-        for snapshot in snapshots {
-            records.insert(
-                snapshot_key(snapshot.scope.as_str(), snapshot.key.as_str()),
-                snapshot.value.clone(),
-            );
-        }
-        self.write_records(&records)
+        update_json_records(
+            self.file_path.as_path(),
+            "metadata store",
+            |records: &mut BTreeMap<String, String>| {
+                for snapshot in snapshots {
+                    records.insert(
+                        snapshot_key(snapshot.scope.as_str(), snapshot.key.as_str()),
+                        snapshot.value.clone(),
+                    );
+                }
+            },
+        )
     }
 }
 

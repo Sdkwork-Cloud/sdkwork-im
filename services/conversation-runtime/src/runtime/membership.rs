@@ -343,7 +343,7 @@ where
 
         let scope_key =
             conversation_scope_key(command.tenant_id.as_str(), command.conversation_id.as_str());
-        let (member, ordering_seq, retention_class) = {
+        let member = {
             let mut state =
                 lock_runtime_mutex(&self.state, "conversation-runtime.state.membership");
             let conversation =
@@ -411,22 +411,23 @@ where
             member.state = MembershipState::Linked;
 
             let ordering_seq = conversation.aggregate.next_member_epoch();
+            let retention_class = conversation_retention_class(conversation);
+            let envelope = build_member_envelope(
+                command.tenant_id.as_str(),
+                command.conversation_id.as_str(),
+                "conversation.member_joined",
+                member.clone(),
+                ordering_seq,
+                retention_class.as_str(),
+                command.synced_by.as_str(),
+                requester_kind,
+            );
+
+            self.journal.append(envelope)?;
             upsert_member(conversation, member.clone());
             upsert_read_cursor(conversation, build_default_read_cursor(&member));
-            let retention_class = conversation_retention_class(conversation);
-            (member, ordering_seq, retention_class)
+            member
         };
-
-        self.journal.append(build_member_envelope(
-            command.tenant_id.as_str(),
-            command.conversation_id.as_str(),
-            "conversation.member_joined",
-            member.clone(),
-            ordering_seq,
-            retention_class.as_str(),
-            command.synced_by.as_str(),
-            requester_kind,
-        ))?;
 
         Ok(SyncSharedChannelLinkedMemberResult {
             status: SyncSharedChannelLinkedMemberStatus::Applied,
@@ -464,7 +465,7 @@ where
         validate_member_attributes_payload_size("memberAttributes", &attributes)?;
         let scope_key =
             conversation_scope_key(command.tenant_id.as_str(), command.conversation_id.as_str());
-        let (member, member_epoch, actor_kind, retention_class) = {
+        let member = {
             let mut state =
                 lock_runtime_mutex(&self.state, "conversation-runtime.state.membership");
             let conversation =
@@ -527,27 +528,24 @@ where
             }
 
             let member_epoch = conversation.aggregate.next_member_epoch();
+            let retention_class = conversation_retention_class(conversation);
+            let actor_kind = invited_by_member.principal_kind.clone();
+            let envelope = build_member_envelope(
+                command.tenant_id.as_str(),
+                command.conversation_id.as_str(),
+                "conversation.member_joined",
+                member.clone(),
+                member_epoch,
+                retention_class.as_str(),
+                command.invited_by.as_str(),
+                actor_kind.as_str(),
+            );
+
+            self.journal.append(envelope)?;
             upsert_member(conversation, member.clone());
             upsert_read_cursor(conversation, build_default_read_cursor(&member));
-            let retention_class = conversation_retention_class(conversation);
-            (
-                member,
-                member_epoch,
-                invited_by_member.principal_kind.clone(),
-                retention_class,
-            )
+            member
         };
-
-        self.journal.append(build_member_envelope(
-            command.tenant_id.as_str(),
-            command.conversation_id.as_str(),
-            "conversation.member_joined",
-            member.clone(),
-            member_epoch,
-            retention_class.as_str(),
-            command.invited_by.as_str(),
-            actor_kind.as_str(),
-        ))?;
 
         Ok(member)
     }
@@ -601,7 +599,7 @@ where
         validate_payload_size("actorKind", actor_kind, CONVERSATION_MAX_KIND_BYTES)?;
         let scope_key =
             conversation_scope_key(command.tenant_id.as_str(), command.conversation_id.as_str());
-        let (member, member_epoch, actor_kind, retention_class) = {
+        let member = {
             let mut state =
                 lock_runtime_mutex(&self.state, "conversation-runtime.state.membership");
             let conversation =
@@ -629,26 +627,23 @@ where
             member.removed_at = Some(conversation_timestamp());
 
             let member_epoch = conversation.aggregate.next_member_epoch();
-            conversation.roster.deactivate_member(member.clone());
             let retention_class = conversation_retention_class(conversation);
-            (
-                member,
+            let actor_kind = removed_by_member.principal_kind.clone();
+            let envelope = build_member_envelope(
+                command.tenant_id.as_str(),
+                command.conversation_id.as_str(),
+                "conversation.member_removed",
+                member.clone(),
                 member_epoch,
-                removed_by_member.principal_kind.clone(),
-                retention_class,
-            )
-        };
+                retention_class.as_str(),
+                command.removed_by.as_str(),
+                actor_kind.as_str(),
+            );
 
-        self.journal.append(build_member_envelope(
-            command.tenant_id.as_str(),
-            command.conversation_id.as_str(),
-            "conversation.member_removed",
-            member.clone(),
-            member_epoch,
-            retention_class.as_str(),
-            command.removed_by.as_str(),
-            actor_kind.as_str(),
-        ))?;
+            self.journal.append(envelope)?;
+            conversation.roster.deactivate_member(member.clone());
+            member
+        };
 
         Ok(member)
     }
@@ -696,7 +691,7 @@ where
         validate_payload_size("actorKind", actor_kind, CONVERSATION_MAX_KIND_BYTES)?;
         let scope_key =
             conversation_scope_key(command.tenant_id.as_str(), command.conversation_id.as_str());
-        let (member, member_epoch, actor_kind, retention_class) = {
+        let member = {
             let mut state =
                 lock_runtime_mutex(&self.state, "conversation-runtime.state.membership");
             let conversation =
@@ -719,26 +714,23 @@ where
             member.removed_at = Some(conversation_timestamp());
 
             let member_epoch = conversation.aggregate.next_member_epoch();
-            conversation.roster.deactivate_member(member.clone());
             let retention_class = conversation_retention_class(conversation);
-            (
-                member,
+            let actor_kind = leaving_member.principal_kind.clone();
+            let envelope = build_member_envelope(
+                command.tenant_id.as_str(),
+                command.conversation_id.as_str(),
+                "conversation.member_left",
+                member.clone(),
                 member_epoch,
-                leaving_member.principal_kind.clone(),
-                retention_class,
-            )
-        };
+                retention_class.as_str(),
+                command.principal_id.as_str(),
+                actor_kind.as_str(),
+            );
 
-        self.journal.append(build_member_envelope(
-            command.tenant_id.as_str(),
-            command.conversation_id.as_str(),
-            "conversation.member_left",
-            member.clone(),
-            member_epoch,
-            retention_class.as_str(),
-            command.principal_id.as_str(),
-            actor_kind.as_str(),
-        ))?;
+            self.journal.append(envelope)?;
+            conversation.roster.deactivate_member(member.clone());
+            member
+        };
 
         Ok(member)
     }
@@ -796,7 +788,7 @@ where
         validate_payload_size("actorKind", actor_kind, CONVERSATION_MAX_KIND_BYTES)?;
         let scope_key =
             conversation_scope_key(command.tenant_id.as_str(), command.conversation_id.as_str());
-        let (payload, ordering_seq, actor_kind, retention_class) = {
+        let result = {
             let mut state =
                 lock_runtime_mutex(&self.state, "conversation-runtime.state.membership");
             let conversation =
@@ -830,40 +822,38 @@ where
                 ..target_member
             };
 
-            conversation.roster.upsert_member(previous_owner.clone());
-            conversation.roster.upsert_member(new_owner.clone());
             let ordering_seq = conversation.aggregate.next_member_epoch();
             let retention_class = conversation_retention_class(conversation);
-
-            (
-                TransferConversationOwnerPayload {
-                    tenant_id: command.tenant_id.clone(),
-                    conversation_id: command.conversation_id.clone(),
-                    previous_owner,
-                    new_owner,
-                    transferred_at,
-                },
+            let payload = TransferConversationOwnerPayload {
+                tenant_id: command.tenant_id.clone(),
+                conversation_id: command.conversation_id.clone(),
+                previous_owner,
+                new_owner,
+                transferred_at,
+            };
+            let event = build_owner_transfer_envelope(
+                payload.clone(),
                 ordering_seq,
-                actor_kind,
-                retention_class,
-            )
+                retention_class.as_str(),
+                command.transferred_by.as_str(),
+                actor_kind.as_str(),
+            );
+
+            self.journal.append(event.clone())?;
+            conversation
+                .roster
+                .upsert_member(payload.previous_owner.clone());
+            conversation.roster.upsert_member(payload.new_owner.clone());
+
+            TransferConversationOwnerResult {
+                event_id: event.event_id,
+                transferred_at: payload.transferred_at.clone(),
+                previous_owner: payload.previous_owner,
+                new_owner: payload.new_owner,
+            }
         };
 
-        let event = build_owner_transfer_envelope(
-            payload.clone(),
-            ordering_seq,
-            retention_class.as_str(),
-            command.transferred_by.as_str(),
-            actor_kind.as_str(),
-        );
-        self.journal.append(event.clone())?;
-
-        Ok(TransferConversationOwnerResult {
-            event_id: event.event_id,
-            transferred_at: payload.transferred_at.clone(),
-            previous_owner: payload.previous_owner,
-            new_owner: payload.new_owner,
-        })
+        Ok(result)
     }
 
     pub fn change_conversation_member_role(
@@ -921,7 +911,7 @@ where
         validate_payload_size("actorKind", actor_kind, CONVERSATION_MAX_KIND_BYTES)?;
         let scope_key =
             conversation_scope_key(command.tenant_id.as_str(), command.conversation_id.as_str());
-        let (payload, ordering_seq, actor_kind, retention_class) = {
+        let result = {
             let mut state =
                 lock_runtime_mutex(&self.state, "conversation-runtime.state.membership");
             let conversation =
@@ -956,39 +946,36 @@ where
                 role: command.new_role.clone(),
                 ..target_member
             };
-            conversation.roster.upsert_member(updated_member.clone());
             let ordering_seq = conversation.aggregate.next_member_epoch();
             let retention_class = conversation_retention_class(conversation);
-
-            (
-                ChangeConversationMemberRolePayload {
-                    tenant_id: command.tenant_id.clone(),
-                    conversation_id: command.conversation_id.clone(),
-                    previous_member,
-                    updated_member,
-                    changed_at,
-                },
+            let actor_kind = actor_member.principal_kind.clone();
+            let payload = ChangeConversationMemberRolePayload {
+                tenant_id: command.tenant_id.clone(),
+                conversation_id: command.conversation_id.clone(),
+                previous_member,
+                updated_member,
+                changed_at,
+            };
+            let event = build_member_role_changed_envelope(
+                payload.clone(),
                 ordering_seq,
-                actor_member.principal_kind.clone(),
-                retention_class,
-            )
+                retention_class.as_str(),
+                command.changed_by.as_str(),
+                actor_kind.as_str(),
+            );
+
+            self.journal.append(event.clone())?;
+            conversation.roster.upsert_member(payload.updated_member.clone());
+
+            ChangeConversationMemberRoleResult {
+                event_id: event.event_id,
+                changed_at: payload.changed_at.clone(),
+                previous_member: payload.previous_member,
+                updated_member: payload.updated_member,
+            }
         };
 
-        let event = build_member_role_changed_envelope(
-            payload.clone(),
-            ordering_seq,
-            retention_class.as_str(),
-            command.changed_by.as_str(),
-            actor_kind.as_str(),
-        );
-        self.journal.append(event.clone())?;
-
-        Ok(ChangeConversationMemberRoleResult {
-            event_id: event.event_id,
-            changed_at: payload.changed_at.clone(),
-            previous_member: payload.previous_member,
-            updated_member: payload.updated_member,
-        })
+        Ok(result)
     }
 
     pub fn list_members(
@@ -1067,7 +1054,6 @@ where
         validate_payload_size("actorKind", actor_kind, CONVERSATION_MAX_KIND_BYTES)?;
         let scope_key =
             conversation_scope_key(command.tenant_id.as_str(), command.conversation_id.as_str());
-        let mut changed_event: Option<(ConversationReadCursor, String, String)> = None;
         let cursor = {
             let mut state =
                 lock_runtime_mutex(&self.state, "conversation-runtime.state.membership");
@@ -1094,11 +1080,10 @@ where
             policy::ensure_actor_kind_matches_member(&actor_member, actor_kind)?;
             let retention_class = conversation_retention_class(conversation);
             let member_id = actor_member.member_id.clone();
-            let cursor = conversation
-                .roster
-                .read_cursors_mut()
-                .entry(member_id.clone())
-                .or_insert_with(|| ConversationReadCursor {
+            let read_cursors = conversation.roster.read_cursors();
+            let cursor_missing = !read_cursors.contains_key(member_id.as_str());
+            let cursor = read_cursors.get(member_id.as_str()).cloned().unwrap_or_else(|| {
+                ConversationReadCursor {
                     tenant_id: command.tenant_id.clone(),
                     conversation_id: command.conversation_id.clone(),
                     member_id: member_id.clone(),
@@ -1106,33 +1091,40 @@ where
                     read_seq: 0,
                     last_read_message_id: None,
                     updated_at: conversation_timestamp(),
-                });
+                }
+            });
 
             if command.read_seq > cursor.read_seq {
-                cursor.read_seq = command.read_seq;
-                cursor.last_read_message_id = command.last_read_message_id.clone();
-                cursor.updated_at = conversation_timestamp();
-                changed_event = Some((
-                    cursor.clone(),
-                    actor_member.principal_kind.clone(),
-                    retention_class.clone(),
-                ));
+                let updated_cursor = ConversationReadCursor {
+                    read_seq: command.read_seq,
+                    last_read_message_id: command.last_read_message_id.clone(),
+                    updated_at: conversation_timestamp(),
+                    ..cursor
+                };
+                self.journal.append(build_read_cursor_envelope(
+                    command.tenant_id.as_str(),
+                    command.conversation_id.as_str(),
+                    updated_cursor.clone(),
+                    updated_cursor.read_seq,
+                    retention_class.as_str(),
+                    command.principal_id.as_str(),
+                    actor_member.principal_kind.as_str(),
+                ))?;
+                conversation
+                    .roster
+                    .read_cursors_mut()
+                    .insert(member_id, updated_cursor.clone());
+                updated_cursor
+            } else {
+                if cursor_missing {
+                    conversation
+                        .roster
+                        .read_cursors_mut()
+                        .insert(member_id, cursor.clone());
+                }
+                cursor
             }
-
-            cursor.clone()
         };
-
-        if let Some((changed_cursor, actor_kind, retention_class)) = changed_event {
-            self.journal.append(build_read_cursor_envelope(
-                command.tenant_id.as_str(),
-                command.conversation_id.as_str(),
-                changed_cursor.clone(),
-                changed_cursor.read_seq,
-                retention_class.as_str(),
-                command.principal_id.as_str(),
-                actor_kind.as_str(),
-            ))?;
-        }
 
         Ok(cursor)
     }

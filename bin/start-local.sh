@@ -339,10 +339,14 @@ if [[ -z "$resolved_public_bearer_secret" ]]; then
   echo "CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET must be configured before starting local-minimal-node." >&2
   exit 1
 fi
+resolved_friend_request_cursor_secret="$(resolve_config_value_from_profile "$ROOT_DIR" "$profile_name" "CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET" || true)"
+if [[ -z "$resolved_friend_request_cursor_secret" ]]; then
+  resolved_friend_request_cursor_secret="${CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET:-$resolved_public_bearer_secret}"
+fi
 
 if [[ "$foreground" -eq 1 ]]; then
   echo "Starting local-minimal-node in foreground on http://${resolved_bind_addr}"
-  exec env CRAW_CHAT_BIND_ADDR="$resolved_bind_addr" CRAW_CHAT_RUNTIME_DIR="$resolved_runtime_dir" CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET="$resolved_public_bearer_secret" "$EXE_PATH"
+  exec env CRAW_CHAT_BIND_ADDR="$resolved_bind_addr" CRAW_CHAT_RUNTIME_DIR="$resolved_runtime_dir" CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET="$resolved_public_bearer_secret" CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET="$resolved_friend_request_cursor_secret" "$EXE_PATH"
 fi
 
 if ! has_health_probe_tool; then
@@ -351,7 +355,7 @@ if ! has_health_probe_tool; then
 fi
 
 echo "Starting local-minimal-node in background on http://${resolved_bind_addr}"
-nohup env CRAW_CHAT_BIND_ADDR="$resolved_bind_addr" CRAW_CHAT_RUNTIME_DIR="$resolved_runtime_dir" CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET="$resolved_public_bearer_secret" "$EXE_PATH" >>"$STDOUT_LOG" 2>>"$STDERR_LOG" &
+nohup env CRAW_CHAT_BIND_ADDR="$resolved_bind_addr" CRAW_CHAT_RUNTIME_DIR="$resolved_runtime_dir" CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET="$resolved_public_bearer_secret" CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET="$resolved_friend_request_cursor_secret" "$EXE_PATH" >>"$STDOUT_LOG" 2>>"$STDERR_LOG" &
 pid=$!
 echo "$pid" >"$PID_FILE"
 

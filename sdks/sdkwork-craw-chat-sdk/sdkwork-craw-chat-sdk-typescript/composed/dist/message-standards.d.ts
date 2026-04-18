@@ -1,0 +1,24 @@
+import type { CrawChatStructuredMessageKind } from './types.js';
+export declare const CRAW_CHAT_JSON_ENCODING = "application/json";
+export declare const CRAW_CHAT_MESSAGE_SCHEMA_LOCATION = "urn:sdkwork:craw-chat:message:location";
+export declare const CRAW_CHAT_MESSAGE_SCHEMA_LINK = "urn:sdkwork:craw-chat:message:link";
+export declare const CRAW_CHAT_MESSAGE_SCHEMA_CARD = "urn:sdkwork:craw-chat:message:card";
+export declare const CRAW_CHAT_MESSAGE_SCHEMA_MUSIC = "urn:sdkwork:craw-chat:message:music";
+export declare const CRAW_CHAT_MESSAGE_SCHEMA_CONTACT = "urn:sdkwork:craw-chat:message:contact";
+export declare const CRAW_CHAT_MESSAGE_SCHEMA_STICKER = "urn:sdkwork:craw-chat:message:sticker";
+export declare const CRAW_CHAT_MESSAGE_SCHEMA_VOICE = "urn:sdkwork:craw-chat:message:voice";
+export declare const CRAW_CHAT_MESSAGE_SCHEMA_AGENT = "urn:sdkwork:craw-chat:message:agent";
+export declare const CRAW_CHAT_MESSAGE_SCHEMA_AGENT_STATE = "urn:sdkwork:craw-chat:message:agent_state";
+export declare const CRAW_CHAT_MESSAGE_SCHEMA_AGENT_HANDOFF = "urn:sdkwork:craw-chat:message:agent_handoff";
+export declare const CRAW_CHAT_MESSAGE_SCHEMA_AI_TEXT = "urn:sdkwork:craw-chat:message:ai_text";
+export declare const CRAW_CHAT_MESSAGE_SCHEMA_AI_IMAGE_GENERATION = "urn:sdkwork:craw-chat:message:ai_image_generation";
+export declare const CRAW_CHAT_MESSAGE_SCHEMA_AI_VIDEO_GENERATION = "urn:sdkwork:craw-chat:message:ai_video_generation";
+export declare const CRAW_CHAT_MESSAGE_SCHEMA_TOOL_RESULT = "urn:sdkwork:craw-chat:message:tool_result";
+export declare const CRAW_CHAT_MESSAGE_SCHEMA_WORKFLOW_EVENT = "urn:sdkwork:craw-chat:message:workflow_event";
+export declare const CRAW_CHAT_CUSTOM_MESSAGE_SCHEMA_PREFIX = "urn:sdkwork:craw-chat:message:custom:";
+export declare function resolveStructuredMessageSchema(kind: CrawChatStructuredMessageKind): string;
+export declare function resolveStructuredMessageKind(schemaRef?: string): CrawChatStructuredMessageKind | 'custom' | undefined;
+export declare function isCustomMessageSchema(schemaRef?: string): boolean;
+export declare function buildCustomMessageSchema(customType: string): string;
+export declare function extractCustomMessageType(schemaRef?: string): string | undefined;
+//# sourceMappingURL=message-standards.d.ts.map

@@ -73,11 +73,7 @@ async fn read_json(response: axum::response::Response) -> Value {
     serde_json::from_slice(&bytes).expect("response body should be valid json")
 }
 
-async fn post_json(
-    app: &axum::Router,
-    path: &str,
-    payload: Value,
-) -> axum::response::Response {
+async fn post_json(app: &axum::Router, path: &str, payload: Value) -> axum::response::Response {
     app.clone()
         .oneshot(
             Request::builder()
@@ -147,7 +143,14 @@ async fn test_restarted_public_app_keeps_real_auth_message_writes_healthy() {
     fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
 
     let app_before = local_minimal_node::build_public_app_with_runtime_dir(runtime_dir.as_path());
-    let owner_before = login(&app_before, "u_owner", "Owner#2026", "d_owner_before", "s_owner_before").await;
+    let owner_before = login(
+        &app_before,
+        "u_owner",
+        "Owner#2026",
+        "d_owner_before",
+        "s_owner_before",
+    )
+    .await;
     let owner_before_bearer = owner_before["accessToken"]
         .as_str()
         .expect("owner login should return access token")
@@ -192,7 +195,14 @@ async fn test_restarted_public_app_keeps_real_auth_message_writes_healthy() {
     assert_eq!(first_message.status(), StatusCode::OK);
 
     let app_after = local_minimal_node::build_public_app_with_runtime_dir(runtime_dir.as_path());
-    let owner_after = login(&app_after, "u_owner", "Owner#2026", "d_owner_after", "s_owner_after").await;
+    let owner_after = login(
+        &app_after,
+        "u_owner",
+        "Owner#2026",
+        "d_owner_after",
+        "s_owner_after",
+    )
+    .await;
     let owner_after_bearer = owner_after["accessToken"]
         .as_str()
         .expect("owner login after restart should return access token")

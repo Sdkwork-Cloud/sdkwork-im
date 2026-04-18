@@ -9,8 +9,10 @@ import {
   resolveReadablePackageEntry,
   resolveWorkspaceDonorRoots,
 } from './vite-runtime-lib.mjs';
+import { ensureSdkworkUiDist } from './sdkwork-ui-runtime-lib.mjs';
 
 const REQUIRED_APP_PACKAGES = [
+  '@sdkwork/ui-pc-react',
   '@tailwindcss/vite',
   '@vitejs/plugin-react',
   'lucide-react',
@@ -23,6 +25,7 @@ const REQUIRED_APP_PACKAGES = [
 
 const appRoot = process.cwd();
 const donorRoots = resolveWorkspaceDonorRoots(appRoot);
+ensureSdkworkUiDist({ appRoot });
 ensureLocalNodeModules({
   appRoot,
   donorRoots,

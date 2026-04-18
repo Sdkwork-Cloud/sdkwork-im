@@ -1,5 +1,7 @@
 import 'package:sdkwork_common_flutter/sdkwork_common_flutter.dart';
 import 'src/http/client.dart';
+import 'src/api/auth.dart';
+import 'src/api/portal.dart';
 import 'src/api/session.dart';
 import 'src/api/presence.dart';
 import 'src/api/realtime.dart';
@@ -37,6 +39,8 @@ class SdkworkBackendConfig {
 class SdkworkBackendClient {
   final HttpClient _httpClient;
 
+  late final AuthApi auth;
+  late final PortalApi portal;
   late final SessionApi session;
   late final PresenceApi presence;
   late final RealtimeApi realtime;
@@ -51,6 +55,8 @@ class SdkworkBackendClient {
   SdkworkBackendClient({
     required SdkworkBackendConfig config,
   }) : _httpClient = HttpClient(config: config.toSdkConfig()) {
+    auth = AuthApi(_httpClient);
+    portal = PortalApi(_httpClient);
     session = SessionApi(_httpClient);
     presence = PresenceApi(_httpClient);
     realtime = RealtimeApi(_httpClient);

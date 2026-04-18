@@ -1307,12 +1307,35 @@ pub struct ObjectStorageDownloadUrlRequest {
     pub expires_in_seconds: u32,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ObjectStorageUploadUrlRequest {
+    pub bucket: String,
+    pub object_key: String,
+    pub content_length: u64,
+    pub content_type: Option<String>,
+    pub expires_in_seconds: u32,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ObjectStoragePresignedUpload {
+    pub method: String,
+    pub url: String,
+    pub headers: BTreeMap<String, String>,
+    pub expires_in_seconds: u32,
+}
+
 pub trait ObjectStorageProvider: Send + Sync {
     fn descriptor(&self) -> ProviderPluginDescriptor;
     fn put_object(
         &self,
         request: ObjectStoragePutRequest,
     ) -> Result<ObjectStorageObjectDescriptor, ContractError>;
+    fn signed_upload_url(
+        &self,
+        request: ObjectStorageUploadUrlRequest,
+    ) -> Result<ObjectStoragePresignedUpload, ContractError>;
     fn signed_download_url(
         &self,
         request: ObjectStorageDownloadUrlRequest,

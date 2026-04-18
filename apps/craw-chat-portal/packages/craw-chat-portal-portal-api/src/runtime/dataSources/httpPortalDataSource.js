@@ -1,98 +1,25 @@
-const DEFAULT_PORTAL_API_PORT = '18124';
-const DEFAULT_PORTAL_CREDENTIALS = Object.freeze({
-  tenantId: 't_demo',
-  login: 'ops_demo',
-  password: 'Portal#2026',
-});
+import { createPortalSdkClient } from '../sdk/createPortalSdkClient.js';
 
 function isNonEmptyString(value) {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
-function resolveFetchImplementation() {
-  if (typeof window !== 'undefined' && typeof window.fetch === 'function') {
-    return window.fetch.bind(window);
-  }
-
-  if (typeof fetch === 'function') {
-    return fetch;
-  }
-
-  throw new Error('Portal HTTP data source requires fetch support.');
-}
-
-function resolvePortalApiBaseUrl() {
-  if (
-    typeof window !== 'undefined' &&
-    isNonEmptyString(window.__CRAW_CHAT_PORTAL_API_BASE_URL__)
-  ) {
-    return window.__CRAW_CHAT_PORTAL_API_BASE_URL__.trim().replace(/\/+$/, '');
-  }
-
-  if (typeof window !== 'undefined' && window.location) {
-    const hostname = window.location.hostname || '127.0.0.1';
-    if (hostname === '127.0.0.1' || hostname === 'localhost') {
-      return `http://${hostname}:${DEFAULT_PORTAL_API_PORT}`;
-    }
-  }
-
-  return `http://127.0.0.1:${DEFAULT_PORTAL_API_PORT}`;
-}
-
-function buildUrl(pathname) {
-  return `${resolvePortalApiBaseUrl()}${pathname}`;
-}
-
-function normalizePortalCredentials(credentials = DEFAULT_PORTAL_CREDENTIALS) {
-  if (credentials === undefined) {
-    return { ...DEFAULT_PORTAL_CREDENTIALS };
-  }
-
+function normalizePortalCredentials(credentials) {
   if (credentials === null || typeof credentials !== 'object' || Array.isArray(credentials)) {
-    throw new TypeError('Portal credentials must be an object.');
+    throw new TypeError('Portal credentials must be provided as an object.');
   }
 
-  return {
-    tenantId: String(credentials.tenantId ?? ''),
-    login: String(credentials.login ?? ''),
+  const normalized = {
+    tenantId: String(credentials.tenantId ?? '').trim(),
+    login: String(credentials.login ?? '').trim(),
     password: String(credentials.password ?? ''),
   };
-}
 
-async function requestJson(pathname, { method = 'GET', token = null, body = null } = {}) {
-  const fetchImpl = resolveFetchImplementation();
-  const headers = {
-    Accept: 'application/json',
-  };
-
-  if (body !== null) {
-    headers['Content-Type'] = 'application/json';
+  if (!isNonEmptyString(normalized.tenantId) || !isNonEmptyString(normalized.login) || normalized.password.length === 0) {
+    throw new TypeError('Portal credentials must include tenantId, login, and password.');
   }
 
-  if (isNonEmptyString(token)) {
-    headers.Authorization = `Bearer ${token.trim()}`;
-  }
-
-  const response = await fetchImpl(buildUrl(pathname), {
-    method,
-    headers,
-    body: body === null ? undefined : JSON.stringify(body),
-  });
-
-  const text = await response.text();
-  const payload = text.length > 0 ? JSON.parse(text) : null;
-  if (!response.ok) {
-    const message =
-      typeof payload?.message === 'string'
-        ? payload.message
-        : `${method} ${pathname} failed with status ${response.status}`;
-    const error = new Error(message);
-    error.status = response.status;
-    error.payload = payload;
-    throw error;
-  }
-
-  return payload;
+  return normalized;
 }
 
 function normalizeSessionFromLogin(payload) {
@@ -121,21 +48,15 @@ function normalizeSessionFromMe(token, payload) {
   };
 }
 
-async function requestProtectedSnapshot(pathname, token) {
-  return requestJson(pathname, { token });
-}
-
 export const httpPortalDataSource = {
   async loginPortalUser(credentials) {
     const normalizedCredentials = normalizePortalCredentials(credentials);
-    const payload = await requestJson('/api/v1/auth/login', {
-      method: 'POST',
-      body: {
-        tenantId: normalizedCredentials.tenantId,
-        login: normalizedCredentials.login,
-        password: normalizedCredentials.password,
-        clientKind: 'portal_operator',
-      },
+    const client = await createPortalSdkClient();
+    const payload = await client.portal.login({
+      tenantId: normalizedCredentials.tenantId,
+      login: normalizedCredentials.login,
+      password: normalizedCredentials.password,
+      clientKind: 'portal_operator',
     });
     return normalizeSessionFromLogin(payload);
   },
@@ -145,40 +66,50 @@ export const httpPortalDataSource = {
     }
 
     try {
-      const payload = await requestJson('/api/v1/auth/me', { token });
+      const client = await createPortalSdkClient({ authToken: token });
+      const payload = await client.portal.getCurrentSession();
       return normalizeSessionFromMe(token, payload);
     } catch (error) {
-      if (error?.status === 401) {
+      if (error?.httpStatus === 401) {
         return null;
       }
       throw error;
     }
   },
   async getPortalWorkspace(token) {
-    return requestProtectedSnapshot('/api/v1/portal/workspace', token);
+    const client = await createPortalSdkClient({ authToken: token });
+    return client.portal.getWorkspace();
   },
   async getPortalHome() {
-    return requestJson('/api/v1/portal/home');
+    const client = await createPortalSdkClient();
+    return client.portal.getHome();
   },
   async getPortalAuth() {
-    return requestJson('/api/v1/portal/auth');
+    const client = await createPortalSdkClient();
+    return client.portal.getAuth();
   },
   async getPortalDashboard(token) {
-    return requestProtectedSnapshot('/api/v1/portal/dashboard', token);
+    const client = await createPortalSdkClient({ authToken: token });
+    return client.portal.getDashboard();
   },
   async getPortalConversationsBoard(token) {
-    return requestProtectedSnapshot('/api/v1/portal/conversations', token);
+    const client = await createPortalSdkClient({ authToken: token });
+    return client.portal.getConversations();
   },
   async getPortalRealtimeBoard(token) {
-    return requestProtectedSnapshot('/api/v1/portal/realtime', token);
+    const client = await createPortalSdkClient({ authToken: token });
+    return client.portal.getRealtime();
   },
   async getPortalMediaBoard(token) {
-    return requestProtectedSnapshot('/api/v1/portal/media', token);
+    const client = await createPortalSdkClient({ authToken: token });
+    return client.portal.getMedia();
   },
   async getPortalAutomationBoard(token) {
-    return requestProtectedSnapshot('/api/v1/portal/automation', token);
+    const client = await createPortalSdkClient({ authToken: token });
+    return client.portal.getAutomation();
   },
   async getPortalGovernanceBoard(token) {
-    return requestProtectedSnapshot('/api/v1/portal/governance', token);
+    const client = await createPortalSdkClient({ authToken: token });
+    return client.portal.getGovernance();
   },
 };

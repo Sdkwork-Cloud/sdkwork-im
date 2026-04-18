@@ -1,6 +1,5 @@
 {
   "clockMs": 1762752000000,
-  "sandboxPassword": "ChangeMe123!",
   "authSession": {
     "token": "sandbox-admin-session",
     "claims": {

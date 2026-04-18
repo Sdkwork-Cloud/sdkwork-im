@@ -5,6 +5,12 @@
   payloads and the internal stream model.
 </p>
 
+<div class="api-link-list">
+  <a href="/api-reference/app/streams"><code>Streams</code> The internal stream transport model bridged by IoT routes is documented separately</a>
+  <a href="/api-reference/platform/provider-health"><code>Provider Health</code> Media, RTC, and user-module health snapshots are documented on a separate page</a>
+  <a href="/sdk/index"><code>SDK</code> Treat IoT routes as HTTP-first surfaces unless a repo consumer layer is documented elsewhere</a>
+</div>
+
 <a id="get-iot-access-provider-health"></a>
 <section class="api-op">
 

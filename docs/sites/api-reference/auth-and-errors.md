@@ -6,6 +6,23 @@
   conditions on top of these defaults.
 </p>
 
+<div class="api-link-list">
+  <a href="/api-reference/app/portal-and-auth"><code>App</code> Portal bearer-auth flows and portal-session reads</a>
+  <a href="/api-reference/app-api"><code>App</code> User-facing runtime domains and their operation groups</a>
+  <a href="/api-reference/control-plane-api"><code>Control Plane</code> Administrative endpoints that use the same bearer model with <code>control.read</code> and <code>control.write</code></a>
+</div>
+
+## How To Use This Page
+
+Use this page for the shared contract first:
+
+1. Start here when you need bearer-token rules, trusted-header semantics, or the common error
+   envelope.
+2. Switch to operation pages when your next question is endpoint-specific permission, conflict, or
+   resource-not-found behavior.
+3. Switch to the SDK docs only when your next question is language surface, package naming, or
+   publication state.
+
 ## Security Schemes
 
 ### `BearerAuth`
@@ -45,13 +62,13 @@ Public bearer verification also validates temporal claims with a `60s` clock-ske
 - When `CRAW_CHAT_PUBLIC_BEARER_REQUIRED_AUD` is non-empty, token `aud` must include that value
   (string or array form).
 
-These controls harden public HTTP surfaces against replay windows that are too large for
-commercial traffic.
+These controls harden public HTTP surfaces against replay windows that are too large for commercial
+traffic.
 
 ### `TrustedHeaders`
 
 Trusted headers are intended for internal service-to-service wiring, tests, and explicitly trusted
-networks. They are not the public SDK contract.
+networks. They are not part of the public SDK contract.
 
 | Header | Meaning |
 | --- | --- |
@@ -149,3 +166,11 @@ The control plane adds a `status` discriminator that mirrors the control-plane e
 1. Branch on `code` for application handling. Do not depend on the exact wording of `message`.
 2. For control-plane clients, use both the HTTP status code and the response `status` field.
 3. Treat operation pages as the source for endpoint-specific conflicts and resource-not-found cases.
+4. Use the SDK pages as the source for language-surface questions, and this page as the source for
+   shared auth and error semantics.
+
+## What To Read Next
+
+- [App API Overview](/api-reference/app-api)
+- [Control Plane API Overview](/api-reference/control-plane-api)
+- [SDK Overview](/sdk/index)

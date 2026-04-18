@@ -165,12 +165,17 @@ public_bearer_secret="$(read_config_value_from_file "$CONFIG_FILE" "CRAW_CHAT_PU
 if [[ -z "$public_bearer_secret" ]]; then
   public_bearer_secret="$(generate_public_bearer_secret)"
 fi
+friend_request_cursor_secret="$(read_config_value_from_file "$CONFIG_FILE" "CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET" || true)"
+if [[ -z "$friend_request_cursor_secret" ]]; then
+  friend_request_cursor_secret="$(generate_public_bearer_secret)"
+fi
 
 cat >"$CONFIG_FILE" <<EOF
 # ${profile_name} runtime config
 CRAW_CHAT_BIND_ADDR=${bind_addr}
 CRAW_CHAT_RUNTIME_DIR=${RUNTIME_DIR}
 CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET=${public_bearer_secret}
+CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET=${friend_request_cursor_secret}
 EOF
 
 echo "Config written: ${CONFIG_FILE}"

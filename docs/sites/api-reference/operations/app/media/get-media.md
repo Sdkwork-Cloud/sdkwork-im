@@ -1,11 +1,13 @@
 # `GET /api/v1/media/{media_asset_id}`
 
 <p class="api-page-intro">
-  OpenAPI-style operation reference for <strong>Media</strong> in the <strong>App API</strong>.
+  Exact request and response contract for <strong>Media</strong> in the <strong>App API</strong>.
 </p>
 
 <div class="api-link-list">
-  <a href="/api-reference/app/media">Back to Media</a>
+  <a href="/api-reference/app/media"><code>Media</code> Return to the group page for workflow context and related operations</a>
+  <a href="/api-reference/app-api"><code>App API</code> Return to the domain overview</a>
+  <a href="/api-reference/auth-and-errors"><code>Auth</code> Shared bearer, trusted-header, and error-envelope rules</a>
 </div>
 
 <section class="api-op api-op-single">
@@ -21,7 +23,7 @@ Reads the media asset metadata.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / media</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.media`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal with media asset ownership checks.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 MediaAsset`</span></div>
 </div>

@@ -3,7 +3,8 @@ use im_adapter_object_storage_s3::{
     VOLCENGINE_OBJECT_STORAGE_PLUGIN_ID,
 };
 use im_platform_contracts::{
-    ObjectStorageDownloadUrlRequest, ObjectStorageProvider, ObjectStoragePutRequest, ProviderDomain,
+    ObjectStorageDownloadUrlRequest, ObjectStorageProvider, ObjectStoragePutRequest,
+    ObjectStorageUploadUrlRequest, ProviderDomain,
 };
 
 #[test]
@@ -45,6 +46,23 @@ fn test_volcengine_s3_adapter_exposes_expected_contract_shape() {
         .expect("signed_download_url should succeed");
     assert!(url.contains("provider=object-storage-volcengine"));
     assert!(url.contains("expires=900"));
+
+    let upload = provider
+        .signed_upload_url(ObjectStorageUploadUrlRequest {
+            bucket: "media-demo".into(),
+            object_key: "tenant/t_demo/demo.mp4".into(),
+            content_length: 2048,
+            content_type: Some("video/mp4".into()),
+            expires_in_seconds: 900,
+        })
+        .expect("signed_upload_url should succeed");
+    assert_eq!(upload.method, "PUT");
+    assert!(upload.url.contains("provider=object-storage-volcengine"));
+    assert!(upload.url.contains("upload=put"));
+    assert_eq!(
+        upload.headers.get("content-type"),
+        Some(&"video/mp4".into())
+    );
 }
 
 #[test]

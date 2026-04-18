@@ -8,4 +8,8 @@ class CrawChatSdkContext {
   void setAuthToken(String token) {
     backendClient.setAuthToken(token);
   }
+
+  void clearAuthToken() {
+    backendClient.setAuthToken('');
+  }
 }

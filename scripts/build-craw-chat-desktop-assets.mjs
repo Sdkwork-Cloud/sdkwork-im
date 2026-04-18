@@ -1,15 +1,23 @@
 #!/usr/bin/env node
 
 import { spawn } from 'node:child_process';
-import { copyFile, mkdir, readdir } from 'node:fs/promises';
+import { access, copyFile, mkdir, readdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 import { pnpmProcessSpec } from './dev/pnpm-launch-lib.mjs';
+import {
+  assertPortalDistReleaseSafe,
+  rebuildDist,
+} from '../apps/craw-chat-portal/scripts/lib/build-dist.mjs';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = path.resolve(scriptDir, '..');
+const REQUIRED_PORTAL_VENDOR_FILES = Object.freeze([
+  '__vendor__/sdkwork-craw-chat-sdk/index.js',
+  '__vendor__/sdkwork-craw-chat-backend-sdk/index.js',
+]);
 
 export function createDesktopAssetBuildPlan({
   workspaceRoot: buildWorkspaceRoot = workspaceRoot,
@@ -47,25 +55,82 @@ async function copyDirectory(sourceRoot, targetRoot) {
   }
 }
 
+export async function assertDesktopSiteBuildReady({
+  siteLabel,
+  siteRoot,
+  requiredFiles = ['index.html'],
+} = {}) {
+  if (typeof siteLabel !== 'string' || siteLabel.trim() === '') {
+    throw new Error('siteLabel is required when validating desktop site assets.');
+  }
+  if (typeof siteRoot !== 'string' || siteRoot.trim() === '') {
+    throw new Error(`${siteLabel} root path is required.`);
+  }
+
+  await access(siteRoot).catch(() => {
+    throw new Error(`${siteLabel} directory is missing: ${siteRoot}`);
+  });
+
+  for (const relativePath of requiredFiles) {
+    const requiredPath = path.join(siteRoot, relativePath);
+    await access(requiredPath).catch(() => {
+      throw new Error(`${siteLabel} required asset is missing: ${requiredPath}`);
+    });
+  }
+}
+
+export async function assertDesktopEmbeddedSitesReady({
+  workspaceRoot: buildWorkspaceRoot = workspaceRoot,
+  adminDistRoot = path.join(buildWorkspaceRoot, 'apps', 'craw-chat-admin', 'dist'),
+  portalDistRoot = path.join(buildWorkspaceRoot, 'apps', 'craw-chat-portal', 'dist'),
+  portalDesktopDistRoot = path.join(buildWorkspaceRoot, 'apps', 'craw-chat-admin', 'dist-portal'),
+} = {}) {
+  await assertDesktopSiteBuildReady({
+    siteLabel: 'admin desktop site build',
+    siteRoot: adminDistRoot,
+    requiredFiles: ['index.html'],
+  });
+  await assertDesktopSiteBuildReady({
+    siteLabel: 'portal site build',
+    siteRoot: portalDistRoot,
+    requiredFiles: ['index.html', ...REQUIRED_PORTAL_VENDOR_FILES],
+  });
+  await assertPortalDistReleaseSafe(portalDistRoot);
+  await assertDesktopSiteBuildReady({
+    siteLabel: 'embedded portal desktop site build',
+    siteRoot: portalDesktopDistRoot,
+    requiredFiles: ['index.html', ...REQUIRED_PORTAL_VENDOR_FILES],
+  });
+  await assertPortalDistReleaseSafe(portalDesktopDistRoot);
+}
+
+export async function syncPortalDesktopAssets({
+  workspaceRoot: buildWorkspaceRoot = workspaceRoot,
+  portalDistRoot = path.join(buildWorkspaceRoot, 'apps', 'craw-chat-portal', 'dist'),
+  portalDesktopDistRoot = path.join(buildWorkspaceRoot, 'apps', 'craw-chat-admin', 'dist-portal'),
+} = {}) {
+  await access(portalDistRoot);
+  await rm(portalDesktopDistRoot, { force: true, recursive: true });
+  await copyDirectory(portalDistRoot, portalDesktopDistRoot);
+}
+
 async function buildPortalAssets({
   workspaceRoot: buildWorkspaceRoot = workspaceRoot,
 } = {}) {
-  const adminRoot = path.join(buildWorkspaceRoot, 'apps', 'craw-chat-admin');
-  const portalRoot = path.join(buildWorkspaceRoot, 'apps', 'craw-chat-portal');
-  const portalDistRoot = path.join(adminRoot, 'dist-portal');
+  const portalDistRoot = path.join(buildWorkspaceRoot, 'apps', 'craw-chat-portal', 'dist');
 
-  await mkdir(portalDistRoot, { recursive: true });
-  await copyFile(
-    path.join(portalRoot, 'index.html'),
-    path.join(portalDistRoot, 'index.html'),
-  );
-
-  for (const directoryName of ['src', 'packages']) {
-    await copyDirectory(
-      path.join(portalRoot, directoryName),
-      path.join(portalDistRoot, directoryName),
-    );
+  if (path.resolve(buildWorkspaceRoot) === workspaceRoot) {
+    await rebuildDist();
+  } else {
+    await access(portalDistRoot);
   }
+
+  await assertDesktopSiteBuildReady({
+    siteLabel: 'portal site build',
+    siteRoot: portalDistRoot,
+    requiredFiles: ['index.html', ...REQUIRED_PORTAL_VENDOR_FILES],
+  });
+  await syncPortalDesktopAssets({ workspaceRoot: buildWorkspaceRoot });
 }
 
 async function runBuildStep(step) {
@@ -101,6 +166,7 @@ async function main() {
   }
 
   await buildPortalAssets();
+  await assertDesktopEmbeddedSitesReady();
 }
 
 if (fileURLToPath(import.meta.url) === process.argv[1]) {

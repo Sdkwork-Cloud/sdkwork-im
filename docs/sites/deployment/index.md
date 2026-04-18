@@ -11,7 +11,7 @@ repository today.
 | Docker Compose | `bin/deploy-local.*`, `deployments/scripts/bootstrap-local.ps1` | Container validation, demos, smoke automation |
 | Standalone control plane | `cargo run -p control-plane-api --offline` or the compiled binary | Governance and admin API development |
 
-## Recommended Paths
+## How To Choose A Path
 
 ### For development and debugging
 
@@ -45,9 +45,9 @@ The current control-plane binary binds `127.0.0.1:18081`.
 `local-minimal` is the only complete closed-loop local profile. `local-default` already has
 scripts, templates, and Compose entry points, but it still reuses the current
 `local-minimal` runtime contract and topology.
-:::
+::: 
 
-## Next Pages
+## What To Read Next
 
 - [Local Binary](/deployment/local-binary)
 - [Docker](/deployment/docker)

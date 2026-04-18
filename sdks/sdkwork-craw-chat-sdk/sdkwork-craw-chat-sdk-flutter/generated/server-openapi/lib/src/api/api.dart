@@ -1,4 +1,6 @@
 export 'paths.dart';
+export 'auth.dart';
+export 'portal.dart';
 export 'session.dart';
 export 'presence.dart';
 export 'realtime.dart';

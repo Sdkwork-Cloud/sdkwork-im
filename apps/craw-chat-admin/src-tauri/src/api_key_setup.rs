@@ -171,10 +171,7 @@ fn build_env_assignments(request: &ApiKeySetupRequest) -> Vec<String> {
         ],
         ApiKeySetupClientId::Gemini => vec![
             format!("GEMINI_API_KEY=\"{}\"", request.provider.api_key),
-            format!(
-                "GOOGLE_GEMINI_BASE_URL=\"{}\"",
-                request.provider.base_url
-            ),
+            format!("GOOGLE_GEMINI_BASE_URL=\"{}\"", request.provider.base_url),
             "GEMINI_API_KEY_AUTH_MECHANISM=\"bearer\"".to_string(),
         ],
         ApiKeySetupClientId::Openclaw => Vec::new(),
@@ -228,7 +225,9 @@ fn write_env_file(
 }
 
 #[tauri::command]
-pub fn install_api_router_client_setup(request: ApiKeySetupRequest) -> Result<ApiKeySetupResult, String> {
+pub fn install_api_router_client_setup(
+    request: ApiKeySetupRequest,
+) -> Result<ApiKeySetupResult, String> {
     let home_dir = resolve_home_dir()?;
     let mode = install_mode(&request);
     let model = primary_model(&request.provider)?;
@@ -236,7 +235,10 @@ pub fn install_api_router_client_setup(request: ApiKeySetupRequest) -> Result<Ap
     let mut updated_environments = Vec::new();
     let mut updated_instance_ids = Vec::new();
 
-    if matches!(mode, ApiKeySetupInstallMode::Env | ApiKeySetupInstallMode::Both) {
+    if matches!(
+        mode,
+        ApiKeySetupInstallMode::Env | ApiKeySetupInstallMode::Both
+    ) {
         if let Some(target) = write_env_file(&home_dir, &request)? {
             updated_environments.push(target);
         }
@@ -303,7 +305,11 @@ pub fn install_api_router_client_setup(request: ApiKeySetupRequest) -> Result<Ap
                 .map_err(|error| error.to_string())?,
             )?);
             written_files.push(write_file(
-                &home_dir.join(".local").join("share").join("opencode").join("auth.json"),
+                &home_dir
+                    .join(".local")
+                    .join("share")
+                    .join("opencode")
+                    .join("auth.json"),
                 serde_json::to_string_pretty(&json!({
                     "api-router": { "type": "api", "key": request.provider.api_key }
                 }))
@@ -328,9 +334,9 @@ pub fn install_api_router_client_setup(request: ApiKeySetupRequest) -> Result<Ap
             )?);
         }
         ApiKeySetupClientId::Openclaw => {
-            let open_claw = request
-                .open_claw
-                .ok_or_else(|| "OpenClaw setup requires at least one selected instance.".to_string())?;
+            let open_claw = request.open_claw.ok_or_else(|| {
+                "OpenClaw setup requires at least one selected instance.".to_string()
+            })?;
             if open_claw.instance_ids.is_empty() {
                 return Err("OpenClaw setup requires at least one selected instance.".to_string());
             }

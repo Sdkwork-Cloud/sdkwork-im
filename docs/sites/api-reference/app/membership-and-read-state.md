@@ -2,13 +2,32 @@
 
 <p class="api-page-intro">
   Membership endpoints manage roster state and read cursors for a conversation. The wire shapes on
-  this page mirror the conversation runtime and projection models used by the current app profile.
+  this page follow the conversation runtime and projection models used by the current app profile.
 </p>
 
 <div class="api-note">
   All endpoints on this page operate on <code>/api/v1/conversations/{conversation_id}</code> and
   require the caller to be authorized for the target conversation.
 </div>
+
+<div class="api-link-list">
+  <a href="/api-reference/app/conversations"><code>Conversations</code> Creation, inbox, and agent handoff are documented separately</a>
+  <a href="/api-reference/app/messages"><code>Messages</code> Timeline reads and message mutation flows live on their own page</a>
+  <a href="/sdk/app-sdk"><code>App SDK</code> These routes map to <code>sdk.conversations</code> rather than a standalone membership client</a>
+</div>
+
+## Recommended SDK Mapping
+
+Membership and read-cursor routes are part of the TypeScript `sdk.conversations` module:
+
+- `sdk.conversations.listMembers(...)`
+- `sdk.conversations.addMember(...)`
+- `sdk.conversations.removeMember(...)`
+- `sdk.conversations.transferOwner(...)`
+- `sdk.conversations.changeMemberRole(...)`
+- `sdk.conversations.leave(...)`
+- `sdk.conversations.getReadCursor(...)`
+- `sdk.conversations.updateReadCursor(...)`
 
 <a id="list-members"></a>
 <section class="api-op">
@@ -26,7 +45,7 @@ Lists conversation members visible to the current principal.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / membership</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Active conversation member.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ListMembersResponse`</span></div>
 </div>
@@ -69,7 +88,7 @@ Adds a principal to the conversation roster.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / membership</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation-bound write access.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ConversationMember`</span></div>
 </div>
@@ -113,7 +132,7 @@ Removes a member by membership identifier.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / membership</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation-bound write access.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ConversationMember`</span></div>
 </div>
@@ -161,7 +180,7 @@ Transfers ownership to another active member.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / membership</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation-bound write access.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 TransferConversationOwnerResult`</span></div>
 </div>
@@ -209,7 +228,7 @@ Changes the role assigned to an existing member.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / membership</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation-bound write access.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ChangeConversationMemberRoleResult`</span></div>
 </div>
@@ -257,7 +276,7 @@ Marks the current principal as having left the conversation.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / membership</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Active conversation member.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ConversationMember`</span></div>
 </div>
@@ -305,7 +324,7 @@ Returns the read cursor for the current principal in the target conversation.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / membership</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Active conversation member.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ConversationReadCursorView`</span></div>
 </div>
@@ -348,7 +367,7 @@ Updates the read cursor for the current principal.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / membership</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation-bound write access.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ConversationReadCursorView`</span></div>
 </div>

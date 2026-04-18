@@ -1,9 +1,75 @@
 # Session and Realtime
 
 <p class="api-page-intro">
-  Session and realtime endpoints cover health probes, session resume and disconnect flows, presence
-  heartbeats, realtime subscription sync, event polling, ACK tracking, and WebSocket upgrade.
+  Session and realtime endpoints cover health probes, session resume and disconnect, presence
+  heartbeats, realtime subscription sync, event polling, ACK tracking, and WebSocket upgrade. The
+  recommended TypeScript SDK model separates live push from durable replay: use
+  <code>sdk.connect(...)</code> for live push and <code>sdk.sync.catchUp(...)</code> for durable
+  catch-up.
 </p>
+
+<div class="api-note">
+  Health probes are open endpoints. The WebSocket entry on this page documents the handshake route
+  and protocol boundary. Generation still owns only the HTTP contract, while the semantic
+  TypeScript SDK additionally ships a handwritten live runtime behind <code>sdk.connect(...)</code>.
+</div>
+
+<div class="api-link-list">
+  <a href="/api-reference/app/device-sync"><code>Device Sync</code> Device registration and projection sync-feed reads are documented separately</a>
+  <a href="/sdk/typescript-sdk"><code>SDK</code> <code>@sdkwork/craw-chat-sdk</code> and Flutter package <code>craw_chat_sdk</code> are the official app-consumer SDKs for session bootstrap, live receive, replay, and auth flows</a>
+</div>
+
+## Recommended SDK Mapping
+
+| Need | SDK entry |
+| --- | --- |
+| Login and token lifecycle | `sdk.auth.login`, `sdk.auth.useToken`, `sdk.auth.clearToken`, `sdk.auth.me` |
+| Live push receive | `sdk.connect(...)` |
+| Durable replay and ACK | `sdk.sync.catchUp(...)`, `sdk.sync.ack(...)` |
+| Session bootstrap before connect | `sdk.connect({ deviceId, subscriptions })` or `sdk.generated.session.resume(...)` |
+| Disconnect the current routed device | `sdk.generated.session.disconnect(...)` |
+| Presence heartbeat and snapshot | `sdk.generated.presence.heartbeat(...)`, `sdk.generated.presence.getPresenceMe()` |
+| Route-level subscription sync and polling | `sdk.generated.realtime.syncRealtimeSubscriptions(...)`, `sdk.generated.realtime.listRealtimeEvents(...)`, `sdk.generated.realtime.ackRealtimeEvents(...)` |
+| Health probes | Direct HTTP `GET /healthz` and `GET /readyz` when you need infrastructure probes |
+
+On the live path, register `live.messages.on(...)`, `live.data.on(...)`, `live.signals.on(...)`,
+`live.events.on(...)`, `live.lifecycle.onStateChange(...)`, and
+`live.lifecycle.onError(...)` after `sdk.connect(...)`. The live runtime is payload-first by
+domain stream: your callback receives the final `message`, `data`, or `signal` object first, then
+the operational receive context second. Each receive context exposes `context.ack()` for per-event
+acknowledgement. When you want to advance the durable replay cursor explicitly, use
+`sdk.sync.ack(...)`.
+
+For one conversation or one RTC session, prefer scoped subscriptions such as
+`live.messages.onConversation(...)` and `live.signals.onRtcSession(...)`.
+
+When you need exact transport-level control, the semantic runtime and the generated route groups are
+designed to coexist:
+
+```ts
+await sdk.generated.session.resume({
+  deviceId: 'web-chrome-01',
+});
+
+await sdk.generated.realtime.syncRealtimeSubscriptions({
+  deviceId: 'web-chrome-01',
+  items: [
+    {
+      scopeType: 'conversation',
+      scopeId: 'conversation-1',
+      eventTypes: ['message.created', 'message.updated', 'message.recalled'],
+    },
+  ],
+});
+
+const window = await sdk.generated.realtime.listRealtimeEvents({
+  limit: 50,
+});
+
+await sdk.generated.realtime.ackRealtimeEvents({
+  ackedSeq: window.ackedThroughSeq ?? 0,
+});
+```
 
 <a id="get-healthz"></a>
 <section class="api-op">
@@ -21,7 +87,7 @@ Returns process liveness for the app runtime.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Open endpoint</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / session</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>Direct HTTP probe</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Not required</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 HealthResponse`</span></div>
 </div>
@@ -48,7 +114,7 @@ Returns process readiness for the app runtime.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Open endpoint</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / session</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>Direct HTTP probe</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Not required</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 HealthResponse`</span></div>
 </div>
@@ -74,7 +140,7 @@ Resumes the current device session and returns the active presence snapshot with
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / session</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.connect({ deviceId })`, `sdk.generated.session.resume(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; device ownership and session binding are enforced where required.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 SessionResumeView`</span></div>
 </div>
@@ -144,7 +210,7 @@ Disconnects the current device session.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / session</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.generated.session.disconnect(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; device ownership and session binding are enforced where required.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PresenceSnapshotView`</span></div>
 </div>
@@ -186,7 +252,7 @@ Refreshes the presence heartbeat for the current device.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / session</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.generated.presence.heartbeat(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; device ownership and session binding are enforced where required.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PresenceSnapshotView`</span></div>
 </div>
@@ -228,7 +294,7 @@ Reads the current principal's presence snapshot.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / session</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.auth.me()`, `sdk.generated.presence.getPresenceMe()`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; device ownership and session binding are enforced where required.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PresenceSnapshotView`</span></div>
 </div>
@@ -265,7 +331,7 @@ Replaces the realtime subscription set for the current device.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / session</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.connect(...)`, `sdk.generated.realtime.syncRealtimeSubscriptions(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; device ownership and session binding are enforced where required.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 RealtimeSubscriptionSnapshot`</span></div>
 </div>
@@ -307,7 +373,7 @@ Fetches realtime events from the device event window.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / session</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.sync.catchUp(...)`, `sdk.generated.realtime.listRealtimeEvents(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; device ownership and session binding are enforced where required.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 RealtimeEventWindow`</span></div>
 </div>
@@ -351,7 +417,7 @@ Acknowledges the highest realtime event sequence consumed by the client.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / session</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.sync.ack(...)`, `context.ack()`, `sdk.generated.realtime.ackRealtimeEvents(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; device ownership and session binding are enforced where required.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 RealtimeAckState`</span></div>
 </div>
@@ -394,7 +460,7 @@ not expand the full realtime frame protocol.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / session</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.connect(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; active device route is prepared before upgrade.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`101 Switching Protocols`</span></div>
 </div>
@@ -408,7 +474,7 @@ not expand the full realtime frame protocol.
 
 | Header | Required | Description |
 | --- | --- | --- |
-| `Sec-WebSocket-Protocol` | No | When set to `ccp.v1.json`, the runtime enters the `CcpJson` subprotocol mode. Otherwise it falls back to the legacy JSON frame mode. |
+| `Sec-WebSocket-Protocol` | No | When set to `ccp/ws/1`, the runtime enters the `CcpJson` subprotocol mode. Otherwise it falls back to the legacy JSON frame mode. |
 
 ### Response `101`
 
@@ -417,12 +483,13 @@ not expand the full realtime frame protocol.
 | `Upgrade` | `header` | Returned as `websocket` when the handshake succeeds. |
 | `Connection` | `header` | Returned as `Upgrade` for the switching-protocols handshake. |
 | `Sec-WebSocket-Accept` | `header` | Standard RFC 6455 handshake proof derived from the client key. |
-| `Sec-WebSocket-Protocol` | `header \| null` | Echoed when the server accepts a negotiated subprotocol such as `ccp.v1.json`. |
+| `Sec-WebSocket-Protocol` | `header \| null` | Echoed when the server accepts a negotiated subprotocol such as `ccp/ws/1`. |
 
 ### Response Notes
 
 - Status code is `101 Switching Protocols`.
 - After the handshake, the connection leaves the request-response lifecycle and enters realtime transport mode.
+- For TypeScript consumers, the standard SDK entrypoint for that transport is `sdk.connect(...)`.
 
 ### Error Responses
 

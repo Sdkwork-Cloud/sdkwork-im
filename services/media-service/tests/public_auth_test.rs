@@ -63,6 +63,7 @@ async fn test_public_app_rejects_trusted_headers_for_media_upload() {
                 .body(Body::from(
                     r#"{
                         "mediaAssetId":"ma_public_auth",
+                        "bucket":"local-media",
                         "resource":{
                             "uuid":"res_public_auth",
                             "type":"image",
@@ -106,6 +107,7 @@ async fn test_public_app_accepts_bearer_for_media_upload() {
                 .body(Body::from(
                     r#"{
                         "mediaAssetId":"ma_public_auth_bearer",
+                        "bucket":"local-media",
                         "resource":{
                             "uuid":"res_public_auth_bearer",
                             "type":"image",
@@ -142,6 +144,7 @@ async fn test_public_app_rejects_cross_principal_media_read() {
                 .body(Body::from(
                     r#"{
                         "mediaAssetId":"ma_cross_principal",
+                        "bucket":"local-media",
                         "resource":{
                             "uuid":"res_cross_principal",
                             "type":"image",
@@ -172,7 +175,7 @@ async fn test_public_app_rejects_cross_principal_media_read() {
                     r#"{
                         "bucket":"local-media",
                         "objectKey":"tenant/t_demo/ma_cross_principal/demo.png",
-                        "storageProvider":"local",
+                        "storageProvider":"object-storage-volcengine",
                         "url":"https://cdn.example.com/ma_cross_principal/demo.png",
                         "checksum":"sha256:demo"
                     }"#,
@@ -221,6 +224,7 @@ async fn test_public_app_rejects_cross_principal_media_asset_id_collision() {
                 .body(Body::from(
                     r#"{
                         "mediaAssetId":"ma_collision",
+                        "bucket":"local-media",
                         "resource":{
                             "uuid":"res_collision_owner",
                             "type":"image",
@@ -249,6 +253,7 @@ async fn test_public_app_rejects_cross_principal_media_asset_id_collision() {
                 .body(Body::from(
                     r#"{
                         "mediaAssetId":"ma_collision",
+                        "bucket":"local-media",
                         "resource":{
                             "uuid":"res_collision_intruder",
                             "type":"image",

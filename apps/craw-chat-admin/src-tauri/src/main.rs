@@ -29,8 +29,9 @@ async fn runtime_base_url(state: tauri::State<'_, RuntimeState>) -> Result<Strin
 fn main() {
     tauri::Builder::default()
         .setup(|app| {
-            let runtime = tauri::async_runtime::block_on(start_desktop_runtime(app.handle().clone()))
-                .map_err(box_setup_error)?;
+            let runtime =
+                tauri::async_runtime::block_on(start_desktop_runtime(app.handle().clone()))
+                    .map_err(box_setup_error)?;
             let base_url = runtime
                 .public_base_url()
                 .context("desktop runtime did not expose a public base url")
@@ -72,11 +73,7 @@ fn resolve_desktop_site_dirs(app: &AppHandle) -> anyhow::Result<ProductSiteDirs>
     let workspace_dirs = workspace_site_dirs();
     Ok(ProductSiteDirs::new(
         resolve_resource_or_fallback(app, "embedded-sites/admin", workspace_dirs.admin_site_dir)?,
-        resolve_resource_or_fallback(
-            app,
-            "embedded-sites/portal",
-            workspace_dirs.portal_site_dir,
-        )?,
+        resolve_resource_or_fallback(app, "embedded-sites/portal", workspace_dirs.portal_site_dir)?,
     ))
 }
 
@@ -85,13 +82,18 @@ fn resolve_resource_or_fallback(
     resource_path: &str,
     fallback: PathBuf,
 ) -> anyhow::Result<PathBuf> {
-    if let Ok(resource_dir) = app.path().resolve(resource_path, BaseDirectory::Resource) {
-        if resource_dir.is_dir() {
-            return Ok(resource_dir);
-        }
-    }
+    let embedded_resource_dir = app
+        .path()
+        .resolve(resource_path, BaseDirectory::Resource)
+        .ok()
+        .filter(|resource_dir| resource_dir.is_dir());
 
-    Ok(fallback)
+    choose_site_dir_for_runtime(
+        embedded_resource_dir,
+        fallback,
+        resource_path,
+        cfg!(debug_assertions),
+    )
 }
 
 fn workspace_site_dirs() -> ProductSiteDirs {
@@ -107,15 +109,76 @@ fn workspace_site_dirs() -> ProductSiteDirs {
     )
 }
 
+fn choose_site_dir_for_runtime(
+    embedded_resource_dir: Option<PathBuf>,
+    fallback: PathBuf,
+    resource_path: &str,
+    allow_workspace_fallback: bool,
+) -> anyhow::Result<PathBuf> {
+    if let Some(embedded_resource_dir) = embedded_resource_dir {
+        return Ok(embedded_resource_dir);
+    }
+
+    if allow_workspace_fallback {
+        return Ok(fallback);
+    }
+
+    anyhow::bail!(
+        "desktop bundled site resource is missing: {resource_path}. Release builds must embed the compiled site in tauri bundle.resources before startup."
+    );
+}
+
 #[cfg(test)]
 mod tests {
     use anyhow::anyhow;
+    use std::path::PathBuf;
 
-    use super::box_setup_error;
+    use super::{box_setup_error, choose_site_dir_for_runtime};
 
     #[test]
     fn box_setup_error_preserves_context_message() {
         let error = box_setup_error(anyhow!("desktop runtime boot failed"));
         assert_eq!(error.to_string(), "desktop runtime boot failed");
+    }
+
+    #[test]
+    fn choose_site_dir_for_runtime_prefers_embedded_resource_dir() {
+        let embedded = PathBuf::from("embedded-sites/admin");
+        let fallback = PathBuf::from("apps/craw-chat-admin/dist");
+
+        let resolved = choose_site_dir_for_runtime(
+            Some(embedded.clone()),
+            fallback,
+            "embedded-sites/admin",
+            false,
+        )
+        .expect("embedded resource dir should be preferred");
+
+        assert_eq!(resolved, embedded);
+    }
+
+    #[test]
+    fn choose_site_dir_for_runtime_allows_workspace_fallback_in_debug_style_contexts() {
+        let fallback = PathBuf::from("apps/craw-chat-admin/dist");
+
+        let resolved =
+            choose_site_dir_for_runtime(None, fallback.clone(), "embedded-sites/admin", true)
+                .expect("workspace fallback should remain available during local debug runs");
+
+        assert_eq!(resolved, fallback);
+    }
+
+    #[test]
+    fn choose_site_dir_for_runtime_rejects_release_without_embedded_resources() {
+        let error = choose_site_dir_for_runtime(
+            None,
+            PathBuf::from("apps/craw-chat-admin/dist"),
+            "embedded-sites/admin",
+            false,
+        )
+        .expect_err("release runtime should fail fast when embedded site resources are missing");
+
+        assert!(error.to_string().contains("embedded-sites/admin"));
+        assert!(error.to_string().contains("bundle.resources"));
     }
 }

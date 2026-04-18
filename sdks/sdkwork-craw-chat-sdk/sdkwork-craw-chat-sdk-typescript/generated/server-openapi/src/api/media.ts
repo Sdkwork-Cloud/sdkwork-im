@@ -1,7 +1,15 @@
 import { backendApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 import type { QueryParams } from '../types/common';
-import type { AttachMediaRequest, CompleteUploadRequest, CreateUploadRequest, MediaAsset, MediaDownloadUrlResponse, PostMessageResult } from '../types';
+import type {
+  AttachMediaRequest,
+  CompleteUploadRequest,
+  CreateUploadRequest,
+  MediaAsset,
+  MediaDownloadUrlResponse,
+  MediaUploadSessionResponse,
+  PostMessageResult,
+} from '../types';
 
 
 export class MediaApi {
@@ -11,9 +19,9 @@ export class MediaApi {
     this.client = client; 
   }
 
-/** Create a media upload record */
-  async createMediaUpload(body: CreateUploadRequest): Promise<MediaAsset> {
-    return this.client.post<MediaAsset>(backendApiPath(`/media/uploads`), body, undefined, undefined, 'application/json');
+/** Create a media upload session with presigned client-upload metadata */
+  async createMediaUpload(body: CreateUploadRequest): Promise<MediaUploadSessionResponse> {
+    return this.client.post<MediaUploadSessionResponse>(backendApiPath(`/media/uploads`), body, undefined, undefined, 'application/json');
   }
 
 /** Complete a media upload */

@@ -1,10 +1,10 @@
 # Feature Overview
 
-This section answers two questions:
+This section answers two practical questions:
 
 1. What can the current application do today?
-2. Which capabilities are part of the main delivery path versus governance, operations, or SDK
-   planning boundaries?
+2. Which capabilities are delivered runtime behavior versus governance, operations, or SDK
+   boundary documentation?
 
 ## Capability Domains
 
@@ -54,7 +54,14 @@ mean roadmap intent or naming-only presence.
   runtime wiring.
 - Implemented governance capability: exposed by the control plane and validated by control-plane
   tests.
-- Frozen workspace boundary: documented as planned delivery shape, but not yet documented as a
-  published package.
+- Repo package or workspace contract: package metadata, import names, generation wrappers, or
+  workspace directories exist, but publication state still comes from the release catalog.
 
-Continue with [Capability Matrix](/features/capabilities) for the evidence-oriented breakdown.
+## What To Read Next
+
+- Continue with [Capability Matrix](/features/capabilities) when you need the evidence-oriented
+  implementation breakdown.
+- Switch to [API Reference](/api-reference/index) when you need route-level request or response
+  semantics.
+- Switch to [SDK Overview](/sdk/index) when you need import names, language surfaces, or publication
+  boundaries.

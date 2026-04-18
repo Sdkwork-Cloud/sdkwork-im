@@ -11,14 +11,19 @@ use craw_chat_runtime_link::{
 };
 use im_auth_context::AuthContext;
 
+use crate::device_registration::SessionDeviceRegistration;
 use crate::websocket::{RealtimeWebsocketMode, serve_realtime_websocket};
 use crate::websocket_route;
 use crate::{ApiError, AppState, RealtimeDeliveryRuntime};
+
+const REALTIME_MAX_WEBSOCKET_MESSAGE_BYTES: usize = 512 * 1024;
+const REALTIME_MAX_WEBSOCKET_FRAME_BYTES: usize = 256 * 1024;
 
 pub(crate) struct RealtimeWebsocketUpgradeContext {
     auth: AuthContext,
     device_id: String,
     runtime: Arc<RealtimeDeliveryRuntime>,
+    route_owner: SessionDeviceRegistration,
 }
 
 pub(crate) async fn realtime_websocket(
@@ -32,6 +37,7 @@ pub(crate) async fn realtime_websocket(
         context.auth,
         context.device_id,
         context.runtime,
+        context.route_owner,
     ))
 }
 
@@ -40,14 +46,19 @@ pub(crate) fn upgrade_realtime_websocket(
     auth: AuthContext,
     device_id: String,
     runtime: Arc<RealtimeDeliveryRuntime>,
+    route_owner: SessionDeviceRegistration,
 ) -> Response {
-    let ws = ws.protocols(realtime_websocket_subprotocols());
+    let ws = ws
+        .protocols(realtime_websocket_subprotocols())
+        .max_message_size(REALTIME_MAX_WEBSOCKET_MESSAGE_BYTES)
+        .max_frame_size(REALTIME_MAX_WEBSOCKET_FRAME_BYTES);
     let upgrade = prepare_realtime_websocket_upgrade(
         ws.selected_protocol()
             .and_then(|selected| selected.to_str().ok()),
         auth,
         device_id,
         runtime,
+        route_owner,
     );
     ws.on_upgrade(move |socket| upgrade.execute(socket, serve_realtime_websocket_upgrade))
         .into_response()
@@ -78,6 +89,7 @@ pub(crate) fn prepare_realtime_websocket_upgrade(
     auth: AuthContext,
     device_id: String,
     runtime: Arc<RealtimeDeliveryRuntime>,
+    route_owner: SessionDeviceRegistration,
 ) -> LinkWebsocketUpgradeHandoff<RealtimeWebsocketUpgradeContext> {
     prepare_websocket_upgrade(
         selected_protocol,
@@ -85,6 +97,7 @@ pub(crate) fn prepare_realtime_websocket_upgrade(
             auth,
             device_id,
             runtime,
+            route_owner,
         },
     )
 }
@@ -94,14 +107,25 @@ async fn serve_realtime_websocket_upgrade(
     context: RealtimeWebsocketUpgradeContext,
     mode: LinkWebsocketMode,
 ) {
+    let RealtimeWebsocketUpgradeContext {
+        auth,
+        device_id,
+        runtime,
+        route_owner,
+    } = context;
+    let cleanup_auth = auth.clone();
+    let cleanup_device_id = device_id.clone();
     serve_realtime_websocket(
         socket,
-        context.auth,
-        context.device_id,
-        context.runtime,
+        auth,
+        device_id,
+        runtime,
+        route_owner.clone(),
         map_runtime_link_websocket_mode(mode),
     )
     .await;
+    route_owner
+        .release_active_device_route_if_current_session(&cleanup_auth, cleanup_device_id.as_str());
 }
 
 #[cfg(test)]
@@ -140,6 +164,7 @@ mod tests {
 
     #[test]
     fn test_realtime_websocket_upgrade_prepares_runtime_link_handoff_owner() {
+        let runtime = Arc::new(RealtimeDeliveryRuntime::default());
         let handoff = prepare_realtime_websocket_upgrade(
             Some(crate::CCP_WEBSOCKET_SUBPROTOCOL),
             AuthContext {
@@ -151,7 +176,15 @@ mod tests {
                 permissions: BTreeSet::new(),
             },
             "d_pad".into(),
-            Arc::new(RealtimeDeliveryRuntime::default()),
+            runtime.clone(),
+            crate::device_registration::SessionDeviceRegistration::new(
+                "node_a".into(),
+                Arc::new(crate::RealtimeClusterBridge::default()),
+                Arc::new(crate::SessionPresenceRuntime::default()),
+                runtime,
+                crate::session_state::SessionSyncState::default(),
+                Arc::new(im_adapter_iot_access_local::LocalDeviceAccessProvider::default()),
+            ),
         );
 
         assert_eq!(handoff.mode(), LinkWebsocketMode::CcpJson);

@@ -41,6 +41,314 @@ impl CommitJournal for InMemoryJournal {
     }
 }
 
+#[derive(Clone)]
+struct FailAfterNJournal {
+    inner: InMemoryJournal,
+    append_count: Arc<Mutex<usize>>,
+    fail_at: usize,
+}
+
+impl FailAfterNJournal {
+    fn new(fail_at: usize) -> Self {
+        Self {
+            inner: InMemoryJournal::default(),
+            append_count: Arc::new(Mutex::new(0)),
+            fail_at,
+        }
+    }
+
+    fn recorded(&self) -> Vec<CommitEnvelope> {
+        self.inner.recorded()
+    }
+}
+
+impl CommitJournal for FailAfterNJournal {
+    fn append(&self, envelope: CommitEnvelope) -> Result<CommitPosition, ContractError> {
+        let mut append_count = self
+            .append_count
+            .lock()
+            .expect("append count should lock");
+        *append_count += 1;
+        if *append_count == self.fail_at {
+            return Err(ContractError::Unavailable(
+                "forced journal append failure".into(),
+            ));
+        }
+        drop(append_count);
+        self.inner.append(envelope)
+    }
+}
+
+#[derive(Clone)]
+struct FailNextBatchJournal {
+    inner: InMemoryJournal,
+    fail_batches_remaining: Arc<Mutex<usize>>,
+}
+
+impl FailNextBatchJournal {
+    fn new(fail_batches_remaining: usize) -> Self {
+        Self {
+            inner: InMemoryJournal::default(),
+            fail_batches_remaining: Arc::new(Mutex::new(fail_batches_remaining)),
+        }
+    }
+
+    fn fail_next_batch(&self) {
+        *self
+            .fail_batches_remaining
+            .lock()
+            .expect("batch failure counter should lock") += 1;
+    }
+
+    fn recorded(&self) -> Vec<CommitEnvelope> {
+        self.inner.recorded()
+    }
+}
+
+impl CommitJournal for FailNextBatchJournal {
+    fn append(&self, envelope: CommitEnvelope) -> Result<CommitPosition, ContractError> {
+        self.inner.append(envelope)
+    }
+
+    fn append_batch(
+        &self,
+        envelopes: Vec<CommitEnvelope>,
+    ) -> Result<Vec<CommitPosition>, ContractError> {
+        let mut fail_batches_remaining = self
+            .fail_batches_remaining
+            .lock()
+            .expect("batch failure counter should lock");
+        if *fail_batches_remaining > 0 {
+            *fail_batches_remaining -= 1;
+            return Err(ContractError::Unavailable(
+                "forced journal batch append failure".into(),
+            ));
+        }
+        drop(fail_batches_remaining);
+
+        let mut positions = Vec::with_capacity(envelopes.len());
+        for envelope in envelopes {
+            positions.push(self.inner.append(envelope)?);
+        }
+        Ok(positions)
+    }
+}
+
+#[test]
+fn test_create_conversation_does_not_leak_state_when_batch_commit_fails() {
+    let journal = FailNextBatchJournal::new(1);
+    let runtime = ConversationRuntime::new(journal.clone());
+
+    let create_attempt = runtime.create_conversation(CreateConversationCommand {
+        tenant_id: "t_demo".into(),
+        conversation_id: "c_group_create_batch_fail".into(),
+        creator_id: "u_owner".into(),
+        conversation_type: "group".into(),
+    });
+    assert!(matches!(
+        create_attempt,
+        Err(RuntimeError::Contract(ContractError::Unavailable(message)))
+            if message == "forced journal batch append failure"
+    ));
+    assert!(matches!(
+        runtime.list_members("t_demo", "c_group_create_batch_fail"),
+        Err(RuntimeError::ConversationNotFound(conversation_id))
+            if conversation_id == "c_group_create_batch_fail"
+    ));
+    assert!(
+        journal.recorded().is_empty(),
+        "failed create must not durably append any creation event"
+    );
+
+    let created = runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_group_create_batch_fail".into(),
+            creator_id: "u_owner".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("retry should succeed after failed batch");
+
+    assert_eq!(created.conversation_id, "c_group_create_batch_fail");
+    let members = runtime
+        .list_members("t_demo", "c_group_create_batch_fail")
+        .expect("members should exist after retry");
+    assert_eq!(members.len(), 1);
+    assert_eq!(members[0].principal_id, "u_owner");
+    assert_eq!(journal.recorded().len(), 2);
+}
+
+#[test]
+fn test_bind_direct_chat_does_not_leak_state_when_batch_commit_fails() {
+    let journal = FailNextBatchJournal::new(1);
+    let runtime = ConversationRuntime::new(journal.clone());
+
+    let bind_attempt = runtime.bind_direct_chat_conversation_with_binder_kind(
+        BindDirectChatConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_direct_batch_fail".into(),
+            direct_chat_id: "dc_batch_fail".into(),
+            left_actor_id: "actor_a".into(),
+            left_actor_kind: "user".into(),
+            right_actor_id: "actor_b".into(),
+            right_actor_kind: "user".into(),
+            bound_by: "svc_control".into(),
+        },
+        "system",
+    );
+    assert!(matches!(
+        bind_attempt,
+        Err(RuntimeError::Contract(ContractError::Unavailable(message)))
+            if message == "forced journal batch append failure"
+    ));
+    assert!(matches!(
+        runtime.list_members("t_demo", "c_direct_batch_fail"),
+        Err(RuntimeError::ConversationNotFound(conversation_id))
+            if conversation_id == "c_direct_batch_fail"
+    ));
+    assert!(matches!(
+        runtime.conversation_business_binding("t_demo", "c_direct_batch_fail"),
+        Err(RuntimeError::ConversationNotFound(conversation_id))
+            if conversation_id == "c_direct_batch_fail"
+    ));
+    assert!(
+        journal.recorded().is_empty(),
+        "failed direct chat bind must not durably append any creation event"
+    );
+
+    let created = runtime
+        .bind_direct_chat_conversation_with_binder_kind(
+            BindDirectChatConversationCommand {
+                tenant_id: "t_demo".into(),
+                conversation_id: "c_direct_batch_fail".into(),
+                direct_chat_id: "dc_batch_fail".into(),
+                left_actor_id: "actor_a".into(),
+                left_actor_kind: "user".into(),
+                right_actor_id: "actor_b".into(),
+                right_actor_kind: "user".into(),
+                bound_by: "svc_control".into(),
+            },
+            "system",
+        )
+        .expect("retry should succeed after failed direct chat bind");
+
+    assert_eq!(created.conversation_id, "c_direct_batch_fail");
+    let binding = runtime
+        .conversation_business_binding("t_demo", "c_direct_batch_fail")
+        .expect("binding should exist after retry");
+    assert_eq!(binding.business_type, "direct_chat");
+    assert_eq!(binding.business_id, "dc_batch_fail");
+    let members = runtime
+        .list_members("t_demo", "c_direct_batch_fail")
+        .expect("direct chat members should exist after retry");
+    assert_eq!(members.len(), 2);
+    assert_eq!(journal.recorded().len(), 3);
+}
+
+#[test]
+fn test_create_thread_does_not_leak_state_when_batch_commit_fails() {
+    let journal = FailNextBatchJournal::new(0);
+    let runtime = ConversationRuntime::new(journal.clone());
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_parent_thread_batch_fail".into(),
+            creator_id: "u_owner".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("parent conversation should succeed");
+    runtime
+        .add_member(AddConversationMemberCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_parent_thread_batch_fail".into(),
+            principal_id: "u_root_author".into(),
+            principal_kind: "user".into(),
+            role: MembershipRole::Member,
+            invited_by: "u_owner".into(),
+        })
+        .expect("root author should join parent conversation");
+    let root_message = runtime
+        .post_message(PostMessageCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_parent_thread_batch_fail".into(),
+            sender: Sender {
+                id: "u_root_author".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_root_author".into()),
+                session_id: Some("s_root_author".into()),
+                metadata: Default::default(),
+            },
+            client_msg_id: Some("client_thread_batch_fail_root".into()),
+            message_type: MessageType::Standard,
+            body: MessageBody {
+                summary: Some("root".into()),
+                parts: vec![ContentPart::text("root")],
+                render_hints: Default::default(),
+            },
+        })
+        .expect("root message should succeed");
+
+    journal.fail_next_batch();
+
+    let create_attempt = runtime.create_thread_conversation_with_creator_kind(
+        CreateThreadConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_thread_batch_fail".into(),
+            parent_conversation_id: "c_parent_thread_batch_fail".into(),
+            root_message_id: root_message.message_id.clone(),
+            creator_id: "u_owner".into(),
+        },
+        "user",
+    );
+    assert!(matches!(
+        create_attempt,
+        Err(RuntimeError::Contract(ContractError::Unavailable(message)))
+            if message == "forced journal batch append failure"
+    ));
+    assert!(matches!(
+        runtime.list_members("t_demo", "c_thread_batch_fail"),
+        Err(RuntimeError::ConversationNotFound(conversation_id))
+            if conversation_id == "c_thread_batch_fail"
+    ));
+    assert!(matches!(
+        runtime.conversation_business_binding("t_demo", "c_thread_batch_fail"),
+        Err(RuntimeError::ConversationNotFound(conversation_id))
+            if conversation_id == "c_thread_batch_fail"
+    ));
+    assert_eq!(
+        journal.recorded().len(),
+        4,
+        "failed thread create must not append any additional events beyond parent setup"
+    );
+
+    let created = runtime
+        .create_thread_conversation_with_creator_kind(
+            CreateThreadConversationCommand {
+                tenant_id: "t_demo".into(),
+                conversation_id: "c_thread_batch_fail".into(),
+                parent_conversation_id: "c_parent_thread_batch_fail".into(),
+                root_message_id: root_message.message_id.clone(),
+                creator_id: "u_owner".into(),
+            },
+            "user",
+        )
+        .expect("retry should succeed after failed thread batch");
+
+    assert_eq!(created.conversation_id, "c_thread_batch_fail");
+    let binding = runtime
+        .conversation_business_binding("t_demo", "c_thread_batch_fail")
+        .expect("thread binding should exist after retry");
+    assert_eq!(binding.business_type, "thread");
+    assert_eq!(binding.business_id, root_message.message_id);
+    let members = runtime
+        .list_members("t_demo", "c_thread_batch_fail")
+        .expect("thread members should exist after retry");
+    assert_eq!(members.len(), 2);
+    assert_eq!(journal.recorded().len(), 7);
+}
+
 #[test]
 fn test_create_conversation_and_post_message_emits_commit_events_in_order() {
     let journal = InMemoryJournal::default();
@@ -2826,6 +3134,776 @@ fn test_governance_writes_reject_actor_kind_mismatch() {
         .find(|item| item.principal_id == "u_target")
         .expect("target should exist");
     assert_eq!(target_state.role, MembershipRole::Member);
+}
+
+#[test]
+fn test_add_member_does_not_leak_membership_when_journal_append_fails() {
+    let journal = FailAfterNJournal::new(3);
+    let runtime = ConversationRuntime::new(journal.clone());
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_group_add_commit_fail".into(),
+            creator_id: "u_owner".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("create conversation should succeed before forced failure");
+
+    let add_attempt = runtime.add_member(AddConversationMemberCommand {
+        tenant_id: "t_demo".into(),
+        conversation_id: "c_group_add_commit_fail".into(),
+        principal_id: "u_member".into(),
+        principal_kind: "user".into(),
+        role: MembershipRole::Member,
+        invited_by: "u_owner".into(),
+    });
+    assert!(matches!(
+        add_attempt,
+        Err(RuntimeError::Contract(ContractError::Unavailable(message)))
+            if message == "forced journal append failure"
+    ));
+
+    let members = runtime
+        .list_members("t_demo", "c_group_add_commit_fail")
+        .expect("list members should still succeed");
+    assert_eq!(members.len(), 1, "failed add must not leak a new member");
+    assert_eq!(members[0].principal_id, "u_owner");
+    assert_eq!(journal.recorded().len(), 2);
+}
+
+#[test]
+fn test_remove_member_does_not_leak_removed_state_when_journal_append_fails() {
+    let journal = FailAfterNJournal::new(4);
+    let runtime = ConversationRuntime::new(journal.clone());
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_group_remove_commit_fail".into(),
+            creator_id: "u_owner".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("create conversation should succeed before forced failure");
+    let joined = runtime
+        .add_member(AddConversationMemberCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_group_remove_commit_fail".into(),
+            principal_id: "u_member".into(),
+            principal_kind: "user".into(),
+            role: MembershipRole::Member,
+            invited_by: "u_owner".into(),
+        })
+        .expect("member add should succeed before forced failure");
+
+    let remove_attempt = runtime.remove_member(RemoveConversationMemberCommand {
+        tenant_id: "t_demo".into(),
+        conversation_id: "c_group_remove_commit_fail".into(),
+        member_id: joined.member_id.clone(),
+        removed_by: "u_owner".into(),
+    });
+    assert!(matches!(
+        remove_attempt,
+        Err(RuntimeError::Contract(ContractError::Unavailable(message)))
+            if message == "forced journal append failure"
+    ));
+
+    let members = runtime
+        .list_members("t_demo", "c_group_remove_commit_fail")
+        .expect("list members should still succeed");
+    assert_eq!(members.len(), 2, "failed remove must keep target active");
+    assert!(
+        members
+            .iter()
+            .any(|member| member.member_id == joined.member_id && member.is_active())
+    );
+    assert_eq!(journal.recorded().len(), 3);
+}
+
+#[test]
+fn test_leave_conversation_does_not_leak_left_state_when_journal_append_fails() {
+    let journal = FailAfterNJournal::new(4);
+    let runtime = ConversationRuntime::new(journal.clone());
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_group_leave_commit_fail".into(),
+            creator_id: "u_owner".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("create conversation should succeed before forced failure");
+    let joined = runtime
+        .add_member(AddConversationMemberCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_group_leave_commit_fail".into(),
+            principal_id: "u_member".into(),
+            principal_kind: "user".into(),
+            role: MembershipRole::Member,
+            invited_by: "u_owner".into(),
+        })
+        .expect("member add should succeed before forced failure");
+
+    let leave_attempt = runtime.leave_conversation(LeaveConversationCommand {
+        tenant_id: "t_demo".into(),
+        conversation_id: "c_group_leave_commit_fail".into(),
+        principal_id: "u_member".into(),
+    });
+    assert!(matches!(
+        leave_attempt,
+        Err(RuntimeError::Contract(ContractError::Unavailable(message)))
+            if message == "forced journal append failure"
+    ));
+
+    let members = runtime
+        .list_members("t_demo", "c_group_leave_commit_fail")
+        .expect("list members should still succeed");
+    assert_eq!(members.len(), 2, "failed leave must keep leaver active");
+    assert!(
+        members
+            .iter()
+            .any(|member| member.member_id == joined.member_id && member.is_active())
+    );
+    assert_eq!(journal.recorded().len(), 3);
+}
+
+#[test]
+fn test_transfer_owner_does_not_leak_role_swap_when_journal_append_fails() {
+    let journal = FailAfterNJournal::new(4);
+    let runtime = ConversationRuntime::new(journal.clone());
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_group_transfer_commit_fail".into(),
+            creator_id: "u_owner".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("create conversation should succeed before forced failure");
+    let target = runtime
+        .add_member(AddConversationMemberCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_group_transfer_commit_fail".into(),
+            principal_id: "u_target".into(),
+            principal_kind: "user".into(),
+            role: MembershipRole::Member,
+            invited_by: "u_owner".into(),
+        })
+        .expect("member add should succeed before forced failure");
+
+    let transfer_attempt = runtime.transfer_conversation_owner(TransferConversationOwnerCommand {
+        tenant_id: "t_demo".into(),
+        conversation_id: "c_group_transfer_commit_fail".into(),
+        target_member_id: target.member_id.clone(),
+        transferred_by: "u_owner".into(),
+    });
+    assert!(matches!(
+        transfer_attempt,
+        Err(RuntimeError::Contract(ContractError::Unavailable(message)))
+            if message == "forced journal append failure"
+    ));
+
+    let members = runtime
+        .list_members("t_demo", "c_group_transfer_commit_fail")
+        .expect("list members should still succeed");
+    let owner = members
+        .iter()
+        .find(|member| member.principal_id == "u_owner")
+        .expect("owner should remain present");
+    assert_eq!(
+        owner.role,
+        MembershipRole::Owner,
+        "failed transfer must preserve original owner role"
+    );
+    let target_state = members
+        .iter()
+        .find(|member| member.member_id == target.member_id)
+        .expect("target should remain present");
+    assert_eq!(
+        target_state.role,
+        MembershipRole::Member,
+        "failed transfer must preserve target role"
+    );
+    assert_eq!(journal.recorded().len(), 3);
+}
+
+#[test]
+fn test_role_change_does_not_leak_updated_role_when_journal_append_fails() {
+    let journal = FailAfterNJournal::new(4);
+    let runtime = ConversationRuntime::new(journal.clone());
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_group_role_commit_fail".into(),
+            creator_id: "u_owner".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("create conversation should succeed before forced failure");
+    let member = runtime
+        .add_member(AddConversationMemberCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_group_role_commit_fail".into(),
+            principal_id: "u_member".into(),
+            principal_kind: "user".into(),
+            role: MembershipRole::Member,
+            invited_by: "u_owner".into(),
+        })
+        .expect("member add should succeed before forced failure");
+
+    let role_change_attempt =
+        runtime.change_conversation_member_role(ChangeConversationMemberRoleCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_group_role_commit_fail".into(),
+            target_member_id: member.member_id.clone(),
+            new_role: MembershipRole::Admin,
+            changed_by: "u_owner".into(),
+        });
+    assert!(matches!(
+        role_change_attempt,
+        Err(RuntimeError::Contract(ContractError::Unavailable(message)))
+            if message == "forced journal append failure"
+    ));
+
+    let members = runtime
+        .list_members("t_demo", "c_group_role_commit_fail")
+        .expect("list members should still succeed");
+    let member_state = members
+        .iter()
+        .find(|item| item.member_id == member.member_id)
+        .expect("member should remain present");
+    assert_eq!(
+        member_state.role,
+        MembershipRole::Member,
+        "failed role change must preserve original role"
+    );
+    assert_eq!(journal.recorded().len(), 3);
+}
+
+#[test]
+fn test_read_cursor_does_not_advance_when_journal_append_fails() {
+    let journal = FailAfterNJournal::new(4);
+    let runtime = ConversationRuntime::new(journal.clone());
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_group_cursor_commit_fail".into(),
+            creator_id: "u_owner".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("create conversation should succeed before forced failure");
+    runtime
+        .post_message(PostMessageCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_group_cursor_commit_fail".into(),
+            sender: Sender {
+                id: "u_owner".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+            client_msg_id: Some("client_cursor_commit_fail".into()),
+            message_type: MessageType::Standard,
+            body: MessageBody {
+                summary: Some("hello".into()),
+                parts: vec![ContentPart::text("hello")],
+                render_hints: Default::default(),
+            },
+        })
+        .expect("post message should succeed before forced failure");
+
+    let update_attempt = runtime.update_read_cursor(UpdateReadCursorCommand {
+        tenant_id: "t_demo".into(),
+        conversation_id: "c_group_cursor_commit_fail".into(),
+        principal_id: "u_owner".into(),
+        read_seq: 1,
+        last_read_message_id: Some("msg_c_group_cursor_commit_fail_1".into()),
+    });
+    assert!(matches!(
+        update_attempt,
+        Err(RuntimeError::Contract(ContractError::Unavailable(message)))
+            if message == "forced journal append failure"
+    ));
+
+    let cursor = runtime
+        .read_cursor_view("t_demo", "c_group_cursor_commit_fail", "u_owner")
+        .expect("cursor view should still succeed");
+    assert_eq!(cursor.read_seq, 0, "failed update must not advance read seq");
+    assert_eq!(
+        cursor.unread_count, 1,
+        "failed update must preserve unread count until durable commit succeeds"
+    );
+    assert_eq!(journal.recorded().len(), 3);
+}
+
+#[test]
+fn test_post_message_does_not_leak_message_when_journal_append_fails() {
+    let journal = FailAfterNJournal::new(3);
+    let runtime = ConversationRuntime::new(journal.clone());
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_group_post_commit_fail".into(),
+            creator_id: "u_owner".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("create conversation should succeed before forced failure");
+
+    let post_attempt = runtime.post_message(PostMessageCommand {
+        tenant_id: "t_demo".into(),
+        conversation_id: "c_group_post_commit_fail".into(),
+        sender: Sender {
+            id: "u_owner".into(),
+            kind: "user".into(),
+            member_id: None,
+            device_id: Some("d_owner".into()),
+            session_id: Some("s_owner".into()),
+            metadata: Default::default(),
+        },
+        client_msg_id: Some("client_post_commit_fail".into()),
+        message_type: MessageType::Standard,
+        body: MessageBody {
+            summary: Some("hello".into()),
+            parts: vec![ContentPart::text("hello")],
+            render_hints: Default::default(),
+        },
+    });
+    assert!(matches!(
+        post_attempt,
+        Err(RuntimeError::Contract(ContractError::Unavailable(message)))
+            if message == "forced journal append failure"
+    ));
+
+    let history = runtime
+        .list_messages("t_demo", "c_group_post_commit_fail", "u_owner")
+        .expect("history should still load");
+    assert_eq!(history.high_watermark, 0);
+    assert!(history.items.is_empty(), "failed post must not leak a message");
+    assert_eq!(journal.recorded().len(), 2);
+}
+
+#[test]
+fn test_edit_message_does_not_leak_body_change_when_journal_append_fails() {
+    let journal = FailAfterNJournal::new(4);
+    let runtime = ConversationRuntime::new(journal.clone());
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_group_edit_commit_fail".into(),
+            creator_id: "u_owner".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("create conversation should succeed before forced failure");
+    let posted = runtime
+        .post_message(PostMessageCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_group_edit_commit_fail".into(),
+            sender: Sender {
+                id: "u_owner".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+            client_msg_id: Some("client_edit_commit_fail".into()),
+            message_type: MessageType::Standard,
+            body: MessageBody {
+                summary: Some("hello".into()),
+                parts: vec![ContentPart::text("hello")],
+                render_hints: Default::default(),
+            },
+        })
+        .expect("post should succeed before forced failure");
+
+    let edit_attempt = runtime.edit_message(EditMessageCommand {
+        tenant_id: "t_demo".into(),
+        message_id: posted.message_id.clone(),
+        editor: Sender {
+            id: "u_owner".into(),
+            kind: "user".into(),
+            member_id: None,
+            device_id: Some("d_owner".into()),
+            session_id: Some("s_owner".into()),
+            metadata: Default::default(),
+        },
+        body: MessageBody {
+            summary: Some("edited".into()),
+            parts: vec![ContentPart::text("edited")],
+            render_hints: Default::default(),
+        },
+    });
+    assert!(matches!(
+        edit_attempt,
+        Err(RuntimeError::Contract(ContractError::Unavailable(message)))
+            if message == "forced journal append failure"
+    ));
+
+    let history = runtime
+        .list_messages("t_demo", "c_group_edit_commit_fail", "u_owner")
+        .expect("history should still load");
+    assert_eq!(history.items.len(), 1);
+    assert_eq!(history.items[0].message.body.summary.as_deref(), Some("hello"));
+    assert_eq!(
+        history.items[0].message.body.parts,
+        vec![ContentPart::text("hello")]
+    );
+    assert_eq!(journal.recorded().len(), 3);
+}
+
+#[test]
+fn test_recall_message_does_not_leak_recalled_state_when_journal_append_fails() {
+    let journal = FailAfterNJournal::new(4);
+    let runtime = ConversationRuntime::new(journal.clone());
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_group_recall_commit_fail".into(),
+            creator_id: "u_owner".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("create conversation should succeed before forced failure");
+    let posted = runtime
+        .post_message(PostMessageCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_group_recall_commit_fail".into(),
+            sender: Sender {
+                id: "u_owner".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+            client_msg_id: Some("client_recall_commit_fail".into()),
+            message_type: MessageType::Standard,
+            body: MessageBody {
+                summary: Some("hello".into()),
+                parts: vec![ContentPart::text("hello")],
+                render_hints: Default::default(),
+            },
+        })
+        .expect("post should succeed before forced failure");
+
+    let recall_attempt = runtime.recall_message(RecallMessageCommand {
+        tenant_id: "t_demo".into(),
+        message_id: posted.message_id,
+        recalled_by: Sender {
+            id: "u_owner".into(),
+            kind: "user".into(),
+            member_id: None,
+            device_id: Some("d_owner".into()),
+            session_id: Some("s_owner".into()),
+            metadata: Default::default(),
+        },
+    });
+    assert!(matches!(
+        recall_attempt,
+        Err(RuntimeError::Contract(ContractError::Unavailable(message)))
+            if message == "forced journal append failure"
+    ));
+
+    let history = runtime
+        .list_messages("t_demo", "c_group_recall_commit_fail", "u_owner")
+        .expect("history should still load");
+    assert_eq!(history.items.len(), 1);
+    assert!(!history.items[0].recalled);
+    assert_eq!(history.items[0].message.body.summary.as_deref(), Some("hello"));
+    assert_eq!(journal.recorded().len(), 3);
+}
+
+#[test]
+fn test_add_reaction_does_not_leak_reaction_when_journal_append_fails() {
+    let journal = FailAfterNJournal::new(4);
+    let runtime = ConversationRuntime::new(journal.clone());
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_group_reaction_add_commit_fail".into(),
+            creator_id: "u_owner".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("create conversation should succeed before forced failure");
+    let posted = runtime
+        .post_message(PostMessageCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_group_reaction_add_commit_fail".into(),
+            sender: Sender {
+                id: "u_owner".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+            client_msg_id: Some("client_reaction_add_commit_fail".into()),
+            message_type: MessageType::Standard,
+            body: MessageBody {
+                summary: Some("hello".into()),
+                parts: vec![ContentPart::text("hello")],
+                render_hints: Default::default(),
+            },
+        })
+        .expect("post should succeed before forced failure");
+
+    let reaction_attempt = runtime.add_message_reaction(AddMessageReactionCommand {
+        tenant_id: "t_demo".into(),
+        message_id: posted.message_id.clone(),
+        reaction_key: "thumbs_up".into(),
+        reacted_by: Sender {
+            id: "u_owner".into(),
+            kind: "user".into(),
+            member_id: None,
+            device_id: Some("d_owner".into()),
+            session_id: Some("s_owner".into()),
+            metadata: Default::default(),
+        },
+    });
+    assert!(matches!(
+        reaction_attempt,
+        Err(RuntimeError::Contract(ContractError::Unavailable(message)))
+            if message == "forced journal append failure"
+    ));
+
+    let history = runtime
+        .list_messages("t_demo", "c_group_reaction_add_commit_fail", "u_owner")
+        .expect("history should still load");
+    assert_eq!(history.items.len(), 1);
+    assert!(
+        history.items[0].reactions.is_empty(),
+        "failed reaction add must not leak reaction state"
+    );
+    assert_eq!(journal.recorded().len(), 3);
+}
+
+#[test]
+fn test_remove_reaction_does_not_leak_reaction_removal_when_journal_append_fails() {
+    let journal = FailAfterNJournal::new(5);
+    let runtime = ConversationRuntime::new(journal.clone());
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_group_reaction_remove_commit_fail".into(),
+            creator_id: "u_owner".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("create conversation should succeed before forced failure");
+    let posted = runtime
+        .post_message(PostMessageCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_group_reaction_remove_commit_fail".into(),
+            sender: Sender {
+                id: "u_owner".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+            client_msg_id: Some("client_reaction_remove_commit_fail".into()),
+            message_type: MessageType::Standard,
+            body: MessageBody {
+                summary: Some("hello".into()),
+                parts: vec![ContentPart::text("hello")],
+                render_hints: Default::default(),
+            },
+        })
+        .expect("post should succeed before forced failure");
+    runtime
+        .add_message_reaction(AddMessageReactionCommand {
+            tenant_id: "t_demo".into(),
+            message_id: posted.message_id.clone(),
+            reaction_key: "thumbs_up".into(),
+            reacted_by: Sender {
+                id: "u_owner".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+        })
+        .expect("reaction add should succeed before forced failure");
+
+    let remove_attempt = runtime.remove_message_reaction(RemoveMessageReactionCommand {
+        tenant_id: "t_demo".into(),
+        message_id: posted.message_id,
+        reaction_key: "thumbs_up".into(),
+        removed_by: Sender {
+            id: "u_owner".into(),
+            kind: "user".into(),
+            member_id: None,
+            device_id: Some("d_owner".into()),
+            session_id: Some("s_owner".into()),
+            metadata: Default::default(),
+        },
+    });
+    assert!(matches!(
+        remove_attempt,
+        Err(RuntimeError::Contract(ContractError::Unavailable(message)))
+            if message == "forced journal append failure"
+    ));
+
+    let history = runtime
+        .list_messages("t_demo", "c_group_reaction_remove_commit_fail", "u_owner")
+        .expect("history should still load");
+    assert_eq!(history.items.len(), 1);
+    assert_eq!(
+        history.items[0]
+            .reactions
+            .get("thumbs_up")
+            .map(|actors| actors.len()),
+        Some(1),
+        "failed reaction remove must preserve prior reaction state"
+    );
+    assert_eq!(journal.recorded().len(), 4);
+}
+
+#[test]
+fn test_pin_message_does_not_leak_pin_state_when_journal_append_fails() {
+    let journal = FailAfterNJournal::new(4);
+    let runtime = ConversationRuntime::new(journal.clone());
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_group_pin_commit_fail".into(),
+            creator_id: "u_owner".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("create conversation should succeed before forced failure");
+    let posted = runtime
+        .post_message(PostMessageCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_group_pin_commit_fail".into(),
+            sender: Sender {
+                id: "u_owner".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+            client_msg_id: Some("client_pin_commit_fail".into()),
+            message_type: MessageType::Standard,
+            body: MessageBody {
+                summary: Some("hello".into()),
+                parts: vec![ContentPart::text("hello")],
+                render_hints: Default::default(),
+            },
+        })
+        .expect("post should succeed before forced failure");
+
+    let pin_attempt = runtime.pin_message(PinMessageCommand {
+        tenant_id: "t_demo".into(),
+        message_id: posted.message_id,
+        pinned_by: Sender {
+            id: "u_owner".into(),
+            kind: "user".into(),
+            member_id: None,
+            device_id: Some("d_owner".into()),
+            session_id: Some("s_owner".into()),
+            metadata: Default::default(),
+        },
+    });
+    assert!(matches!(
+        pin_attempt,
+        Err(RuntimeError::Contract(ContractError::Unavailable(message)))
+            if message == "forced journal append failure"
+    ));
+
+    let history = runtime
+        .list_messages("t_demo", "c_group_pin_commit_fail", "u_owner")
+        .expect("history should still load");
+    assert_eq!(history.items.len(), 1);
+    assert!(history.items[0].pin.is_none());
+    assert_eq!(journal.recorded().len(), 3);
+}
+
+#[test]
+fn test_unpin_message_does_not_leak_pin_removal_when_journal_append_fails() {
+    let journal = FailAfterNJournal::new(5);
+    let runtime = ConversationRuntime::new(journal.clone());
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_group_unpin_commit_fail".into(),
+            creator_id: "u_owner".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("create conversation should succeed before forced failure");
+    let posted = runtime
+        .post_message(PostMessageCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_group_unpin_commit_fail".into(),
+            sender: Sender {
+                id: "u_owner".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+            client_msg_id: Some("client_unpin_commit_fail".into()),
+            message_type: MessageType::Standard,
+            body: MessageBody {
+                summary: Some("hello".into()),
+                parts: vec![ContentPart::text("hello")],
+                render_hints: Default::default(),
+            },
+        })
+        .expect("post should succeed before forced failure");
+    runtime
+        .pin_message(PinMessageCommand {
+            tenant_id: "t_demo".into(),
+            message_id: posted.message_id.clone(),
+            pinned_by: Sender {
+                id: "u_owner".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+        })
+        .expect("pin should succeed before forced failure");
+
+    let unpin_attempt = runtime.unpin_message(UnpinMessageCommand {
+        tenant_id: "t_demo".into(),
+        message_id: posted.message_id,
+        unpinned_by: Sender {
+            id: "u_owner".into(),
+            kind: "user".into(),
+            member_id: None,
+            device_id: Some("d_owner".into()),
+            session_id: Some("s_owner".into()),
+            metadata: Default::default(),
+        },
+    });
+    assert!(matches!(
+        unpin_attempt,
+        Err(RuntimeError::Contract(ContractError::Unavailable(message)))
+            if message == "forced journal append failure"
+    ));
+
+    let history = runtime
+        .list_messages("t_demo", "c_group_unpin_commit_fail", "u_owner")
+        .expect("history should still load");
+    assert_eq!(history.items.len(), 1);
+    assert!(
+        history.items[0].pin.is_some(),
+        "failed unpin must preserve prior pin state"
+    );
+    assert_eq!(journal.recorded().len(), 4);
 }
 
 #[test]

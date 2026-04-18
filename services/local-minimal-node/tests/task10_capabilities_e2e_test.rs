@@ -1430,8 +1430,16 @@ async fn test_local_minimal_profile_rejects_oversized_agent_result_message_id() 
 #[tokio::test]
 async fn test_local_minimal_profile_rejects_oversized_agent_identity_fields() {
     for (field, agent_id, session_id) in [
-        ("agent.agent_id", serde_json::Value::String("a".repeat(257)), serde_json::Value::String("s_agent".into())),
-        ("agent.session_id", serde_json::Value::String("ag_demo".into()), serde_json::Value::String("s".repeat(257))),
+        (
+            "agent.agent_id",
+            serde_json::Value::String("a".repeat(257)),
+            serde_json::Value::String("s_agent".into()),
+        ),
+        (
+            "agent.session_id",
+            serde_json::Value::String("ag_demo".into()),
+            serde_json::Value::String("s".repeat(257)),
+        ),
     ] {
         let app = local_minimal_node::build_default_app();
 

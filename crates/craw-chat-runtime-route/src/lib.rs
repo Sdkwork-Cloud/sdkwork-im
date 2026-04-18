@@ -149,7 +149,10 @@ impl RouteDirectory {
         let next_epoch = routes
             .get(&key)
             .map(|route| {
-                if route.owner_node_id == request.owner_node_id {
+                if route.owner_node_id == request.owner_node_id
+                    && route.session_id == request.session_id
+                    && route.connection_kind == request.connection_kind
+                {
                     route.route_epoch
                 } else {
                     route.route_epoch + 1
@@ -466,6 +469,39 @@ mod tests {
         assert!(
             bind_result.is_ok(),
             "bind should recover from poisoned route binding store lock"
+        );
+    }
+
+    #[test]
+    fn test_bind_increments_route_epoch_when_same_node_rebinds_new_session() {
+        let directory = RouteDirectory::default();
+        directory.register_node("node_a");
+
+        let first_bind = directory
+            .bind(
+                RouteBindingRequest::new("t_demo", "u_demo", "d_pad", "node_a")
+                    .with_session_id(Some("s_old"))
+                    .with_connection_kind("websocket")
+                    .with_bound_at("2026-04-15T00:00:00.000Z"),
+            )
+            .expect("initial route bind should succeed");
+        assert_eq!(first_bind.route_epoch, 1);
+
+        let rebound = directory
+            .bind(
+                RouteBindingRequest::new("t_demo", "u_demo", "d_pad", "node_a")
+                    .with_session_id(Some("s_new"))
+                    .with_connection_kind("http")
+                    .with_bound_at("2026-04-15T00:01:00.000Z"),
+            )
+            .expect("same-node takeover bind should succeed");
+
+        assert_eq!(rebound.owner_node_id, "node_a");
+        assert_eq!(rebound.session_id.as_deref(), Some("s_new"));
+        assert_eq!(rebound.connection_kind, "http");
+        assert_eq!(
+            rebound.route_epoch, 2,
+            "route epoch must advance when same-node ownership metadata changes to a newer session"
         );
     }
 

@@ -92,5 +92,11 @@ The status script prints:
 1. Run `install-local.*`
 2. Run `start-local.*`
 3. Run `status-local.*`
-4. Run `tools/smoke/local_stack_smoke.ps1` if you want an end-to-end sanity check
+4. Run `tools/smoke/local_stack_smoke.ps1` when you want an end-to-end sanity check
 5. Use the runtime-management scripts before editing state files manually
+
+## What To Read Next
+
+- [Runtime Operations](/deployment/runtime-operations)
+- [Profiles and Environment](/deployment/profiles-and-env)
+- [CLI and Scripts](/reference/cli-and-scripts)

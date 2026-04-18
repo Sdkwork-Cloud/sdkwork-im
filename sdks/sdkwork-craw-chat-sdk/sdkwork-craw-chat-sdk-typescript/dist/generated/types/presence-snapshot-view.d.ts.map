@@ -1,0 +1,1 @@
+{"version":3,"file":"presence-snapshot-view.d.ts","sourceRoot":"","sources":["../../../src/generated/types/presence-snapshot-view.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,kBAAkB,EAAE,MAAM,2BAA2B,CAAC;AAEpE,MAAM,WAAW,oBAAoB;IACnC,QAAQ,EAAE,MAAM,CAAC;IACjB,WAAW,EAAE,MAAM,CAAC;IACpB,eAAe,CAAC,EAAE,MAAM,CAAC;IACzB,OAAO,EAAE,kBAAkB,EAAE,CAAC;CAC/B"}

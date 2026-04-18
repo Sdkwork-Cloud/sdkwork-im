@@ -1232,3 +1232,55 @@ async fn test_realtime_subscription_sync_rejects_too_many_items_over_http() {
             .contains("items")
     );
 }
+
+#[tokio::test]
+async fn test_realtime_subscription_sync_rejects_oversized_total_payload_over_http() {
+    let app = session_gateway::build_app();
+    let oversized_items = (0..40)
+        .map(|index| {
+            serde_json::json!({
+                "scopeType": "conversation",
+                "scopeId": format!("c_{index:03}_{}", "x".repeat(480)),
+                "eventTypes": (0..120)
+                    .map(|event_index| format!("evt_{event_index:02}_{}", "y".repeat(120)))
+                    .collect::<Vec<_>>()
+            })
+        })
+        .collect::<Vec<_>>();
+    let request_body = serde_json::json!({
+        "items": oversized_items
+    })
+    .to_string();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/realtime/subscriptions/sync")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-session-id", "s_demo")
+                .header("x-device-id", "d_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(request_body))
+                .unwrap(),
+        )
+        .await
+        .expect("subscription sync should return response");
+
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let json: serde_json::Value = serde_json::from_slice(&body).expect("body should be valid json");
+    assert_eq!(json["code"], "payload_too_large");
+    assert!(
+        json["message"]
+            .as_str()
+            .expect("message should be present")
+            .contains("items")
+    );
+}

@@ -1,11 +1,13 @@
 # `GET /api/v1/devices/{device_id}/sync-feed`
 
 <p class="api-page-intro">
-  OpenAPI-style operation reference for <strong>Device Sync</strong> in the <strong>App API</strong>.
+  Exact request and response contract for <strong>Device Sync</strong> in the <strong>App API</strong>.
 </p>
 
 <div class="api-link-list">
-  <a href="/api-reference/app/device-sync">Back to Device Sync</a>
+  <a href="/api-reference/app/device-sync"><code>Device Sync</code> Return to the group page for workflow context and related operations</a>
+  <a href="/api-reference/app-api"><code>App API</code> Return to the domain overview</a>
+  <a href="/api-reference/auth-and-errors"><code>Auth</code> Shared bearer, trusted-header, and error-envelope rules</a>
 </div>
 
 <section class="api-op api-op-single">
@@ -20,7 +22,7 @@ Reads sync-feed entries for a device after the last sequence already processed b
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / device-sync</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.generated.device.getDeviceSyncFeed(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Registered device owner.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 DeviceSyncFeedResponse`</span></div>
 </div>

@@ -21,6 +21,7 @@ async fn test_create_complete_and_get_media_asset_over_http() {
                 .body(Body::from(
                     r#"{
                         "mediaAssetId":"ma_demo",
+                        "bucket":"local-media",
                         "resource":{
                             "uuid":"res_demo",
                             "type":"image",
@@ -47,10 +48,32 @@ async fn test_create_complete_and_get_media_asset_over_http() {
     let create_json: serde_json::Value =
         serde_json::from_slice(&create_body).expect("create should be valid json");
     assert_eq!(create_json["mediaAssetId"], "ma_demo");
-    assert_eq!(create_json["principalId"], "u_demo");
-    assert_eq!(create_json["principalKind"], "user");
-    assert_eq!(create_json["processingState"], "pendingUpload");
-    assert_eq!(create_json["resource"]["type"], "image");
+    assert_eq!(create_json["mediaAsset"]["principalId"], "u_demo");
+    assert_eq!(create_json["mediaAsset"]["principalKind"], "user");
+    assert_eq!(
+        create_json["mediaAsset"]["processingState"],
+        "pendingUpload"
+    );
+    assert_eq!(create_json["mediaAsset"]["resource"]["type"], "image");
+    assert_eq!(create_json["bucket"], "local-media");
+    assert_eq!(create_json["objectKey"], "tenant/t_demo/ma_demo/demo.png");
+    assert_eq!(create_json["uploadMethod"], "PUT");
+    assert_eq!(create_json["storageProvider"], "object-storage-volcengine");
+    assert_eq!(create_json["deliveryStatus"], "applied");
+    let upload_url = create_json["uploadUrl"]
+        .as_str()
+        .expect("uploadUrl should be returned");
+    assert!(upload_url.contains("object-storage-volcengine"));
+    assert!(create_json["uploadHeaders"].is_object());
+    assert!(create_json["uploadExpiresInSeconds"].as_u64().is_some());
+    let complete_request = serde_json::json!({
+        "bucket": create_json["bucket"].clone(),
+        "objectKey": create_json["objectKey"].clone(),
+        "storageProvider": create_json["storageProvider"].clone(),
+        "url": create_json["uploadUrl"].clone(),
+        "checksum":"sha256:demo"
+    })
+    .to_string();
 
     let complete_response = app
         .clone()
@@ -61,15 +84,7 @@ async fn test_create_complete_and_get_media_asset_over_http() {
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
                 .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "bucket":"local-media",
-                        "objectKey":"tenant/t_demo/ma_demo/demo.png",
-                        "storageProvider":"local",
-                        "url":"https://cdn.example.com/ma_demo/demo.png",
-                        "checksum":"sha256:demo"
-                    }"#,
-                ))
+                .body(Body::from(complete_request))
                 .unwrap(),
         )
         .await
@@ -122,6 +137,71 @@ async fn test_create_complete_and_get_media_asset_over_http() {
 }
 
 #[tokio::test]
+async fn test_create_upload_returns_presigned_upload_session_over_http() {
+    let app = media_service::build_default_app();
+
+    let create_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/media/uploads")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "mediaAssetId":"ma_presigned_demo",
+                        "bucket":"tenant-demo-media",
+                        "objectKey":"tenant/t_demo/ma_presigned_demo/demo.png",
+                        "resource":{
+                            "uuid":"res_presigned_demo",
+                            "type":"image",
+                            "mimeType":"image/png",
+                            "size":42,
+                            "name":"demo.png",
+                            "extension":"png"
+                        }
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create upload should succeed");
+
+    assert_eq!(create_response.status(), StatusCode::OK);
+    let create_body = create_response
+        .into_body()
+        .collect()
+        .await
+        .expect("create body should collect")
+        .to_bytes();
+    let create_json: serde_json::Value =
+        serde_json::from_slice(&create_body).expect("create should be valid json");
+
+    assert_eq!(
+        create_json["mediaAsset"]["mediaAssetId"],
+        "ma_presigned_demo"
+    );
+    assert_eq!(
+        create_json["mediaAsset"]["processingState"],
+        "pendingUpload"
+    );
+    assert_eq!(create_json["bucket"], "tenant-demo-media");
+    assert_eq!(
+        create_json["objectKey"],
+        "tenant/t_demo/ma_presigned_demo/demo.png"
+    );
+    assert_eq!(create_json["uploadMethod"], "PUT");
+    assert_eq!(create_json["storageProvider"], "object-storage-volcengine");
+    let upload_url = create_json["uploadUrl"]
+        .as_str()
+        .expect("uploadUrl should be returned");
+    assert!(upload_url.contains("tenant-demo-media"));
+    assert!(upload_url.contains("ma_presigned_demo"));
+    assert!(create_json["uploadExpiresInSeconds"].as_u64().is_some());
+}
+
+#[tokio::test]
 async fn test_media_asset_timestamps_advance_between_create_and_complete_requests() {
     let app = media_service::build_default_app();
 
@@ -137,6 +217,7 @@ async fn test_media_asset_timestamps_advance_between_create_and_complete_request
                 .body(Body::from(
                     r#"{
                         "mediaAssetId":"ma_time_one",
+                        "bucket":"local-media",
                         "resource":{
                             "uuid":"res_time_one",
                             "type":"image",
@@ -160,7 +241,7 @@ async fn test_media_asset_timestamps_advance_between_create_and_complete_request
         .to_bytes();
     let create_first_json: serde_json::Value =
         serde_json::from_slice(&create_first_body).expect("first create should be valid json");
-    let created_first_at = create_first_json["createdAt"]
+    let created_first_at = create_first_json["mediaAsset"]["createdAt"]
         .as_str()
         .expect("createdAt should be present")
         .to_owned();
@@ -179,6 +260,7 @@ async fn test_media_asset_timestamps_advance_between_create_and_complete_request
                 .body(Body::from(
                     r#"{
                         "mediaAssetId":"ma_time_two",
+                        "bucket":"local-media",
                         "resource":{
                             "uuid":"res_time_two",
                             "type":"image",
@@ -202,10 +284,24 @@ async fn test_media_asset_timestamps_advance_between_create_and_complete_request
         .to_bytes();
     let create_second_json: serde_json::Value =
         serde_json::from_slice(&create_second_body).expect("second create should be valid json");
-    let created_second_at = create_second_json["createdAt"]
+    let created_second_at = create_second_json["mediaAsset"]["createdAt"]
         .as_str()
         .expect("createdAt should be present")
         .to_owned();
+    let complete_first_request = serde_json::json!({
+        "bucket": create_first_json["bucket"].clone(),
+        "objectKey": create_first_json["objectKey"].clone(),
+        "storageProvider": create_first_json["storageProvider"].clone(),
+        "url": create_first_json["uploadUrl"].clone()
+    })
+    .to_string();
+    let complete_second_request = serde_json::json!({
+        "bucket": create_second_json["bucket"].clone(),
+        "objectKey": create_second_json["objectKey"].clone(),
+        "storageProvider": create_second_json["storageProvider"].clone(),
+        "url": create_second_json["uploadUrl"].clone()
+    })
+    .to_string();
 
     sleep(Duration::from_millis(20));
 
@@ -218,14 +314,7 @@ async fn test_media_asset_timestamps_advance_between_create_and_complete_request
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
                 .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "bucket":"local-media",
-                        "objectKey":"tenant/t_demo/ma_time_one/one.png",
-                        "storageProvider":"local",
-                        "url":"https://cdn.example.com/ma_time_one/one.png"
-                    }"#,
-                ))
+                .body(Body::from(complete_first_request))
                 .unwrap(),
         )
         .await
@@ -254,14 +343,7 @@ async fn test_media_asset_timestamps_advance_between_create_and_complete_request
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
                 .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "bucket":"local-media",
-                        "objectKey":"tenant/t_demo/ma_time_two/two.png",
-                        "storageProvider":"local",
-                        "url":"https://cdn.example.com/ma_time_two/two.png"
-                    }"#,
-                ))
+                .body(Body::from(complete_second_request))
                 .unwrap(),
         )
         .await
@@ -301,6 +383,7 @@ async fn test_duplicate_create_upload_rejects_conflicting_resource_for_same_owne
                 .body(Body::from(
                     r#"{
                         "mediaAssetId":"ma_conflicting_create",
+                        "bucket":"local-media",
                         "resource":{
                             "uuid":"res_conflicting_create_one",
                             "type":"image",
@@ -328,6 +411,7 @@ async fn test_duplicate_create_upload_rejects_conflicting_resource_for_same_owne
                 .body(Body::from(
                     r#"{
                         "mediaAssetId":"ma_conflicting_create",
+                        "bucket":"local-media",
                         "resource":{
                             "uuid":"res_conflicting_create_two",
                             "type":"image",
@@ -371,6 +455,7 @@ async fn test_duplicate_complete_upload_rejects_conflicting_storage_target() {
                 .body(Body::from(
                     r#"{
                         "mediaAssetId":"ma_conflicting_complete",
+                        "bucket":"local-media",
                         "resource":{
                             "uuid":"res_conflicting_complete",
                             "type":"image",
@@ -386,6 +471,22 @@ async fn test_duplicate_complete_upload_rejects_conflicting_storage_target() {
         .await
         .expect("create should succeed");
     assert_eq!(create_response.status(), StatusCode::OK);
+    let create_body = create_response
+        .into_body()
+        .collect()
+        .await
+        .expect("create body should collect")
+        .to_bytes();
+    let create_json: serde_json::Value =
+        serde_json::from_slice(&create_body).expect("create should be valid json");
+    let first_complete_request = serde_json::json!({
+        "bucket": create_json["bucket"].clone(),
+        "objectKey": create_json["objectKey"].clone(),
+        "storageProvider": create_json["storageProvider"].clone(),
+        "url": create_json["uploadUrl"].clone(),
+        "checksum":"sha256:one"
+    })
+    .to_string();
 
     let first_complete = app
         .clone()
@@ -396,15 +497,7 @@ async fn test_duplicate_complete_upload_rejects_conflicting_storage_target() {
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
                 .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "bucket":"local-media",
-                        "objectKey":"tenant/t_demo/ma_conflicting_complete/demo.png",
-                        "storageProvider":"local",
-                        "url":"https://cdn.example.com/ma_conflicting_complete/demo.png",
-                        "checksum":"sha256:one"
-                    }"#,
-                ))
+                .body(Body::from(first_complete_request))
                 .unwrap(),
         )
         .await
@@ -451,6 +544,7 @@ async fn test_duplicate_media_upload_requests_expose_delivery_proof_over_http() 
 
     let create_request = r#"{
         "mediaAssetId":"ma_delivery_proof",
+        "bucket":"local-media",
         "resource":{
             "uuid":"res_delivery_proof",
             "type":"image",
@@ -522,14 +616,14 @@ async fn test_duplicate_media_upload_requests_expose_delivery_proof_over_http() 
         duplicate_create_json["proofVersion"],
         first_create_json["proofVersion"]
     );
-
-    let complete_request = r#"{
-        "bucket":"local-media",
-        "objectKey":"tenant/t_demo/ma_delivery_proof/proof.png",
-        "storageProvider":"local",
-        "url":"https://cdn.example.com/ma_delivery_proof/proof.png",
+    let complete_request = serde_json::json!({
+        "bucket": first_create_json["bucket"].clone(),
+        "objectKey": first_create_json["objectKey"].clone(),
+        "storageProvider": first_create_json["storageProvider"].clone(),
+        "url": first_create_json["uploadUrl"].clone(),
         "checksum":"sha256:proof"
-    }"#;
+    })
+    .to_string();
 
     let first_complete = app
         .clone()
@@ -540,7 +634,7 @@ async fn test_duplicate_media_upload_requests_expose_delivery_proof_over_http() 
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
                 .header("content-type", "application/json")
-                .body(Body::from(complete_request))
+                .body(Body::from(complete_request.clone()))
                 .unwrap(),
         )
         .await
@@ -600,6 +694,7 @@ async fn test_create_upload_rejects_oversized_media_asset_id_over_http() {
     let oversized_media_asset_id = "m".repeat(1024);
     let request_body = serde_json::json!({
         "mediaAssetId": oversized_media_asset_id,
+        "bucket": "local-media",
         "resource": {
             "uuid": "res_oversized_media_asset_id",
             "type": "image",
@@ -658,6 +753,7 @@ async fn test_complete_upload_rejects_oversized_object_key_over_http() {
                 .body(Body::from(
                     r#"{
                         "mediaAssetId":"ma_oversized_object_key",
+                        "bucket":"local-media",
                         "resource":{
                             "uuid":"res_oversized_object_key",
                             "type":"image",

@@ -5,7 +5,7 @@ pub(super) async fn get_agent_handoff_state(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<AgentHandoffStateView>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = access::resolve_active_auth_context(&state, &headers)?;
     Ok(Json(
         state
             .conversation_runtime
@@ -18,7 +18,7 @@ pub(super) async fn accept_agent_handoff(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<AgentHandoffStateView>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = access::resolve_active_auth_context(&state, &headers)?;
     let previous_state = state
         .conversation_runtime
         .get_agent_handoff_state_from_auth_context(&auth, conversation_id.as_str())?;
@@ -41,7 +41,7 @@ pub(super) async fn resolve_agent_handoff(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<AgentHandoffStateView>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = access::resolve_active_auth_context(&state, &headers)?;
     let previous_state = state
         .conversation_runtime
         .get_agent_handoff_state_from_auth_context(&auth, conversation_id.as_str())?;
@@ -64,7 +64,7 @@ pub(super) async fn close_agent_handoff(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<AgentHandoffStateView>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = access::resolve_active_auth_context(&state, &headers)?;
     let previous_state = state
         .conversation_runtime
         .get_agent_handoff_state_from_auth_context(&auth, conversation_id.as_str())?;
