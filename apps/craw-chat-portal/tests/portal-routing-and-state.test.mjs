@@ -2,9 +2,12 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { test } from 'node:test';
-
-const appRoot = path.resolve('apps/craw-chat-portal');
+import { afterEach, beforeEach, test } from 'node:test';
+import { appRoot } from './support/testPaths.mjs';
+import {
+  installPortalFixtureDataSource,
+  restoreDefaultPortalDataSource,
+} from './support/portalFixtureDataSource.mjs';
 
 function storageDouble() {
   const store = new Map();
@@ -133,6 +136,14 @@ async function flushAsyncWork(iterations = 4) {
     await new Promise((resolve) => setTimeout(resolve, 0));
   }
 }
+
+beforeEach(() => {
+  installPortalFixtureDataSource();
+});
+
+afterEach(() => {
+  restoreDefaultPortalDataSource();
+});
 
 test('routing helpers honor operator console entry preferences and sanitize login redirects', async () => {
   const navigationModule = await import(
@@ -1163,7 +1174,7 @@ test('portal app renders a recovery state and can retry when console data loadin
     assert.match(root.innerHTML, /重试模块同步/);
     assert.match(root.innerHTML, /总览台/);
 
-    dataSourceModule.resetActivePortalDataSource();
+    installPortalFixtureDataSource();
 
     const retryButton = {
       dataset: { command: 'retry-render' },

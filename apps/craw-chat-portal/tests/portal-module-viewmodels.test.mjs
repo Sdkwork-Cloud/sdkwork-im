@@ -1,14 +1,26 @@
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { test } from 'node:test';
+import { afterEach, beforeEach, test } from 'node:test';
+import { appRoot, fromAppRoot } from './support/testPaths.mjs';
+import {
+  installPortalFixtureDataSource,
+  restoreDefaultPortalDataSource,
+} from './support/portalFixtureDataSource.mjs';
 
-const root = path.resolve('apps/craw-chat-portal/packages');
-const appRoot = path.resolve('apps/craw-chat-portal');
+const root = fromAppRoot('packages');
 
 async function load(moduleRelativePath) {
   return import(pathToFileURL(path.join(root, moduleRelativePath)).href);
 }
+
+beforeEach(() => {
+  installPortalFixtureDataSource();
+});
+
+afterEach(() => {
+  restoreDefaultPortalDataSource();
+});
 
 test('tenant IM modules expose rich view models for the console', async () => {
   const home = await load('craw-chat-portal-home/src/services/index.js');

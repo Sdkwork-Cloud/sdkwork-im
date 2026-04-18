@@ -80,6 +80,7 @@ apps/craw-chat-admin/
 
 ```bash
 pnpm install
+pnpm test
 pnpm typecheck
 pnpm build
 pnpm dev

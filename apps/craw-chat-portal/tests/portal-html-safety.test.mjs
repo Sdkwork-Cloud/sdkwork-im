@@ -2,8 +2,7 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { test } from 'node:test';
-
-const appRoot = path.resolve('apps/craw-chat-portal');
+import { appRoot } from './support/testPaths.mjs';
 
 function moduleUrl(relativePath) {
   return pathToFileURL(path.join(appRoot, relativePath)).href;

@@ -11,6 +11,7 @@ import {
 } from './vite-runtime-lib.mjs';
 
 const REQUIRED_APP_PACKAGES = [
+  '@sdkwork/ui-pc-react',
   '@tailwindcss/vite',
   '@vitejs/plugin-react',
   'lucide-react',

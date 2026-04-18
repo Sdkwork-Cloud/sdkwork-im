@@ -1,12 +1,7 @@
 import { httpPortalDataSource } from './dataSources/httpPortalDataSource.js';
-import { mockPortalDataSource } from './dataSources/mockPortalDataSource.js';
 
 function resolveBasePortalDataSource() {
-  if (typeof window !== 'undefined' && typeof window.fetch === 'function') {
-    return httpPortalDataSource;
-  }
-
-  return mockPortalDataSource;
+  return httpPortalDataSource;
 }
 
 function isPlainObject(value) {

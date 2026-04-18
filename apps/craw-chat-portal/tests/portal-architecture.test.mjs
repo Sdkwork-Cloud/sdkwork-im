@@ -2,8 +2,7 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { test } from 'node:test';
-
-const root = path.resolve('apps/craw-chat-portal');
+import { appRoot as root } from './support/testPaths.mjs';
 
 test('portal scaffold and route manifest align to the reference architecture', async () => {
   const routeManifestModulePath = path.join(

@@ -1,13 +1,24 @@
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { test } from 'node:test';
-
-const appRoot = path.resolve('apps/craw-chat-portal');
+import { afterEach, beforeEach, test } from 'node:test';
+import { appRoot } from './support/testPaths.mjs';
+import {
+  installPortalFixtureDataSource,
+  restoreDefaultPortalDataSource,
+} from './support/portalFixtureDataSource.mjs';
 
 async function importModule(relativePath) {
   return import(pathToFileURL(path.join(appRoot, relativePath)).href);
 }
+
+beforeEach(() => {
+  installPortalFixtureDataSource();
+});
+
+afterEach(() => {
+  restoreDefaultPortalDataSource();
+});
 
 test('portal entry pages render clean tenant-facing Chinese copy', async () => {
   const layoutModule = await importModule('packages/craw-chat-portal-core/src/application/layouts/PortalSiteLayout.js');

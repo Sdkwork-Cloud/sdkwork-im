@@ -3,8 +3,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { test } from 'node:test';
-
-const appRoot = path.resolve('apps/craw-chat-portal');
+import { appRoot } from './support/testPaths.mjs';
 
 function throwingStorageDouble() {
   return {
@@ -65,6 +64,44 @@ test('portal-api exposes an active data source that can be swapped later for SDK
   }
 });
 
+test('portal-api defaults to the HTTP data source instead of silently falling back to mock data', async () => {
+  const portalDataSourceModule = await import(
+    pathToFileURL(
+      path.join(
+        appRoot,
+        'packages/craw-chat-portal-portal-api/src/runtime/createPortalDataSource.js',
+      ),
+    ).href
+  );
+  const originalFetch = global.fetch;
+  const fetchCalls = [];
+
+  global.fetch = async (url) => {
+    fetchCalls.push(String(url));
+    return {
+      ok: true,
+      async text() {
+        return JSON.stringify({
+          workspaceName: 'Nebula Commerce IM',
+        });
+      },
+    };
+  };
+
+  try {
+    const dataSource = portalDataSourceModule.createPortalDataSource();
+    const payload = await dataSource.getPortalHome();
+
+    assert.deepEqual(payload, {
+      workspaceName: 'Nebula Commerce IM',
+    });
+    assert.equal(fetchCalls.length, 1);
+    assert.match(fetchCalls[0], /\/api\/v1\/portal\/home$/);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
 test('portal-api runtime can swap and reset the active data source for future SDK-backed wiring', async () => {
   const dataSourceModule = await import(
     pathToFileURL(
@@ -100,9 +137,9 @@ test('portal-api runtime can swap and reset the active data source for future SD
     dataSourceModule.resetActivePortalDataSource();
   }
 
-  assert.notDeepEqual(
-    await dataSourceModule.activePortalDataSource.getPortalDashboard(),
-    { source: 'replacement-runtime' },
+  assert.notEqual(
+    dataSourceModule.activePortalDataSource.getPortalDashboard,
+    replacementDataSource.getPortalDashboard,
   );
 });
 
@@ -206,9 +243,9 @@ test('portal-api runtime rejects non-plain-object override payloads so prototype
     dataSourceModule.getActivePortalDataSource(),
     originalDataSource,
   );
-  assert.notDeepEqual(
-    await dataSourceModule.activePortalDataSource.getPortalDashboard(),
-    { source: 'prototype-backed-runtime' },
+  assert.notEqual(
+    dataSourceModule.activePortalDataSource.getPortalDashboard,
+    PrototypeBackedPortalSource.prototype.getPortalDashboard,
   );
 });
 
@@ -384,4 +421,11 @@ test('portal-api clears malformed persisted session tokens when reading browser 
   } finally {
     global.window = originalWindow;
   }
+});
+
+test('portal README documents the real HTTP-backed default instead of a mock-backed runtime', async () => {
+  const readme = await readFile(path.join(appRoot, 'README.md'), 'utf8');
+
+  assert.match(readme, /HTTP-backed default data source/i);
+  assert.doesNotMatch(readme, /mock-backed active data source/i);
 });

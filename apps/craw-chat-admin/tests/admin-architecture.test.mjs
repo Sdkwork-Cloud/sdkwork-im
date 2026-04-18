@@ -3,6 +3,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   utimesSync,
   writeFileSync,
@@ -19,6 +20,19 @@ const workspaceRoot = path.resolve(appRoot, '..', '..');
 
 function read(relativePath) {
   return readFileSync(path.join(appRoot, relativePath), 'utf8');
+}
+
+function writePackageManifest(packageRoot, packageName = 'test-package') {
+  mkdirSync(packageRoot, { recursive: true });
+  writeFileSync(
+    path.join(packageRoot, 'package.json'),
+    JSON.stringify({ name: packageName, version: '0.0.0-test' }),
+  );
+}
+
+function addNodeModulesPackage(appPackageRoot, packageName) {
+  const packageRoot = path.join(appPackageRoot, 'node_modules', ...packageName.split('/'));
+  writePackageManifest(packageRoot, packageName);
 }
 
 const requiredPackages = [
@@ -41,6 +55,21 @@ const requiredPackages = [
   'sdkwork-craw-chat-admin-settings',
 ];
 
+const requiredToolingPackages = [
+  '@sdkwork/ui-pc-react',
+  '@tailwindcss/vite',
+  '@types/react',
+  '@types/react-dom',
+  '@vitejs/plugin-react',
+  'lucide-react',
+  'react',
+  'react-dom',
+  'react-router-dom',
+  'tailwindcss',
+  'typescript',
+  'vite',
+];
+
 test('standalone craw-chat-admin app root exists', () => {
   assert.equal(existsSync(path.join(appRoot, 'package.json')), true);
   assert.equal(existsSync(path.join(appRoot, 'pnpm-workspace.yaml')), true);
@@ -57,17 +86,55 @@ test('app root exposes standalone browser and tauri scripts', () => {
 
   assert.equal(typeof packageJson.scripts?.dev, 'string');
   assert.equal(typeof packageJson.scripts?.build, 'string');
+  assert.equal(typeof packageJson.scripts?.test, 'string');
   assert.equal(typeof packageJson.scripts?.typecheck, 'string');
   assert.equal(typeof packageJson.scripts?.preview, 'string');
   assert.equal(typeof packageJson.scripts?.['tauri:dev'], 'string');
   assert.equal(typeof packageJson.scripts?.['tauri:build'], 'string');
   assert.match(packageJsonSource, /run-vite-cli\.mjs --configLoader native --host 0\.0\.0\.0/);
   assert.match(packageJsonSource, /run-vite-cli\.mjs build --configLoader native/);
+  assert.match(packageJsonSource, /node --test --experimental-test-isolation=none tests\/\*\.test\.mjs/);
   assert.match(packageJsonSource, /run-tsc-cli\.mjs --noEmit/);
   assert.match(packageJsonSource, /run-vite-cli\.mjs preview --configLoader native --host 0\.0\.0\.0 --port 4173 --strictPort/);
   assert.match(packageJsonSource, /run-tauri-cli\.mjs dev/);
   assert.match(packageJsonSource, /run-tauri-cli\.mjs build/);
   assert.match(packageJsonSource, /craw-chat-admin/);
+});
+
+test('workspace metadata resolves @sdkwork/ui-pc-react through an in-repo workspace mirror package', () => {
+  const packageJson = JSON.parse(read('package.json'));
+  const workspaceConfig = read('pnpm-workspace.yaml');
+  const localWorkspaceUiRoot = path.join(appRoot, 'packages', 'sdkwork-ui-pc-react');
+
+  assert.equal(packageJson.dependencies?.['@sdkwork/ui-pc-react'], 'workspace:*');
+  assert.match(workspaceConfig, /^packages:\s*\r?\n\s+- "packages\/\*"$/m);
+  assert.doesNotMatch(workspaceConfig, /sdkwork-ui\/sdkwork-ui-pc-react/);
+  assert.equal(existsSync(path.join(localWorkspaceUiRoot, 'package.json')), true);
+  assert.equal(existsSync(path.join(localWorkspaceUiRoot, 'src', 'index.ts')), true);
+});
+
+test('workspace package manifests consume @sdkwork/ui-pc-react through workspace protocol', () => {
+  const packageRoots = readdirSync(path.join(appRoot, 'packages'), { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => path.join(appRoot, 'packages', entry.name, 'package.json'))
+    .filter((packageJsonPath) => existsSync(packageJsonPath));
+
+  const uiConsumerPackages = packageRoots
+    .map((packageJsonPath) => ({
+      packageJsonPath,
+      packageJson: JSON.parse(readFileSync(packageJsonPath, 'utf8')),
+    }))
+    .filter(({ packageJson }) => packageJson.dependencies?.['@sdkwork/ui-pc-react']);
+
+  assert.notEqual(uiConsumerPackages.length, 0, 'expected at least one ui consumer package');
+
+  for (const { packageJsonPath, packageJson } of uiConsumerPackages) {
+    assert.equal(
+      packageJson.dependencies['@sdkwork/ui-pc-react'],
+      'workspace:*',
+      `${path.relative(appRoot, packageJsonPath)} should use workspace protocol for @sdkwork/ui-pc-react`,
+    );
+  }
 });
 
 test('workspace-level cli runner scripts mirror router-admin bootstrap conventions', () => {
@@ -267,20 +334,32 @@ test('tauri cli runner ignores stale wix bundle artifacts from earlier builds', 
   assert.equal(artifacts, null);
 });
 
-test('workspace donor roots include verified worktree app dependencies', () => {
+test('workspace donor roots include package-complete sibling app donors when running from a git worktree', () => {
   const donorRoots = viteRuntimeLib.resolveWorkspaceDonorRoots(appRoot);
-  const expectedWorktreeAppRoot = path.join(
-    workspaceRoot,
-    '.worktrees',
-    'craw-chat-admin-bootstrap',
-    'apps',
-    'craw-chat-admin',
-  );
+  const sharedAppsRoot = path.basename(path.dirname(workspaceRoot)) === '.worktrees'
+    ? path.resolve(workspaceRoot, '..', '..', '..')
+    : path.resolve(workspaceRoot, '..');
+  const packageCompleteDonorCandidates = [
+    path.join(sharedAppsRoot, 'sdkwork-drive', 'sdkwork-drive-pc-react'),
+    path.join(sharedAppsRoot, 'sdkwork-backend-react-web'),
+    path.join(sharedAppsRoot, 'sdkwork-chat-pc-react'),
+  ].filter((candidateRoot) => (
+    existsSync(path.join(candidateRoot, 'package.json'))
+    && existsSync(path.join(candidateRoot, 'node_modules'))
+    && requiredToolingPackages.every((packageName) => (
+      existsSync(path.join(candidateRoot, 'node_modules', ...packageName.split('/'), 'package.json'))
+    ))
+  ));
 
+  assert.notEqual(
+    packageCompleteDonorCandidates.length,
+    0,
+    'test requires at least one package-complete sibling donor root',
+  );
   assert.equal(
-    donorRoots.includes(expectedWorktreeAppRoot),
+    packageCompleteDonorCandidates.some((candidateRoot) => donorRoots.includes(candidateRoot)),
     true,
-    'official app should discover the verified worktree as a dependency donor root',
+    'official app should discover package-complete sibling donor roots even from a git worktree',
   );
 });
 
@@ -337,6 +416,46 @@ test('workspace runtime library replaces incomplete local node_modules when requ
   assert.equal(localNodeModulesPath, path.join(isolatedAppRoot, 'node_modules'));
   assert.equal(
     existsSync(path.join(isolatedAppRoot, 'node_modules', 'react', 'package.json')),
+    true,
+  );
+});
+
+test('workspace runtime library prefers donor roots that satisfy all required packages', () => {
+  const sandboxRoot = mkdtempSync(path.join(os.tmpdir(), 'craw-chat-admin-runtime-lib-complete-'));
+  const isolatedAppRoot = path.join(sandboxRoot, 'official-app');
+  const incompleteDonorAppRoot = path.join(sandboxRoot, 'incomplete-donor-app');
+  const completeDonorAppRoot = path.join(sandboxRoot, 'complete-donor-app');
+  const requiredPackages = ['react', 'react-router-dom', '@sdkwork/ui-pc-react'];
+
+  mkdirSync(isolatedAppRoot, { recursive: true });
+  mkdirSync(incompleteDonorAppRoot, { recursive: true });
+  mkdirSync(completeDonorAppRoot, { recursive: true });
+  writeFileSync(path.join(isolatedAppRoot, 'package.json'), '{"name":"official-app"}');
+  writeFileSync(path.join(incompleteDonorAppRoot, 'package.json'), '{"name":"incomplete-donor-app"}');
+  writeFileSync(path.join(completeDonorAppRoot, 'package.json'), '{"name":"complete-donor-app"}');
+
+  addNodeModulesPackage(incompleteDonorAppRoot, 'react');
+  for (const packageName of requiredPackages) {
+    addNodeModulesPackage(completeDonorAppRoot, packageName);
+  }
+
+  const localNodeModulesPath = viteRuntimeLib.ensureLocalNodeModules({
+    appRoot: isolatedAppRoot,
+    donorRoots: [incompleteDonorAppRoot, completeDonorAppRoot],
+    requiredPackages,
+  });
+
+  assert.equal(localNodeModulesPath, path.join(isolatedAppRoot, 'node_modules'));
+  assert.equal(
+    existsSync(path.join(localNodeModulesPath, 'react', 'package.json')),
+    true,
+  );
+  assert.equal(
+    existsSync(path.join(localNodeModulesPath, 'react-router-dom', 'package.json')),
+    true,
+  );
+  assert.equal(
+    existsSync(path.join(localNodeModulesPath, '@sdkwork', 'ui-pc-react', 'package.json')),
     true,
   );
 });
@@ -474,7 +593,7 @@ test('desktop asset build script mirrors router-admin pnpm launch safety while t
   assert.doesNotMatch(desktopAssetBuildScript, /spawn\(step\.command, step\.args, \{[\s\S]*shell:\s*false/);
 });
 
-test('tsconfig mirrors router-admin ui type shims for root and grouped ui entries', () => {
+test('tsconfig keeps ui shims on source-backed ui entries instead of dist-only artifacts', () => {
   const tsconfig = read('tsconfig.json');
   const uiShim = read('src/types/sdkwork-ui-pc-react-shim.d.ts');
 
@@ -485,35 +604,41 @@ test('tsconfig mirrors router-admin ui type shims for root and grouped ui entrie
   );
   assert.match(
     tsconfig,
-    /"@sdkwork\/ui-pc-react\/theme":\s*\[\s*"[^"]*sdkwork-ui-pc-react\/dist\/theme\/index\.d\.ts"\s*\]/,
+    /"@sdkwork\/ui-pc-react\/theme":\s*\[\s*"node_modules\/@sdkwork\/ui-pc-react\/src\/theme\/index\.ts"\s*\]/,
   );
   assert.match(
     tsconfig,
-    /"@sdkwork\/ui-pc-react\/\*":\s*\[\s*"[^"]*sdkwork-ui-pc-react\/dist\/\*"\s*\]/,
+    /"@sdkwork\/ui-pc-react\/\*":\s*\[\s*"node_modules\/@sdkwork\/ui-pc-react\/src\/\*"\s*\]/,
   );
   assert.match(
     tsconfig,
-    /"@sdkwork\/ui-pc-react\/styles\.css":\s*\[\s*"[^"]*sdkwork-ui-pc-react\/dist\/sdkwork-ui\.css"\s*\]/,
+    /"@sdkwork\/ui-pc-react\/styles\.css":\s*\[\s*"node_modules\/@sdkwork\/ui-pc-react\/src\/styles\/sdkwork-ui\.css"\s*\]/,
   );
-  assert.match(uiShim, /export \* from '[^']*sdkwork-ui-pc-react\/dist\/index';/);
+  assert.match(uiShim, /export \* from '\.\.\/\.\.\/node_modules\/@sdkwork\/ui-pc-react\/src\/index\.ts';/);
 });
 
 test('ui shim and tsconfig path targets resolve to real sdkwork-ui type assets', () => {
+  viteRuntimeLib.ensureLocalNodeModules({
+    appRoot,
+    donorRoots: viteRuntimeLib.resolveWorkspaceDonorRoots(appRoot),
+    requiredPackages: requiredToolingPackages,
+  });
+
   const shimPath = path.join(appRoot, 'src', 'types', 'sdkwork-ui-pc-react-shim.d.ts');
   const shimSource = readFileSync(shimPath, 'utf8');
   const shimMatch = shimSource.match(/export \* from '([^']+)'/);
   const shimTargetPath = path.resolve(path.dirname(shimPath), shimMatch[1]);
-  assert.notEqual(shimMatch, null, 'shim should re-export the sdkwork-ui dist index');
+  assert.notEqual(shimMatch, null, 'shim should re-export the sdkwork-ui source index');
   assert.equal(
-    existsSync(shimTargetPath) || existsSync(`${shimTargetPath}.d.ts`),
+    existsSync(shimTargetPath),
     true,
-    'shim target should resolve to a real sdkwork-ui dist index file',
+    'shim target should resolve to a real sdkwork-ui source index file',
   );
 
   const tsconfig = JSON.parse(read('tsconfig.json'));
   const pathMappings = [
     ['@sdkwork/ui-pc-react/theme', 'theme index'],
-    ['@sdkwork/ui-pc-react/*', 'wildcard dist root'],
+    ['@sdkwork/ui-pc-react/*', 'wildcard source root'],
     ['@sdkwork/ui-pc-react/styles.css', 'stylesheet asset'],
   ];
 
@@ -886,13 +1011,17 @@ test('README documents the IM admin runtime contract without router-admin residu
   const readme = read('README.md');
 
   assert.match(readme, /Craw Chat Admin/);
+  assert.match(readme, /即时通信管理后台/);
+  assert.match(readme, /即时通信运营与治理场景/);
   assert.match(readme, /SDKWORK_ADMIN_PROXY_TARGET/);
   assert.match(readme, /SDKWORK_ADMIN_SANDBOX/);
   assert.match(readme, /\/api\/admin/);
   assert.match(readme, /\/api\/v1\/control/);
   assert.match(readme, /18081/);
+  assert.match(readme, /pnpm test/);
   assert.doesNotMatch(readme, /Coupons|API Router|Catalog|sdkwork-router-portal|router-product-service/);
   assert.doesNotMatch(readme, /127\.0\.0\.1:8081|127\.0\.0\.1:9981/);
+  assert.doesNotMatch(readme, /鍗虫椂閫氫俊|杩愯惀涓庢不鐞嗗満鏅/);
 });
 
 test('admin workspace ships an explicit opt-in sandbox backend implementation', () => {
@@ -916,4 +1045,25 @@ test('vite config supports explicit sandbox mode before falling back to 503 guid
   assert.match(viteConfig, /createAdminSandboxState|handleAdminSandboxRequest|createAdminSandboxMiddleware/);
   assert.match(viteConfig, /adminProxyTarget/);
   assert.match(viteConfig, /503/);
+});
+
+test('vite config resolves @sdkwork/ui-pc-react through source-backed workspace entries instead of dist aliases', () => {
+  const viteConfig = read('vite.config.ts');
+
+  assert.match(viteConfig, /sdkworkUiSourceRoot = path\.join\(configDir, 'packages', 'sdkwork-ui-pc-react', 'src'\)/);
+  assert.match(viteConfig, /path\.join\(sdkworkUiSourceRoot, 'styles', 'sdkwork-ui\.css'\)/);
+  assert.match(viteConfig, /path\.join\(sdkworkUiSourceRoot, 'theme', 'index\.ts'\)/);
+  assert.doesNotMatch(viteConfig, /sdkworkUiDistRoot/);
+  assert.doesNotMatch(viteConfig, /resolveUiDist/);
+  assert.doesNotMatch(viteConfig, /dist\/index\.js|dist\/theme\.js|dist\/sdkwork-ui\.css/);
+});
+
+test('admin workspace does not shadow lucide-react package types with a local shim', () => {
+  const lucideShimPath = path.join(appRoot, 'src', 'types', 'lucide-react-shim.d.ts');
+
+  assert.equal(
+    existsSync(lucideShimPath),
+    false,
+    'lucide-react should resolve from the installed package declarations, not from a local shadow shim',
+  );
 });

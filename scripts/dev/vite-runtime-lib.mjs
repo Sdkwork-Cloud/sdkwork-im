@@ -6,6 +6,22 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, '..', '..');
 
+function shouldSkipWorkspaceEntry(entryName) {
+  return entryName.startsWith('.')
+    || entryName === 'node_modules'
+    || entryName === 'packages'
+    || entryName === 'dist'
+    || entryName === 'coverage'
+    || entryName === 'target';
+}
+
+function resolveWorkspaceRoot(candidateRoot = repoRoot) {
+  const normalizedRoot = path.resolve(candidateRoot);
+  return path.basename(path.dirname(normalizedRoot)) === '.worktrees'
+    ? path.resolve(normalizedRoot, '..', '..')
+    : normalizedRoot;
+}
+
 function normalizeRelativeEntry(relativeEntry) {
   if (Array.isArray(relativeEntry)) {
     return relativeEntry;
@@ -26,25 +42,48 @@ function defaultRenamePath(sourcePath, destinationPath) {
   fs.renameSync(sourcePath, destinationPath);
 }
 
-function listWorkspaceAppRoots(appsRoot) {
-  if (!defaultFileExists(appsRoot)) {
+function listWorkspaceAppRoots(searchRoot, maxDepth = 2) {
+  if (!defaultFileExists(searchRoot)) {
     return [];
   }
 
-  let entries;
-  try {
-    entries = fs.readdirSync(appsRoot, { withFileTypes: true });
-  } catch {
-    return [];
+  const discoveredRoots = [];
+
+  function walk(currentRoot, depth) {
+    let entries;
+    try {
+      entries = fs.readdirSync(currentRoot, { withFileTypes: true });
+    } catch {
+      return;
+    }
+
+    for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
+      if (!entry.isDirectory() || shouldSkipWorkspaceEntry(entry.name)) {
+        continue;
+      }
+
+      const candidateRoot = path.join(currentRoot, entry.name);
+      const candidatePackageJson = path.join(candidateRoot, 'package.json');
+      const candidateNodeModules = path.join(candidateRoot, 'node_modules');
+
+      if (
+        defaultFileExists(candidatePackageJson)
+        && defaultFileExists(candidateNodeModules)
+      ) {
+        discoveredRoots.push(candidateRoot);
+        continue;
+      }
+
+      if (depth >= maxDepth) {
+        continue;
+      }
+
+      walk(candidateRoot, depth + 1);
+    }
   }
 
-  return entries
-    .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
-    .map((entry) => path.join(appsRoot, entry.name))
-    .filter((candidateRoot) => (
-      defaultFileExists(path.join(candidateRoot, 'package.json'))
-      && defaultFileExists(path.join(candidateRoot, 'node_modules'))
-    ));
+  walk(searchRoot, 0);
+  return discoveredRoots;
 }
 
 function listWorkspaceWorktreeAppRoots(worktreesRoot) {
@@ -76,6 +115,18 @@ function defaultResolveFromRoot(root, specifier) {
   return createRequire(path.join(root, 'package.json')).resolve(specifier);
 }
 
+function hasRequiredPackagesAtNodeModules(
+  nodeModulesRoot,
+  requiredPackages = [],
+  fileExists = defaultFileExists,
+) {
+  return requiredPackages.every((packageName) => fileExists(path.join(
+    nodeModulesRoot,
+    ...packageName.split('/'),
+    'package.json',
+  )));
+}
+
 export function probeReadableFile(
   filePath,
   {
@@ -103,10 +154,14 @@ function defaultIsReadable(filePath) {
 
 export function resolveWorkspaceDonorRoots(appRoot) {
   const normalizedAppRoot = path.resolve(appRoot);
+  const workspaceRoot = resolveWorkspaceRoot(repoRoot);
+  const activeAppsRoot = path.join(repoRoot, 'apps');
+  const workspaceAppsRoot = path.join(workspaceRoot, 'apps');
   const knownWorkspaceApps = [
-    ...listWorkspaceAppRoots(path.join(repoRoot, 'apps')),
-    ...listWorkspaceAppRoots(path.resolve(repoRoot, '..')),
-    ...listWorkspaceWorktreeAppRoots(path.join(repoRoot, '.worktrees')),
+    ...listWorkspaceAppRoots(activeAppsRoot),
+    ...(workspaceAppsRoot === activeAppsRoot ? [] : listWorkspaceAppRoots(workspaceAppsRoot)),
+    ...listWorkspaceAppRoots(path.resolve(workspaceRoot, '..')),
+    ...listWorkspaceWorktreeAppRoots(path.join(workspaceRoot, '.worktrees')),
   ];
 
   return knownWorkspaceApps
@@ -132,11 +187,11 @@ export function ensureLocalNodeModules({
 
   const normalizedAppRoot = path.resolve(appRoot);
   const localNodeModulesPath = path.join(normalizedAppRoot, 'node_modules');
-  const hasRequiredPackages = requiredPackages.every((packageName) => fileExists(path.join(
+  const hasRequiredPackages = hasRequiredPackagesAtNodeModules(
     localNodeModulesPath,
-    packageName,
-    'package.json',
-  )));
+    requiredPackages,
+    fileExists,
+  );
 
   if (fileExists(localNodeModulesPath) && hasRequiredPackages) {
     return localNodeModulesPath;
@@ -144,11 +199,17 @@ export function ensureLocalNodeModules({
 
   const donorNodeModulesPath = donorRoots
     .map((candidateRoot) => path.join(path.resolve(candidateRoot), 'node_modules'))
-    .find((candidatePath) => fileExists(candidatePath));
+    .find((candidatePath) => (
+      fileExists(candidatePath)
+      && hasRequiredPackagesAtNodeModules(candidatePath, requiredPackages, fileExists)
+    ));
 
   if (!donorNodeModulesPath) {
+    const requiredPackagesSuffix = requiredPackages.length > 0
+      ? ` satisfying [${requiredPackages.join(', ')}]`
+      : '';
     throw new Error(
-      `unable to materialize local node_modules for ${normalizedAppRoot}; no readable donor node_modules were found`,
+      `unable to materialize local node_modules for ${normalizedAppRoot}; no readable donor node_modules${requiredPackagesSuffix} were found`,
     );
   }
 

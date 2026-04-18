@@ -10,6 +10,7 @@ import {
 } from './vite-runtime-lib.mjs';
 
 const REQUIRED_APP_PACKAGES = [
+  '@sdkwork/ui-pc-react',
   '@tailwindcss/vite',
   '@types/react',
   '@types/react-dom',
@@ -19,6 +20,7 @@ const REQUIRED_APP_PACKAGES = [
   'react-dom',
   'react-router-dom',
   'tailwindcss',
+  'typescript',
   'vite',
 ];
 

@@ -1,4 +1,3 @@
-import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -13,25 +12,7 @@ import {
 const configDir = fileURLToPath(new URL('.', import.meta.url));
 const adminBackendNotConfiguredMessage =
   'Admin backend proxy target is not configured. Set SDKWORK_ADMIN_PROXY_TARGET to a compatible /api/admin backend.';
-
-function resolveSdkworkUiRoot() {
-  const candidates = [
-    path.join(configDir, 'node_modules', '@sdkwork', 'ui-pc-react'),
-    path.join(configDir, '..', '..', '..', 'sdkwork-ui', 'sdkwork-ui-pc-react'),
-    path.join(configDir, '..', '..', '..', '..', '..', 'sdkwork-ui', 'sdkwork-ui-pc-react'),
-  ];
-
-  return (
-    candidates.find((candidate) => existsSync(path.join(candidate, 'dist'))) ?? candidates[0]
-  );
-}
-
-const sdkworkUiRoot = resolveSdkworkUiRoot();
-const sdkworkUiDistRoot = path.join(sdkworkUiRoot, 'dist');
-
-function resolveUiDist(entryPath: string) {
-  return path.join(sdkworkUiDistRoot, entryPath);
-}
+const sdkworkUiSourceRoot = path.join(configDir, 'packages', 'sdkwork-ui-pc-react', 'src');
 
 function resolveProxyTarget(envValue: string | undefined) {
   const trimmedValue = envValue?.trim();
@@ -194,31 +175,43 @@ export default defineConfig({
       },
       {
         find: /^@sdkwork\/ui-pc-react\/styles\.css$/,
-        replacement: resolveUiDist('sdkwork-ui.css'),
+        replacement: path.join(sdkworkUiSourceRoot, 'styles', 'sdkwork-ui.css'),
       },
       {
         find: /^@sdkwork\/ui-pc-react\/theme$/,
-        replacement: resolveUiDist('theme.js'),
+        replacement: path.join(sdkworkUiSourceRoot, 'theme', 'index.ts'),
       },
       {
         find: /^@sdkwork\/ui-pc-react\/components\/ui$/,
-        replacement: resolveUiDist('components-ui.js'),
+        replacement: path.join(sdkworkUiSourceRoot, 'components', 'ui', 'index.ts'),
       },
       {
         find: /^@sdkwork\/ui-pc-react\/components\/ui\/feedback$/,
-        replacement: resolveUiDist('ui-feedback.js'),
+        replacement: path.join(sdkworkUiSourceRoot, 'components', 'ui', 'feedback', 'index.ts'),
       },
       {
         find: /^@sdkwork\/ui-pc-react\/components\/patterns\/app-shell$/,
-        replacement: resolveUiDist('patterns-app-shell.js'),
+        replacement: path.join(
+          sdkworkUiSourceRoot,
+          'components',
+          'patterns',
+          'app-shell',
+          'index.ts',
+        ),
       },
       {
         find: /^@sdkwork\/ui-pc-react\/components\/patterns\/desktop-shell$/,
-        replacement: resolveUiDist('patterns-desktop-shell.js'),
+        replacement: path.join(
+          sdkworkUiSourceRoot,
+          'components',
+          'patterns',
+          'desktop-shell',
+          'index.ts',
+        ),
       },
       {
         find: /^@sdkwork\/ui-pc-react$/,
-        replacement: resolveUiDist('index.js'),
+        replacement: path.join(sdkworkUiSourceRoot, 'index.ts'),
       },
       ...workspacePackageAliases,
     ],

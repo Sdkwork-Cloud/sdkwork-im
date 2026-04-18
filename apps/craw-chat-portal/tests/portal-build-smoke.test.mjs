@@ -1,16 +1,16 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { access } from 'node:fs/promises';
-import path from 'node:path';
 import { test } from 'node:test';
+import { appRoot, fromAppRoot } from './support/testPaths.mjs';
 
-const workspaceRoot = path.resolve('.');
-const distIndexHtml = path.join(workspaceRoot, 'apps/craw-chat-portal/dist/index.html');
+const distIndexHtml = fromAppRoot('dist', 'index.html');
+const buildScriptPath = fromAppRoot('scripts', 'build.mjs');
 
 function runBuild() {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, ['apps/craw-chat-portal/scripts/build.mjs'], {
-      cwd: workspaceRoot,
+    const child = spawn(process.execPath, [buildScriptPath], {
+      cwd: appRoot,
       stdio: 'ignore',
     });
 

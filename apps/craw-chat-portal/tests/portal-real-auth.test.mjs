@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { test } from 'node:test';
-
-const appRoot = path.resolve('apps/craw-chat-portal');
+import { afterEach, beforeEach, test } from 'node:test';
+import { appRoot } from './support/testPaths.mjs';
+import {
+  installPortalFixtureDataSource,
+  restoreDefaultPortalDataSource,
+} from './support/portalFixtureDataSource.mjs';
 
 function storageDouble() {
   const store = new Map();
@@ -100,6 +103,14 @@ async function flushAsyncWork(iterations = 4) {
     await new Promise((resolve) => setTimeout(resolve, 0));
   }
 }
+
+beforeEach(() => {
+  installPortalFixtureDataSource();
+});
+
+afterEach(() => {
+  restoreDefaultPortalDataSource();
+});
 
 test('portal auth store forwards explicit credentials to the portal-api login seam', async () => {
   const authStoreModule = await import(
