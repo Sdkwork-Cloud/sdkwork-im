@@ -1,6 +1,6 @@
-import type { CrawChatBackendClientLike, CrawChatClientCreateOptions, SdkworkBackendConfig } from './types.js';
+import type { CrawChatBackendClientLike, CrawChatSdkClientCreateOptions, SdkworkBackendConfig } from './types.js';
 export declare function createGeneratedBackendClient(backendConfig: SdkworkBackendConfig): Promise<CrawChatBackendClientLike>;
-export declare function resolveBackendClient(options: CrawChatClientCreateOptions): Promise<CrawChatBackendClientLike>;
+export declare function resolveBackendClient(options: CrawChatSdkClientCreateOptions): Promise<CrawChatBackendClientLike>;
 export declare class CrawChatSdkContext {
     readonly backendClient: CrawChatBackendClientLike;
     constructor(backendClient: CrawChatBackendClientLike);

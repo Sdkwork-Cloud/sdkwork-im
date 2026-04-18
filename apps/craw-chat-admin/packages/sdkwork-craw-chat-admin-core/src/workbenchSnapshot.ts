@@ -1,4 +1,4 @@
-import { adminBaseUrl } from 'sdkwork-craw-chat-admin-admin-api';
+import { adminBaseUrl } from '@sdkwork/craw-chat-admin-sdk';
 import type {
   AdminAlert,
   AdminSessionUser,

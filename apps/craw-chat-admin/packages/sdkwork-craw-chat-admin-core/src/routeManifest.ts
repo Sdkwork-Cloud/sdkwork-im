@@ -230,6 +230,26 @@ export const adminProductModules: AdminProductModuleManifest[] = [
     },
   },
   {
+    moduleId: 'sdkwork-craw-chat-admin-storage',
+    pluginId: 'sdkwork-craw-chat-admin-storage',
+    pluginKind: 'admin-module',
+    packageName: 'sdkwork-craw-chat-admin-storage',
+    displayName: 'Storage',
+    routeKeys: ['storage'],
+    capabilityTags: ['object-storage', 'tenant-overrides', 'presigned-uploads'],
+    requiredPermissions: ['admin.storage.read', 'admin.storage.write'],
+    navigation: {
+      group: 'System',
+      order: 115,
+      sidebar: true,
+    },
+    loading: {
+      strategy: 'lazy',
+      prefetch: 'intent',
+      chunkGroup: 'storage',
+    },
+  },
+  {
     moduleId: 'sdkwork-craw-chat-admin-settings',
     pluginId: 'sdkwork-craw-chat-admin-settings',
     pluginKind: 'admin-module',

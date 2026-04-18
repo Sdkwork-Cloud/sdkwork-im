@@ -28,6 +28,7 @@
     "sdkwork-craw-chat-admin-realtime": "workspace:*",
     "sdkwork-craw-chat-admin-system": "workspace:*",
     "sdkwork-craw-chat-admin-overview": "workspace:*",
+    "sdkwork-craw-chat-admin-storage": "workspace:*",
     "sdkwork-craw-chat-admin-settings": "workspace:*",
     "sdkwork-craw-chat-admin-tenants": "workspace:*",
     "sdkwork-craw-chat-admin-messages": "workspace:*",

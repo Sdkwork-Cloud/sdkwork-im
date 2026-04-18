@@ -51,6 +51,25 @@ async fn test_create_complete_and_get_media_asset_over_http() {
     assert_eq!(create_json["principalKind"], "user");
     assert_eq!(create_json["processingState"], "pendingUpload");
     assert_eq!(create_json["resource"]["type"], "image");
+    assert_eq!(create_json["upload"]["method"], "PUT");
+    assert_eq!(create_json["upload"]["headers"], serde_json::json!({}));
+    let upload_url = create_json["upload"]["url"]
+        .as_str()
+        .expect("create response should include upload url");
+    assert!(upload_url.contains("object-storage-volcengine"));
+    assert!(upload_url.contains("expires=3600"));
+    assert_eq!(
+        create_json["upload"]["assetId"],
+        "ma_demo"
+    );
+    assert_eq!(
+        create_json["upload"]["storageProvider"],
+        "object-storage-volcengine"
+    );
+    assert!(
+        create_json["upload"]["expiresAt"].as_str().is_some(),
+        "create response should include upload expiry timestamp"
+    );
 
     let complete_response = app
         .clone()

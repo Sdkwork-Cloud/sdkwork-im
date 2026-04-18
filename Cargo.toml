@@ -17,6 +17,8 @@ members = [
     "crates/craw-chat-contract-notification",
     "crates/craw-chat-contract-rtc",
     "crates/craw-chat-contract-stream",
+    "crates/im-storage-contracts",
+    "crates/im-storage-runtime",
     "crates/craw-chat-runtime-link",
     "crates/craw-chat-runtime-route",
     "crates/sdkwork-api-config",

@@ -38,7 +38,7 @@ import {
   loginAdminUser,
   persistAdminSessionToken,
   readAdminSessionToken,
-} from 'sdkwork-craw-chat-admin-admin-api';
+} from '@sdkwork/craw-chat-admin-sdk';
 import type {
   AdminSessionUser,
   AdminWorkspaceSnapshot,

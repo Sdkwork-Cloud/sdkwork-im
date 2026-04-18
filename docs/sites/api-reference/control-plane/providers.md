@@ -5,6 +5,11 @@
   policy diffs, preview flows, and rollback operations.
 </p>
 
+<div class="api-link-list">
+  <a href="/api-reference/control-plane-api"><code>Control Plane</code> Back to Control Plane overview</a>
+  <a href="/sdk/admin-sdk"><code>Admin SDK</code> See how `sdk.providers` maps to this page</a>
+</div>
+
 <a id="get-provider-registry"></a>
 <section class="api-op">
 

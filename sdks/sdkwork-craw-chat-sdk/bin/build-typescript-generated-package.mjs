@@ -9,19 +9,22 @@ import {
   writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import {
+  failTypescriptBuild,
+  resolveTypescriptGeneratedBuildPaths,
+  runTypescriptBuildCommand,
+  runTypescriptBuildNpm,
+} from '../../workspace-typescript-build-shared.mjs';
 
+const prefix = 'sdkwork-craw-chat-sdk';
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = path.resolve(scriptDir, '..');
-const generatedRoot = path.join(
+const { generatedRoot, distRoot } = resolveTypescriptGeneratedBuildPaths({
   workspaceRoot,
-  'sdkwork-craw-chat-sdk-typescript',
-  'generated',
-  'server-openapi',
-);
+  relativeGeneratedRoot: path.join('sdkwork-craw-chat-sdk-typescript', 'generated', 'server-openapi'),
+});
 const cacheDir = path.join(generatedRoot, '.npm-cache');
-const distRoot = path.join(generatedRoot, 'dist');
 const locksRoot = path.join(generatedRoot, '.sdkwork', 'locks');
 const buildLockDir = path.join(locksRoot, 'stable-typescript-generated-build.lock');
 const lockInfoPath = path.join(buildLockDir, 'owner.json');
@@ -36,43 +39,10 @@ const lockTimeoutMs = 5 * 60 * 1000;
 const lockPollMs = 200;
 let buildLockHeld = false;
 
-function fail(message) {
-  console.error(`[sdkwork-craw-chat-sdk] ${message}`);
-  process.exit(1);
-}
-
 function sleep(ms) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
-}
-
-function run(command, args, options = {}) {
-  const result = spawnSync(command, args, {
-    cwd: generatedRoot,
-    stdio: 'inherit',
-    shell: false,
-    env: {
-      ...process.env,
-      NPM_CONFIG_CACHE: cacheDir,
-      ...(options.env || {}),
-    },
-  });
-
-  if (result.error) {
-    fail(`${options.step || command} failed to start: ${result.error.message}`);
-  }
-  if ((result.status ?? 1) !== 0) {
-    fail(`${options.step || command} failed with exit code ${result.status}`);
-  }
-}
-
-function runNpm(args, options = {}) {
-  if (process.platform === 'win32') {
-    run('cmd.exe', ['/d', '/s', '/c', 'npm', ...args], options);
-    return;
-  }
-  run('npm', args, options);
 }
 
 function walkFiles(rootDirectory) {
@@ -141,15 +111,22 @@ function rewriteEsmSpecifiers(rootDirectory) {
 }
 
 function ensureToolingInstalled() {
-  runNpm(['install', '--ignore-scripts'], {
+  runTypescriptBuildNpm({
+    prefix,
+    args: ['install', '--ignore-scripts'],
+    cwd: generatedRoot,
+    env: {
+      ...process.env,
+      NPM_CONFIG_CACHE: cacheDir,
+    },
     step: 'typescript-generated:npm-install-ignore-scripts',
   });
 
   if (!existsSync(tscBin)) {
-    fail(`TypeScript compiler not found after install: ${tscBin}`);
+    failTypescriptBuild({ prefix, message: `TypeScript compiler not found after install: ${tscBin}` });
   }
   if (!existsSync(rollupBin)) {
-    fail(`Rollup CLI not found after install: ${rollupBin}`);
+    failTypescriptBuild({ prefix, message: `Rollup CLI not found after install: ${rollupBin}` });
   }
 }
 
@@ -182,14 +159,15 @@ async function acquireBuildLock() {
       return;
     } catch (error) {
       if (error && error.code !== 'EEXIST') {
-        fail(`Failed to acquire TypeScript generated build lock: ${error.message}`);
+        failTypescriptBuild({ prefix, message: `Failed to acquire TypeScript generated build lock: ${error.message}` });
       }
     }
 
     if (Date.now() - startedAt >= lockTimeoutMs) {
-      fail(
-        `Timed out waiting for TypeScript generated build lock after ${lockTimeoutMs}ms (${describeLockOwner()}).`,
-      );
+      failTypescriptBuild({
+        prefix,
+        message: `Timed out waiting for TypeScript generated build lock after ${lockTimeoutMs}ms (${describeLockOwner()}).`,
+      });
     }
 
     await sleep(lockPollMs);
@@ -211,7 +189,7 @@ function resetBuildOutputs() {
   if (existsSync(tmpWorkspaceRoot)) {
     const resolvedTmpWorkspaceRoot = path.resolve(tmpWorkspaceRoot);
     if (!resolvedTmpWorkspaceRoot.startsWith(path.resolve(generatedRoot))) {
-      fail(`Refusing to remove path outside generated workspace: ${resolvedTmpWorkspaceRoot}`);
+      failTypescriptBuild({ prefix, message: `Refusing to remove path outside generated workspace: ${resolvedTmpWorkspaceRoot}` });
     }
     rmSync(resolvedTmpWorkspaceRoot, { recursive: true, force: true });
   }
@@ -222,7 +200,7 @@ function resetBuildOutputs() {
   if (existsSync(distRoot)) {
     const resolvedDistRoot = path.resolve(distRoot);
     if (!resolvedDistRoot.startsWith(path.resolve(generatedRoot))) {
-      fail(`Refusing to move path outside generated workspace: ${resolvedDistRoot}`);
+      failTypescriptBuild({ prefix, message: `Refusing to move path outside generated workspace: ${resolvedDistRoot}` });
     }
     renameSync(resolvedDistRoot, staleDistRoot);
     rmSync(staleDistRoot, { recursive: true, force: true });
@@ -249,12 +227,12 @@ function sanitizeSourceMapSource(sourcePath) {
 function sanitizeCjsSourceMap() {
   const sourceMapPath = path.join(distRoot, 'index.cjs.map');
   if (!existsSync(sourceMapPath)) {
-    fail('TypeScript generated dist/index.cjs.map was not produced.');
+    failTypescriptBuild({ prefix, message: 'TypeScript generated dist/index.cjs.map was not produced.' });
   }
 
   const sourceMap = JSON.parse(readFileSync(sourceMapPath, 'utf8'));
   if (!Array.isArray(sourceMap.sources)) {
-    fail('TypeScript generated dist/index.cjs.map must contain a sources array.');
+    failTypescriptBuild({ prefix, message: 'TypeScript generated dist/index.cjs.map must contain a sources array.' });
   }
 
   sourceMap.sources = sourceMap.sources.map((sourcePath) => sanitizeSourceMapSource(String(sourcePath)));
@@ -268,21 +246,30 @@ function cleanupTmpWorkspaceRoot() {
 
   const resolvedTmpWorkspaceRoot = path.resolve(tmpWorkspaceRoot);
   if (!resolvedTmpWorkspaceRoot.startsWith(path.resolve(generatedRoot))) {
-    fail(`Refusing to remove path outside generated workspace: ${resolvedTmpWorkspaceRoot}`);
+    failTypescriptBuild({ prefix, message: `Refusing to remove path outside generated workspace: ${resolvedTmpWorkspaceRoot}` });
   }
   rmSync(resolvedTmpWorkspaceRoot, { recursive: true, force: true });
 }
 
 function compileDeclarations() {
-  run('node', [tscBin, '-p', 'tsconfig.json', '--emitDeclarationOnly', '--outDir', distRoot], {
+  runTypescriptBuildCommand({
+    prefix,
+    command: 'node',
+    args: [tscBin, '-p', 'tsconfig.json', '--emitDeclarationOnly', '--outDir', distRoot],
+    cwd: generatedRoot,
+    env: {
+      ...process.env,
+      NPM_CONFIG_CACHE: cacheDir,
+    },
     step: 'typescript-generated:tsc-declarations',
   });
 }
 
 function compileEsmTree() {
-  run(
-    'node',
-    [
+  runTypescriptBuildCommand({
+    prefix,
+    command: 'node',
+    args: [
       tscBin,
       '-p',
       'tsconfig.json',
@@ -295,17 +282,21 @@ function compileEsmTree() {
       '--outDir',
       esmTmpRoot,
     ],
-    {
-      step: 'typescript-generated:tsc-esm-tree',
+    cwd: generatedRoot,
+    env: {
+      ...process.env,
+      NPM_CONFIG_CACHE: cacheDir,
     },
-  );
+    step: 'typescript-generated:tsc-esm-tree',
+  });
   rewriteEsmSpecifiers(esmTmpRoot);
 }
 
 function bundleCjs() {
-  run(
-    'node',
-    [
+  runTypescriptBuildCommand({
+    prefix,
+    command: 'node',
+    args: [
       rollupBin,
       path.join(esmTmpRoot, 'index.js'),
       '--format',
@@ -316,10 +307,13 @@ function bundleCjs() {
       '@sdkwork/sdk-common',
       '--sourcemap',
     ],
-    {
-      step: 'typescript-generated:rollup-cjs',
+    cwd: generatedRoot,
+    env: {
+      ...process.env,
+      NPM_CONFIG_CACHE: cacheDir,
     },
-  );
+    step: 'typescript-generated:rollup-cjs',
+  });
 }
 
 function collectCjsExports() {
@@ -356,7 +350,7 @@ function collectCjsExports() {
 function writeEsmWrapper() {
   const exportNames = collectCjsExports();
   if (exportNames.length === 0) {
-    fail('TypeScript generated CJS bundle did not expose any named exports.');
+    failTypescriptBuild({ prefix, message: 'TypeScript generated CJS bundle did not expose any named exports.' });
   }
 
   const wrapperSource = [
@@ -391,13 +385,13 @@ try {
   writeEsmWrapper();
 
   if (!existsSync(path.join(distRoot, 'index.js'))) {
-    fail('TypeScript generated dist/index.js was not produced.');
+    failTypescriptBuild({ prefix, message: 'TypeScript generated dist/index.js was not produced.' });
   }
   if (!existsSync(path.join(distRoot, 'index.cjs'))) {
-    fail('TypeScript generated dist/index.cjs was not produced.');
+    failTypescriptBuild({ prefix, message: 'TypeScript generated dist/index.cjs was not produced.' });
   }
   if (!existsSync(path.join(distRoot, 'index.d.ts'))) {
-    fail('TypeScript generated dist/index.d.ts was not produced.');
+    failTypescriptBuild({ prefix, message: 'TypeScript generated dist/index.d.ts was not produced.' });
   }
 
   cleanupTmpWorkspaceRoot();

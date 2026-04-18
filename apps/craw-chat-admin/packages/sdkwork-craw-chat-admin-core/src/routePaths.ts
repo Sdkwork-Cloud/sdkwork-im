@@ -17,6 +17,7 @@ export const ADMIN_ROUTE_PATHS = {
   ANNOUNCEMENTS: '/announcements',
   REALTIME: '/realtime',
   SYSTEM: '/system',
+  STORAGE: '/storage',
   SETTINGS: '/settings',
 } as const;
 
@@ -43,6 +44,7 @@ export const adminRoutePathByKey: Record<AdminRouteKey, string> = {
   announcements: ADMIN_ROUTE_PATHS.ANNOUNCEMENTS,
   realtime: ADMIN_ROUTE_PATHS.REALTIME,
   system: ADMIN_ROUTE_PATHS.SYSTEM,
+  storage: ADMIN_ROUTE_PATHS.STORAGE,
   settings: ADMIN_ROUTE_PATHS.SETTINGS,
 };
 

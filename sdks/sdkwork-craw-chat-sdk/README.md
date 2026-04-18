@@ -168,6 +168,39 @@ The wrapper flow is:
 4. Generate Flutter from `craw-chat-app.flutter.sdkgen.yaml`, normalize the generated public auth surface back to bearer-only semantics, then run the Flutter workspace verification suite so Dart models do not regress into empty primitive wrapper classes, the Flutter composed layer keeps its convenience metadata helpers, it only consumes the generated package through the public `package:backend_sdk/backend_sdk.dart` entrypoint, and the generated package metadata stays aligned on `backend_sdk`.
 5. Refresh workspace metadata.
 
+## Assemble
+
+When generated and composed manifests are already current, refresh workspace assembly metadata directly:
+
+```powershell
+.\bin\assemble-sdk.ps1 -Languages typescript,flutter
+```
+
+If local PowerShell execution policy blocks script execution, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\bin\assemble-sdk.ps1 -Languages typescript,flutter
+```
+
+```bash
+./bin/assemble-sdk.sh --language typescript --language flutter
+```
+
+These root wrappers rebuild `.sdkwork-assembly.json` from the checked-in contract metadata plus the language package manifests.
+Language-local `sdk-assemble` wrappers forward to this root entrypoint and pin a single language.
+
+## Assembly Metadata
+
+Root verification refreshes `.sdkwork-assembly.json`.
+
+That release-facing metadata file records:
+
+- authority and derived spec paths
+- one language package entry per workspace
+- each package `manifestPath`
+- the explicit `generated` and `composed` package layers
+- a `generatedAt` timestamp that stays stable when assembly content is unchanged
+
 ## Verification
 
 Run the stable cross-language verification entrypoint from the workspace root:
@@ -188,12 +221,12 @@ powershell -ExecutionPolicy Bypass -File .\bin\verify-sdk.ps1
 
 This default verification flow runs:
 
-1. Workspace automation guardrails, including wrapper and documentation drift checks.
+1. Workspace automation guardrails, including wrapper and documentation drift checks, plus the workspace automation meta-test and assembly regression test that keep the root verify chain honest.
 2. PowerShell wrapper argument compatibility checks for the documented comma-separated `-Languages` examples.
-3. TypeScript workspace verification through `bin/verify-typescript-workspace.mjs`, which runs generated-package stable build, generated-package artifact and `npm pack --dry-run` checks, bearer-auth surface alignment checks, temporary verification-directory cleanup checks, public API boundary validation, runtime root-export validation, dead-auth/dead-residue cleanup validation, composed typecheck/build, dist cleanup, and smoke tests.
+3. TypeScript workspace verification through `bin/verify-typescript-workspace.mjs`, which runs generated-package stable build, generated-package artifact and `npm pack --dry-run` checks, bearer-auth surface alignment checks, usage-surface checks, temporary verification-directory cleanup checks, public API boundary validation, runtime root-export validation, dead-auth/dead-residue cleanup validation, composed typecheck/build, dist cleanup, and smoke tests.
 4. TypeScript generated-package determinism regression verification through `bin/verify-typescript-generated-build-determinism.mjs`, so repeated stable builds keep `dist/index.cjs.map` identical and free of run-specific temporary-directory leakage.
 5. TypeScript generated-package concurrency regression verification through `bin/verify-typescript-generated-build-concurrency.mjs` on Windows hosts, so overlapping root verification invocations do not regress back into shared-temp or shared-log collisions.
-6. Flutter workspace verification through `bin/verify-flutter-workspace.mjs`, which runs generated-model regression checks, bearer-auth surface alignment checks, composed parity checks, public API boundary checks, and package metadata consistency checks.
+6. Flutter workspace verification through `bin/verify-flutter-workspace.mjs`, which runs generated-model regression checks, bearer-auth surface alignment checks, composed parity checks, app-facing usage-surface consistency checks, media-upload surface checks, public API boundary checks, and package metadata consistency checks.
 7. Optional native Dart verification on top of the default Flutter workspace checks when `--with-dart` or `-WithDart` is requested. On Windows, this path resolves Flutter's bundled `dart.exe`, isolates the local pub cache under `/.sdkwork/dart/pub-cache`, and falls back to `bin/verify-flutter-dart-analysis.dart` when `dart analyze` cannot safely launch its own helper process in the current environment.
 8. Workspace assembly refresh.
 

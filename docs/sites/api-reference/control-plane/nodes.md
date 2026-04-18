@@ -5,6 +5,11 @@
   nodes in the cluster.
 </p>
 
+<div class="api-link-list">
+  <a href="/api-reference/control-plane-api"><code>Control Plane</code> Back to Control Plane overview</a>
+  <a href="/sdk/admin-sdk"><code>Admin SDK</code> See how `sdk.nodes` maps to this page</a>
+</div>
+
 <a id="drain-node"></a>
 <section class="api-op">
 

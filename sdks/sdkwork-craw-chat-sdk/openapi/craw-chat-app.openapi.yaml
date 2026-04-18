@@ -834,11 +834,11 @@ paths:
               $ref: '#/components/schemas/CreateUploadRequest'
       responses:
         '200':
-          description: Media asset upload record
+          description: Media asset upload record with presigned upload session metadata
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MediaAsset'
+                $ref: '#/components/schemas/MediaUploadMutationResponse'
         '400':
           $ref: '#/components/responses/BadRequestError'
         '401':
@@ -862,11 +862,11 @@ paths:
               $ref: '#/components/schemas/CompleteUploadRequest'
       responses:
         '200':
-          description: Completed media asset
+          description: Completed media asset mutation response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MediaAsset'
+                $ref: '#/components/schemas/MediaUploadMutationResponse'
         '400':
           $ref: '#/components/responses/BadRequestError'
         '401':
@@ -2339,6 +2339,87 @@ components:
           type: string
           format: uri
         checksum:
+          type: string
+    MediaUploadDeliveryStatus:
+      type: string
+      enum: [applied, replayed]
+    MediaUploadSession:
+      type: object
+      required:
+        - assetId
+        - storageProvider
+        - bucket
+        - objectKey
+        - method
+        - url
+        - headers
+        - expiresAt
+      properties:
+        assetId:
+          type: string
+        storageProvider:
+          type: string
+        bucket:
+          type: string
+        objectKey:
+          type: string
+        method:
+          type: string
+        url:
+          type: string
+          format: uri
+        headers:
+          $ref: '#/components/schemas/StringMap'
+        expiresAt:
+          type: string
+          format: date-time
+    MediaUploadMutationResponse:
+      type: object
+      required:
+        - tenantId
+        - principalId
+        - principalKind
+        - mediaAssetId
+        - processingState
+        - resource
+        - createdAt
+        - requestKey
+        - deliveryStatus
+        - proofVersion
+      properties:
+        tenantId:
+          type: string
+        principalId:
+          type: string
+        principalKind:
+          type: string
+        mediaAssetId:
+          type: string
+        bucket:
+          type: string
+        objectKey:
+          type: string
+        storageProvider:
+          type: string
+        checksum:
+          type: string
+        processingState:
+          $ref: '#/components/schemas/MediaProcessingState'
+        resource:
+          $ref: '#/components/schemas/MediaResource'
+        createdAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        upload:
+          $ref: '#/components/schemas/MediaUploadSession'
+        requestKey:
+          type: string
+        deliveryStatus:
+          $ref: '#/components/schemas/MediaUploadDeliveryStatus'
+        proofVersion:
           type: string
     MediaDownloadUrlResponse:
       type: object

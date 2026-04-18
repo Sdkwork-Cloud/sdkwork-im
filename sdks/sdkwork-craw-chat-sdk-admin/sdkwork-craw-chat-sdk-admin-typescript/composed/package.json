@@ -1,0 +1,30 @@
+{
+  "name": "@sdkwork/craw-chat-admin-sdk",
+  "version": "0.1.0",
+  "description": "Composed Craw Chat admin TypeScript SDK built on the generated admin backend SDK",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "src"
+  ],
+  "dependencies": {
+    "@sdkwork/craw-chat-admin-backend-sdk": "file:../generated/server-openapi",
+    "sdkwork-craw-chat-admin-types": "file:../../../../apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-types"
+  },
+  "scripts": {
+    "typecheck": "node ./bin/run-tsc.mjs -p tsconfig.build.json --noEmit",
+    "build": "node ./bin/run-tsc.mjs -p tsconfig.build.json && node ./bin/clean-dist.mjs",
+    "test": "node ./test/craw-chat-admin-client.test.mjs"
+  }
+}

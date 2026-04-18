@@ -5,6 +5,11 @@
   and the effective governance snapshot applied to compatible clients.
 </p>
 
+<div class="api-link-list">
+  <a href="/api-reference/control-plane-api"><code>Control Plane</code> Back to Control Plane overview</a>
+  <a href="/sdk/admin-sdk"><code>Admin SDK</code> See how `sdk.meta` and `sdk.protocol` map to this page</a>
+</div>
+
 <a id="get-control-healthz"></a>
 <section class="api-op">
 

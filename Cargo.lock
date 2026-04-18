@@ -342,6 +342,7 @@ name = "craw-chat-contract-admin"
 version = "0.1.0"
 dependencies = [
  "craw-chat-contract-core",
+ "im-storage-contracts",
  "serde",
 ]
 
@@ -872,6 +873,7 @@ version = "0.1.0"
 dependencies = [
  "im-domain-core",
  "im-platform-contracts",
+ "im-storage-contracts",
  "serde",
  "serde_json",
 ]
@@ -883,6 +885,7 @@ dependencies = [
  "im-domain-core",
  "im-domain-events",
  "im-platform-contracts",
+ "im-storage-contracts",
 ]
 
 [[package]]
@@ -939,6 +942,24 @@ dependencies = [
  "im-domain-events",
  "im-time",
  "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "im-storage-contracts"
+version = "0.1.0"
+dependencies = [
+ "craw-chat-contract-core",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "im-storage-runtime"
+version = "0.1.0"
+dependencies = [
+ "craw-chat-contract-core",
+ "im-storage-contracts",
  "serde_json",
 ]
 
@@ -1445,6 +1466,9 @@ dependencies = [
  "anyhow",
  "axum",
  "bytes",
+ "im-adapters-local-disk",
+ "im-storage-contracts",
+ "im-storage-runtime",
  "reqwest",
  "sdkwork-api-config",
  "serde",

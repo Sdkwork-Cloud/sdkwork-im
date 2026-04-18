@@ -39,6 +39,8 @@ contract files:
   The OpenAPI 3.0.3 authority contract.
 - `craw-chat-app.sdkgen.yaml`
   The generator-compatible derived contract.
+- `craw-chat-app.flutter.sdkgen.yaml`
+  The Flutter-compatible derived contract used for Dart generation.
 
 For this family, the checked-in OpenAPI authority is real and should be documented as such.
 
@@ -79,6 +81,43 @@ powershell -ExecutionPolicy Bypass -File .\bin\generate-sdk.ps1 -Languages types
 ```
 
 Per-language forwarding wrappers are also present inside each language workspace.
+
+## Assembly Metadata
+
+The workspace refreshes `.sdkwork-assembly.json` as part of root verification and final assembly.
+
+That release-facing metadata file records:
+
+- the authority and derived spec paths
+- one language entry per workspace
+- each generated package `manifestPath`
+- the full `packages` layer list so automation can distinguish `generated` and `composed`
+- a `generatedAt` timestamp that stays stable when assembly content is unchanged
+
+This lets release tooling, docs verification, and workspace audits discover package manifests and
+published entrypoints without walking the whole repository tree.
+
+## Verification
+
+From the workspace root:
+
+```powershell
+node .\bin\verify-sdk.mjs
+```
+
+If the machine has a healthy Dart toolchain, opt into native Dart verification explicitly:
+
+```powershell
+node .\bin\verify-sdk.mjs --with-dart
+```
+
+Root verification refreshes `.sdkwork-assembly.json` after the TypeScript and Flutter checks pass.
+
+## Language Guides
+
+- [TypeScript SDK](/sdk/typescript-sdk)
+- [Flutter SDK](/sdk/flutter-sdk)
+- TypeScript package docs live under `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript`
 
 ## Current Release Status
 

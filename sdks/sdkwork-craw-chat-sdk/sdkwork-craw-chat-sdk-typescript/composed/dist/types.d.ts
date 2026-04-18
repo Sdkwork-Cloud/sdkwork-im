@@ -1,5 +1,5 @@
-import type { AckRealtimeEventsRequest, AddConversationMemberRequest, AgentHandoffStateView, AbortStreamRequest, AppendStreamFrameRequest, AttachMediaRequest, ChangeConversationMemberRoleRequest, ChangeConversationMemberRoleResult, CheckpointStreamRequest, CompleteStreamRequest, CompleteUploadRequest, ConversationMember, ConversationReadCursorView, ConversationSummaryView, CreateAgentDialogRequest, CreateAgentHandoffRequest, CreateConversationRequest, CreateConversationResult, CreateRtcSessionRequest, CreateSystemChannelRequest, CreateUploadRequest, DeviceSyncFeedResponse, EditMessageRequest, InboxResponse, InviteRtcSessionRequest, IssueRtcParticipantCredentialRequest, ListMembersResponse, MediaAsset, MediaDownloadUrlResponse, MessageMutationResult, OpenStreamRequest, PostMessageRequest, PostMessageResult, PostRtcSignalRequest, PresenceDeviceRequest, PresenceSnapshotView, RealtimeAckState, RealtimeEventWindow, RealtimeSubscriptionSnapshot, RegisterDeviceRequest, RegisteredDeviceView, QueryParams, RemoveConversationMemberRequest, ResumeSessionRequest, RtcParticipantCredential, RtcRecordingArtifact, RtcSession, RtcSignalEvent, SdkworkBackendConfig, SessionResumeView, StreamFrame, StreamFrameWindow, StreamSession, SyncRealtimeSubscriptionsRequest, TimelineResponse, TransferConversationOwnerRequest, TransferConversationOwnerResult, UpdateReadCursorRequest, UpdateRtcSessionRequest } from './generated-backend-types.js';
-export type { AckRealtimeEventsRequest, AddConversationMemberRequest, AgentHandoffStateView, AbortStreamRequest, AppendStreamFrameRequest, AttachMediaRequest, ChangeConversationMemberRoleRequest, ChangeConversationMemberRoleResult, CheckpointStreamRequest, CompleteStreamRequest, CompleteUploadRequest, ConversationMember, ConversationReadCursorView, ConversationSummaryView, CreateAgentDialogRequest, CreateAgentHandoffRequest, CreateConversationRequest, CreateConversationResult, CreateRtcSessionRequest, CreateSystemChannelRequest, CreateUploadRequest, DeviceSyncFeedResponse, EditMessageRequest, InboxResponse, InviteRtcSessionRequest, IssueRtcParticipantCredentialRequest, ListMembersResponse, MediaAsset, MediaDownloadUrlResponse, MessageMutationResult, OpenStreamRequest, PostMessageRequest, PostMessageResult, PostRtcSignalRequest, PresenceDeviceRequest, PresenceSnapshotView, RealtimeAckState, RealtimeEventWindow, RealtimeSubscriptionSnapshot, RegisterDeviceRequest, RegisteredDeviceView, QueryParams, RemoveConversationMemberRequest, ResumeSessionRequest, RtcParticipantCredential, RtcRecordingArtifact, RtcSession, RtcSignalEvent, SdkworkBackendConfig, SessionResumeView, StringMap, StreamFrame, StreamFrameWindow, StreamSession, SyncRealtimeSubscriptionsRequest, TimelineResponse, TransferConversationOwnerRequest, TransferConversationOwnerResult, UpdateReadCursorRequest, UpdateRtcSessionRequest, } from './generated-backend-types.js';
+import type { AckRealtimeEventsRequest, AddConversationMemberRequest, AgentHandoffStateView, AbortStreamRequest, AppendStreamFrameRequest, AttachMediaRequest, ChangeConversationMemberRoleRequest, ChangeConversationMemberRoleResult, CheckpointStreamRequest, CompleteStreamRequest, CompleteUploadRequest, ConversationMember, ConversationReadCursorView, ConversationSummaryView, CreateAgentDialogRequest, CreateAgentHandoffRequest, CreateConversationRequest, CreateConversationResult, CreateRtcSessionRequest, CreateSystemChannelRequest, CreateUploadRequest, DeviceSyncFeedResponse, EditMessageRequest, InboxResponse, InviteRtcSessionRequest, IssueRtcParticipantCredentialRequest, ListMembersResponse, MediaAsset, MediaDownloadUrlResponse, MediaUploadSession, MessageMutationResult, OpenStreamRequest, PostMessageRequest, PostMessageResult, PostRtcSignalRequest, PresenceDeviceRequest, PresenceSnapshotView, RealtimeAckState, RealtimeEventWindow, RealtimeSubscriptionSnapshot, RegisterDeviceRequest, RegisteredDeviceView, QueryParams, RemoveConversationMemberRequest, ResumeSessionRequest, RtcParticipantCredential, RtcRecordingArtifact, RtcSession, RtcSignalEvent, SdkworkBackendConfig, SessionResumeView, StreamFrame, StreamFrameWindow, StreamSession, SyncRealtimeSubscriptionsRequest, TimelineResponse, TransferConversationOwnerRequest, TransferConversationOwnerResult, UpdateReadCursorRequest, UpdateRtcSessionRequest } from './generated-backend-types.js';
+export type { AckRealtimeEventsRequest, AddConversationMemberRequest, AgentHandoffStateView, AbortStreamRequest, AppendStreamFrameRequest, AttachMediaRequest, ChangeConversationMemberRoleRequest, ChangeConversationMemberRoleResult, CheckpointStreamRequest, CompleteStreamRequest, CompleteUploadRequest, ConversationMember, ConversationReadCursorView, ConversationSummaryView, CreateAgentDialogRequest, CreateAgentHandoffRequest, CreateConversationRequest, CreateConversationResult, CreateRtcSessionRequest, CreateSystemChannelRequest, CreateUploadRequest, DeviceSyncFeedResponse, EditMessageRequest, InboxResponse, InviteRtcSessionRequest, IssueRtcParticipantCredentialRequest, ListMembersResponse, MediaAsset, MediaDownloadUrlResponse, MediaUploadSession, MessageMutationResult, OpenStreamRequest, PostMessageRequest, PostMessageResult, PostRtcSignalRequest, PresenceDeviceRequest, PresenceSnapshotView, RealtimeAckState, RealtimeEventWindow, RealtimeSubscriptionSnapshot, RegisterDeviceRequest, RegisteredDeviceView, QueryParams, RemoveConversationMemberRequest, ResumeSessionRequest, RtcParticipantCredential, RtcRecordingArtifact, RtcSession, RtcSignalEvent, SdkworkBackendConfig, SessionResumeView, StringMap, StreamFrame, StreamFrameWindow, StreamSession, SyncRealtimeSubscriptionsRequest, TimelineResponse, TransferConversationOwnerRequest, TransferConversationOwnerResult, UpdateReadCursorRequest, UpdateRtcSessionRequest, } from './generated-backend-types.js';
 export interface CrawChatBackendClientLike {
     session: {
         resume(body: ResumeSessionRequest): Promise<SessionResumeView>;
@@ -48,8 +48,8 @@ export interface CrawChatBackendClientLike {
         recall(messageId: string | number): Promise<MessageMutationResult>;
     };
     media: {
-        createMediaUpload(body: CreateUploadRequest): Promise<MediaAsset>;
-        completeMediaUpload(mediaAssetId: string | number, body: CompleteUploadRequest): Promise<MediaAsset>;
+        createMediaUpload(body: CreateUploadRequest): Promise<MediaUploadMutationResponse>;
+        completeMediaUpload(mediaAssetId: string | number, body: CompleteUploadRequest): Promise<MediaUploadMutationResponse>;
         getMediaDownloadUrl(mediaAssetId: string | number, params?: QueryParams): Promise<MediaDownloadUrlResponse>;
         getMediaAsset(mediaAssetId: string | number): Promise<MediaAsset>;
         attachMediaAsset(mediaAssetId: string | number, body: AttachMediaRequest): Promise<PostMessageResult>;
@@ -74,12 +74,16 @@ export interface CrawChatBackendClientLike {
     };
     setAuthToken?(token: string): unknown;
 }
-export interface CrawChatClientOptions {
+export interface CrawChatSdkClientOptions {
     backendClient: CrawChatBackendClientLike;
 }
-export interface CrawChatClientCreateOptions {
+export interface CrawChatSdkClientCreateOptions {
     backendClient?: CrawChatBackendClientLike;
-    backendConfig?: SdkworkBackendConfig;
+    baseUrl?: string;
+    authToken?: string;
+    tokenManager?: SdkworkBackendConfig['tokenManager'];
+    timeout?: number;
+    headers?: Record<string, string>;
 }
 export interface PostTextMessageOptions extends Omit<PostMessageRequest, 'text'> {
 }
@@ -87,6 +91,30 @@ export interface EditTextMessageOptions extends Omit<EditMessageRequest, 'text'>
 }
 export interface AttachTextMediaOptions extends Omit<AttachMediaRequest, 'text'> {
     text: string;
+}
+export type MediaUploadDeliveryStatus = 'applied' | 'replayed';
+export interface MediaUploadMutationResponse extends MediaAsset {
+    upload?: MediaUploadSession;
+    requestKey: string;
+    deliveryStatus: MediaUploadDeliveryStatus;
+    proofVersion: string;
+}
+export type CrawChatUploadBody = ArrayBuffer | ArrayBufferView | Blob | string;
+export interface CrawChatUploadFetchResponseLike {
+    ok: boolean;
+    status: number;
+    text(): Promise<string>;
+}
+export interface CrawChatUploadFetchLike {
+    (input: string, init: {
+        method?: string;
+        headers?: Record<string, string>;
+        body?: CrawChatUploadBody;
+    }): Promise<CrawChatUploadFetchResponseLike>;
+}
+export interface CrawChatMediaUploadOptions {
+    checksum?: string;
+    fetch?: CrawChatUploadFetchLike;
 }
 export interface AppendTextFrameOptions extends Omit<AppendStreamFrameRequest, 'frameType' | 'encoding' | 'payload'> {
     text: string;

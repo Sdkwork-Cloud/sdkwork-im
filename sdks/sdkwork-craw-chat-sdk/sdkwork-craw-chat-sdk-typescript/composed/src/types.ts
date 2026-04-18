@@ -28,6 +28,7 @@ import type {
   ListMembersResponse,
   MediaAsset,
   MediaDownloadUrlResponse,
+  MediaUploadSession,
   MessageMutationResult,
   OpenStreamRequest,
   PostMessageRequest,
@@ -91,6 +92,7 @@ export type {
   ListMembersResponse,
   MediaAsset,
   MediaDownloadUrlResponse,
+  MediaUploadSession,
   MessageMutationResult,
   OpenStreamRequest,
   PostMessageRequest,
@@ -217,11 +219,11 @@ export interface CrawChatBackendClientLike {
     recall(messageId: string | number): Promise<MessageMutationResult>;
   };
   media: {
-    createMediaUpload(body: CreateUploadRequest): Promise<MediaAsset>;
+    createMediaUpload(body: CreateUploadRequest): Promise<MediaUploadMutationResponse>;
     completeMediaUpload(
       mediaAssetId: string | number,
       body: CompleteUploadRequest,
-    ): Promise<MediaAsset>;
+    ): Promise<MediaUploadMutationResponse>;
     getMediaDownloadUrl(
       mediaAssetId: string | number,
       params?: QueryParams,
@@ -288,13 +290,17 @@ export interface CrawChatBackendClientLike {
   setAuthToken?(token: string): unknown;
 }
 
-export interface CrawChatClientOptions {
+export interface CrawChatSdkClientOptions {
   backendClient: CrawChatBackendClientLike;
 }
 
-export interface CrawChatClientCreateOptions {
+export interface CrawChatSdkClientCreateOptions {
   backendClient?: CrawChatBackendClientLike;
-  backendConfig?: SdkworkBackendConfig;
+  baseUrl?: string;
+  authToken?: string;
+  tokenManager?: SdkworkBackendConfig['tokenManager'];
+  timeout?: number;
+  headers?: Record<string, string>;
 }
 
 export interface PostTextMessageOptions extends Omit<PostMessageRequest, 'text'> {}
@@ -303,6 +309,39 @@ export interface EditTextMessageOptions extends Omit<EditMessageRequest, 'text'>
 
 export interface AttachTextMediaOptions extends Omit<AttachMediaRequest, 'text'> {
   text: string;
+}
+
+export type MediaUploadDeliveryStatus = 'applied' | 'replayed';
+
+export interface MediaUploadMutationResponse extends MediaAsset {
+  upload?: MediaUploadSession;
+  requestKey: string;
+  deliveryStatus: MediaUploadDeliveryStatus;
+  proofVersion: string;
+}
+
+export type CrawChatUploadBody = ArrayBuffer | ArrayBufferView | Blob | string;
+
+export interface CrawChatUploadFetchResponseLike {
+  ok: boolean;
+  status: number;
+  text(): Promise<string>;
+}
+
+export interface CrawChatUploadFetchLike {
+  (
+    input: string,
+    init: {
+      method?: string;
+      headers?: Record<string, string>;
+      body?: CrawChatUploadBody;
+    },
+  ): Promise<CrawChatUploadFetchResponseLike>;
+}
+
+export interface CrawChatMediaUploadOptions {
+  checksum?: string;
+  fetch?: CrawChatUploadFetchLike;
 }
 
 export interface AppendTextFrameOptions

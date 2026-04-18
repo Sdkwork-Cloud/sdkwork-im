@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use std::env;
+use std::path::PathBuf;
 
 const DEFAULT_RUNTIME_BIND_ADDR: &str = "127.0.0.1:0";
 
@@ -8,6 +9,7 @@ pub struct StandaloneConfig {
     pub runtime_bind_addr: String,
     pub admin_proxy_target: String,
     pub admin_sandbox_enabled: bool,
+    pub admin_sandbox_storage_file: Option<PathBuf>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -22,6 +24,7 @@ impl StandaloneConfigLoader {
                 admin_proxy_target: resolve_admin_proxy_target()
                     .context("failed to resolve desktop admin proxy target")?,
                 admin_sandbox_enabled: resolve_admin_sandbox_enabled(),
+                admin_sandbox_storage_file: resolve_admin_sandbox_storage_file(),
             },
         ))
     }
@@ -72,4 +75,12 @@ fn resolve_admin_sandbox_enabled() -> bool {
             )
         })
         .unwrap_or(false)
+}
+
+fn resolve_admin_sandbox_storage_file() -> Option<PathBuf> {
+    env::var("SDKWORK_ADMIN_SANDBOX_STORAGE_FILE")
+        .ok()
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
 }

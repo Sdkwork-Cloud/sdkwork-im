@@ -3,9 +3,10 @@ use std::collections::BTreeMap;
 use craw_chat_contract_core::ContractError;
 use im_platform_contracts::{
     ObjectStorageDownloadUrlRequest, ObjectStorageObjectDescriptor, ObjectStorageProvider,
-    ObjectStoragePutRequest, ProviderDomain, ProviderHealthSnapshot, ProviderPluginDescriptor,
+    ObjectStoragePutRequest, ObjectStorageUploadSession, ObjectStorageUploadUrlRequest,
+    ProviderDomain, ProviderHealthSnapshot, ProviderPluginDescriptor,
 };
-use im_time::utc_now_rfc3339_millis;
+use im_time::{format_unix_timestamp_millis, utc_now_rfc3339_millis};
 
 pub const ALIYUN_OBJECT_STORAGE_PLUGIN_ID: &str = "object-storage-aliyun";
 pub const TENCENT_OBJECT_STORAGE_PLUGIN_ID: &str = "object-storage-tencent";
@@ -136,6 +137,31 @@ impl ObjectStorageProvider for S3CompatibleObjectStorageProvider {
                 "{}:{}:{}",
                 self.config.provider_kind, request.object_key, request.content_length
             )),
+        })
+    }
+
+    fn signed_upload_url(
+        &self,
+        request: ObjectStorageUploadUrlRequest,
+    ) -> Result<ObjectStorageUploadSession, ContractError> {
+        let expires_at = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis()
+            + (request.expires_in_seconds as u128 * 1_000);
+
+        Ok(ObjectStorageUploadSession {
+            method: "PUT".into(),
+            url: format!(
+                "{}/{}/{}?provider={}&expires={}&upload=1",
+                self.config.endpoint.trim_end_matches('/'),
+                request.bucket,
+                request.object_key,
+                self.config.plugin_id,
+                request.expires_in_seconds
+            ),
+            headers: BTreeMap::new(),
+            expires_at: format_unix_timestamp_millis(expires_at),
         })
     }
 

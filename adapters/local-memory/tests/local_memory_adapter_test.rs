@@ -1,6 +1,7 @@
 use im_adapters_local_memory::{
     MemoryAutomationExecutionStore, MemoryCommitJournal, MemoryMetadataStore,
     MemoryRealtimeCheckpointStore, MemoryRealtimeDisconnectFenceStore,
+    MemoryStorageDomainSnapshotStore,
     MemoryTimelineProjectionStore,
 };
 use im_domain_core::automation::{AutomationExecution, AutomationExecutionState};
@@ -8,6 +9,10 @@ use im_platform_contracts::{
     AutomationExecutionRecord, AutomationExecutionStore, CommitJournal, MetadataStore,
     RealtimeCheckpointRecord, RealtimeCheckpointStore, RealtimeDisconnectFenceRecord,
     RealtimeDisconnectFenceStore, TimelineProjectionStore,
+};
+use im_storage_contracts::{
+    StorageBindingRecord, StorageCatalog, StorageConfigRecord, StorageCredentialMode,
+    StorageDomainSnapshot, StorageDomainSnapshotStore, StorageSecretRecord,
 };
 
 #[test]
@@ -214,4 +219,93 @@ fn test_memory_automation_execution_store_isolates_same_actor_id_across_principa
         .expect("system execution should exist");
     assert_eq!(user_execution.execution.principal_kind, "user");
     assert_eq!(system_execution.execution.principal_kind, "system");
+}
+
+#[test]
+fn test_memory_storage_domain_snapshot_store_returns_none_for_unknown_domain() {
+    let store = MemoryStorageDomainSnapshotStore::default();
+
+    let snapshot = store
+        .load_snapshot("object-storage")
+        .expect("snapshot load should succeed");
+
+    assert!(snapshot.is_none());
+}
+
+#[test]
+fn test_memory_storage_domain_snapshot_store_overwrites_same_domain_snapshot() {
+    let store = MemoryStorageDomainSnapshotStore::default();
+
+    store
+        .save_snapshot(
+            StorageDomainSnapshot::new(StorageCatalog::object_storage())
+                .with_binding(StorageBindingRecord::new_global("object-storage-aws"))
+                .with_config(StorageConfigRecord::new_global("object-storage-aws")),
+        )
+        .expect("first snapshot save should succeed");
+    store
+        .save_snapshot(
+            StorageDomainSnapshot::new(StorageCatalog::object_storage())
+                .with_binding(StorageBindingRecord::new_global("object-storage-google"))
+                .with_config(StorageConfigRecord::new_global("object-storage-google"))
+                .with_secret(
+                    StorageSecretRecord::new_global(
+                        "object-storage-google",
+                        StorageCredentialMode::ServiceAccountJson,
+                        "{\"serviceAccountJson\":{\"client_email\":\"storage@sdkwork.local\"}}",
+                    )
+                    .with_secret_fingerprint("fp-object-storage-google"),
+                ),
+        )
+        .expect("second snapshot save should succeed");
+
+    let snapshot = store
+        .load_snapshot("object-storage")
+        .expect("snapshot load should succeed")
+        .expect("snapshot should exist");
+
+    assert_eq!(snapshot.bindings.len(), 1);
+    assert_eq!(snapshot.bindings[0].provider_plugin_id, "object-storage-google");
+    assert_eq!(snapshot.secrets.len(), 1);
+    assert_eq!(
+        snapshot.secrets[0].secret_fingerprint,
+        "fp-object-storage-google"
+    );
+}
+
+#[test]
+fn test_memory_storage_domain_snapshot_store_isolates_domains() {
+    let store = MemoryStorageDomainSnapshotStore::default();
+
+    store
+        .save_snapshot(
+            StorageDomainSnapshot::new(StorageCatalog::object_storage())
+                .with_binding(StorageBindingRecord::new_global("object-storage-aws"))
+                .with_config(StorageConfigRecord::new_global("object-storage-aws")),
+        )
+        .expect("object storage snapshot save should succeed");
+    store
+        .save_snapshot(
+            StorageDomainSnapshot::new(StorageCatalog {
+                domain: "chat-archive".into(),
+                provider_schemas: Vec::new(),
+            })
+            .with_binding(StorageBindingRecord::new_global("archive-provider"))
+            .with_config(StorageConfigRecord::new_global("archive-provider")),
+        )
+        .expect("archive storage snapshot save should succeed");
+
+    let object_storage = store
+        .load_snapshot("object-storage")
+        .expect("object storage snapshot load should succeed")
+        .expect("object storage snapshot should exist");
+    let chat_archive = store
+        .load_snapshot("chat-archive")
+        .expect("chat archive snapshot load should succeed")
+        .expect("chat archive snapshot should exist");
+
+    assert_eq!(object_storage.catalog.domain, "object-storage");
+    assert_eq!(object_storage.bindings[0].provider_plugin_id, "object-storage-aws");
+    assert_eq!(chat_archive.catalog.domain, "chat-archive");
+    assert_eq!(chat_archive.bindings[0].provider_plugin_id, "archive-provider");
 }

@@ -8,6 +8,7 @@ environment:
 
 dependencies:
   backend_sdk: ^0.1.0
+  sdkwork_common_flutter: ^1.0.0
 
 dev_dependencies:
   lints: ^3.0.0

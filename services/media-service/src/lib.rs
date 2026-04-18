@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use axum::extract::{Path, Query, State};
@@ -23,14 +23,17 @@ use im_domain_core::media::{MediaAsset, MediaProcessingState, MediaResource};
 use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
 use im_platform_contracts::{
     EffectiveProviderBinding, ObjectStorageDownloadUrlRequest, ObjectStorageProvider,
-    ObjectStoragePutRequest, ProviderDomain, ProviderHealthSnapshot, ProviderRegistry,
+    ObjectStoragePutRequest, ObjectStorageUploadSession as ProviderUploadSession,
+    ObjectStorageUploadUrlRequest, ProviderDomain, ProviderHealthSnapshot, ProviderRegistry,
     StaticProviderRegistry,
 };
 use im_time::utc_now_rfc3339_millis;
 use serde::{Deserialize, Serialize};
 
 const DEFAULT_MEDIA_DOWNLOAD_URL_TTL_SECONDS: u32 = 3600;
+const DEFAULT_MEDIA_UPLOAD_URL_TTL_SECONDS: u32 = 3600;
 const MEDIA_UPLOAD_DELIVERY_PROOF_VERSION: &str = "media.upload.delivery-proof.v1";
+const DEFAULT_MEDIA_UPLOAD_BUCKET: &str = "media-assets";
 const MEDIA_MAX_ASSET_ID_BYTES: usize = 256;
 const MEDIA_MAX_BUCKET_BYTES: usize = 256;
 const MEDIA_MAX_OBJECT_KEY_BYTES: usize = 1024;
@@ -125,15 +128,22 @@ pub enum MediaUploadDeliveryStatus {
 pub struct MediaUploadMutationResponse {
     #[serde(flatten)]
     pub asset: MediaAsset,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub upload: Option<MediaUploadSession>,
     pub request_key: String,
     pub delivery_status: MediaUploadDeliveryStatus,
     pub proof_version: String,
 }
 
 impl MediaUploadMutationResponse {
-    pub fn from_outcome(outcome: MediaUploadMutationOutcome, request_key: String) -> Self {
+    pub fn from_outcome(
+        outcome: MediaUploadMutationOutcome,
+        request_key: String,
+        upload: Option<MediaUploadSession>,
+    ) -> Self {
         Self {
             asset: outcome.asset,
+            upload,
             request_key,
             delivery_status: if outcome.applied {
                 MediaUploadDeliveryStatus::Applied
@@ -141,6 +151,40 @@ impl MediaUploadMutationResponse {
                 MediaUploadDeliveryStatus::Replayed
             },
             proof_version: MEDIA_UPLOAD_DELIVERY_PROOF_VERSION.into(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MediaUploadSession {
+    pub asset_id: String,
+    pub storage_provider: String,
+    pub bucket: String,
+    pub object_key: String,
+    pub method: String,
+    pub url: String,
+    pub headers: BTreeMap<String, String>,
+    pub expires_at: String,
+}
+
+impl MediaUploadSession {
+    fn from_provider_session(
+        asset_id: String,
+        storage_provider: String,
+        bucket: String,
+        object_key: String,
+        session: ProviderUploadSession,
+    ) -> Self {
+        Self {
+            asset_id,
+            storage_provider,
+            bucket,
+            object_key,
+            method: session.method,
+            url: session.url,
+            headers: session.headers,
+            expires_at: session.expires_at,
         }
     }
 }
@@ -379,6 +423,34 @@ impl MediaRuntime {
             asset,
             applied: true,
         })
+    }
+
+    pub fn prepare_upload_session(
+        &self,
+        auth: &AuthContext,
+        asset: &MediaAsset,
+    ) -> Result<MediaUploadSession, MediaError> {
+        let storage_provider = self.selected_provider_plugin_id(auth.tenant_id.as_str(), None)?;
+        let provider = self.object_storage_provider(storage_provider.as_str())?;
+        let bucket = default_media_upload_bucket();
+        let object_key = default_media_upload_object_key(auth.tenant_id.as_str(), asset);
+        let session = provider
+            .signed_upload_url(ObjectStorageUploadUrlRequest {
+                bucket: bucket.clone(),
+                object_key: object_key.clone(),
+                expires_in_seconds: DEFAULT_MEDIA_UPLOAD_URL_TTL_SECONDS,
+                content_type: asset.resource.mime_type.clone(),
+                content_length: asset.resource.size,
+            })
+            .map_err(MediaError::object_storage_provider)?;
+
+        Ok(MediaUploadSession::from_provider_session(
+            asset.media_asset_id.clone(),
+            storage_provider,
+            bucket,
+            object_key,
+            session,
+        ))
     }
 
     pub fn complete_upload(
@@ -700,9 +772,12 @@ async fn create_upload(
 ) -> Result<Json<MediaUploadMutationResponse>, MediaError> {
     let auth = resolve_auth_context(&headers)?;
     let request_key = media_create_upload_request_key(&auth, request.media_asset_id.as_str());
+    let outcome = state.runtime.create_upload_with_outcome(&auth, request)?;
+    let upload = state.runtime.prepare_upload_session(&auth, &outcome.asset)?;
     Ok(Json(MediaUploadMutationResponse::from_outcome(
-        state.runtime.create_upload_with_outcome(&auth, request)?,
+        outcome,
         request_key,
+        Some(upload),
     )))
 }
 
@@ -720,6 +795,7 @@ async fn complete_upload(
             .runtime
             .complete_upload_with_outcome(&auth, media_asset_id.as_str(), request)?,
         request_key,
+        None,
     )))
 }
 
@@ -973,4 +1049,30 @@ fn complete_upload_request_matches_existing(
         && asset.object_key.as_deref() == Some(object_key)
         && asset.storage_provider.as_deref() == Some(storage_provider)
         && asset.checksum.as_ref() == checksum
+}
+
+fn default_media_upload_bucket() -> String {
+    DEFAULT_MEDIA_UPLOAD_BUCKET.into()
+}
+
+fn default_media_upload_object_key(tenant_id: &str, asset: &MediaAsset) -> String {
+    let file_name = asset
+        .resource
+        .name
+        .as_deref()
+        .map(sanitize_media_object_path_segment)
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| "asset".into());
+
+    format!("tenant/{tenant_id}/{}/{}", asset.media_asset_id, file_name)
+}
+
+fn sanitize_media_object_path_segment(value: &str) -> String {
+    value
+        .chars()
+        .map(|character| match character {
+            'a'..='z' | 'A'..='Z' | '0'..='9' | '.' | '-' | '_' => character,
+            _ => '-',
+        })
+        .collect()
 }

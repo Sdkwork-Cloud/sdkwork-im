@@ -3,62 +3,222 @@
 ## Workspace Layout
 
 - Root workspace: `sdks/sdkwork-craw-chat-sdk-admin`
+- Authority contract: `sdks/sdkwork-craw-chat-sdk-admin/openapi/admin-control-plane.openapi.yaml`
+- Derived generator input: `sdks/sdkwork-craw-chat-sdk-admin/openapi/admin-control-plane.sdkgen.yaml`
 - Language workspaces:
   - `sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-typescript`
   - `sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-flutter`
 
 ## Scope
 
-The admin SDK family is intended for:
+The admin SDK family is for the administrative control plane:
 
-- control-plane read surfaces
-- protocol registry and governance consumption
-- provider registry and provider-policy governance
-- node lifecycle management
+- protocol governance and protocol registry reads
+- provider registry, binding policy, diff, preview, commit, and rollback flows
+- social graph and shared-channel control-plane operations
+- node activation, drain, and route migration workflows
+- runtime health and queue-repair operations
 
-It is not intended for:
+It is not the product chat SDK. Conversation timeline, message send, session resume, and user-facing
+realtime flows remain in `sdkwork-craw-chat-sdk`.
 
-- app-facing chat or conversation facades
-- `chat-session`, `send-message`, or `timeline` style product flows
-- replacing the local verification role of `tools/chat-cli`
+It is also not a fully generated replacement for every browser-facing `/api/admin/*` route used by
+the standalone operator shell. The current formal OpenAPI authority is the control-plane document
+served from `services/control-plane-api`, so only the `/api/v1/control/*` portion is generated from
+OpenAPI today.
 
-## Current Source Of Truth
+## Source Of Truth
 
-Unlike the app SDK family, the admin SDK workspace does not currently contain a checked-in OpenAPI
-authority file under `sdks/sdkwork-craw-chat-sdk-admin/`.
+The admin SDK now has a checked-in OpenAPI 3.0.3 authority file inside the workspace.
 
-The implementation-aligned source of truth is therefore:
+Runtime contract source:
 
-- `services/control-plane-api/src/lib.rs`
-- control-plane tests such as:
-  - `services/control-plane-api/tests/protocol_registry_test.rs`
-  - `services/control-plane-api/tests/protocol_governance_test.rs`
-  - `services/control-plane-api/tests/provider_registry_test.rs`
-  - `services/control-plane-api/tests/drain_routes_test.rs`
+- live endpoint: `/openapi.json`
+- alias endpoint: `/api/v1/control/openapi.json`
+- runtime implementation: `services/control-plane-api/src/lib.rs`
 
-The VitePress API reference for the control plane is written directly against that source.
+Checked-in workspace authority:
 
-## Consumer Rules
+- `sdks/sdkwork-craw-chat-sdk-admin/openapi/admin-control-plane.openapi.yaml`
+- `sdks/sdkwork-craw-chat-sdk-admin/openapi/admin-control-plane.sdkgen.yaml`
 
-The admin SDK boundary is already meaningful even before package publication:
+Refresh flow:
 
-- governance consumers should treat control-plane snapshots as the source of truth
-- client behavior should not reconstruct protocol compatibility locally when the control plane
-  already publishes the decision surface
-- admin integrations should not mix app-facing chat features into this SDK family
+```powershell
+node .\sdks\sdkwork-craw-chat-sdk-admin\bin\fetch-openapi-source.mjs
+node .\sdks\sdkwork-craw-chat-sdk-admin\bin\prepare-openapi-source.mjs --base .\sdks\sdkwork-craw-chat-sdk-admin\openapi\admin-control-plane.openapi.yaml --derived .\sdks\sdkwork-craw-chat-sdk-admin\openapi\admin-control-plane.sdkgen.yaml
+```
 
-## Current Release Status
+## Package Split
 
-| Artifact | Language | Generation state | Release state |
-| --- | --- | --- | --- |
-| `sdkwork-craw-chat-sdk-admin-typescript` | TypeScript | `template_only_pending_generation` | `not_published` |
-| `sdkwork-craw-chat-sdk-admin-flutter` | Flutter | `template_only_pending_generation` | `not_published` |
+Each language follows the same two-layer ownership model:
 
-All admin artifacts are also still:
+| Language | Generated transport package | Composed ergonomic package |
+| --- | --- | --- |
+| TypeScript | `@sdkwork/craw-chat-admin-backend-sdk` | `@sdkwork/craw-chat-admin-sdk` |
+| Flutter | `craw_chat_admin_backend_sdk` | `craw_chat_admin_sdk` |
 
-- `plannedVersion = null`
-- `versionStatus = version_unassigned_pending_freeze`
-- `versionDecisionSourcePath = null`
+Generated code lives only under:
 
-That means the audience and workspace boundaries are real, but the release wave is not yet a
-published package line.
+- `sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-typescript/generated/server-openapi`
+- `sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-flutter/generated/server-openapi`
+
+Manual code lives only under:
+
+- `sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-typescript/composed`
+- `sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-flutter/composed`
+
+## Assembly Metadata
+
+The workspace refreshes `.sdkwork-assembly.json` as part of root verification and final assembly.
+
+That release-facing metadata file records:
+
+- the authority and derived spec paths
+- one language entry per workspace
+- each generated package `manifestPath`
+- the full `packages` layer list so automation can distinguish `generated` and `composed`
+- a `generatedAt` timestamp that stays stable when assembly content is unchanged
+
+This means release tooling and workspace audits can discover package manifests, entrypoints, and
+layer ownership without walking the whole repository tree.
+
+## Language Guides
+
+- [Admin TypeScript SDK](/sdk/admin-typescript-sdk)
+- [Admin Flutter SDK](/sdk/admin-flutter-sdk)
+- [Control Plane API Overview](/api-reference/control-plane-api)
+
+## Module To API Reference
+
+| Client surface | API reference | Notes |
+| --- | --- | --- |
+| `sdk.meta` | [/api-reference/control-plane/protocol#get-control-healthz](/api-reference/control-plane/protocol#get-control-healthz) | Health probe surfaced on the protocol governance page. |
+| `sdk.protocol` | [/api-reference/control-plane/protocol](/api-reference/control-plane/protocol) | Governance and registry snapshots. |
+| `sdk.providers` | [/api-reference/control-plane/providers](/api-reference/control-plane/providers) | Registry, bindings, preview, diff, rollback, and policy history. |
+| `sdk.social` | [/api-reference/control-plane/social](/api-reference/control-plane/social) | Direct chats, external collaboration, friendship, shared-channel policy, and user blocks. |
+| `sdk.socialRuntime` | [/api-reference/control-plane/social-runtime](/api-reference/control-plane/social-runtime) | Shared-channel sync queue inventory, repair, reclaim, republish, requeue, and takeover flows. |
+| `sdk.nodes` | [/api-reference/control-plane/nodes](/api-reference/control-plane/nodes) | Node drain, activate, and route migration. |
+
+## TypeScript Usage
+
+```ts
+import { CrawChatAdminSdkClient } from '@sdkwork/craw-chat-admin-sdk';
+
+const sdk = await CrawChatAdminSdkClient.create({
+  baseUrl: 'https://admin.example.com',
+  authToken: '<token>',
+});
+
+const health = await sdk.meta.health();
+const registry = await sdk.protocol.getRegistry();
+const bindings = await sdk.providers.getBindings({ tenantId: 'tenant-northstar' });
+```
+
+Preferred create options are flat:
+
+- `baseUrl`
+- `authToken`
+- `headers`
+- `timeout`
+- `fetch`
+
+`backendClient` remains valid when the caller owns transport creation.
+
+## Current TypeScript Surface
+
+Generated modules:
+
+- `meta`
+- `protocol`
+- `providers`
+- `social`
+- `socialRuntime`
+- `nodes`
+
+Composed modules:
+
+- `sdk.meta`
+- `sdk.protocol`
+- `sdk.providers`
+- `sdk.social`
+- `sdk.socialRuntime`
+- `sdk.nodes`
+- manual admin-app transport helpers such as `loginAdminUser`, `listTenants`,
+  `listStorageProviders`, `saveTenantStorageConfig`, and `adminBaseUrl`
+
+The composed client name is `CrawChatAdminSdkClient`.
+
+## Flutter Usage
+
+```dart
+import 'package:craw_chat_admin_sdk/craw_chat_admin_sdk.dart';
+
+final sdk = CrawChatAdminSdkClient.create(
+  baseUrl: 'https://admin.example.com',
+  authToken: '<token>',
+);
+
+final health = await sdk.meta.health();
+final registry = await sdk.protocol.getRegistry();
+final bindings = await sdk.providers.getBindings(<String, dynamic>{
+  'tenantId': 'tenant-northstar',
+});
+```
+
+Flutter mirrors the same semantic modules as TypeScript:
+
+- `sdk.meta`
+- `sdk.protocol`
+- `sdk.providers`
+- `sdk.social`
+- `sdk.socialRuntime`
+- `sdk.nodes`
+
+## Current Boundary Gap
+
+The verified TypeScript package is now the single package boundary used by the admin app, but it
+contains two ownership modes:
+
+That means:
+
+- `@sdkwork/craw-chat-admin-sdk` is the correct package for control-plane governance and runtime
+  operations
+- `/api/v1/control/*` routes are generated from the checked-in admin control-plane OpenAPI authority
+- browser-facing `/api/admin/*` routes now live as manual-owned composed exports in the same package,
+  which lets `apps/craw-chat-admin` depend on one formal SDK package instead of a separate
+  handwritten workspace package
+- documentation must still describe the gap explicitly instead of pretending auth, tenant CRUD,
+  project CRUD, storage sandbox routes, and other browser-only admin surfaces are already generated
+  from OpenAPI
+
+That TypeScript-specific browser helper surface is documented in
+[Admin TypeScript SDK](/sdk/admin-typescript-sdk). The Flutter package currently exposes only the
+generated control-plane modules documented in [Admin Flutter SDK](/sdk/admin-flutter-sdk).
+
+## Verification
+
+Root workspace verification:
+
+```powershell
+node .\sdks\sdkwork-craw-chat-sdk-admin\bin\verify-sdk.mjs --language typescript --language flutter
+```
+
+TypeScript-only verification:
+
+```powershell
+node .\sdks\sdkwork-craw-chat-sdk-admin\bin\verify-typescript-workspace.mjs
+```
+
+Flutter-only verification:
+
+```powershell
+node .\sdks\sdkwork-craw-chat-sdk-admin\bin\verify-flutter-workspace.mjs
+```
+
+## Current Language Status
+
+| Language | Current state |
+| --- | --- |
+| TypeScript | Generated and composed workspace implemented, root verification passes, assembly metadata is produced under `.sdkwork-assembly.json` |
+| Flutter | Generated and composed workspace implemented with `generated/server-openapi` plus `composed` layers, root verification is wired through `verify-flutter-workspace.mjs` |

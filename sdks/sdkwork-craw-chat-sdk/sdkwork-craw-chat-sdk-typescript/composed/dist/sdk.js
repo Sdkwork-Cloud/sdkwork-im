@@ -9,7 +9,7 @@ import { CrawChatRtcModule } from './rtc-module.js';
 import { CrawChatSessionModule } from './session-module.js';
 import { CrawChatSdkContext, resolveBackendClient } from './sdk-context.js';
 import { CrawChatStreamsModule } from './streams-module.js';
-export class CrawChatClient {
+export class CrawChatSdkClient {
     context;
     backendClient;
     session;
@@ -37,7 +37,7 @@ export class CrawChatClient {
         this.rtc = new CrawChatRtcModule(this.context);
     }
     static async create(options) {
-        return new CrawChatClient({
+        return new CrawChatSdkClient({
             backendClient: await resolveBackendClient(options),
         });
     }
@@ -46,6 +46,6 @@ export class CrawChatClient {
         return this;
     }
 }
-export async function createCrawChatClient(options) {
-    return CrawChatClient.create(options);
+export async function createCrawChatSdkClient(options) {
+    return CrawChatSdkClient.create(options);
 }

@@ -7,6 +7,7 @@ documentation is easiest to understand through four architectural lenses:
 2. The app-facing `local-minimal-node`
 3. The separate `control-plane-api`
 4. The runtime-directory persistence contract
+5. The generic storage-management module
 
 ## Core Architecture Facts
 
@@ -54,6 +55,25 @@ automation, and projection snapshots.
 
 That means the runtime directory is part of the runtime contract, not just a convenience folder for
 logs.
+
+## Storage Management Is Now A Shared Module Baseline
+
+Storage configuration management is no longer treated as app-specific admin glue. The current
+repository state already includes:
+
+- `im-storage-contracts` for provider schema, typed input payloads, secret redaction, effective
+  resolution, and store contracts
+- `im-storage-runtime` for validation, save and delete orchestration, audit capture, and
+  snapshot-backed hydration
+- compatibility re-exports, admin sandbox wiring, and a standalone admin storage module that consume
+  the shared storage model
+
+The architectural implication is that tenant/global storage behavior, provider credential semantics,
+and future upload issuance flows should converge on the same storage runtime instead of rebuilding
+provider logic in each consumer surface.
+
+Read [Storage Management](/architecture/storage-management) before changing admin storage flows,
+provider fallback rules, or media upload wiring.
 
 ## Provider Defaults
 

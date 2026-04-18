@@ -29,6 +29,7 @@ const sidebar: DefaultTheme.Sidebar = {
         { text: "Overview", link: "/architecture/overview" },
         { text: "Runtime Topology", link: "/architecture/runtime-topology" },
         { text: "Module Map", link: "/architecture/module-map" },
+        { text: "Storage Management", link: "/architecture/storage-management" },
       ],
     },
   ],
@@ -48,7 +49,11 @@ const sidebar: DefaultTheme.Sidebar = {
       items: [
         { text: "Overview", link: "/sdk/index" },
         { text: "App SDK", link: "/sdk/app-sdk" },
+        { text: "TypeScript SDK", link: "/sdk/typescript-sdk" },
+        { text: "Flutter SDK", link: "/sdk/flutter-sdk" },
         { text: "Admin SDK", link: "/sdk/admin-sdk" },
+        { text: "Admin TypeScript SDK", link: "/sdk/admin-typescript-sdk" },
+        { text: "Admin Flutter SDK", link: "/sdk/admin-flutter-sdk" },
         { text: "Language Support", link: "/sdk/language-support" },
       ],
     },
@@ -70,6 +75,7 @@ const sidebar: DefaultTheme.Sidebar = {
       text: "Reference",
       items: [
         { text: "CLI and Scripts", link: "/reference/cli-and-scripts" },
+        { text: "Admin Storage Contract", link: "/reference/admin-storage-contract" },
         { text: "Runtime Directory", link: "/reference/runtime-directory" },
       ],
     },

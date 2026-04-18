@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -10,7 +10,8 @@ use im_domain_core::media::{MediaResource, MediaResourceType};
 use im_domain_events::CommitEnvelope;
 use im_platform_contracts::{
     CommitJournal, CommitPosition, ContractError, ObjectStorageDownloadUrlRequest,
-    ObjectStorageObjectDescriptor, ObjectStorageProvider, ObjectStoragePutRequest, ProviderDomain,
+    ObjectStorageObjectDescriptor, ObjectStorageProvider, ObjectStoragePutRequest,
+    ObjectStorageUploadSession, ObjectStorageUploadUrlRequest, ProviderDomain,
     ProviderHealthSnapshot, ProviderPluginDescriptor, StaticProviderRegistry,
 };
 use tower::ServiceExt;
@@ -416,6 +417,25 @@ impl ObjectStorageProvider for VariableSignedUrlObjectStorageProvider {
             object_key: request.object_key,
             content_length: request.content_length,
             etag: Some("etag-demo".into()),
+        })
+    }
+
+    fn signed_upload_url(
+        &self,
+        request: ObjectStorageUploadUrlRequest,
+    ) -> Result<ObjectStorageUploadSession, ContractError> {
+        Ok(ObjectStorageUploadSession {
+            method: "PUT".into(),
+            url: format!(
+                "{}/{}/{}?provider={}&expires={}&upload=1",
+                self.endpoint.trim_end_matches('/'),
+                request.bucket,
+                request.object_key,
+                self.plugin_id,
+                request.expires_in_seconds
+            ),
+            headers: BTreeMap::new(),
+            expires_at: "2026-04-16T00:10:00.000Z".into(),
         })
     }
 

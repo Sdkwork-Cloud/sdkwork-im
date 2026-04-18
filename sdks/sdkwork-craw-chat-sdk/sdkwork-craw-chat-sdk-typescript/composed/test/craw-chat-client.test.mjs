@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 
-import { CrawChatClient } from '../dist/index.js';
+import { CrawChatSdkClient } from '../dist/index.js';
 
 function createBackendClientStub() {
   const calls = [];
@@ -240,7 +240,7 @@ function createBackendClientStub() {
 
 async function testConversationsPostText() {
   const { backendClient, calls } = createBackendClientStub();
-  const sdk = new CrawChatClient({ backendClient });
+  const sdk = new CrawChatSdkClient({ backendClient });
 
   const result = await sdk.conversations.postText('conversation-1', 'hello world', {
     clientMsgId: 'client-1',
@@ -263,7 +263,7 @@ async function testConversationsPostText() {
 
 async function testStreamsAppendTextFrame() {
   const { backendClient, calls } = createBackendClientStub();
-  const sdk = new CrawChatClient({ backendClient });
+  const sdk = new CrawChatSdkClient({ backendClient });
 
   const result = await sdk.streams.appendTextFrame('stream-1', {
     frameSeq: 7,
@@ -289,7 +289,7 @@ async function testStreamsAppendTextFrame() {
 
 async function testRtcPostJsonSignal() {
   const { backendClient, calls } = createBackendClientStub();
-  const sdk = new CrawChatClient({ backendClient });
+  const sdk = new CrawChatSdkClient({ backendClient });
 
   const result = await sdk.rtc.postJsonSignal('rtc-1', 'offer', {
     schemaRef: 'urn:craw-chat:rtc:signal',
@@ -316,9 +316,140 @@ async function testRtcPostJsonSignal() {
   });
 }
 
+async function testCreateSupportsFlatBackendFields() {
+  const sdk = await CrawChatSdkClient.create({
+    baseUrl: 'https://api.example.com',
+    authToken: 'flat-auth-token',
+    headers: {
+      'x-sdkwork-app': 'craw-chat',
+    },
+    timeout: 45000,
+  });
+
+  assert.ok(sdk.backendClient);
+  assert.equal(typeof sdk.session.resume, 'function');
+  assert.equal(typeof sdk.media.upload, 'function');
+}
+
+async function testMediaUploadUsesPresignedSessionAndCompletesAsset() {
+  const { backendClient, calls } = createBackendClientStub();
+  backendClient.media.createMediaUpload = async (body) => {
+    calls.push({ method: 'media.createMediaUpload', body });
+    return {
+      tenantId: 'tenant-1',
+      principalId: 'user-1',
+      principalKind: 'user',
+      mediaAssetId: body.mediaAssetId,
+      processingState: 'pendingUpload',
+      resource: body.resource,
+      createdAt: '2026-04-16T12:00:00.000Z',
+      requestKey: 'tenant-1:user:user-1:create:asset-1',
+      deliveryStatus: 'applied',
+      proofVersion: 'media.upload.delivery-proof.v1',
+      upload: {
+        assetId: body.mediaAssetId,
+        storageProvider: 'object-storage-volcengine',
+        bucket: 'media-assets',
+        objectKey: `tenant/tenant-1/${body.mediaAssetId}/photo.png`,
+        method: 'PUT',
+        url: 'https://upload.example.test/presigned',
+        headers: {
+          'x-sdkwork-upload-token': 'signed-value',
+        },
+        expiresAt: '2026-04-16T13:00:00.000Z',
+      },
+    };
+  };
+  backendClient.media.completeMediaUpload = async (mediaAssetId, body) => {
+    calls.push({ method: 'media.completeMediaUpload', mediaAssetId, body });
+    return {
+      tenantId: 'tenant-1',
+      principalId: 'user-1',
+      principalKind: 'user',
+      mediaAssetId,
+      bucket: body.bucket,
+      objectKey: body.objectKey,
+      storageProvider: body.storageProvider,
+      checksum: body.checksum,
+      processingState: 'ready',
+      resource: {
+        type: 'image',
+        name: 'photo.png',
+        mimeType: 'image/png',
+        size: 3,
+        url: 'https://cdn.example.test/assets/asset-1/photo.png',
+      },
+      createdAt: '2026-04-16T12:00:00.000Z',
+      completedAt: '2026-04-16T12:00:03.000Z',
+      requestKey: 'tenant-1:user:user-1:complete:asset-1',
+      deliveryStatus: 'applied',
+      proofVersion: 'media.upload.delivery-proof.v1',
+      upload: null,
+    };
+  };
+
+  const sdk = new CrawChatSdkClient({ backendClient });
+  const originalFetch = globalThis.fetch;
+  const fetchCalls = [];
+  globalThis.fetch = async (input, init) => {
+    fetchCalls.push({ input, init });
+    return {
+      ok: true,
+      status: 200,
+      async text() {
+        return '';
+      },
+    };
+  };
+
+  try {
+    const bytes = Uint8Array.from([1, 2, 3]);
+    const result = await sdk.media.upload(
+      {
+        mediaAssetId: 'asset-1',
+        resource: {
+          type: 'image',
+          name: 'photo.png',
+          mimeType: 'image/png',
+          size: 3,
+        },
+      },
+      bytes,
+      { checksum: 'sha256:demo' },
+    );
+
+    assert.equal(result.mediaAssetId, 'asset-1');
+    assert.equal(result.processingState, 'ready');
+    assert.equal(fetchCalls.length, 1);
+    assert.deepEqual(fetchCalls[0], {
+      input: 'https://upload.example.test/presigned',
+      init: {
+        method: 'PUT',
+        headers: {
+          'x-sdkwork-upload-token': 'signed-value',
+        },
+        body: bytes,
+      },
+    });
+    assert.deepEqual(calls.slice(-1)[0], {
+      method: 'media.completeMediaUpload',
+      mediaAssetId: 'asset-1',
+      body: {
+        bucket: 'media-assets',
+        objectKey: 'tenant/tenant-1/asset-1/photo.png',
+        storageProvider: 'object-storage-volcengine',
+        url: 'https://upload.example.test/presigned',
+        checksum: 'sha256:demo',
+      },
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
 function testTokenHelpers() {
   const { backendClient, calls } = createBackendClientStub();
-  const sdk = new CrawChatClient({ backendClient });
+  const sdk = new CrawChatSdkClient({ backendClient });
 
   sdk.setAuthToken('auth-token');
   assert.equal(typeof sdk.setAccessToken, 'undefined');
@@ -333,8 +464,10 @@ function testTokenHelpers() {
 }
 
 await testConversationsPostText();
+await testCreateSupportsFlatBackendFields();
 await testStreamsAppendTextFrame();
 await testRtcPostJsonSignal();
+await testMediaUploadUsesPresignedSessionAndCompletesAsset();
 testTokenHelpers();
 
 console.log('craw-chat composed sdk smoke tests passed');

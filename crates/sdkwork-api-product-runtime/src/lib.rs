@@ -81,7 +81,10 @@ impl RouterProductRuntime {
         let admin_proxy_target = trim_trailing_slash(config.admin_proxy_target);
         let admin_sandbox = if admin_proxy_target.trim().is_empty() && config.admin_sandbox_enabled
         {
-            Some(SharedAdminSandboxState::seeded())
+            Some(match config.admin_sandbox_storage_file {
+                Some(storage_file) => SharedAdminSandboxState::seeded_with_storage_file(storage_file),
+                None => SharedAdminSandboxState::seeded(),
+            })
         } else {
             None
         };
@@ -289,5 +292,6 @@ mod tests {
         let config_source = include_str!("../../sdkwork-api-config/src/lib.rs");
 
         assert!(config_source.contains("SDKWORK_ADMIN_SANDBOX"));
+        assert!(config_source.contains("SDKWORK_ADMIN_SANDBOX_STORAGE_FILE"));
     }
 }

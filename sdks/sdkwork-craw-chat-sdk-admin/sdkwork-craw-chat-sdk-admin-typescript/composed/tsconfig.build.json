@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "Bundler",
+    "baseUrl": ".",
+    "paths": {
+      "sdkwork-craw-chat-admin-types": [
+        "../../../../apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-types/src/index.ts"
+      ]
+    },
+    "declaration": true,
+    "declarationMap": true,
+    "outDir": "dist",
+    "strict": true,
+    "skipLibCheck": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "dist",
+    "test"
+  ]
+}

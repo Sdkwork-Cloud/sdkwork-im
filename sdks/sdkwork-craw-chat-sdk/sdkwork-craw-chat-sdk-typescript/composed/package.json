@@ -22,8 +22,8 @@
     "@sdkwork/craw-chat-backend-sdk": "file:../generated/server-openapi"
   },
   "scripts": {
-    "typecheck": "node ../../../../../../sdk/sdkwork-sdk-generator/node_modules/typescript/bin/tsc -p tsconfig.build.json --noEmit",
-    "build": "node ../../../../../../sdk/sdkwork-sdk-generator/node_modules/typescript/bin/tsc -p tsconfig.build.json && node ./bin/clean-dist.mjs",
+    "typecheck": "node ./bin/run-tsc.mjs -p tsconfig.build.json --noEmit",
+    "build": "node ./bin/run-tsc.mjs -p tsconfig.build.json && node ./bin/clean-dist.mjs",
     "test": "node ./test/craw-chat-client.test.mjs"
   }
 }

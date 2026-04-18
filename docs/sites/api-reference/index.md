@@ -24,7 +24,7 @@
   </div>
   <div class="api-card">
     <h3>Control Plane API</h3>
-    <p>Protocol governance, provider registry and policy management, plus node drain, activate, and route migration operations.</p>
+    <p>Protocol governance, provider registry and policy management, social graph and shared-channel runtime control, plus node drain, activate, and route migration operations.</p>
     <p><a href="/api-reference/control-plane-api">Open Control Plane overview</a></p>
   </div>
 </div>
@@ -44,4 +44,5 @@
   <a href="/api-reference/app/conversations"><code>App</code> Conversation creation and handoff flows</a>
   <a href="/api-reference/platform/ops"><code>Platform</code> Operator diagnostics and runtime inspection</a>
   <a href="/api-reference/control-plane/providers"><code>Control Plane</code> Provider registry, binding policies, and preview or rollback flows</a>
+  <a href="/api-reference/control-plane/social-runtime"><code>Control Plane</code> Shared-channel sync runtime inventory, repair, and takeover flows</a>
 </div>

@@ -12,9 +12,9 @@
     }
   },
   "dependencies": {
+    "@sdkwork/craw-chat-admin-sdk": "file:../../../../sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-typescript/composed",
     "react": "19.2.4",
     "react-router-dom": "7.14.0",
-    "sdkwork-craw-chat-admin-admin-api": "workspace:*",
     "sdkwork-craw-chat-admin-types": "workspace:*",
     "zustand": "5.0.12"
   }

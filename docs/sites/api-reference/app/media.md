@@ -16,14 +16,15 @@
   <span class="api-op-id">operationId: createMediaUpload</span>
 </div>
 
-Registers a pending media asset before the binary upload is completed.
+Registers a pending media asset before the binary upload is completed and returns a presigned
+upload session that the client can use for direct object-storage transfer.
 
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / media</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal with media asset ownership checks.</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 MediaAsset`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200 MediaUploadMutationResponse`</span></div>
 </div>
 
 ### Request Body
@@ -32,7 +33,17 @@ Registers a pending media asset before the binary upload is completed.
 
 ### Response `200`
 
-<ApiSchemaTable schema="MediaAsset" />
+<ApiSchemaTable schema="MediaUploadMutationResponse" />
+
+### Upload Session
+
+<ApiSchemaTable schema="MediaUploadSession" />
+
+### Response Notes
+
+- `upload` carries the presigned upload session for direct object-storage transfer.
+- `requestKey`, `deliveryStatus`, and `proofVersion` let clients reason about idempotent replay.
+- The asset fields stay flattened in the same response payload for parity with the current runtime.
 
 
 ### Error Responses
@@ -58,14 +69,15 @@ Registers a pending media asset before the binary upload is completed.
   <span class="api-op-id">operationId: completeMediaUpload</span>
 </div>
 
-Marks the upload as complete and stores the final object metadata.
+Marks the upload as complete, finalizes object metadata, and returns the same mutation envelope
+without another upload session.
 
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / media</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal with media asset ownership checks.</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 MediaAsset`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200 MediaUploadMutationResponse`</span></div>
 </div>
 
 ### Path Parameters
@@ -80,7 +92,12 @@ Marks the upload as complete and stores the final object metadata.
 
 ### Response `200`
 
-<ApiSchemaTable schema="MediaAsset" />
+<ApiSchemaTable schema="MediaUploadMutationResponse" />
+
+### Response Notes
+
+- `upload` is omitted after completion because the presigned transfer has already been consumed.
+- The asset fields reflect the finalized storage binding and ready-state metadata.
 
 
 ### Error Responses

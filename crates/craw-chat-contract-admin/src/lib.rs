@@ -1,3 +1,5 @@
+pub mod storage;
+
 use craw_chat_contract_core::ContractError;
 use serde::{Deserialize, Serialize};
 

@@ -12,9 +12,10 @@ use im_adapters_local_memory::MemoryRtcStateStore;
 use im_auth_context::AuthContext;
 use im_platform_contracts::{
     ObjectStorageDownloadUrlRequest, ObjectStorageObjectDescriptor, ObjectStorageProvider,
-    ObjectStoragePutRequest, ProviderDomain, ProviderHealthSnapshot, ProviderPluginDescriptor,
-    RtcCallbackEvent, RtcCallbackRequest, RtcCreateSessionRequest, RtcParticipantCredential,
-    RtcProviderPort, RtcRecordingArtifact, RtcSessionHandle, StaticProviderRegistry,
+    ObjectStoragePutRequest, ObjectStorageUploadSession, ObjectStorageUploadUrlRequest,
+    ProviderDomain, ProviderHealthSnapshot, ProviderPluginDescriptor, RtcCallbackEvent,
+    RtcCallbackRequest, RtcCreateSessionRequest, RtcParticipantCredential, RtcProviderPort,
+    RtcRecordingArtifact, RtcSessionHandle, StaticProviderRegistry,
 };
 use tower::ServiceExt;
 
@@ -238,6 +239,25 @@ impl ObjectStorageProvider for TrackingObjectStorageProvider {
             object_key: request.object_key,
             content_length: request.content_length,
             etag: Some("etag-demo".into()),
+        })
+    }
+
+    fn signed_upload_url(
+        &self,
+        request: ObjectStorageUploadUrlRequest,
+    ) -> Result<ObjectStorageUploadSession, ContractError> {
+        Ok(ObjectStorageUploadSession {
+            method: "PUT".into(),
+            url: format!(
+                "{}/{}/{}?provider={}&expires={}&upload=1",
+                self.endpoint.trim_end_matches('/'),
+                request.bucket,
+                request.object_key,
+                self.plugin_id,
+                request.expires_in_seconds
+            ),
+            headers: BTreeMap::new(),
+            expires_at: "2026-04-16T00:10:00.000Z".into(),
         })
     }
 

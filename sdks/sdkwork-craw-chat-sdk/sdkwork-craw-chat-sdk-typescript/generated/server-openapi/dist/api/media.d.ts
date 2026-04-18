@@ -1,13 +1,13 @@
 import type { HttpClient } from '../http/client';
 import type { QueryParams } from '../types/common';
-import type { AttachMediaRequest, CompleteUploadRequest, CreateUploadRequest, MediaAsset, MediaDownloadUrlResponse, PostMessageResult } from '../types';
+import type { AttachMediaRequest, CompleteUploadRequest, CreateUploadRequest, MediaAsset, MediaDownloadUrlResponse, MediaUploadMutationResponse, PostMessageResult } from '../types';
 export declare class MediaApi {
     private client;
     constructor(client: HttpClient);
     /** Create a media upload record */
-    createMediaUpload(body: CreateUploadRequest): Promise<MediaAsset>;
+    createMediaUpload(body: CreateUploadRequest): Promise<MediaUploadMutationResponse>;
     /** Complete a media upload */
-    completeMediaUpload(mediaAssetId: string | number, body: CompleteUploadRequest): Promise<MediaAsset>;
+    completeMediaUpload(mediaAssetId: string | number, body: CompleteUploadRequest): Promise<MediaUploadMutationResponse>;
     /** Issue a signed media download URL */
     getMediaDownloadUrl(mediaAssetId: string | number, params?: QueryParams): Promise<MediaDownloadUrlResponse>;
     /** Get a media asset by id */

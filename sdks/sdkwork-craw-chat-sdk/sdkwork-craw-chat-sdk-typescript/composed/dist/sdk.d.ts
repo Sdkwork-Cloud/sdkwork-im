@@ -8,8 +8,8 @@ import { CrawChatRealtimeModule } from './realtime-module.js';
 import { CrawChatRtcModule } from './rtc-module.js';
 import { CrawChatSessionModule } from './session-module.js';
 import { CrawChatStreamsModule } from './streams-module.js';
-import type { CrawChatBackendClientLike, CrawChatClientCreateOptions, CrawChatClientOptions } from './types.js';
-export declare class CrawChatClient {
+import type { CrawChatBackendClientLike, CrawChatSdkClientCreateOptions, CrawChatSdkClientOptions } from './types.js';
+export declare class CrawChatSdkClient {
     private readonly context;
     readonly backendClient: CrawChatBackendClientLike;
     readonly session: CrawChatSessionModule;
@@ -22,9 +22,9 @@ export declare class CrawChatClient {
     readonly media: CrawChatMediaModule;
     readonly streams: CrawChatStreamsModule;
     readonly rtc: CrawChatRtcModule;
-    constructor(options: CrawChatClientOptions);
-    static create(options: CrawChatClientCreateOptions): Promise<CrawChatClient>;
+    constructor(options: CrawChatSdkClientOptions);
+    static create(options: CrawChatSdkClientCreateOptions): Promise<CrawChatSdkClient>;
     setAuthToken(token: string): this;
 }
-export declare function createCrawChatClient(options: CrawChatClientCreateOptions): Promise<CrawChatClient>;
+export declare function createCrawChatSdkClient(options: CrawChatSdkClientCreateOptions): Promise<CrawChatSdkClient>;
 //# sourceMappingURL=sdk.d.ts.map

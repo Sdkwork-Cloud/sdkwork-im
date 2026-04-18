@@ -1,98 +1,22 @@
 #!/usr/bin/env node
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 
-function fail(message) {
-  console.error(`[sdkwork-craw-chat-sdk] ${message}`);
-  process.exit(1);
-}
+import { loadGeneratorYaml } from './sdk-generator-root.mjs';
+import {
+  cloneOpenApiJson,
+  failOpenApiSource,
+  loadOpenApiDocument,
+  parseOpenApiSourceArgs,
+  writeOpenApiYamlDocument,
+} from '../../workspace-openapi-source-shared.mjs';
 
-function parseArgs(argv) {
-  const parsed = {
-    base: '',
-    derived: '',
-    preferDerived: false,
-    targetLanguage: '',
-  };
-
-  for (let index = 0; index < argv.length; index += 1) {
-    const current = argv[index];
-    if (current === '--base') {
-      parsed.base = argv[index + 1] || '';
-      index += 1;
-      continue;
-    }
-    if (current === '--derived') {
-      parsed.derived = argv[index + 1] || '';
-      index += 1;
-      continue;
-    }
-    if (current === '--prefer-derived') {
-      parsed.preferDerived = true;
-      continue;
-    }
-    if (current === '--target-language') {
-      parsed.targetLanguage = (argv[index + 1] || '').trim().toLowerCase();
-      index += 1;
-      continue;
-    }
-    fail(`Unknown argument: ${current}`);
-  }
-
-  if (!parsed.base) {
-    fail('Missing required argument: --base');
-  }
-  if (!parsed.derived) {
-    fail('Missing required argument: --derived');
-  }
-
-  return parsed;
-}
-
-function cloneJson(value) {
-  return JSON.parse(JSON.stringify(value));
-}
+const prefix = 'sdkwork-craw-chat-sdk';
 
 async function loadYaml() {
   const scriptDir = path.dirname(fileURLToPath(import.meta.url));
   const workspaceRoot = path.resolve(scriptDir, '..');
-  const generatorRoot = process.env.SDKWORK_GENERATOR_ROOT
-    ? path.resolve(process.env.SDKWORK_GENERATOR_ROOT)
-    : path.resolve(workspaceRoot, '..', '..', '..', '..', 'sdk', 'sdkwork-sdk-generator');
-  const yamlPath = path.join(generatorRoot, 'node_modules', 'js-yaml', 'dist', 'js-yaml.mjs');
-
-  if (!existsSync(yamlPath)) {
-    fail(`Unable to locate js-yaml from generator workspace: ${yamlPath}`);
-  }
-
-  const yamlModule = await import(pathToFileURL(yamlPath).href);
-  return yamlModule.default;
-}
-
-function loadOpenApiDocument(filePath, yaml) {
-  if (!existsSync(filePath)) {
-    fail(`OpenAPI file not found: ${filePath}`);
-  }
-
-  const raw = readFileSync(filePath, 'utf8');
-  const trimmed = raw.trim();
-  if (!trimmed) {
-    fail(`OpenAPI file is empty: ${filePath}`);
-  }
-
-  const document = trimmed.startsWith('{') || trimmed.startsWith('[')
-    ? JSON.parse(trimmed)
-    : yaml.load(raw);
-
-  if (!document || typeof document !== 'object') {
-    fail(`OpenAPI file did not decode to an object: ${filePath}`);
-  }
-  if (typeof document.openapi !== 'string' || !document.openapi.startsWith('3.')) {
-    fail(`Unsupported OpenAPI version in ${filePath}`);
-  }
-
-  return document;
+  return loadGeneratorYaml(workspaceRoot);
 }
 
 function stripRealtimeWebsocketPath(document) {
@@ -136,7 +60,7 @@ function inlinePrimitiveComponentRefs(node, primitiveRefMap) {
   }
 
   if (typeof node.$ref === 'string' && primitiveRefMap.has(node.$ref)) {
-    const replacement = cloneJson(primitiveRefMap.get(node.$ref));
+    const replacement = cloneOpenApiJson(primitiveRefMap.get(node.$ref));
     for (const [key, value] of Object.entries(node)) {
       if (key === '$ref') {
         continue;
@@ -167,7 +91,7 @@ function applyFlutterCompatibilityTransforms(document) {
   }
 
   const primitiveRefMap = new Map(
-    primitiveSchemaEntries.map(([name, schema]) => [`#/components/schemas/${name}`, cloneJson(schema)]),
+    primitiveSchemaEntries.map(([name, schema]) => [`#/components/schemas/${name}`, cloneOpenApiJson(schema)]),
   );
 
   inlinePrimitiveComponentRefs(document, primitiveRefMap);
@@ -186,35 +110,21 @@ function applyFlutterCompatibilityTransforms(document) {
   }
 }
 
-function writeYamlDocument(filePath, document, yaml) {
-  const nextContents = yaml.dump(document, {
-    noRefs: true,
-    sortKeys: false,
-    lineWidth: 120,
-  });
-
-  if (existsSync(filePath)) {
-    const currentContents = readFileSync(filePath, 'utf8');
-    if (currentContents === nextContents) {
-      return;
-    }
-  }
-
-  mkdirSync(path.dirname(filePath), { recursive: true });
-  writeFileSync(filePath, nextContents, 'utf8');
-}
-
-const args = parseArgs(process.argv.slice(2));
+const args = parseOpenApiSourceArgs(process.argv.slice(2), {
+  prefix,
+  allowPreferDerived: true,
+  allowTargetLanguage: true,
+});
 const yaml = await loadYaml();
 const basePath = path.resolve(args.base);
 const derivedPath = path.resolve(args.derived);
-const authority = loadOpenApiDocument(basePath, yaml);
-const derived = cloneJson(authority);
+const authority = loadOpenApiDocument({ prefix, filePath: basePath, yaml });
+const derived = cloneOpenApiJson(authority);
 
 stripRealtimeWebsocketPath(derived);
 if (args.targetLanguage === 'flutter') {
   applyFlutterCompatibilityTransforms(derived);
 }
-writeYamlDocument(derivedPath, derived, yaml);
+writeOpenApiYamlDocument({ filePath: derivedPath, document: derived, yaml });
 
 process.stdout.write(args.preferDerived ? derivedPath : basePath);

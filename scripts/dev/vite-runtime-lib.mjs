@@ -6,6 +6,20 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, '..', '..');
 
+function resolveWorkspaceLayout(baseRepoRoot) {
+  const normalizedRepoRoot = path.resolve(baseRepoRoot);
+  const isWorktreeCheckout = path.basename(path.dirname(normalizedRepoRoot)) === '.worktrees';
+
+  return {
+    repoRoot: isWorktreeCheckout
+      ? path.resolve(normalizedRepoRoot, '..', '..')
+      : normalizedRepoRoot,
+    worktreesRoot: isWorktreeCheckout
+      ? path.resolve(normalizedRepoRoot, '..')
+      : path.join(normalizedRepoRoot, '.worktrees'),
+  };
+}
+
 function normalizeRelativeEntry(relativeEntry) {
   if (Array.isArray(relativeEntry)) {
     return relativeEntry;
@@ -64,6 +78,35 @@ function listWorkspaceWorktreeAppRoots(worktreesRoot) {
     .flatMap((entry) => listWorkspaceAppRoots(path.join(worktreesRoot, entry.name, 'apps')));
 }
 
+function listRelativeWorkspacePeerRoots(targetRoot, workspaceLayout) {
+  const currentRepoRoot = path.resolve(repoRoot);
+  const normalizedTargetRoot = path.resolve(targetRoot);
+  const relativeTargetPath = path.relative(currentRepoRoot, normalizedTargetRoot);
+
+  if (
+    !relativeTargetPath
+    || relativeTargetPath.startsWith('..')
+    || path.isAbsolute(relativeTargetPath)
+  ) {
+    return [];
+  }
+
+  const canonicalRootCandidate = path.join(workspaceLayout.repoRoot, relativeTargetPath);
+  const worktreeRootCandidates = defaultFileExists(workspaceLayout.worktreesRoot)
+    ? fs.readdirSync(workspaceLayout.worktreesRoot, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
+      .map((entry) => path.join(workspaceLayout.worktreesRoot, entry.name, relativeTargetPath))
+    : [];
+
+  return [canonicalRootCandidate, ...worktreeRootCandidates]
+    .map((candidateRoot) => path.resolve(candidateRoot))
+    .filter((candidateRoot) => (
+      candidateRoot !== normalizedTargetRoot
+      && defaultFileExists(path.join(candidateRoot, 'package.json'))
+      && defaultFileExists(path.join(candidateRoot, 'node_modules'))
+    ));
+}
+
 function defaultOpenFile(filePath) {
   return fs.openSync(filePath, 'r');
 }
@@ -103,10 +146,12 @@ function defaultIsReadable(filePath) {
 
 export function resolveWorkspaceDonorRoots(appRoot) {
   const normalizedAppRoot = path.resolve(appRoot);
+  const workspaceLayout = resolveWorkspaceLayout(repoRoot);
   const knownWorkspaceApps = [
-    ...listWorkspaceAppRoots(path.join(repoRoot, 'apps')),
-    ...listWorkspaceAppRoots(path.resolve(repoRoot, '..')),
-    ...listWorkspaceWorktreeAppRoots(path.join(repoRoot, '.worktrees')),
+    ...listRelativeWorkspacePeerRoots(normalizedAppRoot, workspaceLayout),
+    ...listWorkspaceAppRoots(path.join(workspaceLayout.repoRoot, 'apps')),
+    ...listWorkspaceAppRoots(path.resolve(workspaceLayout.repoRoot, '..')),
+    ...listWorkspaceWorktreeAppRoots(workspaceLayout.worktreesRoot),
   ];
 
   return knownWorkspaceApps

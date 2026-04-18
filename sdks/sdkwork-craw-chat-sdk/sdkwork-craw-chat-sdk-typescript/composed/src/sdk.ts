@@ -11,11 +11,11 @@ import { CrawChatSdkContext, resolveBackendClient } from './sdk-context.js';
 import { CrawChatStreamsModule } from './streams-module.js';
 import type {
   CrawChatBackendClientLike,
-  CrawChatClientCreateOptions,
-  CrawChatClientOptions,
+  CrawChatSdkClientCreateOptions,
+  CrawChatSdkClientOptions,
 } from './types.js';
 
-export class CrawChatClient {
+export class CrawChatSdkClient {
   private readonly context: CrawChatSdkContext;
 
   readonly backendClient: CrawChatBackendClientLike;
@@ -30,7 +30,7 @@ export class CrawChatClient {
   readonly streams: CrawChatStreamsModule;
   readonly rtc: CrawChatRtcModule;
 
-  constructor(options: CrawChatClientOptions) {
+  constructor(options: CrawChatSdkClientOptions) {
     this.context = new CrawChatSdkContext(options.backendClient);
     this.backendClient = options.backendClient;
     this.session = new CrawChatSessionModule(this.context);
@@ -46,9 +46,9 @@ export class CrawChatClient {
   }
 
   static async create(
-    options: CrawChatClientCreateOptions,
-  ): Promise<CrawChatClient> {
-    return new CrawChatClient({
+    options: CrawChatSdkClientCreateOptions,
+  ): Promise<CrawChatSdkClient> {
+    return new CrawChatSdkClient({
       backendClient: await resolveBackendClient(options),
     });
   }
@@ -59,8 +59,8 @@ export class CrawChatClient {
   }
 }
 
-export async function createCrawChatClient(
-  options: CrawChatClientCreateOptions,
-): Promise<CrawChatClient> {
-  return CrawChatClient.create(options);
+export async function createCrawChatSdkClient(
+  options: CrawChatSdkClientCreateOptions,
+): Promise<CrawChatSdkClient> {
+  return CrawChatSdkClient.create(options);
 }

@@ -1,30 +1,33 @@
 #!/usr/bin/env node
-import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
+
+import { loadGeneratorYaml } from './sdk-generator-root.mjs';
+import {
+  finishFileExpectationVerification,
+  readWorkspaceSource,
+} from '../../workspace-file-expectation-shared.mjs';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = path.resolve(scriptDir, '..');
-const modelsPath = path.join(
+const models = readWorkspaceSource({
   workspaceRoot,
-  'sdkwork-craw-chat-sdk-flutter',
-  'generated',
-  'server-openapi',
-  'lib',
-  'src',
-  'models.dart',
+  relativePath: path.join(
+    'sdkwork-craw-chat-sdk-flutter',
+    'generated',
+    'server-openapi',
+    'lib',
+    'src',
+    'models.dart',
+  ),
+});
+const yaml = await loadGeneratorYaml(workspaceRoot);
+const authority = yaml.load(
+  readWorkspaceSource({
+    workspaceRoot,
+    relativePath: path.join('openapi', 'craw-chat-app.openapi.yaml'),
+  }),
 );
-const generatorRoot = process.env.SDKWORK_GENERATOR_ROOT
-  ? path.resolve(process.env.SDKWORK_GENERATOR_ROOT)
-  : path.resolve(workspaceRoot, '..', '..', '..', '..', 'sdk', 'sdkwork-sdk-generator');
-const authoritySpecPath = path.join(workspaceRoot, 'openapi', 'craw-chat-app.openapi.yaml');
-
-const models = readFileSync(modelsPath, 'utf8');
-const yamlModule = await import(
-  pathToFileURL(path.join(generatorRoot, 'node_modules', 'js-yaml', 'dist', 'js-yaml.mjs')).href
-);
-const yaml = yamlModule.default;
-const authority = yaml.load(readFileSync(authoritySpecPath, 'utf8'));
 const primitiveRefTypes = Object.entries(authority?.components?.schemas ?? {})
   .filter(([, schema]) => {
     if (!schema || typeof schema !== 'object') {
@@ -55,12 +58,9 @@ for (const typeName of primitiveRefTypes) {
   }
 }
 
-if (failures.length > 0) {
-  console.error('[sdkwork-craw-chat-sdk] Flutter generated model verification failed:');
-  for (const failure of failures) {
-    console.error(`- ${failure}`);
-  }
-  process.exit(1);
-}
-
-console.log('[sdkwork-craw-chat-sdk] Flutter generated model verification passed.');
+finishFileExpectationVerification({
+  prefix: 'sdkwork-craw-chat-sdk',
+  failures,
+  failureHeader: 'Flutter generated model verification failed:',
+  successMessage: '[sdkwork-craw-chat-sdk] Flutter generated model verification passed.',
+});

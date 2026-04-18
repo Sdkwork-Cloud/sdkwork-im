@@ -59,7 +59,7 @@ already has script, config, and Docker entry points, but it still reuses the cur
   </div>
   <div class="fact-card">
     <h3>SDK Delivery State</h3>
-    <p>The release catalog is still <code>template_only_pending_generation</code> and <code>not_published</code>, even though the SDK workspace structure is already checked in.</p>
+    <p>The release catalog is still <code>template_only_pending_generation</code> and <code>not_published</code>, even though the admin control-plane TypeScript and Flutter SDK workspaces are already generated, composed, and locally verified.</p>
   </div>
 </div>
 
@@ -72,11 +72,15 @@ already has script, config, and Docker entry points, but it still reuses the cur
 3. Read [Architecture Overview](/architecture/overview) and
    [Runtime Topology](/architecture/runtime-topology) before changing runtime wiring, providers, or
    deployment assumptions.
-4. Use [API Reference](/api-reference/index) for the OpenAPI-style operation catalog with sidebar
+4. Read [Storage Management](/architecture/storage-management) before changing tenant provider
+   resolution, admin storage behavior, or upload issuance assumptions. Keep
+   [Admin Storage Contract](/reference/admin-storage-contract) open when you need the current
+   `/api/admin/storage/*` route set and sandbox promotion boundary.
+5. Use [API Reference](/api-reference/index) for the OpenAPI-style operation catalog with sidebar
    links to every documented endpoint.
-5. Read [SDK Overview](/sdk/index) before promising package availability, version numbers, or
+6. Read [SDK Overview](/sdk/index) before promising package availability, version numbers, or
    generation status to downstream consumers.
-6. Keep [Deployment](/deployment/index) and [Reference](/reference/cli-and-scripts) open when
+7. Keep [Deployment](/deployment/index) and [Reference](/reference/cli-and-scripts) open when
    running, diagnosing, backing up, or restoring a local environment.
 
 ## Current Delivery Surface
@@ -86,8 +90,8 @@ already has script, config, and Docker entry points, but it still reuses the cur
 | App runtime | Session resume, presence, realtime delivery, device sync, conversations, membership, messages, media, streams, RTC, notifications, automation, audit, ops, and provider health |
 | Control plane | Protocol registry, protocol governance, provider registry, effective bindings, provider policy preview and rollback, plus node drain, activate, and route migration |
 | Deployment | Local binary lifecycle scripts, Docker Compose bootstrap, runtime inspection, repair, backup listing, archive, preview, and restore |
-| SDK workspaces | App SDK workspace with checked-in OpenAPI authority and derived sdkgen input; admin SDK workspace with frozen audience and language boundaries but no checked-in admin OpenAPI source yet |
-| Frontend apps | `apps/craw-chat-admin` and `apps/craw-chat-portal` exist as workspace directories but are not documented here as mature product surfaces |
+| SDK workspaces | App SDK workspace with checked-in OpenAPI authority and derived sdkgen input; admin control-plane SDK workspace with checked-in authority files plus verified TypeScript and Flutter generated and composed packages |
+| Frontend apps | `apps/craw-chat-admin` already provides a verified standalone operator shell, a first-class storage-management workflow, and the current `/api/admin/storage/*` contract surface, while `apps/craw-chat-portal` is still not documented here as a mature product surface |
 
 ::: warning Scope rule
 This documentation intentionally describes only what can be verified from the current repository

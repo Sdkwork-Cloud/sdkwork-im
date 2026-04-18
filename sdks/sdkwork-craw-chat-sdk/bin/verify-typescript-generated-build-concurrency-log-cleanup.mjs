@@ -1,29 +1,17 @@
 #!/usr/bin/env node
-import { existsSync, rmSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assertNoArgs, runWorkspaceCommand } from '../../workspace-language-verify-shared.mjs';
+import {
+  collectExistingPaths,
+  failTypescriptGeneratedBuildVerification,
+  removePathsIfPresent,
+  resolveTypescriptGeneratedBuildVerifyPaths,
+} from '../../workspace-typescript-generated-build-verify-shared.mjs';
 
-function fail(message) {
-  console.error(`[sdkwork-craw-chat-sdk] ${message}`);
-  process.exit(1);
-}
+const prefix = 'sdkwork-craw-chat-sdk';
 
-function parseArgs(argv) {
-  if (argv.length > 0) {
-    fail(`Unknown argument: ${argv[0]}`);
-  }
-}
-
-function removeLogRoot(logRoot) {
-  if (!existsSync(logRoot)) {
-    return;
-  }
-
-  rmSync(logRoot, { recursive: true, force: true });
-}
-
-parseArgs(process.argv.slice(2));
+assertNoArgs(process.argv.slice(2), { prefix });
 
 if (process.platform !== 'win32') {
   console.log('[sdkwork-craw-chat-sdk] TypeScript generated build concurrency log cleanup verification skipped on non-Windows hosts.');
@@ -32,24 +20,26 @@ if (process.platform !== 'win32') {
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = path.resolve(scriptDir, '..');
-const logRoot = path.join(workspaceRoot, '.sdkwork', 'tmp', 'verify-typescript-generated-build-concurrency');
-
-removeLogRoot(logRoot);
-
-const result = spawnSync('node', [path.join(scriptDir, 'verify-typescript-generated-build-concurrency.mjs')], {
-  cwd: workspaceRoot,
-  stdio: 'inherit',
-  shell: false,
+const { concurrencyLogRoot, concurrencyVerifierPath } = resolveTypescriptGeneratedBuildVerifyPaths({
+  workspaceRoot,
+  scriptDir,
 });
 
-if (result.error) {
-  fail(`verify-typescript-generated-build-concurrency.mjs failed to start: ${result.error.message}`);
-}
-if ((result.status ?? 1) !== 0) {
-  fail(`verify-typescript-generated-build-concurrency.mjs failed with exit code ${result.status}`);
-}
-if (existsSync(logRoot)) {
-  fail('TypeScript generated build concurrency verification must clean .sdkwork/tmp/verify-typescript-generated-build-concurrency after a successful run.');
+removePathsIfPresent([concurrencyLogRoot]);
+
+runWorkspaceCommand({
+  prefix,
+  command: 'node',
+  args: [concurrencyVerifierPath],
+  cwd: workspaceRoot,
+  step: 'verify-typescript-generated-build-concurrency.mjs',
+});
+
+if (collectExistingPaths([concurrencyLogRoot]).length > 0) {
+  failTypescriptGeneratedBuildVerification({
+    prefix,
+    message: 'TypeScript generated build concurrency verification must clean .sdkwork/tmp/verify-typescript-generated-build-concurrency after a successful run.',
+  });
 }
 
 console.log('[sdkwork-craw-chat-sdk] TypeScript generated build concurrency log cleanup verification passed.');

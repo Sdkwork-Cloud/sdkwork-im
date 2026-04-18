@@ -3,72 +3,26 @@ import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-
-function fail(message) {
-  console.error(`[sdkwork-craw-chat-sdk] ${message}`);
-  process.exit(1);
-}
-
-function parseArgs(argv) {
-  const parsed = {
-    languages: [],
-  };
-
-  for (let index = 0; index < argv.length; index += 1) {
-    const current = argv[index];
-    if (current === '--language') {
-      const value = (argv[index + 1] || '').trim().toLowerCase();
-      if (!value) {
-        fail('Missing value for --language');
-      }
-      parsed.languages.push(value);
-      index += 1;
-      continue;
-    }
-    fail(`Unknown argument: ${current}`);
-  }
-
-  return parsed;
-}
+import {
+  assertAbsent,
+  assertExactValues,
+  assertPresent,
+  finishAuthSurfaceVerification,
+  parseAuthSurfaceLanguageArgs,
+} from '../../workspace-auth-surface-shared.mjs';
 
 function read(relativePath) {
   return readFileSync(path.join(workspaceRoot, relativePath), 'utf8');
 }
-
-function assertAbsent(failures, source, pattern, message) {
-  if (pattern.test(source)) {
-    failures.push(message);
-  }
-}
-
-function assertPresent(failures, source, pattern, message) {
-  if (!pattern.test(source)) {
-    failures.push(message);
-  }
-}
-
-function assertExactValues(failures, actualValues, expectedValues, message) {
-  const actual = [...actualValues].sort();
-  const expected = [...expectedValues].sort();
-  if (actual.length !== expected.length || actual.some((value, index) => value !== expected[index])) {
-    failures.push(
-      `${message} Expected [${expected.join(', ')}] but found [${actual.join(', ')}].`,
-    );
-  }
-}
-
-const args = parseArgs(process.argv.slice(2));
+const prefix = 'sdkwork-craw-chat-sdk';
+const supportedLanguages = ['typescript', 'flutter'];
+const languageSet = parseAuthSurfaceLanguageArgs(process.argv.slice(2), {
+  prefix,
+  supportedLanguages,
+});
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
 const workspaceRoot = path.resolve(scriptDir, '..');
-const languageSet = new Set(args.languages.length > 0 ? args.languages : ['typescript', 'flutter']);
-
-for (const language of languageSet) {
-  if (!['typescript', 'flutter'].includes(language)) {
-    fail(`Unsupported language: ${language}`);
-  }
-}
-
 const failures = [];
 
 if (languageSet.has('typescript')) {
@@ -628,11 +582,11 @@ if (languageSet.has('flutter')) {
     /\bsetAccessToken\s*\(/,
     'Flutter composed client must not expose setAccessToken(...).',
   );
-  assertPresent(
+  assertAbsent(
     failures,
     composedSdkSource,
     /\bSdkworkBackendConfig\?\s+backendConfig\b/,
-    'Flutter composed client factory must accept SdkworkBackendConfig? backendConfig.',
+    'Flutter composed client factory must not expose SdkworkBackendConfig? backendConfig.',
   );
   assertPresent(
     failures,
@@ -654,12 +608,7 @@ if (languageSet.has('flutter')) {
   );
 }
 
-if (failures.length > 0) {
-  console.error('[sdkwork-craw-chat-sdk] Auth surface alignment verification failed:');
-  for (const entry of failures) {
-    console.error(`- ${entry}`);
-  }
-  process.exit(1);
-}
-
-console.log('[sdkwork-craw-chat-sdk] Auth surface alignment verification passed.');
+finishAuthSurfaceVerification({
+  prefix,
+  failures,
+});

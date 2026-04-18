@@ -31,7 +31,7 @@ import 'src/session_module.dart';
 import 'src/streams_module.dart';
 import 'src/types.dart';
 
-class CrawChatClient {
+class CrawChatSdkClient {
   final CrawChatSdkContext _context;
 
   final SdkworkBackendClient backendClient;
@@ -47,7 +47,7 @@ class CrawChatClient {
   late final CrawChatStreamsModule streams;
   late final CrawChatRtcModule rtc;
 
-  CrawChatClient(CrawChatClientOptions options)
+  CrawChatSdkClient(CrawChatSdkClientOptions options)
       : backendClient = options.backendClient,
         _context = CrawChatSdkContext(options.backendClient) {
     session = CrawChatSessionModule(_context);
@@ -62,35 +62,33 @@ class CrawChatClient {
     rtc = CrawChatRtcModule(_context);
   }
 
-  factory CrawChatClient.create({
+  factory CrawChatSdkClient.create({
     SdkworkBackendClient? backendClient,
-    SdkworkBackendConfig? backendConfig,
     String? baseUrl,
     String? authToken,
     Map<String, String>? headers,
     int timeout = 30000,
   }) {
-    final resolvedConfig = backendConfig ??
-        (baseUrl == null
-            ? null
-            : SdkworkBackendConfig(
-                baseUrl: baseUrl,
-                timeout: timeout,
-                authToken: authToken,
-                headers: headers ?? const <String, String>{},
-              ));
+    final resolvedConfig = baseUrl == null
+        ? null
+        : SdkworkBackendConfig(
+            baseUrl: baseUrl,
+            timeout: timeout,
+            authToken: authToken,
+            headers: headers ?? const <String, String>{},
+          );
 
     if (backendClient == null && resolvedConfig == null) {
       throw ArgumentError(
-        'Provide backendClient or baseUrl/backendConfig when creating CrawChatClient.',
+        'Provide backendClient or baseUrl when creating CrawChatSdkClient.',
       );
     }
 
     final resolvedBackendClient =
         backendClient ?? SdkworkBackendClient(config: resolvedConfig!);
 
-    return CrawChatClient(
-      CrawChatClientOptions(
+    return CrawChatSdkClient(
+      CrawChatSdkClientOptions(
         backendClient: resolvedBackendClient,
       ),
     );

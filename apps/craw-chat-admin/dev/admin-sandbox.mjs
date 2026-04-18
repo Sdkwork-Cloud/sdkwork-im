@@ -7,6 +7,14 @@ const sandboxSeed = JSON.parse(
   readFileSync(path.join(moduleDir, 'admin-sandbox-seed.json'), 'utf8'),
 );
 const jsonContentType = 'application/json; charset=utf-8';
+const topLevelStorageConfigFieldNames = new Set([
+  'bucketOrContainer',
+  'region',
+  'endpoint',
+  'publicBaseUrl',
+  'uploadPrefix',
+  'downloadPrefix',
+]);
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -27,6 +35,7 @@ export function createAdminSandboxState() {
     sequence: 0,
   };
   syncProviderCredentialReadiness(state);
+  ensureStorageState(state);
   return state;
 }
 
@@ -201,6 +210,523 @@ function syncProviderCredentialReadiness(state) {
       state: providersWithCredentials.has(provider.id) ? 'ready' : 'missing',
     },
   }));
+}
+
+function defaultStorageProviders() {
+  return [
+    {
+      providerPluginId: 'object-storage-aliyun',
+      displayName: 'Aliyun OSS',
+      providerFamily: 's3-compatible',
+      commonFields: defaultS3CommonFields(),
+      credentialFields: defaultAccessKeyFields('accessKeyId', 'accessKeySecret'),
+      supportedCredentialModes: ['access-key-pair', 'session-access-key-pair'],
+      capabilities: ['presign', 'multipart', 'bucket-probe'],
+    },
+    {
+      providerPluginId: 'object-storage-tencent',
+      displayName: 'Tencent COS',
+      providerFamily: 's3-compatible',
+      commonFields: defaultS3CommonFields(),
+      credentialFields: defaultAccessKeyFields('secretId', 'secretKey'),
+      supportedCredentialModes: ['access-key-pair', 'session-access-key-pair'],
+      capabilities: ['presign', 'multipart', 'bucket-probe'],
+    },
+    {
+      providerPluginId: 'object-storage-volcengine',
+      displayName: 'Volcengine TOS',
+      providerFamily: 's3-compatible',
+      commonFields: defaultS3CommonFields(),
+      credentialFields: defaultAccessKeyFields('accessKeyId', 'secretAccessKey'),
+      supportedCredentialModes: ['access-key-pair', 'session-access-key-pair'],
+      capabilities: ['presign', 'multipart', 'bucket-probe'],
+    },
+    {
+      providerPluginId: 'object-storage-aws',
+      displayName: 'Amazon S3',
+      providerFamily: 's3-compatible',
+      commonFields: defaultS3CommonFields(),
+      credentialFields: [
+        ...defaultAccessKeyFields('accessKeyId', 'secretAccessKey'),
+        ...awsRoleAssumptionFields(),
+      ],
+      supportedCredentialModes: ['access-key-pair', 'session-access-key-pair', 'role-assumption'],
+      capabilities: ['presign', 'multipart', 'bucket-probe'],
+    },
+    {
+      providerPluginId: 'object-storage-google',
+      displayName: 'Google Cloud Storage',
+      providerFamily: 'google-cloud-storage',
+      commonFields: [
+        createStorageField('bucketOrContainer', 'Bucket', 'text', true),
+        createStorageField('region', 'Region', 'text', false),
+        createStorageField('publicBaseUrl', 'Public Base URL', 'url', false),
+        createStorageField('uploadPrefix', 'Upload Prefix', 'text', false),
+        createStorageField('downloadPrefix', 'Download Prefix', 'text', false),
+      ],
+      credentialFields: [
+        createStorageField('serviceAccountJson', 'Service Account JSON', 'json', true, {
+          credentialModes: ['service-account-json'],
+        }),
+        createStorageField('interoperabilityAccessKey', 'Interoperability Access Key', 'text', true, {
+          credentialModes: ['interoperability-key'],
+        }),
+        createStorageField('interoperabilitySecretKey', 'Interoperability Secret Key', 'secret', true, {
+          credentialModes: ['interoperability-key'],
+        }),
+      ],
+      supportedCredentialModes: ['service-account-json', 'interoperability-key'],
+      capabilities: ['presign', 'bucket-probe'],
+    },
+    {
+      providerPluginId: 'object-storage-microsoft',
+      displayName: 'Azure Blob Storage',
+      providerFamily: 'azure-blob',
+      commonFields: [
+        createStorageField('bucketOrContainer', 'Container', 'text', true),
+        createStorageField('endpoint', 'Endpoint', 'url', false),
+        createStorageField('publicBaseUrl', 'Public Base URL', 'url', false),
+        createStorageField('uploadPrefix', 'Upload Prefix', 'text', false),
+        createStorageField('downloadPrefix', 'Download Prefix', 'text', false),
+      ],
+      credentialFields: [
+        createStorageField('accountName', 'Account Name', 'text', true),
+        createStorageField('accountKey', 'Account Key', 'secret', true, {
+          credentialModes: ['account-key'],
+        }),
+        createStorageField('sasToken', 'SAS Token', 'secret', true, {
+          credentialModes: ['sas-token'],
+        }),
+        createStorageField('tenantId', 'Tenant ID', 'text', true, {
+          credentialModes: ['service-principal'],
+        }),
+        createStorageField('clientId', 'Client ID', 'text', true, {
+          credentialModes: ['service-principal'],
+        }),
+        createStorageField('clientSecret', 'Client Secret', 'secret', true, {
+          credentialModes: ['service-principal'],
+        }),
+      ],
+      supportedCredentialModes: ['account-key', 'sas-token', 'service-principal'],
+      capabilities: ['presign', 'bucket-probe'],
+    },
+  ];
+}
+
+function defaultS3CommonFields() {
+  return [
+    createStorageField('bucketOrContainer', 'Bucket', 'text', true),
+    createStorageField('region', 'Region', 'text', true),
+    createStorageField('endpoint', 'Endpoint', 'url', false),
+    createStorageField('publicBaseUrl', 'Public Base URL', 'url', false),
+    createStorageField('uploadPrefix', 'Upload Prefix', 'text', false),
+    createStorageField('downloadPrefix', 'Download Prefix', 'text', false),
+    createStorageField('pathStyle', 'Path Style', 'boolean', false),
+  ];
+}
+
+function defaultAccessKeyFields(accessKeyName, secretKeyName) {
+  return [
+    createStorageField(accessKeyName, 'Access Key', 'text', true, {
+      credentialModes: ['access-key-pair', 'session-access-key-pair'],
+    }),
+    createStorageField(secretKeyName, 'Secret Key', 'secret', true, {
+      credentialModes: ['access-key-pair', 'session-access-key-pair'],
+    }),
+    createStorageField('sessionToken', 'Session Token', 'secret', true, {
+      credentialModes: ['session-access-key-pair'],
+    }),
+  ];
+}
+
+function awsRoleAssumptionFields() {
+  return [
+    createStorageField('roleArn', 'Role ARN', 'text', true, {
+      credentialModes: ['role-assumption'],
+    }),
+    createStorageField('externalId', 'External ID', 'text', false, {
+      credentialModes: ['role-assumption'],
+    }),
+    createStorageField('sessionName', 'Session Name', 'text', false, {
+      credentialModes: ['role-assumption'],
+    }),
+  ];
+}
+
+function createStorageField(name, label, inputKind, required, options = {}) {
+  const { credentialModes = null, helpText = null } = options;
+  return {
+    name,
+    label,
+    inputKind,
+    required,
+    helpText,
+    ...(credentialModes ? { credentialModes } : {}),
+  };
+}
+
+function globalStorageScope() {
+  return {
+    kind: 'global',
+    scopeId: null,
+  };
+}
+
+function tenantStorageScope(tenantId) {
+  return {
+    kind: 'tenant',
+    scopeId: tenantId,
+  };
+}
+
+function ensureStorageState(state) {
+  state.storageProviders ??= defaultStorageProviders();
+  state.storageGlobalConfig ??= null;
+  state.storageTenantConfigs ??= [];
+  state.storageAuditTrail ??= [];
+}
+
+function scopeEquals(left, right) {
+  return left?.kind === right?.kind && (left?.scopeId ?? null) === (right?.scopeId ?? null);
+}
+
+function emptyStorageConfigResponse(scope) {
+  return {
+    scope: clone(scope),
+    binding: null,
+    config: null,
+    secret: null,
+  };
+}
+
+function redactStorageSecret(secret) {
+  if (!secret) {
+    return null;
+  }
+
+  return {
+    scope: clone(secret.scope),
+    providerPluginId: secret.providerPluginId,
+    credentialMode: secret.credentialMode,
+    configured: true,
+    secretFingerprint: secret.secretFingerprint,
+  };
+}
+
+function toStorageConfigResponse(record) {
+  if (!record) {
+    return null;
+  }
+
+  return {
+    scope: clone(record.scope),
+    binding: clone(record.binding),
+    config: clone(record.config),
+    secret: redactStorageSecret(record.secret),
+  };
+}
+
+function recordStorageAudit(state, action, scope, providerPluginId) {
+  ensureStorageState(state);
+  state.storageAuditTrail.unshift({
+    id: nextId(state, 'storage_audit'),
+    action,
+    scope: clone(scope),
+    providerPluginId,
+    createdAtMs: nextTimestamp(state),
+  });
+}
+
+function storageRecordForScope(state, scope) {
+  ensureStorageState(state);
+
+  if (scope.kind === 'global') {
+    return state.storageGlobalConfig;
+  }
+
+  return findBy(state.storageTenantConfigs, (record) => scopeEquals(record.scope, scope));
+}
+
+function fieldAppliesToCredentialMode(field, credentialMode) {
+  return !field.credentialModes?.length || field.credentialModes.includes(credentialMode);
+}
+
+function storageValueConfigured(value) {
+  if (value == null) {
+    return false;
+  }
+
+  if (typeof value === 'string') {
+    return value.trim().length > 0;
+  }
+
+  if (Array.isArray(value)) {
+    return value.length > 0;
+  }
+
+  if (typeof value === 'object') {
+    return Object.keys(value).length > 0;
+  }
+
+  return true;
+}
+
+function storageCommonFieldValue(input, fieldName) {
+  if (topLevelStorageConfigFieldNames.has(fieldName)) {
+    return input?.config?.[fieldName];
+  }
+
+  return input?.config?.providerConfig?.[fieldName];
+}
+
+function storageRecordFieldValue(config, fieldName) {
+  if (topLevelStorageConfigFieldNames.has(fieldName)) {
+    return config?.[fieldName];
+  }
+
+  return config?.providerConfig?.[fieldName];
+}
+
+function validateStorageRequiredCommonFields(providerSchema, readValue) {
+  for (const field of providerSchema.commonFields) {
+    if (field.required && !storageValueConfigured(readValue(field.name))) {
+      return `${field.label} is required.`;
+    }
+  }
+
+  return null;
+}
+
+function validateStorageCredentialPayload(providerSchema, credentialMode, encryptedSecretPayload) {
+  if (!providerSchema.supportedCredentialModes.includes(credentialMode)) {
+    return `Storage provider ${providerSchema.providerPluginId} does not support credential mode ${credentialMode}.`;
+  }
+
+  let payload;
+  try {
+    payload = JSON.parse(encryptedSecretPayload ?? '');
+  } catch {
+    return 'Storage secret payload must be a valid JSON object.';
+  }
+
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return 'Storage secret payload must be a valid JSON object.';
+  }
+
+  for (const field of providerSchema.credentialFields) {
+    if (
+      field.required
+      && fieldAppliesToCredentialMode(field, credentialMode)
+      && !storageValueConfigured(payload[field.name])
+    ) {
+      return `${field.label} is required.`;
+    }
+  }
+
+  return null;
+}
+
+function validateStorageConfigInput(state, input) {
+  ensureStorageState(state);
+
+  const providerPluginId = input?.binding?.providerPluginId ?? input?.config?.providerPluginId ?? null;
+  if (!providerPluginId) {
+    return 'Storage config payload must include binding.providerPluginId.';
+  }
+
+  const providerSchema = state.storageProviders.find((provider) => provider.providerPluginId === providerPluginId);
+  if (!providerSchema) {
+    return `Storage provider ${providerPluginId} is not supported.`;
+  }
+
+  if (
+    input?.config?.providerConfig != null
+    && (typeof input.config.providerConfig !== 'object' || Array.isArray(input.config.providerConfig))
+  ) {
+    return 'Storage providerConfig must be a JSON object.';
+  }
+
+  const commonFieldError = validateStorageRequiredCommonFields(
+    providerSchema,
+    (fieldName) => storageCommonFieldValue(input, fieldName),
+  );
+  if (commonFieldError) {
+    return commonFieldError;
+  }
+
+  if (!input?.secret) {
+    return null;
+  }
+
+  const credentialMode = String(input.secret.credentialMode ?? '').trim();
+  return validateStorageCredentialPayload(
+    providerSchema,
+    credentialMode,
+    input.secret.encryptedSecretPayload,
+  );
+}
+
+function normalizeStorageRecord(scope, input, existingSecret = null) {
+  const providerPluginId = input?.binding?.providerPluginId ?? input?.config?.providerPluginId ?? null;
+  if (!providerPluginId) {
+    return null;
+  }
+
+  const preservedSecret = !input?.secret && existingSecret?.providerPluginId === providerPluginId
+    ? clone(existingSecret)
+    : null;
+
+  return {
+    scope: clone(scope),
+    binding: {
+      scope: clone(scope),
+      providerPluginId,
+      enabled: input?.binding?.enabled !== false,
+    },
+    config: {
+      scope: clone(scope),
+      providerPluginId,
+      bucketOrContainer: input?.config?.bucketOrContainer ?? null,
+      region: input?.config?.region ?? null,
+      endpoint: input?.config?.endpoint ?? null,
+      publicBaseUrl: input?.config?.publicBaseUrl ?? null,
+      uploadPrefix: input?.config?.uploadPrefix ?? null,
+      downloadPrefix: input?.config?.downloadPrefix ?? null,
+      providerConfig: input?.config?.providerConfig ?? {},
+    },
+    secret: input?.secret
+      ? {
+          scope: clone(scope),
+          providerPluginId,
+          credentialMode: input.secret.credentialMode,
+          encryptedSecretPayload: input.secret.encryptedSecretPayload ?? '',
+          secretFingerprint: input.secret.secretFingerprint ?? `fp-${providerPluginId}`,
+        }
+      : preservedSecret,
+  };
+}
+
+function saveStorageConfig(state, scope, input) {
+  ensureStorageState(state);
+  const existingRecord = storageRecordForScope(state, scope);
+  const record = normalizeStorageRecord(scope, input, existingRecord?.secret ?? null);
+  if (!record) {
+    return null;
+  }
+
+  if (scope.kind === 'global') {
+    state.storageGlobalConfig = record;
+  } else {
+    upsertBy(
+      state.storageTenantConfigs,
+      (existing) => scopeEquals(existing.scope, scope),
+      record,
+    );
+  }
+
+  recordStorageAudit(state, 'upsert', scope, record.binding.providerPluginId);
+  return toStorageConfigResponse(record);
+}
+
+function deleteTenantStorageConfig(state, tenantId) {
+  ensureStorageState(state);
+  const scope = tenantStorageScope(tenantId);
+  const existing = storageRecordForScope(state, scope);
+  removeBy(state.storageTenantConfigs, (record) => scopeEquals(record.scope, scope));
+  if (existing) {
+    recordStorageAudit(state, 'delete', scope, existing.binding.providerPluginId);
+  }
+}
+
+function effectiveStorageConfig(state, tenantId) {
+  ensureStorageState(state);
+  const requestedScope = tenantId ? tenantStorageScope(tenantId) : globalStorageScope();
+  const resolvedRecord = tenantId
+    ? storageRecordForScope(state, requestedScope) ?? state.storageGlobalConfig
+    : state.storageGlobalConfig;
+
+  if (!resolvedRecord) {
+    return null;
+  }
+
+  return {
+    requestedScope,
+    resolvedScope: clone(resolvedRecord.scope),
+    binding: clone(resolvedRecord.binding),
+    config: clone(resolvedRecord.config),
+    secret: redactStorageSecret(resolvedRecord.secret),
+  };
+}
+
+function validateStorageTarget(state, record, requestedScope) {
+  if (!record?.binding || !record?.config) {
+    return {
+      scope: clone(requestedScope),
+      status: 'invalid',
+      stage: 'schema',
+      message: 'Storage binding and config must both be present.',
+    };
+  }
+
+  const providerSchema = state.storageProviders.find(
+    (provider) => provider.providerPluginId === record.binding.providerPluginId,
+  );
+  if (!providerSchema) {
+    return {
+      scope: clone(requestedScope),
+      status: 'invalid',
+      stage: 'schema',
+      message: `Storage provider ${record.binding.providerPluginId} is not supported.`,
+      providerPluginId: record.binding.providerPluginId,
+    };
+  }
+
+  const commonFieldError = validateStorageRequiredCommonFields(
+    providerSchema,
+    (fieldName) => storageRecordFieldValue(record.config, fieldName),
+  );
+  if (commonFieldError) {
+    return {
+      scope: clone(requestedScope),
+      status: 'invalid',
+      stage: 'schema',
+      message: commonFieldError,
+      providerPluginId: record.binding.providerPluginId,
+    };
+  }
+
+  if (!record.secret?.credentialMode || !record.secret?.encryptedSecretPayload) {
+    return {
+      scope: clone(requestedScope),
+      status: 'invalid',
+      stage: 'credentials',
+      message: 'Credential payload is required.',
+      providerPluginId: record.binding.providerPluginId,
+    };
+  }
+
+  const credentialError = validateStorageCredentialPayload(
+    providerSchema,
+    record.secret.credentialMode,
+    record.secret.encryptedSecretPayload,
+  );
+  if (credentialError) {
+    return {
+      scope: clone(requestedScope),
+      status: 'invalid',
+      stage: 'credentials',
+      message: credentialError,
+      providerPluginId: record.binding.providerPluginId,
+    };
+  }
+
+  return {
+    scope: clone(requestedScope),
+    status: 'healthy',
+    stage: 'presign',
+    message: 'Sandbox validation passed.',
+    providerPluginId: record.binding.providerPluginId,
+  };
 }
 
 function listResponse(state, key) {
@@ -724,7 +1250,32 @@ export async function handleAdminSandboxRequest({
       case 'gateway/rate-limit-windows': return listResponse(state, 'rateLimitWindows');
       case 'routing/health-snapshots': return listResponse(state, 'providerHealth');
       case 'extensions/runtime-statuses': return listResponse(state, 'runtimeStatuses');
+      case 'storage/providers':
+        ensureStorageState(state);
+        return objectResponse(state.storageProviders);
+      case 'storage/config':
+        ensureStorageState(state);
+        return objectResponse(
+          toStorageConfigResponse(state.storageGlobalConfig) ?? emptyStorageConfigResponse(globalStorageScope()),
+        );
+      case 'storage/audit':
+        ensureStorageState(state);
+        return objectResponse(state.storageAuditTrail);
       default: break;
+    }
+
+    if (segments[0] === 'storage' && segments[1] === 'config' && segments[2] === 'tenants' && segments.length === 4) {
+      const scope = tenantStorageScope(segments[3]);
+      return objectResponse(
+        toStorageConfigResponse(storageRecordForScope(state, scope)) ?? emptyStorageConfigResponse(scope),
+      );
+    }
+
+    if (segments[0] === 'storage' && segments[1] === 'effective' && segments[2] === 'tenants' && segments.length === 4) {
+      const effective = effectiveStorageConfig(state, segments[3]);
+      return effective
+        ? objectResponse(effective)
+        : errorResponse(404, `Storage config not found for tenant ${segments[3]}.`);
     }
   }
 
@@ -748,7 +1299,36 @@ export async function handleAdminSandboxRequest({
       case 'model-prices': return objectResponse(saveModelPrice(state, input));
       case 'gateway/rate-limit-policies': return objectResponse(saveRateLimitPolicy(state, input));
       case 'extensions/runtime-reloads': return objectResponse(saveRuntimeReload(state, input));
+      case 'storage/config': {
+        const validationMessage = validateStorageConfigInput(state, input);
+        if (validationMessage) {
+          return errorResponse(400, validationMessage);
+        }
+        const saved = saveStorageConfig(state, globalStorageScope(), input);
+        return saved
+          ? objectResponse(saved)
+          : errorResponse(400, 'Storage config payload must include binding.providerPluginId.');
+      }
+      case 'storage/validate':
+        return objectResponse(validateStorageTarget(state, state.storageGlobalConfig, globalStorageScope()));
       default: break;
+    }
+
+    if (segments[0] === 'storage' && segments[1] === 'config' && segments[2] === 'tenants' && segments.length === 4) {
+      const validationMessage = validateStorageConfigInput(state, input);
+      if (validationMessage) {
+        return errorResponse(400, validationMessage);
+      }
+      const saved = saveStorageConfig(state, tenantStorageScope(segments[3]), input);
+      return saved
+        ? objectResponse(saved)
+        : errorResponse(400, 'Storage config payload must include binding.providerPluginId.');
+    }
+
+    if (segments[0] === 'storage' && segments[1] === 'validate' && segments[2] === 'tenants' && segments.length === 4) {
+      const tenantScope = tenantStorageScope(segments[3]);
+      const record = storageRecordForScope(state, tenantScope) ?? state.storageGlobalConfig;
+      return objectResponse(validateStorageTarget(state, record, tenantScope));
     }
 
     if (segments[0] === 'users' && segments[1] === 'operators' && segments[3] === 'status') {
@@ -815,6 +1395,10 @@ export async function handleAdminSandboxRequest({
   }
 
   if (normalizedMethod === 'DELETE') {
+    if (segments[0] === 'storage' && segments[1] === 'config' && segments[2] === 'tenants' && segments.length === 4) {
+      deleteTenantStorageConfig(state, segments[3]);
+      return emptyResponse();
+    }
     if (segments[0] === 'users' && segments[1] === 'operators' && segments.length === 3) {
       removeBy(state.operatorUsers, (user) => user.id === segments[2]);
       if (state.authSession.user?.id === segments[2]) updateSessionUser(state, state.operatorUsers[0] ?? sandboxSeed.authSession.user);

@@ -61,6 +61,7 @@
 | Surface | Current status |
 | --- | --- |
 | App TypeScript and Flutter packages | Workspace layout, OpenAPI authority, and generation wrappers exist; release catalog still says `template_only_pending_generation` and `not_published` |
-| Admin TypeScript and Flutter packages | Workspace layout exists, but release catalog still says `template_only_pending_generation` and `not_published` |
-| Admin OpenAPI source | No checked-in admin OpenAPI authority file exists under `sdks/sdkwork-craw-chat-sdk-admin/` yet |
+| Admin TypeScript package | Checked-in admin OpenAPI authority exists, generated and composed workspace is implemented, and `node sdks/sdkwork-craw-chat-sdk-admin/bin/verify-sdk.mjs --language typescript` passes; release publication is still not claimed |
+| Admin Flutter package | Checked-in admin OpenAPI authority exists, generated and composed workspace is implemented, and `node sdks/sdkwork-craw-chat-sdk-admin/bin/verify-sdk.mjs --language flutter` passes; release publication is still not claimed |
+| Admin OpenAPI source | Checked-in authority and derived files now exist under `sdks/sdkwork-craw-chat-sdk-admin/openapi/` and are refreshed from `services/control-plane-api` runtime OpenAPI endpoints |
 | Frontend apps | `apps/craw-chat-portal` and `apps/craw-chat-admin` are present as directories, not documented here as mature deliverables |

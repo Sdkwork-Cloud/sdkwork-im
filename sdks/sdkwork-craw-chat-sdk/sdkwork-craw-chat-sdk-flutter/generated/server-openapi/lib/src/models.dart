@@ -2156,6 +2156,153 @@ class CompleteUploadRequest {
   }
 }
 
+class MediaUploadSession {
+  final String? assetId;
+  final String? storageProvider;
+  final String? bucket;
+  final String? objectKey;
+  final String? method;
+  final String? url;
+  final Map<String, String>? headers;
+  final String? expiresAt;
+
+  MediaUploadSession({
+    this.assetId,
+    this.storageProvider,
+    this.bucket,
+    this.objectKey,
+    this.method,
+    this.url,
+    this.headers,
+    this.expiresAt
+  });
+
+  factory MediaUploadSession.fromJson(Map<String, dynamic> json) {
+    return MediaUploadSession(
+      assetId: json['assetId']?.toString(),
+      storageProvider: json['storageProvider']?.toString(),
+      bucket: json['bucket']?.toString(),
+      objectKey: json['objectKey']?.toString(),
+      method: json['method']?.toString(),
+      url: json['url']?.toString(),
+      headers: (() {
+        final map = _sdkworkAsMap(json['headers']);
+        if (map == null) {
+          return null;
+        }
+        final result = <String, String>{};
+        map.forEach((key, item) {
+          final deserialized = item?.toString();
+          if (deserialized is String) {
+            result[key] = deserialized;
+          }
+        });
+        return result;
+      })(),
+      expiresAt: json['expiresAt']?.toString()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'assetId': assetId,
+      'storageProvider': storageProvider,
+      'bucket': bucket,
+      'objectKey': objectKey,
+      'method': method,
+      'url': url,
+      'headers': headers?.map((key, item) => MapEntry(key, item)),
+      'expiresAt': expiresAt,
+    };
+  }
+}
+
+class MediaUploadMutationResponse {
+  final String? tenantId;
+  final String? principalId;
+  final String? principalKind;
+  final String? mediaAssetId;
+  final String? bucket;
+  final String? objectKey;
+  final String? storageProvider;
+  final String? checksum;
+  final String? processingState;
+  final MediaResource? resource;
+  final String? createdAt;
+  final String? completedAt;
+  final MediaUploadSession? upload;
+  final String? requestKey;
+  final String? deliveryStatus;
+  final String? proofVersion;
+
+  MediaUploadMutationResponse({
+    this.tenantId,
+    this.principalId,
+    this.principalKind,
+    this.mediaAssetId,
+    this.bucket,
+    this.objectKey,
+    this.storageProvider,
+    this.checksum,
+    this.processingState,
+    this.resource,
+    this.createdAt,
+    this.completedAt,
+    this.upload,
+    this.requestKey,
+    this.deliveryStatus,
+    this.proofVersion
+  });
+
+  factory MediaUploadMutationResponse.fromJson(Map<String, dynamic> json) {
+    return MediaUploadMutationResponse(
+      tenantId: json['tenantId']?.toString(),
+      principalId: json['principalId']?.toString(),
+      principalKind: json['principalKind']?.toString(),
+      mediaAssetId: json['mediaAssetId']?.toString(),
+      bucket: json['bucket']?.toString(),
+      objectKey: json['objectKey']?.toString(),
+      storageProvider: json['storageProvider']?.toString(),
+      checksum: json['checksum']?.toString(),
+      processingState: json['processingState']?.toString(),
+      resource: (() {
+        final map = _sdkworkAsMap(json['resource']);
+        return map == null ? null : MediaResource.fromJson(map);
+      })(),
+      createdAt: json['createdAt']?.toString(),
+      completedAt: json['completedAt']?.toString(),
+      upload: (() {
+        final map = _sdkworkAsMap(json['upload']);
+        return map == null ? null : MediaUploadSession.fromJson(map);
+      })(),
+      requestKey: json['requestKey']?.toString(),
+      deliveryStatus: json['deliveryStatus']?.toString(),
+      proofVersion: json['proofVersion']?.toString()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'tenantId': tenantId,
+      'principalId': principalId,
+      'principalKind': principalKind,
+      'mediaAssetId': mediaAssetId,
+      'bucket': bucket,
+      'objectKey': objectKey,
+      'storageProvider': storageProvider,
+      'checksum': checksum,
+      'processingState': processingState,
+      'resource': resource?.toJson(),
+      'createdAt': createdAt,
+      'completedAt': completedAt,
+      'upload': upload?.toJson(),
+      'requestKey': requestKey,
+      'deliveryStatus': deliveryStatus,
+      'proofVersion': proofVersion,
+    };
+  }
+}
+
 class MediaDownloadUrlResponse {
   final String? mediaAssetId;
   final String? storageProvider;

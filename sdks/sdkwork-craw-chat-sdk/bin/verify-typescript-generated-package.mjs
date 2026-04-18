@@ -4,27 +4,29 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import {
+  collectMissingTypescriptPackageArtifacts,
+  failTypescriptPackageVerification,
+  readTypescriptGeneratedPackageJson,
+  resolveTypescriptGeneratedPackagePaths,
+} from '../../workspace-typescript-package-verify-shared.mjs';
 
+const prefix = 'sdkwork-craw-chat-sdk';
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = path.resolve(scriptDir, '..');
-const generatedRoot = path.join(
+const { generatedRoot, packageJsonPath, distRoot } = resolveTypescriptGeneratedPackagePaths({
   workspaceRoot,
-  'sdkwork-craw-chat-sdk-typescript',
-  'generated',
-  'server-openapi',
-);
-const packageJsonPath = path.join(generatedRoot, 'package.json');
-const distRoot = path.join(generatedRoot, 'dist');
+  relativeGeneratedRoot: path.join(
+    'sdkwork-craw-chat-sdk-typescript',
+    'generated',
+    'server-openapi',
+  ),
+});
 const requiredArtifacts = [
   'index.js',
   'index.cjs',
   'index.d.ts',
 ];
-
-function fail(message) {
-  console.error(`[sdkwork-craw-chat-sdk] ${message}`);
-  process.exit(1);
-}
 
 function run(command, args, options = {}) {
   const spawnOptions = {
@@ -62,11 +64,17 @@ function run(command, args, options = {}) {
 
   try {
     if (result.error) {
-      fail(`${options.step || command} failed to start: ${result.error.message}`);
+      failTypescriptPackageVerification({
+        prefix,
+        message: `${options.step || command} failed to start: ${result.error.message}`,
+      });
     }
     if ((result.status ?? 1) !== 0) {
       const stderr = (result.stderr || '').trim();
-      fail(`${options.step || command} failed with exit code ${result.status}${stderr ? `\n${stderr}` : ''}`);
+      failTypescriptPackageVerification({
+        prefix,
+        message: `${options.step || command} failed with exit code ${result.status}${stderr ? `\n${stderr}` : ''}`,
+      });
     }
 
     if (!options.captureOutput || capturePath == null) {
@@ -98,7 +106,7 @@ function run(command, args, options = {}) {
 function parseJson(step, source) {
   const trimmed = source.trim();
   if (!trimmed) {
-    fail(`${step} produced no output.`);
+    failTypescriptPackageVerification({ prefix, message: `${step} produced no output.` });
   }
 
   const candidates = [trimmed];
@@ -116,31 +124,42 @@ function parseJson(step, source) {
     }
   }
 
-  fail(`${step} produced invalid JSON output.`);
+  failTypescriptPackageVerification({ prefix, message: `${step} produced invalid JSON output.` });
 }
 
 if (!existsSync(packageJsonPath)) {
-  fail('TypeScript generated package.json is missing.');
+  failTypescriptPackageVerification({ prefix, message: 'TypeScript generated package.json is missing.' });
 }
 
-const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
+const packageJson = readTypescriptGeneratedPackageJson({ packageJsonPath });
 if (packageJson.main !== './dist/index.cjs') {
-  fail('TypeScript generated package main must stay on ./dist/index.cjs.');
+  failTypescriptPackageVerification({
+    prefix,
+    message: 'TypeScript generated package main must stay on ./dist/index.cjs.',
+  });
 }
 if (packageJson.module !== './dist/index.js') {
-  fail('TypeScript generated package module must stay on ./dist/index.js.');
+  failTypescriptPackageVerification({
+    prefix,
+    message: 'TypeScript generated package module must stay on ./dist/index.js.',
+  });
 }
 if (packageJson.types !== './dist/index.d.ts') {
-  fail('TypeScript generated package types must stay on ./dist/index.d.ts.');
+  failTypescriptPackageVerification({
+    prefix,
+    message: 'TypeScript generated package types must stay on ./dist/index.d.ts.',
+  });
 }
 
-const missingArtifacts = requiredArtifacts.filter(
-  (relativePath) => !existsSync(path.join(distRoot, relativePath)),
-);
+const missingArtifacts = collectMissingTypescriptPackageArtifacts({
+  distRoot,
+  requiredArtifacts,
+});
 if (missingArtifacts.length > 0) {
-  fail(
-    `TypeScript generated package is missing required dist artifacts: ${missingArtifacts.join(', ')}`,
-  );
+  failTypescriptPackageVerification({
+    prefix,
+    message: `TypeScript generated package is missing required dist artifacts: ${missingArtifacts.join(', ')}`,
+  });
 }
 
 const cacheDir = path.join(generatedRoot, '.npm-cache');
@@ -154,7 +173,10 @@ run('node', ['./bin/publish-core.mjs', '--language', 'typescript', '--project-di
 
 const npmCliPath = path.join(path.dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js');
 if (!existsSync(npmCliPath)) {
-  fail(`TypeScript generated package verification could not find npm CLI at ${npmCliPath}.`);
+  failTypescriptPackageVerification({
+    prefix,
+    message: `TypeScript generated package verification could not find npm CLI at ${npmCliPath}.`,
+  });
 }
 const packCommand = 'node';
 const packArgs = [npmCliPath, 'pack', '--dry-run', '--json'];
@@ -169,11 +191,17 @@ const packOutput = run(packCommand, packArgs, {
 const packManifest = parseJson('typescript-generated:pack-dry-run', packOutput);
 const packEntries = Array.isArray(packManifest) ? packManifest : [packManifest];
 if (packEntries.length === 0) {
-  fail('TypeScript generated npm pack manifest must include at least one package entry.');
+  failTypescriptPackageVerification({
+    prefix,
+    message: 'TypeScript generated npm pack manifest must include at least one package entry.',
+  });
 }
 const packedFiles = Array.isArray(packEntries[0]?.files) ? packEntries[0].files : [];
 if (packedFiles.length === 0) {
-  fail('TypeScript generated npm pack manifest must list packaged files.');
+  failTypescriptPackageVerification({
+    prefix,
+    message: 'TypeScript generated npm pack manifest must list packaged files.',
+  });
 }
 const packedPaths = packedFiles
   .map((entry) => String(entry?.path || '').replace(/\\/g, '/'))
@@ -181,9 +209,10 @@ const packedPaths = packedFiles
 const requiredPackedPaths = ['README.md', 'package.json', ...requiredArtifacts.map((relativePath) => `dist/${relativePath}`)];
 const missingPackedPaths = requiredPackedPaths.filter((relativePath) => !packedPaths.includes(relativePath));
 if (missingPackedPaths.length > 0) {
-  fail(
-    `TypeScript generated npm pack manifest is missing required files: ${missingPackedPaths.join(', ')}`,
-  );
+  failTypescriptPackageVerification({
+    prefix,
+    message: `TypeScript generated npm pack manifest is missing required files: ${missingPackedPaths.join(', ')}`,
+  });
 }
 const unexpectedPackedPaths = packedPaths.filter(
   (relativePath) =>
@@ -192,9 +221,10 @@ const unexpectedPackedPaths = packedPaths.filter(
     !relativePath.startsWith('dist/'),
 );
 if (unexpectedPackedPaths.length > 0) {
-  fail(
-    `TypeScript generated npm pack manifest must only ship README.md, package.json, and dist/* files, but found: ${unexpectedPackedPaths.join(', ')}`,
-  );
+  failTypescriptPackageVerification({
+    prefix,
+    message: `TypeScript generated npm pack manifest must only ship README.md, package.json, and dist/* files, but found: ${unexpectedPackedPaths.join(', ')}`,
+  });
 }
 const forbiddenPackedPaths = packedPaths.filter(
   (relativePath) =>
@@ -203,9 +233,10 @@ const forbiddenPackedPaths = packedPaths.filter(
     relativePath.startsWith('dist/auth/'),
 );
 if (forbiddenPackedPaths.length > 0) {
-  fail(
-    `TypeScript generated npm pack manifest must not ship private source files or dead auth scaffolding: ${forbiddenPackedPaths.join(', ')}`,
-  );
+  failTypescriptPackageVerification({
+    prefix,
+    message: `TypeScript generated npm pack manifest must not ship private source files or dead auth scaffolding: ${forbiddenPackedPaths.join(', ')}`,
+  });
 }
 
 const esmModule = await import(pathToFileURL(path.join(distRoot, 'index.js')).href);
@@ -221,7 +252,10 @@ for (const [moduleName, moduleValue] of [
   ['cjs:DEFAULT_TIMEOUT', cjsModule.DEFAULT_TIMEOUT],
 ]) {
   if (moduleValue == null) {
-    fail(`TypeScript generated package smoke check missing export ${moduleName}.`);
+    failTypescriptPackageVerification({
+      prefix,
+      message: `TypeScript generated package smoke check missing export ${moduleName}.`,
+    });
   }
 }
 

@@ -2,33 +2,7 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-
-function fail(message) {
-  console.error(`[sdkwork-craw-chat-sdk] ${message}`);
-  process.exit(1);
-}
-
-function parseArgs(argv) {
-  const parsed = {
-    languages: [],
-  };
-
-  for (let index = 0; index < argv.length; index += 1) {
-    const current = argv[index];
-    if (current === '--language') {
-      const value = (argv[index + 1] || '').trim().toLowerCase();
-      if (!value) {
-        fail('Missing value for --language');
-      }
-      parsed.languages.push(value);
-      index += 1;
-      continue;
-    }
-    fail(`Unknown argument: ${current}`);
-  }
-
-  return parsed;
-}
+import { parseAuthSurfaceLanguageArgs } from '../../workspace-auth-surface-shared.mjs';
 
 function normalizeNewlines(value) {
   return value.replace(/\r?\n/g, '\n');
@@ -703,16 +677,14 @@ function normalizeFlutter(workspaceRoot) {
   writeIfChanged(path.join(generatedRoot, 'README.md'), renderFlutterReadme());
 }
 
-const args = parseArgs(process.argv.slice(2));
+const prefix = 'sdkwork-craw-chat-sdk';
+const supportedLanguages = ['typescript', 'flutter'];
+const languageSet = parseAuthSurfaceLanguageArgs(process.argv.slice(2), {
+  prefix,
+  supportedLanguages,
+});
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = path.resolve(scriptDir, '..');
-const languageSet = new Set(args.languages.length > 0 ? args.languages : ['typescript', 'flutter']);
-
-for (const language of languageSet) {
-  if (!['typescript', 'flutter'].includes(language)) {
-    fail(`Unsupported language: ${language}`);
-  }
-}
 
 if (languageSet.has('typescript')) {
   normalizeTypeScript(workspaceRoot);
@@ -723,5 +695,5 @@ if (languageSet.has('flutter')) {
 }
 
 console.log(
-  `[sdkwork-craw-chat-sdk] Normalized generated auth surface for ${[...languageSet].sort().join(', ')}.`,
+  `[${prefix}] Normalized generated auth surface for ${[...languageSet].sort().join(', ')}.`,
 );

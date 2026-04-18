@@ -1,1 +1,1 @@
-export * from '../../../../../sdkwork-ui/sdkwork-ui-pc-react/dist/index';
+export * from '../../../../../../../sdkwork-ui/sdkwork-ui-pc-react/dist/index';

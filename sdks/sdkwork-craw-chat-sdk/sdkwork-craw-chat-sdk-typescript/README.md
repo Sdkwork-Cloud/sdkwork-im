@@ -37,9 +37,12 @@ The primary app-facing TypeScript package is `composed/package.json`:
 - package name: `@sdkwork/craw-chat-sdk`
 - entrypoint: `composed/dist/index.js`
 - main capabilities:
-  - `CrawChatClient`
+  - `CrawChatSdkClient`
   - business modules for sessions, presence, realtime HTTP, devices, inbox, conversations, messages, media, streams, and RTC
   - convenience builders for text messages, text stream frames, and JSON RTC signals
+
+The generator-owned transport package remains `@sdkwork/craw-chat-backend-sdk` under
+`generated/server-openapi`.
 
 ## Generate
 
@@ -63,6 +66,27 @@ These scripts forward to the root `sdkwork-craw-chat-sdk/bin/generate-sdk.*` wra
 The forwarded flow ends by running the shared `bin/verify-typescript-workspace.mjs` suite, so regeneration also rechecks the generated package, the packed tarball boundary through `npm pack --dry-run`, bearer-auth surface alignment, temporary verification-directory cleanup, runtime root exports, dead-auth/dead-residue cleanup, composed public API boundary, typecheck, build, dist cleanup, and smoke tests.
 The same generation flow then runs `bin/verify-typescript-generated-build-determinism.mjs`, so repeated stable generated-package builds keep `dist/index.cjs.map` free of run-specific temporary paths before regeneration is treated as complete.
 
+## Assemble
+
+From this workspace:
+
+```powershell
+.\bin\sdk-assemble.ps1
+```
+
+If local PowerShell execution policy blocks script execution, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\bin\sdk-assemble.ps1
+```
+
+```bash
+./bin/sdk-assemble.sh
+```
+
+These scripts forward to the root `sdkwork-craw-chat-sdk/bin/assemble-sdk.*` wrapper and constrain assembly to the TypeScript target.
+Use them when you need to refresh `.sdkwork-assembly.json` from already-verified generated and composed package manifests without rerunning a full regeneration flow.
+
 ## Verify
 
 From this workspace:
@@ -82,9 +106,21 @@ powershell -ExecutionPolicy Bypass -File .\bin\sdk-verify.ps1
 ```
 
 These scripts forward to the root `sdkwork-craw-chat-sdk/bin/verify-sdk.*` wrapper and constrain verification to the TypeScript target.
-The forwarded verification path delegates to the shared `bin/verify-typescript-workspace.mjs` suite, including generated-package artifact checks, the `npm pack --dry-run` tarball boundary check, the generated-package temporary verification-directory cleanup check, runtime root-export checks, and dead-auth/dead-residue cleanup checks.
+The forwarded verification path delegates to the shared `bin/verify-typescript-workspace.mjs` suite, including generated-package artifact checks, the `npm pack --dry-run` tarball boundary check, usage-surface checks, public API boundary checks, the generated-package temporary verification-directory cleanup check, runtime root-export checks, and dead-auth/dead-residue cleanup checks.
 The root verification chain also runs `bin/verify-typescript-generated-build-determinism.mjs` so repeated stable generated-package builds keep `dist/index.cjs.map` free of run-specific temporary paths and byte-stable across identical inputs.
 On Windows, the root verification chain also runs `bin/verify-typescript-generated-build-concurrency.mjs` to prove that two overlapping generated-package builds can complete without shared-temp collisions.
+
+## Assembly Metadata
+
+Root verification refreshes `.sdkwork-assembly.json` for the app SDK workspace.
+
+That metadata file records:
+
+- the TypeScript package `manifestPath`
+- the explicit `generated` and `composed` package layers
+- a `generatedAt` timestamp that stays stable when assembly content is unchanged
+
+Use that file for release-facing inspection instead of scanning directories by hand.
 
 ## Current Round Scope
 

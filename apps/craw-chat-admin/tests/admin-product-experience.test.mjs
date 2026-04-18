@@ -69,7 +69,7 @@ async function loadOperatorErrorStatusRuntimeModule() {
   if (!operatorErrorStatusRuntimeModulePromise) {
     const source = read('packages/sdkwork-craw-chat-admin-core/src/operatorErrorStatus.ts')
       .replace(
-        "import { AdminApiError } from 'sdkwork-craw-chat-admin-admin-api';",
+        "import { AdminApiError } from '@sdkwork/craw-chat-admin-sdk';",
         [
           'export class AdminApiError extends Error {',
           '  constructor(status, message) {',
@@ -702,6 +702,8 @@ test('workbench failure handling normalizes technical transport errors before th
   const i18n = read('packages/sdkwork-craw-chat-admin-core/src/i18n.tsx');
 
   assert.match(operatorErrorStatus, /export function resolveAdminOperatorErrorStatus/);
+  assert.match(operatorErrorStatus, /@sdkwork\/craw-chat-admin-sdk/);
+  assert.doesNotMatch(operatorErrorStatus, /sdkwork-craw-chat-admin-admin-api/);
   assert.match(operatorErrorStatus, /AdminApiError/);
   assert.match(operatorErrorStatus, /status === 401/);
   assert.match(operatorErrorStatus, /status === 403/);

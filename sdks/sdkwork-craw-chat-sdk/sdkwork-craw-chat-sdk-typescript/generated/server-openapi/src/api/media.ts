@@ -1,7 +1,7 @@
 import { backendApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 import type { QueryParams } from '../types/common';
-import type { AttachMediaRequest, CompleteUploadRequest, CreateUploadRequest, MediaAsset, MediaDownloadUrlResponse, PostMessageResult } from '../types';
+import type { AttachMediaRequest, CompleteUploadRequest, CreateUploadRequest, MediaAsset, MediaDownloadUrlResponse, MediaUploadMutationResponse, PostMessageResult } from '../types';
 
 
 export class MediaApi {
@@ -12,13 +12,13 @@ export class MediaApi {
   }
 
 /** Create a media upload record */
-  async createMediaUpload(body: CreateUploadRequest): Promise<MediaAsset> {
-    return this.client.post<MediaAsset>(backendApiPath(`/media/uploads`), body, undefined, undefined, 'application/json');
+  async createMediaUpload(body: CreateUploadRequest): Promise<MediaUploadMutationResponse> {
+    return this.client.post<MediaUploadMutationResponse>(backendApiPath(`/media/uploads`), body, undefined, undefined, 'application/json');
   }
 
 /** Complete a media upload */
-  async completeMediaUpload(mediaAssetId: string | number, body: CompleteUploadRequest): Promise<MediaAsset> {
-    return this.client.post<MediaAsset>(backendApiPath(`/media/uploads/${mediaAssetId}/complete`), body, undefined, undefined, 'application/json');
+  async completeMediaUpload(mediaAssetId: string | number, body: CompleteUploadRequest): Promise<MediaUploadMutationResponse> {
+    return this.client.post<MediaUploadMutationResponse>(backendApiPath(`/media/uploads/${mediaAssetId}/complete`), body, undefined, undefined, 'application/json');
   }
 
 /** Issue a signed media download URL */

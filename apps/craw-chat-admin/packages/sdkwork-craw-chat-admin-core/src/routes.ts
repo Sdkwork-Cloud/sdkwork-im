@@ -79,6 +79,13 @@ export const adminRoutes: AdminRouteDefinition[] = [
     group: 'System',
   },
   {
+    key: 'storage',
+    label: 'Storage',
+    eyebrow: 'Assets',
+    detail: 'Global object storage policy, tenant overrides, and presigned upload posture',
+    group: 'System',
+  },
+  {
     key: 'settings',
     label: 'Settings',
     eyebrow: 'Preferences',

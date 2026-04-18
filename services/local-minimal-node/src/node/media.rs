@@ -7,11 +7,12 @@ pub(super) async fn create_media_upload(
 ) -> Result<Json<MediaUploadMutationResponse>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
     let request_key = media_create_upload_request_key(&auth, request.media_asset_id.as_str());
+    let outcome = state.media_runtime.create_upload_with_outcome(&auth, request)?;
+    let upload = state.media_runtime.prepare_upload_session(&auth, &outcome.asset)?;
     Ok(Json(MediaUploadMutationResponse::from_outcome(
-        state
-            .media_runtime
-            .create_upload_with_outcome(&auth, request)?,
+        outcome,
         request_key,
+        Some(upload),
     )))
 }
 
@@ -30,6 +31,7 @@ pub(super) async fn complete_media_upload(
             request,
         )?,
         request_key,
+        None,
     )))
 }
 

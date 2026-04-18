@@ -7,5 +7,6 @@ version.workspace = true
 [dependencies]
 im-domain-core = { path = "../../crates/im-domain-core" }
 im-platform-contracts = { path = "../../crates/im-platform-contracts" }
+im-storage-contracts = { path = "../../crates/im-storage-contracts" }
 serde.workspace = true
 serde_json.workspace = true
