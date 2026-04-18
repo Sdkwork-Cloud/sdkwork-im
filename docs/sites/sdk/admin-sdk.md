@@ -3,6 +3,9 @@
 The admin SDK family covers governance and control-plane consumers. Use it for protocol registry
 and policy reads, provider governance, and node lifecycle operations.
 
+If you are building product-facing chat, inbox, timeline, media, or RTC features, stop here and
+start with [App SDK](/sdk/app-sdk) plus the language quick-start pages under `/sdk/`.
+
 ## Choose This Family When
 
 - you are reading or applying protocol registry decisions

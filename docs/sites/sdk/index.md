@@ -16,6 +16,10 @@ contract for future semantic SDKs in other languages.
 | Need | Start with |
 | --- | --- |
 | Public app runtime integration | [App SDK](/sdk/app-sdk) |
+| Shared auth and client bootstrap rules | [Auth and Client Init](/sdk/auth-and-client-init) |
+| Fastest browser or Node onboarding | [TypeScript Quick Start](/sdk/typescript-quick-start) |
+| Fastest Flutter onboarding | [Flutter Quick Start](/sdk/flutter-quick-start) |
+| Fastest Rust onboarding | [Rust Quick Start](/sdk/rust-quick-start) |
 | Real TypeScript package, imports, and examples | [TypeScript SDK](/sdk/typescript-sdk) |
 | Current language parity, tiers, and transport status | [Language Support](/sdk/language-support) |
 | Generated-versus-semantic ownership rules | [Generator Boundary](/sdk/generator-boundary) |
@@ -30,10 +34,30 @@ Use this rule of thumb before reading the rest of the matrix:
   [TypeScript SDK](/sdk/typescript-sdk).
 - If you are building Flutter UI integration, start with [Flutter SDK](/sdk/flutter-sdk) and treat
   websocket live runtime plus message-first builders as current parity gaps.
+- If you want the shortest path from zero to a running integration, use the quick-start sequence:
+  [TypeScript](/sdk/typescript-quick-start),
+  [Flutter](/sdk/flutter-quick-start),
+  [Rust](/sdk/rust-quick-start), then
+  [Module Map](/sdk/module-map).
 - If you need generated transport only for JVM, .NET, Swift, Go, Python, or current Rust service
   integration, start from the language page for that transport-standardized workspace.
 - If you are building control-plane or governance tooling, skip the app SDK family and start with
   [Admin SDK](/sdk/admin-sdk).
+
+## Quick Starts And Module Docs
+
+Use the fast-start set when you are wiring a new client instead of evaluating overall workspace
+policy:
+
+| Need | Best page |
+| --- | --- |
+| Shared base URL, token, and client creation rules | [Auth and Client Init](/sdk/auth-and-client-init) |
+| Package-to-capability lookup | [Module Map](/sdk/module-map) |
+| TypeScript bootstrap | [TypeScript Quick Start](/sdk/typescript-quick-start) |
+| Flutter bootstrap | [Flutter Quick Start](/sdk/flutter-quick-start) |
+| Rust bootstrap | [Rust Quick Start](/sdk/rust-quick-start) |
+| Capability-focused deep dives | [/sdk/modules/session-and-presence](/sdk/modules/session-and-presence), [/sdk/modules/realtime](/sdk/modules/realtime), [/sdk/modules/conversations](/sdk/modules/conversations), [/sdk/modules/messages](/sdk/modules/messages), [/sdk/modules/media](/sdk/modules/media), [/sdk/modules/streams](/sdk/modules/streams), [/sdk/modules/rtc](/sdk/modules/rtc) |
+| Scenario walkthroughs | [/sdk/examples/session-bootstrap](/sdk/examples/session-bootstrap), [/sdk/examples/conversation-workflow](/sdk/examples/conversation-workflow), [/sdk/examples/message-and-media](/sdk/examples/message-and-media), [/sdk/examples/stream-and-rtc](/sdk/examples/stream-and-rtc) |
 
 ## API Reference Router
 
@@ -148,6 +172,11 @@ For every official language:
 - [TypeScript SDK](/sdk/typescript-sdk)
 - [Flutter SDK](/sdk/flutter-sdk)
 - [Rust SDK](/sdk/rust-sdk)
+- [TypeScript Quick Start](/sdk/typescript-quick-start)
+- [Flutter Quick Start](/sdk/flutter-quick-start)
+- [Rust Quick Start](/sdk/rust-quick-start)
+- [Auth and Client Init](/sdk/auth-and-client-init)
+- [Module Map](/sdk/module-map)
 - [Java SDK](/sdk/java-sdk)
 - [C# SDK](/sdk/csharp-sdk)
 - [Swift SDK](/sdk/swift-sdk)

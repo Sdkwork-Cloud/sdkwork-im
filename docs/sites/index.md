@@ -7,14 +7,14 @@ hero:
   tagline: "Open-source docs aligned to the current Craw Chat repository state: runtime architecture, HTTP APIs, SDK workspaces, and deployment workflows."
   actions:
     - theme: brand
-      text: Get Started
-      link: /getting-started/index
+      text: SDK Overview
+      link: /sdk/index
+    - theme: alt
+      text: TypeScript Quick Start
+      link: /sdk/typescript-quick-start
     - theme: alt
       text: API Reference
       link: /api-reference/index
-    - theme: alt
-      text: SDK Docs
-      link: /sdk/index
 
 features:
   - title: Implementation First
@@ -23,6 +23,8 @@ features:
     details: HTTP operations are grouped by runtime domain, linked from the sidebar, and documented with request and response schemas plus nested field expansion.
   - title: SDK Boundary Clarity
     details: The docs distinguish release-catalog artifacts, repo package contracts, and consumer package surfaces so repository state is not confused with registry publication.
+  - title: SDK Quick Starts And Examples
+    details: TypeScript, Flutter, and Rust now have dedicated quick-starts, shared client bootstrap guidance, module pages, and scenario-driven integration examples.
   - title: Operable Deployment Guides
     details: Local binary, Docker Compose, runtime inspection, repair, backup, preview, and restore flows are documented from the existing scripts and binaries.
   - title: Runtime-centric Architecture
@@ -39,10 +41,23 @@ Craw Chat is a Rust workspace with two primary runtime surfaces in the current r
   media, stream, RTC, platform, ops, audit, and provider-health routes.
 - `services/control-plane-api`, the separate governance surface for protocol registry, provider
   policy, and node lifecycle operations.
+- `sdks/sdkwork-craw-chat-sdk`, the app-facing SDK workspace with multi-language transport output,
+  TypeScript single-package delivery, and dedicated quick-start plus module docs.
 
 The default runnable profile is `local-minimal`. The `local-default` profile already has script,
 config, and Docker entry points, but it still reuses the current `local-minimal` runtime contract
 and topology.
+
+For most new integrations, the fastest reading order is:
+
+1. [SDK Overview](/sdk/index)
+2. [Auth and Client Init](/sdk/auth-and-client-init)
+3. one language quick start:
+   [TypeScript](/sdk/typescript-quick-start),
+   [Flutter](/sdk/flutter-quick-start),
+   [Rust](/sdk/rust-quick-start)
+4. [Module Map](/sdk/module-map)
+5. the matching API reference domain pages
 
 <div class="landing-grid">
   <div class="fact-card">
@@ -74,9 +89,11 @@ and topology.
    deployment assumptions.
 4. Use [API Reference](/api-reference/index) for the OpenAPI-style operation catalog with sidebar
    links to every documented endpoint.
-5. Read [SDK Overview](/sdk/index), then choose [TypeScript SDK](/sdk/typescript-sdk) or
-   [Flutter SDK](/sdk/flutter-sdk) before promising package availability, import paths, or feature
-   parity to consumers.
+5. Read [SDK Overview](/sdk/index), then use
+   [TypeScript Quick Start](/sdk/typescript-quick-start),
+   [Flutter Quick Start](/sdk/flutter-quick-start), or
+   [Rust Quick Start](/sdk/rust-quick-start) before promising package availability, import paths,
+   or feature parity to consumers.
 6. Keep [Deployment](/deployment/index) and [Reference](/reference/cli-and-scripts) open when
    running, diagnosing, backing up, or restoring a local environment.
 
@@ -85,8 +102,9 @@ and topology.
 | If you are... | Start here | Why |
 | --- | --- | --- |
 | Integrating against the public app runtime | [SDK Overview](/sdk/index) | Separates contract authority, repo packages, and release state |
-| Building a browser or Node integration today | [TypeScript SDK](/sdk/typescript-sdk) | TypeScript now exposes the widest repo app SDK surface from one package, `@sdkwork/craw-chat-sdk`, including portal auth and portal snapshots |
-| Building a Flutter client for app-runtime flows | [Flutter SDK](/sdk/flutter-sdk) | Shows the real exported Dart surface and explicitly calls out the current portal/auth parity gap |
+| Building a browser or Node integration today | [TypeScript Quick Start](/sdk/typescript-quick-start) | Jumps straight into the production package, flat config, message-first send model, and live receive setup |
+| Building a Flutter client for app-runtime flows | [Flutter Quick Start](/sdk/flutter-quick-start) | Starts from the real Dart package surface and the current HTTP-first parity profile |
+| Building a Rust integration or service-side adapter | [Rust Quick Start](/sdk/rust-quick-start) | Clarifies the generated transport boundary, composed reserve, and current Rust package contract |
 | Working directly with HTTP endpoints | [API Reference](/api-reference/index) | Links every documented operation page from the sidebar |
 | Operating or diagnosing a local deployment | [Deployment](/deployment/index) | Covers binary startup, Docker Compose, runtime inspection, backup, repair, preview, and restore |
 | Changing runtime or governance behavior | [Architecture Overview](/architecture/overview) | Anchors service boundaries, runtime topology, and source-of-truth files before code changes |
@@ -98,7 +116,7 @@ and topology.
 | App runtime | Session resume, presence, realtime delivery, device sync, conversations, membership, messages, media, streams, RTC, notifications, automation, audit, ops, and provider health |
 | Control plane | Protocol registry, protocol governance, provider registry, effective bindings, provider policy preview and rollback, plus node drain, activate, and route migration |
 | Deployment | Local binary lifecycle scripts, Docker Compose bootstrap, runtime inspection, repair, backup listing, archive, preview, and restore |
-| SDK workspaces | App SDK workspace with a live-schema-backed OpenAPI authority snapshot, a TypeScript single-package consumer SDK, and Flutter generated-plus-composed layers; admin SDK workspace with fixed audience and language boundaries but no checked-in admin OpenAPI source yet |
+| SDK workspaces | App SDK workspace with a live-schema-backed OpenAPI authority snapshot, TypeScript single-package delivery, Flutter and Rust workspace docs, plus dedicated quick-start, module, and example pages; admin SDK workspace with fixed audience and language boundaries but no checked-in admin OpenAPI source yet |
 | Frontend apps | `apps/craw-chat-admin` and `apps/craw-chat-portal` exist as workspace directories but are not documented here as mature product surfaces |
 
 ::: warning Scope rule

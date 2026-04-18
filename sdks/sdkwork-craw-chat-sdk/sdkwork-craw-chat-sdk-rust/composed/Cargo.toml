@@ -1,0 +1,17 @@
+[package]
+name = "craw-chat-sdk"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Manual-owned Craw Chat Rust composed SDK crate."
+license = "MIT"
+
+[lib]
+name = "craw_chat_sdk"
+path = "src/lib.rs"
+
+[dependencies]
+sdkwork-craw-chat-backend-sdk = { path = "../generated/server-openapi" }
+serde_json = "1.0"
+
+[workspace]

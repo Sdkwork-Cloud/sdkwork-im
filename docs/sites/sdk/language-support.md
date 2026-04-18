@@ -17,6 +17,16 @@ export.
 Read the matrix below as a statement about the real checked-in repo contract, not an assumption
 about registry publication or cross-language parity.
 
+## Fastest Onboarding
+
+Use the overview and quick-start pages before you read the full parity matrix:
+
+- shared setup rules: [Auth and Client Init](/sdk/auth-and-client-init)
+- TypeScript bootstrap: [TypeScript Quick Start](/sdk/typescript-quick-start)
+- Flutter bootstrap: [Flutter Quick Start](/sdk/flutter-quick-start)
+- Rust bootstrap: [Rust Quick Start](/sdk/rust-quick-start)
+- capability routing: [Module Map](/sdk/module-map)
+
 ## Tier Definitions
 
 ### Tier A
@@ -130,6 +140,10 @@ That distinction keeps the site precise and trustworthy.
 
 ## What To Read Next
 
+- Read [Auth and Client Init](/sdk/auth-and-client-init) when you want the shared bootstrap contract before picking a language.
+- Read [TypeScript Quick Start](/sdk/typescript-quick-start) when you want the shortest path into the primary production package.
+- Read [Flutter Quick Start](/sdk/flutter-quick-start) when you want the current Dart package and HTTP-first integration path.
+- Read [Rust Quick Start](/sdk/rust-quick-start) when you want the current Rust generated-crate contract and workspace boundary.
 - Read [TypeScript SDK](/sdk/typescript-sdk) when you need the broadest checked-in app SDK surface.
 - Read [Flutter SDK](/sdk/flutter-sdk) when you need the real Dart export surface and current parity limits.
 - Read [Rust SDK](/sdk/rust-sdk) when you are evaluating the first non-TypeScript Tier A target.

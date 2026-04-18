@@ -29,17 +29,32 @@ It is responsible for:
 
 Use [Admin SDK](/sdk/admin-sdk) for governance or control-plane tooling.
 
+## Fastest Onboarding
+
+For a new integration, read the app SDK pages in this order:
+
+1. [Auth and Client Init](/sdk/auth-and-client-init)
+2. one language quick start:
+   [TypeScript](/sdk/typescript-quick-start),
+   [Flutter](/sdk/flutter-quick-start),
+   [Rust](/sdk/rust-quick-start)
+3. [Module Map](/sdk/module-map)
+4. the capability pages under `/sdk/modules/`
+5. the matching route-level API reference pages when you need exact DTOs or statuses
+
 ## Workspace Standard
 
-| Layer | TypeScript |
+| Layer | Current standard |
 | --- | --- |
 | SDK workspace root | `sdks/sdkwork-craw-chat-sdk` |
 | Live schema export | `/openapi/craw-chat-app.openapi.yaml` |
 | Authority snapshot | `sdks/sdkwork-craw-chat-sdk/openapi/craw-chat-app.openapi.yaml` |
-| Official consumer package | `@sdkwork/craw-chat-sdk` |
-| Primary client | `CrawChatSdkClient` |
-| Generated boundary inside package | `src/generated/**` |
+| TypeScript consumer package | `@sdkwork/craw-chat-sdk` |
+| Flutter consumer package | `craw_chat_sdk` |
+| Rust generated crate | `sdkwork-craw-chat-backend-sdk` |
+| Primary app-facing client today | `CrawChatSdkClient` in TypeScript |
 | Generator-owned authoring source | `generated/server-openapi` |
+| Manual-owned semantic boundary | `composed`, except the assembled TypeScript root package that exposes generated transport under `src/generated/**` |
 
 The current implementation priority is TypeScript. Flutter remains in the workspace, but the
 next-generation app SDK standard is being landed in TypeScript first.
@@ -59,6 +74,13 @@ For a new app:
 
 That is the recommended product integration path. Do not start from raw route groups unless you
 are explicitly building transport tooling.
+
+Use the scenario pages when you want a shorter working example instead of a capability catalog:
+
+- [Session Bootstrap](/sdk/examples/session-bootstrap)
+- [Conversation Workflow](/sdk/examples/conversation-workflow)
+- [Message and Media](/sdk/examples/message-and-media)
+- [Stream and RTC](/sdk/examples/stream-and-rtc)
 
 ## TypeScript Consumer Model
 
