@@ -1,6 +1,15 @@
-# sdkwork-craw-chat-sdk (Flutter)
+# backend_sdk
 
-Professional Flutter transport SDK for the Craw Chat app API.
+Generated Flutter transport package for the Craw Chat app API.
+
+## Package Role
+
+This package is the generator-owned transport layer for the checked-in app OpenAPI contract.
+Use it when you need direct access to generated HTTP operations and root-exported transport types.
+
+For business-facing chat integrations, prefer the composed Flutter layers under
+`sdkwork-craw-chat-sdk-flutter/composed`, where the manual `craw_chat_sdk` package wraps this
+transport package with the higher-level chat client surface.
 
 ## Installation
 
@@ -40,6 +49,15 @@ client.setAuthToken('your-bearer-token');
 // Sends: Authorization: Bearer <token>
 ```
 
+## Endpoint Targeting
+
+- In direct local development, point `baseUrl` to the app-facing service origin, typically the
+  local `local-minimal-node` HTTP endpoint such as `http://127.0.0.1:18090`.
+- In packaged installs, point `baseUrl` to the unified `craw-chat-server` or `web-gateway`
+  public origin.
+- Keep one deployment model per client configuration. Do not mix direct local service and unified
+  gateway assumptions in the same client instance.
+
 ## Configuration
 
 ```dart
@@ -54,7 +72,7 @@ final client = SdkworkBackendClient(
 );
 ```
 
-## API Modules
+## Surface Groups
 
 - `client.session` - session API
 - `client.presence` - presence API
@@ -82,8 +100,11 @@ MIT
 ## Package Boundary
 
 - Use only the package root entrypoint: `package:backend_sdk/backend_sdk.dart`.
-- Generated `src/` imports are not part of the supported public API.
-- The workspace normalization wrapper strips generator-only auth scaffolding and source-tree build residue before verification and packaging.
+- Do not import generated `lib/src/` imports from downstream code.
+- Keep business orchestration in the composed Flutter layers under
+  `sdkwork-craw-chat-sdk-flutter/composed` instead of re-exporting generated internals.
+- The workspace normalization wrapper strips generator-only auth scaffolding and source-tree build
+  residue before verification and packaging.
 
 ## Regeneration Contract
 

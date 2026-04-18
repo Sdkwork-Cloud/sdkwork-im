@@ -21,7 +21,7 @@ Opens a new stream session.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / streams</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation `stream.open` capability or device stream permission.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 StreamSession`</span></div>
@@ -76,7 +76,7 @@ Appends a frame to an open stream.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / streams</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation `stream.append` capability or device stream permission.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 StreamFrame`</span></div>
@@ -124,7 +124,7 @@ Reads a paged window of frames for a stream.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / streams</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation member or registered device read scope.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 StreamFrameWindow`</span></div>
@@ -174,7 +174,7 @@ Updates the consumer checkpoint for the stream.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / streams</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation `stream.checkpoint` capability or device stream permission.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 StreamSession`</span></div>
@@ -222,7 +222,7 @@ Marks the stream as completed.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / streams</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation `stream.complete` capability or device stream permission.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 StreamSession`</span></div>
@@ -270,7 +270,7 @@ Aborts the stream lifecycle.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / streams</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation `stream.abort` capability or device stream permission.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 StreamSession`</span></div>

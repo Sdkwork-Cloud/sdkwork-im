@@ -63,12 +63,12 @@ function sdkLabel(page) {
     "app/media": "`sdkwork-craw-chat-sdk` / media",
     "app/streams": "`sdkwork-craw-chat-sdk` / streams",
     "app/rtc": "`sdkwork-craw-chat-sdk` / rtc",
-    "platform/notifications": "`sdkwork-craw-chat-sdk` / notifications",
-    "platform/automation": "`sdkwork-craw-chat-sdk` / automation",
-    "platform/audit": "`sdkwork-craw-chat-sdk` / audit",
-    "platform/ops": "`sdkwork-craw-chat-sdk` / ops",
-    "platform/provider-health": "`sdkwork-craw-chat-sdk` / provider-health",
-    "iot/protocol-and-health": "`sdkwork-craw-chat-sdk` / iot",
+    "platform/notifications": "No standalone published SDK family",
+    "platform/automation": "No standalone published SDK family",
+    "platform/audit": "No standalone published SDK family",
+    "platform/ops": "No standalone published SDK family",
+    "platform/provider-health": "No standalone published SDK family",
+    "iot/protocol-and-health": "No standalone published SDK family",
     "control-plane/protocol": "`sdkwork-craw-chat-sdk-admin` / protocol-governance",
     "control-plane/providers": "`sdkwork-craw-chat-sdk-admin` / provider-governance",
     "control-plane/nodes": "`sdkwork-craw-chat-sdk-admin` / node-operations",
@@ -81,11 +81,7 @@ function securityLabel(route, page) {
     return "Open endpoint";
   }
 
-  if (page.startsWith("control-plane/")) {
-    return "Bearer token";
-  }
-
-  return "Bearer token or trusted headers";
+  return "Bearer token";
 }
 
 function permissionLabel(page, method, route) {

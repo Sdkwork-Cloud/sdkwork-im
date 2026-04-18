@@ -27,6 +27,8 @@ The same wrapper now strips generator-only dead auth scaffolding plus stray `src
 
 For manual TypeScript composition, route all generated type imports through `composed/src/generated-backend-types.ts`.
 Do not import generated private paths such as `generated/server-openapi/src/types/*` from any other composed file.
+Manual layers must consume the generated transport package through the package root
+`@sdkwork/craw-chat-backend-sdk`, not through generated private source files.
 The root workspace wrappers also build and verify the generated transport package into `generated/server-openapi/dist` through a stable outer script, rather than relying on Vite/esbuild child-process behavior inside the generated package itself.
 The stable generated-package build now also uses a workspace lock plus per-run temporary directories so overlapping root verification or generation flows do not collide on shared TypeScript build scratch space.
 
@@ -40,6 +42,15 @@ The primary app-facing TypeScript package is `composed/package.json`:
   - `CrawChatClient`
   - business modules for sessions, presence, realtime HTTP, devices, inbox, conversations, messages, media, streams, and RTC
   - convenience builders for text messages, text stream frames, and JSON RTC signals
+
+## Endpoint Targeting
+
+- For direct local development, configure `backendConfig.baseUrl` to the `local-minimal-node`
+  origin, typically `http://127.0.0.1:18090`.
+- For packaged installs, configure `backendConfig.baseUrl` to the unified `craw-chat-server` /
+  `web-gateway` public origin.
+- The live realtime websocket handshake shares that same packaged-install origin even though the
+  handwritten websocket adapter is not implemented in this TypeScript round.
 
 ## Generate
 
@@ -102,12 +113,14 @@ This round generates the app-facing HTTP SDK for:
 
 The websocket transport is documented at the workspace root but is not implemented as a handwritten TypeScript adapter in this round.
 
-## Release Placeholder Boundary
+## Current Workspace Status
 
-This workspace inherits the current SDK release placeholder contract from `artifacts/releases/wave-d-2026-04-08/sdk-release-catalog.json`.
+The TypeScript workspace is materialized end to end:
 
-- `template_only_pending_generation`
-- `not_published`
-- `plannedVersion = null`
-- `versionStatus = version_unassigned_pending_freeze`
-- `versionDecisionSourcePath = null`
+- generated transport package: `@sdkwork/craw-chat-backend-sdk`
+- composed product package: `@sdkwork/craw-chat-sdk`
+- generated-package verification: enabled
+- composed typecheck, build, dist cleanup, and smoke tests: enabled
+
+Publication and version assignment are still pending, but this workspace is no longer
+template-only.

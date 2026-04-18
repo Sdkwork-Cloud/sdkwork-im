@@ -15,6 +15,7 @@ Rules:
 
 - The authority contract is the source of truth.
 - The derived contract exists for generator compatibility and normalization only.
+- The derived contracts also carry `x-sdkwork-sdk-surface` plus per-operation `x-sdkwork-*` ownership hints so generator layers can consume stable service, surface-group, and transport metadata directly from the checked-in sdkgen inputs.
 - Generated SDK packages must never edit either file in place.
 - Root regeneration wrappers refresh the derived contract before generation.
 - Offline generation is supported from the checked-in authority snapshot.

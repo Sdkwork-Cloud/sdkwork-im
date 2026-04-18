@@ -11,7 +11,13 @@
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
     "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "@sdkwork/craw-chat-backend-sdk": [
+        "../generated/server-openapi/src/index.ts"
+      ]
+    }
   },
   "include": [
     "src/**/*.ts",

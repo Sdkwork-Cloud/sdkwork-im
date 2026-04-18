@@ -33,6 +33,7 @@
 
 - These endpoints map to the App SDK documentation in [SDK Overview](/sdk/index) and [App SDK](/sdk/app-sdk).
 - The checked-in App SDK authority contract is `sdks/sdkwork-craw-chat-sdk/openapi/craw-chat-app.openapi.yaml`, with `craw-chat-app.sdkgen.yaml` as the derived generator input.
+- In packaged installs, this same app-facing HTTP surface is exposed through the unified `craw-chat-server` / `web-gateway` public origin rather than a separate public app-node port.
 - Sidebar grouping follows the same runtime boundaries used in the implementation: session gateway, conversation runtime, media, streaming, and RTC services.
 
 ## App API Domains

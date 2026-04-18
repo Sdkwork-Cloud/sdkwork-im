@@ -4,8 +4,12 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use axum::extract::State;
 use axum::http::{HeaderMap, Request};
 use axum::middleware::{self, Next};
-use axum::response::{IntoResponse, Response};
+use axum::response::{Html, IntoResponse, Response};
 use axum::{Json, Router, routing::get};
+use craw_chat_api_registry::HttpMethod;
+use craw_chat_openapi::{
+    OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
+};
 use im_auth_context::{
     AuthContext, AuthContextError, resolve_auth_context, resolve_public_bearer_auth_context,
 };
@@ -655,6 +659,14 @@ impl From<AuthContextError> for OpsError {
 }
 
 impl OpsError {
+    fn internal(code: &'static str, message: impl Into<String>) -> Self {
+        Self {
+            status: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            code,
+            message: message.into(),
+        }
+    }
+
     fn forbidden(required_permission: &'static str) -> Self {
         Self {
             status: axum::http::StatusCode::FORBIDDEN,
@@ -689,6 +701,8 @@ pub fn build_app(runtime: Arc<OpsRuntime>) -> Router {
     Router::new()
         .route("/healthz", get(healthz))
         .route("/readyz", get(readyz))
+        .route("/openapi.json", get(openapi_json))
+        .route("/docs", get(docs))
         .route("/api/v1/ops/health", get(get_ops_health))
         .route("/api/v1/ops/cluster", get(get_cluster))
         .route("/api/v1/ops/lag", get(get_lag))
@@ -705,7 +719,7 @@ pub fn build_app(runtime: Arc<OpsRuntime>) -> Router {
 
 async fn require_public_bearer_auth(request: Request<axum::body::Body>, next: Next) -> Response {
     match request.uri().path() {
-        "/healthz" | "/readyz" => next.run(request).await,
+        "/healthz" | "/readyz" | "/openapi.json" | "/docs" => next.run(request).await,
         _ => match resolve_public_bearer_auth_context(request.headers()) {
             Ok(_) => next.run(request).await,
             Err(error) => OpsError::from(error).into_response(),
@@ -725,6 +739,77 @@ async fn readyz() -> Json<HealthResponse> {
         status: "ok",
         service: "ops-service",
     })
+}
+
+async fn openapi_json() -> Result<Json<serde_json::Value>, OpsError> {
+    Ok(Json(
+        build_ops_service_openapi_document()
+            .map_err(|message| OpsError::internal("openapi_export_failed", message))?,
+    ))
+}
+
+async fn docs() -> Html<String> {
+    Html(render_docs_html(&ops_service_openapi_spec()))
+}
+
+fn build_ops_service_openapi_document() -> Result<serde_json::Value, String> {
+    let routes = extract_routes_from_function(
+        include_str!("lib.rs"),
+        "build_app",
+        &[],
+        &["/openapi.json", "/docs"],
+    )?;
+
+    Ok(build_openapi_document(
+        &ops_service_openapi_spec(),
+        &routes,
+        ops_service_tag,
+        ops_service_requires_bearer,
+        ops_service_summary,
+    ))
+}
+
+fn ops_service_openapi_spec() -> OpenApiServiceSpec<'static> {
+    OpenApiServiceSpec {
+        title: "Craw Chat Ops Service API",
+        version: env!("CARGO_PKG_VERSION"),
+        description: "Live OpenAPI contract generated from the ops-service router for cluster, lag, diagnostics, runtime-dir, replay status, and provider binding inspections.",
+        openapi_path: "/openapi.json",
+        docs_path: "/docs",
+    }
+}
+
+fn ops_service_tag(path: &str, _method: HttpMethod) -> String {
+    match path {
+        "/healthz" | "/readyz" => "system".to_owned(),
+        path if path.contains("provider-bindings") => "provider-bindings".to_owned(),
+        path if path.contains("diagnostics") => "diagnostics".to_owned(),
+        _ => "ops".to_owned(),
+    }
+}
+
+fn ops_service_requires_bearer(path: &str, _method: HttpMethod) -> bool {
+    !matches!(path, "/healthz" | "/readyz")
+}
+
+fn ops_service_summary(path: &str, method: HttpMethod) -> String {
+    match (path, method) {
+        ("/healthz", HttpMethod::Get) => "Check ops service health".to_owned(),
+        ("/readyz", HttpMethod::Get) => "Check ops service readiness".to_owned(),
+        _ => format!("{} {}", ops_service_method_display(method), path.trim_matches('/').replace('/', " ")),
+    }
+}
+
+fn ops_service_method_display(method: HttpMethod) -> &'static str {
+    match method {
+        HttpMethod::Delete => "Delete",
+        HttpMethod::Get => "Get",
+        HttpMethod::Head => "Head",
+        HttpMethod::Options => "Options",
+        HttpMethod::Patch => "Patch",
+        HttpMethod::Post => "Post",
+        HttpMethod::Put => "Put",
+    }
 }
 
 async fn get_ops_health(

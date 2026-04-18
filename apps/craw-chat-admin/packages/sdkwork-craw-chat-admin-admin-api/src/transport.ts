@@ -12,10 +12,22 @@ type TauriInternalsLike = {
 };
 
 let cachedAdminDesktopBaseUrl: string | null = null;
+let cachedAdminDesktopOrigin: string | null = null;
 
 export class AdminApiError extends Error {
-  constructor(message: string, readonly status: number) {
+  readonly status: number;
+
+  constructor(message: string, status: number);
+  constructor(status: number, message: string);
+  constructor(messageOrStatus: string | number, statusOrMessage: number | string) {
+    const message =
+      typeof messageOrStatus === 'number' ? String(statusOrMessage) : messageOrStatus;
+    const status =
+      typeof messageOrStatus === 'number' ? messageOrStatus : Number(statusOrMessage);
+
     super(message);
+    this.name = 'AdminApiError';
+    this.status = status;
   }
 }
 
@@ -63,26 +75,45 @@ async function invokeDesktopCommand<T>(
 }
 
 async function resolveAdminBaseUrl(): Promise<string> {
-  if (cachedAdminDesktopBaseUrl) {
-    return cachedAdminDesktopBaseUrl;
+  const origin = await resolveAdminDesktopOrigin();
+  if (!origin) {
+    return adminProxyPrefix;
+  }
+
+  if (!cachedAdminDesktopBaseUrl) {
+    cachedAdminDesktopBaseUrl = joinUrl(origin, adminProxyPrefix);
+  }
+
+  return cachedAdminDesktopBaseUrl;
+}
+
+async function resolveAdminDesktopOrigin(): Promise<string | null> {
+  if (cachedAdminDesktopOrigin) {
+    return cachedAdminDesktopOrigin;
   }
 
   if (!isDesktopRuntime()) {
-    return adminProxyPrefix;
+    return null;
   }
 
   try {
     const runtimeBaseUrl = await invokeDesktopCommand<string>('runtime_base_url');
-    const normalizedBaseUrl = runtimeBaseUrl?.trim();
+    const normalizedBaseUrl = trimTrailingSlash(runtimeBaseUrl?.trim() ?? '');
     if (normalizedBaseUrl) {
+      cachedAdminDesktopOrigin = normalizedBaseUrl;
       cachedAdminDesktopBaseUrl = joinUrl(normalizedBaseUrl, adminProxyPrefix);
-      return cachedAdminDesktopBaseUrl;
+      return cachedAdminDesktopOrigin;
     }
   } catch {
-    // Fall back to the browser-style relative proxy path when the desktop bridge is unavailable.
+    // Fall back to browser-style relative routing when the desktop bridge is unavailable.
   }
 
-  return adminProxyPrefix;
+  return null;
+}
+
+export async function resolveAdminSdkBaseUrl(): Promise<string> {
+  const origin = await resolveAdminDesktopOrigin();
+  return origin ?? '';
 }
 
 export function readAdminSessionToken(): string | null {

@@ -20,7 +20,7 @@ Creates a handoff conversation and initializes handoff state.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / conversations</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 CreateConversationResult`</span></div>

@@ -129,6 +129,10 @@ run('node', [path.join(scriptDir, 'verify-flutter-public-api-boundary.mjs')], {
   cwd: workspaceRoot,
   step: 'flutter:public-api-boundary',
 });
+run('node', [path.join(scriptDir, 'verify-flutter-discovery-alignment.mjs')], {
+  cwd: workspaceRoot,
+  step: 'flutter:discovery-alignment',
+});
 run('node', [path.join(scriptDir, 'verify-flutter-package-metadata.mjs')], {
   cwd: workspaceRoot,
   step: 'flutter:package-metadata',

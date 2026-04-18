@@ -5,10 +5,14 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use axum::extract::{Path, State};
 use axum::http::{HeaderMap, Request};
 use axum::middleware::{self, Next};
-use axum::response::{IntoResponse, Response};
+use axum::response::{Html, IntoResponse, Response};
 use axum::{
     Json, Router,
     routing::{get, post},
+};
+use craw_chat_api_registry::HttpMethod;
+use craw_chat_openapi::{
+    OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
 use im_auth_context::{AuthContextError, resolve_auth_context, resolve_public_bearer_auth_context};
 use im_domain_core::conversation::{
@@ -415,6 +419,14 @@ struct ApiError {
 }
 
 impl ApiError {
+    fn internal(code: &'static str, message: impl Into<String>) -> Self {
+        Self {
+            status: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            code,
+            message: message.into(),
+        }
+    }
+
     fn bad_request(code: &'static str, message: impl Into<String>) -> Self {
         Self {
             status: axum::http::StatusCode::BAD_REQUEST,
@@ -543,6 +555,8 @@ fn build_app(state: AppState) -> Router {
     Router::new()
         .route("/healthz", get(healthz))
         .route("/readyz", get(readyz))
+        .route("/openapi.json", get(openapi_json))
+        .route("/docs", get(docs))
         .route("/api/v1/conversations", post(create_conversation))
         .route(
             "/api/v1/conversations/threads",
@@ -641,7 +655,7 @@ fn build_app(state: AppState) -> Router {
 
 async fn require_public_bearer_auth(request: Request<axum::body::Body>, next: Next) -> Response {
     match request.uri().path() {
-        "/healthz" | "/readyz" => next.run(request).await,
+        "/healthz" | "/readyz" | "/openapi.json" | "/docs" => next.run(request).await,
         _ => match resolve_public_bearer_auth_context(request.headers()) {
             Ok(_) => next.run(request).await,
             Err(error) => ApiError::from(error).into_response(),
@@ -661,6 +675,83 @@ async fn readyz() -> Json<HealthResponse> {
         status: "ok",
         service: "conversation-runtime",
     })
+}
+
+async fn openapi_json() -> Result<Json<serde_json::Value>, ApiError> {
+    Ok(Json(
+        build_conversation_runtime_openapi_document()
+            .map_err(|message| ApiError::internal("openapi_export_failed", message))?,
+    ))
+}
+
+async fn docs() -> Html<String> {
+    Html(render_docs_html(&conversation_runtime_openapi_spec()))
+}
+
+fn build_conversation_runtime_openapi_document() -> Result<serde_json::Value, String> {
+    let routes = extract_routes_from_function(
+        include_str!("http.rs"),
+        "build_app",
+        &[],
+        &["/openapi.json", "/docs"],
+    )?;
+
+    Ok(build_openapi_document(
+        &conversation_runtime_openapi_spec(),
+        &routes,
+        conversation_runtime_tag,
+        conversation_runtime_requires_bearer,
+        conversation_runtime_summary,
+    ))
+}
+
+fn conversation_runtime_openapi_spec() -> OpenApiServiceSpec<'static> {
+    OpenApiServiceSpec {
+        title: "Craw Chat Conversation Runtime API",
+        version: env!("CARGO_PKG_VERSION"),
+        description: "Live OpenAPI contract generated from the conversation-runtime router for conversation creation, membership changes, messaging, read cursor updates, and shared-channel sync commands.",
+        openapi_path: "/openapi.json",
+        docs_path: "/docs",
+    }
+}
+
+fn conversation_runtime_tag(path: &str, _method: HttpMethod) -> String {
+    match path {
+        "/healthz" | "/readyz" => "system".to_owned(),
+        path if path.starts_with("/api/v1/messages/") => "messages".to_owned(),
+        path if path.contains("/members") => "members".to_owned(),
+        path if path.contains("shared-channel-links") => "shared-channel".to_owned(),
+        path if path.contains("agent-handoff") => "agent-handoff".to_owned(),
+        _ => "conversations".to_owned(),
+    }
+}
+
+fn conversation_runtime_requires_bearer(path: &str, _method: HttpMethod) -> bool {
+    !matches!(path, "/healthz" | "/readyz")
+}
+
+fn conversation_runtime_summary(path: &str, method: HttpMethod) -> String {
+    match (path, method) {
+        ("/healthz", HttpMethod::Get) => "Check conversation runtime health".to_owned(),
+        ("/readyz", HttpMethod::Get) => "Check conversation runtime readiness".to_owned(),
+        _ => format!(
+            "{} {}",
+            conversation_runtime_method_display(method),
+            path.trim_matches('/').replace('/', " ")
+        ),
+    }
+}
+
+fn conversation_runtime_method_display(method: HttpMethod) -> &'static str {
+    match method {
+        HttpMethod::Delete => "Delete",
+        HttpMethod::Get => "Get",
+        HttpMethod::Head => "Head",
+        HttpMethod::Options => "Options",
+        HttpMethod::Patch => "Patch",
+        HttpMethod::Post => "Post",
+        HttpMethod::Put => "Put",
+    }
 }
 
 async fn create_conversation(

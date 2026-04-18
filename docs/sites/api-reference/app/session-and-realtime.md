@@ -73,7 +73,7 @@ Returns process readiness for the app runtime.
 Resumes the current device session and returns the active presence snapshot with replay cursors.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / session</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; device ownership and session binding are enforced where required.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 SessionResumeView`</span></div>
@@ -143,7 +143,7 @@ Disconnects the current device session.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / session</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; device ownership and session binding are enforced where required.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PresenceSnapshotView`</span></div>
@@ -185,7 +185,7 @@ Refreshes the presence heartbeat for the current device.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / session</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; device ownership and session binding are enforced where required.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PresenceSnapshotView`</span></div>
@@ -227,7 +227,7 @@ Reads the current principal's presence snapshot.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / session</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; device ownership and session binding are enforced where required.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PresenceSnapshotView`</span></div>
@@ -264,7 +264,7 @@ Replaces the realtime subscription set for the current device.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / session</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; device ownership and session binding are enforced where required.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 RealtimeSubscriptionSnapshot`</span></div>
@@ -306,7 +306,7 @@ Fetches realtime events from the device event window.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / session</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; device ownership and session binding are enforced where required.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 RealtimeEventWindow`</span></div>
@@ -350,7 +350,7 @@ Acknowledges the highest realtime event sequence consumed by the client.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / session</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; device ownership and session binding are enforced where required.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 RealtimeAckState`</span></div>
@@ -393,7 +393,7 @@ not expand the full realtime frame protocol.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / session</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; active device route is prepared before upgrade.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`101 Switching Protocols`</span></div>
@@ -401,7 +401,7 @@ not expand the full realtime frame protocol.
 
 ### Security
 
-- Bearer token or trusted headers
+- Public clients authenticate with bearer tokens. Trusted headers remain reserved for internal service wiring and test-only flows.
 - Device ownership and session binding are validated before upgrade
 
 ### Headers

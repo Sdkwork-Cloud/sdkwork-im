@@ -1,6 +1,16 @@
 # Runtime Directory
 
 The runtime directory is a core part of the current `local-minimal-node` contract.
+This page documents the managed local development profile under `.runtime/local-minimal`, not the
+formal packaged `craw-chat-server` config contract.
+
+For the packaged server path:
+
+- runtime roots come from `server.yaml` under `runtime.configDir`, `runtime.dataDir`,
+  `runtime.logDir`, and `runtime.runDir`
+- PostgreSQL is the frozen storage baseline through `storage/postgresql.yaml`
+- the unified gateway startup contract is documented in
+  [Server Lifecycle](/deployment/server-lifecycle)
 
 ## Default Structure
 

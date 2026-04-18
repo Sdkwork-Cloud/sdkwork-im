@@ -26,8 +26,10 @@
 
 ## SDK Alignment
 
-- These endpoints are administrative and align with backend or control-plane SDK groups rather than the public app SDK.
-- The current admin SDK workspace does not yet include a checked-in admin OpenAPI authority file, so this reference stays aligned directly to `services/control-plane-api/src/lib.rs` and the control-plane test suite.
+- These endpoints are administrative and align with the control-plane SDK family `sdkwork-craw-chat-sdk-admin` rather than the public app SDK.
+- The checked-in admin SDK authority contract is `sdks/sdkwork-craw-chat-sdk-admin/openapi/craw-chat-control-plane.openapi.json`, with `craw-chat-control-plane.sdkgen.json` as the derived generator input.
+- This reference still stays aligned directly to `services/control-plane-api/src/lib.rs` and the control-plane test suite, because runtime implementation remains the source of truth behind the exported authority snapshot.
+- Standalone governance development can call `control-plane-api` directly, but packaged installs expose the same governance routes through the unified `craw-chat-server` / `web-gateway` public origin.
 - Read and write permissions are split between `control.read` and `control.write`.
 
 ## Control Plane Domains

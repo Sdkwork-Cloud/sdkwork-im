@@ -2,6 +2,7 @@
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { resolveGeneratorModulePath } from './generator-runtime.mjs';
 
 function fail(message) {
   console.error(`[sdkwork-craw-chat-sdk] ${message}`);
@@ -37,8 +38,7 @@ parseArgs(process.argv.slice(2));
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = path.resolve(scriptDir, '..');
-const generatorRoot = path.resolve(workspaceRoot, '..', '..', '..', '..', 'sdk', 'sdkwork-sdk-generator');
-const tscPath = path.join(generatorRoot, 'node_modules', 'typescript', 'bin', 'tsc');
+const tscPath = resolveGeneratorModulePath(workspaceRoot, 'typescript', 'bin', 'tsc');
 const tsconfigPath = path.join(
   workspaceRoot,
   'sdkwork-craw-chat-sdk-typescript',
@@ -79,6 +79,10 @@ run('node', [path.join(scriptDir, 'verify-auth-surface-alignment.mjs'), '--langu
 run('node', [path.join(scriptDir, 'verify-typescript-public-api-boundary.mjs')], {
   cwd: workspaceRoot,
   step: 'typescript:public-api-boundary',
+});
+run('node', [path.join(scriptDir, 'verify-typescript-discovery-alignment.mjs')], {
+  cwd: workspaceRoot,
+  step: 'typescript:discovery-alignment',
 });
 run('node', [tscPath, '-p', tsconfigPath, '--noEmit'], {
   cwd: workspaceRoot,

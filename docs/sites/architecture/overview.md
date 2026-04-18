@@ -1,20 +1,23 @@
 # Architecture Overview
 
 Craw Chat is a multi-service Rust workspace, not a single binary with optional extras. The current
-documentation is easiest to understand through four architectural lenses:
+documentation is easiest to understand through five architectural lenses:
 
 1. The workspace layout and contract crates
 2. The app-facing `local-minimal-node`
 3. The separate `control-plane-api`
-4. The runtime-directory persistence contract
+4. The unified `web-gateway` and packaged `craw-chat-server`
+5. The runtime-directory persistence contract
 
 ## Core Architecture Facts
 
 | Fact | Current implementation |
 | --- | --- |
 | Default app runtime | `services/local-minimal-node` |
+| Unified server binary | `services/web-gateway` with `[[bin]] name = "craw-chat-server"` |
 | Default public app prefix | `/api/v1/*` |
 | Default local app bind address | `127.0.0.1:18090` |
+| Frozen server bind default | `0.0.0.0:18080` in `deployments/templates/server.yaml.example` |
 | Standalone control-plane bind address | `127.0.0.1:18081` |
 | Public auth model | HS256 bearer tokens |
 | Default local runtime directory | `.runtime/local-minimal` |
@@ -45,6 +48,26 @@ The main routing surface is declared in `services/local-minimal-node/src/node/bu
 
 This surface is implemented in `services/control-plane-api/src/lib.rs` and started by a separate
 binary that binds `127.0.0.1:18081` in `services/control-plane-api/src/main.rs`.
+
+## Unified Gateway And Packaged Server
+
+`services/web-gateway` is the current canonical external entrypoint for the formal server install
+contract. Its package manifest publishes the binary name `craw-chat-server`, and the CLI entrypoint
+accepts `--config <server.yaml>` so install, service-manager, and release tooling can all share the
+same startup contract.
+
+The unified gateway is responsible for:
+
+- fronting the external HTTP bind for packaged server installs
+- publishing `GET /openapi.json`, `GET /openapi/index.json`, and
+  `GET /openapi/runtime-summary.json`
+- proxying per-service OpenAPI contracts at `GET /openapi/services/<service-id>.openapi.json`
+- rendering aggregate and per-service docs at `GET /docs` and `GET /docs/services/<service-id>`
+- exposing registry-owned websocket routes on the same external port as the HTTP surface
+
+The frozen server template under `deployments/templates/server.yaml.example` binds
+`0.0.0.0:18080`, defines `baseUrl`, `apiBaseUrl`, `websocketBaseUrl`, and `docsBaseUrl`, and wires
+storage through `storage.postgresqlConfig`.
 
 ## Runtime Directory Is Architectural, Not Auxiliary
 

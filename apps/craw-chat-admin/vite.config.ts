@@ -28,6 +28,36 @@ function resolveSdkworkUiRoot() {
 
 const sdkworkUiRoot = resolveSdkworkUiRoot();
 const sdkworkUiDistRoot = path.join(sdkworkUiRoot, 'dist');
+const managementSdkComposedDistRoot = path.join(
+  configDir,
+  '..',
+  '..',
+  'sdks',
+  'sdkwork-craw-chat-sdk-management',
+  'sdkwork-craw-chat-sdk-management-typescript',
+  'composed',
+  'dist',
+);
+const managementSdkGeneratedDistRoot = path.join(
+  configDir,
+  '..',
+  '..',
+  'sdks',
+  'sdkwork-craw-chat-sdk-management',
+  'sdkwork-craw-chat-sdk-management-typescript',
+  'generated',
+  'server-openapi',
+  'dist',
+);
+const sdkCommonDistRoot = path.join(
+  configDir,
+  '..',
+  '..',
+  'sdk',
+  'sdkwork-sdk-commons',
+  'sdkwork-sdk-common-typescript',
+  'dist',
+);
 
 function resolveUiDist(entryPath: string) {
   return path.join(sdkworkUiDistRoot, entryPath);
@@ -219,6 +249,18 @@ export default defineConfig({
       {
         find: /^@sdkwork\/ui-pc-react$/,
         replacement: resolveUiDist('index.js'),
+      },
+      {
+        find: /^@sdkwork\/craw-chat-sdk-management$/,
+        replacement: path.join(managementSdkComposedDistRoot, 'index.js'),
+      },
+      {
+        find: /^@sdkwork\/craw-chat-management-backend-sdk$/,
+        replacement: path.join(managementSdkGeneratedDistRoot, 'index.js'),
+      },
+      {
+        find: /^@sdkwork\/sdk-common$/,
+        replacement: path.join(sdkCommonDistRoot, 'index.js'),
       },
       ...workspacePackageAliases,
     ],

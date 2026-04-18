@@ -1,68 +1,109 @@
 # sdkwork-craw-chat-sdk-admin
 
-`sdkwork-craw-chat-sdk-admin` 是管理侧 SDK 容器目录，用于承接 control-plane 与 protocol governance facade。
+`sdkwork-craw-chat-sdk-admin` is the admin and control-plane SDK workspace for Craw Chat.
 
-## 当前消费者范围
+## Scope
 
-- `TypeScript`
-  - 目录：[`sdkwork-craw-chat-sdk-admin-typescript`](./sdkwork-craw-chat-sdk-admin-typescript/README.md)
-- `Flutter`
-  - 目录：[`sdkwork-craw-chat-sdk-admin-flutter`](./sdkwork-craw-chat-sdk-admin-flutter/README.md)
+This SDK family is intended for:
 
-## 当前 facade 边界
+- control-plane read surfaces
+- protocol registry and governance consumption
+- provider registry and provider-policy governance
+- node lifecycle and social control workflows
 
-管理侧 SDK 未来只承接以下表面：
+It is not intended for:
 
-- `control-plane` 读面
-- `protocol governance`
-- `compatibility matrix`
-- protocol registry / rollout / kill switch 的管理消费面
+- app-facing chat or conversation facades
+- `chat-session`, `send-message`, or `timeline` product flows
+- replacing the local verification role of `tools/chat-cli`
 
-管理侧 SDK 不承接：
+## Workspace Layout
 
-- app-facing conversation facade
-- `chat-session` / `send-message` / `timeline`
-- 直接替代 `tools/chat-cli` 的现场验证职责
+- Root workspace: `sdks/sdkwork-craw-chat-sdk-admin`
+- Authority contract: `sdks/sdkwork-craw-chat-sdk-admin/openapi/craw-chat-control-plane.openapi.json`
+- Derived sdkgen contract: `sdks/sdkwork-craw-chat-sdk-admin/openapi/craw-chat-control-plane.sdkgen.json`
+- Generated TypeScript package: `@sdkwork/craw-chat-admin-backend-sdk`
+- Composed TypeScript package: `@sdkwork/craw-chat-sdk-admin`
+- TypeScript workspace: `sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-typescript`
+- Flutter workspace: `sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-flutter`
 
-## 与当前治理基线的关系
+## Source Of Truth
 
-- 当前权威来源来自 control-plane snapshot 与 protocol governance
-- admin facade 只能消费已经被冻结的 registry / compatibility matrix 结果
-- 不允许绕开治理快照，在客户端本地拼装协议能力决策
-- 当前冻结基线：
-  - `appSdkFacade = sdkwork-craw-chat-sdk`
-  - `adminSdkFacade = sdkwork-craw-chat-sdk-admin`
-  - `protocolRegistryPath = /api/v1/control/protocol-registry`
-  - `protocolGovernancePath = /api/v1/control/protocol-governance`
-  - `matrixClientTypes = backend / desktop / mobile / web`
-  - `policyVersionField = policy_version`
-  - `capabilityFlagsField = capability_flags`
-  - `historyVisibilityField = history_visibility`
-  - `retentionPolicyRefField = retention_policy_ref`
-  - `historyVisibilityModes = invited / joined / shared / world_readable`
-  - `retentionPolicyScopes = tenant / space / group / channel / thread`
+The checked-in authority snapshot is exported from the live `control-plane-api` implementation through:
 
-## 当前 close / error registry 治理边界
+- `services/control-plane-api/src/bin/export-openapi.rs`
+- `services/control-plane-api::export_openapi_document()`
 
-管理侧 SDK 需要把 close / error registry 作为治理结果的一部分暴露给消费方，而不是留给各端自行猜测：
+The derived sdkgen contract embeds admin discovery metadata under `x-sdkwork-sdk-surface` so
+assembly and future language packages can consume the same surface definition.
 
-- `session.disconnect` 是正式恢复事件，当前 consumer 必须收到对应 `goaway` / close 语义，并执行 fresh resume fallback。
-- `session.disconnect` 的治理公开面必须明确包含 websocket close code `4001`、close reason `session.disconnect`，以及后续 stale 请求应返回 `reconnect_required`。
-- `realtime.overload` 需要区分 pull-only 降级与彻底断链两种恢复路径，不能把所有过载都归为同一类“重连失败”。
-- pull-only 降级下，consumer 必须继续使用 `events.pull` / `event.window` 追平窗口，而不是把 live push 暂停误记为数据丢失。
-- `goaway` code / message 与 `compatibility matrix`、governance snapshot 一样，属于客户端恢复决策的正式输入。
-- 管理侧 facade 需要明确告诉消费方：哪些场景允许 resume fallback，哪些场景应该直接重建连接或等待新的治理结果。
+The TypeScript public surface is split into:
 
-## 当前状态
+- generated transport layer: `@sdkwork/craw-chat-admin-backend-sdk`
+- composed admin facade: `@sdkwork/craw-chat-sdk-admin`
 
-- 当前目录先冻结 `TypeScript` 与 `Flutter` 管理侧占位路径
-- 还没有在本轮提前宣称多语言 admin facade 代码与发布流程已经完成
-- 当前 bundle 内的 SDK 发布真源是：
-  - `artifacts/releases/wave-d-2026-04-08/sdk-release-catalog.json`
-  - `generationStatus = template_only_pending_generation`
-  - `releaseStatus = not_published`
-- 当前版本占位状态已经冻结到 bundle catalog：
-  - `plannedVersion = null`
-  - `versionStatus = version_unassigned_pending_freeze`
-  - `versionDecisionSourcePath = null`
-- 后续实现必须继续与 `services/control-plane-api/tests/protocol_registry_test.rs`、`services/control-plane-api/tests/protocol_governance_test.rs` 保持一致
+The Flutter public surface is split into:
+
+- generated transport layer: `craw_chat_admin_backend_sdk`
+- composed admin facade: `craw_chat_sdk_admin`
+
+## Endpoint Targeting
+
+- For standalone governance development, point the admin SDK at the direct `control-plane-api`
+  origin, which defaults to `http://127.0.0.1:18081`.
+- For packaged installs, point the same SDK at the unified `craw-chat-server` / `web-gateway`
+  public origin.
+- Choose one runtime contract per environment. Do not mix direct `control-plane-api` assumptions
+  into packaged single-port gateway clients.
+
+## Package Boundary Rules
+
+Manual and composed layers must consume the generated transport package only through the package
+root `@sdkwork/craw-chat-admin-backend-sdk`.
+Do not import `generated/server-openapi/src/*` from manual sources, declaration shims, or published
+public types.
+
+## Verification
+
+Verify the admin SDK workspace contract and assembly metadata:
+
+```bash
+node ./bin/verify-sdk.mjs
+```
+
+That verification chain now does real TypeScript work instead of only checking file presence:
+
+- builds the generated backend transport package into `generated/server-openapi/dist`
+- runs `npm pack --dry-run` validation for `@sdkwork/craw-chat-admin-backend-sdk`
+- typechecks and builds the composed package `@sdkwork/craw-chat-sdk-admin`
+- runs the composed smoke test for `CrawChatSdkAdminClient`
+- stabilizes the generated package manifest so `build` and `prepublishOnly` use the workspace-owned wrapper command
+- runs Flutter workspace verification for `craw_chat_admin_backend_sdk` and `craw_chat_sdk_admin`
+- checks the Flutter package boundary so consumers stay on package root entrypoints instead of `generated/server-openapi/lib/src`
+- keeps the primary Flutter consumer entrypoint aligned on `CrawChatAdminClient`
+
+Refresh the authority snapshot and rebuild the derived sdkgen contract:
+
+```bash
+./bin/generate-sdk.sh
+```
+
+On Windows:
+
+```powershell
+.\bin\generate-sdk.ps1
+```
+
+## Current Release Status
+
+| Artifact | Language | Generation state | Release state |
+| --- | --- | --- | --- |
+| `sdkwork-craw-chat-sdk-admin-typescript` | TypeScript | `materialized` | `not_published` |
+| `sdkwork-craw-chat-sdk-admin-flutter` | Flutter | `materialized` | `not_published` |
+
+The admin workspace now has a checked-in authority contract, derived sdkgen input, assembly
+metadata, a generated/composed TypeScript package line, and a generated/composed Flutter package
+line. Flutter workspace verification is now part of the root `verify-sdk` contract, and the admin
+consumer cutover from `sdkwork-craw-chat-admin-admin-api` is still pending. The current
+machine-readable release catalog under `artifacts/releases/wave-d-2026-04-08/` now records both
+admin language lines as generated but not published, while version freeze metadata remains pending.

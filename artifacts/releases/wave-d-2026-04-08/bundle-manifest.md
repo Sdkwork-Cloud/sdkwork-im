@@ -1,13 +1,19 @@
 # Wave D 2026-04-08 Bundle Manifest
 
-## 基本信息
+## Release Snapshot
 
 - bundle id: `wave-d-2026-04-08`
-- 对应波次：`Wave D`
-- 对应闭环：`Step 13`、`Wave D / 93`
-- 当前结论：`go / no-go = Go`
+- wave: `wave-d`
+- archive baseline scope: `Step 13`, `Wave D / 93`
+- bundle archive decision: `go`
+- server package gate decision: `pending_go_no_go`
+- SDK publication state: `generated_pending_publication`
 
-## 归档证据
+This manifest freezes the current release-bundle snapshot for repository audit, rollback planning,
+and traceability. It does not claim that all server installers are built or that any SDK package is
+already published.
+
+## Review And Evidence References
 
 - `docs/review/step-13-release-readiness-2026-04-08.md`
 - `docs/review/step-13-go-no-go清单-2026-04-08.md`
@@ -37,15 +43,57 @@
 - `docs/review/continuous-optimization-collection-summary-slot-consistency-contract-2026-04-08.md`
 - `docs/部署/local-default发布后验证样本.md`
 - `docs/部署/local-default发布后验证执行记录模板.md`
+
+## Frozen Bundle Artifact Inventory
+
+### SDK Release Artifacts
+
+- `artifacts/releases/wave-d-2026-04-08/sdk-release-catalog.json`
+- `artifacts/releases/schemas/sdk-release-catalog.schema.json`
+- `artifacts/releases/sync-sdk-release-catalog.mjs`
+
+### Evidence Artifacts
+
+- `artifacts/releases/wave-d-2026-04-08/local-default-post-release-evidence-index.json`
 - `artifacts/releases/wave-d-2026-04-08/evidence/local-default/README.md`
 - `artifacts/releases/wave-d-2026-04-08/evidence/local-default/checksum-manifest.txt`
 - `artifacts/releases/wave-d-2026-04-08/evidence/local-default/artifact-file-list.txt`
 - `artifacts/releases/schemas/post-release-evidence-index.schema.json`
-- `artifacts/releases/schemas/sdk-release-catalog.schema.json`
-- `artifacts/releases/wave-d-2026-04-08/local-default-post-release-evidence-index.json`
-- `artifacts/releases/wave-d-2026-04-08/sdk-release-catalog.json`
 
-## 验证命令
+### Server Release Artifacts
+
+- `artifacts/releases/wave-d-2026-04-08/server/README.md`
+- `artifacts/releases/wave-d-2026-04-08/server/package-catalog.json`
+- `artifacts/releases/wave-d-2026-04-08/server/release-execution.json`
+- `artifacts/releases/wave-d-2026-04-08/server/release-provenance.json`
+- `artifacts/releases/wave-d-2026-04-08/server/release-gate.json`
+- `artifacts/releases/wave-d-2026-04-08/server/bin/README.md`
+- `artifacts/releases/wave-d-2026-04-08/server/deployments/README.md`
+- `artifacts/releases/wave-d-2026-04-08/server/windows-service/README.md`
+- `artifacts/releases/wave-d-2026-04-08/server/packages/README.md`
+- `artifacts/releases/wave-d-2026-04-08/server/packages/SHA256SUMS`
+- `artifacts/releases/wave-d-2026-04-08/server/packages/artifact-file-list.txt`
+- `artifacts/releases/wave-d-2026-04-08/server/packages/release-checklist.md`
+- `artifacts/releases/wave-d-2026-04-08/server/packages/layout-tree.txt`
+- `artifacts/releases/wave-d-2026-04-08/server/packages/linux/README.md`
+- `artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/README.md`
+- `artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/layout-tree.txt`
+- `artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/acceptance-manifest.json`
+- `artifacts/releases/wave-d-2026-04-08/server/packages/macos/README.md`
+- `artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/README.md`
+- `artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/layout-tree.txt`
+- `artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/acceptance-manifest.json`
+- `artifacts/releases/wave-d-2026-04-08/server/packages/windows/README.md`
+- `artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/README.md`
+- `artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/layout-tree.txt`
+- `artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/acceptance-manifest.json`
+- `artifacts/releases/schemas/server-package-catalog.schema.json`
+- `artifacts/releases/schemas/server-package-acceptance.schema.json`
+- `artifacts/releases/schemas/server-release-execution.schema.json`
+- `artifacts/releases/schemas/server-release-provenance.schema.json`
+- `artifacts/releases/schemas/server-release-gate.schema.json`
+
+## Verification Commands
 
 - `cargo fmt --all --check`
 - `cargo clippy --workspace --all-targets --all-features --offline -- -D warnings`
@@ -57,32 +105,64 @@
 - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/status-local.ps1 -ProfileName local-default`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/restore-runtime-local.ps1 -Help`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/open-chat-test.ps1 -Help`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File bin/plan-release-server.ps1 -ReleaseGatePath artifacts/releases/wave-d-2026-04-08/server/release-gate.json`
+- `node artifacts/releases/sync-sdk-release-catalog.mjs --bundle wave-d-2026-04-08 --check`
+- `node docs/sites/sdk/verify-sdk-site-docs.mjs`
+- `node sdks/sdkwork-craw-chat-sdk/bin/verify-sdk-automation.mjs`
+- `node sdks/sdkwork-craw-chat-sdk-admin/bin/verify-sdk-automation.mjs`
+- `node sdks/sdkwork-craw-chat-sdk-management/bin/verify-sdk-automation.mjs`
 
-## 升级 / 回滚入口
+## Rollout And Recovery Entrypoints
 
-- 升级入口：
-  - `bin/deploy-local.ps1`
-  - `bin/start-local.ps1`
-  - `bin/status-local.ps1`
-- 回滚/恢复入口：
-  - `bin/restore-runtime-local.ps1`
+### Local Rollout
 
-## 当前边界
+- `bin/deploy-local.ps1`
+- `bin/start-local.ps1`
+- `bin/status-local.ps1`
 
-- 当前 bundle 是最小归档物，不等于完整自动发布流水线。
-- `local-default` 当前仍复用 `local-minimal` 服务合同；本 bundle 只新增对称 post-release 验证样本，不宣称已拥有独立拓扑。
-- SDK 目录当前只冻结 machine-readable release catalog：
-  - `sdk-release-catalog.schema.json`
-  - `sdk-release-catalog.json`
-  - `state = template_only_pending_generation`
+### Recovery
+
+- `bin/restore-runtime-local.ps1`
+
+### Server Release Planning
+
+- `bin/plan-release-server.ps1`
+- `bin/plan-release-server.sh`
+
+## Frozen State Summary
+
+### Bundle Scope
+
+- the bundle is a release archive baseline, not a complete end-to-end publication pipeline
+- `local-default` still reuses the current `local-minimal` service contract shape
+- the archive is already sufficient for audit, rollback planning, and traceability
+
+### SDK State
+
+- the SDK family release snapshot is frozen in `sdk-release-catalog.json`
+- current catalog state: `generated_pending_publication`
+- current tracked artifact generation state: `generationStatus = generated`
+- current tracked artifact publication state: `releaseStatus = not_published`
+- version-freeze fields remain explicit:
   - `plannedVersion = null`
   - `versionStatus = version_unassigned_pending_freeze`
   - `versionDecisionSourcePath = null`
-- 当前 bundle 已满足：
-  - 可审计
-  - 可回滚
-  - 可追溯
-- 后续仍可在同一 bundle 目录下补：
-  - 机器生成版本清单
-  - checksum
-  - release note 导出物
+- the release catalog must be derived from the checked-in `.sdkwork-assembly.json` files through
+  `sync-sdk-release-catalog.mjs`, not edited by hand
+
+### Server Packaging State
+
+- server package catalog state: `template_only_pending_build`
+- server release gate state: `template_only_pending_evaluation`
+- server release decision status: `pending_go_no_go`
+- the canonical payload layout and platform package matrix are frozen, but archive and native
+  installer artifacts are still template-only placeholders
+
+## Archive Goals
+
+- auditable
+- rollback-ready
+- traceable
+
+When package publication or real server installer builds happen later, this bundle layout should be
+extended in place rather than replaced with a new ad hoc structure.

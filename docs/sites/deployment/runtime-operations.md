@@ -2,6 +2,14 @@
 
 Runtime directory management is a first-class operational surface in the current repository.
 
+::: warning Scope boundary
+This page describes the local runtime-directory lifecycle exposed by `local-minimal-node` and the
+matching helper wrappers. It does not replace the formal packaged `craw-chat-server` contract,
+where PostgreSQL is the frozen storage baseline and operators manage a config root instead of a
+single local runtime directory. For that path, use [Server Lifecycle](/deployment/server-lifecycle)
+and [Runtime Directory](/reference/runtime-directory).
+:::
+
 ## Shell Wrappers
 
 | Script | Purpose |
@@ -27,6 +35,10 @@ The local binary itself exposes matching subcommands:
 - `restore-runtime-dir`
 
 These are defined in `services/local-minimal-node/src/main.rs`.
+
+The packaged `craw-chat-server` path intentionally keeps these recovery mechanics behind the server
+configuration boundary rather than exposing the local-node maintenance workflow as the primary
+operations contract.
 
 ## Managed State Files
 
@@ -90,3 +102,7 @@ The current preview flow provides typed diff summaries for at least these manage
 
 That makes restore preview more useful than a raw file-copy diff because it can summarize business
 state movement such as checkpoint advance, frame rewind, signal changes, or timestamp-only updates.
+
+If you are operating the packaged server instead of a local runtime directory, treat these commands
+as diagnostic tooling for development profiles only and keep the production storage lifecycle on the
+PostgreSQL-backed `craw-chat-server` path.

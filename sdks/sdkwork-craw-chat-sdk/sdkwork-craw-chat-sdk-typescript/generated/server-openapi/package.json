@@ -1,7 +1,7 @@
 {
   "name": "@sdkwork/craw-chat-backend-sdk",
   "version": "0.1.0",
-  "description": "sdkwork-craw-chat-sdk",
+  "description": "Generated TypeScript transport package for the Craw Chat app API",
   "author": "SDKWork Team",
   "license": "MIT",
   "type": "module",
@@ -19,7 +19,7 @@
     }
   },
   "scripts": {
-    "build": "tsc --emitDeclarationOnly && vite build",
+    "build": "..\\..\\..\\bin\\build-typescript-generated-package.cmd",
     "dev": "vite build --watch",
     "prepublishOnly": "npm run build"
   },
@@ -36,6 +36,9 @@
     "sdk",
     "api",
     "backend",
-    "sdkwork"
+    "sdkwork",
+    "craw-chat",
+    "app",
+    "chat"
   ]
 }

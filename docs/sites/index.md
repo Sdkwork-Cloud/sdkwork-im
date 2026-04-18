@@ -33,12 +33,15 @@ features:
 
 ## What Craw Chat Is
 
-Craw Chat is a Rust workspace that currently ships two meaningful runtime surfaces:
+Craw Chat is a Rust workspace that currently ships three meaningful runtime surfaces:
 
 - `services/local-minimal-node`, the app-facing node that serves session, conversation, message,
   media, stream, RTC, platform, ops, audit, and provider-health routes.
 - `services/control-plane-api`, the separate governance surface for protocol registry, provider
   policy, and node lifecycle operations.
+- `services/web-gateway`, the unified external entrypoint that publishes the canonical
+  `craw-chat-server` binary, aggregates OpenAPI discovery, and fronts operator-facing single-port
+  server installs.
 
 The default runnable profile in this repository is `local-minimal`. The `local-default` profile
 already has script, config, and Docker entry points, but it still reuses the current
@@ -50,6 +53,10 @@ already has script, config, and Docker entry points, but it still reuses the cur
     <p><code>127.0.0.1:18090</code> for local binary workflows, and <code>0.0.0.0:18090</code> inside Docker Compose.</p>
   </div>
   <div class="fact-card">
+    <h3>Unified Server Listener</h3>
+    <p><code>0.0.0.0:18080</code> in the frozen <code>server.yaml.example</code> contract for <code>craw-chat-server</code> and the unified <code>web-gateway</code>.</p>
+  </div>
+  <div class="fact-card">
     <h3>Control Plane Listener</h3>
     <p><code>127.0.0.1:18081</code> when the standalone <code>control-plane-api</code> binary is run directly.</p>
   </div>
@@ -59,7 +66,7 @@ already has script, config, and Docker entry points, but it still reuses the cur
   </div>
   <div class="fact-card">
     <h3>SDK Delivery State</h3>
-    <p>The release catalog is still <code>template_only_pending_generation</code> and <code>not_published</code>, even though the SDK workspace structure is already checked in.</p>
+    <p>App, Admin, and Management SDK families all have materialized TypeScript and Flutter workspaces in-repo, while package publication is still pending for every line.</p>
   </div>
 </div>
 
@@ -72,11 +79,14 @@ already has script, config, and Docker entry points, but it still reuses the cur
 3. Read [Architecture Overview](/architecture/overview) and
    [Runtime Topology](/architecture/runtime-topology) before changing runtime wiring, providers, or
    deployment assumptions.
-4. Use [API Reference](/api-reference/index) for the OpenAPI-style operation catalog with sidebar
+4. Use [Server Lifecycle](/deployment/server-lifecycle) when validating the packaged
+   `craw-chat-server` install contract, PostgreSQL-backed storage wiring, or unified gateway
+   endpoints.
+5. Use [API Reference](/api-reference/index) for the OpenAPI-style operation catalog with sidebar
    links to every documented endpoint.
-5. Read [SDK Overview](/sdk/index) before promising package availability, version numbers, or
+6. Read [SDK Overview](/sdk/index) before promising package availability, version numbers, or
    generation status to downstream consumers.
-6. Keep [Deployment](/deployment/index) and [Reference](/reference/cli-and-scripts) open when
+7. Keep [Deployment](/deployment/index) and [Reference](/reference/cli-and-scripts) open when
    running, diagnosing, backing up, or restoring a local environment.
 
 ## Current Delivery Surface
@@ -85,8 +95,9 @@ already has script, config, and Docker entry points, but it still reuses the cur
 | --- | --- |
 | App runtime | Session resume, presence, realtime delivery, device sync, conversations, membership, messages, media, streams, RTC, notifications, automation, audit, ops, and provider health |
 | Control plane | Protocol registry, protocol governance, provider registry, effective bindings, provider policy preview and rollback, plus node drain, activate, and route migration |
-| Deployment | Local binary lifecycle scripts, Docker Compose bootstrap, runtime inspection, repair, backup listing, archive, preview, and restore |
-| SDK workspaces | App SDK workspace with checked-in OpenAPI authority and derived sdkgen input; admin SDK workspace with frozen audience and language boundaries but no checked-in admin OpenAPI source yet |
+| Unified gateway and server | `web-gateway` publishes the canonical `craw-chat-server` binary, the aggregate OpenAPI and discovery routes, service-schema proxies, rendered docs, and the single-port server install contract |
+| Deployment | Local binary lifecycle scripts, Docker Compose bootstrap, server install/service-management scripts, runtime inspection, repair, backup listing, archive, preview, and restore |
+| SDK workspaces | App SDK workspace with checked-in OpenAPI authority and derived sdkgen input; admin SDK workspace with checked-in OpenAPI authority plus materialized TypeScript and Flutter package lines; management SDK workspace with checked-in OpenAPI authority, derived sdkgen input, and materialized TypeScript and Flutter package lines |
 | Frontend apps | `apps/craw-chat-admin` and `apps/craw-chat-portal` exist as workspace directories but are not documented here as mature product surfaces |
 
 ::: warning Scope rule
@@ -99,6 +110,8 @@ such rather than documented as delivered features.
   <strong>Implementation sources:</strong>
   App routing is aligned to <code>services/local-minimal-node/src/node/build.rs</code>.
   Control-plane routing is aligned to <code>services/control-plane-api/src/lib.rs</code>.
+  Unified gateway and packaged server entry are aligned to <code>services/web-gateway/src/lib.rs</code>,
+  <code>services/web-gateway/src/main.rs</code>, and <code>deployments/templates/server.yaml.example</code>.
   Local lifecycle and deployment behavior is aligned to <code>bin/</code>,
   <code>deployments/</code>, and the runtime-management entrypoints in
   <code>services/local-minimal-node/src/main.rs</code>.

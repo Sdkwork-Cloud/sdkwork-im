@@ -19,6 +19,8 @@ name = "audit-service"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "craw-chat-api-registry",
+ "craw-chat-openapi",
  "http-body-util",
  "im-auth-context",
  "im-time",
@@ -34,9 +36,11 @@ name = "automation-service"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "craw-chat-api-registry",
  "craw-chat-contract-agent",
  "craw-chat-contract-core",
  "craw-chat-contract-message",
+ "craw-chat-openapi",
  "http-body-util",
  "im-adapters-local-memory",
  "im-auth-context",
@@ -189,7 +193,9 @@ dependencies = [
  "axum",
  "bytes",
  "conversation-runtime",
+ "craw-chat-api-registry",
  "craw-chat-ccp-registry",
+ "craw-chat-openapi",
  "http-body-util",
  "hyper",
  "hyper-util",
@@ -214,8 +220,10 @@ name = "conversation-runtime"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "craw-chat-api-registry",
  "craw-chat-contract-core",
  "craw-chat-contract-message",
+ "craw-chat-openapi",
  "http-body-util",
  "im-auth-context",
  "im-domain-core",
@@ -236,6 +244,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "59ed5838eebb26a2bb2e58f6d5b5316989ae9d08bab10e0e6d103e656d1b0280"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "craw-chat-api-registry"
+version = "0.1.0"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -409,6 +424,30 @@ dependencies = [
  "craw-chat-contract-core",
  "im-domain-core",
  "serde",
+]
+
+[[package]]
+name = "craw-chat-gateway-config"
+version = "0.1.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "craw-chat-gateway-observability"
+version = "0.1.0"
+dependencies = [
+ "craw-chat-api-registry",
+ "craw-chat-gateway-config",
+ "serde",
+]
+
+[[package]]
+name = "craw-chat-openapi"
+version = "0.1.0"
+dependencies = [
+ "craw-chat-api-registry",
+ "serde_json",
 ]
 
 [[package]]
@@ -1057,8 +1096,10 @@ name = "media-service"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "craw-chat-api-registry",
  "craw-chat-contract-core",
  "craw-chat-contract-message",
+ "craw-chat-openapi",
  "http-body-util",
  "im-adapter-object-storage-s3",
  "im-auth-context",
@@ -1100,9 +1141,11 @@ name = "notification-service"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "craw-chat-api-registry",
  "craw-chat-contract-core",
  "craw-chat-contract-message",
  "craw-chat-contract-notification",
+ "craw-chat-openapi",
  "http-body-util",
  "im-adapters-local-memory",
  "im-auth-context",
@@ -1128,6 +1171,8 @@ name = "ops-service"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "craw-chat-api-registry",
+ "craw-chat-openapi",
  "http-body-util",
  "im-auth-context",
  "im-time",
@@ -1191,6 +1236,8 @@ name = "projection-service"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "craw-chat-api-registry",
+ "craw-chat-openapi",
  "http-body-util",
  "im-adapters-local-memory",
  "im-auth-context",
@@ -1360,8 +1407,10 @@ name = "rtc-signaling-service"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "craw-chat-api-registry",
  "craw-chat-contract-core",
  "craw-chat-contract-rtc",
+ "craw-chat-openapi",
  "http-body-util",
  "im-adapter-object-storage-s3",
  "im-adapter-rtc-aliyun",
@@ -1523,6 +1572,7 @@ name = "session-gateway"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "craw-chat-api-registry",
  "craw-chat-ccp-binding-ws",
  "craw-chat-ccp-codec",
  "craw-chat-ccp-codec-json",
@@ -1530,6 +1580,7 @@ dependencies = [
  "craw-chat-ccp-core",
  "craw-chat-contract-control",
  "craw-chat-contract-core",
+ "craw-chat-openapi",
  "craw-chat-runtime-link",
  "craw-chat-runtime-route",
  "futures-util",
@@ -1608,8 +1659,10 @@ name = "streaming-service"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "craw-chat-api-registry",
  "craw-chat-contract-core",
  "craw-chat-contract-stream",
+ "craw-chat-openapi",
  "http-body-util",
  "im-adapters-local-memory",
  "im-auth-context",
@@ -1970,6 +2023,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f01b580c9ac74c8d8f0c0e4afb04eeef2acf145458e52c03845ee9cd23e3d12"
 dependencies = [
  "unicode-ident",
+]
+
+[[package]]
+name = "web-gateway"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "craw-chat-api-registry",
+ "craw-chat-gateway-config",
+ "craw-chat-gateway-observability",
+ "craw-chat-openapi",
+ "craw-chat-runtime-link",
+ "futures-util",
+ "http-body-util",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-tungstenite",
+ "tower",
 ]
 
 [[package]]

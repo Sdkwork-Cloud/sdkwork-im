@@ -1,0 +1,1005 @@
+{
+  "workspace": "sdkwork-craw-chat-sdk-management",
+  "title": "Craw Chat Management API",
+  "apiVersion": "0.1.0",
+  "openapiVersion": "3.1.0",
+  "authoritySpec": "openapi/craw-chat-management.openapi.json",
+  "derivedSpec": "openapi/craw-chat-management.sdkgen.json",
+  "derivedSpecs": {
+    "default": "openapi/craw-chat-management.sdkgen.json"
+  },
+  "discoverySurface": {
+    "sdkTarget": "crawChatManagementSdk",
+    "visibility": "management",
+    "generatedProtocols": [
+      "http"
+    ],
+    "manualTransports": [],
+    "services": [
+      {
+        "serviceId": "admin-console-api",
+        "operationGroups": [
+          "auth",
+          "users",
+          "marketing",
+          "tenants",
+          "access",
+          "routing",
+          "catalog",
+          "usage",
+          "billing",
+          "operations"
+        ],
+        "protocols": [
+          "http"
+        ],
+        "operationCount": 64
+      }
+    ],
+    "surfaceGroups": [
+      {
+        "serviceId": "admin-console-api",
+        "operationGroup": "auth",
+        "protocols": [
+          "http"
+        ],
+        "operationCount": 2
+      },
+      {
+        "serviceId": "admin-console-api",
+        "operationGroup": "users",
+        "protocols": [
+          "http"
+        ],
+        "operationCount": 10
+      },
+      {
+        "serviceId": "admin-console-api",
+        "operationGroup": "marketing",
+        "protocols": [
+          "http"
+        ],
+        "operationCount": 3
+      },
+      {
+        "serviceId": "admin-console-api",
+        "operationGroup": "tenants",
+        "protocols": [
+          "http"
+        ],
+        "operationCount": 6
+      },
+      {
+        "serviceId": "admin-console-api",
+        "operationGroup": "access",
+        "protocols": [
+          "http"
+        ],
+        "operationCount": 10
+      },
+      {
+        "serviceId": "admin-console-api",
+        "operationGroup": "routing",
+        "protocols": [
+          "http"
+        ],
+        "operationCount": 5
+      },
+      {
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "protocols": [
+          "http"
+        ],
+        "operationCount": 18
+      },
+      {
+        "serviceId": "admin-console-api",
+        "operationGroup": "usage",
+        "protocols": [
+          "http"
+        ],
+        "operationCount": 2
+      },
+      {
+        "serviceId": "admin-console-api",
+        "operationGroup": "billing",
+        "protocols": [
+          "http"
+        ],
+        "operationCount": 3
+      },
+      {
+        "serviceId": "admin-console-api",
+        "operationGroup": "operations",
+        "protocols": [
+          "http"
+        ],
+        "operationCount": 5
+      }
+    ],
+    "operationBindings": [
+      {
+        "operationId": "loginAdminUser",
+        "method": "post",
+        "path": "/api/admin/auth/login",
+        "serviceId": "admin-console-api",
+        "operationGroup": "auth",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "getAdminMe",
+        "method": "get",
+        "path": "/api/admin/auth/me",
+        "serviceId": "admin-console-api",
+        "operationGroup": "auth",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listOperatorUsers",
+        "method": "get",
+        "path": "/api/admin/users/operators",
+        "serviceId": "admin-console-api",
+        "operationGroup": "users",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "saveOperatorUser",
+        "method": "post",
+        "path": "/api/admin/users/operators",
+        "serviceId": "admin-console-api",
+        "operationGroup": "users",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "deleteOperatorUser",
+        "method": "delete",
+        "path": "/api/admin/users/operators/{userId}",
+        "serviceId": "admin-console-api",
+        "operationGroup": "users",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "updateOperatorUserStatus",
+        "method": "post",
+        "path": "/api/admin/users/operators/{userId}/status",
+        "serviceId": "admin-console-api",
+        "operationGroup": "users",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "resetOperatorUserPassword",
+        "method": "post",
+        "path": "/api/admin/users/operators/{userId}/password",
+        "serviceId": "admin-console-api",
+        "operationGroup": "users",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listPortalUsers",
+        "method": "get",
+        "path": "/api/admin/users/portal",
+        "serviceId": "admin-console-api",
+        "operationGroup": "users",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "savePortalUser",
+        "method": "post",
+        "path": "/api/admin/users/portal",
+        "serviceId": "admin-console-api",
+        "operationGroup": "users",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "deletePortalUser",
+        "method": "delete",
+        "path": "/api/admin/users/portal/{userId}",
+        "serviceId": "admin-console-api",
+        "operationGroup": "users",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "updatePortalUserStatus",
+        "method": "post",
+        "path": "/api/admin/users/portal/{userId}/status",
+        "serviceId": "admin-console-api",
+        "operationGroup": "users",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "resetPortalUserPassword",
+        "method": "post",
+        "path": "/api/admin/users/portal/{userId}/password",
+        "serviceId": "admin-console-api",
+        "operationGroup": "users",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listMarketingCampaigns",
+        "method": "get",
+        "path": "/api/admin/marketing/campaigns",
+        "serviceId": "admin-console-api",
+        "operationGroup": "marketing",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "saveMarketingCampaign",
+        "method": "post",
+        "path": "/api/admin/marketing/campaigns",
+        "serviceId": "admin-console-api",
+        "operationGroup": "marketing",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "updateMarketingCampaignStatus",
+        "method": "post",
+        "path": "/api/admin/marketing/campaigns/{marketingCampaignId}/status",
+        "serviceId": "admin-console-api",
+        "operationGroup": "marketing",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listTenants",
+        "method": "get",
+        "path": "/api/admin/tenants",
+        "serviceId": "admin-console-api",
+        "operationGroup": "tenants",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "saveTenant",
+        "method": "post",
+        "path": "/api/admin/tenants",
+        "serviceId": "admin-console-api",
+        "operationGroup": "tenants",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "deleteTenant",
+        "method": "delete",
+        "path": "/api/admin/tenants/{tenantId}",
+        "serviceId": "admin-console-api",
+        "operationGroup": "tenants",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listProjects",
+        "method": "get",
+        "path": "/api/admin/projects",
+        "serviceId": "admin-console-api",
+        "operationGroup": "tenants",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "saveProject",
+        "method": "post",
+        "path": "/api/admin/projects",
+        "serviceId": "admin-console-api",
+        "operationGroup": "tenants",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "deleteProject",
+        "method": "delete",
+        "path": "/api/admin/projects/{projectId}",
+        "serviceId": "admin-console-api",
+        "operationGroup": "tenants",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listApiKeys",
+        "method": "get",
+        "path": "/api/admin/api-keys",
+        "serviceId": "admin-console-api",
+        "operationGroup": "access",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "createApiKey",
+        "method": "post",
+        "path": "/api/admin/api-keys",
+        "serviceId": "admin-console-api",
+        "operationGroup": "access",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "updateApiKey",
+        "method": "put",
+        "path": "/api/admin/api-keys/{hashedKey}",
+        "serviceId": "admin-console-api",
+        "operationGroup": "access",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "deleteApiKey",
+        "method": "delete",
+        "path": "/api/admin/api-keys/{hashedKey}",
+        "serviceId": "admin-console-api",
+        "operationGroup": "access",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "updateApiKeyStatus",
+        "method": "post",
+        "path": "/api/admin/api-keys/{hashedKey}/status",
+        "serviceId": "admin-console-api",
+        "operationGroup": "access",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listApiKeyGroups",
+        "method": "get",
+        "path": "/api/admin/api-key-groups",
+        "serviceId": "admin-console-api",
+        "operationGroup": "access",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "createApiKeyGroup",
+        "method": "post",
+        "path": "/api/admin/api-key-groups",
+        "serviceId": "admin-console-api",
+        "operationGroup": "access",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "updateApiKeyGroup",
+        "method": "patch",
+        "path": "/api/admin/api-key-groups/{groupId}",
+        "serviceId": "admin-console-api",
+        "operationGroup": "access",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "deleteApiKeyGroup",
+        "method": "delete",
+        "path": "/api/admin/api-key-groups/{groupId}",
+        "serviceId": "admin-console-api",
+        "operationGroup": "access",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "updateApiKeyGroupStatus",
+        "method": "post",
+        "path": "/api/admin/api-key-groups/{groupId}/status",
+        "serviceId": "admin-console-api",
+        "operationGroup": "access",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listRoutingProfiles",
+        "method": "get",
+        "path": "/api/admin/routing/profiles",
+        "serviceId": "admin-console-api",
+        "operationGroup": "routing",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "createRoutingProfile",
+        "method": "post",
+        "path": "/api/admin/routing/profiles",
+        "serviceId": "admin-console-api",
+        "operationGroup": "routing",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listCompiledRoutingSnapshots",
+        "method": "get",
+        "path": "/api/admin/routing/snapshots",
+        "serviceId": "admin-console-api",
+        "operationGroup": "routing",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listRoutingDecisionLogs",
+        "method": "get",
+        "path": "/api/admin/routing/decision-logs",
+        "serviceId": "admin-console-api",
+        "operationGroup": "routing",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listProviderHealthSnapshots",
+        "method": "get",
+        "path": "/api/admin/routing/health-snapshots",
+        "serviceId": "admin-console-api",
+        "operationGroup": "routing",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listChannels",
+        "method": "get",
+        "path": "/api/admin/channels",
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "saveChannel",
+        "method": "post",
+        "path": "/api/admin/channels",
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "deleteChannel",
+        "method": "delete",
+        "path": "/api/admin/channels/{channelId}",
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listProviders",
+        "method": "get",
+        "path": "/api/admin/providers",
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "saveProvider",
+        "method": "post",
+        "path": "/api/admin/providers",
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "deleteProvider",
+        "method": "delete",
+        "path": "/api/admin/providers/{providerId}",
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listCredentials",
+        "method": "get",
+        "path": "/api/admin/credentials",
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "saveCredential",
+        "method": "post",
+        "path": "/api/admin/credentials",
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "deleteCredential",
+        "method": "delete",
+        "path": "/api/admin/credentials/{tenantId}/providers/{providerId}/keys/{keyReference}",
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listModels",
+        "method": "get",
+        "path": "/api/admin/models",
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "saveModel",
+        "method": "post",
+        "path": "/api/admin/models",
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "deleteModel",
+        "method": "delete",
+        "path": "/api/admin/models/{externalName}/providers/{providerId}",
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listChannelModels",
+        "method": "get",
+        "path": "/api/admin/channel-models",
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "saveChannelModel",
+        "method": "post",
+        "path": "/api/admin/channel-models",
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "deleteChannelModel",
+        "method": "delete",
+        "path": "/api/admin/channel-models/{channelId}/models/{modelId}",
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listModelPrices",
+        "method": "get",
+        "path": "/api/admin/model-prices",
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "saveModelPrice",
+        "method": "post",
+        "path": "/api/admin/model-prices",
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "deleteModelPrice",
+        "method": "delete",
+        "path": "/api/admin/model-prices/{channelId}/models/{modelId}/providers/{proxyProviderId}",
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listUsageRecords",
+        "method": "get",
+        "path": "/api/admin/usage/records",
+        "serviceId": "admin-console-api",
+        "operationGroup": "usage",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "getUsageSummary",
+        "method": "get",
+        "path": "/api/admin/usage/summary",
+        "serviceId": "admin-console-api",
+        "operationGroup": "usage",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listBillingEvents",
+        "method": "get",
+        "path": "/api/admin/billing/events",
+        "serviceId": "admin-console-api",
+        "operationGroup": "billing",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "getBillingEventSummary",
+        "method": "get",
+        "path": "/api/admin/billing/events/summary",
+        "serviceId": "admin-console-api",
+        "operationGroup": "billing",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "getBillingSummary",
+        "method": "get",
+        "path": "/api/admin/billing/summary",
+        "serviceId": "admin-console-api",
+        "operationGroup": "billing",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listRateLimitPolicies",
+        "method": "get",
+        "path": "/api/admin/gateway/rate-limit-policies",
+        "serviceId": "admin-console-api",
+        "operationGroup": "operations",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "createRateLimitPolicy",
+        "method": "post",
+        "path": "/api/admin/gateway/rate-limit-policies",
+        "serviceId": "admin-console-api",
+        "operationGroup": "operations",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listRateLimitWindows",
+        "method": "get",
+        "path": "/api/admin/gateway/rate-limit-windows",
+        "serviceId": "admin-console-api",
+        "operationGroup": "operations",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listRuntimeStatuses",
+        "method": "get",
+        "path": "/api/admin/extensions/runtime-statuses",
+        "serviceId": "admin-console-api",
+        "operationGroup": "operations",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "reloadExtensionRuntimes",
+        "method": "post",
+        "path": "/api/admin/extensions/runtime-reloads",
+        "serviceId": "admin-console-api",
+        "operationGroup": "operations",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      }
+    ]
+  },
+  "languages": [
+    {
+      "language": "typescript",
+      "workspace": "sdkwork-craw-chat-sdk-management-typescript",
+      "generationState": "materialized",
+      "releaseState": "not_published",
+      "generatedPath": "sdkwork-craw-chat-sdk-management-typescript/generated/server-openapi",
+      "manifestPath": "sdkwork-craw-chat-sdk-management-typescript/generated/server-openapi/package.json",
+      "name": "@sdkwork/craw-chat-management-backend-sdk",
+      "version": "0.1.0",
+      "description": "Generated TypeScript transport package for the Craw Chat operator-console management backend",
+      "entrypoints": {
+        "main": "./dist/index.cjs",
+        "module": "./dist/index.js",
+        "types": "./dist/index.d.ts"
+      },
+      "packages": [
+        {
+          "layer": "generated",
+          "packagePath": "sdkwork-craw-chat-sdk-management-typescript/generated/server-openapi",
+          "manifestPath": "sdkwork-craw-chat-sdk-management-typescript/generated/server-openapi/package.json",
+          "name": "@sdkwork/craw-chat-management-backend-sdk",
+          "version": "0.1.0",
+          "description": "Generated TypeScript transport package for the Craw Chat operator-console management backend",
+          "entrypoints": {
+            "main": "./dist/index.cjs",
+            "module": "./dist/index.js",
+            "types": "./dist/index.d.ts"
+          }
+        },
+        {
+          "layer": "composed",
+          "packagePath": "sdkwork-craw-chat-sdk-management-typescript/composed",
+          "manifestPath": "sdkwork-craw-chat-sdk-management-typescript/composed/package.json",
+          "name": "@sdkwork/craw-chat-sdk-management",
+          "version": "0.1.0",
+          "description": "Composed Craw Chat management TypeScript SDK built on the generated management backend SDK",
+          "entrypoints": {
+            "main": "./dist/index.js",
+            "module": "./dist/index.js",
+            "types": "./dist/index.d.ts"
+          }
+        }
+      ],
+      "consumerSurface": {
+        "primaryClient": "CrawChatSdkManagementClient",
+        "operationGroups": [
+          "access",
+          "auth",
+          "billing",
+          "catalog",
+          "marketing",
+          "operations",
+          "routing",
+          "tenants",
+          "usage",
+          "users"
+        ],
+        "domains": [
+          {
+            "name": "access",
+            "operationGroups": [
+              "access"
+            ]
+          },
+          {
+            "name": "auth",
+            "operationGroups": [
+              "auth"
+            ]
+          },
+          {
+            "name": "billing",
+            "operationGroups": [
+              "billing"
+            ]
+          },
+          {
+            "name": "catalog",
+            "operationGroups": [
+              "catalog"
+            ]
+          },
+          {
+            "name": "marketing",
+            "operationGroups": [
+              "marketing"
+            ]
+          },
+          {
+            "name": "operations",
+            "operationGroups": [
+              "operations"
+            ]
+          },
+          {
+            "name": "routing",
+            "operationGroups": [
+              "routing"
+            ]
+          },
+          {
+            "name": "tenants",
+            "operationGroups": [
+              "tenants"
+            ]
+          },
+          {
+            "name": "usage",
+            "operationGroups": [
+              "usage"
+            ]
+          },
+          {
+            "name": "users",
+            "operationGroups": [
+              "users"
+            ]
+          }
+        ],
+        "manualTransports": []
+      }
+    },
+    {
+      "language": "flutter",
+      "workspace": "sdkwork-craw-chat-sdk-management-flutter",
+      "generationState": "materialized",
+      "releaseState": "not_published",
+      "generatedPath": "sdkwork-craw-chat-sdk-management-flutter/generated/server-openapi",
+      "manifestPath": "sdkwork-craw-chat-sdk-management-flutter/generated/server-openapi/pubspec.yaml",
+      "name": "craw_chat_management_backend_sdk",
+      "version": "0.1.0",
+      "description": "Generated Flutter transport package for the Craw Chat operator-console management backend",
+      "entrypoints": {
+        "library": "lib/craw_chat_management_backend_sdk.dart"
+      },
+      "packages": [
+        {
+          "layer": "generated",
+          "packagePath": "sdkwork-craw-chat-sdk-management-flutter/generated/server-openapi",
+          "manifestPath": "sdkwork-craw-chat-sdk-management-flutter/generated/server-openapi/pubspec.yaml",
+          "name": "craw_chat_management_backend_sdk",
+          "version": "0.1.0",
+          "description": "Generated Flutter transport package for the Craw Chat operator-console management backend",
+          "entrypoints": {
+            "library": "lib/craw_chat_management_backend_sdk.dart"
+          }
+        },
+        {
+          "layer": "composed",
+          "packagePath": "sdkwork-craw-chat-sdk-management-flutter/composed",
+          "manifestPath": "sdkwork-craw-chat-sdk-management-flutter/composed/pubspec.yaml",
+          "name": "craw_chat_sdk_management",
+          "version": "0.1.0",
+          "description": "Composed Craw Chat management Flutter SDK built on the generated craw_chat_management_backend_sdk package",
+          "entrypoints": {
+            "library": "lib/craw_chat_sdk_management.dart"
+          }
+        }
+      ],
+      "consumerSurface": {
+        "primaryClient": "CrawChatManagementClient",
+        "operationGroups": [
+          "access",
+          "auth",
+          "billing",
+          "catalog",
+          "marketing",
+          "operations",
+          "routing",
+          "tenants",
+          "usage",
+          "users"
+        ],
+        "domains": [
+          {
+            "name": "access",
+            "operationGroups": [
+              "access"
+            ]
+          },
+          {
+            "name": "auth",
+            "operationGroups": [
+              "auth"
+            ]
+          },
+          {
+            "name": "billing",
+            "operationGroups": [
+              "billing"
+            ]
+          },
+          {
+            "name": "catalog",
+            "operationGroups": [
+              "catalog"
+            ]
+          },
+          {
+            "name": "marketing",
+            "operationGroups": [
+              "marketing"
+            ]
+          },
+          {
+            "name": "operations",
+            "operationGroups": [
+              "operations"
+            ]
+          },
+          {
+            "name": "routing",
+            "operationGroups": [
+              "routing"
+            ]
+          },
+          {
+            "name": "tenants",
+            "operationGroups": [
+              "tenants"
+            ]
+          },
+          {
+            "name": "usage",
+            "operationGroups": [
+              "usage"
+            ]
+          },
+          {
+            "name": "users",
+            "operationGroups": [
+              "users"
+            ]
+          }
+        ],
+        "manualTransports": []
+      }
+    }
+  ],
+  "generatedAt": "2026-04-17T22:45:16.369Z"
+}

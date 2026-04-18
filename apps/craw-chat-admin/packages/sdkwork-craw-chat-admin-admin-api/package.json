@@ -12,6 +12,8 @@
     }
   },
   "dependencies": {
+    "@sdkwork/craw-chat-management-backend-sdk": "file:../../../sdks/sdkwork-craw-chat-sdk-management/sdkwork-craw-chat-sdk-management-typescript/generated/server-openapi",
+    "@sdkwork/craw-chat-sdk-management": "file:../../../sdks/sdkwork-craw-chat-sdk-management/sdkwork-craw-chat-sdk-management-typescript/composed",
     "sdkwork-craw-chat-admin-types": "workspace:*"
   }
 }

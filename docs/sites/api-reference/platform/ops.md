@@ -19,8 +19,8 @@
 Returns service-level health and projection-plane health.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / ops</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>No standalone published SDK family</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`ops.read`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 OpsHealthResponse`</span></div>
 </div>
@@ -54,8 +54,8 @@ Returns the cluster topology as seen by the current node.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / ops</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>No standalone published SDK family</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`ops.read`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ClusterView`</span></div>
 </div>
@@ -89,8 +89,8 @@ Returns lag measurements for runtime components.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / ops</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>No standalone published SDK family</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`ops.read`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 LagView`</span></div>
 </div>
@@ -124,8 +124,8 @@ Returns projection replay state and replay lag metrics.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / ops</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>No standalone published SDK family</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`ops.read`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ProjectionReplayStatusView`</span></div>
 </div>
@@ -159,8 +159,8 @@ Returns runtime directory inspection results.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / ops</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>No standalone published SDK family</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`ops.read`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 RuntimeDirInspectionView`</span></div>
 </div>
@@ -194,8 +194,8 @@ Returns the node-local mirror of provider binding snapshots.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / ops</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>No standalone published SDK family</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`ops.read`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ProviderBindingsView`</span></div>
 </div>
@@ -229,8 +229,8 @@ Returns tenant drift relative to the baseline provider binding selection.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / ops</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>No standalone published SDK family</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`ops.read`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ProviderBindingDriftView`</span></div>
 </div>
@@ -264,8 +264,8 @@ Returns the aggregated diagnostic bundle for the current node.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / ops</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>No standalone published SDK family</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`ops.read`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 DiagnosticBundle`</span></div>
 </div>

@@ -46,6 +46,16 @@ The workspace stores three contract files under `openapi/`:
 
 The authority file is the source of truth. Regeneration scripts may normalize the derived files for generator compatibility, but they must not treat generated output as the source contract.
 
+The derived `sdkgen` files also carry generator-facing discovery metadata:
+
+- root `x-sdkwork-sdk-surface` summaries for `sdkTarget`, generated protocols, manual transport exclusions, service ownership, surface groups, and operation bindings
+- operation-level `x-sdkwork-service`, `x-sdkwork-operation-group`, `x-sdkwork-sdk-target`, `x-sdkwork-visibility`, and `x-sdkwork-protocol` hints
+
+These extensions let SDK assembly and future generator layers consume stable Craw Chat ownership semantics directly from the checked-in derived contracts.
+`bin/assemble-sdk.mjs` projects the same metadata into `.sdkwork-assembly.json` as `discoverySurface`
+plus per-language `consumerSurface` summaries so downstream SDK verification can validate exposed
+domains against the declared OpenAPI ownership model.
+
 ## Auth Model
 
 The public app contract is bearer-token based.
@@ -61,6 +71,14 @@ The authority contract documents `GET /api/v1/realtime/ws`, but this round only 
 - HTTP-generated SDK support includes session resume, subscription sync, pull windows, and ack flow.
 - The current compatibility matrix freezes `payload.json` as the default negotiated payload capability for the public realtime handshake.
 - WebSocket protocol details such as `ccp/ws/1`, close code `4001`, and `session.disconnect` are documented as transport notes, not as a generated realtime adapter.
+
+## Endpoint Targeting
+
+- For direct local development, target the `local-minimal-node` origin, which defaults to
+  `http://127.0.0.1:18090`.
+- For packaged installs, target the unified `craw-chat-server` / `web-gateway` public origin.
+- The live realtime websocket handshake uses that same public origin in packaged installs even
+  though websocket transport remains outside the generated HTTP SDK round.
 
 ## Recovery Baseline
 
@@ -94,15 +112,22 @@ The same governance source also freezes `businessPolicyVocabulary` for app-facin
 This workspace consumes compatibility and governance results from those control-plane snapshots. It must not invent protocol capability decisions locally.
 It must not rename these policy fields or invent local aliases when exposing space/group/channel/thread policy surfaces.
 
-## Release Placeholder Boundary
+## Current Workspace Status
 
-This workspace inherits the current SDK release placeholder contract from `artifacts/releases/wave-d-2026-04-08/sdk-release-catalog.json`.
+This workspace now contains materialized generated and composed packages for both supported
+consumer languages:
 
-- `generationStatus = template_only_pending_generation`
-- `releaseStatus = not_published`
-- `plannedVersion = null`
-- `versionStatus = version_unassigned_pending_freeze`
-- `versionDecisionSourcePath = null`
+- TypeScript
+  - generated transport package: `@sdkwork/craw-chat-backend-sdk`
+  - composed product package: `@sdkwork/craw-chat-sdk`
+- Flutter
+  - generated transport package: `backend_sdk`
+  - composed product package: `craw_chat_sdk`
+
+Publication and version freeze are still pending, but generation is no longer placeholder-only.
+The current machine-readable release catalog under `artifacts/releases/wave-d-2026-04-08/`
+records both app language lines as generated but not published, while version freeze metadata still
+remains pending.
 
 ## Workspace Layout
 
@@ -190,12 +215,13 @@ This default verification flow runs:
 
 1. Workspace automation guardrails, including wrapper and documentation drift checks.
 2. PowerShell wrapper argument compatibility checks for the documented comma-separated `-Languages` examples.
-3. TypeScript workspace verification through `bin/verify-typescript-workspace.mjs`, which runs generated-package stable build, generated-package artifact and `npm pack --dry-run` checks, bearer-auth surface alignment checks, temporary verification-directory cleanup checks, public API boundary validation, runtime root-export validation, dead-auth/dead-residue cleanup validation, composed typecheck/build, dist cleanup, and smoke tests.
-4. TypeScript generated-package determinism regression verification through `bin/verify-typescript-generated-build-determinism.mjs`, so repeated stable builds keep `dist/index.cjs.map` identical and free of run-specific temporary-directory leakage.
-5. TypeScript generated-package concurrency regression verification through `bin/verify-typescript-generated-build-concurrency.mjs` on Windows hosts, so overlapping root verification invocations do not regress back into shared-temp or shared-log collisions.
-6. Flutter workspace verification through `bin/verify-flutter-workspace.mjs`, which runs generated-model regression checks, bearer-auth surface alignment checks, composed parity checks, public API boundary checks, and package metadata consistency checks.
-7. Optional native Dart verification on top of the default Flutter workspace checks when `--with-dart` or `-WithDart` is requested. On Windows, this path resolves Flutter's bundled `dart.exe`, isolates the local pub cache under `/.sdkwork/dart/pub-cache`, and falls back to `bin/verify-flutter-dart-analysis.dart` when `dart analyze` cannot safely launch its own helper process in the current environment.
-8. Workspace assembly refresh.
+3. Derived discovery metadata verification through `bin/verify-derived-discovery-metadata.mjs`, which ensures both `sdkgen` inputs keep `x-sdkwork-sdk-surface` plus per-operation ownership hints aligned with the app-facing route contract.
+4. TypeScript workspace verification through `bin/verify-typescript-workspace.mjs`, which runs generated-package stable build, generated-package artifact and `npm pack --dry-run` checks, bearer-auth surface alignment checks, temporary verification-directory cleanup checks, public API boundary validation, discovery-surface-to-domain alignment validation, runtime root-export validation, dead-auth/dead-residue cleanup validation, composed typecheck/build, dist cleanup, and smoke tests.
+5. TypeScript generated-package determinism regression verification through `bin/verify-typescript-generated-build-determinism.mjs`, so repeated stable builds keep `dist/index.cjs.map` identical and free of run-specific temporary-directory leakage.
+6. TypeScript generated-package concurrency regression verification through `bin/verify-typescript-generated-build-concurrency.mjs` on Windows hosts, so overlapping root verification invocations do not regress back into shared-temp or shared-log collisions.
+7. Flutter workspace verification through `bin/verify-flutter-workspace.mjs`, which runs generated-model regression checks, bearer-auth surface alignment checks, composed parity checks, public API boundary checks, discovery-surface-to-domain alignment checks, and package metadata consistency checks.
+8. Optional native Dart verification on top of the default Flutter workspace checks when `--with-dart` or `-WithDart` is requested. On Windows, this path resolves Flutter's bundled `dart.exe`, isolates the local pub cache under `/.sdkwork/dart/pub-cache`, and falls back to `bin/verify-flutter-dart-analysis.dart` when `dart analyze` cannot safely launch its own helper process in the current environment.
+9. Workspace assembly refresh.
 
 If a machine has a healthy Dart toolchain, opt into native Dart verification explicitly:
 

@@ -33,6 +33,65 @@ async fn test_healthz_returns_ok_and_service_metadata() {
 }
 
 #[tokio::test]
+async fn test_public_app_exports_live_openapi_json() {
+    let app = control_plane_api::build_public_app();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/openapi.json")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("request should succeed");
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("body should be valid json");
+
+    assert_eq!(value["openapi"], "3.1.0");
+    assert_eq!(value["info"]["title"], "Craw Chat Control Plane API");
+    assert!(value["paths"]["/api/v1/control/protocol-registry"].is_object());
+}
+
+#[tokio::test]
+async fn test_public_app_serves_docs_page_for_live_openapi() {
+    let app = control_plane_api::build_public_app();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/docs")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("request should succeed");
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let html = String::from_utf8(body.to_vec()).expect("docs should be valid utf-8");
+
+    assert!(html.contains("OpenAPI 3.1"));
+    assert!(html.contains("Craw Chat Control Plane API"));
+    assert!(html.contains("/openapi.json"));
+}
+
+#[tokio::test]
 async fn test_delivered_shared_channel_sync_inventory_route_returns_snapshot() {
     let app = control_plane_api::build_app();
 

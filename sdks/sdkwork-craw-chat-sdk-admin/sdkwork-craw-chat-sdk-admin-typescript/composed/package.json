@@ -1,0 +1,29 @@
+{
+  "name": "@sdkwork/craw-chat-sdk-admin",
+  "version": "0.1.0",
+  "description": "Composed Craw Chat admin TypeScript SDK built on the generated control-plane backend SDK",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "src"
+  ],
+  "dependencies": {
+    "@sdkwork/craw-chat-admin-backend-sdk": "file:../generated/server-openapi"
+  },
+  "scripts": {
+    "typecheck": "node ../../../../../../sdk/sdkwork-sdk-generator/node_modules/typescript/bin/tsc -p tsconfig.build.json --noEmit",
+    "build": "node ../../../../../../sdk/sdkwork-sdk-generator/node_modules/typescript/bin/tsc -p tsconfig.build.json && node ./bin/clean-dist.mjs",
+    "test": "node ./test/craw-chat-sdk-admin-client.test.mjs"
+  }
+}

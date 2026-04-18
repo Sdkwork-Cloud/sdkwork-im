@@ -21,7 +21,7 @@ not expand the full realtime frame protocol.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / session</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; active device route is prepared before upgrade.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`101 Switching Protocols`</span></div>
@@ -29,7 +29,7 @@ not expand the full realtime frame protocol.
 
 ### Security
 
-- Bearer token or trusted headers
+- Public clients authenticate with bearer tokens. Trusted headers remain reserved for internal service wiring and test-only flows.
 - Device ownership and session binding are validated before upgrade
 
 ### Headers

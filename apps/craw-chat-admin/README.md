@@ -91,6 +91,12 @@ pnpm tauri:build
 
 The admin frontend contract targets a compatible management backend that serves `/api/admin/*`.
 
+This contract is intentionally separate from `sdkwork-craw-chat-sdk-admin`.
+That SDK family currently standardizes the `/api/v1/control/*` control-plane surface, not the
+operator-console `/api/admin/*` backend consumed by this workspace.
+The checked-in authority snapshot for the management backend now lives under
+`sdks/sdkwork-craw-chat-sdk-management/`.
+
 - browser development: set `SDKWORK_ADMIN_PROXY_TARGET=http://host:port` before `pnpm dev`
 - desktop runtime: set `SDKWORK_ADMIN_PROXY_TARGET=http://host:port` before `pnpm tauri:dev` or `pnpm tauri:build`
 - explicit local demo mode: set `SDKWORK_ADMIN_SANDBOX=1` when you want an in-memory IM admin sandbox instead of a real `/api/admin/*` backend
@@ -113,6 +119,14 @@ Inside the current `craw-chat` workspace, the discovered control-plane service b
 
 - that service is useful for control-plane governance
 - it is not a drop-in replacement for this admin app's `/api/admin/*` contract
+- the existing `sdkwork-craw-chat-sdk-admin` packages are therefore not a direct replacement for
+  `sdkwork-craw-chat-admin-admin-api`
+- the dedicated checked-in `/api/admin/*` authority is now tracked under
+  `sdks/sdkwork-craw-chat-sdk-management/openapi/craw-chat-management.openapi.json`
+- the admin app keeps `sdkwork-craw-chat-admin-admin-api` as its compatibility boundary, but that
+  package now delegates to `@sdkwork/craw-chat-sdk-management` and
+  `@sdkwork/craw-chat-management-backend-sdk` instead of maintaining hand-written `/api/admin/*`
+  fetch wrappers
 - if you want this admin workspace to run against local services, you need a compatible adapter or backend that exposes the expected `/api/admin/*` surface, including login and admin resource routes
 
 ## Desktop Host

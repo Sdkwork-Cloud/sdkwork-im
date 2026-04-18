@@ -2,6 +2,13 @@
 
 Docker deployment is the recommended path for local container validation and demo-style bring-up.
 
+::: warning Scope boundary
+This page documents the checked-in Docker profiles around `local-minimal-node`. It is not the
+formal packaged `craw-chat-server` install contract. For the single-port packaged server, config
+root layout, PostgreSQL baseline, and service-management wrappers, use
+[Server Lifecycle](/deployment/server-lifecycle).
+:::
+
 ## Compose Profiles
 
 | Profile | Compose file | Current status |
@@ -75,3 +82,8 @@ services:
 ```
 
 So it is a profile compatibility layer, not a separate image, port layout, or service graph.
+
+When you need a production-style install shape with the unified `web-gateway` entrypoint, runtime
+OpenAPI discovery, or PostgreSQL-backed storage configuration, switch to
+[Server Lifecycle](/deployment/server-lifecycle) instead of extending these local validation
+profiles.

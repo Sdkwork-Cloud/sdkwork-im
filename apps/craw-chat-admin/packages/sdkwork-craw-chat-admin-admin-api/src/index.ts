@@ -1,3 +1,5 @@
+import type { SdkworkBackendClient } from '@sdkwork/craw-chat-management-backend-sdk';
+import type { CrawChatSdkManagementClient } from '@sdkwork/craw-chat-sdk-management';
 import type {
   AdminAuthSession,
   AdminSessionUser,
@@ -20,7 +22,6 @@ import type {
   ProjectRecord,
   ProviderHealthSnapshot,
   ProviderCatalogRecord,
-  ProxyProviderRecord,
   ProviderRecordWithIntegration,
   RateLimitPolicyRecord,
   RateLimitWindowRecord,
@@ -33,17 +34,17 @@ import type {
   UsageRecord,
   UsageSummary,
 } from 'sdkwork-craw-chat-admin-types';
-import {
-  deleteEmpty,
-  getJson,
-  patchJson,
-  postJson,
-  putJson,
-  requiredToken,
-} from './transport';
 
-// This package is the sole adapter boundary where the admin app can bridge into
-// sdkwork-craw-chat-sdk-admin / im-admin-backend-sdk style control-plane access.
+import type { AdminManagementModuleName } from './management-sdk';
+import { callAdminManagementMethod } from './management-sdk';
+
+// Keep the application boundary explicit: this workspace package delegates its
+// implementation to the generated management backend SDK plus the composed
+// @sdkwork/craw-chat-sdk-management facade.
+type _AdminManagementSdkBoundary =
+  | CrawChatSdkManagementClient
+  | SdkworkBackendClient;
+
 export {
   AdminApiError,
   adminBaseUrl,
@@ -52,19 +53,45 @@ export {
   readAdminSessionToken,
 } from './transport';
 
+function callPublicMethod<T>(
+  moduleName: AdminManagementModuleName,
+  methodName: string,
+  ...args: unknown[]
+): Promise<T> {
+  return callAdminManagementMethod<T>(moduleName, methodName, args, {
+    requireAuth: false,
+  });
+}
+
+function callAuthenticatedMethod<T>(
+  moduleName: AdminManagementModuleName,
+  methodName: string,
+  token: string | undefined,
+  ...args: unknown[]
+): Promise<T> {
+  return callAdminManagementMethod<T>(moduleName, methodName, args, {
+    token,
+    requireAuth: true,
+  });
+}
+
 export function loginAdminUser(input: {
   email: string;
   password: string;
 }): Promise<AdminAuthSession> {
-  return postJson<typeof input, AdminAuthSession>('/auth/login', input);
+  return callPublicMethod<AdminAuthSession>('auth', 'loginAdminUser', input);
 }
 
 export function getAdminMe(token?: string): Promise<AdminSessionUser> {
-  return getJson<AdminSessionUser>('/auth/me', token);
+  return callAuthenticatedMethod<AdminSessionUser>('auth', 'getAdminMe', token);
 }
 
 export function listOperatorUsers(token?: string): Promise<OperatorUserRecord[]> {
-  return getJson<OperatorUserRecord[]>('/users/operators', token);
+  return callAuthenticatedMethod<OperatorUserRecord[]>(
+    'users',
+    'listOperatorUsers',
+    token,
+  );
 }
 
 export function saveOperatorUser(input: {
@@ -74,17 +101,24 @@ export function saveOperatorUser(input: {
   password?: string;
   active: boolean;
 }): Promise<OperatorUserRecord> {
-  return postJson<typeof input, OperatorUserRecord>('/users/operators', input, requiredToken());
+  return callAuthenticatedMethod<OperatorUserRecord>(
+    'users',
+    'saveOperatorUser',
+    undefined,
+    input,
+  );
 }
 
 export function updateOperatorUserStatus(
   userId: string,
   active: boolean,
 ): Promise<OperatorUserRecord> {
-  return postJson<{ active: boolean }, OperatorUserRecord>(
-    `/users/operators/${userId}/status`,
+  return callAuthenticatedMethod<OperatorUserRecord>(
+    'users',
+    'updateOperatorUserStatus',
+    undefined,
+    userId,
     { active },
-    requiredToken(),
   );
 }
 
@@ -92,32 +126,45 @@ export function resetOperatorUserPassword(
   userId: string,
   newPassword: string,
 ): Promise<OperatorUserRecord> {
-  return postJson<{ new_password: string }, OperatorUserRecord>(
-    `/users/operators/${userId}/password`,
+  return callAuthenticatedMethod<OperatorUserRecord>(
+    'users',
+    'resetOperatorUserPassword',
+    undefined,
+    userId,
     { new_password: newPassword },
-    requiredToken(),
   );
 }
 
 export function deleteOperatorUser(userId: string): Promise<void> {
-  return deleteEmpty(`/users/operators/${encodeURIComponent(userId)}`, requiredToken());
+  return callAuthenticatedMethod<void>('users', 'deleteOperatorUser', undefined, userId);
 }
 
 export function listPortalUsers(token?: string): Promise<PortalUserRecord[]> {
-  return getJson<PortalUserRecord[]>('/users/portal', token);
+  return callAuthenticatedMethod<PortalUserRecord[]>(
+    'users',
+    'listPortalUsers',
+    token,
+  );
 }
 
-export function listMarketingCampaigns(token?: string): Promise<MarketingCampaignRecord[]> {
-  return getJson<MarketingCampaignRecord[]>('/marketing/campaigns', requiredToken(token));
+export function listMarketingCampaigns(
+  token?: string,
+): Promise<MarketingCampaignRecord[]> {
+  return callAuthenticatedMethod<MarketingCampaignRecord[]>(
+    'marketing',
+    'listMarketingCampaigns',
+    token,
+  );
 }
 
 export function saveMarketingCampaign(
   input: MarketingCampaignRecord,
 ): Promise<MarketingCampaignRecord> {
-  return postJson<MarketingCampaignRecord, MarketingCampaignRecord>(
-    '/marketing/campaigns',
+  return callAuthenticatedMethod<MarketingCampaignRecord>(
+    'marketing',
+    'saveMarketingCampaign',
+    undefined,
     input,
-    requiredToken(),
   );
 }
 
@@ -125,10 +172,12 @@ export function updateMarketingCampaignStatus(
   marketingCampaignId: string,
   status: MarketingCampaignStatus,
 ): Promise<MarketingCampaignRecord> {
-  return postJson<{ status: MarketingCampaignStatus }, MarketingCampaignRecord>(
-    `/marketing/campaigns/${encodeURIComponent(marketingCampaignId)}/status`,
+  return callAuthenticatedMethod<MarketingCampaignRecord>(
+    'marketing',
+    'updateMarketingCampaignStatus',
+    undefined,
+    marketingCampaignId,
     { status },
-    requiredToken(),
   );
 }
 
@@ -141,17 +190,24 @@ export function savePortalUser(input: {
   workspace_project_id: string;
   active: boolean;
 }): Promise<PortalUserRecord> {
-  return postJson<typeof input, PortalUserRecord>('/users/portal', input, requiredToken());
+  return callAuthenticatedMethod<PortalUserRecord>(
+    'users',
+    'savePortalUser',
+    undefined,
+    input,
+  );
 }
 
 export function updatePortalUserStatus(
   userId: string,
   active: boolean,
 ): Promise<PortalUserRecord> {
-  return postJson<{ active: boolean }, PortalUserRecord>(
-    `/users/portal/${userId}/status`,
+  return callAuthenticatedMethod<PortalUserRecord>(
+    'users',
+    'updatePortalUserStatus',
+    undefined,
+    userId,
     { active },
-    requiredToken(),
   );
 }
 
@@ -159,34 +215,36 @@ export function resetPortalUserPassword(
   userId: string,
   newPassword: string,
 ): Promise<PortalUserRecord> {
-  return postJson<{ new_password: string }, PortalUserRecord>(
-    `/users/portal/${userId}/password`,
+  return callAuthenticatedMethod<PortalUserRecord>(
+    'users',
+    'resetPortalUserPassword',
+    undefined,
+    userId,
     { new_password: newPassword },
-    requiredToken(),
   );
 }
 
 export function deletePortalUser(userId: string): Promise<void> {
-  return deleteEmpty(`/users/portal/${encodeURIComponent(userId)}`, requiredToken());
+  return callAuthenticatedMethod<void>('users', 'deletePortalUser', undefined, userId);
 }
 
 export function listTenants(token?: string): Promise<TenantRecord[]> {
-  return getJson<TenantRecord[]>('/tenants', token);
+  return callAuthenticatedMethod<TenantRecord[]>('tenants', 'listTenants', token);
 }
 
 export function saveTenant(input: {
   id: string;
   name: string;
 }): Promise<TenantRecord> {
-  return postJson<typeof input, TenantRecord>('/tenants', input, requiredToken());
+  return callAuthenticatedMethod<TenantRecord>('tenants', 'saveTenant', undefined, input);
 }
 
 export function deleteTenant(tenantId: string): Promise<void> {
-  return deleteEmpty(`/tenants/${encodeURIComponent(tenantId)}`, requiredToken());
+  return callAuthenticatedMethod<void>('tenants', 'deleteTenant', undefined, tenantId);
 }
 
 export function listProjects(token?: string): Promise<ProjectRecord[]> {
-  return getJson<ProjectRecord[]>('/projects', token);
+  return callAuthenticatedMethod<ProjectRecord[]>('tenants', 'listProjects', token);
 }
 
 export function saveProject(input: {
@@ -194,19 +252,23 @@ export function saveProject(input: {
   id: string;
   name: string;
 }): Promise<ProjectRecord> {
-  return postJson<typeof input, ProjectRecord>('/projects', input, requiredToken());
+  return callAuthenticatedMethod<ProjectRecord>('tenants', 'saveProject', undefined, input);
 }
 
 export function deleteProject(projectId: string): Promise<void> {
-  return deleteEmpty(`/projects/${encodeURIComponent(projectId)}`, requiredToken());
+  return callAuthenticatedMethod<void>('tenants', 'deleteProject', undefined, projectId);
 }
 
 export function listApiKeys(token?: string): Promise<GatewayApiKeyRecord[]> {
-  return getJson<GatewayApiKeyRecord[]>('/api-keys', token);
+  return callAuthenticatedMethod<GatewayApiKeyRecord[]>('access', 'listApiKeys', token);
 }
 
 export function listApiKeyGroups(token?: string): Promise<ApiKeyGroupRecord[]> {
-  return getJson<ApiKeyGroupRecord[]>('/api-key-groups', token);
+  return callAuthenticatedMethod<ApiKeyGroupRecord[]>(
+    'access',
+    'listApiKeyGroups',
+    token,
+  );
 }
 
 export function createApiKeyGroup(input: {
@@ -221,10 +283,11 @@ export function createApiKeyGroup(input: {
   default_accounting_mode?: string | null;
   default_routing_profile_id?: string | null;
 }): Promise<ApiKeyGroupRecord> {
-  return postJson<typeof input, ApiKeyGroupRecord>(
-    '/api-key-groups',
+  return callAuthenticatedMethod<ApiKeyGroupRecord>(
+    'access',
+    'createApiKeyGroup',
+    undefined,
     input,
-    requiredToken(),
   );
 }
 
@@ -243,10 +306,12 @@ export function updateApiKeyGroup(
     default_routing_profile_id?: string | null;
   },
 ): Promise<ApiKeyGroupRecord> {
-  return patchJson<typeof input, ApiKeyGroupRecord>(
-    `/api-key-groups/${encodeURIComponent(groupId)}`,
+  return callAuthenticatedMethod<ApiKeyGroupRecord>(
+    'access',
+    'updateApiKeyGroup',
+    undefined,
+    groupId,
     input,
-    requiredToken(),
   );
 }
 
@@ -254,19 +319,25 @@ export function updateApiKeyGroupStatus(
   groupId: string,
   active: boolean,
 ): Promise<ApiKeyGroupRecord> {
-  return postJson<{ active: boolean }, ApiKeyGroupRecord>(
-    `/api-key-groups/${encodeURIComponent(groupId)}/status`,
+  return callAuthenticatedMethod<ApiKeyGroupRecord>(
+    'access',
+    'updateApiKeyGroupStatus',
+    undefined,
+    groupId,
     { active },
-    requiredToken(),
   );
 }
 
 export function deleteApiKeyGroup(groupId: string): Promise<void> {
-  return deleteEmpty(`/api-key-groups/${encodeURIComponent(groupId)}`, requiredToken());
+  return callAuthenticatedMethod<void>('access', 'deleteApiKeyGroup', undefined, groupId);
 }
 
 export function listRoutingProfiles(token?: string): Promise<RoutingProfileRecord[]> {
-  return getJson<RoutingProfileRecord[]>('/routing/profiles', token);
+  return callAuthenticatedMethod<RoutingProfileRecord[]>(
+    'routing',
+    'listRoutingProfiles',
+    token,
+  );
 }
 
 export function createRoutingProfile(input: {
@@ -285,17 +356,22 @@ export function createRoutingProfile(input: {
   require_healthy?: boolean;
   preferred_region?: string | null;
 }): Promise<RoutingProfileRecord> {
-  return postJson<typeof input, RoutingProfileRecord>(
-    '/routing/profiles',
+  return callAuthenticatedMethod<RoutingProfileRecord>(
+    'routing',
+    'createRoutingProfile',
+    undefined,
     input,
-    requiredToken(),
   );
 }
 
 export function listCompiledRoutingSnapshots(
   token?: string,
 ): Promise<CompiledRoutingSnapshotRecord[]> {
-  return getJson<CompiledRoutingSnapshotRecord[]>('/routing/snapshots', token);
+  return callAuthenticatedMethod<CompiledRoutingSnapshotRecord[]>(
+    'routing',
+    'listCompiledRoutingSnapshots',
+    token,
+  );
 }
 
 export function createApiKey(input: {
@@ -308,7 +384,12 @@ export function createApiKey(input: {
   plaintext_key?: string;
   api_key_group_id?: string | null;
 }): Promise<CreatedGatewayApiKey> {
-  return postJson<typeof input, CreatedGatewayApiKey>('/api-keys', input, requiredToken());
+  return callAuthenticatedMethod<CreatedGatewayApiKey>(
+    'access',
+    'createApiKey',
+    undefined,
+    input,
+  );
 }
 
 export function updateApiKey(input: {
@@ -321,11 +402,11 @@ export function updateApiKey(input: {
   expires_at_ms?: number | null;
   api_key_group_id?: string | null;
 }): Promise<GatewayApiKeyRecord> {
-  return putJson<
-    Omit<typeof input, 'hashed_key'>,
-    GatewayApiKeyRecord
-  >(
-    `/api-keys/${encodeURIComponent(input.hashed_key)}`,
+  return callAuthenticatedMethod<GatewayApiKeyRecord>(
+    'access',
+    'updateApiKey',
+    undefined,
+    input.hashed_key,
     {
       tenant_id: input.tenant_id,
       project_id: input.project_id,
@@ -335,7 +416,6 @@ export function updateApiKey(input: {
       expires_at_ms: input.expires_at_ms,
       api_key_group_id: input.api_key_group_id,
     },
-    requiredToken(),
   );
 }
 
@@ -343,50 +423,63 @@ export function updateApiKeyStatus(
   hashedKey: string,
   active: boolean,
 ): Promise<GatewayApiKeyRecord> {
-  return postJson<{ active: boolean }, GatewayApiKeyRecord>(
-    `/api-keys/${encodeURIComponent(hashedKey)}/status`,
+  return callAuthenticatedMethod<GatewayApiKeyRecord>(
+    'access',
+    'updateApiKeyStatus',
+    undefined,
+    hashedKey,
     { active },
-    requiredToken(),
   );
 }
 
 export function deleteApiKey(hashedKey: string): Promise<void> {
-  return deleteEmpty(`/api-keys/${encodeURIComponent(hashedKey)}`, requiredToken());
+  return callAuthenticatedMethod<void>('access', 'deleteApiKey', undefined, hashedKey);
 }
 
 export function listChannels(token?: string): Promise<ChannelRecord[]> {
-  return getJson<ChannelRecord[]>('/channels', token);
+  return callAuthenticatedMethod<ChannelRecord[]>('catalog', 'listChannels', token);
 }
 
 export function saveChannel(input: {
   id: string;
   name: string;
 }): Promise<ChannelRecord> {
-  return postJson<typeof input, ChannelRecord>('/channels', input, requiredToken());
+  return callAuthenticatedMethod<ChannelRecord>('catalog', 'saveChannel', undefined, input);
 }
 
 export function deleteChannel(channelId: string): Promise<void> {
-  return deleteEmpty(`/channels/${encodeURIComponent(channelId)}`, requiredToken());
+  return callAuthenticatedMethod<void>('catalog', 'deleteChannel', undefined, channelId);
 }
 
 export function listProviders(token?: string): Promise<ProviderCatalogRecord[]> {
-  return getJson<ProviderCatalogRecord[]>('/providers', token);
+  return callAuthenticatedMethod<ProviderCatalogRecord[]>(
+    'catalog',
+    'listProviders',
+    token,
+  );
 }
 
-export function saveProvider(input: SaveProviderInput): Promise<ProviderRecordWithIntegration> {
-  return postJson<SaveProviderInput, ProviderRecordWithIntegration>(
-    '/providers',
+export function saveProvider(
+  input: SaveProviderInput,
+): Promise<ProviderRecordWithIntegration> {
+  return callAuthenticatedMethod<ProviderRecordWithIntegration>(
+    'catalog',
+    'saveProvider',
+    undefined,
     input,
-    requiredToken(),
   );
 }
 
 export function deleteProvider(providerId: string): Promise<void> {
-  return deleteEmpty(`/providers/${encodeURIComponent(providerId)}`, requiredToken());
+  return callAuthenticatedMethod<void>('catalog', 'deleteProvider', undefined, providerId);
 }
 
 export function listCredentials(token?: string): Promise<CredentialRecord[]> {
-  return getJson<CredentialRecord[]>('/credentials', token);
+  return callAuthenticatedMethod<CredentialRecord[]>(
+    'catalog',
+    'listCredentials',
+    token,
+  );
 }
 
 export function saveCredential(input: {
@@ -395,7 +488,12 @@ export function saveCredential(input: {
   key_reference: string;
   secret_value: string;
 }): Promise<CredentialRecord> {
-  return postJson<typeof input, CredentialRecord>('/credentials', input, requiredToken());
+  return callAuthenticatedMethod<CredentialRecord>(
+    'catalog',
+    'saveCredential',
+    undefined,
+    input,
+  );
 }
 
 export function deleteCredential(
@@ -403,18 +501,26 @@ export function deleteCredential(
   providerId: string,
   keyReference: string,
 ): Promise<void> {
-  return deleteEmpty(
-    `/credentials/${encodeURIComponent(tenantId)}/providers/${encodeURIComponent(providerId)}/keys/${encodeURIComponent(keyReference)}`,
-    requiredToken(),
+  return callAuthenticatedMethod<void>(
+    'catalog',
+    'deleteCredential',
+    undefined,
+    tenantId,
+    providerId,
+    keyReference,
   );
 }
 
 export function listModels(token?: string): Promise<ModelCatalogRecord[]> {
-  return getJson<ModelCatalogRecord[]>('/models', token);
+  return callAuthenticatedMethod<ModelCatalogRecord[]>('catalog', 'listModels', token);
 }
 
 export function listChannelModels(token?: string): Promise<ChannelModelRecord[]> {
-  return getJson<ChannelModelRecord[]>('/channel-models', token);
+  return callAuthenticatedMethod<ChannelModelRecord[]>(
+    'catalog',
+    'listChannelModels',
+    token,
+  );
 }
 
 export function saveChannelModel(input: {
@@ -426,13 +532,24 @@ export function saveChannelModel(input: {
   context_window?: number | null;
   description?: string;
 }): Promise<ChannelModelRecord> {
-  return postJson<typeof input, ChannelModelRecord>('/channel-models', input, requiredToken());
+  return callAuthenticatedMethod<ChannelModelRecord>(
+    'catalog',
+    'saveChannelModel',
+    undefined,
+    input,
+  );
 }
 
-export function deleteChannelModel(channelId: string, modelId: string): Promise<void> {
-  return deleteEmpty(
-    `/channel-models/${encodeURIComponent(channelId)}/models/${encodeURIComponent(modelId)}`,
-    requiredToken(),
+export function deleteChannelModel(
+  channelId: string,
+  modelId: string,
+): Promise<void> {
+  return callAuthenticatedMethod<void>(
+    'catalog',
+    'deleteChannelModel',
+    undefined,
+    channelId,
+    modelId,
   );
 }
 
@@ -443,18 +560,33 @@ export function saveModel(input: {
   streaming: boolean;
   context_window?: number;
 }): Promise<ModelCatalogRecord> {
-  return postJson<typeof input, ModelCatalogRecord>('/models', input, requiredToken());
+  return callAuthenticatedMethod<ModelCatalogRecord>(
+    'catalog',
+    'saveModel',
+    undefined,
+    input,
+  );
 }
 
-export function deleteModel(externalName: string, providerId: string): Promise<void> {
-  return deleteEmpty(
-    `/models/${encodeURIComponent(externalName)}/providers/${encodeURIComponent(providerId)}`,
-    requiredToken(),
+export function deleteModel(
+  externalName: string,
+  providerId: string,
+): Promise<void> {
+  return callAuthenticatedMethod<void>(
+    'catalog',
+    'deleteModel',
+    undefined,
+    externalName,
+    providerId,
   );
 }
 
 export function listModelPrices(token?: string): Promise<ModelPriceRecord[]> {
-  return getJson<ModelPriceRecord[]>('/model-prices', token);
+  return callAuthenticatedMethod<ModelPriceRecord[]>(
+    'catalog',
+    'listModelPrices',
+    token,
+  );
 }
 
 export function saveModelPrice(input: {
@@ -470,7 +602,12 @@ export function saveModelPrice(input: {
   request_price: number;
   is_active: boolean;
 }): Promise<ModelPriceRecord> {
-  return postJson<typeof input, ModelPriceRecord>('/model-prices', input, requiredToken());
+  return callAuthenticatedMethod<ModelPriceRecord>(
+    'catalog',
+    'saveModelPrice',
+    undefined,
+    input,
+  );
 }
 
 export function deleteModelPrice(
@@ -478,38 +615,62 @@ export function deleteModelPrice(
   modelId: string,
   proxyProviderId: string,
 ): Promise<void> {
-  return deleteEmpty(
-    `/model-prices/${encodeURIComponent(channelId)}/models/${encodeURIComponent(modelId)}/providers/${encodeURIComponent(proxyProviderId)}`,
-    requiredToken(),
+  return callAuthenticatedMethod<void>(
+    'catalog',
+    'deleteModelPrice',
+    undefined,
+    channelId,
+    modelId,
+    proxyProviderId,
   );
 }
 
 export function listUsageRecords(token?: string): Promise<UsageRecord[]> {
-  return getJson<UsageRecord[]>('/usage/records', token);
+  return callAuthenticatedMethod<UsageRecord[]>('usage', 'listUsageRecords', token);
 }
 
 export function getUsageSummary(token?: string): Promise<UsageSummary> {
-  return getJson<UsageSummary>('/usage/summary', token);
+  return callAuthenticatedMethod<UsageSummary>('usage', 'getUsageSummary', token);
 }
 
 export function getBillingSummary(token?: string): Promise<BillingSummary> {
-  return getJson<BillingSummary>('/billing/summary', token);
+  return callAuthenticatedMethod<BillingSummary>('billing', 'getBillingSummary', token);
 }
 
 export function listBillingEvents(token?: string): Promise<BillingEventRecord[]> {
-  return getJson<BillingEventRecord[]>('/billing/events', token);
+  return callAuthenticatedMethod<BillingEventRecord[]>(
+    'billing',
+    'listBillingEvents',
+    token,
+  );
 }
 
-export function getBillingEventSummary(token?: string): Promise<BillingEventSummary> {
-  return getJson<BillingEventSummary>('/billing/events/summary', token);
+export function getBillingEventSummary(
+  token?: string,
+): Promise<BillingEventSummary> {
+  return callAuthenticatedMethod<BillingEventSummary>(
+    'billing',
+    'getBillingEventSummary',
+    token,
+  );
 }
 
-export function listRoutingDecisionLogs(token?: string): Promise<RoutingDecisionLogRecord[]> {
-  return getJson<RoutingDecisionLogRecord[]>('/routing/decision-logs', token);
+export function listRoutingDecisionLogs(
+  token?: string,
+): Promise<RoutingDecisionLogRecord[]> {
+  return callAuthenticatedMethod<RoutingDecisionLogRecord[]>(
+    'routing',
+    'listRoutingDecisionLogs',
+    token,
+  );
 }
 
 export function listRateLimitPolicies(token?: string): Promise<RateLimitPolicyRecord[]> {
-  return getJson<RateLimitPolicyRecord[]>('/gateway/rate-limit-policies', token);
+  return callAuthenticatedMethod<RateLimitPolicyRecord[]>(
+    'operations',
+    'listRateLimitPolicies',
+    token,
+  );
 }
 
 export function createRateLimitPolicy(input: {
@@ -524,34 +685,48 @@ export function createRateLimitPolicy(input: {
   model_name?: string | null;
   notes?: string | null;
 }): Promise<RateLimitPolicyRecord> {
-  return postJson<typeof input, RateLimitPolicyRecord>(
-    '/gateway/rate-limit-policies',
+  return callAuthenticatedMethod<RateLimitPolicyRecord>(
+    'operations',
+    'createRateLimitPolicy',
+    undefined,
     input,
-    requiredToken(),
   );
 }
 
 export function listRateLimitWindows(token?: string): Promise<RateLimitWindowRecord[]> {
-  return getJson<RateLimitWindowRecord[]>('/gateway/rate-limit-windows', token);
+  return callAuthenticatedMethod<RateLimitWindowRecord[]>(
+    'operations',
+    'listRateLimitWindows',
+    token,
+  );
 }
 
 export function listProviderHealthSnapshots(
   token?: string,
 ): Promise<ProviderHealthSnapshot[]> {
-  return getJson<ProviderHealthSnapshot[]>('/routing/health-snapshots', token);
+  return callAuthenticatedMethod<ProviderHealthSnapshot[]>(
+    'routing',
+    'listProviderHealthSnapshots',
+    token,
+  );
 }
 
 export function listRuntimeStatuses(token?: string): Promise<RuntimeStatusRecord[]> {
-  return getJson<RuntimeStatusRecord[]>('/extensions/runtime-statuses', token);
+  return callAuthenticatedMethod<RuntimeStatusRecord[]>(
+    'operations',
+    'listRuntimeStatuses',
+    token,
+  );
 }
 
 export function reloadExtensionRuntimes(input?: {
   extension_id?: string;
   instance_id?: string;
 }): Promise<RuntimeReloadReport> {
-  return postJson<typeof input, RuntimeReloadReport>(
-    '/extensions/runtime-reloads',
+  return callAuthenticatedMethod<RuntimeReloadReport>(
+    'operations',
+    'reloadExtensionRuntimes',
+    undefined,
     input ?? {},
-    requiredToken(),
   );
 }

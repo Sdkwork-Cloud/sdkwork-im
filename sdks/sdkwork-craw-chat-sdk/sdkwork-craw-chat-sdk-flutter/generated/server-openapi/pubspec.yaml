@@ -1,5 +1,5 @@
 name: backend_sdk
-description: sdkwork-craw-chat-sdk SDK
+description: Generated Flutter transport package for the Craw Chat app API
 version: 0.1.0
 
 environment:

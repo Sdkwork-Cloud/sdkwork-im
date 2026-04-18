@@ -1,0 +1,9 @@
+[package]
+name = "craw-chat-openapi"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+craw-chat-api-registry = { path = "../craw-chat-api-registry" }
+serde_json.workspace = true

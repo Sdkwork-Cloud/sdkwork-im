@@ -8,6 +8,11 @@
 
 <div class="api-overview-grid">
   <div class="api-card">
+    <h3>Gateway OpenAPI</h3>
+    <p>Aggregate schema discovery, service schema index, per-service schema proxies, and rendered docs on the unified gateway port.</p>
+    <p><a href="/api-reference/gateway-openapi">Open Gateway OpenAPI</a></p>
+  </div>
+  <div class="api-card">
     <h3>App API</h3>
     <p>Session recovery, realtime delivery, device sync, conversations, membership, messages, media, streams, and RTC.</p>
     <p><a href="/api-reference/app-api">Open App API overview</a></p>
@@ -32,13 +37,17 @@
 ## Standards Used
 
 - Operation pages are grouped by runtime domain and linked individually in the sidebar.
+- The unified `web-gateway` also publishes an aggregate OpenAPI 3.1 document, a service schema index, and service-specific schema/docs routes.
+- For packaged installs, start with [Gateway OpenAPI](/api-reference/gateway-openapi): app, platform, IoT, control-plane, and `/api/admin/*` discovery all converge on the same unified public origin.
 - Request and response payloads are rendered from a shared schema registry to keep documentation aligned with implementation.
 - Nested request and response fields are expandable so large payloads remain readable on desktop and mobile.
 - Shared auth rules and error envelope semantics are documented in [Authentication and Errors](/api-reference/auth-and-errors).
+- SDK families remain boundary-specific: `sdkwork-craw-chat-sdk` maps to the public app API, `sdkwork-craw-chat-sdk-admin` maps to control-plane governance, and `sdkwork-craw-chat-sdk-management` maps to the unified gateway's `/api/admin/*` operator surface.
 
 ## Recommended Reading Path
 
 <div class="api-link-list">
+  <a href="/api-reference/gateway-openapi"><code>Gateway</code> Aggregate schema, schema index, and service-level docs discovery</a>
   <a href="/api-reference/auth-and-errors"><code>Auth</code> Authentication, trusted headers, and the error envelope</a>
   <a href="/api-reference/app/session-and-realtime"><code>App</code> Session and realtime transport semantics</a>
   <a href="/api-reference/app/conversations"><code>App</code> Conversation creation and handoff flows</a>

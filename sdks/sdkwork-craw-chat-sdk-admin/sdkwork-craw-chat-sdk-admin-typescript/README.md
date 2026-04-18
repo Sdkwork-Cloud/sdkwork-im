@@ -1,28 +1,69 @@
 # sdkwork-craw-chat-sdk-admin TypeScript
 
-当前目录保留给管理侧 `TypeScript` facade。
+This workspace contains the TypeScript admin SDK pair for Craw Chat control-plane integrations.
 
-## 预期职责
+## Packages
 
-- `control-plane` 读面
-- `protocol governance`
-- `compatibility matrix`
+- generated package: `@sdkwork/craw-chat-admin-backend-sdk`
+  - path: `generated/server-openapi`
+- composed package: `@sdkwork/craw-chat-sdk-admin`
+  - path: `composed`
 
-## 当前约束
+## Client Surface
 
-- 不承接 app-facing chat facade
-- 协议能力决策以 control-plane snapshot 为准
-- 当前先冻结路径与职责，不提前宣称生成代码已完成
+The preferred consumer entrypoint is `CrawChatSdkAdminClient`, which exposes:
 
-## 当前发布边界
+- `protocol`
+- `providers`
+- `cluster`
+- `social`
+- `system`
 
-- 当前 bundle 级发布目录真源：
-  - `artifacts/releases/wave-d-2026-04-08/sdk-release-catalog.json`
-- 当前 catalog 状态：
-  - `template_only_pending_generation`
-  - `not_published`
-- 当前版本占位状态：
-  - `plannedVersion = null`
-  - `versionStatus = version_unassigned_pending_freeze`
-  - `versionDecisionSourcePath = null`
-- 在真实生成与发布链补齐前，以 bundle catalog 为准，不在本 README 单独发明版本或发布结论
+`CrawChatSdkAdminClient.create({ backendClient })` and
+`CrawChatSdkAdminClient.create({ backendConfig })` both resolve to the same composed facade. The
+generated package remains the transport-only layer; business consumers should prefer the composed
+package.
+
+## Endpoint Targeting
+
+- For standalone governance development, configure `backendConfig.baseUrl` to the direct
+  `control-plane-api` origin, typically `http://127.0.0.1:18081`.
+- For packaged installs, configure `backendConfig.baseUrl` to the unified `craw-chat-server` /
+  `web-gateway` public origin.
+- Do not mix those deployment assumptions in the same client configuration.
+
+## Package Boundary
+
+The manual and composed layers must consume the generated transport package only through the
+package root `@sdkwork/craw-chat-admin-backend-sdk`.
+Do not import `generated/server-openapi/src/*` from manual sources or from public declaration
+surfaces.
+
+## Commands
+
+- generate or refresh the TypeScript workspace:
+  - `./bin/sdk-gen.sh`
+- assemble workspace metadata:
+  - `./bin/sdk-assemble.sh`
+- verify the admin SDK workspace:
+  - `./bin/sdk-verify.sh`
+
+The TypeScript verification path now performs:
+
+- generated package build to `generated/server-openapi/dist`
+- generated package `npm pack --dry-run` verification
+- composed package typecheck and build
+- composed smoke test at `composed/test/craw-chat-sdk-admin-client.test.mjs`
+
+The generated package manifest is stabilized so `build` and `prepublishOnly` delegate to the
+workspace-owned wrapper command under `sdks/sdkwork-craw-chat-sdk-admin/bin/` instead of the raw
+generator template.
+
+## Contract Source
+
+The package line is generated from:
+
+- `../openapi/craw-chat-control-plane.openapi.json`
+- `../openapi/craw-chat-control-plane.sdkgen.json`
+
+The root admin workspace owns authority refresh, verification, and assembly.

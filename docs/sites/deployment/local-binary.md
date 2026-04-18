@@ -1,6 +1,9 @@
 # Local Binary
 
 The local binary workflow is the most complete and transparent deployment path in the repository.
+It is the best path for development, debugging, and runtime-state inspection, but it is not the
+formal packaged `craw-chat-server` install contract. For the single-port server lifecycle, use
+[Server Lifecycle](/deployment/server-lifecycle).
 
 ## Lifecycle Scripts
 
@@ -94,3 +97,6 @@ The status script prints:
 3. Run `status-local.*`
 4. Run `tools/smoke/local_stack_smoke.ps1` if you want an end-to-end sanity check
 5. Use the runtime-management scripts before editing state files manually
+6. Switch to [Server Lifecycle](/deployment/server-lifecycle) when you need the packaged
+   `craw-chat-server` startup contract, generated service-manager assets, or PostgreSQL-backed
+   server validation instead of the local file-backed profile

@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
+import { loadYamlFromGenerator } from './generator-runtime.mjs';
 
 function fail(message) {
   console.error(`[sdkwork-craw-chat-sdk] ${message}`);
@@ -34,17 +35,11 @@ function parseArgs(argv) {
 async function loadYaml() {
   const scriptDir = path.dirname(fileURLToPath(import.meta.url));
   const workspaceRoot = path.resolve(scriptDir, '..');
-  const generatorRoot = process.env.SDKWORK_GENERATOR_ROOT
-    ? path.resolve(process.env.SDKWORK_GENERATOR_ROOT)
-    : path.resolve(workspaceRoot, '..', '..', '..', '..', 'sdk', 'sdkwork-sdk-generator');
-  const yamlPath = path.join(generatorRoot, 'node_modules', 'js-yaml', 'dist', 'js-yaml.mjs');
-
-  if (!existsSync(yamlPath)) {
-    fail(`Unable to locate js-yaml from generator workspace: ${yamlPath}`);
+  try {
+    return await loadYamlFromGenerator(workspaceRoot);
+  } catch (error) {
+    fail(error instanceof Error ? error.message : String(error));
   }
-
-  const yamlModule = await import(pathToFileURL(yamlPath).href);
-  return yamlModule.default;
 }
 
 function readJson(filePath) {
@@ -55,12 +50,104 @@ function readYaml(filePath, yaml) {
   return yaml.load(readFileSync(filePath, 'utf8'));
 }
 
+function cloneJson(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
 function readAuthorityMeta(authorityPath, yaml) {
   const document = readYaml(authorityPath, yaml);
   return {
     title: document?.info?.title || '',
     apiVersion: document?.info?.version || '',
     openapiVersion: document?.openapi || '',
+  };
+}
+
+function readDiscoverySurface(derivedPath, yaml) {
+  const document = readYaml(derivedPath, yaml);
+  const discoverySurface = document?.['x-sdkwork-sdk-surface'];
+  if (!discoverySurface || typeof discoverySurface !== 'object') {
+    fail(
+      `Derived sdkgen contract must expose x-sdkwork-sdk-surface: ${derivedPath}`,
+    );
+  }
+
+  return cloneJson(discoverySurface);
+}
+
+const consumerSurfaceProfiles = {
+  typescript: {
+    primaryClient: 'CrawChatClient',
+    domains: [
+      { name: 'session', operationGroups: ['sessions'] },
+      { name: 'presence', operationGroups: ['presence'] },
+      { name: 'realtime', operationGroups: ['realtime'] },
+      { name: 'devices', operationGroups: ['devices'] },
+      { name: 'inbox', operationGroups: ['conversations'] },
+      { name: 'conversations', operationGroups: ['conversations'] },
+      { name: 'messages', operationGroups: ['conversations'] },
+      { name: 'media', operationGroups: ['media'] },
+      { name: 'streams', operationGroups: ['streams'] },
+      { name: 'rtc', operationGroups: ['rtc'] },
+    ],
+  },
+  flutter: {
+    primaryClient: 'CrawChatClient',
+    domains: [
+      { name: 'session', operationGroups: ['sessions'] },
+      { name: 'presence', operationGroups: ['presence'] },
+      { name: 'realtime', operationGroups: ['realtime'] },
+      { name: 'devices', operationGroups: ['devices'] },
+      { name: 'inbox', operationGroups: ['conversations'] },
+      { name: 'conversations', operationGroups: ['conversations'] },
+      { name: 'messages', operationGroups: ['conversations'] },
+      { name: 'media', operationGroups: ['media'] },
+      { name: 'streams', operationGroups: ['streams'] },
+      { name: 'rtc', operationGroups: ['rtc'] },
+    ],
+  },
+};
+
+function sortedUnique(values) {
+  return [...new Set(values)].sort();
+}
+
+function buildConsumerSurface(language, discoverySurface, packages) {
+  const profile = consumerSurfaceProfiles[language];
+  if (!profile || !packages.some((entry) => entry.layer === 'composed')) {
+    return null;
+  }
+
+  const availableOperationGroups = new Set(
+    sortedUnique(
+      (Array.isArray(discoverySurface.surfaceGroups) ? discoverySurface.surfaceGroups : [])
+        .map((entry) => entry?.operationGroup)
+        .filter((value) => typeof value === 'string' && value.length > 0),
+    ),
+  );
+  const manualTransports = (Array.isArray(discoverySurface.manualTransports)
+    ? discoverySurface.manualTransports
+    : []
+  )
+    .map((entry) => ({
+      operationGroup: entry?.operationGroup || '',
+      protocol: entry?.protocol || '',
+      path: entry?.path || '',
+      serviceId: entry?.serviceId || '',
+    }))
+    .filter((entry) => entry.operationGroup && entry.protocol && entry.path);
+
+  return {
+    primaryClient: profile.primaryClient,
+    operationGroups: [...availableOperationGroups],
+    domains: profile.domains
+      .filter((entry) =>
+        entry.operationGroups.every((operationGroup) =>
+          availableOperationGroups.has(operationGroup),
+        ),
+      )
+      .map((entry) => cloneJson(entry)),
+    manualTransports,
   };
 }
 
@@ -100,7 +187,7 @@ function renderPackageAssembly(workspaceRoot, workspaceName, packageConfig, yaml
   };
 }
 
-function renderLanguageAssembly(workspaceRoot, language, yaml) {
+function renderLanguageAssembly(workspaceRoot, language, yaml, discoverySurface) {
   const map = {
     typescript: {
       workspace: 'sdkwork-craw-chat-sdk-typescript',
@@ -206,6 +293,8 @@ function renderLanguageAssembly(workspaceRoot, language, yaml) {
   return {
     language,
     workspace: config.workspace,
+    generationState: 'materialized',
+    releaseState: 'not_published',
     generatedPath: generatedPackage.packagePath,
     manifestPath: generatedPackage.manifestPath,
     name: generatedPackage.name,
@@ -213,6 +302,7 @@ function renderLanguageAssembly(workspaceRoot, language, yaml) {
     description: generatedPackage.description,
     entrypoints: generatedPackage.entrypoints,
     packages,
+    consumerSurface: buildConsumerSurface(language, discoverySurface, packages),
   };
 }
 
@@ -225,6 +315,7 @@ const derivedPath = path.join(workspaceRoot, 'openapi', 'craw-chat-app.sdkgen.ya
 const flutterDerivedPath = path.join(workspaceRoot, 'openapi', 'craw-chat-app.flutter.sdkgen.yaml');
 const assemblyPath = path.join(workspaceRoot, '.sdkwork-assembly.json');
 const authority = readAuthorityMeta(authorityPath, yaml);
+const discoverySurface = readDiscoverySurface(derivedPath, yaml);
 const languageSet = new Set(args.languages);
 for (const language of ['typescript', 'flutter']) {
   const manifestPath = generatedManifestPath(workspaceRoot, language);
@@ -234,7 +325,7 @@ for (const language of ['typescript', 'flutter']) {
 }
 const requestedLanguages = languageSet.size > 0 ? [...languageSet] : ['typescript', 'flutter'];
 const languages = requestedLanguages.map((language) =>
-  renderLanguageAssembly(workspaceRoot, language, yaml),
+  renderLanguageAssembly(workspaceRoot, language, yaml, discoverySurface),
 );
 const assemblyBase = {
   workspace: 'sdkwork-craw-chat-sdk',
@@ -251,6 +342,7 @@ const assemblyBase = {
     documented: true,
     generated: false,
   },
+  discoverySurface,
   languages,
 };
 
@@ -270,6 +362,7 @@ const currentComparable = currentAssembly
       derivedSpec: currentAssembly.derivedSpec,
       derivedSpecs: currentAssembly.derivedSpecs,
       websocketTransport: currentAssembly.websocketTransport,
+      discoverySurface: currentAssembly.discoverySurface,
       languages: currentAssembly.languages,
     }
   : null;

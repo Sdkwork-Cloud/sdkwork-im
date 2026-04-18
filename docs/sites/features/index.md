@@ -54,7 +54,9 @@ mean roadmap intent or naming-only presence.
   runtime wiring.
 - Implemented governance capability: exposed by the control plane and validated by control-plane
   tests.
-- Frozen workspace boundary: documented as planned delivery shape, but not yet documented as a
-  published package.
+- Materialized SDK boundary: checked-in OpenAPI authority, generated packages, or assembled
+  workspace metadata already exist in-repo even when publication is still pending.
+- Scaffolded SDK boundary: the workspace contract is reserved and named, but one or more language
+  packages are still placeholder-only or pending generator output.
 
 Continue with [Capability Matrix](/features/capabilities) for the evidence-oriented breakdown.

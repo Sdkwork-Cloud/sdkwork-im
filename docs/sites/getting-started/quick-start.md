@@ -2,6 +2,9 @@
 
 This is the shortest verified path to a working local Craw Chat app node.
 
+If you need the packaged single-port server contract instead of the local development profile, use
+[Server Lifecycle](/deployment/server-lifecycle).
+
 ## 1. Initialize Local Config
 
 ### PowerShell
@@ -169,6 +172,9 @@ posts a message, and verifies the resulting conversation summary.
 
 These scripts are for local verification and demo workflows. They are not substitutes for the
 generated SDK families.
+These scripts help validate a local node; application integrations should move to the public `sdkwork-craw-chat-sdk` packages instead of scripting raw HTTP once the node is healthy.
+For local app-SDK integration against this development profile, use `baseUrl = http://127.0.0.1:18090`.
+For packaged installs, switch the SDK base URL to the unified gateway origin documented in [Server Lifecycle](/deployment/server-lifecycle).
 
 ## 8. First Manual API Call
 

@@ -21,7 +21,9 @@
 
 ## SDK Alignment
 
+- The routes documented on this page do not currently have a standalone published SDK family. They are usually consumed through backend tooling, internal services, provider adapters, or direct HTTP integrations.
 - IoT-facing administrative flows typically sit behind backend or operator SDKs instead of the public app SDK.
+- In packaged installs, these IoT routes are still published through the unified `craw-chat-server` / `web-gateway` public origin rather than a separate public device-ingress port.
 - Downlink requests ultimately write frames into the same streaming model used by the App API.
 
 ## IoT API Domains

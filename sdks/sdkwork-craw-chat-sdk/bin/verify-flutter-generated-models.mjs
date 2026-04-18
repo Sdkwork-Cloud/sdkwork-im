@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
+import { loadYamlFromGenerator } from './generator-runtime.mjs';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = path.resolve(scriptDir, '..');
@@ -14,16 +15,10 @@ const modelsPath = path.join(
   'src',
   'models.dart',
 );
-const generatorRoot = process.env.SDKWORK_GENERATOR_ROOT
-  ? path.resolve(process.env.SDKWORK_GENERATOR_ROOT)
-  : path.resolve(workspaceRoot, '..', '..', '..', '..', 'sdk', 'sdkwork-sdk-generator');
 const authoritySpecPath = path.join(workspaceRoot, 'openapi', 'craw-chat-app.openapi.yaml');
 
 const models = readFileSync(modelsPath, 'utf8');
-const yamlModule = await import(
-  pathToFileURL(path.join(generatorRoot, 'node_modules', 'js-yaml', 'dist', 'js-yaml.mjs')).href
-);
-const yaml = yamlModule.default;
+const yaml = await loadYamlFromGenerator(workspaceRoot);
 const authority = yaml.load(readFileSync(authoritySpecPath, 'utf8'));
 const primitiveRefTypes = Object.entries(authority?.components?.schemas ?? {})
   .filter(([, schema]) => {

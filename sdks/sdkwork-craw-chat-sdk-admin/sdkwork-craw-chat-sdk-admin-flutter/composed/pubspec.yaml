@@ -1,0 +1,12 @@
+name: craw_chat_sdk_admin
+description: Composed Craw Chat admin Flutter SDK built on the generated craw_chat_admin_backend_sdk package
+version: 0.1.0
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  craw_chat_admin_backend_sdk: ^0.1.0
+
+dev_dependencies:
+  lints: ^3.0.0

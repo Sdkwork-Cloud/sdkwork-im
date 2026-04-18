@@ -319,7 +319,7 @@ if (languageSet.has('typescript')) {
   assertPresent(
     failures,
     generatedReadmeSource,
-    /Internal generator subpaths are not part of the supported public API\./,
+    /Internal generator subpaths are not part of the supported public API\.|Do not import `generated\/server-openapi\/src\/\*` private generator paths from downstream code\./,
     'TypeScript generated README must forbid internal generator subpaths as public API.',
   );
   if (existsSync(generatedDistIndexTypesPath)) {
@@ -534,6 +534,36 @@ if (languageSet.has('typescript')) {
     /\bauthToken\?:/,
     'TypeScript composed sdk-common shim must expose authToken.',
   );
+  assertPresent(
+    failures,
+    composedShimSource,
+    /\bmethod\?:\s*string;/,
+    'TypeScript composed sdk-common shim must expose RequestOptions.method for generated http client calls.',
+  );
+  assertPresent(
+    failures,
+    composedShimSource,
+    /\burl:\s*string;/,
+    'TypeScript composed sdk-common shim must expose RequestConfig.url for generated request execution.',
+  );
+  assertPresent(
+    failures,
+    composedShimSource,
+    /\bexport abstract class BaseHttpClient\b/,
+    'TypeScript composed sdk-common shim must expose BaseHttpClient for generated http client inheritance.',
+  );
+  assertPresent(
+    failures,
+    composedShimSource,
+    /\bexecute<[^>]+>\(config:\s*RequestConfig\):\s*Promise<[^>]+>;/,
+    'TypeScript composed sdk-common shim must expose BaseHttpClient.execute(...) for generated request execution.',
+  );
+  assertPresent(
+    failures,
+    composedShimSource,
+    /\bexport function withRetry<[^>]+>\(/,
+    'TypeScript composed sdk-common shim must expose withRetry(...) for generated request retries.',
+  );
   assertAbsent(
     failures,
     composedShimSource,
@@ -607,7 +637,7 @@ if (languageSet.has('flutter')) {
   assertPresent(
     failures,
     generatedReadmeSource,
-    /Generated `src\/` imports are not part of the supported public API\./,
+    /Generated `src\/` imports are not part of the supported public API\.|Do not import generated `lib\/src\/` imports from downstream code\./,
     'Flutter generated README must forbid generated src imports as public API.',
   );
   assertAbsent(

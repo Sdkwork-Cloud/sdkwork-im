@@ -7,6 +7,7 @@ const docsRoot = path.resolve(currentDir, "..");
 
 export const overviewItems = [
   { text: "API Overview", link: "/api-reference/index" },
+  { text: "Gateway OpenAPI", link: "/api-reference/gateway-openapi" },
   { text: "Authentication and Errors", link: "/api-reference/auth-and-errors" },
   { text: "App API Overview", link: "/api-reference/app-api" },
   { text: "Platform API Overview", link: "/api-reference/platform-api" },

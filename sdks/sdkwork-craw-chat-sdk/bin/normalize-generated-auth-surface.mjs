@@ -48,6 +48,52 @@ function writeIfChanged(filePath, content) {
   writeFileSync(filePath, nextContent, 'utf8');
 }
 
+function normalizeTypeScriptPackageJson(filePath) {
+  const currentPackage = existsSync(filePath)
+    ? JSON.parse(readFileSync(filePath, 'utf8'))
+    : {};
+  const stableBuildCommand = process.platform === 'win32'
+    ? '..\\..\\..\\bin\\build-typescript-generated-package.cmd'
+    : '../../../bin/build-typescript-generated-package';
+
+  const nextPackage = {
+    ...currentPackage,
+    description: 'Generated TypeScript transport package for the Craw Chat app API',
+    scripts: {
+      ...currentPackage.scripts,
+      build: stableBuildCommand,
+      prepublishOnly: 'npm run build',
+    },
+    keywords: [
+      'sdk',
+      'api',
+      'backend',
+      'sdkwork',
+      'craw-chat',
+      'app',
+      'chat',
+    ],
+  };
+
+  writeIfChanged(filePath, `${JSON.stringify(nextPackage, null, 2)}\n`);
+}
+
+function normalizeFlutterPubspec(filePath) {
+  const currentSource = existsSync(filePath) ? readFileSync(filePath, 'utf8') : '';
+  let nextSource = currentSource;
+
+  if (/^description:.*$/m.test(nextSource)) {
+    nextSource = nextSource.replace(
+      /^description:.*$/m,
+      'description: Generated Flutter transport package for the Craw Chat app API',
+    );
+  } else {
+    nextSource = `${nextSource.trimEnd()}\ndescription: Generated Flutter transport package for the Craw Chat app API\n`;
+  }
+
+  writeIfChanged(filePath, nextSource);
+}
+
 function removeIfExists(targetPath) {
   if (!existsSync(targetPath)) {
     return;
@@ -339,7 +385,9 @@ export interface SdkworkBackendConfig {
 
 function renderTypeScriptCommonShim() {
   return `declare module '@sdkwork/sdk-common' {
-  export type QueryParams = Record<string, string | number | boolean | undefined>;
+  export type QueryParamScalar = string | number | boolean | undefined | null;
+  export type QueryParamValue = QueryParamScalar | Array<string | number | boolean>;
+  export type QueryParams = Record<string, QueryParamValue>;
 
   export interface Page<T = unknown> {
     records?: T[];
@@ -356,32 +404,122 @@ function renderTypeScriptCommonShim() {
   }
 
   export interface RequestConfig {
-    timeout?: number;
+    url: string;
+    method: string;
     headers?: Record<string, string>;
+    params?: QueryParams;
+    body?: unknown;
+    timeout?: number;
+    signal?: AbortSignal;
+    skipAuth?: boolean;
+    retryCount?: number;
+    metadata?: Record<string, unknown>;
   }
 
-  export interface RequestOptions extends RequestConfig {}
+  export interface RequestOptions {
+    method?: string;
+    headers?: Record<string, string>;
+    body?: unknown;
+    params?: QueryParams;
+    signal?: AbortSignal;
+    skipAuth?: boolean;
+    requiresAuth?: boolean;
+    timeout?: number;
+    retry?: {
+      maxRetries?: number;
+      retryDelay?: number;
+      retryBackoff?: 'fixed' | 'linear' | 'exponential';
+      maxRetryDelay?: number;
+    };
+    cache?: boolean | number;
+    metadata?: Record<string, unknown>;
+  }
 
   export interface AuthTokens {
     authToken?: string;
     refreshToken?: string;
+    expiresIn?: number;
+    expiresAt?: number;
+    tokenType?: string;
+    scope?: string;
   }
 
   export interface AuthTokenManager {
-    getTokens?: () => AuthTokens | Promise<AuthTokens>;
-    refreshTokens?: () => AuthTokens | Promise<AuthTokens>;
+    getAuthToken(): string | undefined;
+    getRefreshToken(): string | undefined;
+    getTokens(): AuthTokens;
+    setTokens(tokens: AuthTokens): void;
+    setAuthToken(token: string): void;
+    setRefreshToken(token: string): void;
+    clearTokens(): void;
+    clearAuthToken(): void;
+    isExpired(): boolean;
+    isValid(): boolean;
+    hasToken(): boolean;
+    hasAuthToken(): boolean;
+    willExpireIn(seconds: number): boolean;
   }
 
   export const DEFAULT_TIMEOUT: number;
-  export const SUCCESS_CODES: number[];
+  export const SUCCESS_CODES: Array<number | string>;
+
+  export class DefaultAuthTokenManager implements AuthTokenManager {
+    constructor(initialTokens?: AuthTokens);
+    getAuthToken(): string | undefined;
+    getRefreshToken(): string | undefined;
+    getTokens(): AuthTokens;
+    setTokens(tokens: AuthTokens): void;
+    setAuthToken(token: string): void;
+    setRefreshToken(token: string): void;
+    clearTokens(): void;
+    clearAuthToken(): void;
+    isExpired(): boolean;
+    isValid(): boolean;
+    hasToken(): boolean;
+    hasAuthToken(): boolean;
+    willExpireIn(seconds: number): boolean;
+  }
+
+  export function createTokenManager(tokens?: AuthTokens): AuthTokenManager;
+
+  export abstract class BaseHttpClient {
+    constructor(config: Record<string, unknown>);
+    setAuthToken(token: string): void;
+    setTokenManager(manager: AuthTokenManager): void;
+    execute<T>(config: RequestConfig): Promise<T>;
+    abstract request<T>(path: string, options?: RequestOptions): Promise<T>;
+    abstract get<T>(path: string, params?: QueryParams): Promise<T>;
+    abstract post<T>(path: string, body?: unknown): Promise<T>;
+    abstract put<T>(path: string, body?: unknown): Promise<T>;
+    abstract delete<T>(path: string, body?: unknown): Promise<T>;
+    abstract patch<T>(path: string, body?: unknown): Promise<T>;
+  }
+
+  export function withRetry<T>(
+    fn: () => Promise<T>,
+    config?: {
+      maxRetries?: number;
+      retryDelay?: number;
+      retryBackoff?: 'fixed' | 'linear' | 'exponential';
+      maxRetryDelay?: number;
+    },
+  ): Promise<T>;
 }
 `;
 }
 
 function renderTypeScriptReadme() {
-  return `# sdkwork-craw-chat-sdk
+  return `# @sdkwork/craw-chat-backend-sdk
 
-Professional TypeScript transport SDK for the Craw Chat app API.
+Generated TypeScript transport package for the Craw Chat app API.
+
+## Package Role
+
+This package is the generator-owned transport layer for the checked-in app OpenAPI contract.
+Use it when you need direct access to generated HTTP operations and root-exported transport types.
+
+For business-facing chat integrations, prefer the composed package \`@sdkwork/craw-chat-sdk\`,
+which adds the higher-level chat client and manual orchestration layer above this transport package.
 
 ## Installation
 
@@ -422,6 +560,15 @@ client.setAuthToken('your-bearer-token');
 
 If token ownership lives outside the SDK, provide a custom \`tokenManager\` in the constructor instead.
 
+## Endpoint Targeting
+
+- In direct local development, point \`baseUrl\` to the app-facing service origin, typically the
+  local \`local-minimal-node\` HTTP endpoint such as \`http://127.0.0.1:18090\`.
+- In packaged installs, point \`baseUrl\` to the unified \`craw-chat-server\` or \`web-gateway\`
+  public origin.
+- Keep one deployment model per client configuration. Do not mix direct local service and unified
+  gateway assumptions in the same client instance.
+
 ## Configuration
 
 \`\`\`typescript
@@ -434,7 +581,7 @@ const client = new SdkworkBackendClient({
 });
 \`\`\`
 
-## API Modules
+## Surface Groups
 
 - \`client.session\` - session API
 - \`client.presence\` - presence API
@@ -462,8 +609,11 @@ MIT
 ## Package Boundary
 
 - Use only the package root entrypoint: \`@sdkwork/craw-chat-backend-sdk\`.
-- Internal generator subpaths are not part of the supported public API.
-- The workspace normalization wrapper strips generator-only auth scaffolding and source-tree build residue before verification and packaging.
+- Do not import \`generated/server-openapi/src/*\` private generator paths from downstream code.
+- Keep business orchestration in the composed package \`@sdkwork/craw-chat-sdk\` instead of
+  re-exporting generated internals.
+- The workspace normalization wrapper strips generator-only auth scaffolding and source-tree build
+  residue before verification and packaging.
 
 ## Regeneration Contract
 
@@ -571,9 +721,18 @@ class SdkworkBackendClient {
 }
 
 function renderFlutterReadme() {
-  return `# sdkwork-craw-chat-sdk (Flutter)
+  return `# backend_sdk
 
-Professional Flutter transport SDK for the Craw Chat app API.
+Generated Flutter transport package for the Craw Chat app API.
+
+## Package Role
+
+This package is the generator-owned transport layer for the checked-in app OpenAPI contract.
+Use it when you need direct access to generated HTTP operations and root-exported transport types.
+
+For business-facing chat integrations, prefer the composed Flutter layers under
+\`sdkwork-craw-chat-sdk-flutter/composed\`, where the manual \`craw_chat_sdk\` package wraps this
+transport package with the higher-level chat client surface.
 
 ## Installation
 
@@ -613,6 +772,15 @@ client.setAuthToken('your-bearer-token');
 // Sends: Authorization: Bearer <token>
 \`\`\`
 
+## Endpoint Targeting
+
+- In direct local development, point \`baseUrl\` to the app-facing service origin, typically the
+  local \`local-minimal-node\` HTTP endpoint such as \`http://127.0.0.1:18090\`.
+- In packaged installs, point \`baseUrl\` to the unified \`craw-chat-server\` or \`web-gateway\`
+  public origin.
+- Keep one deployment model per client configuration. Do not mix direct local service and unified
+  gateway assumptions in the same client instance.
+
 ## Configuration
 
 \`\`\`dart
@@ -627,7 +795,7 @@ final client = SdkworkBackendClient(
 );
 \`\`\`
 
-## API Modules
+## Surface Groups
 
 - \`client.session\` - session API
 - \`client.presence\` - presence API
@@ -655,8 +823,11 @@ MIT
 ## Package Boundary
 
 - Use only the package root entrypoint: \`package:backend_sdk/backend_sdk.dart\`.
-- Generated \`src/\` imports are not part of the supported public API.
-- The workspace normalization wrapper strips generator-only auth scaffolding and source-tree build residue before verification and packaging.
+- Do not import generated \`lib/src/\` imports from downstream code.
+- Keep business orchestration in the composed Flutter layers under
+  \`sdkwork-craw-chat-sdk-flutter/composed\` instead of re-exporting generated internals.
+- The workspace normalization wrapper strips generator-only auth scaffolding and source-tree build
+  residue before verification and packaging.
 
 ## Regeneration Contract
 
@@ -679,6 +850,7 @@ function normalizeTypeScript(workspaceRoot) {
   );
   const composedRoot = path.join(workspaceRoot, 'sdkwork-craw-chat-sdk-typescript', 'composed');
 
+  normalizeTypeScriptPackageJson(path.join(generatedRoot, 'package.json'));
   writeIfChanged(path.join(generatedRoot, 'src', 'index.ts'), renderTypeScriptIndex());
   writeIfChanged(path.join(generatedRoot, 'src', 'sdk.ts'), renderTypeScriptSdk());
   writeIfChanged(path.join(generatedRoot, 'src', 'http', 'client.ts'), renderTypeScriptHttpClient());
@@ -699,6 +871,7 @@ function normalizeFlutter(workspaceRoot) {
     'server-openapi',
   );
 
+  normalizeFlutterPubspec(path.join(generatedRoot, 'pubspec.yaml'));
   writeIfChanged(path.join(generatedRoot, 'lib', 'backend_client.dart'), renderFlutterBackendClient());
   writeIfChanged(path.join(generatedRoot, 'README.md'), renderFlutterReadme());
 }
@@ -723,5 +896,5 @@ if (languageSet.has('flutter')) {
 }
 
 console.log(
-  `[sdkwork-craw-chat-sdk] Normalized generated auth surface for ${[...languageSet].sort().join(', ')}.`,
+  `[sdkwork-craw-chat-sdk] Normalized generated transport packages for ${[...languageSet].sort().join(', ')}.`,
 );

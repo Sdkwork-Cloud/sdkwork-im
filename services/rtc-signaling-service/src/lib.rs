@@ -5,13 +5,17 @@ use axum::extract::{Path, State};
 use axum::http::HeaderMap;
 use axum::http::Request;
 use axum::middleware::{self, Next};
-use axum::response::{IntoResponse, Response};
+use axum::response::{Html, IntoResponse, Response};
 use axum::{
     Json, Router,
     routing::{get, post},
 };
+use craw_chat_api_registry::HttpMethod;
 use craw_chat_contract_core::ContractError;
 use craw_chat_contract_rtc::{RtcStateRecord, RtcStateStore};
+use craw_chat_openapi::{
+    OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
+};
 use im_adapter_object_storage_s3::{
     ALIYUN_OBJECT_STORAGE_PLUGIN_ID, AWS_OBJECT_STORAGE_PLUGIN_ID, GOOGLE_OBJECT_STORAGE_PLUGIN_ID,
     MICROSOFT_OBJECT_STORAGE_PLUGIN_ID, S3CompatibleObjectStorageProvider,
@@ -866,6 +870,14 @@ pub struct RtcError {
 }
 
 impl RtcError {
+    fn internal(code: &'static str, message: impl Into<String>) -> Self {
+        Self {
+            status: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            code,
+            message: message.into(),
+        }
+    }
+
     fn rtc_store(value: ContractError) -> Self {
         match value {
             ContractError::Unavailable(message) => Self {
@@ -1070,6 +1082,8 @@ pub fn build_app(runtime: Arc<RtcRuntime>) -> Router {
     Router::new()
         .route("/healthz", get(healthz))
         .route("/readyz", get(readyz))
+        .route("/openapi.json", get(openapi_json))
+        .route("/docs", get(docs))
         .route("/api/v1/rtc/sessions", post(create_session))
         .route(
             "/api/v1/rtc/sessions/{rtc_session_id}/invite",
@@ -1109,7 +1123,7 @@ pub fn build_app(runtime: Arc<RtcRuntime>) -> Router {
 
 async fn require_public_bearer_auth(request: Request<axum::body::Body>, next: Next) -> Response {
     match request.uri().path() {
-        "/healthz" | "/readyz" => next.run(request).await,
+        "/healthz" | "/readyz" | "/openapi.json" | "/docs" => next.run(request).await,
         _ => match resolve_public_bearer_auth_context(request.headers()) {
             Ok(_) => next.run(request).await,
             Err(error) => RtcError::from(error).into_response(),
@@ -1129,6 +1143,82 @@ async fn readyz() -> Json<HealthResponse> {
         status: "ok",
         service: "rtc-signaling-service",
     })
+}
+
+async fn openapi_json() -> Result<Json<serde_json::Value>, RtcError> {
+    Ok(Json(
+        build_rtc_signaling_service_openapi_document()
+            .map_err(|message| RtcError::internal("openapi_export_failed", message))?,
+    ))
+}
+
+async fn docs() -> Html<String> {
+    Html(render_docs_html(&rtc_signaling_service_openapi_spec()))
+}
+
+fn build_rtc_signaling_service_openapi_document() -> Result<serde_json::Value, String> {
+    let routes = extract_routes_from_function(
+        include_str!("lib.rs"),
+        "build_app",
+        &[],
+        &["/openapi.json", "/docs"],
+    )?;
+
+    Ok(build_openapi_document(
+        &rtc_signaling_service_openapi_spec(),
+        &routes,
+        rtc_signaling_service_tag,
+        rtc_signaling_service_requires_bearer,
+        rtc_signaling_service_summary,
+    ))
+}
+
+fn rtc_signaling_service_openapi_spec() -> OpenApiServiceSpec<'static> {
+    OpenApiServiceSpec {
+        title: "Craw Chat RTC Signaling Service API",
+        version: env!("CARGO_PKG_VERSION"),
+        description: "Live OpenAPI contract generated from the rtc-signaling-service router for RTC session lifecycle, signaling, credential issue, callback mapping, recording artifacts, and provider health flows.",
+        openapi_path: "/openapi.json",
+        docs_path: "/docs",
+    }
+}
+
+fn rtc_signaling_service_tag(path: &str, _method: HttpMethod) -> String {
+    match path {
+        "/healthz" | "/readyz" => "system".to_owned(),
+        path if path.contains("provider") => "providers".to_owned(),
+        path if path.contains("credentials") => "credentials".to_owned(),
+        path if path.contains("signals") => "signals".to_owned(),
+        _ => "rtc".to_owned(),
+    }
+}
+
+fn rtc_signaling_service_requires_bearer(path: &str, _method: HttpMethod) -> bool {
+    !matches!(path, "/healthz" | "/readyz")
+}
+
+fn rtc_signaling_service_summary(path: &str, method: HttpMethod) -> String {
+    match (path, method) {
+        ("/healthz", HttpMethod::Get) => "Check rtc signaling service health".to_owned(),
+        ("/readyz", HttpMethod::Get) => "Check rtc signaling service readiness".to_owned(),
+        _ => format!(
+            "{} {}",
+            rtc_signaling_service_method_display(method),
+            path.trim_matches('/').replace('/', " ")
+        ),
+    }
+}
+
+fn rtc_signaling_service_method_display(method: HttpMethod) -> &'static str {
+    match method {
+        HttpMethod::Delete => "Delete",
+        HttpMethod::Get => "Get",
+        HttpMethod::Head => "Head",
+        HttpMethod::Options => "Options",
+        HttpMethod::Patch => "Patch",
+        HttpMethod::Post => "Post",
+        HttpMethod::Put => "Put",
+    }
 }
 
 async fn create_session(

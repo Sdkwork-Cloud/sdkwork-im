@@ -19,8 +19,8 @@
 Writes a new audit record.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / audit</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>No standalone published SDK family</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`audit.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 AuditRecord`</span></div>
 </div>
@@ -57,8 +57,8 @@ Writes a new audit record.
 Lists audit records visible to the current principal.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / audit</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>No standalone published SDK family</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`audit.read`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 AuditRecordListResponse`</span></div>
 </div>
@@ -90,8 +90,8 @@ Lists audit records visible to the current principal.
 Exports an audit bundle containing the visible records at the time of the request.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / audit</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>No standalone published SDK family</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`audit.read`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 AuditExportBundle`</span></div>
 </div>
@@ -126,8 +126,8 @@ tampering before import.
 Verifies the tenant audit hash-chain and returns a summary integrity status.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / audit</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>No standalone published SDK family</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`audit.read`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 AuditChainVerification`</span></div>
 </div>

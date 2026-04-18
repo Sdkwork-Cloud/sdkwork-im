@@ -72,6 +72,10 @@ run('node', [path.join(scriptDir, 'verify-powershell-wrapper-args.mjs')], {
   cwd: workspaceRoot,
   step: 'workspace:powershell-wrapper-args',
 });
+run('node', [path.join(scriptDir, 'verify-derived-discovery-metadata.mjs')], {
+  cwd: workspaceRoot,
+  step: 'workspace:derived-discovery-metadata',
+});
 
 if (languageSet.has('typescript')) {
   run('node', [path.join(scriptDir, 'verify-typescript-workspace.mjs')], {

@@ -10,16 +10,20 @@ use audit_service::{AuditRuntime, RecordAuditAnchor};
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, Request, StatusCode};
 use axum::middleware::{self, Next};
-use axum::response::{IntoResponse, Response};
+use axum::response::{Html, IntoResponse, Response};
 use axum::{
     Json, Router,
     routing::{get, post},
 };
 use bytes::Bytes;
+use craw_chat_api_registry::HttpMethod;
 use craw_chat_ccp_registry::{
     BusinessPolicyVocabulary, CapabilityProfile, CcpRegistry, ClientCompatibilityDescriptor,
     EffectiveProtocolSnapshot, KillSwitchRule, ProtocolGovernanceSnapshot, QuotaProfile,
     ReleaseChannel, RolloutPolicy, SchemaDescriptor,
+};
+use craw_chat_openapi::{
+    OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
 use http_body_util::{BodyExt, Full};
 use hyper::body::Incoming;
@@ -5359,6 +5363,15 @@ impl From<SocialInvariantError> for ControlPlaneError {
 }
 
 impl ControlPlaneError {
+    fn internal(code: &'static str, message: impl Into<String>) -> Self {
+        Self {
+            status: StatusCode::INTERNAL_SERVER_ERROR,
+            code,
+            message: message.into(),
+            details: None,
+        }
+    }
+
     fn forbidden(required_permission: &'static str) -> Self {
         Self {
             status: StatusCode::FORBIDDEN,
@@ -6948,6 +6961,14 @@ pub fn build_public_app() -> Router {
     build_app().layer(middleware::from_fn(require_public_bearer_auth))
 }
 
+pub fn export_openapi_document() -> Result<serde_json::Value, String> {
+    build_control_plane_openapi_document()
+}
+
+pub fn export_openapi_spec() -> OpenApiServiceSpec<'static> {
+    control_plane_openapi_spec()
+}
+
 pub fn build_app_with_shared_channel_sync_trigger(
     shared_channel_sync_trigger: Arc<dyn SharedChannelLinkedMemberSyncTrigger>,
 ) -> Router {
@@ -7204,9 +7225,14 @@ fn build_app_with_state_and_scheduler_config(
     state: AppState,
     scheduler_config: SharedChannelSyncStaleReclaimSchedulerConfig,
 ) -> Router {
-    Router::new().route("/healthz", get(healthz)).merge(
-        build_control_surface_with_state_and_scheduler_config(state, scheduler_config),
-    )
+    Router::new()
+        .route("/healthz", get(healthz))
+        .route("/openapi.json", get(openapi_json))
+        .route("/docs", get(docs))
+        .merge(build_control_surface_with_state_and_scheduler_config(
+            state,
+            scheduler_config,
+        ))
 }
 
 fn build_control_surface_with_state(state: AppState) -> Router {
@@ -7375,7 +7401,7 @@ fn build_control_surface_with_state_and_scheduler_config(
 
 async fn require_public_bearer_auth(request: Request<axum::body::Body>, next: Next) -> Response {
     match request.uri().path() {
-        "/healthz" => next.run(request).await,
+        "/healthz" | "/openapi.json" | "/docs" => next.run(request).await,
         _ => match resolve_public_bearer_auth_context(request.headers()) {
             Ok(_) => next.run(request).await,
             Err(error) => ControlPlaneError::from(error).into_response(),
@@ -7388,6 +7414,106 @@ async fn healthz() -> Json<HealthResponse> {
         status: "ok",
         service: "control-plane-api",
     })
+}
+
+async fn openapi_json() -> Result<Json<serde_json::Value>, ControlPlaneError> {
+    Ok(Json(
+        build_control_plane_openapi_document()
+            .map_err(|message| ControlPlaneError::internal("openapi_export_failed", message))?,
+    ))
+}
+
+async fn docs() -> Html<String> {
+    Html(render_docs_html(&control_plane_openapi_spec()))
+}
+
+fn build_control_plane_openapi_document() -> Result<serde_json::Value, String> {
+    let source = include_str!("lib.rs");
+    let mut routes = extract_routes_from_function(
+        source,
+        "build_app_with_state_and_scheduler_config",
+        &[],
+        &["/openapi.json", "/docs"],
+    )?;
+    routes.extend(extract_routes_from_function(
+        source,
+        "build_control_surface_with_state_and_scheduler_config",
+        &[],
+        &["/openapi.json", "/docs"],
+    )?);
+
+    Ok(build_openapi_document(
+        &control_plane_openapi_spec(),
+        &routes,
+        control_plane_tag,
+        control_plane_requires_bearer,
+        control_plane_summary,
+    ))
+}
+
+fn control_plane_openapi_spec() -> OpenApiServiceSpec<'static> {
+    OpenApiServiceSpec {
+        title: "Craw Chat Control Plane API",
+        version: env!("CARGO_PKG_VERSION"),
+        description: "Live OpenAPI contract generated from the control-plane-api router for governance, provider management, social control workflows, and node operations.",
+        openapi_path: "/openapi.json",
+        docs_path: "/docs",
+    }
+}
+
+fn control_plane_tag(path: &str, _method: HttpMethod) -> String {
+    match path {
+        "/healthz" => "system".to_owned(),
+        path if path.starts_with("/api/v1/control/protocol-") => "protocol".to_owned(),
+        path if path.starts_with("/api/v1/control/provider-") => "providers".to_owned(),
+        path if path.starts_with("/api/v1/control/social/") => "social".to_owned(),
+        path if path.starts_with("/api/v1/control/nodes/") => "cluster".to_owned(),
+        _ => "control".to_owned(),
+    }
+}
+
+fn control_plane_requires_bearer(path: &str, _method: HttpMethod) -> bool {
+    path != "/healthz"
+}
+
+fn control_plane_summary(path: &str, method: HttpMethod) -> String {
+    match (path, method) {
+        ("/healthz", HttpMethod::Get) => "Check control plane health".to_owned(),
+        ("/api/v1/control/protocol-registry", HttpMethod::Get) => {
+            "Get protocol registry snapshot".to_owned()
+        }
+        ("/api/v1/control/protocol-governance", HttpMethod::Get) => {
+            "Get protocol governance snapshot".to_owned()
+        }
+        ("/api/v1/control/provider-registry", HttpMethod::Get) => {
+            "Get provider registry snapshot".to_owned()
+        }
+        _ => {
+            let resource = path
+                .trim_matches('/')
+                .split('/')
+                .skip(3)
+                .collect::<Vec<_>>()
+                .join(" ");
+            format!(
+                "{} {}",
+                control_plane_method_display(method),
+                if resource.is_empty() { path } else { resource.as_str() }
+            )
+        }
+    }
+}
+
+fn control_plane_method_display(method: HttpMethod) -> &'static str {
+    match method {
+        HttpMethod::Delete => "Delete",
+        HttpMethod::Get => "Get",
+        HttpMethod::Head => "Head",
+        HttpMethod::Options => "Options",
+        HttpMethod::Patch => "Patch",
+        HttpMethod::Post => "Post",
+        HttpMethod::Put => "Put",
+    }
 }
 
 async fn protocol_registry_snapshot(

@@ -19,7 +19,7 @@
 Reads sync-feed entries for a device after the last sequence already processed by the client.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / device-sync</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Registered device owner.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 DeviceSyncFeedResponse`</span></div>

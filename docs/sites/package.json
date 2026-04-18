@@ -3,11 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "docs:generate": "node ./scripts/generate-operation-pages.mjs",
-    "docs:dev": "npm run docs:generate && vitepress dev .",
-    "docs:build": "npm run docs:generate && vitepress build .",
-    "docs:preview": "vitepress preview .",
-    "docs:verify": "npm run docs:generate && node ./scripts/verify-api-docs.mjs"
+    "docs:generate": "%ComSpec% /d /s /c \"\"%npm_node_execpath%\" ./scripts/run-docs-task.mjs generate\" || \"$npm_node_execpath\" ./scripts/run-docs-task.mjs generate || node ./scripts/run-docs-task.mjs generate",
+    "docs:dev": "%ComSpec% /d /s /c \"\"%npm_node_execpath%\" ./scripts/run-docs-task.mjs dev\" || \"$npm_node_execpath\" ./scripts/run-docs-task.mjs dev || node ./scripts/run-docs-task.mjs dev",
+    "docs:build": "%ComSpec% /d /s /c \"\"%npm_node_execpath%\" ./scripts/run-docs-task.mjs build\" || \"$npm_node_execpath\" ./scripts/run-docs-task.mjs build || node ./scripts/run-docs-task.mjs build",
+    "docs:preview": "%ComSpec% /d /s /c \"\"%npm_node_execpath%\" ./scripts/run-docs-task.mjs preview\" || \"$npm_node_execpath\" ./scripts/run-docs-task.mjs preview || node ./scripts/run-docs-task.mjs preview",
+    "docs:verify": "%ComSpec% /d /s /c \"\"%npm_node_execpath%\" ./scripts/run-docs-task.mjs verify\" || \"$npm_node_execpath\" ./scripts/run-docs-task.mjs verify || node ./scripts/run-docs-task.mjs verify"
   },
   "devDependencies": {
     "vitepress": "^1.6.4"

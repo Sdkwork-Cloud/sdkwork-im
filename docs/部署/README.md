@@ -70,3 +70,15 @@
   - 当前状态为 `template_only_pending_execution`，默认预发布 profile 为 `local-default`，目标容量环境为 `capacity-dedicated`
 - [Release bundle 归档约定](../../artifacts/releases/README.md)
   - 冻结发布物目录、版本归档与最小可审计 manifest 结构
+## Server Edition
+
+- [server版本安装与初始化](./server版本安装与初始化.md)
+  - formal `craw-chat-server` install entry
+  - covers `install-server`, `init-config-server`, `init-storage-server`, `verify-server`, `plan-release-server`
+  - explains why `web-gateway` is the default external entrypoint
+- [server版本配置与PostgreSQL接入](./server版本配置与PostgreSQL接入.md)
+  - explains the external PostgreSQL configuration file workflow
+  - covers `verify-only`, `bootstrap-schema`, and `create-db-and-schema`
+- [server版本service托管标准](./server版本service托管标准.md)
+  - freezes `systemd`, `launchd`, and Windows Service targets
+  - standard service identity is `craw-chat-server`

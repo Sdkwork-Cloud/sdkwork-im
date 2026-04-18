@@ -31,7 +31,9 @@
 
 ## SDK Alignment
 
-- These endpoints are typically consumed through the administrative or backend SDK layer rather than the public app SDK.
+- The local `platform/*` routes documented on this page do not currently have a standalone published SDK family. They are typically consumed through backend tooling, internal services, or direct HTTP integrations.
+- Operator and `/api/admin/*` platform surfaces are intended for `sdkwork-craw-chat-sdk-management`; control-plane governance stays in `sdkwork-craw-chat-sdk-admin`; neither belongs in the public `sdkwork-craw-chat-sdk` surface.
+- In packaged installs, these routes are still reached through the unified `craw-chat-server` / `web-gateway` public origin even though the implementation remains on the app-node side of the runtime.
 - Permission requirements are documented in [Authentication and Errors](/api-reference/auth-and-errors) and repeated on operation pages when they are mandatory.
 
 ## Platform API Domains

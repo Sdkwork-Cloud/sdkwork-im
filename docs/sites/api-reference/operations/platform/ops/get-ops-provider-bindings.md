@@ -20,8 +20,8 @@ Returns the node-local mirror of provider binding snapshots.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / ops</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>No standalone published SDK family</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`ops.read`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ProviderBindingsView`</span></div>
 </div>

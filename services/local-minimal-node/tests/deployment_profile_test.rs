@@ -34,6 +34,13 @@ fn unique_temp_root(prefix: &str) -> PathBuf {
     std::env::temp_dir().join(format!("craw_chat_{prefix}_{unique}"))
 }
 
+fn write_file_with_parents(path: &Path, content: &str) {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).expect("parent dir should be created");
+    }
+    fs::write(path, content).expect("file should be written");
+}
+
 fn wait_for_path(path: &Path, timeout: Duration) -> bool {
     let deadline = Instant::now() + timeout;
     while Instant::now() < deadline {
@@ -5588,4 +5595,4486 @@ fn main() {
     );
 
     let _ = fs::remove_dir_all(&temp_root);
+}
+
+#[test]
+fn test_server_templates_freeze_cross_platform_contract() {
+    let root = workspace_root();
+    let server_template_path = root
+        .join("deployments")
+        .join("templates")
+        .join("server.yaml.example");
+    let server_env_template_path = root
+        .join("deployments")
+        .join("templates")
+        .join("server.env.example");
+    let postgresql_template_path = root
+        .join("deployments")
+        .join("templates")
+        .join("postgresql.yaml.example");
+    let quickstart_env_template_path = root
+        .join("deployments")
+        .join("templates")
+        .join("quickstart-server-compose.env.example");
+
+    let server_template = fs::read_to_string(&server_template_path).unwrap_or_else(|_| {
+        panic!(
+            "missing server template file: {}",
+            server_template_path.display()
+        )
+    });
+    let server_env_template = fs::read_to_string(&server_env_template_path).unwrap_or_else(|_| {
+        panic!(
+            "missing server env template file: {}",
+            server_env_template_path.display()
+        )
+    });
+    let postgresql_template = fs::read_to_string(&postgresql_template_path).unwrap_or_else(|_| {
+        panic!(
+            "missing postgresql template file: {}",
+            postgresql_template_path.display()
+        )
+    });
+    let quickstart_env_template =
+        fs::read_to_string(&quickstart_env_template_path).unwrap_or_else(|_| {
+            panic!(
+                "missing quickstart server env template file: {}",
+                quickstart_env_template_path.display()
+            )
+        });
+
+    for contract in [
+        "instance:",
+        "name: default",
+        "network:",
+        "bindAddress:",
+        "publicEndpoints:",
+        "baseUrl:",
+        "apiBaseUrl:",
+        "websocketBaseUrl:",
+        "runtime:",
+        "dataDir:",
+        "logDir:",
+        "runDir:",
+    ] {
+        assert!(
+            server_template.contains(contract),
+            "server.yaml.example must freeze the server config contract `{contract}`"
+        );
+    }
+
+    for contract in [
+        "CRAW_CHAT_SERVER_INSTANCE=",
+        "CRAW_CHAT_SERVER_CONFIG_DIR=",
+        "CRAW_CHAT_SERVER_DATA_DIR=",
+        "CRAW_CHAT_SERVER_LOG_DIR=",
+        "CRAW_CHAT_SERVER_RUN_DIR=",
+    ] {
+        assert!(
+            server_env_template.contains(contract),
+            "server.env.example must freeze the env overlay contract `{contract}`"
+        );
+    }
+
+    for contract in [
+        "provider: postgresql",
+        "connection:",
+        "passwordFile:",
+        "schema:",
+        "provisioningMode:",
+        "migrationMode:",
+        "verify-only",
+        "bootstrap-schema",
+        "create-db-and-schema",
+    ] {
+        assert!(
+            postgresql_template.contains(contract),
+            "postgresql.yaml.example must freeze the PostgreSQL contract `{contract}`"
+        );
+    }
+
+    for contract in [
+        "CRAW_CHAT_SERVER_IMAGE=",
+        "CRAW_CHAT_SERVER_BASE_URL=",
+        "CRAW_CHAT_SERVER_API_BASE_URL=",
+        "CRAW_CHAT_SERVER_WEBSOCKET_BASE_URL=",
+        "CRAW_CHAT_POSTGRES_HOST=",
+        "CRAW_CHAT_POSTGRES_DATABASE=",
+    ] {
+        assert!(
+            quickstart_env_template.contains(contract),
+            "quickstart-server-compose.env.example must align with the same server config model `{contract}`"
+        );
+    }
+}
+
+#[test]
+fn test_server_install_scripts_expose_consistent_help_surface() {
+    let root = workspace_root();
+
+    for script in [
+        root.join("bin").join("install-server.ps1"),
+        root.join("bin").join("install-server.sh"),
+        root.join("bin").join("init-config-server.ps1"),
+        root.join("bin").join("init-config-server.sh"),
+    ] {
+        let content = fs::read_to_string(&script)
+            .unwrap_or_else(|_| panic!("missing server lifecycle script: {}", script.display()));
+
+        for contract in [
+            "instance",
+            "config",
+            "data",
+            "log",
+            "run",
+            "non-interactive",
+        ] {
+            assert!(
+                content.to_ascii_lowercase().contains(contract),
+                "{} must advertise the `{contract}` help contract",
+                script.display()
+            );
+        }
+    }
+
+    for script in [
+        root.join("bin").join("install-server.cmd"),
+        root.join("bin").join("init-config-server.cmd"),
+    ] {
+        let content = fs::read_to_string(&script)
+            .unwrap_or_else(|_| panic!("missing CMD server wrapper: {}", script.display()));
+        assert!(
+            content.contains("_cmd-forward-powershell.cmd"),
+            "{} must remain a thin forwarder to the PowerShell implementation",
+            script.display()
+        );
+    }
+}
+
+#[test]
+fn test_server_storage_and_verify_scripts_freeze_postgresql_contract() {
+    let root = workspace_root();
+    let init_storage_ps1_path = root.join("bin").join("init-storage-server.ps1");
+    let init_storage_sh_path = root.join("bin").join("init-storage-server.sh");
+    let verify_ps1_path = root.join("bin").join("verify-server.ps1");
+    let verify_sh_path = root.join("bin").join("verify-server.sh");
+
+    let init_storage_ps1 = fs::read_to_string(&init_storage_ps1_path).unwrap_or_else(|_| {
+        panic!(
+            "missing init-storage-server.ps1: {}",
+            init_storage_ps1_path.display()
+        )
+    });
+    let init_storage_sh = fs::read_to_string(&init_storage_sh_path).unwrap_or_else(|_| {
+        panic!(
+            "missing init-storage-server.sh: {}",
+            init_storage_sh_path.display()
+        )
+    });
+    let verify_ps1 = fs::read_to_string(&verify_ps1_path)
+        .unwrap_or_else(|_| panic!("missing verify-server.ps1: {}", verify_ps1_path.display()));
+    let verify_sh = fs::read_to_string(&verify_sh_path)
+        .unwrap_or_else(|_| panic!("missing verify-server.sh: {}", verify_sh_path.display()));
+
+    for content in [&init_storage_ps1, &init_storage_sh] {
+        for contract in [
+            "verify-only",
+            "bootstrap-schema",
+            "create-db-and-schema",
+            "postgresql",
+            "storage",
+            "report",
+        ] {
+            assert!(
+                content.to_ascii_lowercase().contains(contract),
+                "init-storage-server scripts must freeze the PostgreSQL lifecycle contract `{contract}`"
+            );
+        }
+    }
+
+    for content in [&verify_ps1, &verify_sh] {
+        for contract in [
+            "config",
+            "storage",
+            "json",
+            "text",
+            "ready",
+            "release-gate",
+            "bundle",
+            "decisionstatus",
+            "platform",
+        ] {
+            assert!(
+                content.to_ascii_lowercase().contains(contract),
+                "verify-server scripts must freeze the verification contract `{contract}`"
+            );
+        }
+    }
+
+    assert!(
+        verify_ps1.contains("verify-server-release-contracts.mjs"),
+        "verify-server.ps1 must delegate release-contract auditing to the shared helper"
+    );
+    assert!(
+        verify_sh.contains("verify-server-release-contracts.mjs"),
+        "verify-server.sh must delegate release-contract auditing to the shared helper"
+    );
+    assert!(
+        !verify_ps1.contains("function Resolve-ReleaseWorkspaceRoot"),
+        "verify-server.ps1 must not keep the obsolete inline release workspace resolver once helper delegation is in place"
+    );
+    assert!(
+        !verify_sh.contains("resolve_release_workspace_root()"),
+        "verify-server.sh must not keep the obsolete inline release workspace resolver once helper delegation is in place"
+    );
+}
+
+#[test]
+fn test_verify_server_ps1_can_audit_machine_readable_release_contract_bundle() {
+    let root = workspace_root();
+    let temp_root = unique_temp_root("verify_server_release_contracts");
+    let config_dir = temp_root.join("config");
+    let storage_dir = config_dir.join("storage");
+    let secrets_dir = config_dir.join("secrets");
+    fs::create_dir_all(&storage_dir).expect("storage dir should be created");
+    fs::create_dir_all(&secrets_dir).expect("secrets dir should be created");
+
+    fs::write(
+        config_dir.join("server.yaml"),
+        r#"instance:
+  name: demo
+network:
+  bindAddress: 127.0.0.1:8080
+publicEndpoints:
+  baseUrl: http://127.0.0.1:8080
+runtime:
+  dataRoot: ./data
+"#,
+    )
+    .expect("server.yaml should be written");
+    fs::write(
+        storage_dir.join("postgresql.yaml"),
+        r#"provider: postgresql
+connection:
+  host: 127.0.0.1
+database: craw_chat
+username: craw_chat
+passwordFile: ./secrets/postgresql.password
+migrationMode: validate
+"#,
+    )
+    .expect("postgresql.yaml should be written");
+    fs::write(secrets_dir.join("postgresql.password"), "demo-secret\n")
+        .expect("postgresql password file should be written");
+
+    let release_gate_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("release-gate.json");
+
+    let output = Command::new("powershell")
+        .current_dir(&root)
+        .args([
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            "bin/verify-server.ps1",
+            "-InstanceName",
+            "demo",
+            "-ConfigDir",
+            config_dir
+                .to_str()
+                .expect("config dir should be a valid path"),
+            "-OutputFormat",
+            "json",
+            "-ReleaseGatePath",
+            release_gate_path
+                .to_str()
+                .expect("release gate path should be a valid path"),
+        ])
+        .output()
+        .expect("verify-server.ps1 should execute");
+
+    assert!(
+        output.status.success(),
+        "verify-server.ps1 should accept release gate auditing and still emit a structured report"
+    );
+
+    let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|_| {
+        panic!(
+            "verify-server.ps1 should emit valid json, got: {}",
+            String::from_utf8_lossy(&output.stdout)
+        )
+    });
+
+    assert_eq!(report["product"], "craw-chat-server");
+    assert_eq!(report["instance"], "demo");
+    assert_eq!(report["configValid"], true);
+    assert_eq!(report["storageValid"], true);
+    assert_eq!(report["ready"], true);
+    assert_eq!(report["releaseContracts"]["enabled"], true);
+    assert_eq!(
+        report["releaseContracts"]["gatePath"],
+        release_gate_path.display().to_string()
+    );
+    assert_eq!(report["releaseContracts"]["bundleId"], "wave-d-2026-04-08");
+    assert_eq!(report["releaseContracts"]["wave"], "wave-d");
+    assert_eq!(
+        report["releaseContracts"]["decisionStatus"],
+        "pending_go_no_go"
+    );
+    assert_eq!(
+        report["releaseContracts"]["canonicalStartupCommand"],
+        "craw-chat-server --config <config-root>/server.yaml"
+    );
+    assert_eq!(report["releaseContracts"]["packageArtifactCount"], 7);
+    assert_eq!(report["releaseContracts"]["platformCount"], 3);
+    assert_eq!(report["releaseContracts"]["contractsValid"], true);
+    assert_eq!(report["releaseContracts"]["semanticIssueCount"], 0);
+    assert!(
+        report["releaseContracts"]["semanticCheckCount"]
+            .as_u64()
+            .expect("semanticCheckCount should be numeric")
+            > 0,
+        "verify-server.ps1 must report that semantic release-contract checks actually ran"
+    );
+    assert_eq!(
+        report["releaseContracts"]["missing"]
+            .as_array()
+            .expect("releaseContracts.missing should be an array")
+            .len(),
+        0
+    );
+
+    let release_platforms = report["releaseContracts"]["platforms"]
+        .as_array()
+        .expect("releaseContracts.platforms should be an array");
+    for platform in ["linux", "macos", "windows"] {
+        assert!(
+            release_platforms
+                .iter()
+                .any(|entry| entry.as_str() == Some(platform)),
+            "releaseContracts.platforms must contain {platform}"
+        );
+    }
+    assert_eq!(
+        report["releaseContracts"]["semanticIssues"]
+            .as_array()
+            .expect("releaseContracts.semanticIssues should be an array")
+            .len(),
+        0
+    );
+
+    let _ = fs::remove_dir_all(&temp_root);
+}
+
+#[test]
+fn test_verify_server_ps1_detects_semantic_release_contract_mismatches_even_when_files_exist() {
+    let root = workspace_root();
+    let temp_root = unique_temp_root("verify_server_release_semantic_mismatch");
+    let config_dir = temp_root.join("config");
+    let storage_dir = config_dir.join("storage");
+    let secrets_dir = config_dir.join("secrets");
+    fs::create_dir_all(&storage_dir).expect("storage dir should be created");
+    fs::create_dir_all(&secrets_dir).expect("secrets dir should be created");
+
+    fs::write(
+        config_dir.join("server.yaml"),
+        r#"instance:
+  name: demo
+network:
+  bindAddress: 127.0.0.1:8080
+publicEndpoints:
+  baseUrl: http://127.0.0.1:8080
+runtime:
+  dataRoot: ./data
+"#,
+    )
+    .expect("server.yaml should be written");
+    fs::write(
+        storage_dir.join("postgresql.yaml"),
+        r#"provider: postgresql
+connection:
+  host: 127.0.0.1
+database: craw_chat
+username: craw_chat
+passwordFile: ./secrets/postgresql.password
+migrationMode: validate
+"#,
+    )
+    .expect("postgresql.yaml should be written");
+    fs::write(secrets_dir.join("postgresql.password"), "demo-secret\n")
+        .expect("postgresql password file should be written");
+
+    for relative_path in [
+        "artifacts/releases/wave-d-2026-04-08/server/release-gate.json",
+        "artifacts/releases/wave-d-2026-04-08/server/package-catalog.json",
+        "artifacts/releases/wave-d-2026-04-08/server/release-execution.json",
+        "artifacts/releases/wave-d-2026-04-08/server/release-provenance.json",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/release-checklist.md",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/SHA256SUMS",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/artifact-file-list.txt",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/acceptance-manifest.json",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/README.md",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/layout-tree.txt",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/acceptance-manifest.json",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/README.md",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/layout-tree.txt",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/acceptance-manifest.json",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/README.md",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/layout-tree.txt",
+        "docs/review/step-13-release-readiness-2026-04-08.md",
+        "docs/review/step-13-go-no-go清单-2026-04-08.md",
+    ] {
+        let source_path = root.join(relative_path);
+        let source_content = fs::read_to_string(&source_path)
+            .unwrap_or_else(|_| panic!("missing source fixture: {}", source_path.display()));
+        write_file_with_parents(&temp_root.join(relative_path), &source_content);
+    }
+
+    let release_gate_path = temp_root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("release-gate.json");
+    let mut gate_json: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&release_gate_path).unwrap_or_else(|_| {
+            panic!(
+                "missing temp release gate fixture: {}",
+                release_gate_path.display()
+            )
+        }))
+        .expect("temp release gate fixture should be valid json");
+    gate_json["platformGateChecks"][2]["requiredPackageIds"] =
+        serde_json::json!(["windows-zip", "windows-appx"]);
+    fs::write(
+        &release_gate_path,
+        serde_json::to_string_pretty(&gate_json)
+            .expect("mutated release gate should serialize cleanly"),
+    )
+    .expect("mutated release gate should be written");
+
+    let output = Command::new("powershell")
+        .current_dir(&root)
+        .args([
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            "bin/verify-server.ps1",
+            "-InstanceName",
+            "demo",
+            "-ConfigDir",
+            config_dir
+                .to_str()
+                .expect("config dir should be a valid path"),
+            "-OutputFormat",
+            "json",
+            "-ReleaseGatePath",
+            release_gate_path
+                .to_str()
+                .expect("release gate path should be a valid path"),
+        ])
+        .output()
+        .expect("verify-server.ps1 should execute");
+
+    assert!(
+        output.status.success(),
+        "verify-server.ps1 should emit a structured report even when semantic release checks fail"
+    );
+
+    let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|_| {
+        panic!(
+            "verify-server.ps1 should emit valid json, got: {}",
+            String::from_utf8_lossy(&output.stdout)
+        )
+    });
+
+    assert_eq!(report["configValid"], true);
+    assert_eq!(report["storageValid"], true);
+    assert_eq!(report["ready"], false);
+    assert_eq!(report["releaseContracts"]["enabled"], true);
+    assert_eq!(report["releaseContracts"]["contractsValid"], false);
+    assert_eq!(
+        report["releaseContracts"]["missing"]
+            .as_array()
+            .expect("releaseContracts.missing should be an array")
+            .len(),
+        0,
+        "this regression must prove semantic validation, not missing-file validation"
+    );
+    assert!(
+        report["releaseContracts"]["semanticIssueCount"]
+            .as_u64()
+            .expect("semanticIssueCount should be numeric")
+            > 0,
+        "semantic mismatch must increment semanticIssueCount"
+    );
+    assert!(
+        report["releaseContracts"]["semanticIssues"]
+            .as_array()
+            .expect("releaseContracts.semanticIssues should be an array")
+            .iter()
+            .any(|entry| {
+                entry.as_str() == Some("platform:windows:required-package-ids-mismatch")
+            }),
+        "verify-server.ps1 must report a stable semantic mismatch code for platform package-id drift"
+    );
+
+    let _ = fs::remove_dir_all(&temp_root);
+}
+
+#[test]
+fn test_server_service_surface_is_frozen() {
+    let root = workspace_root();
+    let systemd_unit_path = root
+        .join("deployments")
+        .join("systemd")
+        .join("craw-chat-server.service");
+    let launchd_plist_path = root
+        .join("deployments")
+        .join("launchd")
+        .join("com.sdkwork.crawchat.server.plist");
+    let windows_service_xml_path = root
+        .join("deployments")
+        .join("windows-service")
+        .join("CrawChatServer.xml");
+    let install_service_ps1_path = root.join("bin").join("install-service-server.ps1");
+    let install_service_sh_path = root.join("bin").join("install-service-server.sh");
+    let status_server_ps1_path = root.join("bin").join("status-server.ps1");
+    let status_server_sh_path = root.join("bin").join("status-server.sh");
+
+    let systemd_unit = fs::read_to_string(&systemd_unit_path).unwrap_or_else(|_| {
+        panic!(
+            "missing systemd server unit template: {}",
+            systemd_unit_path.display()
+        )
+    });
+    let launchd_plist = fs::read_to_string(&launchd_plist_path).unwrap_or_else(|_| {
+        panic!(
+            "missing launchd server plist template: {}",
+            launchd_plist_path.display()
+        )
+    });
+    let windows_service_xml = fs::read_to_string(&windows_service_xml_path).unwrap_or_else(|_| {
+        panic!(
+            "missing windows service wrapper template: {}",
+            windows_service_xml_path.display()
+        )
+    });
+    let install_service_ps1 = fs::read_to_string(&install_service_ps1_path).unwrap_or_else(|_| {
+        panic!(
+            "missing install-service-server.ps1: {}",
+            install_service_ps1_path.display()
+        )
+    });
+    let install_service_sh = fs::read_to_string(&install_service_sh_path).unwrap_or_else(|_| {
+        panic!(
+            "missing install-service-server.sh: {}",
+            install_service_sh_path.display()
+        )
+    });
+    let status_server_ps1 = fs::read_to_string(&status_server_ps1_path).unwrap_or_else(|_| {
+        panic!(
+            "missing status-server.ps1: {}",
+            status_server_ps1_path.display()
+        )
+    });
+    let status_server_sh = fs::read_to_string(&status_server_sh_path).unwrap_or_else(|_| {
+        panic!(
+            "missing status-server.sh: {}",
+            status_server_sh_path.display()
+        )
+    });
+
+    for contract in [
+        "[Unit]",
+        "[Service]",
+        "[Install]",
+        "craw-chat-server",
+        "server.env",
+        "server.yaml",
+    ] {
+        assert!(
+            systemd_unit.contains(contract),
+            "craw-chat-server.service must freeze the systemd contract `{contract}`"
+        );
+    }
+
+    for contract in [
+        "<plist",
+        "<key>Label</key>",
+        "com.sdkwork.crawchat.server",
+        "<key>ProgramArguments</key>",
+        "craw-chat-server",
+        "server.yaml",
+        "RunAtLoad",
+        "KeepAlive",
+        "StandardOutPath",
+        "StandardErrorPath",
+    ] {
+        assert!(
+            launchd_plist.contains(contract),
+            "com.sdkwork.crawchat.server.plist must freeze the launchd contract `{contract}`"
+        );
+    }
+
+    for contract in [
+        "<service>",
+        "<id>CrawChatServer</id>",
+        "<name>CrawChatServer</name>",
+        "craw-chat-server.exe",
+        "--config",
+        "server.yaml",
+        "<logpath>",
+        "<onfailure",
+    ] {
+        assert!(
+            windows_service_xml.contains(contract),
+            "CrawChatServer.xml must freeze the Windows Service wrapper contract `{contract}`"
+        );
+    }
+
+    for content in [
+        &install_service_ps1,
+        &install_service_sh,
+        &status_server_ps1,
+        &status_server_sh,
+    ] {
+        for contract in [
+            "service", "systemd", "launchd", "instance", "config", "status",
+        ] {
+            assert!(
+                content.to_ascii_lowercase().contains(contract),
+                "server service scripts must freeze the contract `{contract}`"
+            );
+        }
+    }
+
+    for content in [&status_server_ps1, &status_server_sh] {
+        for contract in [
+            "release-gate",
+            "bundle",
+            "decisionstatus",
+            "platform",
+            "json",
+            "output",
+        ] {
+            assert!(
+                content.to_ascii_lowercase().contains(contract),
+                "status-server scripts must freeze the release contract audit surface `{contract}`"
+            );
+        }
+    }
+
+    assert!(
+        status_server_ps1.contains("verify-server-release-contracts.mjs"),
+        "status-server.ps1 must delegate release-contract auditing to the shared helper"
+    );
+    assert!(
+        status_server_sh.contains("verify-server-release-contracts.mjs"),
+        "status-server.sh must delegate release-contract auditing to the shared helper"
+    );
+    assert!(
+        !status_server_ps1.contains("function Resolve-ReleaseWorkspaceRoot"),
+        "status-server.ps1 must not keep the obsolete inline release workspace resolver once helper delegation is in place"
+    );
+    assert!(
+        !status_server_sh.contains("resolve_release_workspace_root()"),
+        "status-server.sh must not keep the obsolete inline release workspace resolver once helper delegation is in place"
+    );
+}
+
+#[test]
+fn test_status_server_ps1_can_summarize_machine_readable_release_contract_bundle() {
+    let root = workspace_root();
+    let temp_root = unique_temp_root("status_server_release_contracts");
+    let config_dir = temp_root.join("config");
+    let generated_dir = config_dir.join("generated");
+    fs::create_dir_all(&generated_dir).expect("generated dir should be created");
+
+    fs::write(
+        generated_dir.join("craw-chat-server.service"),
+        "[Unit]\nDescription=craw-chat-server\n",
+    )
+    .expect("generated systemd unit should be written");
+    fs::write(
+        generated_dir.join("com.sdkwork.crawchat.server.plist"),
+        "<plist><dict><key>Label</key><string>com.sdkwork.crawchat.server</string></dict></plist>",
+    )
+    .expect("generated launchd plist should be written");
+    fs::write(
+        generated_dir.join("CrawChatServer.xml"),
+        "<service><id>CrawChatServer</id></service>",
+    )
+    .expect("generated windows service xml should be written");
+    fs::write(
+        generated_dir.join("install-CrawChatServer.ps1"),
+        "Write-Host 'install service'\n",
+    )
+    .expect("generated install script should be written");
+    fs::write(
+        generated_dir.join("uninstall-CrawChatServer.ps1"),
+        "Write-Host 'uninstall service'\n",
+    )
+    .expect("generated uninstall script should be written");
+    fs::write(
+        config_dir.join("storage-init-report.json"),
+        r#"{"product":"craw-chat-server","ready":true}"#,
+    )
+    .expect("storage-init-report.json should be written");
+
+    let release_gate_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("release-gate.json");
+
+    let output = Command::new("powershell")
+        .current_dir(&root)
+        .args([
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            "bin/status-server.ps1",
+            "-InstanceName",
+            "demo",
+            "-ConfigDir",
+            config_dir
+                .to_str()
+                .expect("config dir should be a valid path"),
+            "-OutputFormat",
+            "json",
+            "-ReleaseGatePath",
+            release_gate_path
+                .to_str()
+                .expect("release gate path should be a valid path"),
+        ])
+        .output()
+        .expect("status-server.ps1 should execute");
+
+    assert!(
+        output.status.success(),
+        "status-server.ps1 should accept release gate auditing and emit a structured status report"
+    );
+
+    let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|_| {
+        panic!(
+            "status-server.ps1 should emit valid json, got: {}",
+            String::from_utf8_lossy(&output.stdout)
+        )
+    });
+
+    assert_eq!(report["product"], "craw-chat-server");
+    assert_eq!(report["instance"], "demo");
+    assert_eq!(report["status"], "configuration-only skeleton");
+    assert_eq!(report["config"], config_dir.display().to_string());
+    assert_eq!(report["releaseContracts"]["enabled"], true);
+    assert_eq!(report["releaseContracts"]["bundleId"], "wave-d-2026-04-08");
+    assert_eq!(
+        report["releaseContracts"]["decisionStatus"],
+        "pending_go_no_go"
+    );
+    assert_eq!(report["releaseContracts"]["platformCount"], 3);
+    assert_eq!(report["releaseContracts"]["contractsValid"], true);
+    assert_eq!(report["releaseContracts"]["semanticIssueCount"], 0);
+    assert!(
+        report["releaseContracts"]["semanticCheckCount"]
+            .as_u64()
+            .expect("status-server semanticCheckCount should be numeric")
+            > 0,
+        "status-server.ps1 must surface that semantic release-contract checks actually ran"
+    );
+    assert_eq!(report["serviceContracts"]["systemd"]["exists"], true);
+    assert_eq!(report["serviceContracts"]["launchd"]["exists"], true);
+    assert_eq!(report["serviceContracts"]["windowsService"]["exists"], true);
+    assert_eq!(report["storageReport"]["exists"], true);
+
+    let _ = fs::remove_dir_all(&temp_root);
+}
+
+#[test]
+fn test_status_server_ps1_reports_semantic_release_contract_drift() {
+    let root = workspace_root();
+    let temp_root = unique_temp_root("status_server_release_semantic_mismatch");
+    let config_dir = temp_root.join("config");
+    let generated_dir = config_dir.join("generated");
+    fs::create_dir_all(&generated_dir).expect("generated dir should be created");
+
+    fs::write(
+        generated_dir.join("craw-chat-server.service"),
+        "[Unit]\nDescription=craw-chat-server\n",
+    )
+    .expect("generated systemd unit should be written");
+    fs::write(
+        generated_dir.join("com.sdkwork.crawchat.server.plist"),
+        "<plist><dict><key>Label</key><string>com.sdkwork.crawchat.server</string></dict></plist>",
+    )
+    .expect("generated launchd plist should be written");
+    fs::write(
+        generated_dir.join("CrawChatServer.xml"),
+        "<service><id>CrawChatServer</id></service>",
+    )
+    .expect("generated windows service xml should be written");
+    fs::write(
+        generated_dir.join("install-CrawChatServer.ps1"),
+        "Write-Host 'install service'\n",
+    )
+    .expect("generated install script should be written");
+    fs::write(
+        generated_dir.join("uninstall-CrawChatServer.ps1"),
+        "Write-Host 'uninstall service'\n",
+    )
+    .expect("generated uninstall script should be written");
+    fs::write(
+        config_dir.join("storage-init-report.json"),
+        r#"{"product":"craw-chat-server","ready":true}"#,
+    )
+    .expect("storage-init-report.json should be written");
+
+    for relative_path in [
+        "artifacts/releases/wave-d-2026-04-08/server/release-gate.json",
+        "artifacts/releases/wave-d-2026-04-08/server/package-catalog.json",
+        "artifacts/releases/wave-d-2026-04-08/server/release-execution.json",
+        "artifacts/releases/wave-d-2026-04-08/server/release-provenance.json",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/release-checklist.md",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/SHA256SUMS",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/artifact-file-list.txt",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/acceptance-manifest.json",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/README.md",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/layout-tree.txt",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/acceptance-manifest.json",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/README.md",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/layout-tree.txt",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/acceptance-manifest.json",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/README.md",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/layout-tree.txt",
+        "docs/review/step-13-release-readiness-2026-04-08.md",
+        "docs/review/step-13-go-no-go清单-2026-04-08.md",
+    ] {
+        let source_path = root.join(relative_path);
+        let source_content = fs::read_to_string(&source_path)
+            .unwrap_or_else(|_| panic!("missing source fixture: {}", source_path.display()));
+        write_file_with_parents(&temp_root.join(relative_path), &source_content);
+    }
+
+    let release_gate_path = temp_root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("release-gate.json");
+    let mut gate_json: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&release_gate_path).unwrap_or_else(|_| {
+            panic!(
+                "missing temp release gate fixture: {}",
+                release_gate_path.display()
+            )
+        }))
+        .expect("temp release gate fixture should be valid json");
+    gate_json["platformGateChecks"][1]["requiredPackageIds"] =
+        serde_json::json!(["macos-tar-gz", "macos-dmg"]);
+    fs::write(
+        &release_gate_path,
+        serde_json::to_string_pretty(&gate_json)
+            .expect("mutated release gate should serialize cleanly"),
+    )
+    .expect("mutated release gate should be written");
+
+    let output = Command::new("powershell")
+        .current_dir(&root)
+        .args([
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            "bin/status-server.ps1",
+            "-InstanceName",
+            "demo",
+            "-ConfigDir",
+            config_dir
+                .to_str()
+                .expect("config dir should be a valid path"),
+            "-OutputFormat",
+            "json",
+            "-ReleaseGatePath",
+            release_gate_path
+                .to_str()
+                .expect("release gate path should be a valid path"),
+        ])
+        .output()
+        .expect("status-server.ps1 should execute");
+
+    assert!(
+        output.status.success(),
+        "status-server.ps1 should emit a structured report even when semantic release checks fail"
+    );
+
+    let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|_| {
+        panic!(
+            "status-server.ps1 should emit valid json, got: {}",
+            String::from_utf8_lossy(&output.stdout)
+        )
+    });
+
+    assert_eq!(report["releaseContracts"]["enabled"], true);
+    assert_eq!(report["releaseContracts"]["contractsValid"], false);
+    assert!(
+        report["releaseContracts"]["semanticIssueCount"]
+            .as_u64()
+            .expect("semanticIssueCount should be numeric")
+            > 0,
+        "status-server.ps1 must surface semantic drift through semanticIssueCount"
+    );
+    assert!(
+        report["releaseContracts"]["semanticIssues"]
+            .as_array()
+            .expect("semanticIssues should be an array")
+            .iter()
+            .any(|entry| entry.as_str() == Some("platform:macos:required-package-ids-mismatch")),
+        "status-server.ps1 must surface the stable semantic mismatch code"
+    );
+
+    let _ = fs::remove_dir_all(&temp_root);
+}
+
+#[test]
+fn test_server_runtime_scripts_expose_consistent_help_surface() {
+    let root = workspace_root();
+
+    for script in [
+        root.join("bin").join("start-server.ps1"),
+        root.join("bin").join("start-server.sh"),
+        root.join("bin").join("stop-server.ps1"),
+        root.join("bin").join("stop-server.sh"),
+        root.join("bin").join("restart-server.ps1"),
+        root.join("bin").join("restart-server.sh"),
+        root.join("bin").join("uninstall-service-server.ps1"),
+        root.join("bin").join("uninstall-service-server.sh"),
+    ] {
+        let content = fs::read_to_string(&script)
+            .unwrap_or_else(|_| panic!("missing server runtime script: {}", script.display()));
+
+        for contract in ["instance", "config", "service", "status"] {
+            assert!(
+                content.to_ascii_lowercase().contains(contract),
+                "{} must advertise the runtime contract `{contract}`",
+                script.display()
+            );
+        }
+    }
+
+    let start_ps1 = fs::read_to_string(root.join("bin").join("start-server.ps1"))
+        .expect("start-server.ps1 should exist");
+    let start_sh = fs::read_to_string(root.join("bin").join("start-server.sh"))
+        .expect("start-server.sh should exist");
+    for content in [&start_ps1, &start_sh] {
+        for contract in ["foreground", "health", "binary", "log", "run"] {
+            assert!(
+                content.to_ascii_lowercase().contains(contract),
+                "start-server scripts must freeze the start contract `{contract}`"
+            );
+        }
+    }
+
+    let stop_ps1 = fs::read_to_string(root.join("bin").join("stop-server.ps1"))
+        .expect("stop-server.ps1 should exist");
+    let stop_sh = fs::read_to_string(root.join("bin").join("stop-server.sh"))
+        .expect("stop-server.sh should exist");
+    for content in [&stop_ps1, &stop_sh] {
+        for contract in ["pid", "stop", "run"] {
+            assert!(
+                content.to_ascii_lowercase().contains(contract),
+                "stop-server scripts must freeze the stop contract `{contract}`"
+            );
+        }
+    }
+
+    for script in [
+        root.join("bin").join("start-server.cmd"),
+        root.join("bin").join("stop-server.cmd"),
+        root.join("bin").join("restart-server.cmd"),
+        root.join("bin").join("uninstall-service-server.cmd"),
+    ] {
+        let content = fs::read_to_string(&script)
+            .unwrap_or_else(|_| panic!("missing CMD server wrapper: {}", script.display()));
+        assert!(
+            content.contains("_cmd-forward-powershell.cmd"),
+            "{} must remain a thin forwarder to the PowerShell implementation",
+            script.display()
+        );
+    }
+}
+
+#[test]
+fn test_install_service_server_ps1_renders_instance_specific_systemd_unit() {
+    let root = workspace_root();
+    let temp_root = unique_temp_root("server_service_render");
+    let config_dir = temp_root.join("config");
+    let install_root = temp_root.join("install");
+    fs::create_dir_all(&config_dir).expect("config dir should be created");
+    fs::create_dir_all(&install_root).expect("install dir should be created");
+
+    let output = Command::new("powershell")
+        .current_dir(&root)
+        .args([
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            "bin/install-service-server.ps1",
+            "-InstanceName",
+            "demo",
+            "-ConfigDir",
+            config_dir
+                .to_str()
+                .expect("config dir should be a valid path"),
+            "-InstallRoot",
+            install_root
+                .to_str()
+                .expect("install root should be a valid path"),
+        ])
+        .output()
+        .expect("install-service-server.ps1 should execute");
+
+    assert!(
+        output.status.success(),
+        "install-service-server.ps1 should render a generated service contract"
+    );
+
+    let generated_unit = config_dir
+        .join("generated")
+        .join("craw-chat-server.service");
+    let unit_content = fs::read_to_string(&generated_unit).unwrap_or_else(|_| {
+        panic!(
+            "generated systemd unit should exist at {}",
+            generated_unit.display()
+        )
+    });
+
+    assert!(
+        unit_content.contains(&format!(
+            "EnvironmentFile={}",
+            config_dir.join("server.env").display()
+        )),
+        "generated systemd unit must point at the selected instance config root"
+    );
+    assert!(
+        unit_content.contains(&format!(
+            "ExecStart={}/bin/craw-chat-server --config {}",
+            install_root.display(),
+            config_dir.join("server.yaml").display()
+        )),
+        "generated systemd unit must point at the selected install root and instance config"
+    );
+
+    let _ = fs::remove_dir_all(&temp_root);
+}
+
+#[test]
+fn test_install_service_server_ps1_renders_instance_specific_launchd_plist() {
+    let root = workspace_root();
+    let temp_root = unique_temp_root("server_launchd_render");
+    let config_dir = temp_root.join("config");
+    let install_root = temp_root.join("install");
+    let log_dir = temp_root.join("logs");
+    fs::create_dir_all(&config_dir).expect("config dir should be created");
+    fs::create_dir_all(&install_root).expect("install dir should be created");
+    fs::create_dir_all(&log_dir).expect("log dir should be created");
+
+    let output = Command::new("powershell")
+        .current_dir(&root)
+        .args([
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            "bin/install-service-server.ps1",
+            "-InstanceName",
+            "demo",
+            "-ConfigDir",
+            config_dir
+                .to_str()
+                .expect("config dir should be a valid path"),
+            "-InstallRoot",
+            install_root
+                .to_str()
+                .expect("install root should be a valid path"),
+            "-LogDir",
+            log_dir.to_str().expect("log dir should be a valid path"),
+        ])
+        .output()
+        .expect("install-service-server.ps1 should execute");
+
+    assert!(
+        output.status.success(),
+        "install-service-server.ps1 should render a generated launchd contract"
+    );
+
+    let generated_plist = config_dir
+        .join("generated")
+        .join("com.sdkwork.crawchat.server.plist");
+    let plist_content = fs::read_to_string(&generated_plist).unwrap_or_else(|_| {
+        panic!(
+            "generated launchd plist should exist at {}",
+            generated_plist.display()
+        )
+    });
+
+    assert!(
+        plist_content.contains("<string>com.sdkwork.crawchat.server</string>"),
+        "generated launchd plist must preserve the canonical launchd label"
+    );
+    assert!(
+        plist_content.contains(&format!(
+            "<string>{}/bin/craw-chat-server</string>",
+            install_root.display()
+        )),
+        "generated launchd plist must point at the selected install root"
+    );
+    assert!(
+        plist_content.contains("<string>--config</string>")
+            && plist_content.contains(&format!(
+                "<string>{}</string>",
+                config_dir.join("server.yaml").display()
+            )),
+        "generated launchd plist must pass the selected instance config"
+    );
+    assert!(
+        plist_content.contains(&format!(
+            "<string>{}</string>",
+            log_dir.join("craw-chat-server.out.log").display()
+        )) && plist_content.contains(&format!(
+            "<string>{}</string>",
+            log_dir.join("craw-chat-server.err.log").display()
+        )),
+        "generated launchd plist must render instance-specific stdout and stderr log targets"
+    );
+
+    let _ = fs::remove_dir_all(&temp_root);
+}
+
+#[test]
+fn test_install_service_server_ps1_renders_instance_specific_windows_service_contract() {
+    let root = workspace_root();
+    let temp_root = unique_temp_root("server_windows_service_render");
+    let config_dir = temp_root.join("config");
+    let install_root = temp_root.join("install");
+    let log_dir = temp_root.join("logs");
+    fs::create_dir_all(&config_dir).expect("config dir should be created");
+    fs::create_dir_all(&install_root).expect("install dir should be created");
+    fs::create_dir_all(&log_dir).expect("log dir should be created");
+
+    let output = Command::new("powershell")
+        .current_dir(&root)
+        .args([
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            "bin/install-service-server.ps1",
+            "-InstanceName",
+            "demo",
+            "-ConfigDir",
+            config_dir
+                .to_str()
+                .expect("config dir should be a valid path"),
+            "-InstallRoot",
+            install_root
+                .to_str()
+                .expect("install root should be a valid path"),
+            "-LogDir",
+            log_dir.to_str().expect("log dir should be a valid path"),
+        ])
+        .output()
+        .expect("install-service-server.ps1 should execute");
+
+    assert!(
+        output.status.success(),
+        "install-service-server.ps1 should render a generated windows service contract"
+    );
+
+    let generated_xml = config_dir.join("generated").join("CrawChatServer.xml");
+    let generated_install_script = config_dir
+        .join("generated")
+        .join("install-CrawChatServer.ps1");
+    let generated_uninstall_script = config_dir
+        .join("generated")
+        .join("uninstall-CrawChatServer.ps1");
+
+    let xml_content = fs::read_to_string(&generated_xml).unwrap_or_else(|_| {
+        panic!(
+            "generated windows service wrapper config should exist at {}",
+            generated_xml.display()
+        )
+    });
+    let install_script_content =
+        fs::read_to_string(&generated_install_script).unwrap_or_else(|_| {
+            panic!(
+                "generated windows service install script should exist at {}",
+                generated_install_script.display()
+            )
+        });
+    let uninstall_script_content =
+        fs::read_to_string(&generated_uninstall_script).unwrap_or_else(|_| {
+            panic!(
+                "generated windows service uninstall script should exist at {}",
+                generated_uninstall_script.display()
+            )
+        });
+
+    assert!(
+        xml_content.contains("<id>CrawChatServer</id>")
+            && xml_content.contains("<name>CrawChatServer</name>"),
+        "generated windows service wrapper config must preserve the canonical service identity"
+    );
+    assert!(
+        xml_content.contains(&format!(
+            "<executable>{}\\bin\\craw-chat-server.exe</executable>",
+            install_root.display()
+        )),
+        "generated windows service wrapper config must point at the selected install root"
+    );
+    assert!(
+        xml_content.contains(&format!(
+            "<arguments>--config &quot;{}&quot;</arguments>",
+            config_dir.join("server.yaml").display()
+        )),
+        "generated windows service wrapper config must pass the selected instance config"
+    );
+    assert!(
+        xml_content.contains(&format!("<logpath>{}</logpath>", log_dir.display())),
+        "generated windows service wrapper config must render the selected log directory"
+    );
+    assert!(
+        install_script_content.contains("CrawChatServer.exe")
+            && install_script_content.contains(" install"),
+        "generated windows service install script must invoke the service wrapper install entrypoint"
+    );
+    assert!(
+        uninstall_script_content.contains("CrawChatServer.exe")
+            && uninstall_script_content.contains(" uninstall"),
+        "generated windows service uninstall script must invoke the service wrapper uninstall entrypoint"
+    );
+
+    let _ = fs::remove_dir_all(&temp_root);
+}
+
+#[test]
+fn test_server_runtime_uses_canonical_craw_chat_server_binary_contract() {
+    let root = workspace_root();
+    let gateway_cargo =
+        fs::read_to_string(root.join("services").join("web-gateway").join("Cargo.toml"))
+            .expect("web-gateway Cargo.toml should exist");
+    let start_ps1 = fs::read_to_string(root.join("bin").join("start-server.ps1"))
+        .expect("start-server.ps1 should exist");
+    let start_sh = fs::read_to_string(root.join("bin").join("start-server.sh"))
+        .expect("start-server.sh should exist");
+
+    assert!(
+        gateway_cargo.contains("[[bin]]") && gateway_cargo.contains("name = \"craw-chat-server\""),
+        "web-gateway package must publish the canonical craw-chat-server binary entrypoint"
+    );
+    assert!(
+        start_ps1.contains("target\\release\\craw-chat-server.exe")
+            && start_ps1.contains("target\\debug\\craw-chat-server.exe"),
+        "start-server.ps1 must prefer the canonical craw-chat-server build artifacts"
+    );
+    assert!(
+        start_sh.contains("target/release/craw-chat-server")
+            && start_sh.contains("target/debug/craw-chat-server"),
+        "start-server.sh must prefer the canonical craw-chat-server build artifacts"
+    );
+}
+
+#[test]
+fn test_server_docs_and_release_bundle_freeze_external_postgresql_install_contract() {
+    let root = workspace_root();
+    let deployment_readme_path = root.join("docs").join("部署").join("README.md");
+    let install_doc_path = root
+        .join("docs")
+        .join("部署")
+        .join("server版本安装与初始化.md");
+    let postgres_doc_path = root
+        .join("docs")
+        .join("部署")
+        .join("server版本配置与PostgreSQL接入.md");
+    let service_doc_path = root
+        .join("docs")
+        .join("部署")
+        .join("server版本service托管标准.md");
+    let releases_readme_path = root.join("artifacts").join("releases").join("README.md");
+
+    let deployment_readme = fs::read_to_string(&deployment_readme_path).unwrap_or_else(|_| {
+        panic!(
+            "missing deployment README: {}",
+            deployment_readme_path.display()
+        )
+    });
+    let install_doc = fs::read_to_string(&install_doc_path)
+        .unwrap_or_else(|_| panic!("missing server install doc: {}", install_doc_path.display()));
+    let postgres_doc = fs::read_to_string(&postgres_doc_path).unwrap_or_else(|_| {
+        panic!(
+            "missing server postgresql doc: {}",
+            postgres_doc_path.display()
+        )
+    });
+    let service_doc = fs::read_to_string(&service_doc_path)
+        .unwrap_or_else(|_| panic!("missing server service doc: {}", service_doc_path.display()));
+    let releases_readme = fs::read_to_string(&releases_readme_path).unwrap_or_else(|_| {
+        panic!(
+            "missing releases README: {}",
+            releases_readme_path.display()
+        )
+    });
+
+    for content in [&deployment_readme, &install_doc] {
+        for contract in [
+            "craw-chat-server",
+            "install-server",
+            "init-config-server",
+            "init-storage-server",
+            "verify-server",
+            "plan-release-server",
+            "web-gateway",
+        ] {
+            assert!(
+                content.contains(contract),
+                "server deployment docs must freeze the install contract `{contract}`"
+            );
+        }
+    }
+
+    for contract in ["openapi/index.json", "openapi/services", "docs/services"] {
+        assert!(
+            install_doc.contains(contract),
+            "server install doc must freeze the unified gateway contract `{contract}`"
+        );
+    }
+
+    for contract in [
+        "postgresql",
+        "external",
+        "configuration file",
+        "verify-only",
+        "bootstrap-schema",
+        "create-db-and-schema",
+        "passwordFile",
+        "migrationMode",
+    ] {
+        assert!(
+            postgres_doc
+                .to_ascii_lowercase()
+                .contains(&contract.to_ascii_lowercase()),
+            "server PostgreSQL doc must freeze the external configuration contract `{contract}`"
+        );
+    }
+
+    for contract in [
+        "systemd",
+        "launchd",
+        "windows service",
+        "CrawChatServer",
+        "openapi/index.json",
+        "openapi/services",
+        "docs/services",
+    ] {
+        assert!(
+            service_doc
+                .to_ascii_lowercase()
+                .contains(&contract.to_ascii_lowercase()),
+            "server service doc must freeze the cross-platform service target `{contract}`"
+        );
+    }
+
+    for contract in [
+        "canonical",
+        "payload",
+        "craw-chat-server",
+        "plan-release-server",
+        "tar.gz",
+        "zip",
+        "deb",
+        "rpm",
+        "pkg",
+        "msi",
+    ] {
+        assert!(
+            releases_readme
+                .to_ascii_lowercase()
+                .contains(&contract.to_ascii_lowercase()),
+            "artifacts/releases/README.md must freeze the server bundle/install contract `{contract}`"
+        );
+    }
+}
+
+#[test]
+fn test_server_release_plan_scripts_freeze_machine_readable_release_contract_surface() {
+    let root = workspace_root();
+    let plan_release_ps1_path = root.join("bin").join("plan-release-server.ps1");
+    let plan_release_sh_path = root.join("bin").join("plan-release-server.sh");
+    let plan_release_cmd_path = root.join("bin").join("plan-release-server.cmd");
+    let plan_release_helper_path = root.join("bin").join("plan-release-server-contracts.mjs");
+
+    let plan_release_ps1 = fs::read_to_string(&plan_release_ps1_path).unwrap_or_else(|_| {
+        panic!(
+            "missing plan-release-server.ps1: {}",
+            plan_release_ps1_path.display()
+        )
+    });
+    let plan_release_sh = fs::read_to_string(&plan_release_sh_path).unwrap_or_else(|_| {
+        panic!(
+            "missing plan-release-server.sh: {}",
+            plan_release_sh_path.display()
+        )
+    });
+    let plan_release_cmd = fs::read_to_string(&plan_release_cmd_path).unwrap_or_else(|_| {
+        panic!(
+            "missing plan-release-server.cmd: {}",
+            plan_release_cmd_path.display()
+        )
+    });
+    let plan_release_helper = fs::read_to_string(&plan_release_helper_path).unwrap_or_else(|_| {
+        panic!(
+            "missing plan-release-server-contracts.mjs: {}",
+            plan_release_helper_path.display()
+        )
+    });
+
+    for content in [&plan_release_ps1, &plan_release_sh] {
+        for contract in [
+            "release-gate",
+            "package-catalog",
+            "release-execution",
+            "platform",
+            "checksum",
+            "artifact-file-list",
+            "json",
+            "text",
+            "plan",
+        ] {
+            assert!(
+                content.to_ascii_lowercase().contains(contract),
+                "plan-release-server scripts must freeze the release planning contract `{contract}`"
+            );
+        }
+    }
+
+    assert!(
+        plan_release_cmd.contains("_cmd-forward-powershell.cmd"),
+        "plan-release-server.cmd must remain a thin forwarder to the PowerShell implementation"
+    );
+    assert!(
+        plan_release_ps1.contains("plan-release-server-contracts.mjs"),
+        "plan-release-server.ps1 must delegate release-plan resolution to the shared helper"
+    );
+    assert!(
+        plan_release_sh.contains("plan-release-server-contracts.mjs"),
+        "plan-release-server.sh must delegate release-plan resolution to the shared helper"
+    );
+    assert!(
+        plan_release_helper.contains("stagingReadmePath"),
+        "plan-release-server-contracts.mjs must keep stagingReadmePath in the emitted platform plan surface"
+    );
+    assert!(
+        plan_release_helper.contains("checksumCommandExample"),
+        "plan-release-server-contracts.mjs must keep checksumCommandExample in the emitted platform plan surface"
+    );
+    assert!(
+        plan_release_helper.contains("status"),
+        "plan-release-server-contracts.mjs must keep platform execution status in the emitted plan surface"
+    );
+}
+
+#[test]
+fn test_plan_release_server_contract_helper_can_emit_machine_readable_release_execution_plan() {
+    let root = workspace_root();
+    let helper_path = root.join("bin").join("plan-release-server-contracts.mjs");
+    let release_gate_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("release-gate.json");
+
+    let output = Command::new("node")
+        .current_dir(&root)
+        .arg(helper_path)
+        .args([
+            "--release-gate-path",
+            release_gate_path
+                .to_str()
+                .expect("release gate path should be a valid path"),
+            "--platform",
+            "linux",
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("plan-release-server-contracts.mjs should execute");
+
+    assert!(
+        output.status.success(),
+        "plan-release-server-contracts.mjs should emit a structured release plan"
+    );
+
+    let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|_| {
+        panic!(
+            "plan-release-server-contracts.mjs should emit valid json, got: {}",
+            String::from_utf8_lossy(&output.stdout)
+        )
+    });
+
+    assert_eq!(report["product"], "craw-chat-server");
+    assert_eq!(report["bundleId"], "wave-d-2026-04-08");
+    assert_eq!(report["selectedPlatform"], "linux");
+    assert_eq!(report["contractsValid"], true);
+    assert_eq!(report["platformPlanCount"], 1);
+    let linux_plan = &report["platformPlans"]
+        .as_array()
+        .expect("platformPlans should be an array")[0];
+    assert_eq!(linux_plan["platform"], "linux");
+    assert_eq!(
+        linux_plan["stagingReadmePath"],
+        "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/README.md"
+    );
+    assert_eq!(linux_plan["status"], "template_only_pending_execution");
+    assert_eq!(
+        linux_plan["checksumCommandExample"],
+        "sha256sum -b <artifact> >> ../../SHA256SUMS"
+    );
+}
+
+#[test]
+fn test_plan_release_server_contract_helper_detects_semantic_release_contract_drift() {
+    let root = workspace_root();
+    let temp_root = unique_temp_root("plan_release_semantic_mismatch");
+
+    for relative_path in [
+        "artifacts/releases/wave-d-2026-04-08/server/release-gate.json",
+        "artifacts/releases/wave-d-2026-04-08/server/package-catalog.json",
+        "artifacts/releases/wave-d-2026-04-08/server/release-execution.json",
+        "artifacts/releases/wave-d-2026-04-08/server/release-provenance.json",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/release-checklist.md",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/SHA256SUMS",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/artifact-file-list.txt",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/acceptance-manifest.json",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/README.md",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/layout-tree.txt",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/acceptance-manifest.json",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/README.md",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/layout-tree.txt",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/acceptance-manifest.json",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/README.md",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/layout-tree.txt",
+        "docs/review/step-13-release-readiness-2026-04-08.md",
+        "docs/review/step-13-go-no-go清单-2026-04-08.md",
+    ] {
+        let source_path = root.join(relative_path);
+        let source_content = fs::read_to_string(&source_path)
+            .unwrap_or_else(|_| panic!("missing source fixture: {}", source_path.display()));
+        write_file_with_parents(&temp_root.join(relative_path), &source_content);
+    }
+
+    let release_gate_path = temp_root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("release-gate.json");
+    let mut gate_json: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&release_gate_path).unwrap_or_else(|_| {
+            panic!(
+                "missing temp release gate fixture: {}",
+                release_gate_path.display()
+            )
+        }))
+        .expect("temp release gate fixture should be valid json");
+    gate_json["platformGateChecks"][0]["requiredPackageIds"] =
+        serde_json::json!(["linux-tar-gz", "linux-snap"]);
+    fs::write(
+        &release_gate_path,
+        serde_json::to_string_pretty(&gate_json)
+            .expect("mutated release gate should serialize cleanly"),
+    )
+    .expect("mutated release gate should be written");
+
+    let helper_path = root.join("bin").join("plan-release-server-contracts.mjs");
+    let output = Command::new("node")
+        .current_dir(&root)
+        .arg(helper_path)
+        .args([
+            "--release-gate-path",
+            release_gate_path
+                .to_str()
+                .expect("release gate path should be a valid path"),
+            "--platform",
+            "linux",
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("plan-release-server-contracts.mjs should execute");
+
+    assert!(
+        output.status.success(),
+        "plan-release-server-contracts.mjs should emit a structured report even when semantic release checks fail"
+    );
+
+    let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|_| {
+        panic!(
+            "plan-release-server-contracts.mjs should emit valid json, got: {}",
+            String::from_utf8_lossy(&output.stdout)
+        )
+    });
+
+    assert_eq!(report["selectedPlatform"], "linux");
+    assert_eq!(report["contractsValid"], false);
+    assert!(
+        report["semanticIssueCount"]
+            .as_u64()
+            .expect("semanticIssueCount should be numeric")
+            > 0,
+        "plan-release-server-contracts.mjs must surface semantic drift"
+    );
+    assert!(
+        report["semanticIssues"]
+            .as_array()
+            .expect("semanticIssues should be an array")
+            .iter()
+            .any(|entry| entry.as_str() == Some("platform:linux:required-package-ids-mismatch")),
+        "plan-release-server-contracts.mjs must surface the stable semantic mismatch code"
+    );
+
+    let _ = fs::remove_dir_all(&temp_root);
+}
+
+#[test]
+fn test_plan_release_server_ps1_can_emit_machine_readable_release_execution_plan() {
+    let root = workspace_root();
+    let release_gate_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("release-gate.json");
+
+    let output = Command::new("powershell")
+        .current_dir(&root)
+        .args([
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            "bin/plan-release-server.ps1",
+            "-ReleaseGatePath",
+            release_gate_path
+                .to_str()
+                .expect("release gate path should be a valid path"),
+            "-Platform",
+            "windows",
+            "-OutputFormat",
+            "json",
+        ])
+        .output()
+        .expect("plan-release-server.ps1 should execute");
+
+    assert!(
+        output.status.success(),
+        "plan-release-server.ps1 should accept release gate input and emit a structured release plan"
+    );
+
+    let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|_| {
+        panic!(
+            "plan-release-server.ps1 should emit valid json, got: {}",
+            String::from_utf8_lossy(&output.stdout)
+        )
+    });
+
+    assert_eq!(report["product"], "craw-chat-server");
+    assert_eq!(report["bundleId"], "wave-d-2026-04-08");
+    assert_eq!(report["wave"], "wave-d");
+    assert_eq!(report["selectedPlatform"], "windows");
+    assert_eq!(
+        report["canonicalBuildCommand"],
+        "cargo build -p web-gateway --release --bin craw-chat-server --offline"
+    );
+    assert_eq!(
+        report["canonicalStartupCommand"],
+        "craw-chat-server --config <config-root>/server.yaml"
+    );
+    assert_eq!(report["contractsValid"], true);
+    assert_eq!(report["packageArtifactCount"], 7);
+    assert_eq!(report["gateCheckCount"], 6);
+    assert_eq!(report["platformPlanCount"], 1);
+
+    let platform_plans = report["platformPlans"]
+        .as_array()
+        .expect("platformPlans should be an array");
+    assert_eq!(platform_plans.len(), 1);
+    let windows_plan = &platform_plans[0];
+    assert_eq!(windows_plan["platform"], "windows");
+    assert_eq!(windows_plan["serviceManager"], "windows-service");
+    assert_eq!(
+        windows_plan["stagingRoot"],
+        "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts"
+    );
+    assert_eq!(
+        windows_plan["acceptanceManifestPath"],
+        "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/acceptance-manifest.json"
+    );
+    assert_eq!(
+        windows_plan["checksumCommandExample"],
+        "Get-FileHash -Algorithm SHA256 <artifact> | Format-Table -HideTableHeaders >> ../../SHA256SUMS"
+    );
+
+    let package_ids = windows_plan["packageIds"]
+        .as_array()
+        .expect("windows platform plan packageIds should be an array");
+    for package_id in ["windows-zip", "windows-msi"] {
+        assert!(
+            package_ids
+                .iter()
+                .any(|entry| entry.as_str() == Some(package_id)),
+            "windows platform plan must contain package id {package_id}"
+        );
+    }
+}
+
+#[test]
+fn test_cli_and_scripts_doc_freezes_server_release_helper_contract() {
+    let root = workspace_root();
+    let cli_doc_path = root
+        .join("docs")
+        .join("sites")
+        .join("reference")
+        .join("cli-and-scripts.md");
+
+    let cli_doc = fs::read_to_string(&cli_doc_path)
+        .unwrap_or_else(|_| panic!("missing cli reference doc: {}", cli_doc_path.display()));
+
+    for contract in [
+        "verify-server.*",
+        "status-server.*",
+        "plan-release-server.*",
+        "semantic",
+        "release-gate",
+        "contractsValid",
+        "verify-server-release-contracts.mjs",
+        "plan-release-server-contracts.mjs",
+    ] {
+        assert!(
+            cli_doc.contains(contract),
+            "cli-and-scripts.md must freeze the server release helper contract `{contract}`"
+        );
+    }
+}
+
+#[test]
+fn test_server_release_bundle_freezes_windows_service_wrapper_payload_contract() {
+    let root = workspace_root();
+    let releases_readme_path = root.join("artifacts").join("releases").join("README.md");
+    let bundle_manifest_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("bundle-manifest.md");
+    let windows_payload_readme_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("windows-service")
+        .join("README.md");
+
+    let releases_readme = fs::read_to_string(&releases_readme_path).unwrap_or_else(|_| {
+        panic!(
+            "missing releases README: {}",
+            releases_readme_path.display()
+        )
+    });
+    let bundle_manifest = fs::read_to_string(&bundle_manifest_path).unwrap_or_else(|_| {
+        panic!(
+            "missing release bundle manifest: {}",
+            bundle_manifest_path.display()
+        )
+    });
+    let windows_payload_readme =
+        fs::read_to_string(&windows_payload_readme_path).unwrap_or_else(|_| {
+            panic!(
+                "missing windows payload placeholder readme: {}",
+                windows_payload_readme_path.display()
+            )
+        });
+
+    for contract in [
+        "bin/CrawChatServer.exe",
+        "deployments/windows-service/CrawChatServer.xml",
+        "wrapper-required",
+        "server.yaml",
+        "install-service-server",
+    ] {
+        assert!(
+            releases_readme.contains(contract),
+            "artifacts/releases/README.md must freeze the Windows Service payload contract `{contract}`"
+        );
+    }
+
+    assert!(
+        bundle_manifest
+            .contains("artifacts/releases/wave-d-2026-04-08/server/windows-service/README.md"),
+        "Wave D bundle manifest must reference the Windows Service payload placeholder readme"
+    );
+
+    for contract in [
+        "template_only_pending_payload",
+        "bin/craw-chat-server.exe",
+        "bin/CrawChatServer.exe",
+        "deployments/windows-service/CrawChatServer.xml",
+        "generated/CrawChatServer.xml",
+        "install-CrawChatServer.ps1",
+        "uninstall-CrawChatServer.ps1",
+        "server.yaml",
+    ] {
+        assert!(
+            windows_payload_readme.contains(contract),
+            "Windows Service payload placeholder readme must freeze `{contract}`"
+        );
+    }
+}
+
+#[test]
+fn test_server_release_bundle_freezes_root_payload_index_contract() {
+    let root = workspace_root();
+    let releases_readme_path = root.join("artifacts").join("releases").join("README.md");
+    let bundle_manifest_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("bundle-manifest.md");
+    let server_payload_index_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("README.md");
+
+    let releases_readme = fs::read_to_string(&releases_readme_path).unwrap_or_else(|_| {
+        panic!(
+            "missing releases README: {}",
+            releases_readme_path.display()
+        )
+    });
+    let bundle_manifest = fs::read_to_string(&bundle_manifest_path).unwrap_or_else(|_| {
+        panic!(
+            "missing release bundle manifest: {}",
+            bundle_manifest_path.display()
+        )
+    });
+    let server_payload_index =
+        fs::read_to_string(&server_payload_index_path).unwrap_or_else(|_| {
+            panic!(
+                "missing server payload index readme: {}",
+                server_payload_index_path.display()
+            )
+        });
+
+    for contract in [
+        "server/README.md",
+        "canonical payload layout",
+        "bin/craw-chat-server",
+        "deployments/templates/server.yaml.example",
+        "deployments/systemd/craw-chat-server.service",
+        "deployments/launchd/com.sdkwork.crawchat.server.plist",
+        "deployments/windows-service/CrawChatServer.xml",
+    ] {
+        assert!(
+            releases_readme.contains(contract),
+            "artifacts/releases/README.md must freeze the root server payload index contract `{contract}`"
+        );
+    }
+
+    assert!(
+        bundle_manifest.contains("artifacts/releases/wave-d-2026-04-08/server/README.md"),
+        "Wave D bundle manifest must reference the server payload index readme"
+    );
+
+    for contract in [
+        "template_only_pending_payload",
+        "artifacts/releases/wave-d-2026-04-08/server",
+        "bin/craw-chat-server",
+        "bin/craw-chat-server.exe",
+        "deployments/templates/server.yaml.example",
+        "deployments/templates/server.env.example",
+        "deployments/templates/postgresql.yaml.example",
+        "deployments/systemd/craw-chat-server.service",
+        "deployments/launchd/com.sdkwork.crawchat.server.plist",
+        "deployments/windows-service/CrawChatServer.xml",
+        "windows-service/README.md",
+        "server.yaml",
+        "install-service-server",
+    ] {
+        assert!(
+            server_payload_index.contains(contract),
+            "server payload index readme must freeze `{contract}`"
+        );
+    }
+}
+
+#[test]
+fn test_server_release_bundle_freezes_bin_and_deployments_payload_group_contracts() {
+    let root = workspace_root();
+    let bundle_manifest_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("bundle-manifest.md");
+    let server_payload_index_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("README.md");
+    let server_bin_readme_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("bin")
+        .join("README.md");
+    let server_deployments_readme_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("deployments")
+        .join("README.md");
+
+    let bundle_manifest = fs::read_to_string(&bundle_manifest_path).unwrap_or_else(|_| {
+        panic!(
+            "missing release bundle manifest: {}",
+            bundle_manifest_path.display()
+        )
+    });
+    let server_payload_index =
+        fs::read_to_string(&server_payload_index_path).unwrap_or_else(|_| {
+            panic!(
+                "missing server payload index readme: {}",
+                server_payload_index_path.display()
+            )
+        });
+    let server_bin_readme = fs::read_to_string(&server_bin_readme_path).unwrap_or_else(|_| {
+        panic!(
+            "missing server bin payload readme: {}",
+            server_bin_readme_path.display()
+        )
+    });
+    let server_deployments_readme = fs::read_to_string(&server_deployments_readme_path)
+        .unwrap_or_else(|_| {
+            panic!(
+                "missing server deployments payload readme: {}",
+                server_deployments_readme_path.display()
+            )
+        });
+
+    for contract in [
+        "bin/README.md",
+        "deployments/README.md",
+        "windows-service/README.md",
+    ] {
+        assert!(
+            server_payload_index.contains(contract),
+            "server payload index readme must reference child payload contract `{contract}`"
+        );
+    }
+
+    for contract in [
+        "artifacts/releases/wave-d-2026-04-08/server/bin/README.md",
+        "artifacts/releases/wave-d-2026-04-08/server/deployments/README.md",
+    ] {
+        assert!(
+            bundle_manifest.contains(contract),
+            "Wave D bundle manifest must reference the child payload placeholder `{contract}`"
+        );
+    }
+
+    for contract in [
+        "template_only_pending_payload",
+        "artifacts/releases/wave-d-2026-04-08/server/bin",
+        "bin/craw-chat-server",
+        "bin/craw-chat-server.exe",
+        "bin/CrawChatServer.exe",
+    ] {
+        assert!(
+            server_bin_readme.contains(contract),
+            "server bin payload readme must freeze `{contract}`"
+        );
+    }
+
+    for contract in [
+        "template_only_pending_payload",
+        "artifacts/releases/wave-d-2026-04-08/server/deployments",
+        "deployments/templates/server.yaml.example",
+        "deployments/templates/server.env.example",
+        "deployments/templates/postgresql.yaml.example",
+        "deployments/systemd/craw-chat-server.service",
+        "deployments/launchd/com.sdkwork.crawchat.server.plist",
+        "deployments/windows-service/CrawChatServer.xml",
+    ] {
+        assert!(
+            server_deployments_readme.contains(contract),
+            "server deployments payload readme must freeze `{contract}`"
+        );
+    }
+}
+
+#[test]
+fn test_server_release_bundle_freezes_package_matrix_contract() {
+    let root = workspace_root();
+    let releases_readme_path = root.join("artifacts").join("releases").join("README.md");
+    let bundle_manifest_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("bundle-manifest.md");
+    let server_payload_index_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("README.md");
+    let packages_index_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("packages")
+        .join("README.md");
+    let linux_packages_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("packages")
+        .join("linux")
+        .join("README.md");
+    let macos_packages_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("packages")
+        .join("macos")
+        .join("README.md");
+    let windows_packages_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("packages")
+        .join("windows")
+        .join("README.md");
+
+    let releases_readme = fs::read_to_string(&releases_readme_path).unwrap_or_else(|_| {
+        panic!(
+            "missing releases README: {}",
+            releases_readme_path.display()
+        )
+    });
+    let bundle_manifest = fs::read_to_string(&bundle_manifest_path).unwrap_or_else(|_| {
+        panic!(
+            "missing release bundle manifest: {}",
+            bundle_manifest_path.display()
+        )
+    });
+    let server_payload_index =
+        fs::read_to_string(&server_payload_index_path).unwrap_or_else(|_| {
+            panic!(
+                "missing server payload index readme: {}",
+                server_payload_index_path.display()
+            )
+        });
+    let packages_index = fs::read_to_string(&packages_index_path).unwrap_or_else(|_| {
+        panic!(
+            "missing server packages index readme: {}",
+            packages_index_path.display()
+        )
+    });
+    let linux_packages = fs::read_to_string(&linux_packages_path).unwrap_or_else(|_| {
+        panic!(
+            "missing linux packages readme: {}",
+            linux_packages_path.display()
+        )
+    });
+    let macos_packages = fs::read_to_string(&macos_packages_path).unwrap_or_else(|_| {
+        panic!(
+            "missing macOS packages readme: {}",
+            macos_packages_path.display()
+        )
+    });
+    let windows_packages = fs::read_to_string(&windows_packages_path).unwrap_or_else(|_| {
+        panic!(
+            "missing windows packages readme: {}",
+            windows_packages_path.display()
+        )
+    });
+
+    for contract in [
+        "server/packages/README.md",
+        "linux",
+        "macOS",
+        "windows",
+        "tar.gz",
+        "zip",
+        "deb",
+        "rpm",
+        "pkg",
+        "msi",
+    ] {
+        assert!(
+            releases_readme.contains(contract),
+            "artifacts/releases/README.md must freeze the package matrix contract `{contract}`"
+        );
+    }
+
+    for contract in [
+        "packages/README.md",
+        "packages/linux/README.md",
+        "packages/macos/README.md",
+        "packages/windows/README.md",
+    ] {
+        assert!(
+            server_payload_index.contains(contract),
+            "server payload index readme must reference package matrix contract `{contract}`"
+        );
+    }
+
+    for contract in [
+        "artifacts/releases/wave-d-2026-04-08/server/packages/README.md",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/linux/README.md",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/macos/README.md",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/windows/README.md",
+    ] {
+        assert!(
+            bundle_manifest.contains(contract),
+            "Wave D bundle manifest must reference the package matrix placeholder `{contract}`"
+        );
+    }
+
+    for contract in [
+        "template_only_pending_payload",
+        "artifacts/releases/wave-d-2026-04-08/server/packages",
+        "linux/README.md",
+        "macos/README.md",
+        "windows/README.md",
+        "tar.gz",
+        "zip",
+        "deb",
+        "rpm",
+        "pkg",
+        "msi",
+    ] {
+        assert!(
+            packages_index.contains(contract),
+            "server package matrix readme must freeze `{contract}`"
+        );
+    }
+
+    for contract in [
+        "template_only_pending_payload",
+        "tar.gz",
+        "deb",
+        "rpm",
+        "install-server.sh",
+        "init-config-server.sh",
+        "init-storage-server.sh",
+        "install-service-server.sh",
+    ] {
+        assert!(
+            linux_packages.contains(contract),
+            "linux packages readme must freeze `{contract}`"
+        );
+    }
+
+    for contract in [
+        "template_only_pending_payload",
+        "tar.gz",
+        "pkg",
+        "install-server.sh",
+        "init-config-server.sh",
+        "init-storage-server.sh",
+        "install-service-server.sh",
+    ] {
+        assert!(
+            macos_packages.contains(contract),
+            "macOS packages readme must freeze `{contract}`"
+        );
+    }
+
+    for contract in [
+        "template_only_pending_payload",
+        "zip",
+        "msi",
+        "install-server.ps1",
+        "init-config-server.ps1",
+        "init-storage-server.ps1",
+        "install-service-server.ps1",
+        "install-server.cmd",
+        "init-config-server.cmd",
+        "init-storage-server.cmd",
+        "install-service-server.cmd",
+    ] {
+        assert!(
+            windows_packages.contains(contract),
+            "windows packages readme must freeze `{contract}`"
+        );
+    }
+}
+
+#[test]
+fn test_server_release_bundle_freezes_package_artifact_naming_and_install_root_contract() {
+    let root = workspace_root();
+    let bundle_manifest_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("bundle-manifest.md");
+    let packages_index_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("packages")
+        .join("README.md");
+    let linux_packages_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("packages")
+        .join("linux")
+        .join("README.md");
+    let macos_packages_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("packages")
+        .join("macos")
+        .join("README.md");
+    let windows_packages_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("packages")
+        .join("windows")
+        .join("README.md");
+    let packages_sha256s_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("packages")
+        .join("SHA256SUMS");
+    let packages_artifact_list_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("packages")
+        .join("artifact-file-list.txt");
+
+    let bundle_manifest = fs::read_to_string(&bundle_manifest_path).unwrap_or_else(|_| {
+        panic!(
+            "missing release bundle manifest: {}",
+            bundle_manifest_path.display()
+        )
+    });
+    let packages_index = fs::read_to_string(&packages_index_path).unwrap_or_else(|_| {
+        panic!(
+            "missing server packages index readme: {}",
+            packages_index_path.display()
+        )
+    });
+    let linux_packages = fs::read_to_string(&linux_packages_path).unwrap_or_else(|_| {
+        panic!(
+            "missing linux packages readme: {}",
+            linux_packages_path.display()
+        )
+    });
+    let macos_packages = fs::read_to_string(&macos_packages_path).unwrap_or_else(|_| {
+        panic!(
+            "missing macOS packages readme: {}",
+            macos_packages_path.display()
+        )
+    });
+    let windows_packages = fs::read_to_string(&windows_packages_path).unwrap_or_else(|_| {
+        panic!(
+            "missing windows packages readme: {}",
+            windows_packages_path.display()
+        )
+    });
+    let packages_sha256s = fs::read_to_string(&packages_sha256s_path).unwrap_or_else(|_| {
+        panic!(
+            "missing package checksum manifest: {}",
+            packages_sha256s_path.display()
+        )
+    });
+    let packages_artifact_list =
+        fs::read_to_string(&packages_artifact_list_path).unwrap_or_else(|_| {
+            panic!(
+                "missing package artifact file list: {}",
+                packages_artifact_list_path.display()
+            )
+        });
+
+    for contract in [
+        "artifacts/releases/wave-d-2026-04-08/server/packages/SHA256SUMS",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/artifact-file-list.txt",
+    ] {
+        assert!(
+            bundle_manifest.contains(contract),
+            "Wave D bundle manifest must reference the package artifact contract `{contract}`"
+        );
+    }
+
+    for contract in [
+        "SHA256SUMS",
+        "artifact-file-list.txt",
+        "craw-chat-server-linux-x86_64.tar.gz",
+        "craw-chat-server_<version>_amd64.deb",
+        "craw-chat-server-<version>-1.x86_64.rpm",
+        "craw-chat-server-darwin-universal.tar.gz",
+        "craw-chat-server-<version>.pkg",
+        "craw-chat-server-windows-x86_64.zip",
+        "craw-chat-server-<version>-x64.msi",
+    ] {
+        assert!(
+            packages_index.contains(contract),
+            "server package matrix readme must freeze artifact naming contract `{contract}`"
+        );
+    }
+
+    for contract in [
+        "/opt/craw-chat",
+        "/etc/craw-chat/default",
+        "/var/lib/craw-chat/default",
+        "/var/log/craw-chat/default",
+        "/var/run/craw-chat/default",
+    ] {
+        assert!(
+            linux_packages.contains(contract),
+            "linux packages readme must freeze install-root mapping `{contract}`"
+        );
+        assert!(
+            macos_packages.contains(contract),
+            "macOS packages readme must freeze install-root mapping `{contract}`"
+        );
+    }
+
+    for contract in [
+        "ProgramFiles",
+        "CommonApplicationData",
+        "CrawChat",
+        "config",
+        "data",
+        "logs",
+        "run",
+    ] {
+        assert!(
+            windows_packages.contains(contract),
+            "windows packages readme must freeze install-root mapping `{contract}`"
+        );
+    }
+
+    for contract in [
+        "craw-chat-server-linux-x86_64.tar.gz",
+        "craw-chat-server_<version>_amd64.deb",
+        "craw-chat-server-<version>-1.x86_64.rpm",
+        "craw-chat-server-darwin-universal.tar.gz",
+        "craw-chat-server-<version>.pkg",
+        "craw-chat-server-windows-x86_64.zip",
+        "craw-chat-server-<version>-x64.msi",
+    ] {
+        assert!(
+            packages_artifact_list.contains(contract),
+            "package artifact file list must freeze `{contract}`"
+        );
+    }
+
+    for contract in [
+        "sha256:<pending>",
+        "craw-chat-server-linux-x86_64.tar.gz",
+        "craw-chat-server-windows-x86_64.zip",
+    ] {
+        assert!(
+            packages_sha256s.contains(contract),
+            "package checksum manifest must freeze `{contract}`"
+        );
+    }
+}
+
+#[test]
+fn test_server_release_bundle_freezes_platform_artifact_staging_and_checksum_workflow_contract() {
+    let root = workspace_root();
+    let bundle_manifest_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("bundle-manifest.md");
+    let linux_packages_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("packages")
+        .join("linux")
+        .join("README.md");
+    let macos_packages_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("packages")
+        .join("macos")
+        .join("README.md");
+    let windows_packages_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("packages")
+        .join("windows")
+        .join("README.md");
+    let linux_artifacts_readme_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("packages")
+        .join("linux")
+        .join("artifacts")
+        .join("README.md");
+    let macos_artifacts_readme_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("packages")
+        .join("macos")
+        .join("artifacts")
+        .join("README.md");
+    let windows_artifacts_readme_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("packages")
+        .join("windows")
+        .join("artifacts")
+        .join("README.md");
+
+    let bundle_manifest = fs::read_to_string(&bundle_manifest_path).unwrap_or_else(|_| {
+        panic!(
+            "missing release bundle manifest: {}",
+            bundle_manifest_path.display()
+        )
+    });
+    let linux_packages = fs::read_to_string(&linux_packages_path).unwrap_or_else(|_| {
+        panic!(
+            "missing linux packages readme: {}",
+            linux_packages_path.display()
+        )
+    });
+    let macos_packages = fs::read_to_string(&macos_packages_path).unwrap_or_else(|_| {
+        panic!(
+            "missing macOS packages readme: {}",
+            macos_packages_path.display()
+        )
+    });
+    let windows_packages = fs::read_to_string(&windows_packages_path).unwrap_or_else(|_| {
+        panic!(
+            "missing windows packages readme: {}",
+            windows_packages_path.display()
+        )
+    });
+    let linux_artifacts = fs::read_to_string(&linux_artifacts_readme_path).unwrap_or_else(|_| {
+        panic!(
+            "missing linux artifacts readme: {}",
+            linux_artifacts_readme_path.display()
+        )
+    });
+    let macos_artifacts = fs::read_to_string(&macos_artifacts_readme_path).unwrap_or_else(|_| {
+        panic!(
+            "missing macOS artifacts readme: {}",
+            macos_artifacts_readme_path.display()
+        )
+    });
+    let windows_artifacts =
+        fs::read_to_string(&windows_artifacts_readme_path).unwrap_or_else(|_| {
+            panic!(
+                "missing windows artifacts readme: {}",
+                windows_artifacts_readme_path.display()
+            )
+        });
+
+    for (content, platform_name) in [
+        (&linux_packages, "linux"),
+        (&macos_packages, "macOS"),
+        (&windows_packages, "windows"),
+    ] {
+        assert!(
+            content.contains("artifacts/README.md"),
+            "{platform_name} packages readme must reference its artifact staging contract"
+        );
+    }
+
+    for contract in [
+        "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/README.md",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/README.md",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/README.md",
+    ] {
+        assert!(
+            bundle_manifest.contains(contract),
+            "Wave D bundle manifest must reference the platform artifact staging contract `{contract}`"
+        );
+    }
+
+    for contract in [
+        "template_only_pending_payload",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts",
+        "cargo build -p web-gateway --release --bin craw-chat-server --offline",
+        "sha256sum -b",
+        "artifact-file-list.txt",
+        "SHA256SUMS",
+        "craw-chat-server-linux-x86_64.tar.gz",
+    ] {
+        assert!(
+            linux_artifacts.contains(contract),
+            "linux artifact staging readme must freeze `{contract}`"
+        );
+    }
+
+    for contract in [
+        "template_only_pending_payload",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts",
+        "cargo build -p web-gateway --release --bin craw-chat-server --offline",
+        "shasum -a 256",
+        "artifact-file-list.txt",
+        "SHA256SUMS",
+        "craw-chat-server-darwin-universal.tar.gz",
+    ] {
+        assert!(
+            macos_artifacts.contains(contract),
+            "macOS artifact staging readme must freeze `{contract}`"
+        );
+    }
+
+    for contract in [
+        "template_only_pending_payload",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts",
+        "cargo build -p web-gateway --release --bin craw-chat-server --offline",
+        "Get-FileHash -Algorithm SHA256",
+        "artifact-file-list.txt",
+        "SHA256SUMS",
+        "craw-chat-server-windows-x86_64.zip",
+        "CrawChatServer.exe",
+    ] {
+        assert!(
+            windows_artifacts.contains(contract),
+            "windows artifact staging readme must freeze `{contract}`"
+        );
+    }
+}
+
+#[test]
+fn test_server_release_bundle_freezes_release_checklist_and_ordered_packaging_steps_contract() {
+    let root = workspace_root();
+    let bundle_manifest_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("bundle-manifest.md");
+    let packages_index_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("packages")
+        .join("README.md");
+    let release_checklist_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("packages")
+        .join("release-checklist.md");
+    let linux_artifacts_readme_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("packages")
+        .join("linux")
+        .join("artifacts")
+        .join("README.md");
+    let macos_artifacts_readme_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("packages")
+        .join("macos")
+        .join("artifacts")
+        .join("README.md");
+    let windows_artifacts_readme_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("packages")
+        .join("windows")
+        .join("artifacts")
+        .join("README.md");
+
+    let bundle_manifest = fs::read_to_string(&bundle_manifest_path).unwrap_or_else(|_| {
+        panic!(
+            "missing release bundle manifest: {}",
+            bundle_manifest_path.display()
+        )
+    });
+    let packages_index = fs::read_to_string(&packages_index_path).unwrap_or_else(|_| {
+        panic!(
+            "missing server packages index readme: {}",
+            packages_index_path.display()
+        )
+    });
+    let release_checklist = fs::read_to_string(&release_checklist_path).unwrap_or_else(|_| {
+        panic!(
+            "missing server package release checklist: {}",
+            release_checklist_path.display()
+        )
+    });
+    let linux_artifacts = fs::read_to_string(&linux_artifacts_readme_path).unwrap_or_else(|_| {
+        panic!(
+            "missing linux artifacts readme: {}",
+            linux_artifacts_readme_path.display()
+        )
+    });
+    let macos_artifacts = fs::read_to_string(&macos_artifacts_readme_path).unwrap_or_else(|_| {
+        panic!(
+            "missing macOS artifacts readme: {}",
+            macos_artifacts_readme_path.display()
+        )
+    });
+    let windows_artifacts =
+        fs::read_to_string(&windows_artifacts_readme_path).unwrap_or_else(|_| {
+            panic!(
+                "missing windows artifacts readme: {}",
+                windows_artifacts_readme_path.display()
+            )
+        });
+
+    assert!(
+        packages_index.contains("release-checklist.md"),
+        "server packages index readme must reference the release checklist contract"
+    );
+    assert!(
+        bundle_manifest
+            .contains("artifacts/releases/wave-d-2026-04-08/server/packages/release-checklist.md"),
+        "Wave D bundle manifest must reference the server package release checklist"
+    );
+
+    for contract in [
+        "template_only_pending_execution",
+        "Step 1",
+        "Step 2",
+        "Step 3",
+        "Step 4",
+        "Step 5",
+        "cargo build -p web-gateway --release --bin craw-chat-server --offline",
+        "artifact-file-list.txt",
+        "SHA256SUMS",
+        "go / no-go",
+    ] {
+        assert!(
+            release_checklist.contains(contract),
+            "server package release checklist must freeze `{contract}`"
+        );
+    }
+
+    for (content, platform_name) in [
+        (&linux_artifacts, "linux"),
+        (&macos_artifacts, "macOS"),
+        (&windows_artifacts, "windows"),
+    ] {
+        for contract in ["Step 1", "Step 2", "Step 3", "Step 4"] {
+            assert!(
+                content.contains(contract),
+                "{platform_name} artifacts readme must freeze ordered packaging step `{contract}`"
+            );
+        }
+    }
+}
+
+#[test]
+fn test_server_release_bundle_freezes_machine_auditable_package_layout_tree_contract() {
+    let root = workspace_root();
+    let bundle_manifest_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("bundle-manifest.md");
+    let packages_index_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("packages")
+        .join("README.md");
+    let package_layout_tree_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("packages")
+        .join("layout-tree.txt");
+    let linux_layout_tree_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("packages")
+        .join("linux")
+        .join("artifacts")
+        .join("layout-tree.txt");
+    let macos_layout_tree_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("packages")
+        .join("macos")
+        .join("artifacts")
+        .join("layout-tree.txt");
+    let windows_layout_tree_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("packages")
+        .join("windows")
+        .join("artifacts")
+        .join("layout-tree.txt");
+
+    let bundle_manifest = fs::read_to_string(&bundle_manifest_path).unwrap_or_else(|_| {
+        panic!(
+            "missing release bundle manifest: {}",
+            bundle_manifest_path.display()
+        )
+    });
+    let packages_index = fs::read_to_string(&packages_index_path).unwrap_or_else(|_| {
+        panic!(
+            "missing server packages index readme: {}",
+            packages_index_path.display()
+        )
+    });
+    let package_layout_tree = fs::read_to_string(&package_layout_tree_path).unwrap_or_else(|_| {
+        panic!(
+            "missing package layout tree: {}",
+            package_layout_tree_path.display()
+        )
+    });
+    let linux_layout_tree = fs::read_to_string(&linux_layout_tree_path).unwrap_or_else(|_| {
+        panic!(
+            "missing linux artifact layout tree: {}",
+            linux_layout_tree_path.display()
+        )
+    });
+    let macos_layout_tree = fs::read_to_string(&macos_layout_tree_path).unwrap_or_else(|_| {
+        panic!(
+            "missing macOS artifact layout tree: {}",
+            macos_layout_tree_path.display()
+        )
+    });
+    let windows_layout_tree = fs::read_to_string(&windows_layout_tree_path).unwrap_or_else(|_| {
+        panic!(
+            "missing windows artifact layout tree: {}",
+            windows_layout_tree_path.display()
+        )
+    });
+
+    assert!(
+        packages_index.contains("layout-tree.txt"),
+        "server packages index readme must reference the package layout tree contract"
+    );
+
+    for contract in [
+        "artifacts/releases/wave-d-2026-04-08/server/packages/layout-tree.txt",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/layout-tree.txt",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/layout-tree.txt",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/layout-tree.txt",
+    ] {
+        assert!(
+            bundle_manifest.contains(contract),
+            "Wave D bundle manifest must reference layout tree contract `{contract}`"
+        );
+    }
+
+    for contract in [
+        "server/packages/",
+        "layout-tree.txt",
+        "SHA256SUMS",
+        "artifact-file-list.txt",
+        "release-checklist.md",
+        "linux/",
+        "macos/",
+        "windows/",
+    ] {
+        assert!(
+            package_layout_tree.contains(contract),
+            "package layout tree must freeze `{contract}`"
+        );
+    }
+
+    for contract in [
+        "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/",
+        "craw-chat-server-linux-x86_64.tar.gz",
+        "craw-chat-server_<version>_amd64.deb",
+        "craw-chat-server-<version>-1.x86_64.rpm",
+    ] {
+        assert!(
+            linux_layout_tree.contains(contract),
+            "linux artifact layout tree must freeze `{contract}`"
+        );
+    }
+
+    for contract in [
+        "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/",
+        "craw-chat-server-darwin-universal.tar.gz",
+        "craw-chat-server-<version>.pkg",
+    ] {
+        assert!(
+            macos_layout_tree.contains(contract),
+            "macOS artifact layout tree must freeze `{contract}`"
+        );
+    }
+
+    for contract in [
+        "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/",
+        "craw-chat-server-windows-x86_64.zip",
+        "craw-chat-server-<version>-x64.msi",
+    ] {
+        assert!(
+            windows_layout_tree.contains(contract),
+            "windows artifact layout tree must freeze `{contract}`"
+        );
+    }
+}
+
+#[test]
+fn test_server_release_bundle_freezes_machine_readable_package_catalog_contract() {
+    let root = workspace_root();
+    let schema_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("schemas")
+        .join("server-package-catalog.schema.json");
+    let catalog_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("package-catalog.json");
+    let bundle_manifest_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("bundle-manifest.md");
+    let releases_readme_path = root.join("artifacts").join("releases").join("README.md");
+    let packages_index_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("packages")
+        .join("README.md");
+    let install_doc_path = root
+        .join("docs")
+        .join("部署")
+        .join("server版本安装与初始化.md");
+
+    let schema = fs::read_to_string(&schema_path)
+        .unwrap_or_else(|_| panic!("missing release schema: {}", schema_path.display()));
+    let schema_json: serde_json::Value = serde_json::from_str(&schema)
+        .unwrap_or_else(|_| panic!("invalid release schema json: {}", schema_path.display()));
+    let catalog = fs::read_to_string(&catalog_path)
+        .unwrap_or_else(|_| panic!("missing package catalog: {}", catalog_path.display()));
+    let catalog_json: serde_json::Value = serde_json::from_str(&catalog)
+        .unwrap_or_else(|_| panic!("invalid package catalog json: {}", catalog_path.display()));
+    let bundle_manifest = fs::read_to_string(&bundle_manifest_path).unwrap_or_else(|_| {
+        panic!(
+            "missing release bundle manifest: {}",
+            bundle_manifest_path.display()
+        )
+    });
+    let releases_readme = fs::read_to_string(&releases_readme_path).unwrap_or_else(|_| {
+        panic!(
+            "missing releases README: {}",
+            releases_readme_path.display()
+        )
+    });
+    let packages_index = fs::read_to_string(&packages_index_path).unwrap_or_else(|_| {
+        panic!(
+            "missing server packages index readme: {}",
+            packages_index_path.display()
+        )
+    });
+    let install_doc = fs::read_to_string(&install_doc_path)
+        .unwrap_or_else(|_| panic!("missing install doc: {}", install_doc_path.display()));
+
+    assert_eq!(
+        catalog_json["$schema"],
+        "../../schemas/server-package-catalog.schema.json"
+    );
+    assert_eq!(schema_json["title"], "craw-chat server package catalog");
+    assert_eq!(schema_json["type"], "object");
+    assert_eq!(
+        schema_json["properties"]["artifact"]["const"],
+        "server-package-catalog"
+    );
+
+    let required = schema_json["required"]
+        .as_array()
+        .expect("schema required should be an array");
+    for field in [
+        "bundleId",
+        "wave",
+        "artifact",
+        "state",
+        "updatedAt",
+        "packageArtifacts",
+    ] {
+        assert!(
+            required.iter().any(|entry| entry.as_str() == Some(field)),
+            "schema required fields must contain {field}"
+        );
+    }
+
+    let item_required = schema_json["properties"]["packageArtifacts"]["items"]["required"]
+        .as_array()
+        .expect("package artifact required fields should be an array");
+    for field in [
+        "id",
+        "platform",
+        "packageType",
+        "fileNameTemplate",
+        "artifactPath",
+        "installModel",
+        "defaultInstallRoot",
+        "configRoot",
+        "dataRoot",
+        "logRoot",
+        "runRoot",
+        "serviceManager",
+        "startupCommand",
+        "layoutTreePath",
+        "stagingReadmePath",
+        "releaseChecklistPath",
+        "checksumManifestPath",
+        "state",
+    ] {
+        assert!(
+            item_required
+                .iter()
+                .any(|entry| entry.as_str() == Some(field)),
+            "package artifact schema required fields must contain {field}"
+        );
+    }
+
+    assert_eq!(catalog_json["version"], 1);
+    assert_eq!(catalog_json["bundleId"], "wave-d-2026-04-08");
+    assert_eq!(catalog_json["wave"], "wave-d");
+    assert_eq!(catalog_json["artifact"], "server-package-catalog");
+    assert_eq!(catalog_json["state"], "template_only_pending_build");
+
+    let package_artifacts = catalog_json["packageArtifacts"]
+        .as_array()
+        .expect("packageArtifacts should be an array");
+    assert_eq!(
+        package_artifacts.len(),
+        7,
+        "packageArtifacts must freeze all current server package forms"
+    );
+
+    for (
+        id,
+        platform,
+        package_type,
+        file_name_template,
+        install_model,
+        default_install_root,
+        config_root,
+        data_root,
+        log_root,
+        run_root,
+        service_manager,
+        layout_tree_path,
+        staging_readme_path,
+    ) in [
+        (
+            "linux-tar-gz",
+            "linux",
+            "tar.gz",
+            "craw-chat-server-linux-x86_64.tar.gz",
+            "archive",
+            "/opt/craw-chat",
+            "/etc/craw-chat/default",
+            "/var/lib/craw-chat/default",
+            "/var/log/craw-chat/default",
+            "/var/run/craw-chat/default",
+            "systemd",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/layout-tree.txt",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/README.md",
+        ),
+        (
+            "linux-deb",
+            "linux",
+            "deb",
+            "craw-chat-server_<version>_amd64.deb",
+            "native-installer",
+            "/opt/craw-chat",
+            "/etc/craw-chat/default",
+            "/var/lib/craw-chat/default",
+            "/var/log/craw-chat/default",
+            "/var/run/craw-chat/default",
+            "systemd",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/layout-tree.txt",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/README.md",
+        ),
+        (
+            "linux-rpm",
+            "linux",
+            "rpm",
+            "craw-chat-server-<version>-1.x86_64.rpm",
+            "native-installer",
+            "/opt/craw-chat",
+            "/etc/craw-chat/default",
+            "/var/lib/craw-chat/default",
+            "/var/log/craw-chat/default",
+            "/var/run/craw-chat/default",
+            "systemd",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/layout-tree.txt",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/README.md",
+        ),
+        (
+            "macos-tar-gz",
+            "macos",
+            "tar.gz",
+            "craw-chat-server-darwin-universal.tar.gz",
+            "archive",
+            "/opt/craw-chat",
+            "/etc/craw-chat/default",
+            "/var/lib/craw-chat/default",
+            "/var/log/craw-chat/default",
+            "/var/run/craw-chat/default",
+            "launchd",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/layout-tree.txt",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/README.md",
+        ),
+        (
+            "macos-pkg",
+            "macos",
+            "pkg",
+            "craw-chat-server-<version>.pkg",
+            "native-installer",
+            "/opt/craw-chat",
+            "/etc/craw-chat/default",
+            "/var/lib/craw-chat/default",
+            "/var/log/craw-chat/default",
+            "/var/run/craw-chat/default",
+            "launchd",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/layout-tree.txt",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/README.md",
+        ),
+        (
+            "windows-zip",
+            "windows",
+            "zip",
+            "craw-chat-server-windows-x86_64.zip",
+            "archive",
+            "%ProgramFiles%\\\\CrawChat",
+            "%CommonApplicationData%\\\\CrawChat\\\\default\\\\config",
+            "%CommonApplicationData%\\\\CrawChat\\\\default\\\\data",
+            "%CommonApplicationData%\\\\CrawChat\\\\default\\\\logs",
+            "%CommonApplicationData%\\\\CrawChat\\\\default\\\\run",
+            "windows-service",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/layout-tree.txt",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/README.md",
+        ),
+        (
+            "windows-msi",
+            "windows",
+            "msi",
+            "craw-chat-server-<version>-x64.msi",
+            "native-installer",
+            "%ProgramFiles%\\\\CrawChat",
+            "%CommonApplicationData%\\\\CrawChat\\\\default\\\\config",
+            "%CommonApplicationData%\\\\CrawChat\\\\default\\\\data",
+            "%CommonApplicationData%\\\\CrawChat\\\\default\\\\logs",
+            "%CommonApplicationData%\\\\CrawChat\\\\default\\\\run",
+            "windows-service",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/layout-tree.txt",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/README.md",
+        ),
+    ] {
+        let package_entry = package_artifacts
+            .iter()
+            .find(|entry| entry["id"] == id)
+            .unwrap_or_else(|| panic!("package catalog must contain entry {id}"));
+
+        assert_eq!(package_entry["platform"], platform);
+        assert_eq!(package_entry["packageType"], package_type);
+        assert_eq!(package_entry["fileNameTemplate"], file_name_template);
+        assert_eq!(package_entry["installModel"], install_model);
+        assert_eq!(package_entry["defaultInstallRoot"], default_install_root);
+        assert_eq!(package_entry["configRoot"], config_root);
+        assert_eq!(package_entry["dataRoot"], data_root);
+        assert_eq!(package_entry["logRoot"], log_root);
+        assert_eq!(package_entry["runRoot"], run_root);
+        assert_eq!(package_entry["serviceManager"], service_manager);
+        assert_eq!(
+            package_entry["startupCommand"],
+            "craw-chat-server --config <config-root>/server.yaml"
+        );
+        assert_eq!(package_entry["layoutTreePath"], layout_tree_path);
+        assert_eq!(package_entry["stagingReadmePath"], staging_readme_path);
+        assert_eq!(
+            package_entry["releaseChecklistPath"],
+            "artifacts/releases/wave-d-2026-04-08/server/packages/release-checklist.md"
+        );
+        assert_eq!(
+            package_entry["checksumManifestPath"],
+            "artifacts/releases/wave-d-2026-04-08/server/packages/SHA256SUMS"
+        );
+        assert_eq!(package_entry["state"], "template_only_pending_build");
+    }
+
+    for contract in [
+        "artifacts/releases/schemas/server-package-catalog.schema.json",
+        "artifacts/releases/wave-d-2026-04-08/server/package-catalog.json",
+    ] {
+        assert!(
+            bundle_manifest.contains(contract),
+            "Wave D bundle manifest must reference package catalog contract `{contract}`"
+        );
+    }
+
+    assert!(
+        releases_readme.contains("artifacts/releases/schemas/server-package-catalog.schema.json"),
+        "artifacts/releases/README.md must document the server package catalog schema path"
+    );
+    assert!(
+        packages_index.contains("package-catalog.json"),
+        "server packages index readme must reference the machine-readable package catalog"
+    );
+    assert!(
+        install_doc.contains("server/package-catalog.json"),
+        "server install doc must reference the machine-readable package catalog"
+    );
+}
+
+#[test]
+fn test_server_release_bundle_freezes_platform_package_acceptance_manifest_contract() {
+    let root = workspace_root();
+    let package_catalog_schema_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("schemas")
+        .join("server-package-catalog.schema.json");
+    let package_catalog_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("package-catalog.json");
+    let acceptance_schema_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("schemas")
+        .join("server-package-acceptance.schema.json");
+    let bundle_manifest_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("bundle-manifest.md");
+    let releases_readme_path = root.join("artifacts").join("releases").join("README.md");
+    let packages_index_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("packages")
+        .join("README.md");
+    let install_doc_path = root
+        .join("docs")
+        .join("部署")
+        .join("server版本安装与初始化.md");
+    let linux_acceptance_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("packages")
+        .join("linux")
+        .join("artifacts")
+        .join("acceptance-manifest.json");
+    let macos_acceptance_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("packages")
+        .join("macos")
+        .join("artifacts")
+        .join("acceptance-manifest.json");
+    let windows_acceptance_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("packages")
+        .join("windows")
+        .join("artifacts")
+        .join("acceptance-manifest.json");
+    let linux_artifacts_readme_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("packages")
+        .join("linux")
+        .join("artifacts")
+        .join("README.md");
+    let macos_artifacts_readme_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("packages")
+        .join("macos")
+        .join("artifacts")
+        .join("README.md");
+    let windows_artifacts_readme_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("packages")
+        .join("windows")
+        .join("artifacts")
+        .join("README.md");
+
+    let package_catalog_schema =
+        fs::read_to_string(&package_catalog_schema_path).unwrap_or_else(|_| {
+            panic!(
+                "missing release schema: {}",
+                package_catalog_schema_path.display()
+            )
+        });
+    let package_catalog_schema_json: serde_json::Value =
+        serde_json::from_str(&package_catalog_schema).unwrap_or_else(|_| {
+            panic!(
+                "invalid release schema json: {}",
+                package_catalog_schema_path.display()
+            )
+        });
+    let package_catalog = fs::read_to_string(&package_catalog_path).unwrap_or_else(|_| {
+        panic!(
+            "missing package catalog: {}",
+            package_catalog_path.display()
+        )
+    });
+    let package_catalog_json: serde_json::Value = serde_json::from_str(&package_catalog)
+        .unwrap_or_else(|_| {
+            panic!(
+                "invalid package catalog json: {}",
+                package_catalog_path.display()
+            )
+        });
+    let acceptance_schema = fs::read_to_string(&acceptance_schema_path).unwrap_or_else(|_| {
+        panic!(
+            "missing release schema: {}",
+            acceptance_schema_path.display()
+        )
+    });
+    let acceptance_schema_json: serde_json::Value = serde_json::from_str(&acceptance_schema)
+        .unwrap_or_else(|_| {
+            panic!(
+                "invalid release schema json: {}",
+                acceptance_schema_path.display()
+            )
+        });
+    let bundle_manifest = fs::read_to_string(&bundle_manifest_path).unwrap_or_else(|_| {
+        panic!(
+            "missing release bundle manifest: {}",
+            bundle_manifest_path.display()
+        )
+    });
+    let releases_readme = fs::read_to_string(&releases_readme_path).unwrap_or_else(|_| {
+        panic!(
+            "missing releases README: {}",
+            releases_readme_path.display()
+        )
+    });
+    let packages_index = fs::read_to_string(&packages_index_path).unwrap_or_else(|_| {
+        panic!(
+            "missing server packages index readme: {}",
+            packages_index_path.display()
+        )
+    });
+    let install_doc = fs::read_to_string(&install_doc_path)
+        .unwrap_or_else(|_| panic!("missing install doc: {}", install_doc_path.display()));
+    let linux_acceptance = fs::read_to_string(&linux_acceptance_path).unwrap_or_else(|_| {
+        panic!(
+            "missing acceptance manifest: {}",
+            linux_acceptance_path.display()
+        )
+    });
+    let linux_acceptance_json: serde_json::Value = serde_json::from_str(&linux_acceptance)
+        .unwrap_or_else(|_| {
+            panic!(
+                "invalid acceptance manifest json: {}",
+                linux_acceptance_path.display()
+            )
+        });
+    let macos_acceptance = fs::read_to_string(&macos_acceptance_path).unwrap_or_else(|_| {
+        panic!(
+            "missing acceptance manifest: {}",
+            macos_acceptance_path.display()
+        )
+    });
+    let macos_acceptance_json: serde_json::Value = serde_json::from_str(&macos_acceptance)
+        .unwrap_or_else(|_| {
+            panic!(
+                "invalid acceptance manifest json: {}",
+                macos_acceptance_path.display()
+            )
+        });
+    let windows_acceptance = fs::read_to_string(&windows_acceptance_path).unwrap_or_else(|_| {
+        panic!(
+            "missing acceptance manifest: {}",
+            windows_acceptance_path.display()
+        )
+    });
+    let windows_acceptance_json: serde_json::Value = serde_json::from_str(&windows_acceptance)
+        .unwrap_or_else(|_| {
+            panic!(
+                "invalid acceptance manifest json: {}",
+                windows_acceptance_path.display()
+            )
+        });
+    let linux_artifacts = fs::read_to_string(&linux_artifacts_readme_path).unwrap_or_else(|_| {
+        panic!(
+            "missing linux artifacts readme: {}",
+            linux_artifacts_readme_path.display()
+        )
+    });
+    let macos_artifacts = fs::read_to_string(&macos_artifacts_readme_path).unwrap_or_else(|_| {
+        panic!(
+            "missing macOS artifacts readme: {}",
+            macos_artifacts_readme_path.display()
+        )
+    });
+    let windows_artifacts =
+        fs::read_to_string(&windows_artifacts_readme_path).unwrap_or_else(|_| {
+            panic!(
+                "missing windows artifacts readme: {}",
+                windows_artifacts_readme_path.display()
+            )
+        });
+
+    let catalog_item_required =
+        package_catalog_schema_json["properties"]["packageArtifacts"]["items"]["required"]
+            .as_array()
+            .expect("package artifact required fields should be an array");
+    assert!(
+        catalog_item_required
+            .iter()
+            .any(|entry| entry.as_str() == Some("acceptanceManifestPath")),
+        "package catalog schema must require acceptanceManifestPath"
+    );
+
+    for (id, acceptance_manifest_path) in [
+        (
+            "linux-tar-gz",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/acceptance-manifest.json",
+        ),
+        (
+            "linux-deb",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/acceptance-manifest.json",
+        ),
+        (
+            "linux-rpm",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/acceptance-manifest.json",
+        ),
+        (
+            "macos-tar-gz",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/acceptance-manifest.json",
+        ),
+        (
+            "macos-pkg",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/acceptance-manifest.json",
+        ),
+        (
+            "windows-zip",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/acceptance-manifest.json",
+        ),
+        (
+            "windows-msi",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/acceptance-manifest.json",
+        ),
+    ] {
+        let package_entry = package_catalog_json["packageArtifacts"]
+            .as_array()
+            .expect("packageArtifacts should be an array")
+            .iter()
+            .find(|entry| entry["id"] == id)
+            .unwrap_or_else(|| panic!("package catalog must contain entry {id}"));
+        assert_eq!(
+            package_entry["acceptanceManifestPath"],
+            acceptance_manifest_path
+        );
+    }
+
+    assert_eq!(
+        acceptance_schema_json["title"],
+        "craw-chat server package acceptance manifest"
+    );
+    assert_eq!(acceptance_schema_json["type"], "object");
+    assert_eq!(
+        acceptance_schema_json["properties"]["artifact"]["const"],
+        "server-package-acceptance-manifest"
+    );
+
+    let required = acceptance_schema_json["required"]
+        .as_array()
+        .expect("schema required should be an array");
+    for field in [
+        "bundleId",
+        "platform",
+        "artifact",
+        "artifactRoot",
+        "validationStatus",
+        "updatedAt",
+        "packageChecks",
+    ] {
+        assert!(
+            required.iter().any(|entry| entry.as_str() == Some(field)),
+            "acceptance schema required fields must contain {field}"
+        );
+    }
+
+    let package_check_required =
+        acceptance_schema_json["properties"]["packageChecks"]["items"]["required"]
+            .as_array()
+            .expect("package check required fields should be an array");
+    for field in [
+        "packageId",
+        "packageType",
+        "artifactPath",
+        "installModel",
+        "serviceManager",
+        "startupCommand",
+        "requiredEntries",
+        "validationEvidencePath",
+        "status",
+    ] {
+        assert!(
+            package_check_required
+                .iter()
+                .any(|entry| entry.as_str() == Some(field)),
+            "package check schema required fields must contain {field}"
+        );
+    }
+
+    for (
+        manifest_json,
+        platform,
+        artifact_root,
+        expected_checks,
+        expected_service_manager,
+        expected_binary,
+        expected_service_entry,
+    ) in [
+        (
+            &linux_acceptance_json,
+            "linux",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts",
+            vec![
+                ("linux-tar-gz", "tar.gz", "archive"),
+                ("linux-deb", "deb", "native-installer"),
+                ("linux-rpm", "rpm", "native-installer"),
+            ],
+            "systemd",
+            "bin/craw-chat-server",
+            "deployments/systemd/craw-chat-server.service",
+        ),
+        (
+            &macos_acceptance_json,
+            "macos",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts",
+            vec![
+                ("macos-tar-gz", "tar.gz", "archive"),
+                ("macos-pkg", "pkg", "native-installer"),
+            ],
+            "launchd",
+            "bin/craw-chat-server",
+            "deployments/launchd/com.sdkwork.crawchat.server.plist",
+        ),
+        (
+            &windows_acceptance_json,
+            "windows",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts",
+            vec![
+                ("windows-zip", "zip", "archive"),
+                ("windows-msi", "msi", "native-installer"),
+            ],
+            "windows-service",
+            "bin/craw-chat-server.exe",
+            "deployments/windows-service/CrawChatServer.xml",
+        ),
+    ] {
+        assert_eq!(
+            manifest_json["$schema"],
+            "../../../../../schemas/server-package-acceptance.schema.json"
+        );
+        assert_eq!(manifest_json["bundleId"], "wave-d-2026-04-08");
+        assert_eq!(manifest_json["platform"], platform);
+        assert_eq!(
+            manifest_json["artifact"],
+            "server-package-acceptance-manifest"
+        );
+        assert_eq!(manifest_json["artifactRoot"], artifact_root);
+        assert_eq!(
+            manifest_json["validationStatus"],
+            "template_only_pending_execution"
+        );
+
+        let package_checks = manifest_json["packageChecks"]
+            .as_array()
+            .expect("packageChecks should be an array");
+        assert_eq!(
+            package_checks.len(),
+            expected_checks.len(),
+            "{platform} acceptance manifest must freeze all package checks"
+        );
+
+        for (package_id, package_type, install_model) in expected_checks {
+            let package_check = package_checks
+                .iter()
+                .find(|entry| entry["packageId"] == package_id)
+                .unwrap_or_else(|| {
+                    panic!("{platform} acceptance manifest must contain check {package_id}")
+                });
+            assert_eq!(package_check["packageType"], package_type);
+            assert_eq!(package_check["installModel"], install_model);
+            assert_eq!(package_check["serviceManager"], expected_service_manager);
+            assert_eq!(
+                package_check["startupCommand"],
+                "craw-chat-server --config <config-root>/server.yaml"
+            );
+            assert_eq!(package_check["status"], "pending_validation");
+            assert!(
+                package_check["validationEvidencePath"].is_null(),
+                "{platform} acceptance check {package_id} must keep validationEvidencePath null before execution"
+            );
+
+            let required_entries = package_check["requiredEntries"]
+                .as_array()
+                .expect("requiredEntries should be an array");
+            assert!(
+                required_entries
+                    .iter()
+                    .any(|entry| entry.as_str() == Some(expected_binary)),
+                "{platform} acceptance check {package_id} must require binary entry {expected_binary}"
+            );
+            assert!(
+                required_entries
+                    .iter()
+                    .any(|entry| entry.as_str() == Some(expected_service_entry)),
+                "{platform} acceptance check {package_id} must require service entry {expected_service_entry}"
+            );
+            if platform == "windows" {
+                assert!(
+                    required_entries
+                        .iter()
+                        .any(|entry| entry.as_str() == Some("bin/CrawChatServer.exe")),
+                    "windows acceptance checks must require the dedicated service-host wrapper"
+                );
+            }
+        }
+    }
+
+    for contract in [
+        "artifacts/releases/schemas/server-package-acceptance.schema.json",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/acceptance-manifest.json",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/acceptance-manifest.json",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/acceptance-manifest.json",
+    ] {
+        assert!(
+            bundle_manifest.contains(contract),
+            "Wave D bundle manifest must reference acceptance contract `{contract}`"
+        );
+    }
+
+    assert!(
+        releases_readme
+            .contains("artifacts/releases/schemas/server-package-acceptance.schema.json"),
+        "artifacts/releases/README.md must document the server package acceptance schema path"
+    );
+    assert!(
+        packages_index.contains("acceptance-manifest.json"),
+        "server packages index readme must reference platform acceptance manifests"
+    );
+    assert!(
+        install_doc.contains("acceptance-manifest.json"),
+        "server install doc must reference platform acceptance manifests"
+    );
+    for (content, platform_name) in [
+        (&linux_artifacts, "linux"),
+        (&macos_artifacts, "macOS"),
+        (&windows_artifacts, "windows"),
+    ] {
+        assert!(
+            content.contains("acceptance-manifest.json"),
+            "{platform_name} artifacts readme must reference the acceptance manifest"
+        );
+    }
+}
+
+#[test]
+fn test_server_release_bundle_freezes_machine_readable_release_execution_contract() {
+    let root = workspace_root();
+    let schema_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("schemas")
+        .join("server-release-execution.schema.json");
+    let execution_manifest_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("release-execution.json");
+    let bundle_manifest_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("bundle-manifest.md");
+    let releases_readme_path = root.join("artifacts").join("releases").join("README.md");
+    let server_index_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("README.md");
+    let packages_index_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("packages")
+        .join("README.md");
+    let install_doc_path = root
+        .join("docs")
+        .join("部署")
+        .join("server版本安装与初始化.md");
+
+    let schema = fs::read_to_string(&schema_path)
+        .unwrap_or_else(|_| panic!("missing release schema: {}", schema_path.display()));
+    let schema_json: serde_json::Value = serde_json::from_str(&schema)
+        .unwrap_or_else(|_| panic!("invalid release schema json: {}", schema_path.display()));
+    let execution_manifest = fs::read_to_string(&execution_manifest_path).unwrap_or_else(|_| {
+        panic!(
+            "missing release execution manifest: {}",
+            execution_manifest_path.display()
+        )
+    });
+    let execution_manifest_json: serde_json::Value = serde_json::from_str(&execution_manifest)
+        .unwrap_or_else(|_| {
+            panic!(
+                "invalid release execution manifest json: {}",
+                execution_manifest_path.display()
+            )
+        });
+    let bundle_manifest = fs::read_to_string(&bundle_manifest_path).unwrap_or_else(|_| {
+        panic!(
+            "missing release bundle manifest: {}",
+            bundle_manifest_path.display()
+        )
+    });
+    let releases_readme = fs::read_to_string(&releases_readme_path).unwrap_or_else(|_| {
+        panic!(
+            "missing releases README: {}",
+            releases_readme_path.display()
+        )
+    });
+    let server_index = fs::read_to_string(&server_index_path)
+        .unwrap_or_else(|_| panic!("missing server index: {}", server_index_path.display()));
+    let packages_index = fs::read_to_string(&packages_index_path).unwrap_or_else(|_| {
+        panic!(
+            "missing server packages index readme: {}",
+            packages_index_path.display()
+        )
+    });
+    let install_doc = fs::read_to_string(&install_doc_path)
+        .unwrap_or_else(|_| panic!("missing install doc: {}", install_doc_path.display()));
+
+    assert_eq!(
+        execution_manifest_json["$schema"],
+        "../../schemas/server-release-execution.schema.json"
+    );
+    assert_eq!(
+        schema_json["title"],
+        "craw-chat server release execution manifest"
+    );
+    assert_eq!(schema_json["type"], "object");
+    assert_eq!(
+        schema_json["properties"]["artifact"]["const"],
+        "server-release-execution"
+    );
+
+    let required = schema_json["required"]
+        .as_array()
+        .expect("schema required should be an array");
+    for field in [
+        "bundleId",
+        "wave",
+        "artifact",
+        "state",
+        "updatedAt",
+        "canonicalBuild",
+        "canonicalStartupCommand",
+        "packageCatalogPath",
+        "releaseChecklistPath",
+        "checksumManifestPath",
+        "artifactFileListPath",
+        "platformExecutions",
+    ] {
+        assert!(
+            required.iter().any(|entry| entry.as_str() == Some(field)),
+            "release execution schema required fields must contain {field}"
+        );
+    }
+
+    let build_required = schema_json["properties"]["canonicalBuild"]["required"]
+        .as_array()
+        .expect("canonicalBuild required should be an array");
+    for field in ["command", "package", "binary", "profile"] {
+        assert!(
+            build_required
+                .iter()
+                .any(|entry| entry.as_str() == Some(field)),
+            "canonicalBuild schema required fields must contain {field}"
+        );
+    }
+
+    let platform_required = schema_json["properties"]["platformExecutions"]["items"]["required"]
+        .as_array()
+        .expect("platformExecutions item required should be an array");
+    for field in [
+        "platform",
+        "stagingRoot",
+        "stagingReadmePath",
+        "acceptanceManifestPath",
+        "layoutTreePath",
+        "packageIds",
+        "checksumCommandExample",
+        "serviceManager",
+        "status",
+    ] {
+        assert!(
+            platform_required
+                .iter()
+                .any(|entry| entry.as_str() == Some(field)),
+            "platformExecutions schema required fields must contain {field}"
+        );
+    }
+
+    assert_eq!(execution_manifest_json["version"], 1);
+    assert_eq!(execution_manifest_json["bundleId"], "wave-d-2026-04-08");
+    assert_eq!(execution_manifest_json["wave"], "wave-d");
+    assert_eq!(
+        execution_manifest_json["artifact"],
+        "server-release-execution"
+    );
+    assert_eq!(
+        execution_manifest_json["state"],
+        "template_only_pending_execution"
+    );
+    assert_eq!(
+        execution_manifest_json["canonicalBuild"]["command"],
+        "cargo build -p web-gateway --release --bin craw-chat-server --offline"
+    );
+    assert_eq!(
+        execution_manifest_json["canonicalBuild"]["package"],
+        "web-gateway"
+    );
+    assert_eq!(
+        execution_manifest_json["canonicalBuild"]["binary"],
+        "craw-chat-server"
+    );
+    assert_eq!(
+        execution_manifest_json["canonicalBuild"]["profile"],
+        "release"
+    );
+    assert_eq!(
+        execution_manifest_json["canonicalStartupCommand"],
+        "craw-chat-server --config <config-root>/server.yaml"
+    );
+    assert_eq!(
+        execution_manifest_json["packageCatalogPath"],
+        "artifacts/releases/wave-d-2026-04-08/server/package-catalog.json"
+    );
+    assert_eq!(
+        execution_manifest_json["releaseChecklistPath"],
+        "artifacts/releases/wave-d-2026-04-08/server/packages/release-checklist.md"
+    );
+    assert_eq!(
+        execution_manifest_json["checksumManifestPath"],
+        "artifacts/releases/wave-d-2026-04-08/server/packages/SHA256SUMS"
+    );
+    assert_eq!(
+        execution_manifest_json["artifactFileListPath"],
+        "artifacts/releases/wave-d-2026-04-08/server/packages/artifact-file-list.txt"
+    );
+
+    let platform_executions = execution_manifest_json["platformExecutions"]
+        .as_array()
+        .expect("platformExecutions should be an array");
+    assert_eq!(
+        platform_executions.len(),
+        3,
+        "platformExecutions must freeze linux, macOS, and windows execution surfaces"
+    );
+
+    for (
+        platform,
+        staging_root,
+        staging_readme_path,
+        acceptance_manifest_path,
+        layout_tree_path,
+        package_ids,
+        checksum_command_example,
+        service_manager,
+    ) in [
+        (
+            "linux",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/README.md",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/acceptance-manifest.json",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/layout-tree.txt",
+            vec!["linux-tar-gz", "linux-deb", "linux-rpm"],
+            "sha256sum -b <artifact> >> ../SHA256SUMS",
+            "systemd",
+        ),
+        (
+            "macos",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/README.md",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/acceptance-manifest.json",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/layout-tree.txt",
+            vec!["macos-tar-gz", "macos-pkg"],
+            "shasum -a 256 <artifact> >> ../SHA256SUMS",
+            "launchd",
+        ),
+        (
+            "windows",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/README.md",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/acceptance-manifest.json",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/layout-tree.txt",
+            vec!["windows-zip", "windows-msi"],
+            "Get-FileHash -Algorithm SHA256 <artifact> | Format-Table -HideTableHeaders >> ../SHA256SUMS",
+            "windows-service",
+        ),
+    ] {
+        let platform_entry = platform_executions
+            .iter()
+            .find(|entry| entry["platform"] == platform)
+            .unwrap_or_else(|| panic!("release execution manifest must contain {platform}"));
+        assert_eq!(platform_entry["stagingRoot"], staging_root);
+        assert_eq!(platform_entry["stagingReadmePath"], staging_readme_path);
+        assert_eq!(
+            platform_entry["acceptanceManifestPath"],
+            acceptance_manifest_path
+        );
+        assert_eq!(platform_entry["layoutTreePath"], layout_tree_path);
+        assert_eq!(
+            platform_entry["checksumCommandExample"],
+            checksum_command_example
+        );
+        assert_eq!(platform_entry["serviceManager"], service_manager);
+        assert_eq!(platform_entry["status"], "template_only_pending_execution");
+
+        let package_ids_json = platform_entry["packageIds"]
+            .as_array()
+            .expect("packageIds should be an array");
+        for package_id in package_ids {
+            assert!(
+                package_ids_json
+                    .iter()
+                    .any(|entry| entry.as_str() == Some(package_id)),
+                "release execution manifest platform {platform} must contain package id {package_id}"
+            );
+        }
+    }
+
+    for contract in [
+        "artifacts/releases/schemas/server-release-execution.schema.json",
+        "artifacts/releases/wave-d-2026-04-08/server/release-execution.json",
+    ] {
+        assert!(
+            bundle_manifest.contains(contract),
+            "Wave D bundle manifest must reference release execution contract `{contract}`"
+        );
+    }
+
+    assert!(
+        releases_readme.contains("artifacts/releases/schemas/server-release-execution.schema.json"),
+        "artifacts/releases/README.md must document the server release execution schema path"
+    );
+    assert!(
+        server_index.contains("release-execution.json"),
+        "server payload index must reference the machine-readable release execution manifest"
+    );
+    assert!(
+        packages_index.contains("../release-execution.json"),
+        "server packages index readme must reference the bundle-level release execution manifest"
+    );
+    assert!(
+        install_doc.contains("server/release-execution.json"),
+        "server install doc must reference the machine-readable release execution manifest"
+    );
+}
+
+#[test]
+fn test_server_release_bundle_freezes_machine_readable_release_provenance_contract() {
+    let root = workspace_root();
+    let schema_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("schemas")
+        .join("server-release-provenance.schema.json");
+    let provenance_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("release-provenance.json");
+    let bundle_manifest_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("bundle-manifest.md");
+    let releases_readme_path = root.join("artifacts").join("releases").join("README.md");
+    let server_index_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("README.md");
+    let install_doc_path = root
+        .join("docs")
+        .join("部署")
+        .join("server版本安装与初始化.md");
+
+    let schema = fs::read_to_string(&schema_path)
+        .unwrap_or_else(|_| panic!("missing release schema: {}", schema_path.display()));
+    let schema_json: serde_json::Value = serde_json::from_str(&schema)
+        .unwrap_or_else(|_| panic!("invalid release schema json: {}", schema_path.display()));
+    let provenance = fs::read_to_string(&provenance_path)
+        .unwrap_or_else(|_| panic!("missing release provenance: {}", provenance_path.display()));
+    let provenance_json: serde_json::Value =
+        serde_json::from_str(&provenance).unwrap_or_else(|_| {
+            panic!(
+                "invalid release provenance json: {}",
+                provenance_path.display()
+            )
+        });
+    let bundle_manifest = fs::read_to_string(&bundle_manifest_path).unwrap_or_else(|_| {
+        panic!(
+            "missing release bundle manifest: {}",
+            bundle_manifest_path.display()
+        )
+    });
+    let releases_readme = fs::read_to_string(&releases_readme_path).unwrap_or_else(|_| {
+        panic!(
+            "missing releases README: {}",
+            releases_readme_path.display()
+        )
+    });
+    let server_index = fs::read_to_string(&server_index_path)
+        .unwrap_or_else(|_| panic!("missing server index: {}", server_index_path.display()));
+    let install_doc = fs::read_to_string(&install_doc_path)
+        .unwrap_or_else(|_| panic!("missing install doc: {}", install_doc_path.display()));
+
+    assert_eq!(
+        provenance_json["$schema"],
+        "../../schemas/server-release-provenance.schema.json"
+    );
+    assert_eq!(
+        schema_json["title"],
+        "craw-chat server release provenance manifest"
+    );
+    assert_eq!(schema_json["type"], "object");
+    assert_eq!(
+        schema_json["properties"]["artifact"]["const"],
+        "server-release-provenance"
+    );
+
+    let required = schema_json["required"]
+        .as_array()
+        .expect("schema required should be an array");
+    for field in [
+        "bundleId",
+        "wave",
+        "artifact",
+        "state",
+        "updatedAt",
+        "canonicalBuildCommand",
+        "contractPaths",
+        "payloadSourcePaths",
+        "platformArtifactRoots",
+    ] {
+        assert!(
+            required.iter().any(|entry| entry.as_str() == Some(field)),
+            "release provenance schema required fields must contain {field}"
+        );
+    }
+
+    let platform_required = schema_json["properties"]["platformArtifactRoots"]["items"]["required"]
+        .as_array()
+        .expect("platformArtifactRoots required should be an array");
+    for field in ["platform", "artifactRoot", "acceptanceManifestPath"] {
+        assert!(
+            platform_required
+                .iter()
+                .any(|entry| entry.as_str() == Some(field)),
+            "platformArtifactRoots schema required fields must contain {field}"
+        );
+    }
+
+    assert_eq!(provenance_json["version"], 1);
+    assert_eq!(provenance_json["bundleId"], "wave-d-2026-04-08");
+    assert_eq!(provenance_json["wave"], "wave-d");
+    assert_eq!(provenance_json["artifact"], "server-release-provenance");
+    assert_eq!(provenance_json["state"], "template_only_pending_capture");
+    assert_eq!(
+        provenance_json["canonicalBuildCommand"],
+        "cargo build -p web-gateway --release --bin craw-chat-server --offline"
+    );
+
+    let contract_paths = provenance_json["contractPaths"]
+        .as_array()
+        .expect("contractPaths should be an array");
+    for contract_path in [
+        "artifacts/releases/wave-d-2026-04-08/server/package-catalog.json",
+        "artifacts/releases/wave-d-2026-04-08/server/release-execution.json",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/release-checklist.md",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/SHA256SUMS",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/artifact-file-list.txt",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/acceptance-manifest.json",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/acceptance-manifest.json",
+        "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/acceptance-manifest.json",
+    ] {
+        assert!(
+            contract_paths
+                .iter()
+                .any(|entry| entry.as_str() == Some(contract_path)),
+            "release provenance contractPaths must contain {contract_path}"
+        );
+    }
+
+    let payload_source_paths = provenance_json["payloadSourcePaths"]
+        .as_array()
+        .expect("payloadSourcePaths should be an array");
+    for payload_source in [
+        "services/web-gateway/Cargo.toml",
+        "deployments/templates/server.yaml.example",
+        "deployments/templates/server.env.example",
+        "deployments/templates/postgresql.yaml.example",
+        "deployments/systemd/craw-chat-server.service",
+        "deployments/launchd/com.sdkwork.crawchat.server.plist",
+        "deployments/windows-service/CrawChatServer.xml",
+    ] {
+        assert!(
+            payload_source_paths
+                .iter()
+                .any(|entry| entry.as_str() == Some(payload_source)),
+            "release provenance payloadSourcePaths must contain {payload_source}"
+        );
+    }
+
+    let platform_roots = provenance_json["platformArtifactRoots"]
+        .as_array()
+        .expect("platformArtifactRoots should be an array");
+    for (platform, artifact_root, acceptance_manifest_path) in [
+        (
+            "linux",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/acceptance-manifest.json",
+        ),
+        (
+            "macos",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/acceptance-manifest.json",
+        ),
+        (
+            "windows",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/acceptance-manifest.json",
+        ),
+    ] {
+        let platform_entry = platform_roots
+            .iter()
+            .find(|entry| entry["platform"] == platform)
+            .unwrap_or_else(|| panic!("release provenance must contain platform {platform}"));
+        assert_eq!(platform_entry["artifactRoot"], artifact_root);
+        assert_eq!(
+            platform_entry["acceptanceManifestPath"],
+            acceptance_manifest_path
+        );
+    }
+
+    for contract in [
+        "artifacts/releases/schemas/server-release-provenance.schema.json",
+        "artifacts/releases/wave-d-2026-04-08/server/release-provenance.json",
+    ] {
+        assert!(
+            bundle_manifest.contains(contract),
+            "Wave D bundle manifest must reference release provenance contract `{contract}`"
+        );
+    }
+
+    assert!(
+        releases_readme
+            .contains("artifacts/releases/schemas/server-release-provenance.schema.json"),
+        "artifacts/releases/README.md must document the server release provenance schema path"
+    );
+    assert!(
+        server_index.contains("release-provenance.json"),
+        "server payload index must reference the machine-readable release provenance manifest"
+    );
+    assert!(
+        install_doc.contains("server/release-provenance.json"),
+        "server install doc must reference the machine-readable release provenance manifest"
+    );
+}
+
+#[test]
+fn test_server_release_bundle_freezes_machine_readable_release_gate_contract() {
+    let root = workspace_root();
+    let schema_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("schemas")
+        .join("server-release-gate.schema.json");
+    let gate_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("release-gate.json");
+    let bundle_manifest_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("bundle-manifest.md");
+    let releases_readme_path = root.join("artifacts").join("releases").join("README.md");
+    let server_index_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("README.md");
+    let packages_index_path = root
+        .join("artifacts")
+        .join("releases")
+        .join("wave-d-2026-04-08")
+        .join("server")
+        .join("packages")
+        .join("README.md");
+    let install_doc_path = root
+        .join("docs")
+        .join("部署")
+        .join("server版本安装与初始化.md");
+
+    let schema = fs::read_to_string(&schema_path)
+        .unwrap_or_else(|_| panic!("missing release schema: {}", schema_path.display()));
+    let schema_json: serde_json::Value = serde_json::from_str(&schema)
+        .unwrap_or_else(|_| panic!("invalid release schema json: {}", schema_path.display()));
+    let gate = fs::read_to_string(&gate_path)
+        .unwrap_or_else(|_| panic!("missing release gate: {}", gate_path.display()));
+    let gate_json: serde_json::Value = serde_json::from_str(&gate)
+        .unwrap_or_else(|_| panic!("invalid release gate json: {}", gate_path.display()));
+    let bundle_manifest = fs::read_to_string(&bundle_manifest_path).unwrap_or_else(|_| {
+        panic!(
+            "missing release bundle manifest: {}",
+            bundle_manifest_path.display()
+        )
+    });
+    let releases_readme = fs::read_to_string(&releases_readme_path).unwrap_or_else(|_| {
+        panic!(
+            "missing releases README: {}",
+            releases_readme_path.display()
+        )
+    });
+    let server_index = fs::read_to_string(&server_index_path)
+        .unwrap_or_else(|_| panic!("missing server index: {}", server_index_path.display()));
+    let packages_index = fs::read_to_string(&packages_index_path).unwrap_or_else(|_| {
+        panic!(
+            "missing server packages index readme: {}",
+            packages_index_path.display()
+        )
+    });
+    let install_doc = fs::read_to_string(&install_doc_path)
+        .unwrap_or_else(|_| panic!("missing install doc: {}", install_doc_path.display()));
+
+    assert_eq!(
+        gate_json["$schema"],
+        "../../schemas/server-release-gate.schema.json"
+    );
+    assert_eq!(schema_json["title"], "craw-chat server release gate");
+    assert_eq!(schema_json["type"], "object");
+    assert_eq!(
+        schema_json["properties"]["artifact"]["const"],
+        "server-release-gate"
+    );
+
+    let required = schema_json["required"]
+        .as_array()
+        .expect("schema required should be an array");
+    for field in [
+        "bundleId",
+        "wave",
+        "artifact",
+        "state",
+        "decisionStatus",
+        "updatedAt",
+        "releaseChecklistPath",
+        "packageCatalogPath",
+        "releaseExecutionPath",
+        "releaseProvenancePath",
+        "reviewDocPaths",
+        "gateChecks",
+        "platformGateChecks",
+    ] {
+        assert!(
+            required.iter().any(|entry| entry.as_str() == Some(field)),
+            "release gate schema required fields must contain {field}"
+        );
+    }
+
+    let gate_check_required = schema_json["properties"]["gateChecks"]["items"]["required"]
+        .as_array()
+        .expect("gateChecks required should be an array");
+    for field in [
+        "gateId",
+        "description",
+        "contractPath",
+        "status",
+        "blocking",
+    ] {
+        assert!(
+            gate_check_required
+                .iter()
+                .any(|entry| entry.as_str() == Some(field)),
+            "gateChecks schema required fields must contain {field}"
+        );
+    }
+
+    let platform_gate_required =
+        schema_json["properties"]["platformGateChecks"]["items"]["required"]
+            .as_array()
+            .expect("platformGateChecks required should be an array");
+    for field in [
+        "platform",
+        "acceptanceManifestPath",
+        "requiredPackageIds",
+        "status",
+    ] {
+        assert!(
+            platform_gate_required
+                .iter()
+                .any(|entry| entry.as_str() == Some(field)),
+            "platformGateChecks schema required fields must contain {field}"
+        );
+    }
+
+    assert_eq!(gate_json["version"], 1);
+    assert_eq!(gate_json["bundleId"], "wave-d-2026-04-08");
+    assert_eq!(gate_json["wave"], "wave-d");
+    assert_eq!(gate_json["artifact"], "server-release-gate");
+    assert_eq!(gate_json["state"], "template_only_pending_evaluation");
+    assert_eq!(gate_json["decisionStatus"], "pending_go_no_go");
+    assert_eq!(
+        gate_json["releaseChecklistPath"],
+        "artifacts/releases/wave-d-2026-04-08/server/packages/release-checklist.md"
+    );
+    assert_eq!(
+        gate_json["packageCatalogPath"],
+        "artifacts/releases/wave-d-2026-04-08/server/package-catalog.json"
+    );
+    assert_eq!(
+        gate_json["releaseExecutionPath"],
+        "artifacts/releases/wave-d-2026-04-08/server/release-execution.json"
+    );
+    assert_eq!(
+        gate_json["releaseProvenancePath"],
+        "artifacts/releases/wave-d-2026-04-08/server/release-provenance.json"
+    );
+
+    let review_doc_paths = gate_json["reviewDocPaths"]
+        .as_array()
+        .expect("reviewDocPaths should be an array");
+    assert!(
+        review_doc_paths
+            .iter()
+            .any(|entry| entry.as_str()
+                == Some("docs/review/step-13-release-readiness-2026-04-08.md")),
+        "release gate reviewDocPaths must contain the release-readiness review doc"
+    );
+    assert!(
+        review_doc_paths.iter().any(|entry| {
+            entry
+                .as_str()
+                .map(|path| {
+                    path.starts_with("docs/review/step-13-go-no-go")
+                        && path.ends_with("-2026-04-08.md")
+                })
+                .unwrap_or(false)
+        }),
+        "release gate reviewDocPaths must contain the step-13 go/no-go review doc"
+    );
+
+    let gate_checks = gate_json["gateChecks"]
+        .as_array()
+        .expect("gateChecks should be an array");
+    for (gate_id, contract_path) in [
+        (
+            "release_checklist_frozen",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/release-checklist.md",
+        ),
+        (
+            "package_catalog_frozen",
+            "artifacts/releases/wave-d-2026-04-08/server/package-catalog.json",
+        ),
+        (
+            "release_execution_frozen",
+            "artifacts/releases/wave-d-2026-04-08/server/release-execution.json",
+        ),
+        (
+            "release_provenance_frozen",
+            "artifacts/releases/wave-d-2026-04-08/server/release-provenance.json",
+        ),
+        (
+            "checksum_manifest_frozen",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/SHA256SUMS",
+        ),
+        (
+            "artifact_file_list_frozen",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/artifact-file-list.txt",
+        ),
+    ] {
+        let gate_entry = gate_checks
+            .iter()
+            .find(|entry| entry["gateId"] == gate_id)
+            .unwrap_or_else(|| panic!("release gate must contain gate check {gate_id}"));
+        assert_eq!(gate_entry["contractPath"], contract_path);
+        assert_eq!(gate_entry["status"], "pending_validation");
+        assert_eq!(gate_entry["blocking"], true);
+        assert!(
+            gate_entry["description"].is_string(),
+            "release gate check {gate_id} must keep a human-readable description"
+        );
+    }
+
+    let platform_gate_checks = gate_json["platformGateChecks"]
+        .as_array()
+        .expect("platformGateChecks should be an array");
+    for (platform, acceptance_manifest_path, required_package_ids) in [
+        (
+            "linux",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/acceptance-manifest.json",
+            vec!["linux-tar-gz", "linux-deb", "linux-rpm"],
+        ),
+        (
+            "macos",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/acceptance-manifest.json",
+            vec!["macos-tar-gz", "macos-pkg"],
+        ),
+        (
+            "windows",
+            "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/acceptance-manifest.json",
+            vec!["windows-zip", "windows-msi"],
+        ),
+    ] {
+        let platform_entry = platform_gate_checks
+            .iter()
+            .find(|entry| entry["platform"] == platform)
+            .unwrap_or_else(|| panic!("release gate must contain platform gate {platform}"));
+        assert_eq!(
+            platform_entry["acceptanceManifestPath"],
+            acceptance_manifest_path
+        );
+        assert_eq!(platform_entry["status"], "pending_validation");
+
+        let package_ids_json = platform_entry["requiredPackageIds"]
+            .as_array()
+            .expect("requiredPackageIds should be an array");
+        for package_id in required_package_ids {
+            assert!(
+                package_ids_json
+                    .iter()
+                    .any(|entry| entry.as_str() == Some(package_id)),
+                "release gate platform {platform} must contain required package id {package_id}"
+            );
+        }
+    }
+
+    for contract in [
+        "artifacts/releases/schemas/server-release-gate.schema.json",
+        "artifacts/releases/wave-d-2026-04-08/server/release-gate.json",
+    ] {
+        assert!(
+            bundle_manifest.contains(contract),
+            "Wave D bundle manifest must reference release gate contract `{contract}`"
+        );
+    }
+
+    assert!(
+        releases_readme.contains("artifacts/releases/schemas/server-release-gate.schema.json"),
+        "artifacts/releases/README.md must document the server release gate schema path"
+    );
+    assert!(
+        server_index.contains("release-gate.json"),
+        "server payload index must reference the machine-readable release gate manifest"
+    );
+    assert!(
+        packages_index.contains("../release-gate.json"),
+        "server packages index readme must reference the bundle-level release gate manifest"
+    );
+    assert!(
+        install_doc.contains("server/release-gate.json"),
+        "server install doc must reference the machine-readable release gate manifest"
+    );
 }

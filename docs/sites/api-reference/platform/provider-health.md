@@ -20,8 +20,8 @@ Returns the object-storage provider health snapshot.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / provider-health</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>No standalone published SDK family</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ProviderHealthSnapshot`</span></div>
 </div>
@@ -54,8 +54,8 @@ Returns the RTC provider health snapshot.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / provider-health</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>No standalone published SDK family</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ProviderHealthSnapshot`</span></div>
 </div>
@@ -88,8 +88,8 @@ Returns the user-module provider health snapshot.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / provider-health</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>No standalone published SDK family</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ProviderHealthSnapshot`</span></div>
 </div>

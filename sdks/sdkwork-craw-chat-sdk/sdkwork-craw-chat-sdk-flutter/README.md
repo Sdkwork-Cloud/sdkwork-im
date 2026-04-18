@@ -57,7 +57,7 @@ powershell -ExecutionPolicy Bypass -File .\bin\sdk-gen.ps1
 ```
 
 These scripts forward to the root `sdkwork-craw-chat-sdk/bin/generate-sdk.*` wrapper and constrain generation to the Flutter target.
-The forwarded flow ends by running the shared `bin/verify-flutter-workspace.mjs` suite, so regeneration immediately rechecks generated-model regressions, bearer-auth surface alignment, composed parity, public API boundaries, and package metadata alignment.
+The forwarded flow ends by running the shared `bin/verify-flutter-workspace.mjs` suite, so regeneration immediately rechecks generated-model regressions, bearer-auth surface alignment, composed parity, public API boundaries, discovery-surface-to-domain alignment, and package metadata alignment.
 
 ## Verify
 
@@ -78,7 +78,7 @@ powershell -ExecutionPolicy Bypass -File .\bin\sdk-verify.ps1
 ```
 
 These scripts forward to the root `sdkwork-craw-chat-sdk/bin/verify-sdk.*` wrapper and constrain verification to the Flutter target.
-The forwarded verification path delegates to the shared `bin/verify-flutter-workspace.mjs` suite.
+The forwarded verification path delegates to the shared `bin/verify-flutter-workspace.mjs` suite, including the discovery-surface-to-domain guard backed by `.sdkwork-assembly.json`.
 Add `-WithDart` on PowerShell or `--with-dart` on shell when the machine has a responsive Dart toolchain and you want native `dart pub get` plus `dart analyze` checks in addition to the default source-level regression guards.
 On Windows, that native Dart path resolves Flutter's bundled `dart.exe`, isolates the pub cache under `.sdkwork/dart/pub-cache`, and falls back to the workspace `bin/verify-flutter-dart-analysis.dart` analyzer entrypoint when `dart analyze` cannot safely launch its own helper process in the current environment.
 
@@ -98,12 +98,14 @@ This round generates the app-facing HTTP SDK for:
 
 The websocket transport is documented at the workspace root but is not implemented as a handwritten Flutter adapter in this round.
 
-## Release Placeholder Boundary
+## Current Workspace Status
 
-This workspace inherits the current SDK release placeholder contract from `artifacts/releases/wave-d-2026-04-08/sdk-release-catalog.json`.
+The Flutter workspace is materialized end to end:
 
-- `template_only_pending_generation`
-- `not_published`
-- `plannedVersion = null`
-- `versionStatus = version_unassigned_pending_freeze`
-- `versionDecisionSourcePath = null`
+- generated transport package: `backend_sdk`
+- composed product package: `craw_chat_sdk`
+- generated-model regression verification: enabled
+- composed boundary and metadata verification: enabled
+
+Publication and version assignment are still pending, but this workspace is no longer
+template-only.

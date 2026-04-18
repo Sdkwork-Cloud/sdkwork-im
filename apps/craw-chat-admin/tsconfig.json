@@ -26,6 +26,15 @@
       "@sdkwork/ui-pc-react/styles.css": [
         "../../../sdkwork-ui/sdkwork-ui-pc-react/dist/sdkwork-ui.css"
       ],
+      "@sdkwork/craw-chat-sdk-management": [
+        "../../sdks/sdkwork-craw-chat-sdk-management/sdkwork-craw-chat-sdk-management-typescript/composed/src/index.ts"
+      ],
+      "@sdkwork/craw-chat-management-backend-sdk": [
+        "../../sdks/sdkwork-craw-chat-sdk-management/sdkwork-craw-chat-sdk-management-typescript/generated/server-openapi/src/index.ts"
+      ],
+      "@sdkwork/sdk-common": [
+        "../../sdk/sdkwork-sdk-commons/sdkwork-sdk-common-typescript/dist/index.d.ts"
+      ],
       "motion/react": ["src/vendor/motion-react.tsx"],
       "sdkwork-craw-chat-admin-conversations": ["packages/sdkwork-craw-chat-admin-conversations/src/index.tsx"],
       "sdkwork-craw-chat-admin-admin-api": ["packages/sdkwork-craw-chat-admin-admin-api/src/index.ts"],
