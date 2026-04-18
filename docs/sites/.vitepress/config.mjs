@@ -61,6 +61,7 @@ const sidebar = {
         { text: "Admin SDK", link: "/sdk/admin-sdk" },
         { text: "Admin TypeScript SDK", link: "/sdk/admin-typescript-sdk" },
         { text: "Admin Flutter SDK", link: "/sdk/admin-flutter-sdk" },
+        { text: "Management SDK", link: "/sdk/management-sdk" },
         { text: "Language Support", link: "/sdk/language-support" },
         { text: "TypeScript Quick Start", link: "/sdk/typescript-quick-start" },
         { text: "Flutter Quick Start", link: "/sdk/flutter-quick-start" },
@@ -89,6 +90,7 @@ const sidebar = {
       items: [
         { text: "Overview", link: "/deployment/index" },
         { text: "Local Binary", link: "/deployment/local-binary" },
+        { text: "Server Lifecycle", link: "/deployment/server-lifecycle" },
         { text: "Docker", link: "/deployment/docker" },
         { text: "Profiles and Environment", link: "/deployment/profiles-and-env" },
         { text: "Runtime Operations", link: "/deployment/runtime-operations" },

@@ -124,7 +124,11 @@ function patchGeneratedTypeBridge() {
     )
     .replaceAll("../../generated/server-openapi/src/types/index", "./generated/types/index.js")
     .replaceAll("../../generated/server-openapi/src/types/common", "./generated/types/common.js")
-    .replaceAll("../../generated/server-openapi/src/types/string-map", "./generated/types/string-map.js");
+    .replaceAll("../../generated/server-openapi/src/types/string-map", "./generated/types/string-map.js")
+    .replace(
+      /\s*QueryParams,\s*SdkworkBackendConfig,\s*StringMap,\s*} from '@sdkwork\/craw-chat-backend-sdk';/,
+      `\n} from './generated/types/index.js';\nimport type { QueryParams, SdkworkBackendConfig } from './generated/types/common.js';\nimport type { StringMap } from './generated/types/string-map.js';`,
+    );
   writeFileSync(bridgePath, source, 'utf8');
 }
 

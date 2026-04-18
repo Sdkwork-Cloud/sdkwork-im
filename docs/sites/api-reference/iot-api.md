@@ -24,6 +24,10 @@
 - IoT-facing administrative flows typically sit behind backend or operator SDKs rather than the public app SDK.
 - Downlink requests ultimately write frames into the same streaming model used by the App API.
 - This site does not document a separate published IoT SDK family. Treat these routes as HTTP-first surfaces unless a repo consumer layer is documented separately.
+- The routes documented on this page do not currently have a standalone published SDK family.
+- In packaged installs, these IoT routes are still published through the unified `craw-chat-server`
+  / `web-gateway` public origin rather than a separate public device-ingress port.
+- In packaged installs, these IoT routes are still published through the unified `craw-chat-server` / `web-gateway` public origin rather than a separate public device-ingress port.
 
 ## How To Use This Page
 

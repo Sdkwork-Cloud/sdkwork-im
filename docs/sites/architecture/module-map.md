@@ -10,6 +10,7 @@ directories are stable enough to document as product surfaces.
 | `adapters/` | Provider and storage adapters such as local disk, local memory, IoT access, IoT MQTT, object storage, and RTC providers |
 | `crates/` | Shared contracts, CCP protocol crates, auth context, runtime links, route ownership models, and domain primitives |
 | `services/` | App runtime services, control-plane API, operator services, and business subsystems |
+| `services/web-gateway` | Unified external entrypoint, aggregate OpenAPI export, service-schema proxies, rendered docs, and canonical `craw-chat-server` binary |
 | `tools/` | Local verification tools such as `chat-cli` and smoke workflows |
 | `bin/` | PowerShell, Bash, and CMD lifecycle wrappers for local development and operations |
 | `deployments/` | Dockerfile, Compose profiles, environment templates, and bootstrap scripts |
@@ -50,8 +51,8 @@ directories are stable enough to document as product surfaces.
 
 - `apps/craw-chat-admin` and `apps/craw-chat-portal` are not documented as complete products.
 - SDK workspaces are documented separately from actual release status.
-- OpenAPI authority now exists for both the app SDK workspace and the admin control-plane SDK
-  workspace under `sdks/sdkwork-craw-chat-sdk-admin/`.
+- Checked-in OpenAPI authority now exists for the app, admin, and management SDK workspaces.
+- `web-gateway` | Unified external entrypoint, aggregate OpenAPI export, service-schema proxies, rendered docs, and canonical `craw-chat-server` binary.
 - The admin control-plane TypeScript SDK is locally verified, but that does not imply that every
   browser `/api/admin/*` route has already been promoted into the formal control-plane authority.
 

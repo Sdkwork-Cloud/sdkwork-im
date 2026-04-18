@@ -1,0 +1,141 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+show_help() {
+  cat <<'EOF'
+Usage: bash bin/verify-server.sh [--instance <name>] [--config-dir <path>] [--release-gate-path <path-to-release-gate.json>] [--output-format <text|json>]
+
+Validate config, storage wiring, and ready state for craw-chat-server, and optionally audit the machine-readable release-gate bundle for semantic contract drift, decisionStatus, contractsValid, platforms, and semanticIssues.
+EOF
+}
+
+instance_name="default"
+config_dir="/etc/craw-chat/default"
+release_gate_path=""
+output_format="text"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+escape_json() {
+  local value="$1"
+  value="${value//\\/\\\\}"
+  value="${value//\"/\\\"}"
+  value="${value//$'\r'/}"
+  value="${value//$'\n'/\\n}"
+  printf '%s' "$value"
+}
+
+json_array_strings() {
+  local first=1
+  printf '['
+  for value in "$@"; do
+    if [[ $first -eq 0 ]]; then
+      printf ', '
+    fi
+    first=0
+    printf '"%s"' "$(escape_json "$value")"
+  done
+  printf ']'
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --instance)
+      instance_name="$2"
+      config_dir="/etc/craw-chat/${instance_name}"
+      shift 2
+      ;;
+    --config-dir)
+      config_dir="$2"
+      shift 2
+      ;;
+    --release-gate-path)
+      release_gate_path="$2"
+      shift 2
+      ;;
+    --output-format)
+      output_format="$2"
+      shift 2
+      ;;
+    -h|--help)
+      show_help
+      exit 0
+      ;;
+    *)
+      echo "Unknown argument: $1" >&2
+      show_help >&2
+      exit 1
+      ;;
+  esac
+done
+
+server_yaml="${config_dir}/server.yaml"
+postgresql_yaml="${config_dir}/storage/postgresql.yaml"
+password_file="${config_dir}/secrets/postgresql.password"
+missing=()
+
+[[ -f "$server_yaml" ]] || missing+=("server.yaml")
+[[ -f "$postgresql_yaml" ]] || missing+=("storage/postgresql.yaml")
+[[ -f "$password_file" ]] || missing+=("secrets/postgresql.password")
+
+server_content="$(cat "$server_yaml" 2>/dev/null || true)"
+storage_content="$(cat "$postgresql_yaml" 2>/dev/null || true)"
+
+for contract in "instance:" "network:" "publicEndpoints:" "runtime:"; do
+  [[ "$server_content" == *"$contract"* ]] || missing+=("$contract")
+done
+for contract in "provider: postgresql" "passwordFile:" "migrationMode:"; do
+  [[ "$storage_content" == *"$contract"* ]] || missing+=("$contract")
+done
+
+config_valid=true
+if [[ ${#missing[@]} -gt 0 ]]; then
+  config_valid=false
+fi
+
+release_contracts_enabled=false
+release_contracts_valid=true
+release_contracts_json='{"enabled": false}'
+release_contracts_summary=""
+
+if [[ -n "$release_gate_path" ]]; then
+  release_contracts_enabled=true
+  verifier_path="${script_dir}/verify-server-release-contracts.mjs"
+  release_contracts_json="$(node "$verifier_path" --release-gate-path "$release_gate_path" --format json)"
+  release_contracts_valid="$(node "$verifier_path" --release-gate-path "$release_gate_path" --field contractsValid)"
+  if [[ "$output_format" != "json" ]]; then
+    release_contracts_summary="$(node "$verifier_path" --release-gate-path "$release_gate_path" --format text)"
+  fi
+fi
+
+ready="$config_valid"
+if [[ "$release_contracts_enabled" == true && "$release_contracts_valid" != true ]]; then
+  ready=false
+fi
+
+if [[ "$output_format" == "json" ]]; then
+  cat <<EOF
+{
+  "product": "craw-chat-server",
+  "instance": "${instance_name}",
+  "config": "${config_dir}",
+  "configValid": ${config_valid},
+  "storageValid": ${config_valid},
+  "ready": ${ready},
+  "output": "${output_format}",
+  "missing": $(json_array_strings "${missing[@]}"),
+  "releaseContracts": ${release_contracts_json}
+}
+EOF
+else
+  echo "craw-chat-server verify report"
+  echo "config: ${config_dir}"
+  echo "configValid: ${config_valid}"
+  echo "storageValid: ${config_valid}"
+  echo "ready: ${ready}"
+  if [[ ${#missing[@]} -gt 0 ]]; then
+    echo "missing: ${missing[*]}"
+  fi
+  if [[ "$release_contracts_enabled" == true ]]; then
+    printf '%s\n' "$release_contracts_summary"
+  fi
+fi

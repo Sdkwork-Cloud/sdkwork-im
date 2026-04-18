@@ -22,7 +22,7 @@ Maps a provider callback into an internal RTC domain event.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.rtc`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; provider callback mapping is validated by the RTC runtime.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 RtcCallbackEvent`</span></div>

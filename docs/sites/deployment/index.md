@@ -10,6 +10,7 @@ repository today.
 | Local binary | `bin/install-local.*`, `bin/start-local.*`, `bin/status-local.*` | Development, debugging, runtime inspection, restore rehearsal |
 | Docker Compose | `bin/deploy-local.*`, `deployments/scripts/bootstrap-local.ps1` | Container validation, demos, smoke automation |
 | Standalone control plane | `cargo run -p control-plane-api --offline` or the compiled binary | Governance and admin API development |
+| Unified server lifecycle | `bin/install-server.*`, `bin/init-config-server.*`, `bin/init-storage-server.*`, `bin/verify-server.*`, `bin/install-service-server.*`, `bin/start-server.*` | Packaged single-port installs, PostgreSQL-backed config roots, and service-manager delivery |
 
 ## How To Choose A Path
 
@@ -47,9 +48,15 @@ scripts, templates, and Compose entry points, but it still reuses the current
 `local-minimal` runtime contract and topology.
 ::: 
 
+The current packaged server boundary is the unified gateway and the canonical binary is
+`craw-chat-server`.
+
+In the current server boundary section, the canonical binary is `craw-chat-server`.
+
 ## What To Read Next
 
 - [Local Binary](/deployment/local-binary)
 - [Docker](/deployment/docker)
+- [Server Lifecycle](/deployment/server-lifecycle)
 - [Profiles and Environment](/deployment/profiles-and-env)
 - [Runtime Operations](/deployment/runtime-operations)

@@ -7,13 +7,17 @@ use axum::extract::{Path, Query, State};
 use axum::http::HeaderMap;
 use axum::http::Request;
 use axum::middleware::{self, Next};
-use axum::response::{IntoResponse, Response};
+use axum::response::{Html, IntoResponse, Response};
 use axum::{
     Json, Router,
     routing::{get, post},
 };
+use craw_chat_api_registry::HttpMethod;
 use craw_chat_contract_core::ContractError;
 use craw_chat_contract_stream::{StreamStateRecord, StreamStateStore};
+use craw_chat_openapi::{
+    OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
+};
 use im_auth_context::{
     AuthContext, AuthContextError, resolve_auth_context, resolve_public_bearer_auth_context,
 };
@@ -203,6 +207,14 @@ pub struct StreamingError {
 }
 
 impl StreamingError {
+    fn internal(code: &'static str, message: impl Into<String>) -> Self {
+        Self {
+            status: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            code,
+            message: message.into(),
+        }
+    }
+
     pub fn status(&self) -> axum::http::StatusCode {
         self.status
     }
@@ -880,6 +892,8 @@ pub fn build_app(runtime: Arc<StreamingRuntime>) -> Router {
     Router::new()
         .route("/healthz", get(healthz))
         .route("/readyz", get(readyz))
+        .route("/openapi.json", get(openapi_json))
+        .route("/docs", get(docs))
         .route("/api/v1/streams", post(open_stream))
         .route(
             "/api/v1/streams/{stream_id}/frames",
@@ -899,7 +913,7 @@ pub fn build_app(runtime: Arc<StreamingRuntime>) -> Router {
 
 async fn require_public_bearer_auth(request: Request<axum::body::Body>, next: Next) -> Response {
     match request.uri().path() {
-        "/healthz" | "/readyz" => next.run(request).await,
+        "/healthz" | "/readyz" | "/openapi.json" | "/docs" => next.run(request).await,
         _ => match resolve_public_bearer_auth_context(request.headers()) {
             Ok(_) => next.run(request).await,
             Err(error) => StreamingError::from(error).into_response(),
@@ -919,6 +933,79 @@ async fn readyz() -> Json<HealthResponse> {
         status: "ok",
         service: "streaming-service",
     })
+}
+
+async fn openapi_json() -> Result<Json<serde_json::Value>, StreamingError> {
+    Ok(Json(
+        build_streaming_service_openapi_document()
+            .map_err(|message| StreamingError::internal("openapi_export_failed", message))?,
+    ))
+}
+
+async fn docs() -> Html<String> {
+    Html(render_docs_html(&streaming_service_openapi_spec()))
+}
+
+fn build_streaming_service_openapi_document() -> Result<serde_json::Value, String> {
+    let routes = extract_routes_from_function(
+        include_str!("lib.rs"),
+        "build_app",
+        &[],
+        &["/openapi.json", "/docs"],
+    )?;
+
+    Ok(build_openapi_document(
+        &streaming_service_openapi_spec(),
+        &routes,
+        streaming_service_tag,
+        streaming_service_requires_bearer,
+        streaming_service_summary,
+    ))
+}
+
+fn streaming_service_openapi_spec() -> OpenApiServiceSpec<'static> {
+    OpenApiServiceSpec {
+        title: "Craw Chat Streaming Service API",
+        version: env!("CARGO_PKG_VERSION"),
+        description: "Live OpenAPI contract generated from the streaming-service router for stream session lifecycle and frame append/query flows.",
+        openapi_path: "/openapi.json",
+        docs_path: "/docs",
+    }
+}
+
+fn streaming_service_tag(path: &str, _method: HttpMethod) -> String {
+    match path {
+        "/healthz" | "/readyz" => "system".to_owned(),
+        _ => "streams".to_owned(),
+    }
+}
+
+fn streaming_service_requires_bearer(path: &str, _method: HttpMethod) -> bool {
+    !matches!(path, "/healthz" | "/readyz")
+}
+
+fn streaming_service_summary(path: &str, method: HttpMethod) -> String {
+    match (path, method) {
+        ("/healthz", HttpMethod::Get) => "Check streaming service health".to_owned(),
+        ("/readyz", HttpMethod::Get) => "Check streaming service readiness".to_owned(),
+        _ => format!(
+            "{} {}",
+            streaming_service_method_display(method),
+            path.trim_matches('/').replace('/', " ")
+        ),
+    }
+}
+
+fn streaming_service_method_display(method: HttpMethod) -> &'static str {
+    match method {
+        HttpMethod::Delete => "Delete",
+        HttpMethod::Get => "Get",
+        HttpMethod::Head => "Head",
+        HttpMethod::Options => "Options",
+        HttpMethod::Patch => "Patch",
+        HttpMethod::Post => "Post",
+        HttpMethod::Put => "Put",
+    }
 }
 
 async fn open_stream(

@@ -3,10 +3,14 @@ use std::sync::Arc;
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, Request};
 use axum::middleware::{self, Next};
-use axum::response::{IntoResponse, Response};
+use axum::response::{Html, IntoResponse, Response};
 use axum::{
     Json, Router,
     routing::{get, post},
+};
+use craw_chat_api_registry::HttpMethod;
+use craw_chat_openapi::{
+    OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
 use im_auth_context::{AuthContextError, resolve_auth_context, resolve_public_bearer_auth_context};
 use im_domain_core::conversation::{
@@ -82,6 +86,16 @@ pub struct ProjectionApiError {
     message: String,
 }
 
+impl ProjectionApiError {
+    fn internal(code: &'static str, message: impl Into<String>) -> Self {
+        Self {
+            status: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            code,
+            message: message.into(),
+        }
+    }
+}
+
 impl From<AuthContextError> for ProjectionApiError {
     fn from(value: AuthContextError) -> Self {
         Self {
@@ -131,6 +145,8 @@ pub fn build_app(service: Arc<TimelineProjectionService>) -> Router {
     Router::new()
         .route("/healthz", get(healthz))
         .route("/readyz", get(readyz))
+        .route("/openapi.json", get(openapi_json))
+        .route("/docs", get(docs))
         .route("/api/v1/devices/register", post(register_device))
         .route(
             "/api/v1/devices/{device_id}/sync-feed",
@@ -167,7 +183,7 @@ pub fn build_app(service: Arc<TimelineProjectionService>) -> Router {
 
 async fn require_public_bearer_auth(request: Request<axum::body::Body>, next: Next) -> Response {
     match request.uri().path() {
-        "/healthz" | "/readyz" => next.run(request).await,
+        "/healthz" | "/readyz" | "/openapi.json" | "/docs" => next.run(request).await,
         _ => match resolve_public_bearer_auth_context(request.headers()) {
             Ok(_) => next.run(request).await,
             Err(error) => ProjectionApiError::from(error).into_response(),
@@ -187,6 +203,82 @@ async fn readyz() -> Json<HealthResponse> {
         status: "ok",
         service: "projection-service",
     })
+}
+
+async fn openapi_json() -> Result<Json<serde_json::Value>, ProjectionApiError> {
+    Ok(Json(
+        build_projection_service_openapi_document()
+            .map_err(|message| ProjectionApiError::internal("openapi_export_failed", message))?,
+    ))
+}
+
+async fn docs() -> Html<String> {
+    Html(render_docs_html(&projection_service_openapi_spec()))
+}
+
+fn build_projection_service_openapi_document() -> Result<serde_json::Value, String> {
+    let routes = extract_routes_from_function(
+        include_str!("http.rs"),
+        "build_app",
+        &[],
+        &["/openapi.json", "/docs"],
+    )?;
+
+    Ok(build_openapi_document(
+        &projection_service_openapi_spec(),
+        &routes,
+        projection_service_tag,
+        projection_service_requires_bearer,
+        projection_service_summary,
+    ))
+}
+
+fn projection_service_openapi_spec() -> OpenApiServiceSpec<'static> {
+    OpenApiServiceSpec {
+        title: "Craw Chat Projection Service API",
+        version: env!("CARGO_PKG_VERSION"),
+        description: "Live OpenAPI contract generated from the projection-service router for inbox, timeline, contacts, read cursor, sync-feed, and interaction summary queries.",
+        openapi_path: "/openapi.json",
+        docs_path: "/docs",
+    }
+}
+
+fn projection_service_tag(path: &str, _method: HttpMethod) -> String {
+    match path {
+        "/healthz" | "/readyz" => "system".to_owned(),
+        path if path.starts_with("/api/v1/devices/") => "devices".to_owned(),
+        "/api/v1/contacts" => "contacts".to_owned(),
+        "/api/v1/inbox" => "inbox".to_owned(),
+        _ => "conversations".to_owned(),
+    }
+}
+
+fn projection_service_requires_bearer(path: &str, _method: HttpMethod) -> bool {
+    !matches!(path, "/healthz" | "/readyz")
+}
+
+fn projection_service_summary(path: &str, method: HttpMethod) -> String {
+    match (path, method) {
+        ("/healthz", HttpMethod::Get) => "Check projection service health".to_owned(),
+        ("/readyz", HttpMethod::Get) => "Check projection service readiness".to_owned(),
+        _ => format!(
+            "{} {}",
+            projection_service_method_display(method),
+            path.trim_matches('/').replace('/', " ")
+        ),
+    }
+}
+
+fn projection_service_method_display(method: HttpMethod) -> &'static str {
+    match method {
+        HttpMethod::Delete => "Delete",
+        HttpMethod::Get => "Get",
+        HttpMethod::Head => "Head",
+        HttpMethod::Options => "Options",
+        HttpMethod::Patch => "Patch",
+        HttpMethod::Post => "Post",
+        HttpMethod::Put => "Put",
+    }
 }
 
 async fn register_device(

@@ -27,8 +27,10 @@ Use this page for the shared contract first:
 
 ### `BearerAuth`
 
-Public deployments of `local-minimal-node` and `control-plane-api` accept bearer tokens on
-non-health endpoints.
+Public deployments of `craw-chat-server` / `web-gateway`, `local-minimal-node`, and
+`control-plane-api` accept bearer tokens on non-health endpoints. In the packaged server flow, the
+unified gateway fronts the public HTTP bind and forwards requests to the same bearer-authenticated
+app and governance surfaces documented here.
 
 | Item | Value |
 | --- | --- |

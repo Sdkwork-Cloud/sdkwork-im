@@ -1,0 +1,20 @@
+instance:
+  name: default
+
+network:
+  bindAddress: 0.0.0.0:18080
+
+publicEndpoints:
+  baseUrl: https://chat.example.com
+  apiBaseUrl: https://chat.example.com
+  websocketBaseUrl: wss://realtime.example.com
+  docsBaseUrl: https://chat.example.com/docs
+
+runtime:
+  configDir: /etc/craw-chat/default
+  dataDir: /var/lib/craw-chat/default
+  logDir: /var/log/craw-chat/default
+  runDir: /var/run/craw-chat/default
+
+storage:
+  postgresqlConfig: /etc/craw-chat/default/storage/postgresql.yaml

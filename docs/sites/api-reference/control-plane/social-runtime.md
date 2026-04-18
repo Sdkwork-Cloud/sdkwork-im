@@ -31,9 +31,9 @@ Read the pending shared-channel sync queue.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / social-runtime</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 SocialSharedChannelSyncPendingInventoryResponse`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
 ### Response `200`
@@ -68,9 +68,9 @@ Read merged shared-channel sync delivery state.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / social-runtime</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 SocialSharedChannelSyncDeliveryStateInventoryResponse`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
 ### Response `200`
@@ -105,9 +105,9 @@ Read the delivered shared-channel sync ledger.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / social-runtime</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 SocialSharedChannelSyncDeliveredInventoryResponse`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
 ### Response `200`
@@ -142,9 +142,9 @@ Read the dead-letter shared-channel sync queue.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / social-runtime</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 SocialSharedChannelSyncDeadLetterInventoryResponse`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
 ### Response `200`
@@ -179,9 +179,9 @@ Requeue all dead-letter shared-channel sync entries.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / social-runtime</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 SocialSharedChannelSyncDeadLetterRequeueResponse`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
 ### Request Body
@@ -220,9 +220,9 @@ Requeue selected dead-letter shared-channel sync entries.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / social-runtime</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 SocialSharedChannelSyncDeadLetterTargetedRequeueResponse`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
 ### Request Body
@@ -261,9 +261,9 @@ Repair the persisted social runtime derived snapshot.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / social-runtime</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 SocialRuntimeRepairResponse`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
 ### Request Body
@@ -302,9 +302,9 @@ Repair shared-channel sync backlog state.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / social-runtime</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 SocialSharedChannelSyncRepairResponse`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
 ### Request Body
@@ -343,9 +343,9 @@ Claim selected pending shared-channel sync entries.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / social-runtime</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 SocialSharedChannelSyncPendingClaimResponse`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
 ### Request Body
@@ -384,9 +384,9 @@ Release selected pending shared-channel sync entries.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / social-runtime</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 SocialSharedChannelSyncPendingReleaseResponse`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
 ### Request Body
@@ -425,9 +425,9 @@ Reclaim stale shared-channel sync pending ownership.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / social-runtime</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 SocialSharedChannelSyncPendingStaleReclaimResponse`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
 ### Request Body
@@ -466,9 +466,9 @@ Republish selected pending shared-channel sync entries.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / social-runtime</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 SocialSharedChannelSyncTargetedRepublishResponse`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
 ### Request Body
@@ -507,9 +507,9 @@ Take over selected pending shared-channel sync entries.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / social-runtime</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 SocialSharedChannelSyncPendingTakeoverResponse`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
 ### Request Body

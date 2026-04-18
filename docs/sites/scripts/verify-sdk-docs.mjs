@@ -459,8 +459,8 @@ requireIncludes(
 requireIncludes(
   flutterDocSource,
   flutterDocPath,
-  "CrawChatClient",
-  "must document CrawChatClient as the primary Flutter client",
+  "CrawChatSdkClient",
+  "must document CrawChatSdkClient as the primary Flutter client",
 );
 requireIncludes(
   flutterDocSource,

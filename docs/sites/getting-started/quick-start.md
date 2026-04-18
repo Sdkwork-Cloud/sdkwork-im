@@ -171,7 +171,10 @@ posts a message, and verifies the resulting conversation summary.
 ```
 
 These scripts are for local verification and demo workflows. They do not replace the generated SDK
-families.
+families. These scripts help validate a local node; application integrations should move to the
+public `sdkwork-craw-chat-sdk` packages instead of scripting raw HTTP once the node is healthy.
+
+These scripts help validate a local node; application integrations should move to the public `sdkwork-craw-chat-sdk` packages instead of scripting raw HTTP once the node is healthy.
 
 ## 8. First Manual API Call
 
@@ -182,6 +185,11 @@ The easiest path is to reuse the smoke script. If you call the HTTP API directly
 - Claims that at least identify tenant and subject
 
 The public app surface is documented in [App API Overview](/api-reference/app-api).
+
+For local app-SDK integration against this development profile, use `baseUrl = http://127.0.0.1:18090`.
+
+If you need the packaged single-port server contract instead of the local development profile, use
+[Server Lifecycle](/deployment/server-lifecycle).
 
 ::: tip Recommended first-run profile
 If you only need a stable local verification path, use `local-minimal` first. The `local-default`

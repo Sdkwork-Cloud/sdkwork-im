@@ -79,6 +79,22 @@ function verifySourceOperationBlock(filePath, anchor, block) {
         issues.push(`${location}: missing api-meta-grid label "${label}"`);
       }
     }
+
+    if (
+      (relativePath.includes("docs/sites/api-reference/platform/") ||
+        relativePath.includes("docs/sites/api-reference/iot/")) &&
+      metaMatch[1].includes("`sdkwork-craw-chat-sdk`")
+    ) {
+      issues.push(
+        `${location}: platform and IoT operation docs must not claim sdkwork-craw-chat-sdk as the SDK surface`,
+      );
+    }
+
+    if (!isOpenProbe && metaMatch[1].includes("trusted headers")) {
+      issues.push(
+        `${location}: public Security metadata must describe the bearer-auth contract only; keep trusted-header details in shared auth docs or endpoint notes`,
+      );
+    }
   }
 
   if (!isOpenProbe && !block.includes("### Error Responses")) {

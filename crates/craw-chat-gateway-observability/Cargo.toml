@@ -1,0 +1,10 @@
+[package]
+name = "craw-chat-gateway-observability"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+craw-chat-api-registry = { path = "../craw-chat-api-registry" }
+craw-chat-gateway-config = { path = "../craw-chat-gateway-config" }
+serde.workspace = true

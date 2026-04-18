@@ -30,9 +30,9 @@ Bind a direct chat to a conversation.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / social-graph</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 SocialDirectChatCommitResponse`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
 ### Request Body
@@ -71,9 +71,9 @@ Submit a friend request event.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / social-graph</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 SocialFriendRequestCommitResponse`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
 ### Request Body
@@ -112,9 +112,9 @@ Read a friend request snapshot.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / social-graph</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 SocialFriendRequestSnapshotResponse`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
 ### Path Parameters
@@ -155,9 +155,9 @@ Activate a friendship event.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / social-graph</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 SocialFriendshipCommitResponse`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
 ### Request Body
@@ -196,9 +196,9 @@ Read a friendship snapshot.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / social-graph</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 SocialFriendshipSnapshotResponse`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
 ### Path Parameters
@@ -239,9 +239,9 @@ Apply a shared-channel policy.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / social-graph</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 SocialSharedChannelPolicyCommitResponse`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
 ### Request Body
@@ -280,9 +280,9 @@ Read a shared-channel policy snapshot.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / social-graph</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 SocialSharedChannelPolicySnapshotResponse`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
 ### Path Parameters
@@ -323,9 +323,9 @@ Block a user in the social graph.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / social-graph</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 SocialUserBlockCommitResponse`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
 ### Request Body
@@ -364,9 +364,9 @@ Read a user block snapshot.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / social-graph</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 SocialUserBlockSnapshotResponse`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
 ### Path Parameters
@@ -407,9 +407,9 @@ Read a direct chat snapshot.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / social-graph</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 SocialDirectChatSnapshotResponse`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
 ### Path Parameters
@@ -450,9 +450,9 @@ Establish an external collaboration connection.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / social-graph</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 SocialExternalConnectionCommitResponse`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
 ### Request Body
@@ -491,9 +491,9 @@ Read an external connection snapshot.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / social-graph</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 SocialExternalConnectionSnapshotResponse`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
 ### Path Parameters
@@ -534,9 +534,9 @@ Bind an external member link.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / social-graph</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 SocialExternalMemberLinkCommitResponse`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
 ### Request Body
@@ -575,9 +575,9 @@ Read an external member link snapshot.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / social-graph</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 SocialExternalMemberLinkSnapshotResponse`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
 ### Path Parameters

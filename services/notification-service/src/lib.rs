@@ -4,14 +4,18 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use axum::extract::{Path, State};
 use axum::http::{HeaderMap, Request};
 use axum::middleware::{self, Next};
-use axum::response::{IntoResponse, Response};
+use axum::response::{Html, IntoResponse, Response};
 use axum::{
     Json, Router,
     routing::{get, post},
 };
+use craw_chat_api_registry::HttpMethod;
 use craw_chat_contract_core::ContractError;
 use craw_chat_contract_message::{CommitJournal, CommitPosition};
 use craw_chat_contract_notification::{NotificationTaskRecord, NotificationTaskStore};
+use craw_chat_openapi::{
+    OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
+};
 use im_auth_context::{
     AuthContext, AuthContextError, resolve_auth_context, resolve_public_bearer_auth_context,
 };
@@ -173,6 +177,14 @@ pub struct NotificationError {
 }
 
 impl NotificationError {
+    fn internal(code: &'static str, message: impl Into<String>) -> Self {
+        Self {
+            status: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            code,
+            message: message.into(),
+        }
+    }
+
     fn not_found(notification_id: &str) -> Self {
         Self {
             status: axum::http::StatusCode::NOT_FOUND,
@@ -761,6 +773,8 @@ pub fn build_app(runtime: Arc<NotificationRuntime>) -> Router {
     Router::new()
         .route("/healthz", get(healthz))
         .route("/readyz", get(readyz))
+        .route("/openapi.json", get(openapi_json))
+        .route("/docs", get(docs))
         .route("/api/v1/notifications/requests", post(request_notification))
         .route("/api/v1/notifications", get(list_notifications))
         .route(
@@ -772,7 +786,7 @@ pub fn build_app(runtime: Arc<NotificationRuntime>) -> Router {
 
 async fn require_public_bearer_auth(request: Request<axum::body::Body>, next: Next) -> Response {
     match request.uri().path() {
-        "/healthz" | "/readyz" => next.run(request).await,
+        "/healthz" | "/readyz" | "/openapi.json" | "/docs" => next.run(request).await,
         _ => match resolve_public_bearer_auth_context(request.headers()) {
             Ok(_) => next.run(request).await,
             Err(error) => NotificationError::from(error).into_response(),
@@ -792,6 +806,79 @@ async fn readyz() -> Json<HealthResponse> {
         status: "ok",
         service: "notification-service",
     })
+}
+
+async fn openapi_json() -> Result<Json<serde_json::Value>, NotificationError> {
+    Ok(Json(
+        build_notification_service_openapi_document()
+            .map_err(|message| NotificationError::internal("openapi_export_failed", message))?,
+    ))
+}
+
+async fn docs() -> Html<String> {
+    Html(render_docs_html(&notification_service_openapi_spec()))
+}
+
+fn build_notification_service_openapi_document() -> Result<serde_json::Value, String> {
+    let routes = extract_routes_from_function(
+        include_str!("lib.rs"),
+        "build_app",
+        &[],
+        &["/openapi.json", "/docs"],
+    )?;
+
+    Ok(build_openapi_document(
+        &notification_service_openapi_spec(),
+        &routes,
+        notification_service_tag,
+        notification_service_requires_bearer,
+        notification_service_summary,
+    ))
+}
+
+fn notification_service_openapi_spec() -> OpenApiServiceSpec<'static> {
+    OpenApiServiceSpec {
+        title: "Craw Chat Notification Service API",
+        version: env!("CARGO_PKG_VERSION"),
+        description: "Live OpenAPI contract generated from the notification-service router for notification request mutation and notification query flows.",
+        openapi_path: "/openapi.json",
+        docs_path: "/docs",
+    }
+}
+
+fn notification_service_tag(path: &str, _method: HttpMethod) -> String {
+    match path {
+        "/healthz" | "/readyz" => "system".to_owned(),
+        _ => "notifications".to_owned(),
+    }
+}
+
+fn notification_service_requires_bearer(path: &str, _method: HttpMethod) -> bool {
+    !matches!(path, "/healthz" | "/readyz")
+}
+
+fn notification_service_summary(path: &str, method: HttpMethod) -> String {
+    match (path, method) {
+        ("/healthz", HttpMethod::Get) => "Check notification service health".to_owned(),
+        ("/readyz", HttpMethod::Get) => "Check notification service readiness".to_owned(),
+        _ => format!(
+            "{} {}",
+            notification_service_method_display(method),
+            path.trim_matches('/').replace('/', " ")
+        ),
+    }
+}
+
+fn notification_service_method_display(method: HttpMethod) -> &'static str {
+    match method {
+        HttpMethod::Delete => "Delete",
+        HttpMethod::Get => "Get",
+        HttpMethod::Head => "Head",
+        HttpMethod::Options => "Options",
+        HttpMethod::Patch => "Patch",
+        HttpMethod::Post => "Post",
+        HttpMethod::Put => "Put",
+    }
 }
 
 async fn request_notification(

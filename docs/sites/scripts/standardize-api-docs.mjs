@@ -57,19 +57,22 @@ function inferSuccessLabel(method, route, block) {
 
 function sdkLabel(page, route, method) {
   const labels = {
+    "app/session-and-realtime": "`@sdkwork/craw-chat-sdk` / session, presence, and realtime helpers",
+    "app/device-sync": "`@sdkwork/craw-chat-sdk` / generated device-sync transport",
     "app/conversations": route === "/api/v1/inbox"
       ? "`@sdkwork/craw-chat-sdk` / `sdk.generated.inbox.getInbox()`"
       : "`@sdkwork/craw-chat-sdk` / `sdk.conversations`",
     "app/membership-and-read-state": "`@sdkwork/craw-chat-sdk` / `sdk.conversations`",
     "app/messages": "`@sdkwork/craw-chat-sdk` / `sdk.messages`",
     "app/media": "`@sdkwork/craw-chat-sdk` / `sdk.media`",
+    "app/streams": "`@sdkwork/craw-chat-sdk` / generated stream transport",
     "app/rtc": "`@sdkwork/craw-chat-sdk` / `sdk.rtc`",
-    "platform/notifications": "`sdkwork-craw-chat-sdk` / notifications",
-    "platform/automation": "`sdkwork-craw-chat-sdk` / automation",
-    "platform/audit": "`sdkwork-craw-chat-sdk` / audit",
-    "platform/ops": "`sdkwork-craw-chat-sdk` / ops",
-    "platform/provider-health": "`sdkwork-craw-chat-sdk` / provider-health",
-    "iot/protocol-and-health": "`sdkwork-craw-chat-sdk` / iot",
+    "platform/notifications": "No standalone published SDK family",
+    "platform/automation": "No standalone published SDK family",
+    "platform/audit": "No standalone published SDK family",
+    "platform/ops": "No standalone published SDK family",
+    "platform/provider-health": "No standalone published SDK family",
+    "iot/protocol-and-health": "No standalone published SDK family",
     "control-plane/protocol": "`sdkwork-craw-chat-sdk-admin` / protocol-governance",
     "control-plane/providers": "`sdkwork-craw-chat-sdk-admin` / provider-governance",
     "control-plane/nodes": "`sdkwork-craw-chat-sdk-admin` / node-operations",
@@ -140,11 +143,7 @@ function securityLabel(route, page) {
     return "Open endpoint";
   }
 
-  if (page.startsWith("control-plane/")) {
-    return "Bearer token";
-  }
-
-  return "Bearer token or trusted headers";
+  return "Bearer token";
 }
 
 function permissionLabel(page, method, route) {

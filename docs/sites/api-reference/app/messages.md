@@ -95,8 +95,8 @@ Posts a regular conversation message.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.createTextMessage(...)`, `sdk.send(...)`, `sdk.conversations.postMessage(...)`</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.messages`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation-bound write access.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PostMessageResult`</span></div>
 </div>
@@ -153,8 +153,8 @@ Returns the projection-backed message timeline for the conversation.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.conversations.listMessages(...)`</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.messages`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Active conversation member.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 TimelineListResponse`</span></div>
 </div>
@@ -196,8 +196,8 @@ Publishes a system message to the conversation's system channel.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.createTextMessage(...)`, `sdk.send(...)`, `sdk.conversations.publishSystemMessage(...)`</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.messages`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation-bound write access.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PostMessageResult`</span></div>
 </div>
@@ -246,8 +246,8 @@ Edits a previously posted message.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.editMessage(...)`, `sdk.editTextMessage(...)`</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.messages`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation-bound write access.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 MessageMutationResult`</span></div>
 </div>
@@ -294,8 +294,8 @@ Recalls a message. This operation does not require a JSON request body.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.recallMessage(...)`</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.messages`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation-bound write access.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 MessageMutationResult`</span></div>
 </div>

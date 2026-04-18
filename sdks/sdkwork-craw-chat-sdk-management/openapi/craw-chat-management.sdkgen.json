@@ -1,0 +1,3096 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Craw Chat Management API",
+    "version": "0.1.0",
+    "description": "Authority snapshot for the operator-console management backend served behind /api/admin/*."
+  },
+  "servers": [
+    {
+      "url": "/api/admin",
+      "description": "Unified gateway management proxy root"
+    }
+  ],
+  "tags": [
+    {
+      "name": "auth",
+      "description": "Operator console session bootstrap and current-session introspection."
+    },
+    {
+      "name": "users",
+      "description": "Operator and portal identity administration."
+    },
+    {
+      "name": "marketing",
+      "description": "Campaign configuration and campaign state changes."
+    },
+    {
+      "name": "tenants",
+      "description": "Tenant and project governance."
+    },
+    {
+      "name": "access",
+      "description": "API key issuance and key-group governance."
+    },
+    {
+      "name": "routing",
+      "description": "Routing profile, snapshot, decision-log, and provider-health reads."
+    },
+    {
+      "name": "catalog",
+      "description": "Channel, provider, credential, model, and pricing catalog administration."
+    },
+    {
+      "name": "usage",
+      "description": "Usage record and summary reads."
+    },
+    {
+      "name": "billing",
+      "description": "Billing event and billing summary reads."
+    },
+    {
+      "name": "operations",
+      "description": "Rate-limit governance and runtime operation controls."
+    }
+  ],
+  "paths": {
+    "/api/admin/api-key-groups": {
+      "get": {
+        "operationId": "listApiKeyGroups",
+        "tags": [
+          "access"
+        ],
+        "summary": "listApiKeyGroups",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createApiKeyGroup",
+        "tags": [
+          "access"
+        ],
+        "summary": "createApiKeyGroup",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LooseJsonObject"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/api-key-groups/{groupId}": {
+      "patch": {
+        "operationId": "updateApiKeyGroup",
+        "tags": [
+          "access"
+        ],
+        "summary": "updateApiKeyGroup",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LooseJsonObject"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteApiKeyGroup",
+        "tags": [
+          "access"
+        ],
+        "summary": "deleteApiKeyGroup",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "Delete succeeded and no payload is returned"
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/api-key-groups/{groupId}/status": {
+      "post": {
+        "operationId": "updateApiKeyGroupStatus",
+        "tags": [
+          "access"
+        ],
+        "summary": "updateApiKeyGroupStatus",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LooseJsonObject"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/api-keys": {
+      "get": {
+        "operationId": "listApiKeys",
+        "tags": [
+          "access"
+        ],
+        "summary": "listApiKeys",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createApiKey",
+        "tags": [
+          "access"
+        ],
+        "summary": "createApiKey",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LooseJsonObject"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/api-keys/{hashedKey}": {
+      "put": {
+        "operationId": "updateApiKey",
+        "tags": [
+          "access"
+        ],
+        "summary": "updateApiKey",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LooseJsonObject"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteApiKey",
+        "tags": [
+          "access"
+        ],
+        "summary": "deleteApiKey",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "Delete succeeded and no payload is returned"
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/api-keys/{hashedKey}/status": {
+      "post": {
+        "operationId": "updateApiKeyStatus",
+        "tags": [
+          "access"
+        ],
+        "summary": "updateApiKeyStatus",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LooseJsonObject"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/auth/login": {
+      "post": {
+        "operationId": "loginAdminUser",
+        "tags": [
+          "auth"
+        ],
+        "summary": "loginAdminUser",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LooseJsonObject"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/auth/me": {
+      "get": {
+        "operationId": "getAdminMe",
+        "tags": [
+          "auth"
+        ],
+        "summary": "getAdminMe",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/billing/events": {
+      "get": {
+        "operationId": "listBillingEvents",
+        "tags": [
+          "billing"
+        ],
+        "summary": "listBillingEvents",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/billing/events/summary": {
+      "get": {
+        "operationId": "getBillingEventSummary",
+        "tags": [
+          "billing"
+        ],
+        "summary": "getBillingEventSummary",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/billing/summary": {
+      "get": {
+        "operationId": "getBillingSummary",
+        "tags": [
+          "billing"
+        ],
+        "summary": "getBillingSummary",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/channel-models": {
+      "get": {
+        "operationId": "listChannelModels",
+        "tags": [
+          "catalog"
+        ],
+        "summary": "listChannelModels",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "saveChannelModel",
+        "tags": [
+          "catalog"
+        ],
+        "summary": "saveChannelModel",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LooseJsonObject"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/channel-models/{channelId}/models/{modelId}": {
+      "delete": {
+        "operationId": "deleteChannelModel",
+        "tags": [
+          "catalog"
+        ],
+        "summary": "deleteChannelModel",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "Delete succeeded and no payload is returned"
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/channels": {
+      "get": {
+        "operationId": "listChannels",
+        "tags": [
+          "catalog"
+        ],
+        "summary": "listChannels",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "saveChannel",
+        "tags": [
+          "catalog"
+        ],
+        "summary": "saveChannel",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LooseJsonObject"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/channels/{channelId}": {
+      "delete": {
+        "operationId": "deleteChannel",
+        "tags": [
+          "catalog"
+        ],
+        "summary": "deleteChannel",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "Delete succeeded and no payload is returned"
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/credentials": {
+      "get": {
+        "operationId": "listCredentials",
+        "tags": [
+          "catalog"
+        ],
+        "summary": "listCredentials",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "saveCredential",
+        "tags": [
+          "catalog"
+        ],
+        "summary": "saveCredential",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LooseJsonObject"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/credentials/{tenantId}/providers/{providerId}/keys/{keyReference}": {
+      "delete": {
+        "operationId": "deleteCredential",
+        "tags": [
+          "catalog"
+        ],
+        "summary": "deleteCredential",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "Delete succeeded and no payload is returned"
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/extensions/runtime-reloads": {
+      "post": {
+        "operationId": "reloadExtensionRuntimes",
+        "tags": [
+          "operations"
+        ],
+        "summary": "reloadExtensionRuntimes",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LooseJsonObject"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/extensions/runtime-statuses": {
+      "get": {
+        "operationId": "listRuntimeStatuses",
+        "tags": [
+          "operations"
+        ],
+        "summary": "listRuntimeStatuses",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/gateway/rate-limit-policies": {
+      "get": {
+        "operationId": "listRateLimitPolicies",
+        "tags": [
+          "operations"
+        ],
+        "summary": "listRateLimitPolicies",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createRateLimitPolicy",
+        "tags": [
+          "operations"
+        ],
+        "summary": "createRateLimitPolicy",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LooseJsonObject"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/gateway/rate-limit-windows": {
+      "get": {
+        "operationId": "listRateLimitWindows",
+        "tags": [
+          "operations"
+        ],
+        "summary": "listRateLimitWindows",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/marketing/campaigns": {
+      "get": {
+        "operationId": "listMarketingCampaigns",
+        "tags": [
+          "marketing"
+        ],
+        "summary": "listMarketingCampaigns",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "saveMarketingCampaign",
+        "tags": [
+          "marketing"
+        ],
+        "summary": "saveMarketingCampaign",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LooseJsonObject"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/marketing/campaigns/{marketingCampaignId}/status": {
+      "post": {
+        "operationId": "updateMarketingCampaignStatus",
+        "tags": [
+          "marketing"
+        ],
+        "summary": "updateMarketingCampaignStatus",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LooseJsonObject"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/model-prices": {
+      "get": {
+        "operationId": "listModelPrices",
+        "tags": [
+          "catalog"
+        ],
+        "summary": "listModelPrices",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "saveModelPrice",
+        "tags": [
+          "catalog"
+        ],
+        "summary": "saveModelPrice",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LooseJsonObject"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/model-prices/{channelId}/models/{modelId}/providers/{proxyProviderId}": {
+      "delete": {
+        "operationId": "deleteModelPrice",
+        "tags": [
+          "catalog"
+        ],
+        "summary": "deleteModelPrice",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "Delete succeeded and no payload is returned"
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/models": {
+      "get": {
+        "operationId": "listModels",
+        "tags": [
+          "catalog"
+        ],
+        "summary": "listModels",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "saveModel",
+        "tags": [
+          "catalog"
+        ],
+        "summary": "saveModel",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LooseJsonObject"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/models/{externalName}/providers/{providerId}": {
+      "delete": {
+        "operationId": "deleteModel",
+        "tags": [
+          "catalog"
+        ],
+        "summary": "deleteModel",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "Delete succeeded and no payload is returned"
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/projects": {
+      "get": {
+        "operationId": "listProjects",
+        "tags": [
+          "tenants"
+        ],
+        "summary": "listProjects",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "saveProject",
+        "tags": [
+          "tenants"
+        ],
+        "summary": "saveProject",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LooseJsonObject"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/projects/{projectId}": {
+      "delete": {
+        "operationId": "deleteProject",
+        "tags": [
+          "tenants"
+        ],
+        "summary": "deleteProject",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "Delete succeeded and no payload is returned"
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/providers": {
+      "get": {
+        "operationId": "listProviders",
+        "tags": [
+          "catalog"
+        ],
+        "summary": "listProviders",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "saveProvider",
+        "tags": [
+          "catalog"
+        ],
+        "summary": "saveProvider",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LooseJsonObject"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/providers/{providerId}": {
+      "delete": {
+        "operationId": "deleteProvider",
+        "tags": [
+          "catalog"
+        ],
+        "summary": "deleteProvider",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "Delete succeeded and no payload is returned"
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/routing/decision-logs": {
+      "get": {
+        "operationId": "listRoutingDecisionLogs",
+        "tags": [
+          "routing"
+        ],
+        "summary": "listRoutingDecisionLogs",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/routing/health-snapshots": {
+      "get": {
+        "operationId": "listProviderHealthSnapshots",
+        "tags": [
+          "routing"
+        ],
+        "summary": "listProviderHealthSnapshots",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/routing/profiles": {
+      "get": {
+        "operationId": "listRoutingProfiles",
+        "tags": [
+          "routing"
+        ],
+        "summary": "listRoutingProfiles",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createRoutingProfile",
+        "tags": [
+          "routing"
+        ],
+        "summary": "createRoutingProfile",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LooseJsonObject"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/routing/snapshots": {
+      "get": {
+        "operationId": "listCompiledRoutingSnapshots",
+        "tags": [
+          "routing"
+        ],
+        "summary": "listCompiledRoutingSnapshots",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/tenants": {
+      "get": {
+        "operationId": "listTenants",
+        "tags": [
+          "tenants"
+        ],
+        "summary": "listTenants",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "saveTenant",
+        "tags": [
+          "tenants"
+        ],
+        "summary": "saveTenant",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LooseJsonObject"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/tenants/{tenantId}": {
+      "delete": {
+        "operationId": "deleteTenant",
+        "tags": [
+          "tenants"
+        ],
+        "summary": "deleteTenant",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "Delete succeeded and no payload is returned"
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/usage/records": {
+      "get": {
+        "operationId": "listUsageRecords",
+        "tags": [
+          "usage"
+        ],
+        "summary": "listUsageRecords",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/usage/summary": {
+      "get": {
+        "operationId": "getUsageSummary",
+        "tags": [
+          "usage"
+        ],
+        "summary": "getUsageSummary",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/users/operators": {
+      "get": {
+        "operationId": "listOperatorUsers",
+        "tags": [
+          "users"
+        ],
+        "summary": "listOperatorUsers",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "saveOperatorUser",
+        "tags": [
+          "users"
+        ],
+        "summary": "saveOperatorUser",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LooseJsonObject"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/users/operators/{userId}": {
+      "delete": {
+        "operationId": "deleteOperatorUser",
+        "tags": [
+          "users"
+        ],
+        "summary": "deleteOperatorUser",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "Delete succeeded and no payload is returned"
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/users/operators/{userId}/password": {
+      "post": {
+        "operationId": "resetOperatorUserPassword",
+        "tags": [
+          "users"
+        ],
+        "summary": "resetOperatorUserPassword",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LooseJsonObject"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/users/operators/{userId}/status": {
+      "post": {
+        "operationId": "updateOperatorUserStatus",
+        "tags": [
+          "users"
+        ],
+        "summary": "updateOperatorUserStatus",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LooseJsonObject"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/users/portal": {
+      "get": {
+        "operationId": "listPortalUsers",
+        "tags": [
+          "users"
+        ],
+        "summary": "listPortalUsers",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "savePortalUser",
+        "tags": [
+          "users"
+        ],
+        "summary": "savePortalUser",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LooseJsonObject"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/users/portal/{userId}": {
+      "delete": {
+        "operationId": "deletePortalUser",
+        "tags": [
+          "users"
+        ],
+        "summary": "deletePortalUser",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "Delete succeeded and no payload is returned"
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/users/portal/{userId}/password": {
+      "post": {
+        "operationId": "resetPortalUserPassword",
+        "tags": [
+          "users"
+        ],
+        "summary": "resetPortalUserPassword",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LooseJsonObject"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/users/portal/{userId}/status": {
+      "post": {
+        "operationId": "updatePortalUserStatus",
+        "tags": [
+          "users"
+        ],
+        "summary": "updatePortalUserStatus",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LooseJsonValue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed or no active operator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LooseJsonObject"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "LooseJsonValue": {},
+      "LooseJsonObject": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "ErrorEnvelope": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "error": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "x-sdkwork-sdk-surface": {
+    "sdkTarget": "crawChatManagementSdk",
+    "visibility": "management",
+    "generatedProtocols": [
+      "http"
+    ],
+    "manualTransports": [],
+    "services": [
+      {
+        "serviceId": "admin-console-api",
+        "operationGroups": [
+          "auth",
+          "users",
+          "marketing",
+          "tenants",
+          "access",
+          "routing",
+          "catalog",
+          "usage",
+          "billing",
+          "operations"
+        ],
+        "protocols": [
+          "http"
+        ],
+        "operationCount": 64
+      }
+    ],
+    "surfaceGroups": [
+      {
+        "serviceId": "admin-console-api",
+        "operationGroup": "auth",
+        "protocols": [
+          "http"
+        ],
+        "operationCount": 2
+      },
+      {
+        "serviceId": "admin-console-api",
+        "operationGroup": "users",
+        "protocols": [
+          "http"
+        ],
+        "operationCount": 10
+      },
+      {
+        "serviceId": "admin-console-api",
+        "operationGroup": "marketing",
+        "protocols": [
+          "http"
+        ],
+        "operationCount": 3
+      },
+      {
+        "serviceId": "admin-console-api",
+        "operationGroup": "tenants",
+        "protocols": [
+          "http"
+        ],
+        "operationCount": 6
+      },
+      {
+        "serviceId": "admin-console-api",
+        "operationGroup": "access",
+        "protocols": [
+          "http"
+        ],
+        "operationCount": 10
+      },
+      {
+        "serviceId": "admin-console-api",
+        "operationGroup": "routing",
+        "protocols": [
+          "http"
+        ],
+        "operationCount": 5
+      },
+      {
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "protocols": [
+          "http"
+        ],
+        "operationCount": 18
+      },
+      {
+        "serviceId": "admin-console-api",
+        "operationGroup": "usage",
+        "protocols": [
+          "http"
+        ],
+        "operationCount": 2
+      },
+      {
+        "serviceId": "admin-console-api",
+        "operationGroup": "billing",
+        "protocols": [
+          "http"
+        ],
+        "operationCount": 3
+      },
+      {
+        "serviceId": "admin-console-api",
+        "operationGroup": "operations",
+        "protocols": [
+          "http"
+        ],
+        "operationCount": 5
+      }
+    ],
+    "operationBindings": [
+      {
+        "operationId": "loginAdminUser",
+        "method": "post",
+        "path": "/api/admin/auth/login",
+        "serviceId": "admin-console-api",
+        "operationGroup": "auth",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "getAdminMe",
+        "method": "get",
+        "path": "/api/admin/auth/me",
+        "serviceId": "admin-console-api",
+        "operationGroup": "auth",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listOperatorUsers",
+        "method": "get",
+        "path": "/api/admin/users/operators",
+        "serviceId": "admin-console-api",
+        "operationGroup": "users",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "saveOperatorUser",
+        "method": "post",
+        "path": "/api/admin/users/operators",
+        "serviceId": "admin-console-api",
+        "operationGroup": "users",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "deleteOperatorUser",
+        "method": "delete",
+        "path": "/api/admin/users/operators/{userId}",
+        "serviceId": "admin-console-api",
+        "operationGroup": "users",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "updateOperatorUserStatus",
+        "method": "post",
+        "path": "/api/admin/users/operators/{userId}/status",
+        "serviceId": "admin-console-api",
+        "operationGroup": "users",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "resetOperatorUserPassword",
+        "method": "post",
+        "path": "/api/admin/users/operators/{userId}/password",
+        "serviceId": "admin-console-api",
+        "operationGroup": "users",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listPortalUsers",
+        "method": "get",
+        "path": "/api/admin/users/portal",
+        "serviceId": "admin-console-api",
+        "operationGroup": "users",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "savePortalUser",
+        "method": "post",
+        "path": "/api/admin/users/portal",
+        "serviceId": "admin-console-api",
+        "operationGroup": "users",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "deletePortalUser",
+        "method": "delete",
+        "path": "/api/admin/users/portal/{userId}",
+        "serviceId": "admin-console-api",
+        "operationGroup": "users",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "updatePortalUserStatus",
+        "method": "post",
+        "path": "/api/admin/users/portal/{userId}/status",
+        "serviceId": "admin-console-api",
+        "operationGroup": "users",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "resetPortalUserPassword",
+        "method": "post",
+        "path": "/api/admin/users/portal/{userId}/password",
+        "serviceId": "admin-console-api",
+        "operationGroup": "users",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listMarketingCampaigns",
+        "method": "get",
+        "path": "/api/admin/marketing/campaigns",
+        "serviceId": "admin-console-api",
+        "operationGroup": "marketing",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "saveMarketingCampaign",
+        "method": "post",
+        "path": "/api/admin/marketing/campaigns",
+        "serviceId": "admin-console-api",
+        "operationGroup": "marketing",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "updateMarketingCampaignStatus",
+        "method": "post",
+        "path": "/api/admin/marketing/campaigns/{marketingCampaignId}/status",
+        "serviceId": "admin-console-api",
+        "operationGroup": "marketing",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listTenants",
+        "method": "get",
+        "path": "/api/admin/tenants",
+        "serviceId": "admin-console-api",
+        "operationGroup": "tenants",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "saveTenant",
+        "method": "post",
+        "path": "/api/admin/tenants",
+        "serviceId": "admin-console-api",
+        "operationGroup": "tenants",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "deleteTenant",
+        "method": "delete",
+        "path": "/api/admin/tenants/{tenantId}",
+        "serviceId": "admin-console-api",
+        "operationGroup": "tenants",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listProjects",
+        "method": "get",
+        "path": "/api/admin/projects",
+        "serviceId": "admin-console-api",
+        "operationGroup": "tenants",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "saveProject",
+        "method": "post",
+        "path": "/api/admin/projects",
+        "serviceId": "admin-console-api",
+        "operationGroup": "tenants",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "deleteProject",
+        "method": "delete",
+        "path": "/api/admin/projects/{projectId}",
+        "serviceId": "admin-console-api",
+        "operationGroup": "tenants",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listApiKeys",
+        "method": "get",
+        "path": "/api/admin/api-keys",
+        "serviceId": "admin-console-api",
+        "operationGroup": "access",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "createApiKey",
+        "method": "post",
+        "path": "/api/admin/api-keys",
+        "serviceId": "admin-console-api",
+        "operationGroup": "access",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "updateApiKey",
+        "method": "put",
+        "path": "/api/admin/api-keys/{hashedKey}",
+        "serviceId": "admin-console-api",
+        "operationGroup": "access",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "deleteApiKey",
+        "method": "delete",
+        "path": "/api/admin/api-keys/{hashedKey}",
+        "serviceId": "admin-console-api",
+        "operationGroup": "access",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "updateApiKeyStatus",
+        "method": "post",
+        "path": "/api/admin/api-keys/{hashedKey}/status",
+        "serviceId": "admin-console-api",
+        "operationGroup": "access",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listApiKeyGroups",
+        "method": "get",
+        "path": "/api/admin/api-key-groups",
+        "serviceId": "admin-console-api",
+        "operationGroup": "access",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "createApiKeyGroup",
+        "method": "post",
+        "path": "/api/admin/api-key-groups",
+        "serviceId": "admin-console-api",
+        "operationGroup": "access",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "updateApiKeyGroup",
+        "method": "patch",
+        "path": "/api/admin/api-key-groups/{groupId}",
+        "serviceId": "admin-console-api",
+        "operationGroup": "access",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "deleteApiKeyGroup",
+        "method": "delete",
+        "path": "/api/admin/api-key-groups/{groupId}",
+        "serviceId": "admin-console-api",
+        "operationGroup": "access",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "updateApiKeyGroupStatus",
+        "method": "post",
+        "path": "/api/admin/api-key-groups/{groupId}/status",
+        "serviceId": "admin-console-api",
+        "operationGroup": "access",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listRoutingProfiles",
+        "method": "get",
+        "path": "/api/admin/routing/profiles",
+        "serviceId": "admin-console-api",
+        "operationGroup": "routing",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "createRoutingProfile",
+        "method": "post",
+        "path": "/api/admin/routing/profiles",
+        "serviceId": "admin-console-api",
+        "operationGroup": "routing",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listCompiledRoutingSnapshots",
+        "method": "get",
+        "path": "/api/admin/routing/snapshots",
+        "serviceId": "admin-console-api",
+        "operationGroup": "routing",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listRoutingDecisionLogs",
+        "method": "get",
+        "path": "/api/admin/routing/decision-logs",
+        "serviceId": "admin-console-api",
+        "operationGroup": "routing",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listProviderHealthSnapshots",
+        "method": "get",
+        "path": "/api/admin/routing/health-snapshots",
+        "serviceId": "admin-console-api",
+        "operationGroup": "routing",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listChannels",
+        "method": "get",
+        "path": "/api/admin/channels",
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "saveChannel",
+        "method": "post",
+        "path": "/api/admin/channels",
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "deleteChannel",
+        "method": "delete",
+        "path": "/api/admin/channels/{channelId}",
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listProviders",
+        "method": "get",
+        "path": "/api/admin/providers",
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "saveProvider",
+        "method": "post",
+        "path": "/api/admin/providers",
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "deleteProvider",
+        "method": "delete",
+        "path": "/api/admin/providers/{providerId}",
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listCredentials",
+        "method": "get",
+        "path": "/api/admin/credentials",
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "saveCredential",
+        "method": "post",
+        "path": "/api/admin/credentials",
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "deleteCredential",
+        "method": "delete",
+        "path": "/api/admin/credentials/{tenantId}/providers/{providerId}/keys/{keyReference}",
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listModels",
+        "method": "get",
+        "path": "/api/admin/models",
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "saveModel",
+        "method": "post",
+        "path": "/api/admin/models",
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "deleteModel",
+        "method": "delete",
+        "path": "/api/admin/models/{externalName}/providers/{providerId}",
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listChannelModels",
+        "method": "get",
+        "path": "/api/admin/channel-models",
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "saveChannelModel",
+        "method": "post",
+        "path": "/api/admin/channel-models",
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "deleteChannelModel",
+        "method": "delete",
+        "path": "/api/admin/channel-models/{channelId}/models/{modelId}",
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listModelPrices",
+        "method": "get",
+        "path": "/api/admin/model-prices",
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "saveModelPrice",
+        "method": "post",
+        "path": "/api/admin/model-prices",
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "deleteModelPrice",
+        "method": "delete",
+        "path": "/api/admin/model-prices/{channelId}/models/{modelId}/providers/{proxyProviderId}",
+        "serviceId": "admin-console-api",
+        "operationGroup": "catalog",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listUsageRecords",
+        "method": "get",
+        "path": "/api/admin/usage/records",
+        "serviceId": "admin-console-api",
+        "operationGroup": "usage",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "getUsageSummary",
+        "method": "get",
+        "path": "/api/admin/usage/summary",
+        "serviceId": "admin-console-api",
+        "operationGroup": "usage",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listBillingEvents",
+        "method": "get",
+        "path": "/api/admin/billing/events",
+        "serviceId": "admin-console-api",
+        "operationGroup": "billing",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "getBillingEventSummary",
+        "method": "get",
+        "path": "/api/admin/billing/events/summary",
+        "serviceId": "admin-console-api",
+        "operationGroup": "billing",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "getBillingSummary",
+        "method": "get",
+        "path": "/api/admin/billing/summary",
+        "serviceId": "admin-console-api",
+        "operationGroup": "billing",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listRateLimitPolicies",
+        "method": "get",
+        "path": "/api/admin/gateway/rate-limit-policies",
+        "serviceId": "admin-console-api",
+        "operationGroup": "operations",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "createRateLimitPolicy",
+        "method": "post",
+        "path": "/api/admin/gateway/rate-limit-policies",
+        "serviceId": "admin-console-api",
+        "operationGroup": "operations",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listRateLimitWindows",
+        "method": "get",
+        "path": "/api/admin/gateway/rate-limit-windows",
+        "serviceId": "admin-console-api",
+        "operationGroup": "operations",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "listRuntimeStatuses",
+        "method": "get",
+        "path": "/api/admin/extensions/runtime-statuses",
+        "serviceId": "admin-console-api",
+        "operationGroup": "operations",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      },
+      {
+        "operationId": "reloadExtensionRuntimes",
+        "method": "post",
+        "path": "/api/admin/extensions/runtime-reloads",
+        "serviceId": "admin-console-api",
+        "operationGroup": "operations",
+        "sdkTarget": "crawChatManagementSdk",
+        "visibility": "management",
+        "protocol": "http"
+      }
+    ]
+  }
+}

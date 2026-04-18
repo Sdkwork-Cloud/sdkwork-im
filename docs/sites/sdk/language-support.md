@@ -4,6 +4,11 @@ This page measures language support by workspace boundary, generated transport p
 ownership, and verified delivery status. It does not treat "supported" as a synonym for
 "already published."
 
+This page separates two questions:
+
+1. Which SDK workspaces are usable in the checked-in repository right now?
+2. What does the historical release catalog say about publication state?
+
 ## Current Verified Baseline
 
 The current checked-in baseline was revalidated on 2026-04-16 from the live Craw Chat OpenAPI 3.x
@@ -16,6 +21,30 @@ export.
 
 Read the matrix below as a statement about the real checked-in repo contract, not an assumption
 about registry publication or cross-language parity.
+
+## Additional SDK Families
+
+The repository now also carries separate TypeScript and Flutter workspaces for the Admin and
+Management SDK families:
+
+| Audience | Workspace | Current state |
+| --- | --- | --- |
+| Admin control plane | `sdks/sdkwork-craw-chat-sdk-admin` | TypeScript and Flutter workspaces materialized, locally verifiable, publication pending |
+| Operator-console management | `sdks/sdkwork-craw-chat-sdk-management` | TypeScript and Flutter workspaces materialized, locally verifiable, publication pending |
+
+Use [Admin SDK](/sdk/admin-sdk) for `/api/v1/control/*` governance flows and
+[Management SDK](/sdk/management-sdk) for `/api/admin/*` operator-console flows.
+
+## SDK Family Workspace Snapshot
+
+| Audience | Language | Workspace | Current state |
+| --- | --- | --- | --- |
+| App | TypeScript | `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript` | Workspace materialized, locally verifiable, publication still pending |
+| App | Flutter | `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-flutter` | Workspace materialized, locally verifiable, publication still pending |
+| Admin | TypeScript | `sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-typescript` | Workspace materialized, locally verifiable, publication still pending |
+| Admin | Flutter | `sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-flutter` | Workspace materialized, locally verifiable, publication still pending |
+| Management | TypeScript | `sdks/sdkwork-craw-chat-sdk-management/sdkwork-craw-chat-sdk-management-typescript` | Workspace materialized, locally verifiable, publication still pending |
+| Management | Flutter | `sdks/sdkwork-craw-chat-sdk-management/sdkwork-craw-chat-sdk-management-flutter` | Workspace materialized, locally verifiable, publication still pending |
 
 ## Fastest Onboarding
 
@@ -107,6 +136,35 @@ message-first builder family.
   immediate need and a manual semantic layer can land later under `composed`.
 - Choose raw HTTP plus the API reference when you need a language surface that is not yet exposed by
   the current checked-in semantic SDK of your target language.
+
+## Practical Interpretation
+
+The checked-in workspaces and `.sdkwork-assembly.json` files answer "what engineers can use in this
+repo today." The release catalog answers "what has been versioned and published." Those are related
+but different questions.
+
+- app TypeScript uses generated `@sdkwork/craw-chat-backend-sdk` and composed `@sdkwork/craw-chat-sdk`.
+- admin TypeScript uses generated `@sdkwork/craw-chat-admin-backend-sdk` and composed `@sdkwork/craw-chat-admin-sdk`.
+- management TypeScript uses generated `@sdkwork/craw-chat-management-backend-sdk` and composed `@sdkwork/craw-chat-sdk-management`.
+- admin Flutter uses generated `craw_chat_admin_backend_sdk` and composed `craw_chat_admin_sdk`.
+- management Flutter uses generated `craw_chat_management_backend_sdk` and composed `craw_chat_sdk_management`.
+- admin TypeScript and Flutter are available as checked-in workspaces.
+- management TypeScript and Flutter are available as checked-in workspaces.
+- management SDK consumers target the deployed `/api/admin/*` surface; in packaged installs that surface is also reached through the unified gateway public origin.
+
+## Release Catalog Snapshot
+
+| Artifact | Audience | Language | Generation state | Release state |
+| --- | --- | --- | --- | --- |
+| `app-typescript` | app | typescript | `generated` | `not_published` |
+| `app-flutter` | app | flutter | `generated` | `not_published` |
+| `admin-typescript` | admin | typescript | `generated` | `not_published` |
+| `admin-flutter` | admin | flutter | `generated` | `not_published` |
+| `management-typescript` | management | typescript | `generated` | `not_published` |
+| `management-flutter` | management | flutter | `generated` | `not_published` |
+
+The current release catalog and the checked-in workspaces agree that all six language lines are
+generated locally and remain unpublished.
 
 ## How To Use This Page
 

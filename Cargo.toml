@@ -17,6 +17,10 @@ members = [
     "crates/craw-chat-contract-notification",
     "crates/craw-chat-contract-rtc",
     "crates/craw-chat-contract-stream",
+    "crates/craw-chat-api-registry",
+    "crates/craw-chat-gateway-config",
+    "crates/craw-chat-gateway-observability",
+    "crates/craw-chat-openapi",
     "crates/im-storage-contracts",
     "crates/im-storage-runtime",
     "crates/craw-chat-runtime-link",
@@ -50,6 +54,7 @@ members = [
     "services/rtc-signaling-service",
     "services/session-gateway",
     "services/streaming-service",
+    "services/web-gateway",
     "tools/chat-cli",
 ]
 exclude = [

@@ -2,6 +2,7 @@
 
 The runtime directory is a core part of the current `local-minimal-node` contract, not an optional
 side folder.
+It is not the formal packaged `craw-chat-server` config contract.
 
 ## Default Structure
 
@@ -91,6 +92,12 @@ That gives operators meaningful domain-level insight instead of a plain file-by-
 
 Use the managed inspect, repair, preview, and restore entrypoints first. Manual edits to
 `state/*.json` should be the exception, not the default workflow.
+
+For the packaged server path, PostgreSQL is the frozen storage baseline through
+`storage/postgresql.yaml`, and operators manage a config root rather than the local development
+runtime directory contract documented on this page.
+
+PostgreSQL is the frozen storage baseline through `storage/postgresql.yaml` for the packaged server path.
 
 ## What To Read Next
 

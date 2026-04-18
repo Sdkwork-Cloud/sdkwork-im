@@ -6,6 +6,8 @@ version.workspace = true
 
 [dependencies]
 axum.workspace = true
+craw-chat-api-registry = { path = "../../crates/craw-chat-api-registry" }
+craw-chat-openapi = { path = "../../crates/craw-chat-openapi" }
 craw-chat-contract-core = { path = "../../crates/craw-chat-contract-core" }
 craw-chat-contract-message = { path = "../../crates/craw-chat-contract-message" }
 im-auth-context = { path = "../../crates/im-auth-context" }

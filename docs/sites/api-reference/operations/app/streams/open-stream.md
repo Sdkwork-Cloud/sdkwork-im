@@ -22,7 +22,7 @@ Opens a new stream session.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.generated.stream.open(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation `stream.open` capability or device stream permission.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 StreamSession`</span></div>

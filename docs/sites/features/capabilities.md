@@ -60,11 +60,18 @@
 
 | Surface | Current status |
 | --- | --- |
-| App TypeScript and Flutter packages | Workspace layout, OpenAPI authority, and generation wrappers exist; release catalog still says `template_only_pending_generation` and `not_published` |
-| Admin TypeScript package | Checked-in admin OpenAPI authority exists, generated and composed workspace is implemented, and `node sdks/sdkwork-craw-chat-sdk-admin/bin/verify-sdk.mjs --language typescript` passes; release publication is still not claimed |
-| Admin Flutter package | Checked-in admin OpenAPI authority exists, generated and composed workspace is implemented, and `node sdks/sdkwork-craw-chat-sdk-admin/bin/verify-sdk.mjs --language flutter` passes; release publication is still not claimed |
+| App TypeScript and Flutter packages | App TypeScript and Flutter packages \| Both app language workspaces are materialized and locally verifiable; release publication is still pending |
+| Admin TypeScript and Flutter packages | Admin TypeScript and Flutter packages \| Both admin language workspaces are materialized and locally verifiable; release publication is still pending |
+| Operator-console admin SDK | Operator-console admin SDK \| Checked-in authority, derived sdkgen input, assembly snapshot, and materialized TypeScript and Flutter generated/composed packages now live under `sdks/sdkwork-craw-chat-sdk-management/` |
+| Admin console consumption | The admin console already consumes the management SDK TypeScript packages through its compatibility layer |
 | Admin OpenAPI source | Checked-in authority and derived files now exist under `sdks/sdkwork-craw-chat-sdk-admin/openapi/` and are refreshed from `services/control-plane-api` runtime OpenAPI endpoints |
 | Frontend apps | `apps/craw-chat-portal` and `apps/craw-chat-admin` are present as directories, not documented here as mature deliverables |
+
+Operator-console admin SDK | Checked-in authority, derived sdkgen input, assembly snapshot, and materialized TypeScript and Flutter generated/composed packages now live under `sdks/sdkwork-craw-chat-sdk-management/`
+
+App TypeScript and Flutter packages | Both app language workspaces are materialized and locally verifiable
+
+Admin TypeScript and Flutter packages | Both admin language workspaces are materialized and locally verifiable; release publication is still pending
 
 ## What To Read Next
 

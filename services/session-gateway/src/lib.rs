@@ -4,11 +4,17 @@ use axum::extract::{Query, State};
 use axum::http::HeaderMap;
 use axum::http::Request;
 use axum::middleware::{self, Next};
+use axum::response::Html;
 use axum::response::IntoResponse;
 use axum::response::Response;
 use axum::{
     Json, Router,
     routing::{get, post},
+};
+use craw_chat_api_registry::HttpMethod;
+use craw_chat_openapi::{
+    OpenApiServiceSpec, WebsocketRouteMetadata, build_openapi_document,
+    extract_routes_from_function, render_docs_html,
 };
 use im_adapter_iot_access_local::LocalDeviceAccessProvider;
 use im_auth_context::{
@@ -112,6 +118,14 @@ impl ApiError {
             message: format!(
                 "payload too large for {field}: max={max_bytes} bytes, actual={actual_bytes} bytes"
             ),
+        }
+    }
+
+    fn internal(code: &'static str, message: impl Into<String>) -> Self {
+        Self {
+            status: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            code,
+            message: message.into(),
         }
     }
 }
@@ -278,6 +292,8 @@ fn build_default_device_access_provider() -> Arc<dyn DeviceAccessProvider> {
 fn build_app_with_state(state: AppState) -> Router {
     Router::new()
         .route("/healthz", get(healthz))
+        .route("/openapi.json", get(openapi_json))
+        .route("/docs", get(docs))
         .route("/api/v1/sessions/resume", post(session::resume_session))
         .route(
             "/api/v1/sessions/disconnect",
@@ -303,7 +319,7 @@ fn build_app_with_state(state: AppState) -> Router {
 
 async fn require_public_bearer_auth(request: Request<axum::body::Body>, next: Next) -> Response {
     match request.uri().path() {
-        "/healthz" => next.run(request).await,
+        "/healthz" | "/openapi.json" | "/docs" => next.run(request).await,
         _ => match resolve_public_bearer_auth_context(request.headers()) {
             Ok(_) => next.run(request).await,
             Err(error) => ApiError::from(error).into_response(),
@@ -316,6 +332,17 @@ async fn healthz() -> Json<HealthResponse> {
         status: "ok",
         service: "session-gateway",
     })
+}
+
+async fn openapi_json() -> Result<Json<serde_json::Value>, ApiError> {
+    Ok(Json(
+        build_session_gateway_openapi_document()
+            .map_err(|message| ApiError::internal("openapi_export_failed", message))?,
+    ))
+}
+
+async fn docs() -> Html<String> {
+    Html(render_docs_html(&session_gateway_openapi_spec()))
 }
 
 async fn sync_realtime_subscriptions(
@@ -568,6 +595,77 @@ fn validate_device_id(device_id: &str) -> Result<(), ApiError> {
         ));
     }
     Ok(())
+}
+
+fn build_session_gateway_openapi_document() -> Result<serde_json::Value, String> {
+    let routes = extract_routes_from_function(
+        include_str!("lib.rs"),
+        "build_app_with_state",
+        &[WebsocketRouteMetadata {
+            path: "/api/v1/realtime/ws".to_owned(),
+            subprotocols: vec![CCP_WEBSOCKET_SUBPROTOCOL.to_owned()],
+        }],
+        &["/openapi.json", "/docs"],
+    )?;
+
+    Ok(build_openapi_document(
+        &session_gateway_openapi_spec(),
+        &routes,
+        session_gateway_tag,
+        session_gateway_requires_bearer,
+        session_gateway_summary,
+    ))
+}
+
+fn session_gateway_openapi_spec() -> OpenApiServiceSpec<'static> {
+    OpenApiServiceSpec {
+        title: "Craw Chat Session Gateway API",
+        version: env!("CARGO_PKG_VERSION"),
+        description: "Live OpenAPI contract generated from the session-gateway router for session lifecycle, presence, realtime polling, and websocket upgrade flows.",
+        openapi_path: "/openapi.json",
+        docs_path: "/docs",
+    }
+}
+
+fn session_gateway_tag(path: &str, _method: HttpMethod) -> String {
+    match path {
+        "/healthz" => "system".to_owned(),
+        path if path.starts_with("/api/v1/sessions/") => "sessions".to_owned(),
+        path if path.starts_with("/api/v1/presence/") => "presence".to_owned(),
+        path if path.starts_with("/api/v1/realtime/") => "realtime".to_owned(),
+        _ => "misc".to_owned(),
+    }
+}
+
+fn session_gateway_requires_bearer(path: &str, _method: HttpMethod) -> bool {
+    path != "/healthz"
+}
+
+fn session_gateway_summary(path: &str, method: HttpMethod) -> String {
+    match (path, method) {
+        ("/healthz", HttpMethod::Get) => "Check session gateway health".to_owned(),
+        ("/api/v1/sessions/resume", HttpMethod::Post) => {
+            "Resume session and return device presence snapshot".to_owned()
+        }
+        ("/api/v1/sessions/disconnect", HttpMethod::Post) => {
+            "Disconnect current session device".to_owned()
+        }
+        ("/api/v1/presence/heartbeat", HttpMethod::Post) => {
+            "Refresh device presence heartbeat".to_owned()
+        }
+        ("/api/v1/presence/me", HttpMethod::Get) => {
+            "Get current device presence snapshot".to_owned()
+        }
+        ("/api/v1/realtime/subscriptions/sync", HttpMethod::Post) => {
+            "Sync realtime subscriptions".to_owned()
+        }
+        ("/api/v1/realtime/ws", HttpMethod::Get) => "Open realtime websocket session".to_owned(),
+        ("/api/v1/realtime/events/ack", HttpMethod::Post) => {
+            "Acknowledge realtime events".to_owned()
+        }
+        ("/api/v1/realtime/events", HttpMethod::Get) => "Pull realtime event window".to_owned(),
+        _ => format!("{:?} {}", method, path),
+    }
 }
 
 #[cfg(test)]

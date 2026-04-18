@@ -1,6 +1,7 @@
 # Runtime Operations
 
 Runtime directory management is a first-class operational surface in the current repository.
+It does not replace the formal packaged `craw-chat-server` contract.
 
 ## Shell Wrappers
 
@@ -90,6 +91,12 @@ The current preview flow provides typed diff summaries for at least these manage
 
 That makes restore preview more useful than a raw file-copy diff because it can summarize state
 movement such as checkpoint advance, frame rewind, signal changes, or timestamp-only updates.
+
+PostgreSQL is the frozen storage baseline and operators manage a config root in the packaged server
+flow. The runtime-directory commands documented on this page remain diagnostic tooling for
+development profiles only.
+
+The local runtime restore commands remain diagnostic tooling for development profiles only.
 
 ## What To Read Next
 

@@ -10,7 +10,7 @@ use audit_service::{AuditRuntime, RecordAuditAnchor};
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, Request, StatusCode};
 use axum::middleware::{self, Next};
-use axum::response::{IntoResponse, Response};
+use axum::response::{Html, IntoResponse, Response};
 use axum::{
     Json, Router,
     routing::{get, post},
@@ -22,6 +22,7 @@ use craw_chat_ccp_registry::{
     EffectiveProtocolSnapshot, KillSwitchRule, ProtocolGovernanceSnapshot, QuotaProfile,
     ReleaseChannel, RolloutPolicy, SchemaDescriptor,
 };
+use craw_chat_openapi::{OpenApiServiceSpec, render_docs_html};
 use fs4::fs_std::FileExt;
 use getrandom::fill as fill_random;
 use hmac::{Hmac, Mac};
@@ -7446,6 +7447,15 @@ impl From<SocialInvariantError> for ControlPlaneError {
 }
 
 impl ControlPlaneError {
+    fn internal(code: &'static str, message: impl Into<String>) -> Self {
+        Self {
+            status: StatusCode::INTERNAL_SERVER_ERROR,
+            code,
+            message: message.into(),
+            details: None,
+        }
+    }
+
     fn forbidden(required_permission: &'static str) -> Self {
         Self {
             status: StatusCode::FORBIDDEN,
@@ -10066,6 +10076,14 @@ pub fn build_public_app() -> Router {
     build_app().layer(middleware::from_fn(require_public_bearer_auth))
 }
 
+pub fn export_openapi_document() -> Result<serde_json::Value, String> {
+    Ok(control_plane_openapi_document())
+}
+
+pub fn export_openapi_spec() -> OpenApiServiceSpec<'static> {
+    control_plane_openapi_spec()
+}
+
 pub fn build_app_with_shared_channel_sync_trigger(
     shared_channel_sync_trigger: Arc<dyn SharedChannelLinkedMemberSyncTrigger>,
 ) -> Router {
@@ -10375,6 +10393,7 @@ fn build_app_with_state_and_scheduler_config(
         .route("/healthz", get(healthz))
         .route("/openapi.json", get(openapi_document))
         .route("/api/v1/control/openapi.json", get(openapi_document))
+        .route("/docs", get(docs))
         .merge(build_control_surface_with_state_and_scheduler_config(
             state,
             scheduler_config,
@@ -10563,7 +10582,9 @@ fn build_control_surface_with_state_and_scheduler_config(
 
 async fn require_public_bearer_auth(request: Request<axum::body::Body>, next: Next) -> Response {
     match request.uri().path() {
-        "/healthz" | "/openapi.json" | "/api/v1/control/openapi.json" => next.run(request).await,
+        "/healthz" | "/openapi.json" | "/api/v1/control/openapi.json" | "/docs" => {
+            next.run(request).await
+        }
         _ => match resolve_public_bearer_auth_context(request.headers()) {
             Ok(_) => next.run(request).await,
             Err(error) => ControlPlaneError::from(error).into_response(),
@@ -10580,6 +10601,20 @@ async fn healthz() -> Json<HealthResponse> {
 
 async fn openapi_document() -> Json<JsonValue> {
     Json(control_plane_openapi_document())
+}
+
+async fn docs() -> Html<String> {
+    Html(render_docs_html(&control_plane_openapi_spec()))
+}
+
+fn control_plane_openapi_spec() -> OpenApiServiceSpec<'static> {
+    OpenApiServiceSpec {
+        title: "Craw Chat Admin Control Plane API",
+        version: env!("CARGO_PKG_VERSION"),
+        description: "Detailed OpenAPI contract for the Craw Chat control-plane runtime, including protocol governance, provider policy, social control workflows, and node lifecycle operations.",
+        openapi_path: "/openapi.json",
+        docs_path: "/docs",
+    }
 }
 
 async fn protocol_registry_snapshot(

@@ -17,6 +17,7 @@ repository with minimal surprises.
 | Local binary | `bin/install-local.*`, `bin/start-local.*`, `bin/status-local.*` | Development, debugging, runtime inspection, restore rehearsal | Recommended |
 | Docker Compose | `bin/deploy-local.*`, `deployments/scripts/bootstrap-local.ps1` | Local stack demos, container validation, smoke automation | Recommended |
 | Standalone control plane | `cargo run -p control-plane-api --offline` or the compiled binary | Governance API development and admin integration | Implemented, but not part of the default one-command local stack |
+| Unified server lifecycle | `bin/install-server.*`, `bin/start-server.*`, `bin/verify-server.*` | Packaged single-port installs, service-manager delivery, gateway-backed public origins | Implemented |
 
 ## Prerequisites
 
@@ -68,6 +69,20 @@ The implementation also allows `control.write` to satisfy read access.
 ## What To Read Next
 
 - Want the shortest verified path: [Quick Start](/getting-started/quick-start)
+- Want the packaged server install contract: [Server Lifecycle](/deployment/server-lifecycle)
 - Want the runtime model first: [Architecture Overview](/architecture/overview)
 - Want the full endpoint inventory: [API Reference](/api-reference/index)
 - Want to understand SDK reality before promising packages: [SDK Overview](/sdk/index)
+
+`sdkwork-craw-chat-sdk` maps to the app-facing routes. Local development points at
+`local-minimal-node`; packaged installs point at the unified `craw-chat-server` / `web-gateway`
+public origin.
+
+`sdkwork-craw-chat-sdk` maps to the app-facing routes. Local development points at `local-minimal-node`; packaged installs point at the unified `craw-chat-server` / `web-gateway` public origin.
+
+`sdkwork-craw-chat-sdk-admin` maps to governance and control-plane routes. Standalone governance
+development can point directly at `control-plane-api`; packaged installs should switch to the
+unified gateway public origin.
+
+`sdkwork-craw-chat-sdk-management` maps to the deployed `/api/admin/*` surface. In packaged
+installs that surface is also reached through the unified gateway public origin.

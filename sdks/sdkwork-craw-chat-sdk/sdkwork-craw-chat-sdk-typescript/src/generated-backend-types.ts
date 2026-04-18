@@ -1,4 +1,5 @@
-// This bridge keeps generated type-path knowledge in one place so the root SDK can expose generated contracts without leaking private source paths.
+// This bridge keeps generated type imports anchored to the generated package
+// root so the composed SDK does not leak generator-owned source paths.
 import type {
   AckRealtimeEventsRequest,
   AddConversationMemberRequest,
@@ -71,10 +72,7 @@ import type {
   UpdateReadCursorRequest,
   UpdateRtcSessionRequest,
 } from './generated/types/index.js';
-import type {
-  QueryParams,
-  SdkworkBackendConfig,
-} from './generated/types/common.js';
+import type { QueryParams, SdkworkBackendConfig } from './generated/types/common.js';
 import type { StringMap } from './generated/types/string-map.js';
 
 export type {

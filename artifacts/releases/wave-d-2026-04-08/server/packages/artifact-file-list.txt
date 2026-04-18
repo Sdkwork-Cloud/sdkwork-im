@@ -1,0 +1,7 @@
+craw-chat-server-linux-x86_64.tar.gz
+craw-chat-server_<version>_amd64.deb
+craw-chat-server-<version>-1.x86_64.rpm
+craw-chat-server-darwin-universal.tar.gz
+craw-chat-server-<version>.pkg
+craw-chat-server-windows-x86_64.zip
+craw-chat-server-<version>-x64.msi

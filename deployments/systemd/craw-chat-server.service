@@ -1,0 +1,14 @@
+[Unit]
+Description=Craw Chat Server (%i)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/craw-chat
+EnvironmentFile=/etc/craw-chat/%i/server.env
+ExecStart=/opt/craw-chat/bin/craw-chat-server --config /etc/craw-chat/%i/server.yaml
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

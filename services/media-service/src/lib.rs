@@ -4,13 +4,17 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, Request};
 use axum::middleware::{self, Next};
-use axum::response::{IntoResponse, Response};
+use axum::response::{Html, IntoResponse, Response};
 use axum::{
     Json, Router,
     routing::{get, post},
 };
+use craw_chat_api_registry::HttpMethod;
 use craw_chat_contract_core::ContractError;
 use craw_chat_contract_message::{CommitJournal, CommitPosition};
+use craw_chat_openapi::{
+    OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
+};
 use im_adapter_object_storage_s3::{
     ALIYUN_OBJECT_STORAGE_PLUGIN_ID, AWS_OBJECT_STORAGE_PLUGIN_ID, GOOGLE_OBJECT_STORAGE_PLUGIN_ID,
     MICROSOFT_OBJECT_STORAGE_PLUGIN_ID, S3CompatibleObjectStorageProvider,
@@ -207,6 +211,14 @@ pub struct MediaError {
 }
 
 impl MediaError {
+    fn internal(code: &'static str, message: impl Into<String>) -> Self {
+        Self {
+            status: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            code,
+            message: message.into(),
+        }
+    }
+
     pub fn status(&self) -> axum::http::StatusCode {
         self.status
     }
@@ -758,6 +770,8 @@ pub fn build_app(runtime: Arc<MediaRuntime>) -> Router {
     Router::new()
         .route("/healthz", get(healthz))
         .route("/readyz", get(readyz))
+        .route("/openapi.json", get(openapi_json))
+        .route("/docs", get(docs))
         .route("/api/v1/media/uploads", post(create_upload))
         .route(
             "/api/v1/media/uploads/{media_asset_id}/complete",
@@ -774,7 +788,7 @@ pub fn build_app(runtime: Arc<MediaRuntime>) -> Router {
 
 async fn require_public_bearer_auth(request: Request<axum::body::Body>, next: Next) -> Response {
     match request.uri().path() {
-        "/healthz" | "/readyz" => next.run(request).await,
+        "/healthz" | "/readyz" | "/openapi.json" | "/docs" => next.run(request).await,
         _ => match resolve_public_bearer_auth_context(request.headers()) {
             Ok(_) => next.run(request).await,
             Err(error) => MediaError::from(error).into_response(),
@@ -794,6 +808,80 @@ async fn readyz() -> Json<HealthResponse> {
         status: "ok",
         service: "media-service",
     })
+}
+
+async fn openapi_json() -> Result<Json<serde_json::Value>, MediaError> {
+    Ok(Json(
+        build_media_service_openapi_document()
+            .map_err(|message| MediaError::internal("openapi_export_failed", message))?,
+    ))
+}
+
+async fn docs() -> Html<String> {
+    Html(render_docs_html(&media_service_openapi_spec()))
+}
+
+fn build_media_service_openapi_document() -> Result<serde_json::Value, String> {
+    let routes = extract_routes_from_function(
+        include_str!("lib.rs"),
+        "build_app",
+        &[],
+        &["/openapi.json", "/docs"],
+    )?;
+
+    Ok(build_openapi_document(
+        &media_service_openapi_spec(),
+        &routes,
+        media_service_tag,
+        media_service_requires_bearer,
+        media_service_summary,
+    ))
+}
+
+fn media_service_openapi_spec() -> OpenApiServiceSpec<'static> {
+    OpenApiServiceSpec {
+        title: "Craw Chat Media Service API",
+        version: env!("CARGO_PKG_VERSION"),
+        description: "Live OpenAPI contract generated from the media-service router for upload creation, upload completion, asset lookup, download URL issue, and provider health flows.",
+        openapi_path: "/openapi.json",
+        docs_path: "/docs",
+    }
+}
+
+fn media_service_tag(path: &str, _method: HttpMethod) -> String {
+    match path {
+        "/healthz" | "/readyz" => "system".to_owned(),
+        path if path.contains("provider-health") => "providers".to_owned(),
+        _ => "media".to_owned(),
+    }
+}
+
+fn media_service_requires_bearer(path: &str, _method: HttpMethod) -> bool {
+    !matches!(path, "/healthz" | "/readyz")
+}
+
+fn media_service_summary(path: &str, method: HttpMethod) -> String {
+    match (path, method) {
+        ("/healthz", HttpMethod::Get) => "Check media service health".to_owned(),
+        ("/readyz", HttpMethod::Get) => "Check media service readiness".to_owned(),
+        _ => format!(
+            "{} {}",
+            media_service_method_display(method),
+            path.trim_matches('/').replace('/', " ")
+        ),
+    }
+}
+
+fn media_service_method_display(method: HttpMethod) -> &'static str {
+    match method {
+        HttpMethod::Delete => "Delete",
+        HttpMethod::Get => "Get",
+        HttpMethod::Head => "Head",
+        HttpMethod::Options => "Options",
+        HttpMethod::Patch => "Patch",
+        HttpMethod::Post => "Post",
+        HttpMethod::Put => "Put",
+    }
 }
 
 async fn create_upload(

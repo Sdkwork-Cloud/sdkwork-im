@@ -4,8 +4,8 @@
   "bundleId": "wave-d-2026-04-08",
   "wave": "wave-d",
   "artifact": "sdk-release-catalog",
-  "state": "template_only_pending_generation",
-  "updatedAt": "2026-04-08",
+  "state": "generated_pending_publication",
+  "updatedAt": "2026-04-17",
   "sdkArtifacts": [
     {
       "id": "app-typescript",
@@ -16,7 +16,7 @@
       "plannedVersion": null,
       "versionStatus": "version_unassigned_pending_freeze",
       "versionDecisionSourcePath": null,
-      "generationStatus": "template_only_pending_generation",
+      "generationStatus": "generated",
       "releaseStatus": "not_published"
     },
     {
@@ -28,7 +28,7 @@
       "plannedVersion": null,
       "versionStatus": "version_unassigned_pending_freeze",
       "versionDecisionSourcePath": null,
-      "generationStatus": "template_only_pending_generation",
+      "generationStatus": "generated",
       "releaseStatus": "not_published"
     },
     {
@@ -40,7 +40,7 @@
       "plannedVersion": null,
       "versionStatus": "version_unassigned_pending_freeze",
       "versionDecisionSourcePath": null,
-      "generationStatus": "template_only_pending_generation",
+      "generationStatus": "generated",
       "releaseStatus": "not_published"
     },
     {
@@ -52,7 +52,31 @@
       "plannedVersion": null,
       "versionStatus": "version_unassigned_pending_freeze",
       "versionDecisionSourcePath": null,
-      "generationStatus": "template_only_pending_generation",
+      "generationStatus": "generated",
+      "releaseStatus": "not_published"
+    },
+    {
+      "id": "management-typescript",
+      "audience": "management",
+      "language": "typescript",
+      "package": "sdkwork-craw-chat-sdk-management-typescript",
+      "readmePath": "sdks/sdkwork-craw-chat-sdk-management/sdkwork-craw-chat-sdk-management-typescript/README.md",
+      "plannedVersion": null,
+      "versionStatus": "version_unassigned_pending_freeze",
+      "versionDecisionSourcePath": null,
+      "generationStatus": "generated",
+      "releaseStatus": "not_published"
+    },
+    {
+      "id": "management-flutter",
+      "audience": "management",
+      "language": "flutter",
+      "package": "sdkwork-craw-chat-sdk-management-flutter",
+      "readmePath": "sdks/sdkwork-craw-chat-sdk-management/sdkwork-craw-chat-sdk-management-flutter/README.md",
+      "plannedVersion": null,
+      "versionStatus": "version_unassigned_pending_freeze",
+      "versionDecisionSourcePath": null,
+      "generationStatus": "generated",
       "releaseStatus": "not_published"
     }
   ]

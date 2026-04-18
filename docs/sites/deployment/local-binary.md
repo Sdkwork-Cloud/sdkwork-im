@@ -1,6 +1,8 @@
 # Local Binary
 
 The local binary workflow is the most complete and transparent deployment path in the repository.
+It is not the formal packaged `craw-chat-server` install contract.
+The local binary workflow is optimized for development, and it is not the formal packaged `craw-chat-server` install contract.
 
 ## Lifecycle Scripts
 
@@ -97,6 +99,8 @@ The status script prints:
 
 ## What To Read Next
 
+- Switch to [Server Lifecycle](/deployment/server-lifecycle) when you need the packaged single-port
+  server, unified gateway, config-root layout, or PostgreSQL-backed server install contract.
 - [Runtime Operations](/deployment/runtime-operations)
 - [Profiles and Environment](/deployment/profiles-and-env)
 - [CLI and Scripts](/reference/cli-and-scripts)

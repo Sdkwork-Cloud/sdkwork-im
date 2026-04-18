@@ -25,7 +25,35 @@ Client / SDK / CLI
     state/*
 ```
 
+## Unified Server Topology
+
+```text
+External Client / Operator / SDK
+              |
+              v
+      web-gateway / craw-chat-server (:18080 by server template)
+              |
+              +-- /healthz / /readyz
+              +-- /openapi.json / /openapi/index.json / /openapi/runtime-summary.json
+              +-- /docs / /docs/services/<service-id>
+              +-- service-schema proxies
+              +-- websocket route ownership on the same external port
+              |
+              +--> app-facing upstream routes
+              |
+              +--> control-plane and operator-facing upstream routes
+```
+
 ## Public Route Domains
+
+### Unified gateway discovery domains
+
+- `/openapi.json`
+- `/openapi/index.json`
+- `/openapi/runtime-summary.json`
+- `/openapi/services/*`
+- `/docs`
+- `/docs/services/*`
 
 ### App-facing domains
 
@@ -66,6 +94,16 @@ Admin Client / Admin Integration
 
 The control plane is parallel to the app node. It is not a nested route tree inside
 `local-minimal-node`.
+
+## Packaged Server Contract
+
+The formal packaged server install flow uses the unified gateway as the operator-facing entrypoint:
+
+- binary: `craw-chat-server`
+- package source: `services/web-gateway`
+- startup contract: `craw-chat-server --config <config-root>/server.yaml`
+- frozen server template bind: `0.0.0.0:18080`
+- storage baseline: PostgreSQL through `storage/postgresql.yaml`
 
 ## Default Provider Wiring
 

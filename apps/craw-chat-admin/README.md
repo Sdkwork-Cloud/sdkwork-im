@@ -117,6 +117,12 @@ The workspace uses package-local wrappers so `pnpm run` and `npm.cmd run` remain
 
 The browser and desktop admin shell target a compatible management backend that serves `/api/admin/*`.
 
+This contract is intentionally separate from `sdkwork-craw-chat-sdk-admin`.
+That SDK family currently standardizes the `/api/v1/control/*` control-plane surface, not the
+operator-console `/api/admin/*` backend consumed by this workspace.
+The checked-in authority snapshot for the management backend now lives under
+`sdks/sdkwork-craw-chat-sdk-management/`.
+
 - browser development: set `SDKWORK_ADMIN_PROXY_TARGET=http://host:port` before `pnpm dev`
 - desktop runtime: set `SDKWORK_ADMIN_PROXY_TARGET=http://host:port` before `pnpm tauri:dev` or `pnpm tauri:build`
 - set `CRAW_CHAT_PORTAL_API_BASE_URL=http://host:port` when the embedded portal shell or shared desktop runtime should point at a non-default app runtime endpoint
@@ -140,9 +146,11 @@ The local admin sandbox is intended for shell walkthroughs, product verification
 Inside the current `craw-chat` workspace, the discovered control-plane service binds `127.0.0.1:18081` and serves `/api/v1/control/*`.
 
 - that runtime is the current authority source for admin SDK OpenAPI 3.x capture
-- it is not automatically a drop-in replacement for every browser `/api/admin/*` route expected by the admin shell
+- it is not a drop-in replacement for every browser `/api/admin/*` route expected by the admin shell
 - formal SDK generation and documentation must track the real `/api/v1/control/*` surface instead of inventing routes
-- if the browser shell still needs a compatibility adapter, that adapter must depend on `@sdkwork/craw-chat-admin-sdk` rather than introducing raw transport code inside app packages
+- the checked-in `/api/admin/*` authority inventory and the management SDK family now live under `sdks/sdkwork-craw-chat-sdk-management/`
+- the browser operator shell should keep consuming `@sdkwork/craw-chat-admin-sdk`; browser-only `/api/admin/*` helpers remain manual-owned exports in that formal package instead of a separate local `sdkwork-craw-chat-admin-admin-api` workspace package
+- if you want this admin workspace to run against local services, you still need a compatible adapter or backend that exposes the expected `/api/admin/*` surface, including login and admin resource routes
 
 ## Storage Contract Reference
 

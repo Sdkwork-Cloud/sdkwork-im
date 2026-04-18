@@ -246,6 +246,11 @@ paths:
           $ref: '#/components/responses/ConflictError'
         '503':
           $ref: '#/components/responses/ServiceUnavailableError'
+      x-sdkwork-service: session-gateway
+      x-sdkwork-operation-group: sessions
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/sessions/disconnect:
     post:
       tags:
@@ -273,6 +278,11 @@ paths:
           $ref: '#/components/responses/ConflictError'
         '503':
           $ref: '#/components/responses/ServiceUnavailableError'
+      x-sdkwork-service: session-gateway
+      x-sdkwork-operation-group: sessions
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/presence/heartbeat:
     post:
       tags:
@@ -300,6 +310,11 @@ paths:
           $ref: '#/components/responses/ConflictError'
         '503':
           $ref: '#/components/responses/ServiceUnavailableError'
+      x-sdkwork-service: session-gateway
+      x-sdkwork-operation-group: presence
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/presence/me:
     get:
       tags:
@@ -315,6 +330,11 @@ paths:
                 $ref: '#/components/schemas/PresenceSnapshotView'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
+      x-sdkwork-service: session-gateway
+      x-sdkwork-operation-group: presence
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/realtime/subscriptions/sync:
     post:
       tags:
@@ -342,6 +362,11 @@ paths:
           $ref: '#/components/responses/ConflictError'
         '503':
           $ref: '#/components/responses/ServiceUnavailableError'
+      x-sdkwork-service: session-gateway
+      x-sdkwork-operation-group: realtime
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/realtime/events:
     get:
       tags:
@@ -366,6 +391,11 @@ paths:
           $ref: '#/components/responses/ConflictError'
         '503':
           $ref: '#/components/responses/ServiceUnavailableError'
+      x-sdkwork-service: session-gateway
+      x-sdkwork-operation-group: realtime
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/realtime/events/ack:
     post:
       tags:
@@ -393,6 +423,11 @@ paths:
           $ref: '#/components/responses/ConflictError'
         '503':
           $ref: '#/components/responses/ServiceUnavailableError'
+      x-sdkwork-service: session-gateway
+      x-sdkwork-operation-group: realtime
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/devices/register:
     post:
       tags:
@@ -418,6 +453,11 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
         '409':
           $ref: '#/components/responses/ConflictError'
+      x-sdkwork-service: projection-service
+      x-sdkwork-operation-group: devices
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/devices/{deviceId}/sync-feed:
     get:
       tags:
@@ -440,6 +480,11 @@ paths:
           $ref: '#/components/responses/ForbiddenError'
         '404':
           $ref: '#/components/responses/NotFoundError'
+      x-sdkwork-service: projection-service
+      x-sdkwork-operation-group: devices
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/inbox:
     get:
       tags:
@@ -455,6 +500,11 @@ paths:
                 $ref: '#/components/schemas/InboxResponse'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
+      x-sdkwork-service: projection-service
+      x-sdkwork-operation-group: conversations
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/conversations:
     post:
       tags:
@@ -482,6 +532,11 @@ paths:
           $ref: '#/components/responses/ConflictError'
         '503':
           $ref: '#/components/responses/ServiceUnavailableError'
+      x-sdkwork-service: conversation-runtime
+      x-sdkwork-operation-group: conversations
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/conversations/agent-dialogs:
     post:
       tags:
@@ -509,6 +564,11 @@ paths:
           $ref: '#/components/responses/ConflictError'
         '503':
           $ref: '#/components/responses/ServiceUnavailableError'
+      x-sdkwork-service: conversation-runtime
+      x-sdkwork-operation-group: conversations
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/conversations/agent-handoffs:
     post:
       tags:
@@ -536,6 +596,11 @@ paths:
           $ref: '#/components/responses/ConflictError'
         '503':
           $ref: '#/components/responses/ServiceUnavailableError'
+      x-sdkwork-service: conversation-runtime
+      x-sdkwork-operation-group: conversations
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/conversations/system-channels:
     post:
       tags:
@@ -563,6 +628,11 @@ paths:
           $ref: '#/components/responses/ConflictError'
         '503':
           $ref: '#/components/responses/ServiceUnavailableError'
+      x-sdkwork-service: conversation-runtime
+      x-sdkwork-operation-group: conversations
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/conversations/{conversationId}:
     get:
       tags:
@@ -584,6 +654,11 @@ paths:
           $ref: '#/components/responses/ForbiddenError'
         '404':
           $ref: '#/components/responses/NotFoundError'
+      x-sdkwork-service: projection-service
+      x-sdkwork-operation-group: conversations
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/conversations/{conversationId}/agent-handoff:
     get:
       tags:
@@ -605,6 +680,11 @@ paths:
           $ref: '#/components/responses/ForbiddenError'
         '404':
           $ref: '#/components/responses/NotFoundError'
+      x-sdkwork-service: projection-service
+      x-sdkwork-operation-group: conversations
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/conversations/{conversationId}/agent-handoff/accept:
     post:
       tags:
@@ -628,6 +708,11 @@ paths:
           $ref: '#/components/responses/NotFoundError'
         '409':
           $ref: '#/components/responses/ConflictError'
+      x-sdkwork-service: conversation-runtime
+      x-sdkwork-operation-group: conversations
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/conversations/{conversationId}/agent-handoff/resolve:
     post:
       tags:
@@ -651,6 +736,11 @@ paths:
           $ref: '#/components/responses/NotFoundError'
         '409':
           $ref: '#/components/responses/ConflictError'
+      x-sdkwork-service: conversation-runtime
+      x-sdkwork-operation-group: conversations
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/conversations/{conversationId}/agent-handoff/close:
     post:
       tags:
@@ -674,6 +764,11 @@ paths:
           $ref: '#/components/responses/NotFoundError'
         '409':
           $ref: '#/components/responses/ConflictError'
+      x-sdkwork-service: conversation-runtime
+      x-sdkwork-operation-group: conversations
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/conversations/{conversationId}/members:
     get:
       tags:
@@ -695,6 +790,11 @@ paths:
           $ref: '#/components/responses/ForbiddenError'
         '404':
           $ref: '#/components/responses/NotFoundError'
+      x-sdkwork-service: projection-service
+      x-sdkwork-operation-group: conversations
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/conversations/{conversationId}/members/add:
     post:
       tags:
@@ -728,6 +828,11 @@ paths:
           $ref: '#/components/responses/ConflictError'
         '503':
           $ref: '#/components/responses/ServiceUnavailableError'
+      x-sdkwork-service: conversation-runtime
+      x-sdkwork-operation-group: conversations
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/conversations/{conversationId}/members/remove:
     post:
       tags:
@@ -759,6 +864,11 @@ paths:
           $ref: '#/components/responses/NotFoundError'
         '409':
           $ref: '#/components/responses/ConflictError'
+      x-sdkwork-service: conversation-runtime
+      x-sdkwork-operation-group: conversations
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/conversations/{conversationId}/members/transfer-owner:
     post:
       tags:
@@ -790,6 +900,11 @@ paths:
           $ref: '#/components/responses/NotFoundError'
         '409':
           $ref: '#/components/responses/ConflictError'
+      x-sdkwork-service: conversation-runtime
+      x-sdkwork-operation-group: conversations
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/conversations/{conversationId}/members/change-role:
     post:
       tags:
@@ -821,6 +936,11 @@ paths:
           $ref: '#/components/responses/NotFoundError'
         '409':
           $ref: '#/components/responses/ConflictError'
+      x-sdkwork-service: conversation-runtime
+      x-sdkwork-operation-group: conversations
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/conversations/{conversationId}/members/leave:
     post:
       tags:
@@ -844,6 +964,11 @@ paths:
           $ref: '#/components/responses/NotFoundError'
         '409':
           $ref: '#/components/responses/ConflictError'
+      x-sdkwork-service: conversation-runtime
+      x-sdkwork-operation-group: conversations
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/conversations/{conversationId}/read-cursor:
     get:
       tags:
@@ -865,6 +990,11 @@ paths:
           $ref: '#/components/responses/ForbiddenError'
         '404':
           $ref: '#/components/responses/NotFoundError'
+      x-sdkwork-service: projection-service
+      x-sdkwork-operation-group: conversations
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
     post:
       tags:
         - conversation
@@ -895,6 +1025,11 @@ paths:
           $ref: '#/components/responses/NotFoundError'
         '409':
           $ref: '#/components/responses/ConflictError'
+      x-sdkwork-service: conversation-runtime
+      x-sdkwork-operation-group: conversations
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/conversations/{conversationId}/messages:
     get:
       tags:
@@ -916,6 +1051,11 @@ paths:
           $ref: '#/components/responses/ForbiddenError'
         '404':
           $ref: '#/components/responses/NotFoundError'
+      x-sdkwork-service: projection-service
+      x-sdkwork-operation-group: conversations
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
     post:
       tags:
         - message
@@ -948,6 +1088,11 @@ paths:
           $ref: '#/components/responses/ConflictError'
         '503':
           $ref: '#/components/responses/ServiceUnavailableError'
+      x-sdkwork-service: conversation-runtime
+      x-sdkwork-operation-group: conversations
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/conversations/{conversationId}/system-channel/publish:
     post:
       tags:
@@ -981,6 +1126,11 @@ paths:
           $ref: '#/components/responses/ConflictError'
         '503':
           $ref: '#/components/responses/ServiceUnavailableError'
+      x-sdkwork-service: conversation-runtime
+      x-sdkwork-operation-group: conversations
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/messages/{messageId}/edit:
     post:
       tags:
@@ -1012,6 +1162,11 @@ paths:
           $ref: '#/components/responses/NotFoundError'
         '409':
           $ref: '#/components/responses/ConflictError'
+      x-sdkwork-service: conversation-runtime
+      x-sdkwork-operation-group: conversations
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/messages/{messageId}/recall:
     post:
       tags:
@@ -1037,6 +1192,11 @@ paths:
           $ref: '#/components/responses/NotFoundError'
         '409':
           $ref: '#/components/responses/ConflictError'
+      x-sdkwork-service: conversation-runtime
+      x-sdkwork-operation-group: conversations
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/media/uploads:
     post:
       tags:
@@ -1064,6 +1224,11 @@ paths:
           $ref: '#/components/responses/ConflictError'
         '503':
           $ref: '#/components/responses/ServiceUnavailableError'
+      x-sdkwork-service: media-service
+      x-sdkwork-operation-group: media
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/media/uploads/{mediaAssetId}/complete:
     post:
       tags:
@@ -1095,6 +1260,11 @@ paths:
           $ref: '#/components/responses/ConflictError'
         '503':
           $ref: '#/components/responses/ServiceUnavailableError'
+      x-sdkwork-service: media-service
+      x-sdkwork-operation-group: media
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/media/{mediaAssetId}/download-url:
     get:
       tags:
@@ -1119,6 +1289,11 @@ paths:
           $ref: '#/components/responses/NotFoundError'
         '503':
           $ref: '#/components/responses/ServiceUnavailableError'
+      x-sdkwork-service: media-service
+      x-sdkwork-operation-group: media
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/media/{mediaAssetId}:
     get:
       tags:
@@ -1138,6 +1313,11 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
         '404':
           $ref: '#/components/responses/NotFoundError'
+      x-sdkwork-service: media-service
+      x-sdkwork-operation-group: media
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/media/{mediaAssetId}/attach:
     post:
       tags:
@@ -1167,6 +1347,11 @@ paths:
           $ref: '#/components/responses/NotFoundError'
         '409':
           $ref: '#/components/responses/ConflictError'
+      x-sdkwork-service: media-service
+      x-sdkwork-operation-group: media
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/streams:
     post:
       tags:
@@ -1196,6 +1381,11 @@ paths:
           $ref: '#/components/responses/ConflictError'
         '503':
           $ref: '#/components/responses/ServiceUnavailableError'
+      x-sdkwork-service: streaming-service
+      x-sdkwork-operation-group: streams
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/streams/{streamId}/frames:
     get:
       tags:
@@ -1219,6 +1409,11 @@ paths:
           $ref: '#/components/responses/ForbiddenError'
         '404':
           $ref: '#/components/responses/NotFoundError'
+      x-sdkwork-service: streaming-service
+      x-sdkwork-operation-group: streams
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
     post:
       tags:
         - stream
@@ -1251,6 +1446,11 @@ paths:
           $ref: '#/components/responses/ConflictError'
         '503':
           $ref: '#/components/responses/ServiceUnavailableError'
+      x-sdkwork-service: streaming-service
+      x-sdkwork-operation-group: streams
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/streams/{streamId}/checkpoint:
     post:
       tags:
@@ -1282,6 +1482,11 @@ paths:
           $ref: '#/components/responses/NotFoundError'
         '409':
           $ref: '#/components/responses/ConflictError'
+      x-sdkwork-service: streaming-service
+      x-sdkwork-operation-group: streams
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/streams/{streamId}/complete:
     post:
       tags:
@@ -1313,6 +1518,11 @@ paths:
           $ref: '#/components/responses/NotFoundError'
         '409':
           $ref: '#/components/responses/ConflictError'
+      x-sdkwork-service: streaming-service
+      x-sdkwork-operation-group: streams
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/streams/{streamId}/abort:
     post:
       tags:
@@ -1344,6 +1554,11 @@ paths:
           $ref: '#/components/responses/NotFoundError'
         '409':
           $ref: '#/components/responses/ConflictError'
+      x-sdkwork-service: streaming-service
+      x-sdkwork-operation-group: streams
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/rtc/sessions:
     post:
       tags:
@@ -1373,6 +1588,11 @@ paths:
           $ref: '#/components/responses/ConflictError'
         '503':
           $ref: '#/components/responses/ServiceUnavailableError'
+      x-sdkwork-service: rtc-signaling-service
+      x-sdkwork-operation-group: rtc
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/rtc/sessions/{rtcSessionId}/invite:
     post:
       tags:
@@ -1406,6 +1626,11 @@ paths:
           $ref: '#/components/responses/ConflictError'
         '503':
           $ref: '#/components/responses/ServiceUnavailableError'
+      x-sdkwork-service: rtc-signaling-service
+      x-sdkwork-operation-group: rtc
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/rtc/sessions/{rtcSessionId}/accept:
     post:
       tags:
@@ -1437,6 +1662,11 @@ paths:
           $ref: '#/components/responses/NotFoundError'
         '409':
           $ref: '#/components/responses/ConflictError'
+      x-sdkwork-service: rtc-signaling-service
+      x-sdkwork-operation-group: rtc
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/rtc/sessions/{rtcSessionId}/reject:
     post:
       tags:
@@ -1468,6 +1698,11 @@ paths:
           $ref: '#/components/responses/NotFoundError'
         '409':
           $ref: '#/components/responses/ConflictError'
+      x-sdkwork-service: rtc-signaling-service
+      x-sdkwork-operation-group: rtc
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/rtc/sessions/{rtcSessionId}/end:
     post:
       tags:
@@ -1499,6 +1734,11 @@ paths:
           $ref: '#/components/responses/NotFoundError'
         '409':
           $ref: '#/components/responses/ConflictError'
+      x-sdkwork-service: rtc-signaling-service
+      x-sdkwork-operation-group: rtc
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/rtc/sessions/{rtcSessionId}/signals:
     post:
       tags:
@@ -1530,6 +1770,11 @@ paths:
           $ref: '#/components/responses/NotFoundError'
         '409':
           $ref: '#/components/responses/ConflictError'
+      x-sdkwork-service: rtc-signaling-service
+      x-sdkwork-operation-group: rtc
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/rtc/sessions/{rtcSessionId}/credentials:
     post:
       tags:
@@ -1563,6 +1808,11 @@ paths:
           $ref: '#/components/responses/ConflictError'
         '503':
           $ref: '#/components/responses/ServiceUnavailableError'
+      x-sdkwork-service: rtc-signaling-service
+      x-sdkwork-operation-group: rtc
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
   /api/v1/rtc/sessions/{rtcSessionId}/artifacts/recording:
     get:
       tags:
@@ -1586,6 +1836,11 @@ paths:
           $ref: '#/components/responses/NotFoundError'
         '503':
           $ref: '#/components/responses/ServiceUnavailableError'
+      x-sdkwork-service: rtc-signaling-service
+      x-sdkwork-operation-group: rtc
+      x-sdkwork-sdk-target: crawChatAppSdk
+      x-sdkwork-visibility: public
+      x-sdkwork-protocol: http
 components:
   securitySchemes:
     bearerAuth:
@@ -3316,3 +3571,514 @@ components:
         playbackUrl:
           type: string
           format: uri
+x-sdkwork-sdk-surface:
+  sdkTarget: crawChatAppSdk
+  visibility: public
+  generatedProtocols:
+    - http
+  manualTransports:
+    - operationId: openRealtimeWebsocket
+      method: get
+      path: /api/v1/realtime/ws
+      serviceId: session-gateway
+      operationGroup: realtime
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: websocket
+      generated: false
+      reason: manual_transport_boundary
+  services:
+    - serviceId: conversation-runtime
+      operationGroups:
+        - conversations
+      protocols:
+        - http
+      operationCount: 17
+    - serviceId: media-service
+      operationGroups:
+        - media
+      protocols:
+        - http
+      operationCount: 5
+    - serviceId: projection-service
+      operationGroups:
+        - conversations
+        - devices
+      protocols:
+        - http
+      operationCount: 8
+    - serviceId: rtc-signaling-service
+      operationGroups:
+        - rtc
+      protocols:
+        - http
+      operationCount: 8
+    - serviceId: session-gateway
+      operationGroups:
+        - presence
+        - realtime
+        - sessions
+      protocols:
+        - http
+      operationCount: 7
+    - serviceId: streaming-service
+      operationGroups:
+        - streams
+      protocols:
+        - http
+      operationCount: 6
+  surfaceGroups:
+    - serviceId: conversation-runtime
+      operationGroup: conversations
+      protocols:
+        - http
+      operationCount: 17
+    - serviceId: media-service
+      operationGroup: media
+      protocols:
+        - http
+      operationCount: 5
+    - serviceId: projection-service
+      operationGroup: conversations
+      protocols:
+        - http
+      operationCount: 6
+    - serviceId: projection-service
+      operationGroup: devices
+      protocols:
+        - http
+      operationCount: 2
+    - serviceId: rtc-signaling-service
+      operationGroup: rtc
+      protocols:
+        - http
+      operationCount: 8
+    - serviceId: session-gateway
+      operationGroup: presence
+      protocols:
+        - http
+      operationCount: 2
+    - serviceId: session-gateway
+      operationGroup: realtime
+      protocols:
+        - http
+      operationCount: 3
+    - serviceId: session-gateway
+      operationGroup: sessions
+      protocols:
+        - http
+      operationCount: 2
+    - serviceId: streaming-service
+      operationGroup: streams
+      protocols:
+        - http
+      operationCount: 6
+  operationBindings:
+    - operationId: createConversation
+      method: post
+      path: /api/v1/conversations
+      serviceId: conversation-runtime
+      operationGroup: conversations
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: getConversationSummary
+      method: get
+      path: /api/v1/conversations/{conversationId}
+      serviceId: projection-service
+      operationGroup: conversations
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: getAgentHandoffState
+      method: get
+      path: /api/v1/conversations/{conversationId}/agent-handoff
+      serviceId: projection-service
+      operationGroup: conversations
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: acceptAgentHandoff
+      method: post
+      path: /api/v1/conversations/{conversationId}/agent-handoff/accept
+      serviceId: conversation-runtime
+      operationGroup: conversations
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: closeAgentHandoff
+      method: post
+      path: /api/v1/conversations/{conversationId}/agent-handoff/close
+      serviceId: conversation-runtime
+      operationGroup: conversations
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: resolveAgentHandoff
+      method: post
+      path: /api/v1/conversations/{conversationId}/agent-handoff/resolve
+      serviceId: conversation-runtime
+      operationGroup: conversations
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: listConversationMembers
+      method: get
+      path: /api/v1/conversations/{conversationId}/members
+      serviceId: projection-service
+      operationGroup: conversations
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: addConversationMember
+      method: post
+      path: /api/v1/conversations/{conversationId}/members/add
+      serviceId: conversation-runtime
+      operationGroup: conversations
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: changeConversationMemberRole
+      method: post
+      path: /api/v1/conversations/{conversationId}/members/change-role
+      serviceId: conversation-runtime
+      operationGroup: conversations
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: leaveConversation
+      method: post
+      path: /api/v1/conversations/{conversationId}/members/leave
+      serviceId: conversation-runtime
+      operationGroup: conversations
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: removeConversationMember
+      method: post
+      path: /api/v1/conversations/{conversationId}/members/remove
+      serviceId: conversation-runtime
+      operationGroup: conversations
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: transferConversationOwner
+      method: post
+      path: /api/v1/conversations/{conversationId}/members/transfer-owner
+      serviceId: conversation-runtime
+      operationGroup: conversations
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: listConversationMessages
+      method: get
+      path: /api/v1/conversations/{conversationId}/messages
+      serviceId: projection-service
+      operationGroup: conversations
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: postConversationMessage
+      method: post
+      path: /api/v1/conversations/{conversationId}/messages
+      serviceId: conversation-runtime
+      operationGroup: conversations
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: getConversationReadCursor
+      method: get
+      path: /api/v1/conversations/{conversationId}/read-cursor
+      serviceId: projection-service
+      operationGroup: conversations
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: updateConversationReadCursor
+      method: post
+      path: /api/v1/conversations/{conversationId}/read-cursor
+      serviceId: conversation-runtime
+      operationGroup: conversations
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: publishSystemChannelMessage
+      method: post
+      path: /api/v1/conversations/{conversationId}/system-channel/publish
+      serviceId: conversation-runtime
+      operationGroup: conversations
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: createAgentDialog
+      method: post
+      path: /api/v1/conversations/agent-dialogs
+      serviceId: conversation-runtime
+      operationGroup: conversations
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: createAgentHandoff
+      method: post
+      path: /api/v1/conversations/agent-handoffs
+      serviceId: conversation-runtime
+      operationGroup: conversations
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: createSystemChannel
+      method: post
+      path: /api/v1/conversations/system-channels
+      serviceId: conversation-runtime
+      operationGroup: conversations
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: getDeviceSyncFeed
+      method: get
+      path: /api/v1/devices/{deviceId}/sync-feed
+      serviceId: projection-service
+      operationGroup: devices
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: registerDevice
+      method: post
+      path: /api/v1/devices/register
+      serviceId: projection-service
+      operationGroup: devices
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: getInbox
+      method: get
+      path: /api/v1/inbox
+      serviceId: projection-service
+      operationGroup: conversations
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: getMediaAsset
+      method: get
+      path: /api/v1/media/{mediaAssetId}
+      serviceId: media-service
+      operationGroup: media
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: attachMediaAsset
+      method: post
+      path: /api/v1/media/{mediaAssetId}/attach
+      serviceId: media-service
+      operationGroup: media
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: getMediaDownloadUrl
+      method: get
+      path: /api/v1/media/{mediaAssetId}/download-url
+      serviceId: media-service
+      operationGroup: media
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: createMediaUpload
+      method: post
+      path: /api/v1/media/uploads
+      serviceId: media-service
+      operationGroup: media
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: completeMediaUpload
+      method: post
+      path: /api/v1/media/uploads/{mediaAssetId}/complete
+      serviceId: media-service
+      operationGroup: media
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: editMessage
+      method: post
+      path: /api/v1/messages/{messageId}/edit
+      serviceId: conversation-runtime
+      operationGroup: conversations
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: recallMessage
+      method: post
+      path: /api/v1/messages/{messageId}/recall
+      serviceId: conversation-runtime
+      operationGroup: conversations
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: heartbeatPresence
+      method: post
+      path: /api/v1/presence/heartbeat
+      serviceId: session-gateway
+      operationGroup: presence
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: getPresenceMe
+      method: get
+      path: /api/v1/presence/me
+      serviceId: session-gateway
+      operationGroup: presence
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: listRealtimeEvents
+      method: get
+      path: /api/v1/realtime/events
+      serviceId: session-gateway
+      operationGroup: realtime
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: ackRealtimeEvents
+      method: post
+      path: /api/v1/realtime/events/ack
+      serviceId: session-gateway
+      operationGroup: realtime
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: syncRealtimeSubscriptions
+      method: post
+      path: /api/v1/realtime/subscriptions/sync
+      serviceId: session-gateway
+      operationGroup: realtime
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: createRtcSession
+      method: post
+      path: /api/v1/rtc/sessions
+      serviceId: rtc-signaling-service
+      operationGroup: rtc
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: acceptRtcSession
+      method: post
+      path: /api/v1/rtc/sessions/{rtcSessionId}/accept
+      serviceId: rtc-signaling-service
+      operationGroup: rtc
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: getRtcRecordingArtifact
+      method: get
+      path: /api/v1/rtc/sessions/{rtcSessionId}/artifacts/recording
+      serviceId: rtc-signaling-service
+      operationGroup: rtc
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: issueRtcParticipantCredential
+      method: post
+      path: /api/v1/rtc/sessions/{rtcSessionId}/credentials
+      serviceId: rtc-signaling-service
+      operationGroup: rtc
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: endRtcSession
+      method: post
+      path: /api/v1/rtc/sessions/{rtcSessionId}/end
+      serviceId: rtc-signaling-service
+      operationGroup: rtc
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: inviteRtcSession
+      method: post
+      path: /api/v1/rtc/sessions/{rtcSessionId}/invite
+      serviceId: rtc-signaling-service
+      operationGroup: rtc
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: rejectRtcSession
+      method: post
+      path: /api/v1/rtc/sessions/{rtcSessionId}/reject
+      serviceId: rtc-signaling-service
+      operationGroup: rtc
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: postRtcSignal
+      method: post
+      path: /api/v1/rtc/sessions/{rtcSessionId}/signals
+      serviceId: rtc-signaling-service
+      operationGroup: rtc
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: disconnectSession
+      method: post
+      path: /api/v1/sessions/disconnect
+      serviceId: session-gateway
+      operationGroup: sessions
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: resumeSession
+      method: post
+      path: /api/v1/sessions/resume
+      serviceId: session-gateway
+      operationGroup: sessions
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: openStream
+      method: post
+      path: /api/v1/streams
+      serviceId: streaming-service
+      operationGroup: streams
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: abortStream
+      method: post
+      path: /api/v1/streams/{streamId}/abort
+      serviceId: streaming-service
+      operationGroup: streams
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: checkpointStream
+      method: post
+      path: /api/v1/streams/{streamId}/checkpoint
+      serviceId: streaming-service
+      operationGroup: streams
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: completeStream
+      method: post
+      path: /api/v1/streams/{streamId}/complete
+      serviceId: streaming-service
+      operationGroup: streams
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: listStreamFrames
+      method: get
+      path: /api/v1/streams/{streamId}/frames
+      serviceId: streaming-service
+      operationGroup: streams
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http
+    - operationId: appendStreamFrame
+      method: post
+      path: /api/v1/streams/{streamId}/frames
+      serviceId: streaming-service
+      operationGroup: streams
+      sdkTarget: crawChatAppSdk
+      visibility: public
+      protocol: http

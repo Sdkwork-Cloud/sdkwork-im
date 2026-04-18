@@ -1,19 +1,20 @@
 # Architecture Overview
 
 Craw Chat is a multi-service Rust workspace, not a single binary with optional extras. The current
-documentation is easiest to read through four architectural lenses:
+documentation is easiest to understand through five architectural lenses:
 
 1. The workspace layout and contract crates
 2. The app-facing `local-minimal-node`
 3. The separate `control-plane-api`
-4. The runtime-directory persistence contract
-5. The generic storage-management module
+4. The unified `web-gateway` / `craw-chat-server` external boundary
+5. The runtime-directory persistence contract and shared storage baseline
 
 ## Core Architecture Facts
 
 | Fact | Current implementation |
 | --- | --- |
 | Default app runtime | `services/local-minimal-node` |
+| Unified server binary | `services/web-gateway` with `[[bin]] name = "craw-chat-server"` |
 | Default public app prefix | `/api/v1/*` |
 | Default local app bind address | `127.0.0.1:18090` |
 | Standalone control-plane bind address | `127.0.0.1:18081` |
@@ -46,6 +47,12 @@ The main routing surface is declared in `services/local-minimal-node/src/node/bu
 
 This surface is implemented in `services/control-plane-api/src/lib.rs` and started by a separate
 binary that binds `127.0.0.1:18081` in `services/control-plane-api/src/main.rs`.
+
+## Unified Gateway And Packaged Server
+
+`services/web-gateway` publishes the packaged single-port server boundary. Its discovery surface
+includes `GET /openapi.json`, `GET /openapi/index.json`, and `GET /openapi/runtime-summary.json`,
+along with rendered docs and per-service OpenAPI proxies.
 
 ## Runtime Directory Is Architectural, Not Auxiliary
 

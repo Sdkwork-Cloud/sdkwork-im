@@ -50,6 +50,7 @@ For a new integration, read the app SDK pages in this order:
 | Live schema export | `/openapi/craw-chat-app.openapi.yaml` |
 | Authority snapshot | `sdks/sdkwork-craw-chat-sdk/openapi/craw-chat-app.openapi.yaml` |
 | Official consumer package | `@sdkwork/craw-chat-sdk` |
+| Generated transport package | `@sdkwork/craw-chat-backend-sdk` |
 | TypeScript consumer package | `@sdkwork/craw-chat-sdk` |
 | Flutter consumer package | `craw_chat_sdk` |
 | Rust generated crate | `sdkwork-craw-chat-backend-sdk` |
@@ -59,6 +60,25 @@ For a new integration, read the app SDK pages in this order:
 
 The current implementation priority is TypeScript. Flutter remains in the workspace, but the
 next-generation app SDK standard is being landed in TypeScript first.
+
+Generated symbols must be consumed through the package root entrypoints only. Do not import
+`generated/server-openapi/src/*` private source paths from manual code, docs snippets, or consumer
+applications.
+
+For direct local development, point SDK clients at `local-minimal-node`. For packaged installs,
+point `baseUrl`, `apiBaseUrl`, and `websocketBaseUrl` at the unified `craw-chat-server` /
+`web-gateway` public origin so HTTP APIs and the realtime websocket share one external port.
+
+For `local-minimal-node` development, set `baseUrl` to the node origin such as
+`http://127.0.0.1:18090`.
+
+For packaged installs, set `baseUrl` to the unified `craw-chat-server` / `web-gateway` public
+origin documented in [Gateway OpenAPI](/api-reference/gateway-openapi) and
+[Server Lifecycle](/deployment/server-lifecycle). The live websocket handshake at
+`GET /api/v1/realtime/ws` uses that same public origin as the HTTP app API.
+
+The live websocket handshake at `GET /api/v1/realtime/ws` uses that same public origin as the HTTP
+app API.
 
 ## Recommended Integration Order
 
@@ -375,6 +395,17 @@ The current source chain is:
 
 That means the generated layer owns only the HTTP contract. The semantic layer owns live receive,
 message ergonomics, and runtime orchestration.
+
+## Verification
+
+Verify the app SDK family from the repository root:
+
+```bash
+node ./sdks/sdkwork-craw-chat-sdk/bin/verify-sdk.mjs
+```
+
+That verification path includes the composed smoke test for `CrawChatSdkClient`, generated package
+checks, and cross-workspace boundary validation.
 
 ## What To Read Next
 

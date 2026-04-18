@@ -40,7 +40,13 @@
 - These endpoints are the checked-in authority for `sdkwork-craw-chat-sdk-admin`.
 - Read the SDK guides at [Admin SDK](/sdk/admin-sdk), [Admin TypeScript SDK](/sdk/admin-typescript-sdk), and [Admin Flutter SDK](/sdk/admin-flutter-sdk).
 - The live contract source is `services/control-plane-api`, exposed at `/openapi.json` and `/api/v1/control/openapi.json`, then normalized into `sdks/sdkwork-craw-chat-sdk-admin/openapi/admin-control-plane.openapi.yaml`.
+- The checked-in admin OpenAPI authority also includes
+  `sdks/sdkwork-craw-chat-sdk-admin/openapi/craw-chat-control-plane.openapi.json`.
 - Read and write permissions are split between `control.read` and `control.write`.
+- Standalone governance development can call `control-plane-api` directly, but packaged installs
+  expose the same governance routes through the unified `craw-chat-server` / `web-gateway` public
+  origin.
+- Standalone governance development can call `control-plane-api` directly, but packaged installs expose the same governance routes through the unified `craw-chat-server` / `web-gateway` public origin.
 
 ## How To Use This Page
 

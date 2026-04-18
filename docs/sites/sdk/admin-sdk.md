@@ -39,6 +39,10 @@ The admin SDK family is for the administrative control plane:
 It is not the product chat SDK. Conversation timeline, message send, session resume, and user-facing
 realtime flows remain in `sdkwork-craw-chat-sdk`.
 
+The operator-console `/api/admin/*` management contract is documented separately under
+[Management SDK](/sdk/management-sdk). Use this page for `/api/v1/control/*` governance and
+control-plane workflows.
+
 It is also not a fully generated replacement for every browser-facing `/api/admin/*` route used by
 the standalone operator shell. The current formal OpenAPI authority is the control-plane document
 served from `services/control-plane-api`, so only the `/api/v1/control/*` portion is generated from
@@ -58,6 +62,8 @@ Checked-in workspace authority:
 
 - `sdks/sdkwork-craw-chat-sdk-admin/openapi/admin-control-plane.openapi.yaml`
 - `sdks/sdkwork-craw-chat-sdk-admin/openapi/admin-control-plane.sdkgen.yaml`
+- `sdks/sdkwork-craw-chat-sdk-admin/openapi/craw-chat-control-plane.openapi.json`
+- `sdks/sdkwork-craw-chat-sdk-admin/openapi/craw-chat-control-plane.sdkgen.json`
 
 Refresh flow:
 
@@ -84,6 +90,9 @@ Manual code lives only under:
 
 - `sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-typescript/composed`
 - `sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-flutter/composed`
+
+Generated package entrypoints are public; private generated source paths are not. Do not import
+`generated/server-openapi/src/*` from admin TypeScript sources or public declaration surfaces.
 
 ## Assembly Metadata
 
@@ -146,6 +155,20 @@ Preferred create options are flat:
 
 `backendClient` remains valid when the caller owns transport creation.
 
+`createCrawChatAdminSdkClient(...)` resolves to the same composed facade as
+`CrawChatAdminSdkClient.create(...)`.
+
+For standalone governance development, `baseUrl` can point directly at `control-plane-api`, which
+defaults to `http://127.0.0.1:18081`.
+
+For packaged installs, point `baseUrl` at the unified `craw-chat-server` / `web-gateway` public
+origin; the gateway proxies control-plane routes on the same external port as the other
+operator-facing HTTP surfaces.
+
+For standalone governance development, `baseUrl` can point directly at `control-plane-api`, which defaults to `http://127.0.0.1:18081`.
+
+For packaged installs, point `baseUrl` at the unified `craw-chat-server` / `web-gateway` public origin; the gateway proxies control-plane routes on the same external port as the other operator-facing HTTP surfaces.
+
 ## Current TypeScript Surface
 
 Generated modules:
@@ -195,6 +218,9 @@ Flutter mirrors the same semantic modules as TypeScript:
 - `sdk.social`
 - `sdk.socialRuntime`
 - `sdk.nodes`
+
+The primary Flutter admin client is `CrawChatAdminSdkClient`, exposed from
+`package:craw_chat_admin_sdk/craw_chat_admin_sdk.dart`.
 
 ## Current Boundary Gap
 

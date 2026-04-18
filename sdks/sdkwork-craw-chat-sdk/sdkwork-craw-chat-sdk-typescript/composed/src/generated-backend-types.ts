@@ -1,5 +1,5 @@
-// This bridge keeps generated type-path knowledge in one place so the composed
-// SDK does not couple multiple files to generator-owned internals.
+// This bridge keeps generated type imports anchored to the generated package
+// root so the composed SDK does not leak generator-owned source paths.
 import type {
   AckRealtimeEventsRequest,
   AddConversationMemberRequest,
@@ -71,12 +71,10 @@ import type {
   TransferConversationOwnerResult,
   UpdateReadCursorRequest,
   UpdateRtcSessionRequest,
-} from '../../generated/server-openapi/src/types/index';
-import type {
   QueryParams,
   SdkworkBackendConfig,
-} from '../../generated/server-openapi/src/types/common';
-import type { StringMap } from '../../generated/server-openapi/src/types/string-map';
+  StringMap,
+} from '@sdkwork/craw-chat-backend-sdk';
 
 export type {
   AckRealtimeEventsRequest,

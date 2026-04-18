@@ -35,14 +35,18 @@ features:
 
 ## What Craw Chat Is
 
-Craw Chat is a Rust workspace with two primary runtime surfaces in the current repository state:
+Craw Chat is a Rust workspace with three primary runtime surfaces in the current repository state,
+plus checked-in SDK workspaces built from those services:
 
 - `services/local-minimal-node`, the app-facing node that serves session, conversation, message,
   media, stream, RTC, platform, ops, audit, and provider-health routes.
 - `services/control-plane-api`, the separate governance surface for protocol registry, provider
   policy, and node lifecycle operations.
-- `sdks/sdkwork-craw-chat-sdk`, the app-facing SDK workspace with multi-language transport output,
-  TypeScript single-package delivery, and dedicated quick-start plus module docs.
+- `services/web-gateway`, the unified external entrypoint that publishes the canonical
+  `craw-chat-server` binary, aggregates OpenAPI discovery, and fronts operator-facing single-port
+  server installs.
+- `sdks/`, which currently contains the App, Admin, and Management SDK families used by product,
+  governance, and operator-console integrations.
 
 The default runnable profile is `local-minimal`. The `local-default` profile already has script,
 config, and Docker entry points, but it still reuses the current `local-minimal` runtime contract
@@ -65,6 +69,10 @@ For most new integrations, the fastest reading order is:
     <p><code>127.0.0.1:18090</code> for local binary workflows, and <code>0.0.0.0:18090</code> inside Docker Compose.</p>
   </div>
   <div class="fact-card">
+    <h3>Unified Server Listener</h3>
+    <p><code>0.0.0.0:18080</code> in the frozen <code>server.yaml.example</code> contract for <code>craw-chat-server</code> and the unified <code>web-gateway</code>.</p>
+  </div>
+  <div class="fact-card">
     <h3>Control Plane Listener</h3>
     <p><code>127.0.0.1:18081</code> when the standalone <code>control-plane-api</code> binary is run directly.</p>
   </div>
@@ -74,7 +82,7 @@ For most new integrations, the fastest reading order is:
   </div>
   <div class="fact-card">
     <h3>SDK Delivery State</h3>
-    <p>The official TypeScript consumer package is <code>@sdkwork/craw-chat-sdk</code>. The release catalog is still <code>template_only_pending_generation</code> and <code>not_published</code>, even though the admin control-plane TypeScript and Flutter SDK workspaces are already generated, composed, and locally verified.</p>
+    <p>The official application-facing TypeScript package is <code>@sdkwork/craw-chat-sdk</code>. App, Admin, and Management SDK families all have materialized TypeScript and Flutter workspaces in-repo, while package publication is still pending for every line.</p>
   </div>
 </div>
 
@@ -91,14 +99,17 @@ For most new integrations, the fastest reading order is:
    resolution, admin storage behavior, or upload issuance assumptions. Keep
    [Admin Storage Contract](/reference/admin-storage-contract) open when you need the current
    `/api/admin/storage/*` route set and sandbox promotion boundary.
-5. Use [API Reference](/api-reference/index) for the OpenAPI-style operation catalog with sidebar
+5. Use [Server Lifecycle](/deployment/server-lifecycle) when validating the packaged
+   `craw-chat-server` install contract, PostgreSQL-backed storage wiring, or unified gateway
+   endpoints.
+6. Use [API Reference](/api-reference/index) for the OpenAPI-style operation catalog with sidebar
    links to every documented endpoint.
-6. Read [SDK Overview](/sdk/index), then use
+7. Read [SDK Overview](/sdk/index), then use
    [TypeScript Quick Start](/sdk/typescript-quick-start),
    [Flutter Quick Start](/sdk/flutter-quick-start), or
    [Rust Quick Start](/sdk/rust-quick-start) before promising package availability, import paths,
    or feature parity to consumers.
-7. Keep [Deployment](/deployment/index) and [Reference](/reference/cli-and-scripts) open when
+8. Keep [Deployment](/deployment/index) and [Reference](/reference/cli-and-scripts) open when
    running, diagnosing, backing up, or restoring a local environment.
 
 ## Choose Your Entry Point
@@ -119,9 +130,10 @@ For most new integrations, the fastest reading order is:
 | --- | --- |
 | App runtime | Session resume, presence, realtime delivery, device sync, conversations, membership, messages, media, streams, RTC, notifications, automation, audit, ops, and provider health |
 | Control plane | Protocol registry, protocol governance, provider registry, effective bindings, provider policy preview and rollback, plus node drain, activate, and route migration |
-| Deployment | Local binary lifecycle scripts, Docker Compose bootstrap, runtime inspection, repair, backup listing, archive, preview, and restore |
-| SDK workspaces | App SDK workspace with checked-in OpenAPI authority and derived sdkgen input; admin control-plane SDK workspace with checked-in authority files plus verified TypeScript and Flutter generated and composed packages |
-| Frontend apps | `apps/craw-chat-admin` already provides a verified standalone operator shell, a first-class storage-management workflow, and the current `/api/admin/storage/*` contract surface, while `apps/craw-chat-portal` is still not documented here as a mature product surface |
+| Unified gateway and server | `web-gateway` publishes the canonical `craw-chat-server` binary, the aggregate OpenAPI and discovery routes, service-schema proxies, rendered docs, and the single-port server install contract |
+| Deployment | Local binary lifecycle scripts, Docker Compose bootstrap, server install/service-management scripts, runtime inspection, repair, backup listing, archive, preview, and restore |
+| SDK workspaces | App SDK workspace with checked-in OpenAPI authority and derived sdkgen input; admin SDK workspace with checked-in OpenAPI authority plus materialized TypeScript and Flutter package lines; management SDK workspace with checked-in OpenAPI authority, derived sdkgen input, and materialized TypeScript and Flutter package lines |
+| Frontend apps | `apps/craw-chat-admin` already provides a verified standalone operator shell, a first-class storage-management workflow, and a documented `/api/admin/storage/*` contract surface, while `apps/craw-chat-portal` exists in-repo but is not yet documented here as a mature product surface |
 
 ::: warning Scope rule
 This documentation intentionally describes only what can be verified from the current repository
@@ -133,6 +145,8 @@ such rather than documented as delivered features.
   <strong>Implementation sources:</strong>
   App routing is aligned to <code>services/local-minimal-node/src/node/build.rs</code>.
   Control-plane routing is aligned to <code>services/control-plane-api/src/lib.rs</code>.
+  Unified gateway and packaged server entry are aligned to <code>services/web-gateway/src/lib.rs</code>,
+  <code>services/web-gateway/src/main.rs</code>, and <code>deployments/templates/server.yaml.example</code>.
   Local lifecycle and deployment behavior is aligned to <code>bin/</code>,
   <code>deployments/</code>, and the runtime-management entrypoints in
   <code>services/local-minimal-node/src/main.rs</code>.

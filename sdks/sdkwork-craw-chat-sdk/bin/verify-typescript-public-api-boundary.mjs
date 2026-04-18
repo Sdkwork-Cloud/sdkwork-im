@@ -31,21 +31,15 @@ if (!workspacePathExists({ workspaceRoot: composedSourceRoot, relativePath: 'gen
     },
   });
 
-  if (!bridgeSource.includes("../../generated/server-openapi/src/types/index")) {
+  if (bridgeSource.includes('generated/server-openapi/src/')) {
     failures.push(
-      'composed/src/generated-backend-types.ts must bridge generated request and response types from src/types/index.',
+      'composed/src/generated-backend-types.ts must not bridge generated private source paths.',
     );
   }
 
-  if (!bridgeSource.includes("../../generated/server-openapi/src/types/common")) {
+  if (!bridgeSource.includes("@sdkwork/craw-chat-backend-sdk")) {
     failures.push(
-      'composed/src/generated-backend-types.ts must bridge generated common types from src/types/common.',
-    );
-  }
-
-  if (!bridgeSource.includes("../../generated/server-openapi/src/types/string-map")) {
-    failures.push(
-      'composed/src/generated-backend-types.ts must bridge generated string-map types from src/types/string-map.',
+      'composed/src/generated-backend-types.ts must bridge generated types from @sdkwork/craw-chat-backend-sdk.',
     );
   }
 }
@@ -73,15 +67,6 @@ for (const relativePath of collectWorkspaceFiles({
   const matches = source.match(/generated\/server-openapi\/src\/[^\s'"`]+/g) || [];
 
   for (const matchedImportPath of matches) {
-    if (relativePath === 'generated-backend-types.ts') {
-      if (matchedImportPath.startsWith('generated/server-openapi/src/types/')) {
-        continue;
-      }
-      failures.push(
-        `generated-backend-types.ts must only bridge generated TypeScript type source paths, but found "${matchedImportPath}".`,
-      );
-      continue;
-    }
     failures.push(
       `${relativePath} imports or exports generated TypeScript private source path "${matchedImportPath}".`,
     );

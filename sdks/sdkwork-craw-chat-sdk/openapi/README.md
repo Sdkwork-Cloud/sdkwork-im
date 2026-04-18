@@ -15,6 +15,7 @@ This directory stores the OpenAPI source documents for the `sdkwork-craw-chat-sd
 
 - The authority contract is the source of truth and is refreshed from the live service export before generation.
 - The derived contract exists for generator compatibility and normalization only.
+- The derived contracts also carry `x-sdkwork-sdk-surface` plus per-operation `x-sdkwork-*` ownership hints so generator layers can consume stable service, surface-group, and transport metadata directly from the checked-in sdkgen inputs.
 - Generated SDK packages must never edit either file in place.
 - The live service schema endpoint is `/openapi/craw-chat-app.openapi.yaml`.
 - The service export resolves schema content from `CRAW_CHAT_APP_OPENAPI_SCHEMA_PATH` first, then the workspace authority file, then the embedded fallback bundled into `local-minimal-node`.

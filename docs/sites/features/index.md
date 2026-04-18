@@ -56,6 +56,10 @@ mean roadmap intent or naming-only presence.
   tests.
 - Repo package or workspace contract: package metadata, import names, generation wrappers, or
   workspace directories exist, but publication state still comes from the release catalog.
+- Materialized SDK boundary: checked-in OpenAPI authority, generated packages, or assembled
+  consumer packages already exist and can be verified in-repo.
+- Scaffolded SDK boundary: the workspace contract is reserved and named, but one or more language
+  lines are not yet materialized, verified, or publication-ready.
 
 ## What To Read Next
 

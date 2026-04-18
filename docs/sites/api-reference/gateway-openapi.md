@@ -1,0 +1,76 @@
+# Gateway OpenAPI
+
+<p class="api-page-intro">
+  The unified <code>web-gateway</code> is the external HTTP entrypoint for the current Craw Chat
+  server runtime. It publishes the aggregate OpenAPI 3.1 document, a machine-readable service
+  schema index, and service-specific schema or rendered-doc views on the same operator-facing
+  port.
+</p>
+
+<div class="api-overview-grid">
+  <div class="api-card">
+    <h3>Aggregate Contract</h3>
+    <p><code>GET /openapi.json</code> returns the unified gateway contract assembled from live upstream service schemas.</p>
+  </div>
+  <div class="api-card">
+    <h3>Service Index</h3>
+    <p><code>GET /openapi/index.json</code> returns a three-layer discovery index with service inventory, registry-owned route entries, and grouped surface summaries for direct SDK-generator and operator-tool consumption.</p>
+  </div>
+  <div class="api-card">
+    <h3>Runtime Summary</h3>
+    <p><code>GET /openapi/runtime-summary.json</code> returns the registry-backed runtime discovery summary used by startup logs, operator tooling, and machine-readable gateway inspection.</p>
+  </div>
+  <div class="api-card">
+    <h3>Service Schemas</h3>
+    <p><code>GET /openapi/services/&lt;service-id&gt;.openapi.json</code> proxies the current OpenAPI 3.1 document for an individual upstream service.</p>
+  </div>
+  <div class="api-card">
+    <h3>Rendered Docs</h3>
+    <p><code>GET /docs</code> and <code>GET /docs/services/&lt;service-id&gt;</code> render browser-friendly views of the aggregate and service-level contracts.</p>
+  </div>
+</div>
+
+## Endpoint Matrix
+
+| Surface | Path | Purpose |
+| --- | --- | --- |
+| Aggregate schema | `GET /openapi.json` | Unified gateway contract assembled from the configured upstream set |
+| Schema index | `GET /openapi/index.json` | Machine-readable list of service schemas and docs routes |
+| Runtime summary | `GET /openapi/runtime-summary.json` | Registry-backed runtime discovery summary aligned with startup output |
+| Service schema | `GET /openapi/services/<service-id>.openapi.json` | Direct proxy to one upstream service schema |
+| Aggregate docs | `GET /docs` | Rendered docs view for the unified gateway contract |
+| Service docs | `GET /docs/services/<service-id>` | Rendered docs view for an individual upstream service |
+
+## Operational Notes
+
+- The aggregate contract is assembled from live upstream `GET /openapi.json` responses.
+- The aggregate contract also publishes gateway-owned discovery operations such as the schema index, runtime summary, and service-schema proxy routes, so `/docs` shows both proxied API surface and gateway discovery surface together.
+- The aggregate contract now defines formal OpenAPI response schemas for the gateway discovery surface. Tooling can bind directly against `GatewayOpenapiIndex`, `GatewayRuntimeSummary`, `GatewayRouteSummary`, `GatewaySurfaceGroupSummary`, and related enum schemas under `components.schemas`.
+- In strict startup mode, upstream schema fetch failures are treated as blocking errors for aggregate schema generation.
+- The unified `web-gateway` now proxies registry-owned public websocket upgrade routes on the same external port as the HTTP surface. The current app-facing example is `GET /api/v1/realtime/ws`, but the gateway behavior is no longer hardcoded to that single path.
+- The service index now exposes three complementary collections:
+  `services` for per-service schema and docs inventory,
+  `routes` for registry-owned route patterns across all visibilities,
+  and `surfaceGroups` for grouped `service + operationGroup` discovery metadata.
+- `services[*]` exposes `serviceId`, `schemaUrl`, `docsUrl`, `visibility`, `routeCount`, `operationGroups`, `sdkTargets`, `protocols`, and `websocketSubprotocols`.
+- `routes[*]` exposes `serviceId`, `operationGroup`, `visibility`, `pathPattern`, `methods`, `protocol`, `sdkTargets`, and `websocketSubprotocols`, giving generators the raw gateway ownership map without requiring them to infer it from service aggregates.
+- `surfaceGroups[*]` exposes `serviceId`, `operationGroup`, `visibility`, `routeCount`, `sdkTargets`, `protocols`, and `websocketSubprotocols`, which matches the conceptual slices used by docs, SDK partitioning, and startup summaries.
+- The runtime summary exposes the same discovery contract that startup output prints: `baseUrl`, `aggregateOpenapiUrl`, `openapiIndexUrl`, `runtimeSummaryUrl`, `docsUrl`, `serviceContracts`, `publicEndpoints`, and `surfaceGroups`.
+- `baseUrl` in the runtime summary is resolved from the incoming request authority. When the gateway sits behind a reverse proxy, `X-Forwarded-Proto` and `X-Forwarded-Host` are honored so operator tooling receives externally correct absolute URLs.
+- `routeCount` tracks the number of gateway-owned route patterns assigned to a service in the route registry. It is not a count of OpenAPI operations.
+- `operationGroups` mirrors the gateway route-owner grouping used for docs and SDK surface partitioning.
+- `sdkTargets` tells tooling whether the owned surface belongs to the App SDK, the Admin SDK, or no public SDK target.
+- `protocols` makes websocket visibility explicit without forcing tooling to infer transport semantics from path naming conventions.
+- `websocketSubprotocols` lists the declared websocket subprotocols owned by a service on the unified gateway contract. It is omitted for HTTP-only services.
+- `session-gateway` now publishes separate `sessions`, `presence`, and `realtime` operation groups in the index so generated SDKs and operator-facing docs can preserve the same conceptual boundaries as the live service contract.
+- The index intentionally does not expose direct upstream health URLs because the unified deployment contract is the single `web-gateway` port, not the split internal bind set.
+- Startup output on the `craw-chat-server` process prints the aggregate schema URL, the schema index URL, the runtime summary URL, the service-level schema or docs URLs, the currently public gateway endpoint patterns derived from the route registry, and a `service + operationGroup` surface summary aligned with the runtime-summary/index metadata.
+
+## Related Pages
+
+<div class="api-link-list">
+  <a href="/api-reference/index"><code>API Reference</code> API reference landing page</a>
+  <a href="/api-reference/app-api"><code>App API</code> User-facing application surface</a>
+  <a href="/api-reference/platform-api"><code>Platform API</code> Platform and operator endpoints</a>
+  <a href="/api-reference/control-plane-api"><code>Control Plane API</code> Governance and route-control surface</a>
+</div>

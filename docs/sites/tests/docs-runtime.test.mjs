@@ -71,7 +71,7 @@ test('sdk docs describe Flutter presigned upload flow', () => {
 test('sdk docs describe TypeScript flat client creation and upload flow', () => {
   const typescriptDoc = readFileSync(path.join(docsRoot, 'sdk', 'typescript-sdk.md'), 'utf8');
 
-  assert.match(typescriptDoc, /CrawChatSdkClient\.create\(\{\s*baseUrl:/);
+  assert.match(typescriptDoc, /new CrawChatSdkClient\(\{\s*baseUrl:/);
   assert.doesNotMatch(typescriptDoc, /backendConfig/);
   assert.match(typescriptDoc, /sdk\.media\.upload\(/);
   assert.match(typescriptDoc, /MediaUploadMutationResponse/);

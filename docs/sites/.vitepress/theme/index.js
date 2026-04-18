@@ -1,4 +1,3 @@
-import type { Theme } from "vitepress";
 import DefaultTheme from "vitepress/theme";
 import ApiSchemaTable from "./components/ApiSchemaTable.vue";
 import "./custom.css";
@@ -8,4 +7,4 @@ export default {
   enhanceApp({ app }) {
     app.component("ApiSchemaTable", ApiSchemaTable);
   },
-} satisfies Theme;
+};

@@ -25,8 +25,8 @@ Creates or idempotently reuses a notification task.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / notifications</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>No standalone published SDK family</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Own recipient scope or `notification.write` for delegated sends.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 NotificationTask`</span></div>
 </div>
@@ -65,8 +65,8 @@ Lists notification tasks visible to the current principal.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / notifications</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>No standalone published SDK family</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Current recipient scope.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 NotificationListResponse`</span></div>
 </div>
@@ -100,8 +100,8 @@ Reads a single notification task by identifier.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token or trusted headers</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk` / notifications</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>No standalone published SDK family</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Current recipient scope.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 NotificationTask`</span></div>
 </div>

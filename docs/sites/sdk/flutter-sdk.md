@@ -6,8 +6,7 @@ export surface exactly as it exists today.
 
 ::: warning Current delivery status
 The package names below describe repo package contracts, not current pub.dev availability. The
-release catalog still marks `app-flutter` as
-`template_only_pending_generation` and `not_published`.
+release catalog still marks `app-flutter` as `generated` and `not_published`.
 :::
 
 ## How To Use This Page
@@ -24,7 +23,7 @@ release catalog still marks `app-flutter` as
 | Layer | Package | Entrypoint | Primary exports | Use when |
 | --- | --- | --- | --- | --- |
 | Generated transport | `backend_sdk` | `package:backend_sdk/backend_sdk.dart` | `SdkworkBackendClient`, generated models, generated API groups | You want direct transport access and generated request or response models |
-| Composed client | `craw_chat_sdk` | `package:craw_chat_sdk/craw_chat_sdk.dart` | `CrawChatClient`, semantic app modules, helper builders | You want a higher-level client for the app runtime surface |
+| Composed client | `craw_chat_sdk` | `package:craw_chat_sdk/craw_chat_sdk.dart` | `CrawChatSdkClient`, semantic app modules, helper builders | You want a higher-level client for the app runtime surface |
 
 For most Flutter app integrations, start from `package:craw_chat_sdk/craw_chat_sdk.dart`.
 `craw_chat_sdk` is the official app-facing package and re-exports `backend_sdk`, so generated
@@ -79,7 +78,7 @@ The checked-in generated Flutter client currently exports these route groups thr
 ```dart
 import 'package:craw_chat_sdk/craw_chat_sdk.dart';
 
-final sdk = CrawChatClient.create(
+final sdk = CrawChatSdkClient.create(
   baseUrl: 'http://127.0.0.1:18090',
   authToken: 'your-bearer-token',
 );
@@ -141,7 +140,7 @@ The checked-in Dart surface is intentionally narrower than the TypeScript SDK:
 
 - `craw_chat_sdk` re-exports `backend_sdk`, the generated package root exports `AuthApi` and
   `PortalApi`, `SdkworkBackendClient` mounts `client.auth` and `client.portal`, and
-  `CrawChatClient` exposes `sdk.auth` and `sdk.portal`.
+  `CrawChatSdkClient` exposes `sdk.auth` and `sdk.portal`.
 - `sdk.auth.login(...)` automatically applies the returned `accessToken` when present, while
   `sdk.auth.useToken(...)`, `sdk.auth.clearToken()`, and `sdk.auth.me()` give the composed layer a
   standard auth workflow.
@@ -208,7 +207,7 @@ semantic helpers with explicit generated request types.
 
 - Public auth is bearer-token only.
 - Prefer `sdk.auth.useToken(...)` and `sdk.auth.clearToken()` at the composed layer.
-- `setAuthToken()` remains available on `SdkworkBackendClient` and `CrawChatClient` for low-level
+- `setAuthToken()` remains available on `SdkworkBackendClient` and `CrawChatSdkClient` for low-level
   fallback control.
 - The WebSocket endpoint is documented at the API layer, but the checked-in Flutter SDK does not
   ship `sdk.connect(...)` and no delivered WebSocket adapter is treated as shipped in this round.

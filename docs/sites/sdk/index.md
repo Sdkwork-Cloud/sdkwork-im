@@ -1,11 +1,13 @@
 # SDK Overview
 
-The Craw Chat repository currently exposes two SDK families:
+The repository currently defines three SDK families with different consumers, contracts, and release truths:
 
 - `sdkwork-craw-chat-sdk`
   App-facing runtime integrations generated from the live Craw Chat OpenAPI 3.x contract.
 - `sdkwork-craw-chat-sdk-admin`
   Admin and control-plane integrations.
+- `sdkwork-craw-chat-sdk-management`
+  Operator-console and `/api/admin/*` management integrations.
 
 For application integration, start from the app SDK family and the TypeScript package
 `@sdkwork/craw-chat-sdk`. That remains the strongest checked-in consumer SDK and the reference
@@ -25,8 +27,49 @@ contract for future semantic SDKs in other languages.
 | Generated-versus-semantic ownership rules | [Generator Boundary](/sdk/generator-boundary) |
 | Route-level HTTP semantics | [App API Overview](/api-reference/app-api) |
 | Admin and control-plane workflows | [Admin SDK](/sdk/admin-sdk) |
+| Operator-console `/api/admin/*` workflows | [Management SDK](/sdk/management-sdk) |
 
-## Choose By Scenario
+## SDK Family Matrix
+
+For day-to-day engineering, treat the checked-in SDK workspaces and their `.sdkwork-assembly.json`
+files as the repository truth. App, Admin, and Management families all have materialized
+TypeScript and Flutter workspaces in-repo, and all of them remain unpublished.
+
+### Release Snapshot
+
+The current release catalog under `artifacts/releases/wave-d-2026-04-08/sdk-release-catalog.json`
+reports `state = generated_pending_publication`. Every tracked artifact in that catalog currently
+records `generationStatus = generated` and `releaseStatus = not_published`.
+
+The repository truth is therefore stronger than "planned SDK structure": `sdkwork-craw-chat-sdk`,
+`sdkwork-craw-chat-sdk-admin`, and `sdkwork-craw-chat-sdk-management` all exist as checked-in
+workspaces, and `sdkwork-craw-chat-sdk-management` has materialized TypeScript and Flutter package
+workspaces.
+
+`sdkwork-craw-chat-sdk-management` has materialized TypeScript and Flutter package workspaces.
+
+| Family | Audience | Best entry page | Contract source | Current repo state |
+| --- | --- | --- | --- | --- |
+| `sdkwork-craw-chat-sdk` | Product and app integrations | [App SDK](/sdk/app-sdk) | App OpenAPI authority under `sdks/sdkwork-craw-chat-sdk/openapi/` | TypeScript and Flutter consumer lines materialized; additional language workspaces generated in-repo; publication pending |
+| `sdkwork-craw-chat-sdk-admin` | Governance and control-plane tooling | [Admin SDK](/sdk/admin-sdk) | Control-plane authority under `sdks/sdkwork-craw-chat-sdk-admin/openapi/` | TypeScript and Flutter lines materialized; publication pending |
+| `sdkwork-craw-chat-sdk-management` | Operator-console and `/api/admin/*` tooling | [Management SDK](/sdk/management-sdk) | Management authority under `sdks/sdkwork-craw-chat-sdk-management/openapi/` | TypeScript and Flutter lines materialized; publication pending |
+
+Generated symbols must be consumed through package root entrypoints only.
+
+App SDK consumers target `local-minimal-node` during direct local development and the unified
+`craw-chat-server` / `web-gateway` public origin in packaged installs.
+
+Admin SDK consumers can target `control-plane-api` directly during standalone governance
+development, but packaged installs should switch to the unified gateway public origin.
+
+Management SDK consumers target the deployed surface that serves `/api/admin/*`; in packaged
+installs that is also the unified gateway public origin.
+
+| API group | SDK family | Current boundary |
+| --- | --- | --- |
+| App Runtime (`/api/v1/*`) | `sdkwork-craw-chat-sdk` | Checked-in app OpenAPI authority plus materialized TypeScript and Flutter consumer packages |
+| Control Plane Governance (`/api/v1/control/*`) | `sdkwork-craw-chat-sdk-admin` | Checked-in control-plane authority plus materialized TypeScript and Flutter consumer packages |
+| Operator Console Admin API (`/api/admin/*`) | `sdkwork-craw-chat-sdk-management` | Checked-in authority plus materialized TypeScript and Flutter generated/composed packages exist; the admin console already consumes this family through its TypeScript compatibility layer |
 
 Use this rule of thumb before reading the rest of the matrix:
 
@@ -184,3 +227,8 @@ For every official language:
 - [Go SDK](/sdk/go-sdk)
 - [Python SDK](/sdk/python-sdk)
 - [Generator Boundary](/sdk/generator-boundary)
+- [Admin SDK](/sdk/admin-sdk)
+- [Management SDK](/sdk/management-sdk)
+- [Language Support](/sdk/language-support)
+- [App API Overview](/api-reference/app-api)
+- [Control Plane API Overview](/api-reference/control-plane-api)

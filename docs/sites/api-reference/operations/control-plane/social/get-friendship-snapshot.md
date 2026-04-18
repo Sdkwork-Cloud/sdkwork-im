@@ -1,11 +1,13 @@
 # `GET /api/v1/control/social/friendships/{friendship_id}`
 
 <p class="api-page-intro">
-  OpenAPI-style operation reference for <strong>Social Graph Control</strong> in the <strong>Control Plane API</strong>.
+  Exact request and response contract for <strong>Social Graph Control</strong> in the <strong>Control Plane API</strong>.
 </p>
 
 <div class="api-link-list">
-  <a href="/api-reference/control-plane/social">Back to Social Graph Control</a>
+  <a href="/api-reference/control-plane/social"><code>Social Graph Control</code> Return to the group page for workflow context and related operations</a>
+  <a href="/api-reference/control-plane-api"><code>Control Plane API</code> Return to the domain overview</a>
+  <a href="/api-reference/auth-and-errors"><code>Auth</code> Shared bearer, trusted-header, and error-envelope rules</a>
 </div>
 
 <section class="api-op api-op-single">
@@ -20,9 +22,9 @@ Read a friendship snapshot.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / social-graph</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 SocialFriendshipSnapshotResponse`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
 ### Path Parameters

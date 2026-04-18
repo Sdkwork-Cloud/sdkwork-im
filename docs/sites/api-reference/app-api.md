@@ -41,6 +41,9 @@
 - Session resume, realtime subscription sync, poll, and ACK map directly into generated HTTP SDK layers, while the TypeScript package additionally delivers a semantic live runtime through `sdk.connect(...)` above that boundary for `/api/v1/realtime/ws`.
 - The repo App SDK authority contract is `sdks/sdkwork-craw-chat-sdk/openapi/craw-chat-app.openapi.yaml`, with `craw-chat-app.sdkgen.yaml` as the derived generator input.
 - Sidebar grouping follows the same runtime boundaries used in the implementation: portal, session gateway, conversation runtime, media, streaming, and RTC services.
+- In packaged installs, this same app-facing HTTP surface is exposed through the unified
+  `craw-chat-server` / `web-gateway` public origin rather than a separate public app-node port.
+- In packaged installs, this same app-facing HTTP surface is exposed through the unified `craw-chat-server` / `web-gateway` public origin rather than a separate public app-node port.
 
 ## How To Use This Page
 

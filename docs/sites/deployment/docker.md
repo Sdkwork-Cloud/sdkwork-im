@@ -1,6 +1,7 @@
 # Docker
 
 Docker deployment is the recommended path for local container validation and demo-style bring-up.
+It is not the formal packaged `craw-chat-server` install contract.
 
 ## Compose Profiles
 
@@ -75,6 +76,17 @@ services:
 ```
 
 So it is a profile compatibility layer, not a separate image, port layout, or service graph.
+
+For the single-port packaged server, config root layout, PostgreSQL baseline, and service-management
+wrappers, use [Server Lifecycle](/deployment/server-lifecycle).
+
+For the single-port packaged server, config root layout, PostgreSQL baseline, and service-management wrappers, use [Server Lifecycle](/deployment/server-lifecycle).
+
+If you are validating a production-style install shape with the unified `web-gateway` entrypoint,
+runtime OpenAPI discovery, or PostgreSQL-backed storage configuration, switch to
+[Server Lifecycle](/deployment/server-lifecycle).
+
+If you are validating a production-style install shape with the unified `web-gateway` entrypoint, runtime OpenAPI discovery, or PostgreSQL-backed storage configuration, switch to [Server Lifecycle](/deployment/server-lifecycle).
 
 ## What To Read Next
 
