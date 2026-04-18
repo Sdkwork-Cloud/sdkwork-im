@@ -64,10 +64,7 @@ impl FailAfterNJournal {
 
 impl CommitJournal for FailAfterNJournal {
     fn append(&self, envelope: CommitEnvelope) -> Result<CommitPosition, ContractError> {
-        let mut append_count = self
-            .append_count
-            .lock()
-            .expect("append count should lock");
+        let mut append_count = self.append_count.lock().expect("append count should lock");
         *append_count += 1;
         if *append_count == self.fail_at {
             return Err(ContractError::Unavailable(
@@ -3431,7 +3428,10 @@ fn test_read_cursor_does_not_advance_when_journal_append_fails() {
     let cursor = runtime
         .read_cursor_view("t_demo", "c_group_cursor_commit_fail", "u_owner")
         .expect("cursor view should still succeed");
-    assert_eq!(cursor.read_seq, 0, "failed update must not advance read seq");
+    assert_eq!(
+        cursor.read_seq, 0,
+        "failed update must not advance read seq"
+    );
     assert_eq!(
         cursor.unread_count, 1,
         "failed update must preserve unread count until durable commit succeeds"
@@ -3482,7 +3482,10 @@ fn test_post_message_does_not_leak_message_when_journal_append_fails() {
         .list_messages("t_demo", "c_group_post_commit_fail", "u_owner")
         .expect("history should still load");
     assert_eq!(history.high_watermark, 0);
-    assert!(history.items.is_empty(), "failed post must not leak a message");
+    assert!(
+        history.items.is_empty(),
+        "failed post must not leak a message"
+    );
     assert_eq!(journal.recorded().len(), 2);
 }
 
@@ -3548,7 +3551,10 @@ fn test_edit_message_does_not_leak_body_change_when_journal_append_fails() {
         .list_messages("t_demo", "c_group_edit_commit_fail", "u_owner")
         .expect("history should still load");
     assert_eq!(history.items.len(), 1);
-    assert_eq!(history.items[0].message.body.summary.as_deref(), Some("hello"));
+    assert_eq!(
+        history.items[0].message.body.summary.as_deref(),
+        Some("hello")
+    );
     assert_eq!(
         history.items[0].message.body.parts,
         vec![ContentPart::text("hello")]
@@ -3614,7 +3620,10 @@ fn test_recall_message_does_not_leak_recalled_state_when_journal_append_fails() 
         .expect("history should still load");
     assert_eq!(history.items.len(), 1);
     assert!(!history.items[0].recalled);
-    assert_eq!(history.items[0].message.body.summary.as_deref(), Some("hello"));
+    assert_eq!(
+        history.items[0].message.body.summary.as_deref(),
+        Some("hello")
+    );
     assert_eq!(journal.recorded().len(), 3);
 }
 

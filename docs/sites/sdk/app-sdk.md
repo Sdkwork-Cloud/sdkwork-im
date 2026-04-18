@@ -49,6 +49,7 @@ For a new integration, read the app SDK pages in this order:
 | SDK workspace root | `sdks/sdkwork-craw-chat-sdk` |
 | Live schema export | `/openapi/craw-chat-app.openapi.yaml` |
 | Authority snapshot | `sdks/sdkwork-craw-chat-sdk/openapi/craw-chat-app.openapi.yaml` |
+| Official consumer package | `@sdkwork/craw-chat-sdk` |
 | TypeScript consumer package | `@sdkwork/craw-chat-sdk` |
 | Flutter consumer package | `craw_chat_sdk` |
 | Rust generated crate | `sdkwork-craw-chat-backend-sdk` |

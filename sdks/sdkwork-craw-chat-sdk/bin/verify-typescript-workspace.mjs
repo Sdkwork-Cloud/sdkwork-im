@@ -196,6 +196,10 @@ run('node', [path.join(scriptDir, 'verify-auth-surface-alignment.mjs'), '--langu
   cwd: workspaceRoot,
   step: 'typescript:auth-surface',
 });
+run('node', [path.join(scriptDir, 'verify-typescript-usage-surface.mjs')], {
+  cwd: workspaceRoot,
+  step: 'typescript:usage-surface',
+});
 run('node', [path.join(scriptDir, 'verify-typescript-public-api-boundary.mjs')], {
   cwd: workspaceRoot,
   step: 'typescript:public-api-boundary',

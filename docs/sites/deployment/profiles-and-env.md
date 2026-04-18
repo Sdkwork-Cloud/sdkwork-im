@@ -93,6 +93,28 @@ The current repository also uses a user-module provider selection boundary:
 When `CRAW_CHAT_USER_MODULE_PROVIDER=external` is selected without the required external catalog
 path, the provider-health surface reports the external mode as unavailable.
 
+## Desktop Admin Sandbox Variables
+
+The desktop admin runtime has its own small environment surface when it is running in sandbox mode:
+
+| Variable | Purpose |
+| --- | --- |
+| `SDKWORK_ADMIN_PROXY_TARGET` | Proxies desktop `/api/admin/*` calls to a compatible backend when set |
+| `SDKWORK_ADMIN_SANDBOX` | Enables the built-in admin sandbox when no proxy target is configured |
+| `SDKWORK_ADMIN_SANDBOX_STORAGE_FILE` | Optional JSON snapshot path used to persist generic storage-management state across sandbox restarts |
+
+### `SDKWORK_ADMIN_SANDBOX_STORAGE_FILE`
+
+When this variable is set together with sandbox mode, the desktop runtime uses the generic storage
+snapshot contract and a file-backed adapter instead of keeping storage configuration in memory only.
+
+That path currently covers:
+
+- global storage config writes
+- tenant storage config writes
+- tenant storage deletes
+- storage reload on the next sandbox startup
+
 ## Template Contents
 
 ### `local-minimal.env.example`

@@ -1,54 +1,46 @@
 #!/usr/bin/env node
-import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  finishFileExpectationVerification,
+  readWorkspaceJson,
+  readWorkspaceSource,
+  readWorkspaceYamlScalar,
+} from '../../workspace-file-expectation-shared.mjs';
+import {
+  escapeRegExp,
+  readOverridePath,
+} from '../../workspace-flutter-package-metadata-shared.mjs';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = path.resolve(scriptDir, '..');
 const flutterRoot = path.join(workspaceRoot, 'sdkwork-craw-chat-sdk-flutter');
 
-function readJson(filePath) {
-  return JSON.parse(readFileSync(filePath, 'utf8'));
-}
-
-function readYamlScalar(filePath, key) {
-  const source = readFileSync(filePath, 'utf8');
-  const match = source.match(new RegExp(`^${key}:\\s*(.+)$`, 'm'));
-  return match ? match[1].trim() : '';
-}
-
-const generatedPubspecName = readYamlScalar(
-  path.join(flutterRoot, 'generated', 'server-openapi', 'pubspec.yaml'),
-  'name',
+const generatedPubspecName = readWorkspaceYamlScalar(
+  {
+    workspaceRoot: flutterRoot,
+    relativePath: path.join('generated', 'server-openapi', 'pubspec.yaml'),
+    key: 'name',
+  },
 );
-const generatedMetadata = readJson(
-  path.join(flutterRoot, 'generated', 'server-openapi', 'sdkwork-sdk.json'),
-);
-const composedPubspec = readFileSync(
-  path.join(flutterRoot, 'composed', 'pubspec.yaml'),
-  'utf8',
-);
-const overridePubspec = readFileSync(
-  path.join(flutterRoot, 'composed', 'pubspec_overrides.yaml'),
-  'utf8',
-);
-const generatedOverridePubspec = readFileSync(
-  path.join(flutterRoot, 'generated', 'server-openapi', 'pubspec_overrides.yaml'),
-  'utf8',
-);
+const generatedMetadata = readWorkspaceJson({
+  workspaceRoot: flutterRoot,
+  relativePath: path.join('generated', 'server-openapi', 'sdkwork-sdk.json'),
+});
+const composedPubspec = readWorkspaceSource({
+  workspaceRoot: flutterRoot,
+  relativePath: path.join('composed', 'pubspec.yaml'),
+});
+const overridePubspec = readWorkspaceSource({
+  workspaceRoot: flutterRoot,
+  relativePath: path.join('composed', 'pubspec_overrides.yaml'),
+});
+const generatedOverridePubspec = readWorkspaceSource({
+  workspaceRoot: flutterRoot,
+  relativePath: path.join('generated', 'server-openapi', 'pubspec_overrides.yaml'),
+});
 
 const failures = [];
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function readOverridePath(source, packageName) {
-  const match = source.match(
-    new RegExp(`^\\s{2}${escapeRegExp(packageName)}:\\s*\\r?\\n\\s{4}path:\\s*(.+)$`, 'm'),
-  );
-  return match ? match[1].trim().replace(/^['"]|['"]$/g, '') : '';
-}
 
 if (!generatedPubspecName) {
   failures.push('Flutter generated pubspec.yaml must declare a package name.');
@@ -105,12 +97,9 @@ if (generatedCommonFlutterOverride && composedCommonFlutterOverride) {
   }
 }
 
-if (failures.length > 0) {
-  console.error('[sdkwork-craw-chat-sdk] Flutter package metadata verification failed:');
-  for (const failure of failures) {
-    console.error(`- ${failure}`);
-  }
-  process.exit(1);
-}
-
-console.log('[sdkwork-craw-chat-sdk] Flutter package metadata verification passed.');
+finishFileExpectationVerification({
+  prefix: 'sdkwork-craw-chat-sdk',
+  failures,
+  failureHeader: 'Flutter package metadata verification failed:',
+  successMessage: '[sdkwork-craw-chat-sdk] Flutter package metadata verification passed.',
+});

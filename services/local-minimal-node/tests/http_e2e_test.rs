@@ -10202,7 +10202,7 @@ async fn test_local_minimal_profile_rejects_oversized_stream_id_on_list_frames_o
 
 #[tokio::test]
 async fn test_local_minimal_profile_exposes_projection_read_routes_for_contacts_directory_and_interactions()
-{
+ {
     let contacts_app = local_minimal_node::build_default_app();
     let contacts_fixture = create_active_friendship_direct_chat_fixture(&contacts_app).await;
 
@@ -10361,8 +10361,14 @@ async fn test_local_minimal_profile_exposes_projection_read_routes_for_contacts_
         .expect("contacts items should be an array");
     assert_eq!(contacts_items.len(), 1);
     assert_eq!(contacts_items[0]["targetUserId"], "u_bob");
-    assert_eq!(contacts_items[0]["conversationId"], contacts_fixture.conversation_id);
-    assert_eq!(contacts_items[0]["friendshipId"], contacts_fixture.friendship_id);
+    assert_eq!(
+        contacts_items[0]["conversationId"],
+        contacts_fixture.conversation_id
+    );
+    assert_eq!(
+        contacts_items[0]["friendshipId"],
+        contacts_fixture.friendship_id
+    );
 
     let member_directory_response = projection_app
         .clone()
@@ -11317,7 +11323,7 @@ async fn test_local_minimal_profile_accept_converges_to_existing_external_friend
 
 #[tokio::test]
 async fn test_local_minimal_profile_accept_converges_when_request_was_externally_accepted_after_app_snapshot()
-{
+ {
     let _env_lock = lock_social_accept_delay_env_guard();
     let _accept_snapshot_delay =
         set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_ACCEPT_PRE_COMMIT_DELAY_MS", "200");
@@ -11369,7 +11375,9 @@ async fn test_local_minimal_profile_accept_converges_when_request_was_externally
             app.oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri(format!("/api/v1/social/friend-requests/{request_id}/accept"))
+                    .uri(format!(
+                        "/api/v1/social/friend-requests/{request_id}/accept"
+                    ))
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_bob")
                     .body(Body::empty())
@@ -11475,7 +11483,7 @@ async fn test_local_minimal_profile_accept_converges_when_request_was_externally
 
 #[tokio::test]
 async fn test_local_minimal_profile_decline_converges_when_request_was_externally_declined_after_app_snapshot()
-{
+ {
     let _env_lock = lock_social_accept_delay_env_guard();
     let _decline_snapshot_delay =
         set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_DECLINE_PRE_COMMIT_DELAY_MS", "200");
@@ -11524,7 +11532,9 @@ async fn test_local_minimal_profile_decline_converges_when_request_was_externall
             app.oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri(format!("/api/v1/social/friend-requests/{request_id}/decline"))
+                    .uri(format!(
+                        "/api/v1/social/friend-requests/{request_id}/decline"
+                    ))
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_bob")
                     .body(Body::empty())
@@ -11586,7 +11596,9 @@ async fn test_local_minimal_profile_decline_converges_when_request_was_externall
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri(format!("/api/v1/control/social/friend-requests/{request_id}"))
+                .uri(format!(
+                    "/api/v1/control/social/friend-requests/{request_id}"
+                ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
                 .header("x-permissions", "control.read")
@@ -11602,15 +11614,14 @@ async fn test_local_minimal_profile_decline_converges_when_request_was_externall
         .await
         .expect("request snapshot after stale app decline convergence should collect")
         .to_bytes();
-    let request_snapshot_json: serde_json::Value =
-        serde_json::from_slice(&request_snapshot_body)
-            .expect("request snapshot after stale app decline convergence should be valid json");
+    let request_snapshot_json: serde_json::Value = serde_json::from_slice(&request_snapshot_body)
+        .expect("request snapshot after stale app decline convergence should be valid json");
     assert_eq!(request_snapshot_json["friendRequest"]["status"], "declined");
 }
 
 #[tokio::test]
 async fn test_local_minimal_profile_cancel_converges_when_request_was_externally_canceled_after_app_snapshot()
-{
+ {
     let _env_lock = lock_social_accept_delay_env_guard();
     let _cancel_snapshot_delay =
         set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_CANCEL_PRE_COMMIT_DELAY_MS", "200");
@@ -11659,7 +11670,9 @@ async fn test_local_minimal_profile_cancel_converges_when_request_was_externally
             app.oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri(format!("/api/v1/social/friend-requests/{request_id}/cancel"))
+                    .uri(format!(
+                        "/api/v1/social/friend-requests/{request_id}/cancel"
+                    ))
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_alice")
                     .body(Body::empty())
@@ -11721,7 +11734,9 @@ async fn test_local_minimal_profile_cancel_converges_when_request_was_externally
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri(format!("/api/v1/control/social/friend-requests/{request_id}"))
+                .uri(format!(
+                    "/api/v1/control/social/friend-requests/{request_id}"
+                ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
                 .header("x-permissions", "control.read")
@@ -13376,7 +13391,9 @@ async fn test_local_minimal_profile_discards_stale_pending_friend_request_accept
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri(format!("/api/v1/control/social/friendships/{friendship_id}"))
+                .uri(format!(
+                    "/api/v1/control/social/friendships/{friendship_id}"
+                ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
                 .header("x-permissions", "control.read")
@@ -13523,7 +13540,9 @@ async fn test_local_minimal_profile_discards_blocked_pending_friend_request_acce
             app.oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri(format!("/api/v1/social/friend-requests/{request_id}/accept"))
+                    .uri(format!(
+                        "/api/v1/social/friend-requests/{request_id}/accept"
+                    ))
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_bob")
                     .body(Body::empty())
@@ -13607,8 +13626,8 @@ async fn test_local_minimal_profile_discards_blocked_pending_friend_request_acce
         .await
         .expect("contacts after blocked repair should collect")
         .to_bytes();
-    let contacts_json: serde_json::Value =
-        serde_json::from_slice(&contacts_body).expect("contacts after blocked repair should be json");
+    let contacts_json: serde_json::Value = serde_json::from_slice(&contacts_body)
+        .expect("contacts after blocked repair should be json");
     let contact_items = contacts_json["items"]
         .as_array()
         .expect("contacts after blocked repair should include items");
@@ -13631,7 +13650,7 @@ async fn test_local_minimal_profile_discards_blocked_pending_friend_request_acce
 
 #[tokio::test]
 async fn test_local_minimal_profile_discards_canceled_pending_friend_request_accept_repair_after_stale_pending_snapshot()
-{
+ {
     let _env_lock = lock_social_accept_delay_env_guard();
     let _repair_snapshot_delay = set_scoped_env_var(
         "CRAW_CHAT_TEST_SOCIAL_ACCEPT_REPAIR_POST_SNAPSHOT_DELAY_MS",
@@ -13773,7 +13792,9 @@ async fn test_local_minimal_profile_discards_canceled_pending_friend_request_acc
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri(format!("/api/v1/control/social/friend-requests/{request_id}"))
+                .uri(format!(
+                    "/api/v1/control/social/friend-requests/{request_id}"
+                ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
                 .header("x-permissions", "control.read")
@@ -13798,7 +13819,7 @@ async fn test_local_minimal_profile_discards_canceled_pending_friend_request_acc
 
 #[tokio::test]
 async fn test_local_minimal_profile_discards_pre_accept_blocked_pending_friend_request_accept_repair()
-{
+ {
     let runtime_dir = unique_test_runtime_dir("friend_request_accept_repair_pre_accept_blocked");
     fs::create_dir_all(runtime_dir.join("state")).expect("runtime dir state should be created");
 
@@ -13828,7 +13849,9 @@ async fn test_local_minimal_profile_discards_pre_accept_blocked_pending_friend_r
         .into_body()
         .collect()
         .await
-        .expect("submit friend request before pre-accept blocked repair scenario body should collect")
+        .expect(
+            "submit friend request before pre-accept blocked repair scenario body should collect",
+        )
         .to_bytes();
     let submit_request_json: serde_json::Value = serde_json::from_slice(&submit_request_body)
         .expect("submit friend request before pre-accept blocked repair scenario body should be valid json");
@@ -13861,7 +13884,9 @@ async fn test_local_minimal_profile_discards_pre_accept_blocked_pending_friend_r
                 .unwrap(),
         )
         .await
-        .expect("friendship block before pre-accept blocked repair scenario should return response");
+        .expect(
+            "friendship block before pre-accept blocked repair scenario should return response",
+        );
     assert_eq!(block_response.status(), StatusCode::OK);
 
     let request_snapshot = app
@@ -13883,7 +13908,9 @@ async fn test_local_minimal_profile_discards_pre_accept_blocked_pending_friend_r
         .into_body()
         .collect()
         .await
-        .expect("friend request snapshot before pre-accept blocked repair restart body should collect")
+        .expect(
+            "friend request snapshot before pre-accept blocked repair restart body should collect",
+        )
         .to_bytes();
     let request_snapshot_json: serde_json::Value =
         serde_json::from_slice(&request_snapshot_body).expect(
@@ -13966,15 +13993,18 @@ async fn test_local_minimal_profile_discards_pre_accept_blocked_pending_friend_r
         .into_body()
         .collect()
         .await
-        .expect("friend request snapshot after pre-accept blocked repair restart body should collect")
+        .expect(
+            "friend request snapshot after pre-accept blocked repair restart body should collect",
+        )
         .to_bytes();
-    let request_snapshot_after_restart_json: serde_json::Value =
-        serde_json::from_slice(&request_snapshot_after_restart_body).expect(
-            "friend request snapshot after pre-accept blocked repair restart body should be valid json",
-        );
+    let request_snapshot_after_restart_json: serde_json::Value = serde_json::from_slice(
+        &request_snapshot_after_restart_body,
+    )
+    .expect(
+        "friend request snapshot after pre-accept blocked repair restart body should be valid json",
+    );
     assert_eq!(
-        request_snapshot_after_restart_json["friendRequest"]["status"],
-        "pending",
+        request_snapshot_after_restart_json["friendRequest"]["status"], "pending",
         "pre-accept blocked repair should leave the original request pending"
     );
 
@@ -14380,8 +14410,9 @@ async fn test_local_minimal_profile_friendship_scope_block_hides_contacts() {
         .await
         .expect("bob contacts after friendship block body should collect")
         .to_bytes();
-    let bob_contacts_after_json: serde_json::Value = serde_json::from_slice(&bob_contacts_after_body)
-        .expect("bob contacts after friendship block body should be valid json");
+    let bob_contacts_after_json: serde_json::Value =
+        serde_json::from_slice(&bob_contacts_after_body)
+            .expect("bob contacts after friendship block body should be valid json");
     assert!(
         bob_contacts_after_json["items"]
             .as_array()
@@ -14393,7 +14424,7 @@ async fn test_local_minimal_profile_friendship_scope_block_hides_contacts() {
 
 #[tokio::test]
 async fn test_local_minimal_profile_friendship_remove_converges_when_friendship_was_externally_removed_after_app_snapshot()
-{
+ {
     let _env_lock = lock_social_accept_delay_env_guard();
     let _remove_snapshot_delay =
         set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_REMOVE_PRE_COMMIT_DELAY_MS", "200");
@@ -14465,7 +14496,10 @@ async fn test_local_minimal_profile_friendship_remove_converges_when_friendship_
     let remove_json: serde_json::Value = serde_json::from_slice(&remove_body)
         .expect("remove response after stale app snapshot should be valid json");
     assert_eq!(remove_json["friendship"]["status"], "removed");
-    assert_eq!(remove_json["friendship"]["friendshipId"], fixture.friendship_id);
+    assert_eq!(
+        remove_json["friendship"]["friendshipId"],
+        fixture.friendship_id
+    );
 
     let contacts = app
         .oneshot(

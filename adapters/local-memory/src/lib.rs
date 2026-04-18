@@ -11,6 +11,7 @@ use im_platform_contracts::{
     RtcStateRecord, RtcStateStore, StreamStateRecord, StreamStateStore, TimelineProjectionBatch,
     TimelineProjectionRecord, TimelineProjectionStore,
 };
+use im_storage_contracts::{StorageDomainSnapshot, StorageDomainSnapshotStore};
 
 #[derive(Clone)]
 pub struct MemoryCommitJournal {
@@ -97,6 +98,35 @@ impl MetadataStore for MemoryMetadataStore {
                 snapshot.value.clone(),
             );
         }
+        Ok(())
+    }
+}
+
+#[derive(Clone, Default)]
+pub struct MemoryStorageDomainSnapshotStore {
+    snapshots: Arc<Mutex<HashMap<String, StorageDomainSnapshot>>>,
+}
+
+impl MemoryStorageDomainSnapshotStore {
+    pub fn snapshot(&self, domain: &str) -> Option<StorageDomainSnapshot> {
+        self.snapshots
+            .lock()
+            .expect("storage snapshot store should lock")
+            .get(domain)
+            .cloned()
+    }
+}
+
+impl StorageDomainSnapshotStore for MemoryStorageDomainSnapshotStore {
+    fn load_snapshot(&self, domain: &str) -> Result<Option<StorageDomainSnapshot>, ContractError> {
+        Ok(self.snapshot(domain))
+    }
+
+    fn save_snapshot(&self, snapshot: StorageDomainSnapshot) -> Result<(), ContractError> {
+        self.snapshots
+            .lock()
+            .expect("storage snapshot store should lock")
+            .insert(snapshot.catalog.domain.clone(), snapshot);
         Ok(())
     }
 }

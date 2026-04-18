@@ -5,13 +5,13 @@ use im_platform_contracts::{
     DeviceAccessOwnerBindingRequest, DeviceAccessProvider, DeviceAccessRegistration,
     DeviceAccessRegistrationRequest, EffectiveProviderBinding, IotProtocolAdapter,
     IotProtocolDecodeRequest, IotProtocolEncodeRequest, IotProtocolEnvelope,
-    ObjectStorageDownloadUrlRequest, ObjectStorageObjectDescriptor, ObjectStoragePresignedUpload,
-    ObjectStorageProvider, ObjectStoragePutRequest, ObjectStorageUploadUrlRequest, ProviderDomain,
-    ProviderHealthSnapshot, ProviderPluginDescriptor, ProviderRegistry, RtcCallbackEvent,
-    RtcCallbackRequest, RtcCreateSessionRequest, RtcParticipantCredential, RtcProviderPort,
-    RtcRecordingArtifact, RtcSessionHandle, RuntimeProviderRegistry, StaticProviderRegistry,
-    UserModuleCreateOrBindRequest, UserModuleProvider, UserModuleUpdateProfileRequest,
-    UserModuleUser,
+    ObjectStorageDownloadUrlRequest, ObjectStorageObjectDescriptor, ObjectStorageProvider,
+    ObjectStoragePutRequest, ObjectStorageUploadSession, ObjectStorageUploadUrlRequest,
+    ProviderDomain, ProviderHealthSnapshot, ProviderPluginDescriptor, ProviderRegistry,
+    RtcCallbackEvent, RtcCallbackRequest, RtcCreateSessionRequest, RtcParticipantCredential,
+    RtcProviderPort, RtcRecordingArtifact, RtcSessionHandle, RuntimeProviderRegistry,
+    StaticProviderRegistry, UserModuleCreateOrBindRequest, UserModuleProvider,
+    UserModuleUpdateProfileRequest, UserModuleUser,
 };
 
 #[derive(Clone)]
@@ -135,15 +135,15 @@ impl ObjectStorageProvider for StubObjectStorageProvider {
     fn signed_upload_url(
         &self,
         request: ObjectStorageUploadUrlRequest,
-    ) -> Result<ObjectStoragePresignedUpload, craw_chat_contract_core::ContractError> {
-        Ok(ObjectStoragePresignedUpload {
+    ) -> Result<ObjectStorageUploadSession, craw_chat_contract_core::ContractError> {
+        Ok(ObjectStorageUploadSession {
             method: "PUT".into(),
             url: format!(
-                "https://storage.example/{}/{}?ttl={}&upload=put",
+                "https://storage.example/{}/{}?ttl={}&upload=1",
                 request.bucket, request.object_key, request.expires_in_seconds
             ),
             headers: BTreeMap::new(),
-            expires_in_seconds: request.expires_in_seconds,
+            expires_at: "2026-04-16T00:10:00.000Z".into(),
         })
     }
 
@@ -1016,6 +1016,18 @@ fn test_provider_ports_can_be_implemented_without_vendor_sdk_types_leaking_into_
         })
         .expect("object put should succeed");
     assert_eq!(object_descriptor.bucket, "media");
+
+    let upload_session = storage
+        .signed_upload_url(ObjectStorageUploadUrlRequest {
+            bucket: "media".into(),
+            object_key: "uploads/demo.mp4".into(),
+            expires_in_seconds: 600,
+            content_type: Some("video/mp4".into()),
+            content_length: Some(128),
+        })
+        .expect("signed_upload_url should succeed");
+    assert_eq!(upload_session.method, "PUT");
+    assert!(upload_session.url.contains("upload=1"));
 
     let user = user_module
         .create_or_bind_user(UserModuleCreateOrBindRequest {

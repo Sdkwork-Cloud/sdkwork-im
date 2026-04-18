@@ -238,6 +238,16 @@ pub(super) fn write_json_records_unlocked<T: serde::Serialize + ?Sized>(
     Ok(())
 }
 
+pub(super) fn write_json_records<T: serde::Serialize + ?Sized>(
+    file_path: &Path,
+    records: &T,
+    store_name: &str,
+) -> Result<(), ContractError> {
+    with_store_file_lock(file_path, store_name, || {
+        write_json_records_unlocked(file_path, records, store_name)
+    })
+}
+
 pub(super) fn update_json_records<T, R>(
     file_path: &Path,
     store_name: &str,

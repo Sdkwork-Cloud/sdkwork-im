@@ -1,4 +1,4 @@
-import { AdminApiError } from 'sdkwork-craw-chat-admin-admin-api';
+import { AdminApiError } from '@sdkwork/craw-chat-admin-sdk';
 
 const ADMIN_REQUEST_FAILED_PREFIX = 'Admin request failed with status ';
 const ADMIN_SESSION_TOKEN_NOT_FOUND = 'Admin session token not found';

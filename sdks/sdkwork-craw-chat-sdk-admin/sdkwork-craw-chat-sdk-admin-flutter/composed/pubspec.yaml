@@ -1,0 +1,13 @@
+name: craw_chat_admin_sdk
+description: Composed Flutter SDK for the Craw Chat admin control plane
+version: 0.1.0
+homepage: https://github.com/sdkwork-team/spring-ai-plus/tree/main/spring-ai-plus-business/apps/craw-chat/sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-flutter/composed
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  craw_chat_admin_backend_sdk: ^0.1.0
+
+dev_dependencies:
+  lints: ^3.0.0

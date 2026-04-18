@@ -4,8 +4,8 @@ use fs4::fs_std::FileExt;
 use http_body_util::BodyExt;
 use im_domain_core::social::{FriendRequestStatus, FriendshipStatus};
 use im_time::format_unix_timestamp_millis;
-use std::io::Write;
 use std::fs;
+use std::io::Write;
 use std::sync::atomic::{AtomicU64, Ordering};
 use tower::ServiceExt;
 
@@ -1194,11 +1194,12 @@ fn persist_pending_friend_request_accept_repairs(
         code: "friend_request_accept_repair_store_invalid",
         message: format!("failed to serialize pending friend request accept repairs: {error}"),
     })?;
-    let temp_path = pending_friend_request_accept_repairs_temp_path(runtime_dir).ok_or(ApiError {
-        status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
-        code: "friend_request_accept_repair_store_unavailable",
-        message: "pending friend request accept repair temp store path is unavailable".into(),
-    })?;
+    let temp_path =
+        pending_friend_request_accept_repairs_temp_path(runtime_dir).ok_or(ApiError {
+            status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
+            code: "friend_request_accept_repair_store_unavailable",
+            message: "pending friend request accept repair temp store path is unavailable".into(),
+        })?;
     if temp_path.exists() {
         fs::remove_file(temp_path.as_path()).map_err(|error| ApiError {
             status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
@@ -1409,12 +1410,8 @@ async fn recover_pending_friend_request_accept_repair_after_not_pending(
     auth: &AuthContext,
     repair: &PendingFriendRequestAcceptanceRepair,
 ) -> Result<bool, ApiError> {
-    let Some(latest_friend_request) = load_latest_friend_request_for_acceptance(
-        state,
-        auth,
-        repair.request_id.as_str(),
-    )
-    .await?
+    let Some(latest_friend_request) =
+        load_latest_friend_request_for_acceptance(state, auth, repair.request_id.as_str()).await?
     else {
         try_clear_pending_friend_request_accept_repair(state, repair.request_id.as_str()).await;
         return Ok(true);
@@ -1489,8 +1486,8 @@ async fn reconcile_friendship_remove_after_not_active(
     auth: &AuthContext,
     friendship_id: &str,
 ) -> Result<Option<Friendship>, ApiError> {
-    let Some(latest_friendship) = load_latest_friendship_for_mutation(state, auth, friendship_id)
-        .await?
+    let Some(latest_friendship) =
+        load_latest_friendship_for_mutation(state, auth, friendship_id).await?
     else {
         return Ok(None);
     };
@@ -1947,8 +1944,8 @@ fn control_plane_existing_friendship_id(value: &serde_json::Value) -> Option<&st
 mod tests {
     use super::*;
     use std::path::PathBuf;
-    use std::sync::{Mutex, OnceLock};
     use std::sync::atomic::{AtomicU64, Ordering};
+    use std::sync::{Mutex, OnceLock};
     use std::time::{SystemTime, UNIX_EPOCH};
 
     static NEXT_SOCIAL_TEST_RUNTIME_DIR_SEQUENCE: AtomicU64 = AtomicU64::new(0);
@@ -2073,11 +2070,8 @@ mod tests {
                 accepted_at: "2026-04-16T12:10:00Z".into(),
             },
         );
-        persist_pending_friend_request_accept_repairs(
-            Some(runtime_dir.as_path()),
-            &original_store,
-        )
-        .expect("original repair store should persist");
+        persist_pending_friend_request_accept_repairs(Some(runtime_dir.as_path()), &original_store)
+            .expect("original repair store should persist");
 
         let mut updated_store = original_store.clone();
         updated_store.insert(
@@ -2091,10 +2085,8 @@ mod tests {
             },
         );
 
-        let _failpoint = ScopedEnvVar::set(
-            SOCIAL_ACCEPT_REPAIR_STORE_FAIL_AFTER_TEMP_WRITE_ENV,
-            "1",
-        );
+        let _failpoint =
+            ScopedEnvVar::set(SOCIAL_ACCEPT_REPAIR_STORE_FAIL_AFTER_TEMP_WRITE_ENV, "1");
         let error = persist_pending_friend_request_accept_repairs(
             Some(runtime_dir.as_path()),
             &updated_store,

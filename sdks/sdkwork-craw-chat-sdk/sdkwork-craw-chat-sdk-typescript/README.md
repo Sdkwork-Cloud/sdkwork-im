@@ -220,6 +220,31 @@ const uploaded = await sdk.uploadAndSendMessage({
 console.log(uploaded.mediaAssetId, uploaded.url, uploaded.delivery.messageId);
 ```
 
+When you only need the presigned upload flow without sending a message immediately, use
+`sdk.upload(...)`. It returns a `CrawChatUploadedMediaAsset` with the completed asset metadata,
+upload session details, and the resolved CDN or download URL when the backend provides one.
+
+```ts
+const uploadedAsset = await sdk.upload({
+  mediaAssetId: 'asset-image-2',
+  bucket: 'tenant-media',
+  objectKey: 'conversation-1/manual-upload.png',
+  resource: {
+    type: 'image',
+    name: 'manual-upload.png',
+    mimeType: 'image/png',
+    size: file.size,
+  },
+  body: file,
+});
+
+console.log(
+  uploadedAsset.mediaAssetId,
+  uploadedAsset.asset.status,
+  uploadedAsset.session.uploadUrl,
+);
+```
+
 ### Rich Standard Messages
 
 The semantic layer includes common IM and AI-era message families:

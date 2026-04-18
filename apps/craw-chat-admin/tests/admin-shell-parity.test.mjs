@@ -114,3 +114,22 @@ test('theme manager keeps the root theme contract while resolving IM brand token
   assert.doesNotMatch(themeManager, /theme-light/);
   assert.doesNotMatch(themeManager, /theme-dark/);
 });
+
+test('storage is registered as a first-class admin module across types, core routing, and shell loading', () => {
+  const typesSource = read('packages/sdkwork-craw-chat-admin-types/src/index.ts');
+  const routePathsSource = read('packages/sdkwork-craw-chat-admin-core/src/routePaths.ts');
+  const routesSource = read('packages/sdkwork-craw-chat-admin-core/src/routes.ts');
+  const routeManifestSource = read('packages/sdkwork-craw-chat-admin-core/src/routeManifest.ts');
+  const shellRoutesSource = read('packages/sdkwork-craw-chat-admin-shell/src/application/router/AppRoutes.tsx');
+  const routePrefetchSource = read(
+    'packages/sdkwork-craw-chat-admin-shell/src/application/router/routePrefetch.ts',
+  );
+
+  assert.match(typesSource, /'storage'/);
+  assert.match(typesSource, /'sdkwork-craw-chat-admin-storage'/);
+  assert.match(routePathsSource, /STORAGE:\s*'\/storage'/);
+  assert.match(routesSource, /key:\s*'storage'/);
+  assert.match(routeManifestSource, /moduleId:\s*'sdkwork-craw-chat-admin-storage'/);
+  assert.match(shellRoutesSource, /sdkwork-craw-chat-admin-storage/);
+  assert.match(routePrefetchSource, /sdkwork-craw-chat-admin-storage/);
+});

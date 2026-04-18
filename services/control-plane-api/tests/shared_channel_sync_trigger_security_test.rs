@@ -1044,6 +1044,8 @@ async fn test_public_shared_channel_sync_trigger_rejects_invalid_ack_contract() 
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_public_shared_channel_sync_trigger_rejects_ack_with_mismatched_member_truth() {
+    let _guard = insecure_http_guard_async().await;
+    clear_shared_channel_sync_timeout_override();
     let listener = TcpListener::bind("127.0.0.1:0")
         .await
         .expect("shared-channel sync mismatched ack test listener should bind");
@@ -1086,10 +1088,13 @@ async fn test_public_shared_channel_sync_trigger_rejects_ack_with_mismatched_mem
 
     server.abort();
     let _ = server.await;
+    clear_shared_channel_sync_timeout_override();
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_public_shared_channel_sync_trigger_maps_replayed_ack_status() {
+    let _guard = insecure_http_guard_async().await;
+    clear_shared_channel_sync_timeout_override();
     let listener = TcpListener::bind("127.0.0.1:0")
         .await
         .expect("shared-channel sync replayed ack test listener should bind");
@@ -1129,6 +1134,7 @@ async fn test_public_shared_channel_sync_trigger_maps_replayed_ack_status() {
 
     server.abort();
     let _ = server.await;
+    clear_shared_channel_sync_timeout_override();
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

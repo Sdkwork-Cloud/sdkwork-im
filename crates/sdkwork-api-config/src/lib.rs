@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use std::{
     env,
     net::{IpAddr, SocketAddr},
+    path::PathBuf,
 };
 use url::Url;
 
@@ -13,6 +14,7 @@ pub struct StandaloneConfig {
     pub admin_proxy_target: String,
     pub portal_api_base_url: String,
     pub admin_sandbox_enabled: bool,
+    pub admin_sandbox_storage_file: Option<PathBuf>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -29,6 +31,7 @@ impl StandaloneConfigLoader {
                 portal_api_base_url: resolve_portal_api_base_url()
                     .context("failed to resolve desktop portal api base url")?,
                 admin_sandbox_enabled: resolve_admin_sandbox_enabled(),
+                admin_sandbox_storage_file: resolve_admin_sandbox_storage_file(),
             },
         ))
     }
@@ -175,6 +178,14 @@ fn resolve_admin_sandbox_enabled() -> bool {
             )
         })
         .unwrap_or(false)
+}
+
+fn resolve_admin_sandbox_storage_file() -> Option<PathBuf> {
+    env::var("SDKWORK_ADMIN_SANDBOX_STORAGE_FILE")
+        .ok()
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
 }
 
 #[cfg(test)]

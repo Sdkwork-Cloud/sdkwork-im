@@ -174,6 +174,10 @@ try {
     cwd: workspaceRoot,
     step: 'flutter:auth-surface',
   });
+  run('node', [path.join(scriptDir, 'verify-flutter-usage-surface.mjs')], {
+    cwd: workspaceRoot,
+    step: 'flutter:usage-surface',
+  });
   run('node', [path.join(scriptDir, 'verify-flutter-composed-parity.mjs')], {
     cwd: workspaceRoot,
     step: 'flutter:composed-parity',

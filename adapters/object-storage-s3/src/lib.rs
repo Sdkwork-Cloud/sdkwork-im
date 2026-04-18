@@ -2,11 +2,11 @@ use std::collections::BTreeMap;
 
 use craw_chat_contract_core::ContractError;
 use im_platform_contracts::{
-    ObjectStorageDownloadUrlRequest, ObjectStorageObjectDescriptor, ObjectStoragePresignedUpload,
-    ObjectStorageProvider, ObjectStoragePutRequest, ObjectStorageUploadUrlRequest, ProviderDomain,
-    ProviderHealthSnapshot, ProviderPluginDescriptor,
+    ObjectStorageDownloadUrlRequest, ObjectStorageObjectDescriptor, ObjectStorageProvider,
+    ObjectStoragePutRequest, ObjectStorageUploadSession, ObjectStorageUploadUrlRequest,
+    ProviderDomain, ProviderHealthSnapshot, ProviderPluginDescriptor,
 };
-use im_time::utc_now_rfc3339_millis;
+use im_time::{format_unix_timestamp_millis, utc_now_rfc3339_millis};
 
 pub const ALIYUN_OBJECT_STORAGE_PLUGIN_ID: &str = "object-storage-aliyun";
 pub const TENCENT_OBJECT_STORAGE_PLUGIN_ID: &str = "object-storage-tencent";
@@ -143,16 +143,22 @@ impl ObjectStorageProvider for S3CompatibleObjectStorageProvider {
     fn signed_upload_url(
         &self,
         request: ObjectStorageUploadUrlRequest,
-    ) -> Result<ObjectStoragePresignedUpload, ContractError> {
+    ) -> Result<ObjectStorageUploadSession, ContractError> {
         let mut headers = BTreeMap::new();
         if let Some(content_type) = request.content_type.as_ref() {
             headers.insert("content-type".into(), content_type.clone());
         }
 
-        Ok(ObjectStoragePresignedUpload {
+        let expires_at = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis()
+            + (request.expires_in_seconds as u128 * 1_000);
+
+        Ok(ObjectStorageUploadSession {
             method: "PUT".into(),
             url: format!(
-                "{}/{}/{}?provider={}&expires={}&upload=put",
+                "{}/{}/{}?provider={}&expires={}&upload=1",
                 self.config.endpoint.trim_end_matches('/'),
                 request.bucket,
                 request.object_key,
@@ -160,7 +166,7 @@ impl ObjectStorageProvider for S3CompatibleObjectStorageProvider {
                 request.expires_in_seconds
             ),
             headers,
-            expires_in_seconds: request.expires_in_seconds,
+            expires_at: format_unix_timestamp_millis(expires_at),
         })
     }
 

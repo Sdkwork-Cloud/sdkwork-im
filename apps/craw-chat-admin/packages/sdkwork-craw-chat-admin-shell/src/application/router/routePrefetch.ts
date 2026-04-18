@@ -13,6 +13,7 @@ const adminRouteModuleLoaders: Record<AdminRouteModuleId, () => Promise<unknown>
   'sdkwork-craw-chat-admin-announcements': () => import('sdkwork-craw-chat-admin-announcements'),
   'sdkwork-craw-chat-admin-realtime': () => import('sdkwork-craw-chat-admin-realtime'),
   'sdkwork-craw-chat-admin-system': () => import('sdkwork-craw-chat-admin-system'),
+  'sdkwork-craw-chat-admin-storage': () => import('sdkwork-craw-chat-admin-storage'),
   'sdkwork-craw-chat-admin-settings': () => import('sdkwork-craw-chat-admin-settings'),
 };
 

@@ -4,17 +4,22 @@ pub(super) async fn create_media_upload(
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<CreateUploadRequest>,
-) -> Result<Json<media_service::MediaUploadSessionResponse>, ApiError> {
+) -> Result<Json<MediaUploadMutationResponse>, ApiError> {
     let auth = access::resolve_active_auth_context(&state, &headers)?;
+    let expires_in_seconds = request.expires_in_seconds;
     let request_key = media_create_upload_request_key(&auth, request.media_asset_id.as_str());
-    Ok(Json(
-        media_service::MediaUploadSessionResponse::from_outcome(
-            state
-                .media_runtime
-                .create_upload_with_outcome(&auth, request)?,
-            request_key,
-        ),
-    ))
+    let outcome = state
+        .media_runtime
+        .create_upload_with_outcome(&auth, request)?;
+    let upload =
+        state
+            .media_runtime
+            .prepare_upload_session(&auth, &outcome.asset, expires_in_seconds)?;
+    Ok(Json(MediaUploadMutationResponse::from_outcome(
+        outcome,
+        request_key,
+        Some(upload),
+    )))
 }
 
 pub(super) async fn complete_media_upload(
@@ -32,6 +37,7 @@ pub(super) async fn complete_media_upload(
             request,
         )?,
         request_key,
+        None,
     )))
 }
 

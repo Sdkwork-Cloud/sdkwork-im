@@ -5,13 +5,20 @@ use axum::{
     Json,
 };
 use bytes::Bytes;
-use rand::random;
+use im_adapters_local_disk::FileStorageDomainSnapshotStore;
+use im_storage_contracts::{
+    ContractError, StorageCatalog, StorageConfigUpsertInput, StorageDomainSnapshot,
+    StorageDomainSnapshotStore,
+};
+use im_storage_runtime::{storage_config_upsert_from_input, StoreBackedStorageRuntime};
 use serde::Deserialize;
 use serde_json::{json, Value};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 const ADMIN_SANDBOX_SEED_JSON: &str =
     include_str!("../../../apps/craw-chat-admin/dev/admin-sandbox-seed.json");
+const DEFAULT_ADMIN_SANDBOX_PASSWORD: &str = "ChangeMe123!";
 
 #[derive(Clone)]
 pub struct SharedAdminSandboxState {
@@ -22,14 +29,23 @@ pub struct SharedAdminSandboxState {
 #[derive(Clone)]
 struct AdminSandboxState {
     store: Value,
+    storage_runtime: StoreBackedStorageRuntime<AdminSandboxStorageStore>,
     clock_ms: u64,
     sequence: u64,
+}
+
+#[derive(Clone, Debug)]
+enum AdminSandboxStorageStore {
+    Ephemeral,
+    File(FileStorageDomainSnapshotStore),
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct AdminSandboxSeed {
     clock_ms: u64,
+    #[serde(default = "default_admin_sandbox_seed_password")]
+    sandbox_password: String,
     #[serde(flatten)]
     store: std::collections::BTreeMap<String, Value>,
 }
@@ -46,24 +62,38 @@ type SandboxErrorResponse = Box<Response>;
 impl SharedAdminSandboxState {
     pub fn seeded() -> Self {
         let credentials = resolve_admin_sandbox_credentials_from_env();
-        Self::seeded_from_credentials(credentials)
+        Self::seeded_from_credentials(None, credentials)
+    }
+
+    pub fn seeded_with_storage_file(file_path: impl Into<PathBuf>) -> Self {
+        let credentials = resolve_admin_sandbox_credentials_from_env();
+        Self::seeded_from_credentials(Some(file_path.into()), credentials)
     }
 
     pub fn seeded_with_credentials(email: impl Into<String>, password: impl Into<String>) -> Self {
-        Self::seeded_from_credentials(AdminSandboxCredentials {
-            email: email.into(),
-            password: password.into(),
-            source: "explicit",
-        })
+        Self::seeded_from_credentials(
+            None,
+            AdminSandboxCredentials {
+                email: email.into(),
+                password: password.into(),
+                source: "explicit",
+            },
+        )
     }
 
     pub fn login_credentials(&self) -> AdminSandboxCredentials {
         self.login_credentials.clone()
     }
 
-    fn seeded_from_credentials(credentials: AdminSandboxCredentials) -> Self {
+    fn seeded_from_credentials(
+        storage_file_path: Option<PathBuf>,
+        credentials: AdminSandboxCredentials,
+    ) -> Self {
         Self {
-            inner: Arc::new(Mutex::new(AdminSandboxState::seeded(&credentials))),
+            inner: Arc::new(Mutex::new(AdminSandboxState::seeded(
+                storage_file_path,
+                &credentials,
+            ))),
             login_credentials: credentials,
         }
     }
@@ -82,15 +112,24 @@ impl SharedAdminSandboxState {
 }
 
 impl AdminSandboxState {
-    fn seeded(credentials: &AdminSandboxCredentials) -> Self {
+    fn seeded(storage_file_path: Option<PathBuf>, credentials: &AdminSandboxCredentials) -> Self {
         let seed: AdminSandboxSeed =
             serde_json::from_str(ADMIN_SANDBOX_SEED_JSON).expect("admin sandbox seed should parse");
         let mut store = Value::Object(seed.store.into_iter().collect());
         apply_login_credentials_to_store(&mut store, credentials);
         sync_provider_credential_readiness(&mut store);
+        let storage_runtime = StoreBackedStorageRuntime::load(
+            storage_file_path
+                .map(FileStorageDomainSnapshotStore::new)
+                .map(AdminSandboxStorageStore::File)
+                .unwrap_or(AdminSandboxStorageStore::Ephemeral),
+            StorageCatalog::object_storage(),
+        )
+        .expect("admin sandbox storage snapshot should load");
 
         Self {
             store,
+            storage_runtime,
             clock_ms: seed.clock_ms,
             sequence: 0,
         }
@@ -128,8 +167,8 @@ fn default_sandbox_login_email(store: &Value) -> String {
         .to_owned()
 }
 
-fn generated_sandbox_password() -> String {
-    format!("{:032x}", random::<u128>())
+fn default_admin_sandbox_seed_password() -> String {
+    DEFAULT_ADMIN_SANDBOX_PASSWORD.to_owned()
 }
 
 fn resolve_admin_sandbox_credentials_from_env() -> AdminSandboxCredentials {
@@ -147,8 +186,8 @@ fn resolve_admin_sandbox_credentials_from_env() -> AdminSandboxCredentials {
         },
         None => AdminSandboxCredentials {
             email,
-            password: generated_sandbox_password(),
-            source: "generated",
+            password: seed.sandbox_password,
+            source: "seed",
         },
     }
 }
@@ -169,6 +208,22 @@ fn apply_login_credentials_to_store(store: &mut Value, credentials: &AdminSandbo
             if string_field(operator, "id") == Some(auth_user_id.as_str()) {
                 operator["email"] = Value::String(credentials.email.clone());
             }
+        }
+    }
+}
+
+impl StorageDomainSnapshotStore for AdminSandboxStorageStore {
+    fn load_snapshot(&self, domain: &str) -> Result<Option<StorageDomainSnapshot>, ContractError> {
+        match self {
+            Self::Ephemeral => Ok(None),
+            Self::File(store) => store.load_snapshot(domain),
+        }
+    }
+
+    fn save_snapshot(&self, snapshot: StorageDomainSnapshot) -> Result<(), ContractError> {
+        match self {
+            Self::Ephemeral => Ok(()),
+            Self::File(store) => store.save_snapshot(snapshot),
         }
     }
 }
@@ -414,6 +469,13 @@ fn string_or_null(value: &Value, key: &str) -> Value {
 
 fn bool_or_default(value: &Value, key: &str, default: bool) -> bool {
     bool_field(value, key).unwrap_or(default)
+}
+
+fn value_to_json<T>(value: &T) -> Value
+where
+    T: ?Sized + serde::Serialize,
+{
+    serde_json::to_value(value).expect("admin sandbox value should serialize")
 }
 
 fn slugify(value: &str) -> String {
@@ -1399,6 +1461,31 @@ pub async fn handle_admin_sandbox_request(
             ["extensions", "runtime-statuses"] => {
                 return list_response(&guard.store, "runtimeStatuses")
             }
+            ["storage", "providers"] => {
+                return object_response(value_to_json(
+                    &guard.storage_runtime.catalog().provider_schemas,
+                ))
+            }
+            ["storage", "config"] => {
+                return object_response(value_to_json(&guard.storage_runtime.global_snapshot()))
+            }
+            ["storage", "audit"] => {
+                return object_response(value_to_json(guard.storage_runtime.audit_trail()))
+            }
+            ["storage", "config", "tenants", tenant_id] => {
+                return object_response(value_to_json(
+                    &guard.storage_runtime.tenant_snapshot(tenant_id),
+                ))
+            }
+            ["storage", "effective", "tenants", tenant_id] => {
+                let Some(effective) = guard.storage_runtime.effective_for_tenant(tenant_id) else {
+                    return json_error_response(
+                        StatusCode::NOT_FOUND,
+                        &format!("Storage config not found for tenant {tenant_id}."),
+                    );
+                };
+                return object_response(value_to_json(&effective));
+            }
             _ => {}
         }
     }
@@ -1437,6 +1524,80 @@ pub async fn handle_admin_sandbox_request(
             }
             ["extensions", "runtime-reloads"] => {
                 return object_response(save_runtime_reload(&mut guard, &input))
+            }
+            ["storage", "config"] => {
+                match serde_json::from_value::<StorageConfigUpsertInput>(input.clone()) {
+                    Ok(storage_input) => match storage_config_upsert_from_input(
+                        guard.storage_runtime.catalog(),
+                        &storage_input,
+                    ) {
+                        Ok(storage_upsert) => {
+                            match guard.storage_runtime.save_global(storage_upsert) {
+                                Ok(saved_snapshot) => {
+                                    return object_response(value_to_json(&saved_snapshot))
+                                }
+                                Err(error) => {
+                                    return json_error_response(
+                                        StatusCode::INTERNAL_SERVER_ERROR,
+                                        &format!(
+                                    "Failed to persist admin sandbox storage snapshot: {error:?}"
+                                ),
+                                    )
+                                }
+                            }
+                        }
+                        Err(message) => {
+                            return json_error_response(StatusCode::BAD_REQUEST, &message)
+                        }
+                    },
+                    Err(_) => {
+                        return json_error_response(
+                            StatusCode::BAD_REQUEST,
+                            "Storage config payload must be valid JSON.",
+                        )
+                    }
+                }
+            }
+            ["storage", "validate"] => {
+                return object_response(value_to_json(&guard.storage_runtime.validate_global()))
+            }
+            ["storage", "config", "tenants", tenant_id] => {
+                match serde_json::from_value::<StorageConfigUpsertInput>(input.clone()) {
+                    Ok(storage_input) => match storage_config_upsert_from_input(
+                        guard.storage_runtime.catalog(),
+                        &storage_input,
+                    ) {
+                        Ok(storage_upsert) => {
+                            match guard.storage_runtime.save_tenant(*tenant_id, storage_upsert) {
+                                Ok(saved_snapshot) => {
+                                    return object_response(value_to_json(&saved_snapshot))
+                                }
+                                Err(error) => {
+                                    return json_error_response(
+                                        StatusCode::INTERNAL_SERVER_ERROR,
+                                        &format!(
+                                            "Failed to persist admin sandbox storage snapshot: {error:?}"
+                                        ),
+                                    )
+                                }
+                            }
+                        }
+                        Err(message) => {
+                            return json_error_response(StatusCode::BAD_REQUEST, &message)
+                        }
+                    },
+                    Err(_) => {
+                        return json_error_response(
+                            StatusCode::BAD_REQUEST,
+                            "Storage config payload must be valid JSON.",
+                        )
+                    }
+                }
+            }
+            ["storage", "validate", "tenants", tenant_id] => {
+                return object_response(value_to_json(
+                    &guard.storage_runtime.validate_tenant(tenant_id),
+                ))
             }
             _ => {}
         }
@@ -1511,6 +1672,15 @@ pub async fn handle_admin_sandbox_request(
 
     if method == Method::DELETE {
         match segment_refs.as_slice() {
+            ["storage", "config", "tenants", tenant_id] => {
+                if let Err(error) = guard.storage_runtime.delete_tenant(tenant_id) {
+                    return json_error_response(
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        &format!("Failed to persist admin sandbox storage snapshot: {error:?}"),
+                    );
+                }
+                return empty_response(StatusCode::NO_CONTENT);
+            }
             ["users", "operators", user_id] => {
                 delete_operator_user(&mut guard, user_id);
                 return empty_response(StatusCode::NO_CONTENT);
@@ -1608,6 +1778,17 @@ mod tests {
     use super::*;
     use axum::body::to_bytes;
     use serde_json::{json, Value};
+    use std::fs;
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn unique_storage_snapshot_file(prefix: &str) -> PathBuf {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system time should be after epoch")
+            .as_nanos();
+        std::env::temp_dir().join(format!("sdkwork_admin_sandbox_{prefix}_{unique}.json"))
+    }
 
     fn authorization_headers(token: Option<&str>) -> HeaderMap {
         let mut headers = HeaderMap::new();
@@ -1698,6 +1879,432 @@ mod tests {
         let me = payload.expect("auth me should return a payload");
         assert_eq!(string_field(&me, "email"), Some("admin@sdkwork.local"));
         assert_eq!(string_field(&me, "display_name"), Some("Operations Lead"));
+    }
+
+    #[tokio::test]
+    async fn sandbox_login_accepts_explicit_credentials_overrides() {
+        let state = SharedAdminSandboxState::seeded_with_credentials(
+            "ops-sandbox@example.invalid",
+            "Sandbox#Custom2026",
+        );
+
+        let (status, payload) = send_request(
+            &state,
+            Method::POST,
+            "/api/admin/auth/login",
+            None,
+            Some(json!({
+                "email": "ops-sandbox@example.invalid",
+                "password": "Sandbox#Custom2026",
+            })),
+        )
+        .await;
+
+        assert_eq!(status, StatusCode::OK);
+        let login = payload.expect("sandbox login should return a payload");
+        assert_eq!(
+            login
+                .get("user")
+                .and_then(|user| string_field(user, "email")),
+            Some("ops-sandbox@example.invalid")
+        );
+
+        let (legacy_status, _) = send_request(
+            &state,
+            Method::POST,
+            "/api/admin/auth/login",
+            None,
+            Some(json!({
+                "email": "admin@sdkwork.local",
+                "password": "legacy-password",
+            })),
+        )
+        .await;
+        assert_eq!(legacy_status, StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn sandbox_manages_storage_providers_configs_validation_and_fallback() {
+        let state = SharedAdminSandboxState::seeded();
+        let token = login(&state).await;
+
+        let (status, providers_payload) = send_request(
+            &state,
+            Method::GET,
+            "/api/admin/storage/providers",
+            Some(token.as_str()),
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        let providers = providers_payload
+            .as_ref()
+            .and_then(Value::as_array)
+            .cloned()
+            .expect("storage providers should be an array");
+        assert!(providers.iter().any(|provider| {
+            string_field(provider, "providerPluginId") == Some("object-storage-aws")
+        }));
+        let aws_provider = providers
+            .iter()
+            .find(|provider| {
+                string_field(provider, "providerPluginId") == Some("object-storage-aws")
+            })
+            .expect("aws provider schema should be present");
+        let aws_common_fields = aws_provider
+            .get("commonFields")
+            .and_then(Value::as_array)
+            .cloned()
+            .expect("aws provider schema should expose common fields");
+        assert!(aws_common_fields
+            .iter()
+            .any(|field| { string_field(field, "name") == Some("bucketOrContainer") }));
+
+        let (status, global_payload) = send_request(
+            &state,
+            Method::POST,
+            "/api/admin/storage/config",
+            Some(token.as_str()),
+            Some(json!({
+                "binding": {
+                    "providerPluginId": "object-storage-aws",
+                    "enabled": true,
+                },
+                "config": {
+                    "bucketOrContainer": "global-assets",
+                    "region": "us-east-1",
+                    "endpoint": "https://s3.amazonaws.com",
+                    "publicBaseUrl": "https://cdn.global.example",
+                },
+                "secret": {
+                    "credentialMode": "access-key-pair",
+                    "encryptedSecretPayload": "{\"accessKeyId\":\"global-access-key\",\"secretAccessKey\":\"global-secret-key\"}",
+                    "secretFingerprint": "fp-global-aws",
+                },
+            })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        let saved_global = global_payload.expect("global storage save should return a payload");
+        assert_eq!(
+            saved_global
+                .get("binding")
+                .and_then(|binding| string_field(binding, "providerPluginId")),
+            Some("object-storage-aws")
+        );
+        assert!(!saved_global.to_string().contains("global-secret-key"));
+
+        let (status, global_read_payload) = send_request(
+            &state,
+            Method::GET,
+            "/api/admin/storage/config",
+            Some(token.as_str()),
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        let global_read = global_read_payload.expect("global storage read should return a payload");
+        assert_eq!(
+            global_read
+                .get("secret")
+                .and_then(|secret| string_field(secret, "secretFingerprint")),
+            Some("fp-global-aws")
+        );
+
+        let (status, global_validation_payload) = send_request(
+            &state,
+            Method::POST,
+            "/api/admin/storage/validate",
+            Some(token.as_str()),
+            Some(json!({})),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        let global_validation =
+            global_validation_payload.expect("global storage validation should return a payload");
+        assert_eq!(string_field(&global_validation, "status"), Some("healthy"));
+        assert_eq!(string_field(&global_validation, "stage"), Some("presign"));
+
+        let (status, tenant_payload) = send_request(
+            &state,
+            Method::POST,
+            "/api/admin/storage/config/tenants/tenant_northstar",
+            Some(token.as_str()),
+            Some(json!({
+                "binding": {
+                    "providerPluginId": "object-storage-google",
+                    "enabled": true,
+                },
+                "config": {
+                    "bucketOrContainer": "tenant-northstar-assets",
+                    "region": "asia-east1",
+                    "publicBaseUrl": "https://cdn.tenant.example",
+                },
+                "secret": {
+                    "credentialMode": "service-account-json",
+                    "encryptedSecretPayload": "{\"serviceAccountJson\":{\"client_email\":\"tenant@sdkwork.local\"}}",
+                    "secretFingerprint": "fp-tenant-google",
+                },
+            })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        let saved_tenant = tenant_payload.expect("tenant storage save should return a payload");
+        assert_eq!(
+            saved_tenant
+                .get("scope")
+                .and_then(|scope| string_field(scope, "kind")),
+            Some("tenant")
+        );
+        assert_eq!(
+            saved_tenant
+                .get("scope")
+                .and_then(|scope| string_field(scope, "scopeId")),
+            Some("tenant_northstar")
+        );
+
+        let (status, tenant_read_payload) = send_request(
+            &state,
+            Method::GET,
+            "/api/admin/storage/config/tenants/tenant_northstar",
+            Some(token.as_str()),
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        let tenant_read = tenant_read_payload.expect("tenant storage read should return a payload");
+        assert_eq!(
+            tenant_read
+                .get("binding")
+                .and_then(|binding| string_field(binding, "providerPluginId")),
+            Some("object-storage-google")
+        );
+
+        let (status, tenant_validation_payload) = send_request(
+            &state,
+            Method::POST,
+            "/api/admin/storage/validate/tenants/tenant_northstar",
+            Some(token.as_str()),
+            Some(json!({})),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        let tenant_validation =
+            tenant_validation_payload.expect("tenant storage validation should return a payload");
+        assert_eq!(string_field(&tenant_validation, "status"), Some("healthy"));
+        assert_eq!(
+            string_field(&tenant_validation, "providerPluginId"),
+            Some("object-storage-google")
+        );
+
+        let (status, effective_payload) = send_request(
+            &state,
+            Method::GET,
+            "/api/admin/storage/effective/tenants/tenant_northstar",
+            Some(token.as_str()),
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        let effective = effective_payload.expect("effective storage should return a payload");
+        assert_eq!(
+            effective
+                .get("resolvedScope")
+                .and_then(|scope| string_field(scope, "kind")),
+            Some("tenant")
+        );
+        assert_eq!(
+            effective
+                .get("secret")
+                .and_then(|secret| string_field(secret, "secretFingerprint")),
+            Some("fp-tenant-google")
+        );
+
+        let (status, audit_payload) = send_request(
+            &state,
+            Method::GET,
+            "/api/admin/storage/audit",
+            Some(token.as_str()),
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        let audit = audit_payload
+            .as_ref()
+            .and_then(Value::as_array)
+            .cloned()
+            .expect("storage audit should be an array");
+        assert!(audit.len() >= 2);
+
+        let (status, payload) = send_request(
+            &state,
+            Method::DELETE,
+            "/api/admin/storage/config/tenants/tenant_northstar",
+            Some(token.as_str()),
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::NO_CONTENT);
+        assert!(payload.is_none());
+
+        let (status, fallback_payload) = send_request(
+            &state,
+            Method::GET,
+            "/api/admin/storage/effective/tenants/tenant_northstar",
+            Some(token.as_str()),
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        let fallback = fallback_payload.expect("fallback storage should return a payload");
+        assert_eq!(
+            fallback
+                .get("resolvedScope")
+                .and_then(|scope| string_field(scope, "kind")),
+            Some("global")
+        );
+        assert_eq!(
+            fallback
+                .get("binding")
+                .and_then(|binding| string_field(binding, "providerPluginId")),
+            Some("object-storage-aws")
+        );
+    }
+
+    #[tokio::test]
+    async fn sandbox_storage_state_persists_across_seeded_instances_when_file_store_is_configured()
+    {
+        let file_path = unique_storage_snapshot_file("storage_state");
+
+        let state = SharedAdminSandboxState::seeded_with_storage_file(&file_path);
+        let token = login(&state).await;
+
+        let (status, _) = send_request(
+            &state,
+            Method::POST,
+            "/api/admin/storage/config",
+            Some(token.as_str()),
+            Some(json!({
+                "binding": {
+                    "providerPluginId": "object-storage-aws",
+                    "enabled": true,
+                },
+                "config": {
+                    "bucketOrContainer": "global-assets",
+                    "region": "us-east-1",
+                    "endpoint": "https://s3.amazonaws.com",
+                    "publicBaseUrl": "https://cdn.global.example",
+                },
+                "secret": {
+                    "credentialMode": "access-key-pair",
+                    "encryptedSecretPayload": "{\"accessKeyId\":\"global-access-key\",\"secretAccessKey\":\"global-secret-key\"}",
+                    "secretFingerprint": "fp-global-aws",
+                },
+            })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+
+        let (status, _) = send_request(
+            &state,
+            Method::POST,
+            "/api/admin/storage/config/tenants/tenant_northstar",
+            Some(token.as_str()),
+            Some(json!({
+                "binding": {
+                    "providerPluginId": "object-storage-google",
+                    "enabled": true,
+                },
+                "config": {
+                    "bucketOrContainer": "tenant-northstar-assets",
+                    "region": "asia-east1",
+                    "publicBaseUrl": "https://cdn.tenant.example",
+                },
+                "secret": {
+                    "credentialMode": "service-account-json",
+                    "encryptedSecretPayload": "{\"serviceAccountJson\":{\"client_email\":\"tenant@sdkwork.local\"}}",
+                    "secretFingerprint": "fp-tenant-google",
+                },
+            })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+
+        let reopened = SharedAdminSandboxState::seeded_with_storage_file(&file_path);
+        let reopened_token = login(&reopened).await;
+
+        let (status, global_payload) = send_request(
+            &reopened,
+            Method::GET,
+            "/api/admin/storage/config",
+            Some(reopened_token.as_str()),
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        let global_payload = global_payload.expect("global storage should persist across reopen");
+        assert_eq!(
+            global_payload
+                .get("secret")
+                .and_then(|secret| string_field(secret, "secretFingerprint")),
+            Some("fp-global-aws")
+        );
+
+        let (status, tenant_payload) = send_request(
+            &reopened,
+            Method::GET,
+            "/api/admin/storage/config/tenants/tenant_northstar",
+            Some(reopened_token.as_str()),
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        let tenant_payload = tenant_payload.expect("tenant storage should persist across reopen");
+        assert_eq!(
+            tenant_payload
+                .get("binding")
+                .and_then(|binding| string_field(binding, "providerPluginId")),
+            Some("object-storage-google")
+        );
+
+        let (status, _) = send_request(
+            &reopened,
+            Method::DELETE,
+            "/api/admin/storage/config/tenants/tenant_northstar",
+            Some(reopened_token.as_str()),
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::NO_CONTENT);
+
+        let reopened_again = SharedAdminSandboxState::seeded_with_storage_file(&file_path);
+        let reopened_again_token = login(&reopened_again).await;
+        let (status, effective_payload) = send_request(
+            &reopened_again,
+            Method::GET,
+            "/api/admin/storage/effective/tenants/tenant_northstar",
+            Some(reopened_again_token.as_str()),
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        let effective_payload =
+            effective_payload.expect("effective storage should load from persisted snapshot");
+        assert_eq!(
+            effective_payload
+                .get("resolvedScope")
+                .and_then(|scope| string_field(scope, "kind")),
+            Some("global")
+        );
+        assert_eq!(
+            effective_payload
+                .get("binding")
+                .and_then(|binding| string_field(binding, "providerPluginId")),
+            Some("object-storage-aws")
+        );
+
+        let _ = fs::remove_file(&file_path);
+        let _ = fs::remove_file(file_path.with_extension("json.tmp"));
     }
 
     #[tokio::test]
@@ -2237,45 +2844,39 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn sandbox_login_accepts_explicit_credentials_overrides() {
-        let state = SharedAdminSandboxState::seeded_with_credentials(
-            "ops-sandbox@example.invalid",
-            "Sandbox#Custom2026",
-        );
+    async fn sandbox_rejects_storage_credentials_missing_required_mode_fields() {
+        let state = SharedAdminSandboxState::seeded();
+        let token = login(&state).await;
 
         let (status, payload) = send_request(
             &state,
             Method::POST,
-            "/api/admin/auth/login",
-            None,
+            "/api/admin/storage/config",
+            Some(token.as_str()),
             Some(json!({
-                "email": "ops-sandbox@example.invalid",
-                "password": "Sandbox#Custom2026",
+                "binding": {
+                    "providerPluginId": "object-storage-google",
+                    "enabled": true,
+                },
+                "config": {
+                    "bucketOrContainer": "tenant-assets",
+                },
+                "secret": {
+                    "credentialMode": "interoperability-key",
+                    "encryptedSecretPayload": "{\"interoperabilityAccessKey\":\"interop-access-key\"}",
+                }
             })),
         )
         .await;
 
-        assert_eq!(status, StatusCode::OK);
-        let login = payload.expect("sandbox login should return a payload");
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        let payload =
+            payload.expect("invalid storage credential save should return an error payload");
         assert_eq!(
-            login
-                .get("user")
-                .and_then(|value| value.get("email"))
-                .and_then(Value::as_str),
-            Some("ops-sandbox@example.invalid")
+            payload
+                .get("error")
+                .and_then(|error| string_field(error, "message")),
+            Some("Interoperability Secret Key is required.")
         );
-
-        let (legacy_status, _) = send_request(
-            &state,
-            Method::POST,
-            "/api/admin/auth/login",
-            None,
-            Some(json!({
-                "email": "admin@sdkwork.local",
-                "password": "legacy-password",
-            })),
-        )
-        .await;
-        assert_eq!(legacy_status, StatusCode::UNAUTHORIZED);
     }
 }

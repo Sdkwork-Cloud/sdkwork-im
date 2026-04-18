@@ -3,6 +3,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   utimesSync,
   writeFileSync,
@@ -35,11 +36,29 @@ function addNodeModulesPackage(appPackageRoot, packageName) {
   writePackageManifest(packageRoot, packageName);
 }
 
+function listVerifiedWorktreeAdminRoots(currentWorkspaceRoot) {
+  const worktreesRoot = path.basename(path.dirname(currentWorkspaceRoot)) === '.worktrees'
+    ? path.resolve(currentWorkspaceRoot, '..')
+    : path.join(currentWorkspaceRoot, '.worktrees');
+
+  if (!existsSync(worktreesRoot)) {
+    return [];
+  }
+
+  return readdirSync(worktreesRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
+    .map((entry) => path.join(worktreesRoot, entry.name, 'apps', 'craw-chat-admin'))
+    .filter((candidateRoot) => (
+      candidateRoot !== appRoot
+      && existsSync(path.join(candidateRoot, 'package.json'))
+      && existsSync(path.join(candidateRoot, 'node_modules'))
+    ));
+}
+
 const requiredPackages = [
   'sdkwork-craw-chat-admin-types',
   'sdkwork-craw-chat-admin-core',
   'sdkwork-craw-chat-admin-shell',
-  'sdkwork-craw-chat-admin-admin-api',
   'sdkwork-craw-chat-admin-auth',
   'sdkwork-craw-chat-admin-overview',
   'sdkwork-craw-chat-admin-tenants',
@@ -284,7 +303,7 @@ test('tauri cli runner ignores stale wix bundle artifacts from earlier builds', 
 test('workspace donor roots include at least one available sibling or worktree dependency donor', () => {
   const donorRoots = viteRuntimeLib.resolveWorkspaceDonorRoots(appRoot);
   const expectedDonorCandidates = [
-    path.join(workspaceRoot, '.worktrees', 'gate-reliability', 'apps', 'craw-chat-admin'),
+    ...listVerifiedWorktreeAdminRoots(workspaceRoot),
     path.resolve(workspaceRoot, '..', 'claw-studio'),
   ].filter((candidateRoot) => (
     existsSync(path.join(candidateRoot, 'package.json'))
@@ -797,16 +816,17 @@ test('core i18n surface stays focused on craw-chat admin runtime concerns', () =
   assert.doesNotMatch(i18n, /ADMIN_ZH_PRICING_TRANSLATIONS/);
 });
 
-test('core workbench avoids router-admin commerce preload and catalog language', () => {
-  const adminApiIndex = read('packages/sdkwork-craw-chat-admin-admin-api/src/index.ts');
+test('core workbench consumes the formal admin SDK boundary and avoids router-admin commerce preload and catalog language', () => {
+  const packageJsonSource = read('package.json');
   const workbench = read('packages/sdkwork-craw-chat-admin-core/src/workbench.tsx');
   const workbenchActions = read('packages/sdkwork-craw-chat-admin-core/src/workbenchActions.ts');
   const workbenchSnapshot = read('packages/sdkwork-craw-chat-admin-core/src/workbenchSnapshot.ts');
 
-  assert.doesNotMatch(
-    adminApiIndex,
-    /export \* from '\.\/commerce'|listCoupons|saveCoupon|deleteCoupon|listMarketingCouponTemplates|saveMarketingCouponTemplate|updateMarketingCouponTemplateStatus|listMarketingCampaignBudgets|saveMarketingCampaignBudget|updateMarketingCampaignBudgetStatus|listMarketingCouponCodes|saveMarketingCouponCode|updateMarketingCouponCodeStatus|listMarketingCouponReservations|listMarketingCouponRedemptions|listMarketingCouponRollbacks|listCommercialAccounts|getCommercialAccountBalance|listCommercialAccountBenefitLots|listCommercialAccountLedger|listCommercialAccountHolds|listCommercialRequestSettlements|listCommercialPricingPlans|createCommercialPricingPlan|updateCommercialPricingPlan|cloneCommercialPricingPlan|publishCommercialPricingPlan|scheduleCommercialPricingPlan|retireCommercialPricingPlan|synchronizeCommercialPricingLifecycle|listCommercialPricingRates|createCommercialPricingRate|updateCommercialPricingRate/,
-  );
+  assert.match(packageJsonSource, /@sdkwork\/craw-chat-admin-sdk/);
+  assert.doesNotMatch(packageJsonSource, /sdkwork-craw-chat-admin-admin-api/);
+  assert.match(workbench, /@sdkwork\/craw-chat-admin-sdk/);
+  assert.match(workbenchActions, /@sdkwork\/craw-chat-admin-sdk/);
+  assert.match(workbenchSnapshot, /@sdkwork\/craw-chat-admin-sdk/);
   assert.doesNotMatch(
     workbench,
     /listCoupons|listRecentCommerceOrders|listCommercePaymentEvents|listMarketingCoupon|listCommercialAccount|listCommercialPricing/,
@@ -939,6 +959,10 @@ test('legacy router-admin subapps are removed from IM module packages', () => {
     'packages/sdkwork-craw-chat-admin-core/src/i18nTranslationsCore.ts',
     'packages/sdkwork-craw-chat-admin-core/src/i18nTranslationsRecovery.ts',
     'packages/sdkwork-craw-chat-admin-core/src/i18nTranslationsRouting.ts',
+    'packages/sdkwork-craw-chat-admin-admin-api/package.json',
+    'packages/sdkwork-craw-chat-admin-admin-api/src/index.ts',
+    'packages/sdkwork-craw-chat-admin-admin-api/src/storage.ts',
+    'packages/sdkwork-craw-chat-admin-admin-api/src/transport.ts',
     'packages/sdkwork-craw-chat-admin-admin-api/src/commerce.ts',
     'packages/sdkwork-craw-chat-admin-users/src/page/OperatorUserDialog.tsx',
     'packages/sdkwork-craw-chat-admin-users/src/page/PortalUserDialog.tsx',

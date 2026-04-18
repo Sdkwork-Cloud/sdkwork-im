@@ -138,7 +138,7 @@ function adminSandboxPlugin(
 }
 
 const workspacePackageAliases = [
-  ['sdkwork-craw-chat-admin-admin-api', 'packages/sdkwork-craw-chat-admin-admin-api/src/index.ts'],
+  ['@sdkwork/craw-chat-admin-sdk', '../../sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-typescript/composed/src/index.ts'],
   ['sdkwork-craw-chat-admin-auth', 'packages/sdkwork-craw-chat-admin-auth/src/index.tsx'],
   ['sdkwork-craw-chat-admin-core', 'packages/sdkwork-craw-chat-admin-core/src/index.tsx'],
   ['sdkwork-craw-chat-admin-shell', 'packages/sdkwork-craw-chat-admin-shell/src/index.ts'],
@@ -154,6 +154,7 @@ const workspacePackageAliases = [
   ['sdkwork-craw-chat-admin-announcements', 'packages/sdkwork-craw-chat-admin-announcements/src/index.tsx'],
   ['sdkwork-craw-chat-admin-realtime', 'packages/sdkwork-craw-chat-admin-realtime/src/index.tsx'],
   ['sdkwork-craw-chat-admin-system', 'packages/sdkwork-craw-chat-admin-system/src/index.tsx'],
+  ['sdkwork-craw-chat-admin-storage', 'packages/sdkwork-craw-chat-admin-storage/src/index.tsx'],
   ['sdkwork-craw-chat-admin-settings', 'packages/sdkwork-craw-chat-admin-settings/src/index.tsx'],
 ].map(([packageName, relativePath]) => ({
   find: new RegExp(`^${packageName}$`),

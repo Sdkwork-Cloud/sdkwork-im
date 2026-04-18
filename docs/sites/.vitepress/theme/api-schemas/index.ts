@@ -6,6 +6,7 @@ import { appSessionSchemas } from "./app-session";
 import { commonApiSchemas } from "./common";
 import { controlPlaneProtocolSchemas } from "./control-plane-protocol";
 import { controlPlaneProviderSchemas } from "./control-plane-provider";
+import { controlPlaneSocialSchemas } from "./control-plane-social";
 import { platformBusinessSchemas } from "./platform-business";
 import { platformOpsSchemas } from "./platform-ops";
 
@@ -26,4 +27,5 @@ export const apiSchemas = {
   ...platformOpsSchemas,
   ...controlPlaneProtocolSchemas,
   ...controlPlaneProviderSchemas,
+  ...controlPlaneSocialSchemas,
 };

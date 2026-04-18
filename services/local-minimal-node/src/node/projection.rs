@@ -44,10 +44,7 @@ fn ensure_contact_user_actor(auth: &AuthContext) -> Result<(), ApiError> {
 
     Err(ApiError::forbidden(
         "contact_scope_forbidden",
-        format!(
-            "contacts require user actor kind, got {}",
-            auth.actor_kind
-        ),
+        format!("contacts require user actor kind, got {}", auth.actor_kind),
     ))
 }
 

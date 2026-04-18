@@ -14,6 +14,13 @@ async fn main() -> ExitCode {
 async fn run() -> Result<(), String> {
     let mut args = std::env::args().skip(1);
     if let Some(command) = args.next() {
+        if command == "print-openapi" {
+            let body = serde_json::to_string_pretty(&control_plane_api::render_openapi_document())
+                .map_err(|error| format!("failed to serialize control-plane OpenAPI: {error}"))?;
+            println!("{body}");
+            return Ok(());
+        }
+
         if command == "repair-social-runtime-dir" {
             let mut runtime_dir = None;
             let mut json_output = false;

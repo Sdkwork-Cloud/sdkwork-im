@@ -2392,7 +2392,9 @@ async fn test_control_plane_social_friend_request_accept_updates_snapshot_and_au
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri(format!("/api/v1/control/social/friendships/{friendship_id}"))
+                .uri(format!(
+                    "/api/v1/control/social/friendships/{friendship_id}"
+                ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
                 .header("x-permissions", "control.read")
@@ -2408,15 +2410,18 @@ async fn test_control_plane_social_friend_request_accept_updates_snapshot_and_au
         .await
         .expect("friendship snapshot after accept should collect")
         .to_bytes();
-    let friendship_snapshot_json: serde_json::Value = serde_json::from_slice(&friendship_snapshot_body)
-        .expect("friendship snapshot after accept should be valid json");
+    let friendship_snapshot_json: serde_json::Value =
+        serde_json::from_slice(&friendship_snapshot_body)
+            .expect("friendship snapshot after accept should be valid json");
     assert_eq!(friendship_snapshot_json["friendship"]["status"], "active");
 
     let direct_chat_snapshot_response = app
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri(format!("/api/v1/control/social/direct-chats/{direct_chat_id}"))
+                .uri(format!(
+                    "/api/v1/control/social/direct-chats/{direct_chat_id}"
+                ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
                 .header("x-permissions", "control.read")
@@ -2432,8 +2437,9 @@ async fn test_control_plane_social_friend_request_accept_updates_snapshot_and_au
         .await
         .expect("direct chat snapshot after accept should collect")
         .to_bytes();
-    let direct_chat_snapshot_json: serde_json::Value = serde_json::from_slice(&direct_chat_snapshot_body)
-        .expect("direct chat snapshot after accept should be valid json");
+    let direct_chat_snapshot_json: serde_json::Value =
+        serde_json::from_slice(&direct_chat_snapshot_body)
+            .expect("direct chat snapshot after accept should be valid json");
     assert_eq!(direct_chat_snapshot_json["directChat"]["status"], "active");
     assert_eq!(
         direct_chat_snapshot_json["directChat"]["conversationId"],
@@ -2498,7 +2504,7 @@ async fn test_control_plane_social_friend_request_accept_updates_snapshot_and_au
 
 #[tokio::test]
 async fn test_control_plane_social_file_runtime_restart_repairs_atomic_friend_request_accept_materialization()
-{
+ {
     let runtime_dir = unique_runtime_dir();
     fs::create_dir_all(state_file(runtime_dir.as_path(), "").as_path())
         .expect("state dir should be created");
@@ -2578,11 +2584,14 @@ async fn test_control_plane_social_file_runtime_restart_repairs_atomic_friend_re
         .await
         .expect("friend request accept with failpoint body should collect")
         .to_bytes();
-    let accept_json: serde_json::Value =
-        serde_json::from_slice(&accept_body).expect("accept failpoint response should be valid json");
+    let accept_json: serde_json::Value = serde_json::from_slice(&accept_body)
+        .expect("accept failpoint response should be valid json");
     assert_eq!(accept_json["status"], "accepted");
     assert_eq!(accept_json["persistence"]["journalAuthority"], true);
-    assert_eq!(accept_json["persistence"]["snapshotStatus"], "repair_required");
+    assert_eq!(
+        accept_json["persistence"]["snapshotStatus"],
+        "repair_required"
+    );
     let friendship_id = accept_json["friendship"]["friendshipId"]
         .as_str()
         .expect("accept failpoint response should include friendship")
@@ -2627,7 +2636,9 @@ async fn test_control_plane_social_file_runtime_restart_repairs_atomic_friend_re
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri(format!("/api/v1/control/social/friendships/{friendship_id}"))
+                .uri(format!(
+                    "/api/v1/control/social/friendships/{friendship_id}"
+                ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
                 .header("x-permissions", "control.read")
@@ -2643,7 +2654,9 @@ async fn test_control_plane_social_file_runtime_restart_repairs_atomic_friend_re
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri(format!("/api/v1/control/social/direct-chats/{direct_chat_id}"))
+                .uri(format!(
+                    "/api/v1/control/social/direct-chats/{direct_chat_id}"
+                ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
                 .header("x-permissions", "control.read")

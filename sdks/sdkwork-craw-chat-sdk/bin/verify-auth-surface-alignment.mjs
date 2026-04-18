@@ -709,8 +709,14 @@ if (languageSet.has('flutter')) {
   assertPresent(
     failures,
     composedSdkSource,
+    /\bString\?\s+authToken\b/,
+    'Flutter composed client factory must expose a flat authToken parameter.',
+  );
+  assertAbsent(
+    failures,
+    composedSdkSource,
     /\bSdkworkBackendConfig\?\s+backendConfig\b/,
-    'Flutter composed client factory must accept SdkworkBackendConfig? backendConfig.',
+    'Flutter composed client factory must not expose SdkworkBackendConfig? backendConfig.',
   );
   assertPresent(
     failures,

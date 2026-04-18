@@ -5,6 +5,7 @@ import test from 'node:test';
 
 const appRoot = path.resolve(import.meta.dirname, '..');
 const packagesRoot = path.join(appRoot, 'packages');
+const workspaceRoot = path.resolve(appRoot, '..', '..');
 
 function walkFiles(rootPath) {
   const entries = readdirSync(rootPath);
@@ -29,24 +30,36 @@ function walkFiles(rootPath) {
   return files;
 }
 
-test('admin-api package exists and references the IM admin SDK boundary', () => {
-  const apiEntry = path.join(
+test('formal admin SDK package is the only supported admin client boundary', () => {
+  const typedAdminSdkPackage = path.join(
+    workspaceRoot,
+    'sdks',
+    'sdkwork-craw-chat-sdk-admin',
+    'sdkwork-craw-chat-sdk-admin-typescript',
+    'composed',
+    'package.json',
+  );
+  const rootPackageJson = path.join(appRoot, 'package.json');
+  const legacyAdminApiManifest = path.join(
     appRoot,
     'packages',
     'sdkwork-craw-chat-admin-admin-api',
-    'src',
-    'index.ts',
+    'package.json',
   );
-  const rootPackageJson = path.join(appRoot, 'package.json');
 
-  assert.equal(existsSync(apiEntry), true);
+  assert.equal(
+    existsSync(legacyAdminApiManifest),
+    false,
+  );
+  assert.equal(existsSync(typedAdminSdkPackage), true);
   assert.equal(existsSync(rootPackageJson), true);
 
-  const apiSource = readFileSync(apiEntry, 'utf8');
+  const typedAdminSdkSource = readFileSync(typedAdminSdkPackage, 'utf8');
   const packageJsonSource = readFileSync(rootPackageJson, 'utf8');
 
-  assert.match(apiSource, /sdkwork-craw-chat-sdk-admin|im-admin-backend-sdk|openchat/);
-  assert.match(packageJsonSource, /sdkwork-craw-chat-admin-admin-api/);
+  assert.match(typedAdminSdkSource, /@sdkwork\/craw-chat-admin-sdk/);
+  assert.match(packageJsonSource, /@sdkwork\/craw-chat-admin-sdk/);
+  assert.doesNotMatch(packageJsonSource, /sdkwork-craw-chat-admin-admin-api/);
 });
 
 test('business packages do not hardcode raw admin control-plane HTTP calls', () => {
@@ -55,10 +68,6 @@ test('business packages do not hardcode raw admin control-plane HTTP calls', () 
   const files = walkFiles(packagesRoot).filter((filePath) => filePath.endsWith('.ts') || filePath.endsWith('.tsx'));
 
   for (const filePath of files) {
-    if (filePath.includes('sdkwork-craw-chat-admin-admin-api')) {
-      continue;
-    }
-
     const source = readFileSync(filePath, 'utf8');
 
     assert.doesNotMatch(source, /\/admin\/im\/v3\//, `raw admin URL in ${filePath}`);

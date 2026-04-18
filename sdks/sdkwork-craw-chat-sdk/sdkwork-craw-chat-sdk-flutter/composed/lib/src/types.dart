@@ -2,10 +2,10 @@ import 'package:backend_sdk/backend_sdk.dart';
 
 typedef CrawChatQueryParams = Map<String, dynamic>;
 
-class CrawChatClientOptions {
+class CrawChatSdkClientOptions {
   final SdkworkBackendClient backendClient;
 
-  const CrawChatClientOptions({
+  const CrawChatSdkClientOptions({
     required this.backendClient,
   });
 }

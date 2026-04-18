@@ -72,6 +72,7 @@ const iconByRoute: Record<AdminRouteKey, LucideIcon> = {
   announcements: Activity,
   realtime: ServerCog,
   system: ShieldCheck,
+  storage: ServerCog,
   settings: Settings2,
 };
 

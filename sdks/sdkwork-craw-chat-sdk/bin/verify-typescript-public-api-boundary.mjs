@@ -1,40 +1,35 @@
 #!/usr/bin/env node
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  collectWorkspaceFiles,
+  finishFileExpectationVerification,
+  readWorkspaceSource,
+  readWorkspaceSources,
+  workspacePathExists,
+} from '../../workspace-file-expectation-shared.mjs';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = path.resolve(scriptDir, '..');
 const typescriptRoot = path.join(workspaceRoot, 'sdkwork-craw-chat-sdk-typescript');
 const composedSourceRoot = path.join(typescriptRoot, 'composed', 'src');
-const generatedTypesBridgePath = path.join(composedSourceRoot, 'generated-backend-types.ts');
-
-function collectFiles(rootDirectory) {
-  const files = [];
-  const queue = [rootDirectory];
-
-  while (queue.length > 0) {
-    const currentDirectory = queue.shift();
-    for (const entry of readdirSync(currentDirectory, { withFileTypes: true })) {
-      const absolutePath = path.join(currentDirectory, entry.name);
-      if (entry.isDirectory()) {
-        queue.push(absolutePath);
-        continue;
-      }
-      if (entry.isFile() && absolutePath.endsWith('.ts')) {
-        files.push(absolutePath);
-      }
-    }
-  }
-
-  return files;
-}
 
 const failures = [];
-if (!existsSync(generatedTypesBridgePath)) {
+if (!workspacePathExists({ workspaceRoot: composedSourceRoot, relativePath: 'index.ts' })) {
+  failures.push('composed/src/index.ts must exist.');
+}
+if (!workspacePathExists({ workspaceRoot: composedSourceRoot, relativePath: 'sdk.ts' })) {
+  failures.push('composed/src/sdk.ts must exist.');
+}
+if (!workspacePathExists({ workspaceRoot: composedSourceRoot, relativePath: 'generated-backend-types.ts' })) {
   failures.push('composed/src/generated-backend-types.ts must exist as the single generated type bridge.');
 } else {
-  const bridgeSource = readFileSync(generatedTypesBridgePath, 'utf8');
+  const { bridgeSource } = readWorkspaceSources({
+    workspaceRoot: composedSourceRoot,
+    files: {
+      bridgeSource: 'generated-backend-types.ts',
+    },
+  });
 
   if (!bridgeSource.includes("../../generated/server-openapi/src/types/index")) {
     failures.push(
@@ -55,9 +50,26 @@ if (!existsSync(generatedTypesBridgePath)) {
   }
 }
 
-for (const absolutePath of collectFiles(composedSourceRoot)) {
-  const relativePath = path.relative(composedSourceRoot, absolutePath).replace(/\\/g, '/');
-  const source = readFileSync(absolutePath, 'utf8');
+if (workspacePathExists({ workspaceRoot: composedSourceRoot, relativePath: 'index.ts' })) {
+  const indexSource = readWorkspaceSource({ workspaceRoot: composedSourceRoot, relativePath: 'index.ts' });
+  if (!indexSource.includes('CrawChatSdkClient')) {
+    failures.push('composed/src/index.ts must export CrawChatSdkClient.');
+  }
+}
+
+if (workspacePathExists({ workspaceRoot: composedSourceRoot, relativePath: 'sdk.ts' })) {
+  const sdkSource = readWorkspaceSource({ workspaceRoot: composedSourceRoot, relativePath: 'sdk.ts' });
+  if (!sdkSource.includes('export class CrawChatSdkClient')) {
+    failures.push('composed/src/sdk.ts must define CrawChatSdkClient.');
+  }
+}
+
+for (const relativePath of collectWorkspaceFiles({
+  workspaceRoot: composedSourceRoot,
+  include: ({ relativePath: currentRelativePath, entry }) =>
+    entry.isFile() && currentRelativePath.endsWith('.ts'),
+})) {
+  const source = readWorkspaceSource({ workspaceRoot: composedSourceRoot, relativePath });
   const matches = source.match(/generated\/server-openapi\/src\/[^\s'"`]+/g) || [];
 
   for (const matchedImportPath of matches) {
@@ -111,12 +123,9 @@ for (const absolutePath of collectFiles(composedSourceRoot)) {
   }
 }
 
-if (failures.length > 0) {
-  console.error('[sdkwork-craw-chat-sdk] TypeScript public API boundary verification failed:');
-  for (const failure of failures) {
-    console.error(`- ${failure}`);
-  }
-  process.exit(1);
-}
-
-console.log('[sdkwork-craw-chat-sdk] TypeScript public API boundary verification passed.');
+finishFileExpectationVerification({
+  prefix: 'sdkwork-craw-chat-sdk',
+  failures,
+  failureHeader: 'TypeScript public API boundary verification failed:',
+  successMessage: '[sdkwork-craw-chat-sdk] TypeScript public API boundary verification passed.',
+});

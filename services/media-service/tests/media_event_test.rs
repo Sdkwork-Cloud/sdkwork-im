@@ -45,7 +45,7 @@ fn test_complete_upload_appends_media_asset_created_event() {
             &auth,
             media_service::CreateUploadRequest {
                 media_asset_id: "ma_demo".into(),
-                bucket: "local-media".into(),
+                bucket: Some("local-media".into()),
                 object_key: None,
                 expires_in_seconds: None,
                 resource: MediaResource {
@@ -131,7 +131,7 @@ fn test_media_asset_created_events_use_distinct_commit_timestamps() {
             &auth,
             media_service::CreateUploadRequest {
                 media_asset_id: "ma_event_one".into(),
-                bucket: "local-media".into(),
+                bucket: Some("local-media".into()),
                 object_key: None,
                 expires_in_seconds: None,
                 resource: MediaResource {
@@ -174,7 +174,7 @@ fn test_media_asset_created_events_use_distinct_commit_timestamps() {
             &auth,
             media_service::CreateUploadRequest {
                 media_asset_id: "ma_event_two".into(),
-                bucket: "local-media".into(),
+                bucket: Some("local-media".into()),
                 object_key: None,
                 expires_in_seconds: None,
                 resource: MediaResource {

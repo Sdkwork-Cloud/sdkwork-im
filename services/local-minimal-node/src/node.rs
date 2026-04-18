@@ -569,15 +569,14 @@ impl CommitJournal for ProjectionJournal {
         for envelope in &envelopes {
             if self.projection_service.apply(envelope).is_ok() {
                 if let Some(snapshot_stores) = self.snapshot_stores.as_ref() {
-                    snapshot_stores.persist_for_envelope(
-                        self.projection_service.as_ref(),
-                        envelope,
-                    );
+                    snapshot_stores
+                        .persist_for_envelope(self.projection_service.as_ref(), envelope);
                 }
                 self.mark_social_projection_events(std::iter::once(envelope));
             }
         }
-        replay_state.applied_event_count = replay_state.applied_event_count.saturating_add(batch_len);
+        replay_state.applied_event_count =
+            replay_state.applied_event_count.saturating_add(batch_len);
 
         Ok(positions)
     }

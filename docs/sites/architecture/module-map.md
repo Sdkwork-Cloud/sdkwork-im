@@ -41,6 +41,7 @@ directories are stable enough to document as product surfaces.
 | `craw-chat-contract-*` | Business and transport contracts for app-facing surfaces |
 | `craw-chat-ccp-*` | CCP binding, codec, control, core, and registry surfaces |
 | `im-platform-contracts` | Provider registry, effective binding, and platform integration contracts |
+| `im-storage-*` | Shared storage provider schema, validation, fallback resolution, audit, and snapshot persistence seams |
 | `im-auth-context` | Shared auth-context parsing for bearer and trusted-header flows |
 | `craw-chat-runtime-*` | Runtime linking and route-ownership contracts |
 | `im-domain-*` | Core domain and event-level models reused by services |
@@ -49,8 +50,10 @@ directories are stable enough to document as product surfaces.
 
 - `apps/craw-chat-admin` and `apps/craw-chat-portal` are not documented as complete products.
 - SDK workspaces are documented separately from actual release status.
-- OpenAPI authority currently exists for the app SDK workspace, but not as a checked-in admin SDK
-  source file under `sdks/sdkwork-craw-chat-sdk-admin/`.
+- OpenAPI authority now exists for both the app SDK workspace and the admin control-plane SDK
+  workspace under `sdks/sdkwork-craw-chat-sdk-admin/`.
+- The admin control-plane TypeScript SDK is locally verified, but that does not imply that every
+  browser `/api/admin/*` route has already been promoted into the formal control-plane authority.
 
 That distinction matters: directory presence alone is not treated as product delivery.
 

@@ -220,7 +220,7 @@ packages:
   sdkwork_common_flutter:
     dependency: "direct main"
     description:
-      path: "../../../../../../../sdk/sdkwork-sdk-commons/sdkwork-sdk-common-flutter"
+      path: "../../../../../../../../../sdk/sdkwork-sdk-commons/sdkwork-sdk-common-flutter"
       relative: true
     source: path
     version: "1.0.0"

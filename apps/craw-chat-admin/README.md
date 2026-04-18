@@ -1,25 +1,28 @@
 # Craw Chat Admin
 
-`sdkwork-craw-chat-admin` is the standalone React and Tauri workspace for the Craw Chat即时通信管理后台.
+`sdkwork-craw-chat-admin` is the standalone React and Tauri operator workspace for Craw Chat.
+
+It provides the browser and desktop shell for moderation, tenancy, identity, automation, realtime governance, and platform operations. The app must stay thin at the root and converge on the formal admin SDK boundary wherever the corresponding control-plane contract already exists.
 
 ## Architecture Goals
 
-- use `@sdkwork/ui-pc-react` as the single shared UI foundation
+- use `@sdkwork/ui-pc-react` as the shared UI foundation
 - keep the root app thin and move real composition into workspace packages
-- remove legacy local UI layers and avoid compatibility baggage
-- fully mirror the proven `sdkwork-router-admin` workspace architecture standard inside the Craw Chat domain
-- deliver one coherent operator shell across login, overview, tenancy, identity, moderation, automation, realtime, system governance, and settings
-- keep the runtime boundary honest when no compatible `/api/admin/*` backend is configured
+- route formal control-plane HTTP access through `@sdkwork/craw-chat-admin-sdk`
+- avoid raw `fetch`, duplicated DTOs, and handwritten route maps inside app packages
+- keep browser and desktop runtime behavior aligned
+- preserve an explicit sandbox mode when no compatible management backend is available
 
 ## Workspace Layout
 
 ```text
 apps/craw-chat-admin/
-|- src/        # root app bootstrap only
-|- packages/   # foundation and business modules
-|- tests/      # architecture and product-surface verification
-|- src-tauri/  # desktop host and native commands
-`- dist/       # production build output
+  src/          # root bootstrap only
+  packages/     # shell, core, and business modules
+  tests/        # architecture and product-surface verification
+  dev/          # opt-in local admin sandbox
+  src-tauri/    # desktop host and native commands
+  dist/         # browser production output
 ```
 
 ## Package Map
@@ -29,110 +32,132 @@ apps/craw-chat-admin/
 - `sdkwork-craw-chat-admin-types`
 - `sdkwork-craw-chat-admin-core`
 - `sdkwork-craw-chat-admin-shell`
-- `sdkwork-craw-chat-admin-admin-api`
 
 ### Business
 
 - `sdkwork-craw-chat-admin-auth`
 - `sdkwork-craw-chat-admin-overview`
-- `sdkwork-craw-chat-admin-users`
 - `sdkwork-craw-chat-admin-tenants`
-- `sdkwork-craw-chat-admin-moderation`
-- `sdkwork-craw-chat-admin-groups`
+- `sdkwork-craw-chat-admin-users`
+- `sdkwork-craw-chat-admin-conversations`
 - `sdkwork-craw-chat-admin-messages`
+- `sdkwork-craw-chat-admin-groups`
+- `sdkwork-craw-chat-admin-moderation`
+- `sdkwork-craw-chat-admin-automation`
+- `sdkwork-craw-chat-admin-announcements`
+- `sdkwork-craw-chat-admin-realtime`
 - `sdkwork-craw-chat-admin-system`
 - `sdkwork-craw-chat-admin-settings`
-- `sdkwork-craw-chat-admin-conversations`
+
+## Formal Admin SDK Boundary
+
+The formal control-plane transport boundary is `@sdkwork/craw-chat-admin-sdk`.
+
+- control-plane URLs, auth handling, and DTO ownership for `/api/v1/control/*` belong to the SDK layers
+- generated OpenAPI transport code belongs under `sdks/sdkwork-craw-chat-sdk-admin/*/generated/server-openapi`
+- ergonomic business-facing admin client code belongs under `sdks/sdkwork-craw-chat-sdk-admin/*/composed`
+- app-local helpers may exist for React state, loaders, or UI wiring, but they must wrap the formal SDK rather than re-implement transport
+- the current package now carries both generated `/api/v1/control/*` modules and manual-owned `/api/admin/*` adapter exports, so the admin app no longer needs a separate local admin API workspace package
+- browser-only `/api/admin/*` routes are still a separate contract-promotion track until those routes gain the same checked-in OpenAPI authority as the control-plane surface
 
 ## UI Standard
 
 - shared styles come from `@sdkwork/ui-pc-react/styles.css`
-- shell composition uses `DesktopShellFrame`, `NavigationRail`, `Toolbar`, `SettingsCenter`, and other shared primitives
-- local shell CSS is limited to host layout selectors in `packages/sdkwork-craw-chat-admin-shell/src/styles/shell-host.css`
-- theme state, locale, sidebar behavior, and workspace continuity are owned by `sdkwork-craw-chat-admin-core`
+- shell composition uses shared UI primitives plus app-owned desktop layout modules
+- local shell CSS is limited to host layout selectors and app-specific presentation
+- theme state, locale, command palette, operations pulse, and route continuity are owned by `sdkwork-craw-chat-admin-core`
 
 ## Product Surfaces
 
-- `Login`: operator sign-in with an isolated auth shell
-- `Overview`: platform posture, queue pressure, SLA watchpoints, and incident summaries
-- `Tenants`: tenant, workspace, project, and key-governance workflows
-- `Users`: operator accounts, portal identities, and lifecycle control
-- `Conversations`: conversation freeze, handoff, archive, and ownership governance
-- `Messages`: transcript search, evidence export, and audit review
-- `Groups`: group directory, membership posture, and channel governance
-- `Moderation`: reports, policy interventions, keyword governance, and escalation visibility
-- `Automation`: bot registry, workflow runs, and retry oversight
-- `Announcements`: broadcast operations and delivery posture
-- `Realtime`: session health, RTC posture, and reconnect watch
+- `Login`: operator sign-in and access recovery
+- `Overview`: platform posture, queue pressure, incident watch, and handoff summaries
+- `Tenants`: tenant, workspace, project, and API key governance
+- `Users`: operator accounts, portal identities, device posture, and recovery review
+- `Conversations`: handoff, archive, freeze, and ownership governance
+- `Messages`: transcript search, evidence export, recall review, and retention guardrails
+- `Groups`: directory, membership posture, and channel governance
+- `Moderation`: reports, interventions, keyword policy, and escalation visibility
+- `Automation`: bot registry, run history, retry oversight, and routing review
+- `Announcements`: outbound notice operations and delivery posture
+- `Realtime`: session health, RTC posture, reconnect watch, and failover readiness
 - `System`: protocol governance, runtime health, and compatibility posture
-- `Settings`: shared operator settings center for appearance, locale, navigation, and workspace continuity
-
-## Shell Model
-
-- `react-router-dom` browser routes mounted under `/admin/`
-- authenticated desktop shell with a shared top toolbar, left navigation rail, and right content canvas
-- login isolated outside the authenticated shell
-- command center, operations pulse, and route context strip persist across modules
-- persisted theme mode, accent preset, sidebar width, collapse behavior, and hidden routes
-- lazy-loaded page modules behind a shared loading state
+- `Settings`: shared operator preferences and workspace continuity
 
 ## Commands
 
 ```bash
 pnpm install
-pnpm test
+pnpm test:storage
+pnpm test:admin
 pnpm typecheck
 pnpm build
+pnpm verify
+pnpm verify:storage
 pnpm dev
 pnpm tauri:dev
 pnpm tauri:build
 ```
 
+## Verification
+
+Use the dedicated workspace scripts instead of ad-hoc test runner flags:
+
+- `pnpm test:storage`
+  Runs the storage sandbox contract tests and storage draft payload tests.
+- `pnpm test:admin`
+  Runs shell, product-surface, sandbox, SDK-boundary, and UI-resolution tests.
+- `pnpm verify:storage`
+  Runs storage-focused verification plus `typecheck` and `build`.
+- `pnpm verify`
+  Runs the broader admin verification baseline plus `typecheck` and `build`.
+
+The workspace uses package-local wrappers so `pnpm run` and `npm.cmd run` remain stable on Windows even when plain `cmd.exe` does not expose the expected `node` binary on `PATH`.
+
 ## Runtime Contract
 
-The admin frontend contract targets a compatible management backend that serves `/api/admin/*`.
+The browser and desktop admin shell target a compatible management backend that serves `/api/admin/*`.
 
 - browser development: set `SDKWORK_ADMIN_PROXY_TARGET=http://host:port` before `pnpm dev`
 - desktop runtime: set `SDKWORK_ADMIN_PROXY_TARGET=http://host:port` before `pnpm tauri:dev` or `pnpm tauri:build`
-- desktop runtime portal shell injects `window.__CRAW_CHAT_PORTAL_API_BASE_URL__` from `CRAW_CHAT_PORTAL_API_BASE_URL`, then `CRAW_CHAT_BIND_ADDR`, then the local-minimal default `http://127.0.0.1:18090`; wildcard bind hosts such as `0.0.0.0` and `::` are normalized to loopback before injection
-- explicit local demo mode: set `SDKWORK_ADMIN_SANDBOX=1` when you want an in-memory IM admin sandbox instead of a real `/api/admin/*` backend
-- compatibility alias: `SDKWORK_ADMIN_BIND` is still accepted for existing operator scripts
-- when no compatible backend is configured, both Vite dev mode and the desktop runtime return a structured `503` response for `/api/admin/*` instead of silently proxying to a fake local default
-- sandbox mode is opt-in only and does not override a real `SDKWORK_ADMIN_PROXY_TARGET`
+- set `CRAW_CHAT_PORTAL_API_BASE_URL=http://host:port` when the embedded portal shell or shared desktop runtime should point at a non-default app runtime endpoint
+- explicit sandbox mode: set `SDKWORK_ADMIN_SANDBOX=1` when you want an in-memory admin sandbox instead of a real backend
+- persistent storage sandbox mode: set `SDKWORK_ADMIN_SANDBOX=1` and `SDKWORK_ADMIN_SANDBOX_STORAGE_FILE=/absolute/path/storage-snapshots.json` when you want storage-management state to survive sandbox restarts
+- compatibility alias: `SDKWORK_ADMIN_BIND` is still accepted by existing operator scripts
+- when no compatible backend is configured, Vite dev mode and the desktop runtime return a structured `503` response for `/api/admin/*` instead of silently falling back to a fake default target
 
 ## Local Sandbox
 
-The local admin sandbox is intended for product walkthroughs, shell verification, and package smoke validation when no real management backend is available.
+The local admin sandbox is intended for shell walkthroughs, product verification, and package smoke checks when no management backend is available.
 
 - enable with `SDKWORK_ADMIN_SANDBOX=1`
-- optional explicit sandbox credentials: set `SDKWORK_ADMIN_SANDBOX_EMAIL` and `SDKWORK_ADMIN_SANDBOX_PASSWORD`
-- optional login-form prefill: set `VITE_ADMIN_SANDBOX_EMAIL` and `VITE_ADMIN_SANDBOX_PASSWORD` if you want the dev-only login page to start with your sandbox credentials
-- if no sandbox password is provided, the Vite dev server and desktop runtime generate a one-time login password and print the effective sandbox login to startup logs
-- login, workspace hydration, tenant/project changes, API key issuance, and core operator reads run against an in-memory backend seeded from `dev/admin-sandbox-seed.json`
-- sandbox state is ephemeral by design and resets whenever the Vite server or desktop runtime restarts
+- default credentials: `admin@sdkwork.local` / `ChangeMe123!`
+- login, workspace hydration, tenant changes, API key issuance, and core operator reads run against an in-memory backend seeded from `dev/admin-sandbox-seed.json`
+- sandbox state is ephemeral by default and resets whenever the Vite server or desktop runtime restarts
+- storage-management state can be persisted independently through `SDKWORK_ADMIN_SANDBOX_STORAGE_FILE`
 
 ## Current Backend Reality
 
 Inside the current `craw-chat` workspace, the discovered control-plane service binds `127.0.0.1:18081` and serves `/api/v1/control/*`.
 
-- that service is useful for control-plane governance
-- it is not a drop-in replacement for this admin app's `/api/admin/*` contract
-- if you want this admin workspace to run against local services, you need a compatible adapter or backend that exposes the expected `/api/admin/*` surface, including login and admin resource routes
+- that runtime is the current authority source for admin SDK OpenAPI 3.x capture
+- it is not automatically a drop-in replacement for every browser `/api/admin/*` route expected by the admin shell
+- formal SDK generation and documentation must track the real `/api/v1/control/*` surface instead of inventing routes
+- if the browser shell still needs a compatibility adapter, that adapter must depend on `@sdkwork/craw-chat-admin-sdk` rather than introducing raw transport code inside app packages
+
+## Storage Contract Reference
+
+The current storage-management route contract is documented in `../../docs/sites/reference/admin-storage-contract.md`.
+
+Use that page when you need the verified route catalog, payload semantics, whole-record tenant override rules, redaction guarantees, or sandbox persistence notes.
 
 ## Desktop Host
 
 The desktop app uses the shared `sdkwork-api-product-runtime` instead of a hard-coded local web host.
 
-That keeps the admin desktop app aligned with the `/admin/*` operator shell contract while preserving native IPC commands and embedded asset orchestration.
-
-The desktop runtime fails fast during startup if the embedded admin or portal site is missing its `index.html`, so packaging defects surface before the operator sees a blank shell.
-
-Release builds do not fall back to workspace `dist/` directories when `embedded-sites/admin` or `embedded-sites/portal` are missing, so broken bundles fail during verification instead of only failing later on customer machines.
-
-The desktop asset build step validates the admin site, the mirrored portal site, and the vendored portal SDK bundles before Tauri packaging continues.
+That keeps the operator shell aligned with the same admin runtime contract while preserving native IPC commands and embedded asset orchestration.
 
 ## Delivery Standard
 
-- architecture, directory layout, and standalone workspace conventions are intentionally aligned with `sdkwork-router-admin`
-- product language, modules, and operator workflows are rebuilt for professional即时通信运营与治理场景
-- desktop packaging is verified through the local Tauri toolchain and uses embedded admin and portal assets
+- architecture and workspace layout stay aligned with the broader SDKWork admin workspace conventions
+- transport behavior is validated through the formal admin SDK boundary, not by duplicated local HTTP wrappers
+- browser, desktop, sandbox, and control-plane integration must remain explicit, reviewable, and testable

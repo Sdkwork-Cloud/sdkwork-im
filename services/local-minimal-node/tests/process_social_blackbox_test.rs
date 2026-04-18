@@ -331,8 +331,7 @@ fn test_local_minimal_process_blackbox_concurrent_accept_and_cancel_across_insta
 }
 
 #[test]
-fn test_local_minimal_process_blackbox_concurrent_accepts_converge_idempotently_across_instances()
- {
+fn test_local_minimal_process_blackbox_concurrent_accepts_converge_idempotently_across_instances() {
     let runtime_dir = unique_runtime_dir("process_social_accept_accept");
     fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
 
@@ -341,12 +340,18 @@ fn test_local_minimal_process_blackbox_concurrent_accepts_converge_idempotently_
     let server_a = spawn_local_minimal_server_with_env(
         runtime_dir.as_path(),
         port_a,
-        &[("CRAW_CHAT_TEST_SOCIAL_ACCEPT_REPAIR_STORE_IO_DELAY_MS", "250")],
+        &[(
+            "CRAW_CHAT_TEST_SOCIAL_ACCEPT_REPAIR_STORE_IO_DELAY_MS",
+            "250",
+        )],
     );
     let server_b = spawn_local_minimal_server_with_env(
         runtime_dir.as_path(),
         port_b,
-        &[("CRAW_CHAT_TEST_SOCIAL_ACCEPT_REPAIR_STORE_IO_DELAY_MS", "250")],
+        &[(
+            "CRAW_CHAT_TEST_SOCIAL_ACCEPT_REPAIR_STORE_IO_DELAY_MS",
+            "250",
+        )],
     );
 
     let (submit_status, submit_json) = send_json_request(
@@ -543,7 +548,10 @@ fn test_local_minimal_process_blackbox_cross_instance_accept_and_submit_same_pai
         "GET",
         "/api/v1/contacts",
         &[
-            ("authorization", signed_bearer_for_user("u_alice", &[]).as_str()),
+            (
+                "authorization",
+                signed_bearer_for_user("u_alice", &[]).as_str(),
+            ),
             ("x-tenant-id", "t_demo"),
             ("x-user-id", "u_alice"),
         ],

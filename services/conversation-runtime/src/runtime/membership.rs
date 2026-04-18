@@ -965,7 +965,9 @@ where
             );
 
             self.journal.append(event.clone())?;
-            conversation.roster.upsert_member(payload.updated_member.clone());
+            conversation
+                .roster
+                .upsert_member(payload.updated_member.clone());
 
             ChangeConversationMemberRoleResult {
                 event_id: event.event_id,
@@ -1082,8 +1084,10 @@ where
             let member_id = actor_member.member_id.clone();
             let read_cursors = conversation.roster.read_cursors();
             let cursor_missing = !read_cursors.contains_key(member_id.as_str());
-            let cursor = read_cursors.get(member_id.as_str()).cloned().unwrap_or_else(|| {
-                ConversationReadCursor {
+            let cursor = read_cursors
+                .get(member_id.as_str())
+                .cloned()
+                .unwrap_or_else(|| ConversationReadCursor {
                     tenant_id: command.tenant_id.clone(),
                     conversation_id: command.conversation_id.clone(),
                     member_id: member_id.clone(),
@@ -1091,8 +1095,7 @@ where
                     read_seq: 0,
                     last_read_message_id: None,
                     updated_at: conversation_timestamp(),
-                }
-            });
+                });
 
             if command.read_seq > cursor.read_seq {
                 let updated_cursor = ConversationReadCursor {

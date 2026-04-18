@@ -1,28 +1,166 @@
 # sdkwork-craw-chat-sdk-admin TypeScript
 
-当前目录保留给管理侧 `TypeScript` facade。
+This language workspace packages the TypeScript implementation for `sdkwork-craw-chat-sdk-admin`.
 
-## 预期职责
+Layout:
 
-- `control-plane` 读面
-- `protocol governance`
-- `compatibility matrix`
+- `generated/server-openapi`
+  OpenAPI-derived transport layer for the current admin control-plane contract.
+- `composed`
+  Manual ergonomic layer that exposes `CrawChatAdminSdkClient` and admin-oriented modules.
+- `bin`
+  Language-local wrappers for generate, assemble, and verify entrypoints.
 
-## 当前约束
+Published package names:
 
-- 不承接 app-facing chat facade
-- 协议能力决策以 control-plane snapshot 为准
-- 当前先冻结路径与职责，不提前宣称生成代码已完成
+- generated: `@sdkwork/craw-chat-admin-backend-sdk`
+- composed: `@sdkwork/craw-chat-admin-sdk`
 
-## 当前发布边界
+## Consumer Rule
 
-- 当前 bundle 级发布目录真源：
-  - `artifacts/releases/wave-d-2026-04-08/sdk-release-catalog.json`
-- 当前 catalog 状态：
-  - `template_only_pending_generation`
-  - `not_published`
-- 当前版本占位状态：
-  - `plannedVersion = null`
-  - `versionStatus = version_unassigned_pending_freeze`
-  - `versionDecisionSourcePath = null`
-- 在真实生成与发布链补齐前，以 bundle catalog 为准，不在本 README 单独发明版本或发布结论
+Use the composed package as the only supported consumer boundary. It exposes
+`CrawChatAdminSdkClient`, semantic control-plane modules, and the manual-owned browser helpers that
+the standalone admin app still needs for `/api/admin/*`.
+
+## Create The Client
+
+```ts
+import { CrawChatAdminSdkClient } from '@sdkwork/craw-chat-admin-sdk';
+
+const sdk = await CrawChatAdminSdkClient.create({
+  baseUrl: 'https://admin.example.com',
+  authToken: '<token>',
+});
+```
+
+Preferred options are flat:
+
+- `baseUrl`
+- `authToken`
+- `headers`
+- `timeout`
+- `fetch`
+
+Advanced callers can still inject `backendClient`.
+
+## Semantic Modules
+
+- `sdk.meta`
+  Health and liveness checks.
+- `sdk.protocol`
+  Protocol registry and governance snapshots.
+- `sdk.providers`
+  Registry, effective bindings, diff, preview, rollback, and history.
+- `sdk.social`
+  Direct-chat, external-collaboration, friendship, shared-channel-policy, and block control.
+- `sdk.socialRuntime`
+  Shared-channel queue inventory plus repair, reclaim, republish, requeue, and takeover.
+- `sdk.nodes`
+  Drain, activate, and route migration operations.
+
+## Module To API Reference
+
+- `sdk.meta` and `sdk.protocol`
+  `docs/sites/api-reference/control-plane/protocol.md`
+- `sdk.providers`
+  `docs/sites/api-reference/control-plane/providers.md`
+- `sdk.social`
+  `docs/sites/api-reference/control-plane/social.md`
+- `sdk.socialRuntime`
+  `docs/sites/api-reference/control-plane/social-runtime.md`
+- `sdk.nodes`
+  `docs/sites/api-reference/control-plane/nodes.md`
+
+## Browser Admin Surface
+
+The composed TypeScript package also re-exports manual-owned helpers such as:
+
+- `loginAdminUser`
+- `getAdminMe`
+- `listTenants`
+- `saveTenant`
+- `listStorageProviders`
+- `saveTenantStorageConfig`
+- `validateTenantStorageConfig`
+
+Those helpers stay manual because they target browser-facing `/api/admin/*` routes rather than the
+generated `/api/v1/control/*` authority.
+
+Generation from this workspace:
+
+```powershell
+.\bin\sdk-gen.ps1
+```
+
+If local PowerShell execution policy blocks script execution, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\bin\sdk-gen.ps1
+```
+
+```bash
+./bin/sdk-gen.sh
+```
+
+Those `sdk-gen` wrappers forward to the root `sdkwork-craw-chat-sdk-admin/bin/generate-sdk.*`
+entrypoints and pin generation to the TypeScript workspace.
+The forwarded generation path refreshes the checked-in authority contract, prepares the derived
+sdkgen input, regenerates the TypeScript transport layer, then runs the TypeScript verification
+chain before assembly metadata is refreshed.
+
+Assembly from this workspace:
+
+```powershell
+.\bin\sdk-assemble.ps1
+```
+
+If local PowerShell execution policy blocks script execution, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\bin\sdk-assemble.ps1
+```
+
+```bash
+./bin/sdk-assemble.sh
+```
+
+Those `sdk-assemble` wrappers forward to the root `sdkwork-craw-chat-sdk-admin/bin/assemble-sdk.*`
+entrypoints and pin assembly to the TypeScript workspace.
+Use them when generated and composed manifests are already current and you only need to refresh
+workspace-level `.sdkwork-assembly.json` metadata.
+
+Verification from this workspace:
+
+```powershell
+.\bin\sdk-verify.ps1
+```
+
+If local PowerShell execution policy blocks script execution, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\bin\sdk-verify.ps1
+```
+
+```bash
+./bin/sdk-verify.sh
+```
+
+Those `sdk-verify` wrappers forward to the root `sdkwork-craw-chat-sdk-admin/bin/verify-sdk.*`
+entrypoints and pin verification to the TypeScript workspace.
+The forwarded verification path still delegates to `verify-typescript-workspace.mjs`, so the
+language-local wrapper keeps the admin usage-surface checks, public API boundary checks,
+generated-package validation, and the manual-owned `/api/admin/*` helper boundary in one command.
+
+Direct workspace verifier:
+
+```powershell
+node .\..\bin\verify-typescript-workspace.mjs
+```
+
+That workspace verification covers the admin usage-surface checks, public API boundary checks, generated-package validation, and the manual-owned `/api/admin/*` helper boundary.
+
+Cross-language workspace verification:
+
+```powershell
+node .\..\bin\verify-sdk.mjs --language typescript
+```

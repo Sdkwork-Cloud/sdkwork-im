@@ -46,6 +46,9 @@ const RealtimePage = lazy(async () => ({
 const SystemPage = lazy(async () => ({
   default: (await import('sdkwork-craw-chat-admin-system')).SystemPage,
 }));
+const StoragePage = lazy(async () => ({
+  default: (await import('sdkwork-craw-chat-admin-storage')).StoragePage,
+}));
 const SettingsPage = lazy(async () => ({
   default: (await import('sdkwork-craw-chat-admin-settings')).SettingsPage,
 }));
@@ -258,6 +261,14 @@ export function AppRoutes() {
           </ProtectedPage>
         }
         path={ROUTE_PATHS.SYSTEM}
+      />
+      <Route
+        element={
+          <ProtectedPage routeKey="storage">
+            <StoragePage snapshot={snapshot} />
+          </ProtectedPage>
+        }
+        path={ROUTE_PATHS.STORAGE}
       />
       <Route
         element={

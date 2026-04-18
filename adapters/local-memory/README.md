@@ -1,24 +1,43 @@
 # local-memory
 
-`local-memory` 是当前 `local-minimal` profile 的默认适配器包。
+`local-memory` is the default in-memory adapter package used by the current `local-minimal`
+profile.
 
-提供能力：
+## What It Provides
 
 - `MemoryCommitJournal`
 - `MemoryMetadataStore`
 - `MemoryTimelineProjectionStore`
+- `MemoryRealtimeCheckpointStore`
+- `MemoryRealtimeDisconnectFenceStore`
+- `MemoryRealtimeSubscriptionStore`
+- `MemoryStreamStateStore`
+- `MemoryRtcStateStore`
+- `MemoryNotificationTaskStore`
+- `MemoryAutomationExecutionStore`
+- `MemoryPresenceStateStore`
+- `MemoryDeviceTwinStore`
+- `MemoryStorageDomainSnapshotStore`
 
-适用场景：
+## Storage Snapshot Store
 
-- 本地开发
-- 最小安装验证
-- 单节点联调
-- 契约与回归测试
+`MemoryStorageDomainSnapshotStore` is the in-memory reference adapter for the generic storage
+management module.
 
-限制：
+It stores `StorageDomainSnapshot` values keyed by `snapshot.catalog.domain` and is intended for:
 
-- 状态仅保存在进程内存中
-- 不提供重启恢复
-- 不提供多节点一致性
-- 不代表生产默认后端实现
+- local testing of storage runtime hydration and save flows
+- sandbox and profile baselines before a persistent adapter is wired in
+- validating adapter-facing behavior without duplicating provider-specific logic
 
+The semantics are intentionally simple:
+
+- unknown domains return `None`
+- saving the same domain overwrites the previous snapshot
+- different storage domains remain isolated from each other
+
+## What It Is Not
+
+This crate is not durable storage. It is a fast local adapter for tests, local runtime assembly,
+and reference behavior. Production backends still need persistent storage adapters built on the same
+`StorageDomainSnapshotStore` contract.

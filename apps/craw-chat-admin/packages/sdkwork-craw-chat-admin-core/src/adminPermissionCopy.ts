@@ -17,6 +17,8 @@ const ADMIN_PERMISSION_LABELS: Record<string, string> = {
   'admin.automation.read': 'Automation access',
   'admin.automation.write': 'Automation changes',
   'admin.realtime.read': 'Realtime posture access',
+  'admin.storage.read': 'Storage access',
+  'admin.storage.write': 'Storage changes',
   'admin.system.read': 'System governance access',
   'admin.settings.read': 'Settings access',
   'admin.settings.write': 'Settings changes',

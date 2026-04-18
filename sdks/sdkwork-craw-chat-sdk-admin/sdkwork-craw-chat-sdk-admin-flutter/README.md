@@ -1,28 +1,163 @@
 # sdkwork-craw-chat-sdk-admin Flutter
 
-当前目录保留给管理侧 `Flutter` facade。
+This language workspace packages the Flutter implementation for `sdkwork-craw-chat-sdk-admin`.
 
-## 预期职责
+Layout:
 
-- `control-plane` 读面
-- `protocol governance`
-- `compatibility matrix`
+- `generated/server-openapi`
+  OpenAPI-derived transport layer for the admin control-plane contract.
+- `composed`
+  Manual ergonomic layer that exposes `CrawChatAdminSdkClient` and admin-oriented modules.
+- `bin`
+  Language-local wrappers for generate, assemble, and verify entrypoints.
 
-## 当前约束
+Published package names:
 
-- 不承接 app-facing chat facade
-- 协议能力决策以 control-plane snapshot 为准
-- 当前先冻结路径与职责，不提前宣称生成代码已完成
+- generated: `craw_chat_admin_backend_sdk`
+- composed: `craw_chat_admin_sdk`
 
-## 当前发布边界
+## Consumer Rule
 
-- 当前 bundle 级发布目录真源：
-  - `artifacts/releases/wave-d-2026-04-08/sdk-release-catalog.json`
-- 当前 catalog 状态：
-  - `template_only_pending_generation`
-  - `not_published`
-- 当前版本占位状态：
-  - `plannedVersion = null`
-  - `versionStatus = version_unassigned_pending_freeze`
-  - `versionDecisionSourcePath = null`
-- 在真实生成与发布链补齐前，以 bundle catalog 为准，不在本 README 单独发明版本或发布结论
+Use the composed package as the supported Flutter boundary. It exposes
+`CrawChatAdminSdkClient` and the same semantic control-plane module split used by the TypeScript
+workspace.
+
+## Create The Client
+
+```dart
+import 'package:craw_chat_admin_sdk/craw_chat_admin_sdk.dart';
+
+final sdk = CrawChatAdminSdkClient.create(
+  baseUrl: 'https://admin.example.com',
+  authToken: '<token>',
+);
+```
+
+Preferred options are flat:
+
+- `baseUrl`
+- `authToken`
+- `headers`
+- `timeout`
+
+Advanced callers can still inject `backendClient`.
+
+## Semantic Modules
+
+- `sdk.meta`
+  Health and liveness checks.
+- `sdk.protocol`
+  Protocol registry and governance snapshots.
+- `sdk.providers`
+  Registry, effective bindings, diff, preview, rollback, and history.
+- `sdk.social`
+  Direct-chat, external-collaboration, friendship, shared-channel-policy, and block control.
+- `sdk.socialRuntime`
+  Shared-channel queue inventory plus repair, reclaim, republish, requeue, and takeover.
+- `sdk.nodes`
+  Drain, activate, and route migration operations.
+
+## Module To API Reference
+
+- `sdk.meta` and `sdk.protocol`
+  `docs/sites/api-reference/control-plane/protocol.md`
+- `sdk.providers`
+  `docs/sites/api-reference/control-plane/providers.md`
+- `sdk.social`
+  `docs/sites/api-reference/control-plane/social.md`
+- `sdk.socialRuntime`
+  `docs/sites/api-reference/control-plane/social-runtime.md`
+- `sdk.nodes`
+  `docs/sites/api-reference/control-plane/nodes.md`
+
+The Flutter package intentionally stays aligned to the generated control-plane authority. It does not
+re-export the browser-only `/api/admin/*` helpers that remain TypeScript-specific.
+
+Generation from this workspace:
+
+```powershell
+.\bin\sdk-gen.ps1
+```
+
+If local PowerShell execution policy blocks script execution, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\bin\sdk-gen.ps1
+```
+
+```bash
+./bin/sdk-gen.sh
+```
+
+Those `sdk-gen` wrappers forward to the root `sdkwork-craw-chat-sdk-admin/bin/generate-sdk.*`
+entrypoints and pin generation to the Flutter workspace.
+The forwarded generation path refreshes the checked-in authority contract, prepares the derived
+sdkgen input, regenerates the Flutter transport layer, then runs the Flutter verification chain
+before assembly metadata is refreshed.
+
+Assembly from this workspace:
+
+```powershell
+.\bin\sdk-assemble.ps1
+```
+
+If local PowerShell execution policy blocks script execution, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\bin\sdk-assemble.ps1
+```
+
+```bash
+./bin/sdk-assemble.sh
+```
+
+Those `sdk-assemble` wrappers forward to the root `sdkwork-craw-chat-sdk-admin/bin/assemble-sdk.*`
+entrypoints and pin assembly to the Flutter workspace.
+Use them when generated and composed manifests are already current and you only need to refresh
+workspace-level `.sdkwork-assembly.json` metadata.
+
+Verification from this workspace:
+
+```powershell
+.\bin\sdk-verify.ps1 -WithDart
+```
+
+If local PowerShell execution policy blocks script execution, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\bin\sdk-verify.ps1 -WithDart
+```
+
+```bash
+./bin/sdk-verify.sh --with-dart
+```
+
+Those `sdk-verify` wrappers forward to the root `sdkwork-craw-chat-sdk-admin/bin/verify-sdk.*`
+entrypoints and pin verification to the Flutter workspace.
+The forwarded verification path still delegates to `verify-flutter-workspace.mjs`, so one command
+rechecks generated-model regression coverage, admin usage-surface checks, public API boundary
+checks, and package metadata verification.
+
+Direct workspace verifier:
+
+```powershell
+node .\..\bin\verify-flutter-workspace.mjs
+```
+
+That workspace verification covers generated-model regression checks, admin usage-surface checks, public API boundary checks, and package metadata verification.
+
+Native Dart verification:
+
+```powershell
+node .\..\bin\verify-flutter-workspace.mjs --with-dart
+```
+
+On Windows, the workspace falls back to `..\bin\verify-flutter-dart-analysis.dart` instead of raw
+`dart analyze` so Dart analysis remains reliable when the bundled toolchain cannot spawn its own
+analysis helper process.
+
+Cross-language workspace verification:
+
+```powershell
+node .\..\bin\verify-sdk.mjs --language flutter --with-dart
+```

@@ -32,7 +32,7 @@ import {
   updateApiKeyStatus,
   updateOperatorUserStatus,
   updatePortalUserStatus,
-} from 'sdkwork-craw-chat-admin-admin-api';
+} from '@sdkwork/craw-chat-admin-sdk';
 import type {
   CreatedGatewayApiKey,
   RuntimeReloadReport,

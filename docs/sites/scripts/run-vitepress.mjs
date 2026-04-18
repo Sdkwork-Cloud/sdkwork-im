@@ -24,7 +24,7 @@ async function assertSpawnAvailable(command) {
         "",
         "Reason:",
         "- Node child process spawning is blocked with `EPERM`.",
-        "- VitePress uses Vite + esbuild to load `.vitepress/config.ts`, and that path requires spawning a subprocess.",
+        "- VitePress uses Vite + esbuild to load `.vitepress/config.ts` or `.vitepress/config.mjs`, and that path requires spawning a subprocess.",
         "",
         "What still works here:",
         "- `npm run docs:verify`",

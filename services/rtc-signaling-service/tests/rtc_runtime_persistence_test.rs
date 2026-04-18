@@ -11,11 +11,11 @@ use im_adapter_rtc_volcengine::VolcengineRtcProvider;
 use im_adapters_local_memory::MemoryRtcStateStore;
 use im_auth_context::AuthContext;
 use im_platform_contracts::{
-    ObjectStorageDownloadUrlRequest, ObjectStorageObjectDescriptor, ObjectStoragePresignedUpload,
-    ObjectStorageProvider, ObjectStoragePutRequest, ObjectStorageUploadUrlRequest, ProviderDomain,
-    ProviderHealthSnapshot, ProviderPluginDescriptor, RtcCallbackEvent, RtcCallbackRequest,
-    RtcCreateSessionRequest, RtcParticipantCredential, RtcProviderPort, RtcRecordingArtifact,
-    RtcSessionHandle, StaticProviderRegistry,
+    ObjectStorageDownloadUrlRequest, ObjectStorageObjectDescriptor, ObjectStorageProvider,
+    ObjectStoragePutRequest, ObjectStorageUploadSession, ObjectStorageUploadUrlRequest,
+    ProviderDomain, ProviderHealthSnapshot, ProviderPluginDescriptor, RtcCallbackEvent,
+    RtcCallbackRequest, RtcCreateSessionRequest, RtcParticipantCredential, RtcProviderPort,
+    RtcRecordingArtifact, RtcSessionHandle, StaticProviderRegistry,
 };
 use tower::ServiceExt;
 
@@ -245,19 +245,19 @@ impl ObjectStorageProvider for TrackingObjectStorageProvider {
     fn signed_upload_url(
         &self,
         request: ObjectStorageUploadUrlRequest,
-    ) -> Result<ObjectStoragePresignedUpload, ContractError> {
-        Ok(ObjectStoragePresignedUpload {
+    ) -> Result<ObjectStorageUploadSession, ContractError> {
+        Ok(ObjectStorageUploadSession {
             method: "PUT".into(),
             url: format!(
-                "{}/{}/{}?provider={}&expires={}&upload=put",
+                "{}/{}/{}?provider={}&expires={}&upload=1",
                 self.endpoint.trim_end_matches('/'),
                 request.bucket,
                 request.object_key,
                 self.plugin_id,
                 request.expires_in_seconds
             ),
-            headers: std::collections::BTreeMap::new(),
-            expires_in_seconds: request.expires_in_seconds,
+            headers: BTreeMap::new(),
+            expires_at: "2026-04-16T00:10:00.000Z".into(),
         })
     }
 

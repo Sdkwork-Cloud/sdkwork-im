@@ -38,6 +38,8 @@ const continuityCueByRoute: Record<AdminRouteKey, string> = {
     'Reconnect watch should remain pinned while degraded edges, failover windows, and live session recovery are being coordinated.',
   system:
     'Rollout risks and protocol change gates should remain explicit while runtime health or compatibility posture is being adjusted.',
+  storage:
+    'Storage policy, tenant fallback, and presigned upload posture should stay visible while providers, buckets, or secret rotation are being changed.',
   settings:
     'Shell posture changes affect the Command center, Operations pulse, and route visibility immediately across the operator workspace.',
 };

@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -10,9 +10,9 @@ use im_domain_core::media::{MediaResource, MediaResourceType};
 use im_domain_events::CommitEnvelope;
 use im_platform_contracts::{
     CommitJournal, CommitPosition, ContractError, ObjectStorageDownloadUrlRequest,
-    ObjectStorageObjectDescriptor, ObjectStoragePresignedUpload, ObjectStorageProvider,
-    ObjectStoragePutRequest, ObjectStorageUploadUrlRequest, ProviderDomain, ProviderHealthSnapshot,
-    ProviderPluginDescriptor, StaticProviderRegistry,
+    ObjectStorageObjectDescriptor, ObjectStorageProvider, ObjectStoragePutRequest,
+    ObjectStorageUploadSession, ObjectStorageUploadUrlRequest, ProviderDomain,
+    ProviderHealthSnapshot, ProviderPluginDescriptor, StaticProviderRegistry,
 };
 use tower::ServiceExt;
 
@@ -33,7 +33,7 @@ fn test_complete_upload_uses_deployment_selected_object_storage_provider() {
             &auth,
             media_service::CreateUploadRequest {
                 media_asset_id: "ma_provider_runtime".into(),
-                bucket: "media-demo".into(),
+                bucket: None,
                 object_key: None,
                 expires_in_seconds: None,
                 resource: MediaResource {
@@ -63,7 +63,7 @@ fn test_complete_upload_uses_deployment_selected_object_storage_provider() {
             media_service::CompleteUploadRequest {
                 bucket: "media-demo".into(),
                 object_key: "tenant/t_demo/ma_provider_runtime/demo.mp4".into(),
-                storage_provider: Some("object-storage-volcengine".into()),
+                storage_provider: None,
                 url: "https://ignored.example/demo.mp4".into(),
                 checksum: Some("sha256:demo".into()),
             },
@@ -99,7 +99,6 @@ async fn test_get_media_download_url_over_http() {
                 .body(Body::from(
                     r#"{
                         "mediaAssetId":"ma_provider_http",
-                        "bucket":"media-demo",
                         "resource":{
                             "uuid":"res_provider_http",
                             "type":"file",
@@ -129,7 +128,6 @@ async fn test_get_media_download_url_over_http() {
                     r#"{
                         "bucket":"media-demo",
                         "objectKey":"tenant/t_demo/ma_provider_http/demo.pdf",
-                        "storageProvider":"object-storage-volcengine",
                         "url":"https://ignored.example/demo.pdf"
                     }"#,
                 ))
@@ -187,7 +185,6 @@ async fn test_get_media_download_url_rejects_zero_ttl_over_http() {
                 .body(Body::from(
                     r#"{
                         "mediaAssetId":"ma_provider_zero_ttl",
-                        "bucket":"media-demo",
                         "resource":{
                             "uuid":"res_provider_zero_ttl",
                             "type":"file",
@@ -217,7 +214,6 @@ async fn test_get_media_download_url_rejects_zero_ttl_over_http() {
                     r#"{
                         "bucket":"media-demo",
                         "objectKey":"tenant/t_demo/ma_provider_zero_ttl/demo.pdf",
-                        "storageProvider":"object-storage-volcengine",
                         "url":"https://ignored.example/demo.pdf"
                     }"#,
                 ))
@@ -315,7 +311,7 @@ fn test_duplicate_complete_upload_retry_uses_existing_asset_without_reinvoking_p
             &auth,
             media_service::CreateUploadRequest {
                 media_asset_id: "ma_retry_complete".into(),
-                bucket: "media-demo".into(),
+                bucket: None,
                 object_key: None,
                 expires_in_seconds: None,
                 resource: MediaResource {
@@ -341,7 +337,7 @@ fn test_duplicate_complete_upload_retry_uses_existing_asset_without_reinvoking_p
     let request = media_service::CompleteUploadRequest {
         bucket: "media-demo".into(),
         object_key: "tenant/t_demo/ma_retry_complete/retry.png".into(),
-        storage_provider: Some("object-storage-volcengine".into()),
+        storage_provider: None,
         url: "https://ignored.example/retry.png".into(),
         checksum: Some("sha256:retry".into()),
     };
@@ -433,19 +429,19 @@ impl ObjectStorageProvider for VariableSignedUrlObjectStorageProvider {
     fn signed_upload_url(
         &self,
         request: ObjectStorageUploadUrlRequest,
-    ) -> Result<ObjectStoragePresignedUpload, ContractError> {
-        Ok(ObjectStoragePresignedUpload {
+    ) -> Result<ObjectStorageUploadSession, ContractError> {
+        Ok(ObjectStorageUploadSession {
             method: "PUT".into(),
             url: format!(
-                "{}/{}/{}?provider={}&expires={}&upload=put",
+                "{}/{}/{}?provider={}&expires={}&upload=1",
                 self.endpoint.trim_end_matches('/'),
                 request.bucket,
                 request.object_key,
                 self.plugin_id,
                 request.expires_in_seconds
             ),
-            headers: std::collections::BTreeMap::new(),
-            expires_in_seconds: request.expires_in_seconds,
+            headers: BTreeMap::new(),
+            expires_at: "2026-04-16T00:10:00.000Z".into(),
         })
     }
 

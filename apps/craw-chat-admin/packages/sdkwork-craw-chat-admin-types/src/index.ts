@@ -1,3 +1,5 @@
+export * from './storage';
+
 export type AdminRouteKey =
   | 'overview'
   | 'tenants'
@@ -10,6 +12,7 @@ export type AdminRouteKey =
   | 'announcements'
   | 'realtime'
   | 'system'
+  | 'storage'
   | 'settings';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
@@ -70,6 +73,7 @@ export type AdminRouteModuleId =
   | 'sdkwork-craw-chat-admin-announcements'
   | 'sdkwork-craw-chat-admin-realtime'
   | 'sdkwork-craw-chat-admin-system'
+  | 'sdkwork-craw-chat-admin-storage'
   | 'sdkwork-craw-chat-admin-settings';
 
 export interface AdminModuleLoadingPolicy {

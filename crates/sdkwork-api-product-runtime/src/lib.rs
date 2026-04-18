@@ -100,7 +100,12 @@ impl RouterProductRuntime {
         let admin_proxy_target = trim_trailing_slash(config.admin_proxy_target);
         let admin_sandbox = if admin_proxy_target.trim().is_empty() && config.admin_sandbox_enabled
         {
-            let state = SharedAdminSandboxState::seeded();
+            let state = match config.admin_sandbox_storage_file {
+                Some(storage_file) => {
+                    SharedAdminSandboxState::seeded_with_storage_file(storage_file)
+                }
+                None => SharedAdminSandboxState::seeded(),
+            };
             let credentials = state.login_credentials();
             eprintln!(
                 "warning: SDKWORK_ADMIN_SANDBOX is enabled. Admin sandbox login: {} / {} ({}). Override with SDKWORK_ADMIN_SANDBOX_EMAIL and SDKWORK_ADMIN_SANDBOX_PASSWORD.",
@@ -667,6 +672,7 @@ mod tests {
                 admin_proxy_target: String::new(),
                 portal_api_base_url: "http://127.0.0.1:18090".into(),
                 admin_sandbox_enabled: false,
+                admin_sandbox_storage_file: None,
             },
             RouterProductRuntimeOptions::desktop(site_dirs),
         )
@@ -820,6 +826,7 @@ mod tests {
                 admin_proxy_target: String::new(),
                 portal_api_base_url: "https://portal-api.example.com/runtime-edge".into(),
                 admin_sandbox_enabled: false,
+                admin_sandbox_storage_file: None,
             },
             RouterProductRuntimeOptions::desktop(ProductSiteDirs::new(
                 admin_site_dir.path().to_path_buf(),
@@ -963,6 +970,7 @@ mod tests {
                 admin_proxy_target: String::new(),
                 portal_api_base_url: "http://127.0.0.1:18090".into(),
                 admin_sandbox_enabled: false,
+                admin_sandbox_storage_file: None,
             },
             RouterProductRuntimeOptions::desktop(ProductSiteDirs::new(
                 admin_site_dir.path().to_path_buf(),
@@ -989,6 +997,7 @@ mod tests {
                 admin_proxy_target: String::new(),
                 portal_api_base_url: "http://127.0.0.1:18090".into(),
                 admin_sandbox_enabled: false,
+                admin_sandbox_storage_file: None,
             },
             RouterProductRuntimeOptions::desktop(ProductSiteDirs::new(
                 admin_site_dir.path().to_path_buf(),
@@ -1061,5 +1070,6 @@ mod tests {
         let config_source = include_str!("../../sdkwork-api-config/src/lib.rs");
 
         assert!(config_source.contains("SDKWORK_ADMIN_SANDBOX"));
+        assert!(config_source.contains("SDKWORK_ADMIN_SANDBOX_STORAGE_FILE"));
     }
 }

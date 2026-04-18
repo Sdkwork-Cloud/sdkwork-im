@@ -9,22 +9,22 @@ class MediaApi {
   MediaApi(this._client);
 
   /// Create a media upload record
-  Future<MediaAsset?> createMediaUpload(CreateUploadRequest body) async {
+  Future<MediaUploadMutationResponse?> createMediaUpload(CreateUploadRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.backendPath('/media/uploads'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : MediaAsset.fromJson(map);
+      return map == null ? null : MediaUploadMutationResponse.fromJson(map);
     })();
   }
 
   /// Complete a media upload
-  Future<MediaAsset?> completeMediaUpload(String mediaAssetId, CompleteUploadRequest body) async {
+  Future<MediaUploadMutationResponse?> completeMediaUpload(String mediaAssetId, CompleteUploadRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.backendPath('/media/uploads/$mediaAssetId/complete'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : MediaAsset.fromJson(map);
+      return map == null ? null : MediaUploadMutationResponse.fromJson(map);
     })();
   }
 

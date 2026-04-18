@@ -50,6 +50,7 @@ const routeIconByKey: Record<AdminRouteKey, LucideIcon> = {
   realtime: Monitor,
   settings: Settings2,
   system: ServerCog,
+  storage: ServerCog,
   tenants: Building2,
   users: CircleUserRound,
 };

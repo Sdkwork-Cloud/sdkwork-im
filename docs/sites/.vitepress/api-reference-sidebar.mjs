@@ -48,6 +48,8 @@ export const groupedPages = [
     pages: [
       { text: "Protocol Governance", link: "/api-reference/control-plane/protocol" },
       { text: "Provider Governance", link: "/api-reference/control-plane/providers" },
+      { text: "Social Graph Control", link: "/api-reference/control-plane/social" },
+      { text: "Social Runtime", link: "/api-reference/control-plane/social-runtime" },
       { text: "Node Operations", link: "/api-reference/control-plane/nodes" },
     ],
   },
@@ -218,6 +220,66 @@ export const pageOperationGroups = {
     { text: "Registry and Effective Bindings", anchors: ["get-provider-registry", "get-provider-bindings", "upsert-provider-binding-policy"] },
     { text: "Policy History and Diff", anchors: ["get-provider-policy-history", "get-provider-policy-diff"] },
     { text: "Preview and Rollback", anchors: ["preview-provider-policy", "rollback-provider-policy"] },
+  ],
+  "/api-reference/control-plane/social": [
+    { text: "Direct Chat Binding", anchors: ["bind-direct-chat", "get-direct-chat-snapshot"] },
+    {
+      text: "External Collaboration",
+      anchors: [
+        "establish-external-connection",
+        "get-external-connection-snapshot",
+        "bind-external-member-link",
+        "get-external-member-link-snapshot",
+      ],
+    },
+    {
+      text: "Friend Graph",
+      anchors: [
+        "submit-friend-request",
+        "get-friend-request-snapshot",
+        "activate-friendship",
+        "get-friendship-snapshot",
+      ],
+    },
+    {
+      text: "Shared Channel Policy and Blocking",
+      anchors: [
+        "apply-shared-channel-policy",
+        "get-shared-channel-policy-snapshot",
+        "block-user",
+        "get-user-block-snapshot",
+      ],
+    },
+  ],
+  "/api-reference/control-plane/social-runtime": [
+    {
+      text: "Pending Queue Control",
+      anchors: [
+        "get-pending-shared-channel-sync-inventory",
+        "claim-pending-shared-channel-sync-targeted",
+        "release-pending-shared-channel-sync-targeted",
+        "reclaim-stale-pending-shared-channel-sync",
+        "republish-pending-shared-channel-sync-targeted",
+        "takeover-pending-shared-channel-sync-targeted",
+      ],
+    },
+    {
+      text: "Delivery and Dead Letter",
+      anchors: [
+        "get-delivery-state-shared-channel-sync-inventory",
+        "get-delivered-shared-channel-sync-inventory",
+        "get-dead-letter-shared-channel-sync-inventory",
+        "requeue-dead-letter-shared-channel-sync",
+        "requeue-dead-letter-shared-channel-sync-targeted",
+      ],
+    },
+    {
+      text: "Repair",
+      anchors: [
+        "repair-social-runtime-snapshot",
+        "repair-shared-channel-sync",
+      ],
+    },
   ],
   "/api-reference/control-plane/nodes": [
     { text: "Lifecycle", anchors: ["drain-node", "activate-node"] },

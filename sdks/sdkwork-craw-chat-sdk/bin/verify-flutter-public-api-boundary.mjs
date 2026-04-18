@@ -1,7 +1,11 @@
 #!/usr/bin/env node
-import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  finishFileExpectationVerification,
+  readWorkspaceSource,
+  readWorkspaceSources,
+} from '../../workspace-file-expectation-shared.mjs';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = path.resolve(scriptDir, '..');
@@ -39,7 +43,31 @@ const files = [
 ];
 
 const failures = [];
-const generatedPublicSource = readFileSync(flutterGeneratedPublicEntrypoint, 'utf8');
+const { generatedPublicSource, flutterEntrypointSource, flutterTypesSource } = readWorkspaceSources({
+  workspaceRoot,
+  files: {
+    generatedPublicSource: path.join(
+      'sdkwork-craw-chat-sdk-flutter',
+      'generated',
+      'server-openapi',
+      'lib',
+      'backend_sdk.dart',
+    ),
+    flutterEntrypointSource: path.join(
+      'sdkwork-craw-chat-sdk-flutter',
+      'composed',
+      'lib',
+      'craw_chat_sdk.dart',
+    ),
+    flutterTypesSource: path.join(
+      'sdkwork-craw-chat-sdk-flutter',
+      'composed',
+      'lib',
+      'src',
+      'types.dart',
+    ),
+  },
+});
 
 if (!generatedPublicSource.includes("export 'src/models.dart';")) {
   failures.push('generated/server-openapi/lib/backend_sdk.dart must publicly export src/models.dart.');
@@ -47,20 +75,29 @@ if (!generatedPublicSource.includes("export 'src/models.dart';")) {
 if (!generatedPublicSource.includes("export 'backend_client.dart';")) {
   failures.push('generated/server-openapi/lib/backend_sdk.dart must publicly export backend_client.dart.');
 }
+if (!/class CrawChatSdkClient\s*\{/.test(flutterEntrypointSource)) {
+  failures.push('composed/lib/craw_chat_sdk.dart must define CrawChatSdkClient.');
+}
+if (!/class CrawChatSdkClientOptions\s*\{/.test(flutterTypesSource)) {
+  failures.push('composed/lib/src/types.dart must define CrawChatSdkClientOptions.');
+}
+if (/class CrawChatClient\s*\{/.test(flutterEntrypointSource)) {
+  failures.push('composed/lib/craw_chat_sdk.dart must not keep the legacy CrawChatClient name.');
+}
 
 for (const relativePath of files) {
-  const source = readFileSync(path.join(flutterComposedRoot, relativePath), 'utf8');
+  const source = readWorkspaceSource({
+    workspaceRoot: flutterComposedRoot,
+    relativePath,
+  });
   if (source.includes("package:backend_sdk/src/")) {
     failures.push(`${relativePath} imports or exports backend_sdk private src paths.`);
   }
 }
 
-if (failures.length > 0) {
-  console.error('[sdkwork-craw-chat-sdk] Flutter public API boundary verification failed:');
-  for (const failure of failures) {
-    console.error(`- ${failure}`);
-  }
-  process.exit(1);
-}
-
-console.log('[sdkwork-craw-chat-sdk] Flutter public API boundary verification passed.');
+finishFileExpectationVerification({
+  prefix: 'sdkwork-craw-chat-sdk',
+  failures,
+  failureHeader: 'Flutter public API boundary verification failed:',
+  successMessage: '[sdkwork-craw-chat-sdk] Flutter public API boundary verification passed.',
+});

@@ -54,6 +54,39 @@ const streamFrameFields: ApiSchemaField[] = [
   field("occurredAt", "date-time string", "Frame timestamp.", { required: true }),
 ];
 
+const mediaUploadSessionFields: ApiSchemaField[] = [
+  field("assetId", "string", "Media asset identifier.", { required: true }),
+  field("storageProvider", "string", "Selected object storage provider plugin.", { required: true }),
+  field("bucket", "string", "Object storage bucket.", { required: true }),
+  field("objectKey", "string", "Object storage key.", { required: true }),
+  field("method", "string", "Presigned upload HTTP method.", { required: true }),
+  field("url", "string", "Presigned upload URL.", { required: true }),
+  field("headers", "Record<string, string>", "Signed headers required by the upload target.", {
+    required: true,
+  }),
+  field("expiresAt", "date-time string", "Upload session expiry timestamp.", { required: true }),
+];
+
+const mediaUploadMutationResponseFields: ApiSchemaField[] = [
+  ...mediaAssetFields,
+  objectField("upload", "Presigned upload session for direct binary transfer.", mediaUploadSessionFields, {
+    summary: "View nested fields for upload",
+  }),
+  field(
+    "requestKey",
+    "string",
+    "Idempotency proof key for the media mutation request.",
+    { required: true },
+  ),
+  field(
+    "deliveryStatus",
+    "string",
+    "Mutation delivery status. Supported values: applied, replayed.",
+    { required: true },
+  ),
+  field("proofVersion", "string", "Delivery proof contract version.", { required: true }),
+];
+
 export const appMediaStreamSchemas: ApiSchemaDefinitionMap = {
   CreateUploadRequest: {
     fields: [
@@ -79,6 +112,12 @@ export const appMediaStreamSchemas: ApiSchemaDefinitionMap = {
   },
   MediaAsset: {
     fields: mediaAssetFields,
+  },
+  MediaUploadSession: {
+    fields: mediaUploadSessionFields,
+  },
+  MediaUploadMutationResponse: {
+    fields: mediaUploadMutationResponseFields,
   },
   MediaResource: {
     fields: mediaResourceFields,

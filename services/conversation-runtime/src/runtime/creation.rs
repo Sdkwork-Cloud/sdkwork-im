@@ -303,7 +303,8 @@ where
                 command.conversation_id
             )));
         }
-        if let Some(existing_conversation_id) = state.business_index.get(business_scope_key.as_str())
+        if let Some(existing_conversation_id) =
+            state.business_index.get(business_scope_key.as_str())
         {
             return Err(RuntimeError::Conflict(format!(
                 "thread root message {} already mapped to conversation {existing_conversation_id}",
@@ -326,7 +327,9 @@ where
         let parent_conversation = state
             .conversations
             .get(parent_scope_key.as_str())
-            .ok_or_else(|| RuntimeError::ConversationNotFound(command.parent_conversation_id.clone()))?;
+            .ok_or_else(|| {
+                RuntimeError::ConversationNotFound(command.parent_conversation_id.clone())
+            })?;
         if parent_conversation.aggregate.scenario() != ConversationScenario::Group {
             return Err(RuntimeError::ConversationTypeInvalid(format!(
                 "thread parent conversation {} must be group, got {}",
@@ -366,14 +369,14 @@ where
             ),
             ("rootMessageId".into(), command.root_message_id.clone()),
         ]);
-        validate_member_attributes_payload_size(
-            "threadOwnerAttributes",
-            &thread_owner_attributes,
-        )?;
+        validate_member_attributes_payload_size("threadOwnerAttributes", &thread_owner_attributes)?;
         let thread_owner = build_conversation_member_with_attributes(
             command.tenant_id.as_str(),
             command.conversation_id.as_str(),
-            member_id(command.conversation_id.as_str(), command.creator_id.as_str()),
+            member_id(
+                command.conversation_id.as_str(),
+                command.creator_id.as_str(),
+            ),
             command.creator_id.as_str(),
             creator_kind,
             MembershipRole::Owner,

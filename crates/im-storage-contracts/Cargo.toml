@@ -1,0 +1,10 @@
+[package]
+name = "im-storage-contracts"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+craw-chat-contract-core = { path = "../craw-chat-contract-core" }
+serde.workspace = true
+serde_json.workspace = true

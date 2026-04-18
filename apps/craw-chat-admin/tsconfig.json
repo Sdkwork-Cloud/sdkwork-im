@@ -18,17 +18,17 @@
     "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
-      "@sdkwork/ui-pc-react": ["src/types/sdkwork-ui-pc-react-shim.d.ts"],
-      "@sdkwork/ui-pc-react/theme": [
-        "node_modules/@sdkwork/ui-pc-react/src/theme/index.ts"
-      ],
-      "@sdkwork/ui-pc-react/*": ["node_modules/@sdkwork/ui-pc-react/src/*"],
-      "@sdkwork/ui-pc-react/styles.css": [
-        "node_modules/@sdkwork/ui-pc-react/src/styles/sdkwork-ui.css"
-      ],
       "motion/react": ["src/vendor/motion-react.tsx"],
+      "@sdkwork/ui-pc-react": ["src/types/sdkwork-ui-pc-react-shim.d.ts"],
+      "@sdkwork/ui-pc-react/theme": ["../../../../../sdkwork-ui/sdkwork-ui-pc-react/dist/theme/index.d.ts"],
+      "@sdkwork/ui-pc-react/*": ["../../../../../sdkwork-ui/sdkwork-ui-pc-react/dist/*"],
+      "@sdkwork/ui-pc-react/styles.css": [
+        "../../../../../sdkwork-ui/sdkwork-ui-pc-react/dist/sdkwork-ui.css"
+      ],
+      "@sdkwork/craw-chat-admin-sdk": [
+        "../../sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-typescript/composed/src/index.ts"
+      ],
       "sdkwork-craw-chat-admin-conversations": ["packages/sdkwork-craw-chat-admin-conversations/src/index.tsx"],
-      "sdkwork-craw-chat-admin-admin-api": ["packages/sdkwork-craw-chat-admin-admin-api/src/index.ts"],
       "sdkwork-craw-chat-admin-auth": ["packages/sdkwork-craw-chat-admin-auth/src/index.tsx"],
       "sdkwork-craw-chat-admin-groups": ["packages/sdkwork-craw-chat-admin-groups/src/index.tsx"],
       "sdkwork-craw-chat-admin-automation": ["packages/sdkwork-craw-chat-admin-automation/src/index.tsx"],
@@ -40,6 +40,7 @@
       "sdkwork-craw-chat-admin-realtime": ["packages/sdkwork-craw-chat-admin-realtime/src/index.tsx"],
       "sdkwork-craw-chat-admin-settings": ["packages/sdkwork-craw-chat-admin-settings/src/index.tsx"],
       "sdkwork-craw-chat-admin-shell": ["packages/sdkwork-craw-chat-admin-shell/src/index.ts"],
+      "sdkwork-craw-chat-admin-storage": ["packages/sdkwork-craw-chat-admin-storage/src/index.tsx"],
       "sdkwork-craw-chat-admin-tenants": ["packages/sdkwork-craw-chat-admin-tenants/src/index.tsx"],
       "sdkwork-craw-chat-admin-messages": ["packages/sdkwork-craw-chat-admin-messages/src/index.tsx"],
       "sdkwork-craw-chat-admin-types": ["packages/sdkwork-craw-chat-admin-types/src/index.ts"],
@@ -49,7 +50,6 @@
   "include": [
     "src",
     "vite.config.ts",
-    "packages/sdkwork-craw-chat-admin-admin-api/src/**/*.ts",
     "packages/sdkwork-craw-chat-admin-auth/src/**/*.tsx",
     "packages/sdkwork-craw-chat-admin-core/src/**/*.ts",
     "packages/sdkwork-craw-chat-admin-core/src/**/*.tsx",
@@ -64,6 +64,8 @@
     "packages/sdkwork-craw-chat-admin-announcements/src/index.tsx",
     "packages/sdkwork-craw-chat-admin-realtime/src/index.tsx",
     "packages/sdkwork-craw-chat-admin-system/src/index.tsx",
+    "packages/sdkwork-craw-chat-admin-storage/src/**/*.ts",
+    "packages/sdkwork-craw-chat-admin-storage/src/**/*.tsx",
     "packages/sdkwork-craw-chat-admin-settings/src/index.tsx",
     "packages/sdkwork-craw-chat-admin-shell/src/**/*.ts",
     "packages/sdkwork-craw-chat-admin-shell/src/**/*.tsx",

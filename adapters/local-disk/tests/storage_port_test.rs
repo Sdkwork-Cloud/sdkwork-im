@@ -5,12 +5,17 @@ use std::thread;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use im_adapters_local_disk::{
-    FileCommitJournal, FileMetadataStore, FileTimelineProjectionStore, read_commit_journal_file,
-    validate_metadata_store_file, validate_timeline_projection_store_file,
+    FileCommitJournal, FileMetadataStore, FileStorageDomainSnapshotStore,
+    FileTimelineProjectionStore, read_commit_journal_file, validate_metadata_store_file,
+    validate_storage_domain_snapshot_store_file, validate_timeline_projection_store_file,
 };
 use im_platform_contracts::{
     CommitEnvelope, CommitJournal, ContractError, MetadataSnapshotRecord, MetadataStore,
     TimelineProjectionBatch, TimelineProjectionRecord, TimelineProjectionStore,
+};
+use im_storage_contracts::{
+    StorageBindingRecord, StorageCatalog, StorageConfigRecord, StorageCredentialMode,
+    StorageDomainSnapshot, StorageDomainSnapshotStore, StorageSecretRecord,
 };
 
 fn unique_store_file(prefix: &str) -> PathBuf {
@@ -30,6 +35,12 @@ fn commit_envelope(thread_id: usize, seq: usize) -> CommitEnvelope {
         &format!("agg_{thread_id}"),
         seq as u64,
     )
+}
+
+fn object_storage_snapshot(provider_plugin_id: &str) -> StorageDomainSnapshot {
+    StorageDomainSnapshot::new(StorageCatalog::object_storage())
+        .with_binding(StorageBindingRecord::new_global(provider_plugin_id))
+        .with_config(StorageConfigRecord::new_global(provider_plugin_id))
 }
 
 #[test]
@@ -351,6 +362,107 @@ fn test_validate_timeline_projection_store_file_rejects_array_shape() {
         other => panic!("unexpected error variant: {other:?}"),
     };
     assert!(message.contains("failed to parse timeline projection store"));
+
+    let _ = fs::remove_file(file_path);
+}
+
+#[test]
+fn test_file_storage_domain_snapshot_store_persists_latest_snapshot_across_reopen() {
+    let file_path = unique_store_file("storage_snapshot_store");
+    let store = FileStorageDomainSnapshotStore::new(&file_path);
+
+    store
+        .save_snapshot(object_storage_snapshot("object-storage-aws"))
+        .expect("first storage snapshot should succeed");
+    store
+        .save_snapshot(
+            object_storage_snapshot("object-storage-google").with_secret(
+                StorageSecretRecord::new_global(
+                    "object-storage-google",
+                    StorageCredentialMode::ServiceAccountJson,
+                    "{\"serviceAccountJson\":{\"client_email\":\"storage@sdkwork.local\"}}",
+                )
+                .with_secret_fingerprint("fp-object-storage-google"),
+            ),
+        )
+        .expect("second storage snapshot should succeed");
+
+    let reopened = FileStorageDomainSnapshotStore::new(&file_path);
+    let snapshot = reopened
+        .load_snapshot("object-storage")
+        .expect("storage snapshot load should succeed")
+        .expect("storage snapshot should exist");
+
+    assert_eq!(snapshot.bindings.len(), 1);
+    assert_eq!(
+        snapshot.bindings[0].provider_plugin_id,
+        "object-storage-google"
+    );
+    assert_eq!(snapshot.secrets.len(), 1);
+    assert_eq!(
+        snapshot.secrets[0].secret_fingerprint,
+        "fp-object-storage-google"
+    );
+
+    let _ = fs::remove_file(file_path);
+}
+
+#[test]
+fn test_file_storage_domain_snapshot_store_isolates_domains_across_reopen() {
+    let file_path = unique_store_file("storage_snapshot_store_domain_isolation");
+    let store = FileStorageDomainSnapshotStore::new(&file_path);
+
+    store
+        .save_snapshot(object_storage_snapshot("object-storage-aws"))
+        .expect("object storage snapshot should succeed");
+    store
+        .save_snapshot(
+            StorageDomainSnapshot::new(StorageCatalog {
+                domain: "chat-archive".into(),
+                provider_schemas: Vec::new(),
+            })
+            .with_binding(StorageBindingRecord::new_global("archive-provider"))
+            .with_config(StorageConfigRecord::new_global("archive-provider")),
+        )
+        .expect("archive snapshot should succeed");
+
+    let reopened = FileStorageDomainSnapshotStore::new(&file_path);
+    let object_storage = reopened
+        .load_snapshot("object-storage")
+        .expect("object storage snapshot load should succeed")
+        .expect("object storage snapshot should exist");
+    let chat_archive = reopened
+        .load_snapshot("chat-archive")
+        .expect("chat archive snapshot load should succeed")
+        .expect("chat archive snapshot should exist");
+
+    assert_eq!(object_storage.catalog.domain, "object-storage");
+    assert_eq!(
+        object_storage.bindings[0].provider_plugin_id,
+        "object-storage-aws"
+    );
+    assert_eq!(chat_archive.catalog.domain, "chat-archive");
+    assert_eq!(
+        chat_archive.bindings[0].provider_plugin_id,
+        "archive-provider"
+    );
+
+    let _ = fs::remove_file(file_path);
+}
+
+#[test]
+fn test_validate_storage_domain_snapshot_store_file_rejects_array_shape() {
+    let file_path = unique_store_file("storage_snapshot_store_invalid");
+    fs::write(&file_path, b"[]").expect("storage snapshot store file should be written");
+
+    let error = validate_storage_domain_snapshot_store_file(&file_path)
+        .expect_err("array-shaped storage snapshot store should be rejected");
+    assert!(matches!(error, ContractError::Unavailable(_)));
+    let message = match error {
+        ContractError::Unavailable(message) => message,
+        other => panic!("unexpected error variant: {other:?}"),
+    };
+    assert!(message.contains("failed to parse storage domain snapshot store"));
 
     let _ = fs::remove_file(file_path);
 }
