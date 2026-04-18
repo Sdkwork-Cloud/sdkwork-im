@@ -20,11 +20,11 @@
     "paths": {
       "@sdkwork/ui-pc-react": ["src/types/sdkwork-ui-pc-react-shim.d.ts"],
       "@sdkwork/ui-pc-react/theme": [
-        "../../../sdkwork-ui/sdkwork-ui-pc-react/dist/theme/index.d.ts"
+        "node_modules/@sdkwork/ui-pc-react/src/theme/index.ts"
       ],
-      "@sdkwork/ui-pc-react/*": ["../../../sdkwork-ui/sdkwork-ui-pc-react/dist/*"],
+      "@sdkwork/ui-pc-react/*": ["node_modules/@sdkwork/ui-pc-react/src/*"],
       "@sdkwork/ui-pc-react/styles.css": [
-        "../../../sdkwork-ui/sdkwork-ui-pc-react/dist/sdkwork-ui.css"
+        "node_modules/@sdkwork/ui-pc-react/src/styles/sdkwork-ui.css"
       ],
       "motion/react": ["src/vendor/motion-react.tsx"],
       "sdkwork-craw-chat-admin-conversations": ["packages/sdkwork-craw-chat-admin-conversations/src/index.tsx"],

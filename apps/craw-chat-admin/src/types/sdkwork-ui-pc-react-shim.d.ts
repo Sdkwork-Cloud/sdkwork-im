@@ -1,1 +1,1 @@
-export * from '../../../../../sdkwork-ui/sdkwork-ui-pc-react/dist/index';
+export * from '../../node_modules/@sdkwork/ui-pc-react/src/index.ts';

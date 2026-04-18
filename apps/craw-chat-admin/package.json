@@ -7,13 +7,14 @@
     "app:update-create": "node -e \"console.log('craw-chat-admin does not require app:update-create bootstrap in this workspace')\"",
     "dev": "node ../../scripts/dev/run-vite-cli.mjs --configLoader native --host 0.0.0.0",
     "build": "node ../../scripts/dev/run-vite-cli.mjs build --configLoader native",
+    "test": "node --test --experimental-test-isolation=none tests/*.test.mjs",
     "typecheck": "node ../../scripts/dev/run-tsc-cli.mjs --noEmit",
     "preview": "node ../../scripts/dev/run-vite-cli.mjs preview --configLoader native --host 0.0.0.0 --port 4173 --strictPort",
     "tauri:dev": "node ../../scripts/run-tauri-cli.mjs dev",
     "tauri:build": "node ../../scripts/run-tauri-cli.mjs build"
   },
   "dependencies": {
-    "@sdkwork/ui-pc-react": "file:../../../sdkwork-ui/sdkwork-ui-pc-react",
+    "@sdkwork/ui-pc-react": "workspace:*",
     "lucide-react": "1.7.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",

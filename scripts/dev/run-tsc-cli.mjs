@@ -21,6 +21,7 @@ const REQUIRED_APP_PACKAGES = [
   'react-dom',
   'react-router-dom',
   'tailwindcss',
+  'typescript',
   'vite',
 ];
 

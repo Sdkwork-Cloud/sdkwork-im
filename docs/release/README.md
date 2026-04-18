@@ -41,3 +41,11 @@
 ## 5. 更新规则
 
 只要代码、行为、契约、测试结论、step 闭环状态、架构回写结论发生变化，就必须更新 `CHANGELOG.md` 与本轮 loop 文档。
+
+## 6. 商业化交付统一验证入口
+
+- 进入 release / go-no-go 评估前，必须先执行 `node scripts/release/commercial-readiness.mjs`
+- 该命令按固定顺序运行 admin install/test/typecheck/build、portal test/build、control-plane API、commercial contract、session-gateway、performance baseline 与 drill catalog
+- 若任一验证命令执行失败、依赖缺失、或 `capacity-tier-evidence-index.json` 无法读取 / 解析，则命令必须以 `exit code 1` 失败退出，并视为验证链路异常
+- 若代码验证全部通过，但 `artifacts/perf/step-11/capacity/capacity-tier-evidence-index.json` 仍处于模板或待采集状态，则命令必须以 `exit code 2` 阻断发布结论
+- 只有当统一验证命令返回 `0`，且容量证据索引显示已完成真实采集，才允许在 release / commercial readiness 文档中声明“可商用交付”

@@ -113,6 +113,14 @@
 - [`性能与灾备演练场景.md`](./性能与灾备演练场景.md)
 - [`快速启动脚本.md`](./快速启动脚本.md)
 
+### 4.4 commercial release gate
+
+- `node scripts/release/commercial-readiness.mjs`
+  - 作为统一 commercial readiness 入口，串行执行 frontend / backend / contract / performance 基线验证
+  - 若依赖命令执行失败、运行环境缺失、或容量证据索引无法读取 / 解析，必须以 `exit code 1` 失败退出
+  - 若 `artifacts/perf/step-11/capacity/capacity-tier-evidence-index.json` 仍是模板或待采集状态，必须以 `exit code 2` 阻断发布
+  - release 口径、阻断语义与文档要求以 [`../release/README.md`](../release/README.md) 为准
+
 ## 5. 当前使用建议
 
 当需要从治理结论一路追到真实消费面时，按下面顺序看：
@@ -127,7 +135,10 @@
 3. 再看 CLI / operator 入口：
    - `craw-chat-cli`
    - `open-chat-test`
-4. 最后看 contract / E2E：
+4. 再看 commercial release gate：
+   - `node scripts/release/commercial-readiness.mjs`
+   - `docs/release/README.md`
+5. 最后看 contract / E2E：
    - `chat_cli_contract_test.rs`
    - `chat_cli_e2e_test.rs`
 
