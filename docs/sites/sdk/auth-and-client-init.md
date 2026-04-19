@@ -18,17 +18,18 @@ If you are documenting or implementing a public consumer path, prefer bearer-tok
 
 | Language | Preferred client surface | Auth update method |
 | --- | --- | --- |
-| TypeScript | `CrawChatClient.create({ backendConfig })` | `client.setAuthToken(token)` |
-| Flutter | `CrawChatClient.create(...)` | `client.setAuthToken(token)` |
-| Rust | `CrawChatClient::new_with_base_url(...)` | `client.set_auth_token(token)` |
+| TypeScript | `new ImSdkClient({ baseUrl, authToken })` | `sdk.auth.useToken(token)` |
+| Flutter | `ImSdkClient.create(...)` | `client.setAuthToken(token)` |
+| Rust | `ImSdkClient::new_with_base_url(...)` | `client.set_auth_token(token)` |
 
 All three languages also expose the generated transport layer, but the preferred integration surface
-is the manual-owned `composed` layer.
+is the official app-facing client for each language. TypeScript now ships that public contract from
+the root `@sdkwork/im-sdk` package.
 
 ## Shared Initialization Flow
 
 1. resolve the app base URL
-2. create the composed `CrawChatClient`
+2. create the preferred app client
 3. set or inject the bearer token
 4. route work through the semantic modules
 5. drop to the App API reference only when you need exact payload or operation detail
@@ -36,15 +37,14 @@ is the manual-owned `composed` layer.
 ## TypeScript
 
 ```ts
-import { CrawChatClient, type SdkworkBackendConfig } from "@sdkwork/craw-chat-sdk";
+import { ImSdkClient } from "@sdkwork/im-sdk";
 
-const backendConfig: SdkworkBackendConfig = {
+const sdk = new ImSdkClient({
   baseUrl: "http://127.0.0.1:18090",
   authToken: process.env.CRAW_CHAT_TOKEN,
-};
+});
 
-const client = await CrawChatClient.create({ backendConfig });
-const session = await client.session.resume({
+const session = await sdk.session.resume({
   deviceId: "device-web-01",
   lastSeenSyncSeq: 0,
 });
@@ -53,9 +53,9 @@ const session = await client.session.resume({
 ## Flutter
 
 ```dart
-import 'package:craw_chat_sdk/craw_chat_sdk.dart';
+import 'package:im_sdk/im_sdk.dart';
 
-final client = CrawChatClient.create(
+final client = ImSdkClient.create(
   baseUrl: 'http://127.0.0.1:18090',
   authToken: token,
 );
@@ -71,9 +71,9 @@ final session = await client.session.resume(
 ## Rust
 
 ```rust
-use craw_chat_sdk::{CrawChatClient, ResumeSessionRequest};
+use im_sdk::{ImSdkClient, ResumeSessionRequest};
 
-let client = CrawChatClient::new_with_base_url("http://127.0.0.1:18090")?;
+let client = ImSdkClient::new_with_base_url("http://127.0.0.1:18090")?;
 client.set_auth_token(token);
 
 let session = client
@@ -88,7 +88,9 @@ let session = client
 ## Ownership Boundary
 
 - `generated/server-openapi` is generator-owned transport output
-- `composed` is the manual-owned client surface documented here
+- TypeScript assembles that generated boundary into the root `@sdkwork/im-sdk` package under
+  `src/generated/**`
+- `composed` remains the manual-owned authoring layer or semantic reserve before publication
 - if a generated behavior needs to change, change the contract or generator inputs and regenerate
 
 ## Realtime Transport Note

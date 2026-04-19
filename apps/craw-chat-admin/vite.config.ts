@@ -44,23 +44,13 @@ type ReleaseSafetyModule = {
   }): Plugin;
 };
 
-const managementSdkComposedDistRoot = path.join(
+const imAdminSdkGeneratedDistRoot = path.join(
   configDir,
   '..',
   '..',
   'sdks',
-  'sdkwork-craw-chat-sdk-management',
-  'sdkwork-craw-chat-sdk-management-typescript',
-  'composed',
-  'dist',
-);
-const managementSdkGeneratedDistRoot = path.join(
-  configDir,
-  '..',
-  '..',
-  'sdks',
-  'sdkwork-craw-chat-sdk-management',
-  'sdkwork-craw-chat-sdk-management-typescript',
+  'sdkwork-im-admin-sdk',
+  'sdkwork-im-admin-sdk-typescript',
   'generated',
   'server-openapi',
   'dist',
@@ -76,9 +66,7 @@ const sdkCommonDistRoot = path.join(
 );
 
 const sdkworkUiPackageRoots = [
-  path.join(configDir, '..', '..', '..', 'sdkwork-ui', 'sdkwork-ui-pc-react'),
-  path.join(configDir, '..', '..', '..', '..', '..', 'sdkwork-ui', 'sdkwork-ui-pc-react'),
-  path.join(configDir, 'node_modules', '@sdkwork', 'ui-pc-react'),
+  path.join(configDir, 'packages', 'sdkwork-ui-pc-react'),
 ];
 
 function resolveSdkworkUiDistEntry(entryPath: string) {
@@ -169,24 +157,24 @@ function adminSandboxPlugin(
 }
 
 const workspacePackageAliases = [
-  ['@sdkwork/craw-chat-admin-sdk', '../../sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-typescript/composed/src/index.ts'],
-  ['sdkwork-craw-chat-admin-auth', 'packages/sdkwork-craw-chat-admin-auth/src/index.tsx'],
-  ['sdkwork-craw-chat-admin-core', 'packages/sdkwork-craw-chat-admin-core/src/index.tsx'],
-  ['sdkwork-craw-chat-admin-shell', 'packages/sdkwork-craw-chat-admin-shell/src/index.ts'],
-  ['sdkwork-craw-chat-admin-types', 'packages/sdkwork-craw-chat-admin-types/src/index.ts'],
-  ['sdkwork-craw-chat-admin-overview', 'packages/sdkwork-craw-chat-admin-overview/src/index.tsx'],
-  ['sdkwork-craw-chat-admin-tenants', 'packages/sdkwork-craw-chat-admin-tenants/src/index.tsx'],
-  ['sdkwork-craw-chat-admin-users', 'packages/sdkwork-craw-chat-admin-users/src/index.tsx'],
-  ['sdkwork-craw-chat-admin-conversations', 'packages/sdkwork-craw-chat-admin-conversations/src/index.tsx'],
-  ['sdkwork-craw-chat-admin-messages', 'packages/sdkwork-craw-chat-admin-messages/src/index.tsx'],
-  ['sdkwork-craw-chat-admin-groups', 'packages/sdkwork-craw-chat-admin-groups/src/index.tsx'],
-  ['sdkwork-craw-chat-admin-moderation', 'packages/sdkwork-craw-chat-admin-moderation/src/index.tsx'],
-  ['sdkwork-craw-chat-admin-automation', 'packages/sdkwork-craw-chat-admin-automation/src/index.tsx'],
-  ['sdkwork-craw-chat-admin-announcements', 'packages/sdkwork-craw-chat-admin-announcements/src/index.tsx'],
-  ['sdkwork-craw-chat-admin-realtime', 'packages/sdkwork-craw-chat-admin-realtime/src/index.tsx'],
-  ['sdkwork-craw-chat-admin-system', 'packages/sdkwork-craw-chat-admin-system/src/index.tsx'],
-  ['sdkwork-craw-chat-admin-storage', 'packages/sdkwork-craw-chat-admin-storage/src/index.tsx'],
-  ['sdkwork-craw-chat-admin-settings', 'packages/sdkwork-craw-chat-admin-settings/src/index.tsx'],
+  ['@sdkwork/control-plane-sdk', '../../sdks/sdkwork-control-plane-sdk/sdkwork-control-plane-sdk-typescript/composed/src/index.ts'],
+  ['sdkwork-control-plane-auth', 'packages/sdkwork-control-plane-auth/src/index.tsx'],
+  ['sdkwork-control-plane-core', 'packages/sdkwork-control-plane-core/src/index.tsx'],
+  ['sdkwork-control-plane-shell', 'packages/sdkwork-control-plane-shell/src/index.ts'],
+  ['sdkwork-control-plane-types', 'packages/sdkwork-control-plane-types/src/index.ts'],
+  ['sdkwork-control-plane-overview', 'packages/sdkwork-control-plane-overview/src/index.tsx'],
+  ['sdkwork-control-plane-tenants', 'packages/sdkwork-control-plane-tenants/src/index.tsx'],
+  ['sdkwork-control-plane-users', 'packages/sdkwork-control-plane-users/src/index.tsx'],
+  ['sdkwork-control-plane-conversations', 'packages/sdkwork-control-plane-conversations/src/index.tsx'],
+  ['sdkwork-control-plane-messages', 'packages/sdkwork-control-plane-messages/src/index.tsx'],
+  ['sdkwork-control-plane-groups', 'packages/sdkwork-control-plane-groups/src/index.tsx'],
+  ['sdkwork-control-plane-moderation', 'packages/sdkwork-control-plane-moderation/src/index.tsx'],
+  ['sdkwork-control-plane-automation', 'packages/sdkwork-control-plane-automation/src/index.tsx'],
+  ['sdkwork-control-plane-announcements', 'packages/sdkwork-control-plane-announcements/src/index.tsx'],
+  ['sdkwork-control-plane-realtime', 'packages/sdkwork-control-plane-realtime/src/index.tsx'],
+  ['sdkwork-control-plane-system', 'packages/sdkwork-control-plane-system/src/index.tsx'],
+  ['sdkwork-control-plane-storage', 'packages/sdkwork-control-plane-storage/src/index.tsx'],
+  ['sdkwork-control-plane-settings', 'packages/sdkwork-control-plane-settings/src/index.tsx'],
 ].map(([packageName, relativePath]) => ({
   find: new RegExp(`^${packageName}$`),
   replacement: path.join(configDir, relativePath),
@@ -316,12 +304,8 @@ export default defineConfig(async ({ command }) => {
           replacement: resolveSdkworkUiDistEntry('index.js'),
         },
         {
-          find: /^@sdkwork\/craw-chat-sdk-management$/,
-          replacement: path.join(managementSdkComposedDistRoot, 'index.js'),
-        },
-        {
-          find: /^@sdkwork\/craw-chat-management-backend-sdk$/,
-          replacement: path.join(managementSdkGeneratedDistRoot, 'index.js'),
+          find: /^@sdkwork\/im-admin-backend-sdk$/,
+          replacement: path.join(imAdminSdkGeneratedDistRoot, 'index.js'),
         },
         {
           find: /^@sdkwork\/sdk-common$/,

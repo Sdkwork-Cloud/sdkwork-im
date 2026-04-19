@@ -316,7 +316,7 @@ fn format_sdk_targets(sdk_targets: &[SdkTarget]) -> String {
         .iter()
         .map(|sdk_target| match sdk_target {
             SdkTarget::CrawChatAppSdk => "crawChatAppSdk",
-            SdkTarget::CrawChatAdminSdk => "crawChatAdminSdk",
+            SdkTarget::ControlPlaneSdk => "controlPlaneSdk",
             SdkTarget::None => "none",
         })
         .collect::<Vec<_>>()

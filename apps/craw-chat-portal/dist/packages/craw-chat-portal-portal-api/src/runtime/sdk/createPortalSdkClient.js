@@ -1,17 +1,11 @@
 const DEFAULT_PORTAL_API_PORT = '18124';
-const BROWSER_PORTAL_SDK_SPECIFIER = '/__vendor__/sdkwork-craw-chat-sdk/index.js';
-const BROWSER_BACKEND_SDK_SPECIFIER = '/__vendor__/sdkwork-craw-chat-backend-sdk/index.js';
+const BROWSER_PORTAL_SDK_SPECIFIER = '/__vendor__/sdkwork-im-sdk/index.js';
 const NODE_PORTAL_SDK_MODULE_URL = new URL(
-  '../../../../../../../sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/composed/dist/index.js',
-  import.meta.url,
-);
-const NODE_BACKEND_SDK_MODULE_URL = new URL(
-  '../../../../../../../sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/generated/server-openapi/browser/index.js',
+  '../../../../../../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/dist/index.js',
   import.meta.url,
 );
 
 let portalSdkModulePromise = null;
-let backendSdkModulePromise = null;
 const clientPromiseCache = new Map();
 
 function isNonEmptyString(value) {
@@ -55,58 +49,38 @@ async function loadPortalSdkModule() {
   return portalSdkModulePromise;
 }
 
-async function loadBackendSdkModule() {
-  if (backendSdkModulePromise) {
-    return backendSdkModulePromise;
-  }
-
-  backendSdkModulePromise =
-    typeof window !== 'undefined'
-      ? import(BROWSER_BACKEND_SDK_SPECIFIER)
-      : import(NODE_BACKEND_SDK_MODULE_URL.href);
-
-  return backendSdkModulePromise;
-}
-
-function createClientCacheKey(backendConfig) {
+function createClientCacheKey(sdkConfig) {
   return JSON.stringify({
-    baseUrl: backendConfig.baseUrl,
-    authToken: backendConfig.authToken ?? null,
+    baseUrl: sdkConfig.baseUrl,
+    authToken: sdkConfig.authToken ?? null,
   });
 }
 
-export function resolvePortalBackendConfig({ authToken } = {}) {
-  const backendConfig = {
+export function resolvePortalSdkConfig({ authToken } = {}) {
+  const sdkConfig = {
     baseUrl: resolvePortalApiBaseUrl(),
   };
 
   if (isNonEmptyString(authToken)) {
-    backendConfig.authToken = authToken.trim();
+    sdkConfig.authToken = authToken.trim();
   }
 
-  return backendConfig;
+  return sdkConfig;
 }
 
 export async function createPortalSdkClient(options = {}) {
-  const backendConfig = resolvePortalBackendConfig(options);
-  const cacheKey = createClientCacheKey(backendConfig);
+  const sdkConfig = resolvePortalSdkConfig(options);
+  const cacheKey = createClientCacheKey(sdkConfig);
 
   if (!clientPromiseCache.has(cacheKey)) {
     const portalSdkModule = await loadPortalSdkModule();
-    const backendSdkModule = await loadBackendSdkModule();
-    const CrawChatClient = portalSdkModule?.CrawChatClient;
-    const createClient = backendSdkModule?.createClient;
-    if (typeof CrawChatClient !== 'function') {
-      throw new Error('Unable to resolve CrawChatClient from the portal SDK runtime.');
-    }
-    if (typeof createClient !== 'function') {
-      throw new Error('Unable to resolve createClient from the backend SDK runtime.');
+    const ImSdkClient = portalSdkModule?.ImSdkClient;
+    if (typeof ImSdkClient !== 'function') {
+      throw new Error('Unable to resolve ImSdkClient from the IM SDK runtime.');
     }
 
     const clientPromise = Promise.resolve(
-      new CrawChatClient({
-        backendClient: createClient(backendConfig),
-      }),
+      new ImSdkClient(sdkConfig),
     ).catch((error) => {
       clientPromiseCache.delete(cacheKey);
       throw error;

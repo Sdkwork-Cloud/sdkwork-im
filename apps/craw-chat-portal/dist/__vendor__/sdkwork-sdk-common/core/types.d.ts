@@ -1,8 +1,6 @@
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'silent';
-export type QueryParamScalar = string | number | boolean | undefined | null;
-export type QueryParamValue = QueryParamScalar | Array<string | number | boolean>;
-export type QueryParams = Record<string, QueryParamValue>;
+export type QueryParams = Record<string, string | number | boolean | undefined | null>;
 export interface HttpHeaders extends Record<string, string> {
 }
 export interface ApiResult<T = unknown> {

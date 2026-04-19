@@ -3,13 +3,13 @@
 <p class="api-page-intro">
   Message endpoints expose timeline reads, regular and system-channel submission, and message
   mutations such as edit and recall. The recommended TypeScript SDK surface for these routes is the
-  root <code>CrawChatSdkClient</code> message path, not raw route-group calls.
+  root <code>ImSdkClient</code> message path, not raw route-group calls.
 </p>
 
 <div class="api-link-list">
   <a href="/api-reference/app/conversations"><code>Conversations</code> Conversation creation, inbox, and handoff flows are documented separately</a>
   <a href="/api-reference/app/membership-and-read-state"><code>Membership</code> Roster and read-cursor updates live on a separate page</a>
-  <a href="/sdk/typescript-sdk"><code>SDK</code> <code>@sdkwork/craw-chat-sdk</code> and Flutter package <code>craw_chat_sdk</code> expose the recommended message-building and delivery flows for app consumers</a>
+  <a href="/sdk/typescript-sdk"><code>SDK</code> <code>@sdkwork/im-sdk</code> and Flutter package <code>im_sdk</code> expose the recommended message-building and delivery flows for app consumers</a>
 </div>
 
 ## Recommended SDK Mapping
@@ -96,7 +96,7 @@ Posts a regular conversation message.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.messages`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.messages`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation-bound write access.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PostMessageResult`</span></div>
 </div>
@@ -154,7 +154,7 @@ Returns the projection-backed message timeline for the conversation.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.messages`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.messages`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Active conversation member.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 TimelineListResponse`</span></div>
 </div>
@@ -197,7 +197,7 @@ Publishes a system message to the conversation's system channel.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.messages`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.messages`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation-bound write access.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PostMessageResult`</span></div>
 </div>
@@ -247,7 +247,7 @@ Edits a previously posted message.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.messages`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.messages`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation-bound write access.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 MessageMutationResult`</span></div>
 </div>
@@ -295,7 +295,7 @@ Recalls a message. This operation does not require a JSON request body.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.messages`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.messages`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation-bound write access.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 MessageMutationResult`</span></div>
 </div>

@@ -11,7 +11,7 @@
   - `Wave D / Step 12` 已从“CLI 主链路可信”推进到“SDK workspace 入口与 facade 边界可信”。
   - 根 README、`sdks/README.md` 与两套 SDK README 现在形成了一套真实、可回归的目录入口。
 - `146`
-  - `sdkwork-craw-chat-sdk` 与 `sdkwork-craw-chat-sdk-admin` 已冻结为两套不同的 facade 容器，而不是共享模糊职责的同类目录。
+  - `sdkwork-im-sdk` 与 `sdkwork-control-plane-sdk` 已冻结为两套不同的 facade 容器，而不是共享模糊职责的同类目录。
   - `TypeScript` / `Flutter` 子目录已被定义为稳定消费路径，后续多语言工作必须遵守这一边界。
   - `compatibility matrix` 已被明确为 capability 决策边界，而不是 README 各自猜测。
 - `148`
@@ -55,12 +55,12 @@
 - 文档：
   - `README.md`
   - `sdks/README.md`
-  - `sdks/sdkwork-craw-chat-sdk/README.md`
-  - `sdks/sdkwork-craw-chat-sdk-admin/README.md`
-  - `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/README.md`
-  - `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-flutter/README.md`
-  - `sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-typescript/README.md`
-  - `sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-flutter/README.md`
+  - `sdks/sdkwork-im-sdk/README.md`
+  - `sdks/sdkwork-control-plane-sdk/README.md`
+  - `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/README.md`
+  - `sdks/sdkwork-im-sdk/sdkwork-im-sdk-flutter/README.md`
+  - `sdks/sdkwork-control-plane-sdk/sdkwork-control-plane-sdk-typescript/README.md`
+  - `sdks/sdkwork-control-plane-sdk/sdkwork-control-plane-sdk-flutter/README.md`
 - 验证：
   - `cargo test -p craw-chat-cli --offline --test chat_cli_contract_test -- --nocapture`
   - `cargo test -p craw-chat-cli --offline --test chat_cli_e2e_test -- --nocapture`

@@ -5,7 +5,7 @@ This page documents the current `/api/admin/storage/*` contract used by
 for the route surface that exists and is verified in this repository today.
 
 It is not a published control-plane OpenAPI surface yet, and it is not part of the current
-generated control-plane contract inside `@sdkwork/craw-chat-admin-sdk`. The TypeScript admin SDK
+generated control-plane contract inside `@sdkwork/control-plane-sdk`. The TypeScript admin SDK
 does expose manual-owned composed helpers for these routes so the admin app can stay on a single
 package boundary, but this page remains the stable reference until a non-sandbox admin backend
 promotes the same contract behind a checked-in authority file.

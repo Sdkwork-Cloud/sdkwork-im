@@ -1,6 +1,6 @@
 {
   "app": {
-    "key": "sdkwork-craw-chat-admin",
+    "key": "sdkwork-control-plane",
     "name": "Craw Chat Admin",
     "description": null,
     "appType": "APP_REACT",
@@ -38,26 +38,26 @@
     ],
     "defaultPackageId": "web-production",
     "config": {
-      "workspaceRoot": "apps/sdkwork-api-router/apps/sdkwork-craw-chat-admin",
+      "workspaceRoot": "apps/sdkwork-api-router/apps/sdkwork-control-plane",
       "framework": "react-tauri",
       "managedBy": "apps/scripts/app-update-create.mjs"
     }
   },
   "environments": {
     "development": {
-      "accessUrl": "https://api-dev.sdkwork.com/apps/sdkwork-craw-chat-admin",
+      "accessUrl": "https://api-dev.sdkwork.com/apps/sdkwork-control-plane",
       "deployEnv": "development",
-      "deployUrl": "https://api-dev.sdkwork.com/apps/sdkwork-craw-chat-admin"
+      "deployUrl": "https://api-dev.sdkwork.com/apps/sdkwork-control-plane"
     },
     "test": {
-      "accessUrl": "https://api-test.sdkwork.com/apps/sdkwork-craw-chat-admin",
+      "accessUrl": "https://api-test.sdkwork.com/apps/sdkwork-control-plane",
       "deployEnv": "test",
-      "deployUrl": "https://api-test.sdkwork.com/apps/sdkwork-craw-chat-admin"
+      "deployUrl": "https://api-test.sdkwork.com/apps/sdkwork-control-plane"
     },
     "production": {
-      "accessUrl": "https://api.sdkwork.com/apps/sdkwork-craw-chat-admin",
+      "accessUrl": "https://api.sdkwork.com/apps/sdkwork-control-plane",
       "deployEnv": "production",
-      "deployUrl": "https://api.sdkwork.com/apps/sdkwork-craw-chat-admin"
+      "deployUrl": "https://api.sdkwork.com/apps/sdkwork-control-plane"
     }
   },
   "artifacts": {
@@ -68,7 +68,7 @@
         "sourceType": "WEB_URL",
         "packageFormat": "ZIP",
         "platform": "WEB",
-        "urlTemplate": "https://cdn.sdkwork.com/apps/sdkwork-craw-chat-admin/{env}/{version}/web.zip",
+        "urlTemplate": "https://cdn.sdkwork.com/apps/sdkwork-control-plane/{env}/{version}/web.zip",
         "enabled": true
       },
       {
@@ -77,7 +77,7 @@
         "sourceType": "BINARY_URL",
         "packageFormat": "ZIP",
         "platform": "DESKTOP_WINDOWS",
-        "urlTemplate": "https://cdn.sdkwork.com/apps/sdkwork-craw-chat-admin/{env}/{version}/windows-x64.zip",
+        "urlTemplate": "https://cdn.sdkwork.com/apps/sdkwork-control-plane/{env}/{version}/windows-x64.zip",
         "enabled": true
       },
       {
@@ -86,7 +86,7 @@
         "sourceType": "BINARY_URL",
         "packageFormat": "DMG",
         "platform": "DESKTOP_MACOS",
-        "urlTemplate": "https://cdn.sdkwork.com/apps/sdkwork-craw-chat-admin/{env}/{version}/macos-universal.dmg",
+        "urlTemplate": "https://cdn.sdkwork.com/apps/sdkwork-control-plane/{env}/{version}/macos-universal.dmg",
         "enabled": true
       },
       {
@@ -95,18 +95,18 @@
         "sourceType": "BINARY_URL",
         "packageFormat": "APPIMAGE",
         "platform": "DESKTOP_LINUX",
-        "urlTemplate": "https://cdn.sdkwork.com/apps/sdkwork-craw-chat-admin/{env}/{version}/linux-x64.AppImage",
+        "urlTemplate": "https://cdn.sdkwork.com/apps/sdkwork-control-plane/{env}/{version}/linux-x64.AppImage",
         "enabled": true
       }
     ],
     "runtimePayloads": {
       "TAURI": {
-        "manifestUrl": "https://cdn.sdkwork.com/apps/sdkwork-craw-chat-admin/{env}/tauri/latest.json",
+        "manifestUrl": "https://cdn.sdkwork.com/apps/sdkwork-control-plane/{env}/tauri/latest.json",
         "channel": "{env}"
       }
     },
     "metadata": {
-      "workspaceRoot": "apps/sdkwork-api-router/apps/sdkwork-craw-chat-admin",
+      "workspaceRoot": "apps/sdkwork-api-router/apps/sdkwork-control-plane",
       "framework": "react-tauri",
       "packageManager": "pnpm"
     }

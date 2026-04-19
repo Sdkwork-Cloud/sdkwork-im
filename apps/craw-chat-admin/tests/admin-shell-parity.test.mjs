@@ -14,13 +14,13 @@ function collectPackageNames(routeManifestSource) {
 }
 
 test('admin shell entry, layout, and theme preserve shared shell primitives for IM operations', () => {
-  const shellEntry = read('packages/sdkwork-craw-chat-admin-shell/src/index.ts');
-  const appRootSource = read('packages/sdkwork-craw-chat-admin-shell/src/application/app/AppRoot.tsx');
-  const routes = read('packages/sdkwork-craw-chat-admin-shell/src/application/router/AppRoutes.tsx');
-  const layout = read('packages/sdkwork-craw-chat-admin-shell/src/application/layouts/MainLayout.tsx');
-  const header = read('packages/sdkwork-craw-chat-admin-shell/src/components/AppHeader.tsx');
+  const shellEntry = read('packages/sdkwork-control-plane-shell/src/index.ts');
+  const appRootSource = read('packages/sdkwork-control-plane-shell/src/application/app/AppRoot.tsx');
+  const routes = read('packages/sdkwork-control-plane-shell/src/application/router/AppRoutes.tsx');
+  const layout = read('packages/sdkwork-control-plane-shell/src/application/layouts/MainLayout.tsx');
+  const header = read('packages/sdkwork-control-plane-shell/src/components/AppHeader.tsx');
   const themeCss = read('src/theme.css');
-  const shellHost = read('packages/sdkwork-craw-chat-admin-shell/src/styles/shell-host.css');
+  const shellHost = read('packages/sdkwork-control-plane-shell/src/styles/shell-host.css');
 
   assert.match(shellEntry, /\.\/styles\/shell-host\.css/);
   assert.match(appRootSource, /AppRoutes/);
@@ -60,26 +60,26 @@ test('admin shell entry, layout, and theme preserve shared shell primitives for 
   assert.match(shellHost, /admin-shell-host/);
   assert.match(shellHost, /admin-shell-route-scroll/);
   assert.match(shellHost, /admin-shell-sidebar-resize-handle/);
-  assert.match(shellHost, /data-sdk-shell='craw-chat-admin-desktop'/);
+  assert.match(shellHost, /data-sdk-shell='control-plane-desktop'/);
   assert.doesNotMatch(layout, /router-admin-desktop|SDKWork Router Admin|Control plane/);
   assert.doesNotMatch(shellHost, /router-admin-desktop/);
 });
 
 test('shell package owns every IM module it routes to or prefetches', () => {
-  const routeManifestSource = read('packages/sdkwork-craw-chat-admin-core/src/routeManifest.ts');
+  const routeManifestSource = read('packages/sdkwork-control-plane-core/src/routeManifest.ts');
   const routePrefetchSource = read(
-    'packages/sdkwork-craw-chat-admin-shell/src/application/router/routePrefetch.ts',
+    'packages/sdkwork-control-plane-shell/src/application/router/routePrefetch.ts',
   );
-  const routesSource = read('packages/sdkwork-craw-chat-admin-shell/src/application/router/AppRoutes.tsx');
+  const routesSource = read('packages/sdkwork-control-plane-shell/src/application/router/AppRoutes.tsx');
   const packageJson = JSON.parse(
-    read('packages/sdkwork-craw-chat-admin-shell/package.json'),
+    read('packages/sdkwork-control-plane-shell/package.json'),
   );
 
   const packageNames = collectPackageNames(routeManifestSource);
 
   assert.ok(packageNames.length > 0, 'route manifest should declare shell-owned module packages');
   assert.equal(
-    Boolean(packageJson.dependencies?.['sdkwork-craw-chat-admin-auth']),
+    Boolean(packageJson.dependencies?.['sdkwork-control-plane-auth']),
     true,
     'shell package should depend on auth because AppRoutes renders AdminLoginPage',
   );
@@ -104,7 +104,7 @@ test('shell package owns every IM module it routes to or prefetches', () => {
 
 test('theme manager keeps the root theme contract while resolving IM brand tokens from preferences', () => {
   const themeManager = read(
-    'packages/sdkwork-craw-chat-admin-shell/src/application/providers/ThemeManager.tsx',
+    'packages/sdkwork-control-plane-shell/src/application/providers/ThemeManager.tsx',
   );
 
   assert.match(themeManager, /createSdkworkTheme/);
@@ -116,20 +116,20 @@ test('theme manager keeps the root theme contract while resolving IM brand token
 });
 
 test('storage is registered as a first-class admin module across types, core routing, and shell loading', () => {
-  const typesSource = read('packages/sdkwork-craw-chat-admin-types/src/index.ts');
-  const routePathsSource = read('packages/sdkwork-craw-chat-admin-core/src/routePaths.ts');
-  const routesSource = read('packages/sdkwork-craw-chat-admin-core/src/routes.ts');
-  const routeManifestSource = read('packages/sdkwork-craw-chat-admin-core/src/routeManifest.ts');
-  const shellRoutesSource = read('packages/sdkwork-craw-chat-admin-shell/src/application/router/AppRoutes.tsx');
+  const typesSource = read('packages/sdkwork-control-plane-types/src/index.ts');
+  const routePathsSource = read('packages/sdkwork-control-plane-core/src/routePaths.ts');
+  const routesSource = read('packages/sdkwork-control-plane-core/src/routes.ts');
+  const routeManifestSource = read('packages/sdkwork-control-plane-core/src/routeManifest.ts');
+  const shellRoutesSource = read('packages/sdkwork-control-plane-shell/src/application/router/AppRoutes.tsx');
   const routePrefetchSource = read(
-    'packages/sdkwork-craw-chat-admin-shell/src/application/router/routePrefetch.ts',
+    'packages/sdkwork-control-plane-shell/src/application/router/routePrefetch.ts',
   );
 
   assert.match(typesSource, /'storage'/);
-  assert.match(typesSource, /'sdkwork-craw-chat-admin-storage'/);
+  assert.match(typesSource, /'sdkwork-control-plane-storage'/);
   assert.match(routePathsSource, /STORAGE:\s*'\/storage'/);
   assert.match(routesSource, /key:\s*'storage'/);
-  assert.match(routeManifestSource, /moduleId:\s*'sdkwork-craw-chat-admin-storage'/);
-  assert.match(shellRoutesSource, /sdkwork-craw-chat-admin-storage/);
-  assert.match(routePrefetchSource, /sdkwork-craw-chat-admin-storage/);
+  assert.match(routeManifestSource, /moduleId:\s*'sdkwork-control-plane-storage'/);
+  assert.match(shellRoutesSource, /sdkwork-control-plane-storage/);
+  assert.match(routePrefetchSource, /sdkwork-control-plane-storage/);
 });

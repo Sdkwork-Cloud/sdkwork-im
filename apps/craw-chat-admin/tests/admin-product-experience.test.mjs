@@ -67,19 +67,7 @@ function collectRequiredPermissions(source) {
 
 async function loadOperatorErrorStatusRuntimeModule() {
   if (!operatorErrorStatusRuntimeModulePromise) {
-    const source = read('packages/sdkwork-craw-chat-admin-core/src/operatorErrorStatus.ts')
-      .replace(
-        "import { AdminApiError } from '@sdkwork/craw-chat-admin-sdk';",
-        [
-          'export class AdminApiError extends Error {',
-          '  constructor(status, message) {',
-          '    super(message);',
-          '    this.name = "AdminApiError";',
-          '    this.status = status;',
-          '  }',
-          '}',
-        ].join('\n'),
-      )
+    const source = read('packages/sdkwork-control-plane-core/src/operatorErrorStatus.ts')
       .replace('function normalizeMessage(error: Error) {', 'function normalizeMessage(error) {')
       .replace(
         'function isTechnicalTransportMessage(message: string) {',
@@ -88,6 +76,10 @@ async function loadOperatorErrorStatusRuntimeModule() {
       .replace(
         'function resolveOperatorSafeMessage(message: string, fallback: string) {',
         'function resolveOperatorSafeMessage(message, fallback) {',
+      )
+      .replace(
+        'export function getAdminErrorStatus(error: unknown): number | null {',
+        'export function getAdminErrorStatus(error) {',
       )
       .replace(
         'export function resolveAdminOperatorErrorStatus(error: unknown, fallback: string) {',
@@ -107,7 +99,7 @@ async function loadOperatorErrorStatusRuntimeModule() {
 }
 
 test('overview exposes IM operations posture and hotspots', () => {
-  assertModuleSurface('packages/sdkwork-craw-chat-admin-overview/src/index.tsx', [
+  assertModuleSurface('packages/sdkwork-control-plane-overview/src/index.tsx', [
     /Message throughput/,
     /Moderation backlog/,
     /Online users/,
@@ -118,7 +110,7 @@ test('overview exposes IM operations posture and hotspots', () => {
 });
 
 test('overview avoids synthetic fallback metrics and seeded placeholder queues', () => {
-  const overview = read('packages/sdkwork-craw-chat-admin-overview/src/index.tsx');
+  const overview = read('packages/sdkwork-control-plane-overview/src/index.tsx');
 
   assert.doesNotMatch(overview, /\|\| 12480/);
   assert.doesNotMatch(overview, /\|\| 312/);
@@ -132,10 +124,10 @@ test('overview avoids synthetic fallback metrics and seeded placeholder queues',
 });
 
 test('overview localizes incident watch details instead of rendering raw alert strings', () => {
-  const overview = read('packages/sdkwork-craw-chat-admin-overview/src/index.tsx');
-  const overviewModel = read('packages/sdkwork-craw-chat-admin-overview/src/overviewModel.ts');
-  const coreIndex = read('packages/sdkwork-craw-chat-admin-core/src/index.tsx');
-  const alertCopy = read('packages/sdkwork-craw-chat-admin-core/src/adminAlertCopy.ts');
+  const overview = read('packages/sdkwork-control-plane-overview/src/index.tsx');
+  const overviewModel = read('packages/sdkwork-control-plane-overview/src/overviewModel.ts');
+  const coreIndex = read('packages/sdkwork-control-plane-core/src/index.tsx');
+  const alertCopy = read('packages/sdkwork-control-plane-core/src/adminAlertCopy.ts');
 
   assert.doesNotMatch(overview, /\{incident\.detail\}/);
   assert.match(overview, /renderOverviewCopy\(incident\.detail, t, formatNumber\)/);
@@ -146,11 +138,11 @@ test('overview localizes incident watch details instead of rendering raw alert s
 });
 
 test('moderation queue and operations pulse localize alert-backed incident copy instead of rendering raw alert strings', () => {
-  const coreIndex = read('packages/sdkwork-craw-chat-admin-core/src/index.tsx');
-  const alertCopy = read('packages/sdkwork-craw-chat-admin-core/src/adminAlertCopy.ts');
-  const moderation = read('packages/sdkwork-craw-chat-admin-moderation/src/index.tsx');
+  const coreIndex = read('packages/sdkwork-control-plane-core/src/index.tsx');
+  const alertCopy = read('packages/sdkwork-control-plane-core/src/adminAlertCopy.ts');
+  const moderation = read('packages/sdkwork-control-plane-moderation/src/index.tsx');
   const operationsPulse = read(
-    'packages/sdkwork-craw-chat-admin-shell/src/components/OperationsPulseDrawer.tsx',
+    'packages/sdkwork-control-plane-shell/src/components/OperationsPulseDrawer.tsx',
   );
 
   assert.match(alertCopy, /export function translateAdminAlertTitle/);
@@ -168,11 +160,11 @@ test('moderation queue and operations pulse localize alert-backed incident copy 
 });
 
 test('workspace modules avoid seeded rosters, transcript queues, campaign tasks, and transport metrics', () => {
-  const users = read('packages/sdkwork-craw-chat-admin-users/src/index.tsx');
-  const messages = read('packages/sdkwork-craw-chat-admin-messages/src/index.tsx');
-  const conversations = read('packages/sdkwork-craw-chat-admin-conversations/src/index.tsx');
-  const announcements = read('packages/sdkwork-craw-chat-admin-announcements/src/index.tsx');
-  const realtime = read('packages/sdkwork-craw-chat-admin-realtime/src/index.tsx');
+  const users = read('packages/sdkwork-control-plane-users/src/index.tsx');
+  const messages = read('packages/sdkwork-control-plane-messages/src/index.tsx');
+  const conversations = read('packages/sdkwork-control-plane-conversations/src/index.tsx');
+  const announcements = read('packages/sdkwork-control-plane-announcements/src/index.tsx');
+  const realtime = read('packages/sdkwork-control-plane-realtime/src/index.tsx');
 
   assert.doesNotMatch(users, /\|\| 18/);
   assert.doesNotMatch(users, /\|\| 248/);
@@ -202,13 +194,13 @@ test('workspace modules avoid seeded rosters, transcript queues, campaign tasks,
 });
 
 test('automation, moderation, groups, system, and shell avoid seeded activity and synthetic minimum counters', () => {
-  const automation = read('packages/sdkwork-craw-chat-admin-automation/src/index.tsx');
-  const moderation = read('packages/sdkwork-craw-chat-admin-moderation/src/index.tsx');
-  const groups = read('packages/sdkwork-craw-chat-admin-groups/src/index.tsx');
-  const system = read('packages/sdkwork-craw-chat-admin-system/src/index.tsx');
-  const appHeader = read('packages/sdkwork-craw-chat-admin-shell/src/components/AppHeader.tsx');
+  const automation = read('packages/sdkwork-control-plane-automation/src/index.tsx');
+  const moderation = read('packages/sdkwork-control-plane-moderation/src/index.tsx');
+  const groups = read('packages/sdkwork-control-plane-groups/src/index.tsx');
+  const system = read('packages/sdkwork-control-plane-system/src/index.tsx');
+  const appHeader = read('packages/sdkwork-control-plane-shell/src/components/AppHeader.tsx');
   const operationsPulse = read(
-    'packages/sdkwork-craw-chat-admin-shell/src/components/OperationsPulseDrawer.tsx',
+    'packages/sdkwork-control-plane-shell/src/components/OperationsPulseDrawer.tsx',
   );
 
   assert.doesNotMatch(automation, /Queue triage bot/);
@@ -255,34 +247,34 @@ test('automation, moderation, groups, system, and shell avoid seeded activity an
 });
 
 test('workspace operations modules expose tenant, user, and group governance', () => {
-  assertModuleSurface('packages/sdkwork-craw-chat-admin-tenants/src/index.tsx', [
+  assertModuleSurface('packages/sdkwork-control-plane-tenants/src/index.tsx', [
     /Tenant posture/,
     /Organizations|Workspace/,
   ]);
-  assertModuleSurface('packages/sdkwork-craw-chat-admin-users/src/index.tsx', [
+  assertModuleSurface('packages/sdkwork-control-plane-users/src/index.tsx', [
     /Device posture/,
     /Activation|Ban/,
     /Recovery review|Risk watchlist/,
   ]);
-  assertModuleSurface('packages/sdkwork-craw-chat-admin-groups/src/index.tsx', [
+  assertModuleSurface('packages/sdkwork-control-plane-groups/src/index.tsx', [
     /Group directory/,
     /Membership posture/,
   ]);
 });
 
 test('workspace modules reuse a shared admin empty-state primitive instead of redefining local cards', () => {
-  const coreIndex = read('packages/sdkwork-craw-chat-admin-core/src/index.tsx');
-  const moduleSurface = read('packages/sdkwork-craw-chat-admin-core/src/moduleSurface.tsx');
+  const coreIndex = read('packages/sdkwork-control-plane-core/src/index.tsx');
+  const moduleSurface = read('packages/sdkwork-control-plane-core/src/moduleSurface.tsx');
   const modules = [
-    'packages/sdkwork-craw-chat-admin-users/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-groups/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-realtime/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-moderation/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-system/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-messages/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-conversations/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-announcements/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-automation/src/index.tsx',
+    'packages/sdkwork-control-plane-users/src/index.tsx',
+    'packages/sdkwork-control-plane-groups/src/index.tsx',
+    'packages/sdkwork-control-plane-realtime/src/index.tsx',
+    'packages/sdkwork-control-plane-moderation/src/index.tsx',
+    'packages/sdkwork-control-plane-system/src/index.tsx',
+    'packages/sdkwork-control-plane-messages/src/index.tsx',
+    'packages/sdkwork-control-plane-conversations/src/index.tsx',
+    'packages/sdkwork-control-plane-announcements/src/index.tsx',
+    'packages/sdkwork-control-plane-automation/src/index.tsx',
   ];
 
   assert.match(moduleSurface, /export function AdminEmptyState/);
@@ -296,10 +288,10 @@ test('workspace modules reuse a shared admin empty-state primitive instead of re
 });
 
 test('overview and shell reuse the configurable admin empty-state primitive', () => {
-  const moduleSurface = read('packages/sdkwork-craw-chat-admin-core/src/moduleSurface.tsx');
-  const overview = read('packages/sdkwork-craw-chat-admin-overview/src/index.tsx');
+  const moduleSurface = read('packages/sdkwork-control-plane-core/src/moduleSurface.tsx');
+  const overview = read('packages/sdkwork-control-plane-overview/src/index.tsx');
   const operationsPulse = read(
-    'packages/sdkwork-craw-chat-admin-shell/src/components/OperationsPulseDrawer.tsx',
+    'packages/sdkwork-control-plane-shell/src/components/OperationsPulseDrawer.tsx',
   );
 
   assert.match(moduleSurface, /className\?: string/);
@@ -310,19 +302,19 @@ test('overview and shell reuse the configurable admin empty-state primitive', ()
 });
 
 test('workspace modules reuse a shared admin inset-card primitive for neutral detail blocks', () => {
-  const coreIndex = read('packages/sdkwork-craw-chat-admin-core/src/index.tsx');
-  const moduleSurface = read('packages/sdkwork-craw-chat-admin-core/src/moduleSurface.tsx');
+  const coreIndex = read('packages/sdkwork-control-plane-core/src/index.tsx');
+  const moduleSurface = read('packages/sdkwork-control-plane-core/src/moduleSurface.tsx');
   const modules = [
-    'packages/sdkwork-craw-chat-admin-overview/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-users/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-messages/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-conversations/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-announcements/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-realtime/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-moderation/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-groups/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-system/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-automation/src/index.tsx',
+    'packages/sdkwork-control-plane-overview/src/index.tsx',
+    'packages/sdkwork-control-plane-users/src/index.tsx',
+    'packages/sdkwork-control-plane-messages/src/index.tsx',
+    'packages/sdkwork-control-plane-conversations/src/index.tsx',
+    'packages/sdkwork-control-plane-announcements/src/index.tsx',
+    'packages/sdkwork-control-plane-realtime/src/index.tsx',
+    'packages/sdkwork-control-plane-moderation/src/index.tsx',
+    'packages/sdkwork-control-plane-groups/src/index.tsx',
+    'packages/sdkwork-control-plane-system/src/index.tsx',
+    'packages/sdkwork-control-plane-automation/src/index.tsx',
   ];
 
   assert.match(moduleSurface, /export function AdminInsetCard/);
@@ -340,19 +332,19 @@ test('workspace modules reuse a shared admin inset-card primitive for neutral de
 });
 
 test('workspace modules reuse a shared admin guidance-list primitive for operator posture notes', () => {
-  const coreIndex = read('packages/sdkwork-craw-chat-admin-core/src/index.tsx');
-  const moduleSurface = read('packages/sdkwork-craw-chat-admin-core/src/moduleSurface.tsx');
+  const coreIndex = read('packages/sdkwork-control-plane-core/src/index.tsx');
+  const moduleSurface = read('packages/sdkwork-control-plane-core/src/moduleSurface.tsx');
   const modules = [
-    'packages/sdkwork-craw-chat-admin-tenants/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-users/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-groups/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-messages/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-conversations/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-announcements/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-realtime/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-moderation/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-system/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-automation/src/index.tsx',
+    'packages/sdkwork-control-plane-tenants/src/index.tsx',
+    'packages/sdkwork-control-plane-users/src/index.tsx',
+    'packages/sdkwork-control-plane-groups/src/index.tsx',
+    'packages/sdkwork-control-plane-messages/src/index.tsx',
+    'packages/sdkwork-control-plane-conversations/src/index.tsx',
+    'packages/sdkwork-control-plane-announcements/src/index.tsx',
+    'packages/sdkwork-control-plane-realtime/src/index.tsx',
+    'packages/sdkwork-control-plane-moderation/src/index.tsx',
+    'packages/sdkwork-control-plane-system/src/index.tsx',
+    'packages/sdkwork-control-plane-automation/src/index.tsx',
   ];
 
   assert.match(moduleSurface, /export function AdminGuidanceList/);
@@ -370,16 +362,16 @@ test('workspace modules reuse a shared admin guidance-list primitive for operato
 });
 
 test('workspace modules reuse a shared admin inset split-row primitive for operator list rows', () => {
-  const coreIndex = read('packages/sdkwork-craw-chat-admin-core/src/index.tsx');
-  const moduleSurface = read('packages/sdkwork-craw-chat-admin-core/src/moduleSurface.tsx');
+  const coreIndex = read('packages/sdkwork-control-plane-core/src/index.tsx');
+  const moduleSurface = read('packages/sdkwork-control-plane-core/src/moduleSurface.tsx');
   const modules = [
-    'packages/sdkwork-craw-chat-admin-users/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-messages/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-announcements/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-realtime/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-groups/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-system/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-automation/src/index.tsx',
+    'packages/sdkwork-control-plane-users/src/index.tsx',
+    'packages/sdkwork-control-plane-messages/src/index.tsx',
+    'packages/sdkwork-control-plane-announcements/src/index.tsx',
+    'packages/sdkwork-control-plane-realtime/src/index.tsx',
+    'packages/sdkwork-control-plane-groups/src/index.tsx',
+    'packages/sdkwork-control-plane-system/src/index.tsx',
+    'packages/sdkwork-control-plane-automation/src/index.tsx',
   ];
 
   assert.match(moduleSurface, /export function AdminInsetSplitRow/);
@@ -397,17 +389,17 @@ test('workspace modules reuse a shared admin inset split-row primitive for opera
 });
 
 test('conversation governance modules expose lifecycle, audit, and moderation', () => {
-  assertModuleSurface('packages/sdkwork-craw-chat-admin-conversations/src/index.tsx', [
+  assertModuleSurface('packages/sdkwork-control-plane-conversations/src/index.tsx', [
     /Conversation lifecycle/,
     /Handoff|Archive|Freeze/,
     /Handoff SLA|Freeze candidates/,
   ]);
-  assertModuleSurface('packages/sdkwork-craw-chat-admin-messages/src/index.tsx', [
+  assertModuleSurface('packages/sdkwork-control-plane-messages/src/index.tsx', [
     /Message audit/,
     /Export evidence|Search transcript/,
     /Recall review|Retention guardrails/,
   ]);
-  assertModuleSurface('packages/sdkwork-craw-chat-admin-moderation/src/index.tsx', [
+  assertModuleSurface('packages/sdkwork-control-plane-moderation/src/index.tsx', [
     /Report queue/,
     /Keyword policy|Blocklist/,
     /Disposition matrix|First response SLA/,
@@ -415,21 +407,21 @@ test('conversation governance modules expose lifecycle, audit, and moderation', 
 });
 
 test('automation, announcements, realtime, and system stay first-class', () => {
-  assertModuleSurface('packages/sdkwork-craw-chat-admin-automation/src/index.tsx', [
+  assertModuleSurface('packages/sdkwork-control-plane-automation/src/index.tsx', [
     /Bot registry/,
     /Automation runs/,
     /Run history|Retry queue/,
   ]);
-  assertModuleSurface('packages/sdkwork-craw-chat-admin-announcements/src/index.tsx', [
+  assertModuleSurface('packages/sdkwork-control-plane-announcements/src/index.tsx', [
     /Broadcast tasks/,
     /Delivery posture/,
   ]);
-  assertModuleSurface('packages/sdkwork-craw-chat-admin-realtime/src/index.tsx', [
+  assertModuleSurface('packages/sdkwork-control-plane-realtime/src/index.tsx', [
     /Realtime sessions/,
     /RTC posture|Gateway health/,
     /Reconnect watch|Failover window/,
   ]);
-  assertModuleSurface('packages/sdkwork-craw-chat-admin-system/src/index.tsx', [
+  assertModuleSurface('packages/sdkwork-control-plane-system/src/index.tsx', [
     /Protocol governance/,
     /Compatibility matrix/,
     /Protocol change gate|Rollout risks/,
@@ -437,10 +429,10 @@ test('automation, announcements, realtime, and system stay first-class', () => {
 });
 
 test('overview and realtime keep literal operator copy covered by zh-CN translations', () => {
-  const i18n = read('packages/sdkwork-craw-chat-admin-core/src/i18n.tsx');
+  const i18n = read('packages/sdkwork-control-plane-core/src/i18n.tsx');
   const modules = [
-    'packages/sdkwork-craw-chat-admin-overview/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-realtime/src/index.tsx',
+    'packages/sdkwork-control-plane-overview/src/index.tsx',
+    'packages/sdkwork-control-plane-realtime/src/index.tsx',
   ];
 
   for (const relativePath of modules) {
@@ -458,17 +450,17 @@ test('overview and realtime keep literal operator copy covered by zh-CN translat
 });
 
 test('tenant governance registry, drawers, and dialogs keep literal operator copy covered by zh-CN translations', () => {
-  const i18n = read('packages/sdkwork-craw-chat-admin-core/src/i18n.tsx');
+  const i18n = read('packages/sdkwork-control-plane-core/src/i18n.tsx');
   const modules = [
-    'packages/sdkwork-craw-chat-admin-tenants/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-tenants/src/page/shared.tsx',
-    'packages/sdkwork-craw-chat-admin-tenants/src/page/TenantsRegistrySection.tsx',
-    'packages/sdkwork-craw-chat-admin-tenants/src/page/TenantsDetailPanel.tsx',
-    'packages/sdkwork-craw-chat-admin-tenants/src/page/TenantsDetailDrawer.tsx',
-    'packages/sdkwork-craw-chat-admin-tenants/src/page/TenantDialog.tsx',
-    'packages/sdkwork-craw-chat-admin-tenants/src/page/ProjectDialog.tsx',
-    'packages/sdkwork-craw-chat-admin-tenants/src/page/ApiKeyDialog.tsx',
-    'packages/sdkwork-craw-chat-admin-tenants/src/page/PlaintextApiKeyDialog.tsx',
+    'packages/sdkwork-control-plane-tenants/src/index.tsx',
+    'packages/sdkwork-control-plane-tenants/src/page/shared.tsx',
+    'packages/sdkwork-control-plane-tenants/src/page/TenantsRegistrySection.tsx',
+    'packages/sdkwork-control-plane-tenants/src/page/TenantsDetailPanel.tsx',
+    'packages/sdkwork-control-plane-tenants/src/page/TenantsDetailDrawer.tsx',
+    'packages/sdkwork-control-plane-tenants/src/page/TenantDialog.tsx',
+    'packages/sdkwork-control-plane-tenants/src/page/ProjectDialog.tsx',
+    'packages/sdkwork-control-plane-tenants/src/page/ApiKeyDialog.tsx',
+    'packages/sdkwork-control-plane-tenants/src/page/PlaintextApiKeyDialog.tsx',
   ];
 
   for (const relativePath of modules) {
@@ -486,18 +478,18 @@ test('tenant governance registry, drawers, and dialogs keep literal operator cop
 });
 
 test('remaining operator module narratives keep literal copy covered by zh-CN translations', () => {
-  const i18n = read('packages/sdkwork-craw-chat-admin-core/src/i18n.tsx');
+  const i18n = read('packages/sdkwork-control-plane-core/src/i18n.tsx');
   const modules = [
-    'packages/sdkwork-craw-chat-admin-announcements/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-automation/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-conversations/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-groups/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-messages/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-moderation/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-settings/src/WorkspaceSettings.tsx',
-    'packages/sdkwork-craw-chat-admin-shell/src/application/router/AppRoutes.tsx',
-    'packages/sdkwork-craw-chat-admin-system/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-users/src/index.tsx',
+    'packages/sdkwork-control-plane-announcements/src/index.tsx',
+    'packages/sdkwork-control-plane-automation/src/index.tsx',
+    'packages/sdkwork-control-plane-conversations/src/index.tsx',
+    'packages/sdkwork-control-plane-groups/src/index.tsx',
+    'packages/sdkwork-control-plane-messages/src/index.tsx',
+    'packages/sdkwork-control-plane-moderation/src/index.tsx',
+    'packages/sdkwork-control-plane-settings/src/WorkspaceSettings.tsx',
+    'packages/sdkwork-control-plane-shell/src/application/router/AppRoutes.tsx',
+    'packages/sdkwork-control-plane-system/src/index.tsx',
+    'packages/sdkwork-control-plane-users/src/index.tsx',
   ];
 
   for (const relativePath of modules) {
@@ -515,21 +507,21 @@ test('remaining operator module narratives keep literal copy covered by zh-CN tr
 });
 
 test('settings run through an operator-grade settings center without router-admin residue', () => {
-  assertModuleSurface('packages/sdkwork-craw-chat-admin-settings/src/index.tsx', [
+  assertModuleSurface('packages/sdkwork-control-plane-settings/src/index.tsx', [
     /from '\.\/Settings'/,
   ]);
-  assertModuleSurface('packages/sdkwork-craw-chat-admin-settings/src/Settings.tsx', [
+  assertModuleSurface('packages/sdkwork-control-plane-settings/src/Settings.tsx', [
     /SettingsCenter/,
-    /Operator workspace|IM operator workspace/,
+    /Control-plane workspace|control-plane workspace/,
     /moderation|transcript|realtime|incident/i,
     /Search shortcuts|Operations directory/,
     /Workspace Governance|Conversation Governance|System/,
   ]);
 
-  const settingsSource = read('packages/sdkwork-craw-chat-admin-settings/src/Settings.tsx');
-  const routeSource = read('packages/sdkwork-craw-chat-admin-core/src/routes.ts');
-  const routeManifest = read('packages/sdkwork-craw-chat-admin-core/src/routeManifest.ts');
-  const i18n = read('packages/sdkwork-craw-chat-admin-core/src/i18n.tsx');
+  const settingsSource = read('packages/sdkwork-control-plane-settings/src/Settings.tsx');
+  const routeSource = read('packages/sdkwork-control-plane-core/src/routes.ts');
+  const routeManifest = read('packages/sdkwork-control-plane-core/src/routeManifest.ts');
+  const i18n = read('packages/sdkwork-control-plane-core/src/i18n.tsx');
 
   assert.doesNotMatch(settingsSource, /control plane|router-admin|claw-studio/i);
   assert.doesNotMatch(settingsSource, /Workspace Ops/);
@@ -544,14 +536,14 @@ test('settings run through an operator-grade settings center without router-admi
 });
 
 test('shell command center exposes route launch and operator quick actions', () => {
-  assertModuleSurface('packages/sdkwork-craw-chat-admin-shell/src/components/CommandPalette.tsx', [
+  assertModuleSurface('packages/sdkwork-control-plane-shell/src/components/CommandPalette.tsx', [
     /Command center/,
     /Quick actions/,
     /Route launch/,
     /Workspace refresh/,
     /Sign out/,
   ]);
-  assertModuleSurface('packages/sdkwork-craw-chat-admin-settings/src/GeneralSettings.tsx', [
+  assertModuleSurface('packages/sdkwork-control-plane-settings/src/GeneralSettings.tsx', [
     /Command center/,
     /Operations pulse/,
     /Quick actions|Search shortcuts/,
@@ -559,7 +551,7 @@ test('shell command center exposes route launch and operator quick actions', () 
 });
 
 test('shell operations pulse keeps incident and handoff risk visible outside overview', () => {
-  assertModuleSurface('packages/sdkwork-craw-chat-admin-shell/src/components/OperationsPulseDrawer.tsx', [
+  assertModuleSurface('packages/sdkwork-control-plane-shell/src/components/OperationsPulseDrawer.tsx', [
     /Operations pulse/,
     /Incident watch/,
     /Shift handoff/,
@@ -571,8 +563,8 @@ test('shell operations pulse keeps incident and handoff risk visible outside ove
 });
 
 test('shell operations pulse localizes incident severity badges instead of rendering raw enum values', () => {
-  const pulse = read('packages/sdkwork-craw-chat-admin-shell/src/components/OperationsPulseDrawer.tsx');
-  const i18n = read('packages/sdkwork-craw-chat-admin-core/src/i18n.tsx');
+  const pulse = read('packages/sdkwork-control-plane-shell/src/components/OperationsPulseDrawer.tsx');
+  const i18n = read('packages/sdkwork-control-plane-core/src/i18n.tsx');
 
   assert.doesNotMatch(pulse, /\{incident\.severity\}/);
   assert.match(pulse, /High severity|Medium severity|Low severity/);
@@ -582,7 +574,7 @@ test('shell operations pulse localizes incident severity badges instead of rende
 });
 
 test('shell route context strip keeps module governance and continuity cues visible', () => {
-  assertModuleSurface('packages/sdkwork-craw-chat-admin-shell/src/components/RouteContextStrip.tsx', [
+  assertModuleSurface('packages/sdkwork-control-plane-shell/src/components/RouteContextStrip.tsx', [
     /Continuity cue/,
     /Required permissions/,
     /Capability tags/,
@@ -590,7 +582,7 @@ test('shell route context strip keeps module governance and continuity cues visi
     /Command center|Open command center/,
     /Operations pulse|Open operations pulse/,
   ]);
-  assertModuleSurface('packages/sdkwork-craw-chat-admin-settings/src/GeneralSettings.tsx', [
+  assertModuleSurface('packages/sdkwork-control-plane-settings/src/GeneralSettings.tsx', [
     /Route context strip/,
     /Continuity cue|Capability tags/,
     /Command center|Operations pulse/,
@@ -598,11 +590,11 @@ test('shell route context strip keeps module governance and continuity cues visi
 });
 
 test('route context strip renders operator-grade permission labels instead of raw admin permission ids', () => {
-  const routeManifest = read('packages/sdkwork-craw-chat-admin-core/src/routeManifest.ts');
-  const permissionCopy = read('packages/sdkwork-craw-chat-admin-core/src/adminPermissionCopy.ts');
-  const coreIndex = read('packages/sdkwork-craw-chat-admin-core/src/index.tsx');
-  const routeContext = read('packages/sdkwork-craw-chat-admin-shell/src/components/RouteContextStrip.tsx');
-  const i18n = read('packages/sdkwork-craw-chat-admin-core/src/i18n.tsx');
+  const routeManifest = read('packages/sdkwork-control-plane-core/src/routeManifest.ts');
+  const permissionCopy = read('packages/sdkwork-control-plane-core/src/adminPermissionCopy.ts');
+  const coreIndex = read('packages/sdkwork-control-plane-core/src/index.tsx');
+  const routeContext = read('packages/sdkwork-control-plane-shell/src/components/RouteContextStrip.tsx');
+  const i18n = read('packages/sdkwork-control-plane-core/src/i18n.tsx');
 
   assert.match(permissionCopy, /export function resolveAdminPermissionLabel/);
   assert.match(coreIndex, /resolveAdminPermissionLabel/);
@@ -645,8 +637,8 @@ test('route context strip renders operator-grade permission labels instead of ra
 });
 
 test('zh-CN translations cover route context capability tags for every admin product module', () => {
-  const routeManifest = read('packages/sdkwork-craw-chat-admin-core/src/routeManifest.ts');
-  const i18n = read('packages/sdkwork-craw-chat-admin-core/src/i18n.tsx');
+  const routeManifest = read('packages/sdkwork-control-plane-core/src/routeManifest.ts');
+  const i18n = read('packages/sdkwork-control-plane-core/src/i18n.tsx');
 
   for (const label of collectCapabilityTagLabels(routeManifest)) {
     assert.equal(i18n.includes(`'${label}':`), true, `missing zh-CN capability tag translation: ${label}`);
@@ -654,8 +646,8 @@ test('zh-CN translations cover route context capability tags for every admin pro
 });
 
 test('shell status localizes compact runtime labels instead of hardcoding English badge text', () => {
-  const shellStatus = read('packages/sdkwork-craw-chat-admin-shell/src/components/ShellStatus.tsx');
-  const i18n = read('packages/sdkwork-craw-chat-admin-core/src/i18n.tsx');
+  const shellStatus = read('packages/sdkwork-control-plane-shell/src/components/ShellStatus.tsx');
+  const i18n = read('packages/sdkwork-control-plane-core/src/i18n.tsx');
 
   assert.match(shellStatus, /useAdminI18n/);
   assert.doesNotMatch(shellStatus, /label=\{compactStatusLabel\(status\)\}/);
@@ -666,8 +658,8 @@ test('shell status localizes compact runtime labels instead of hardcoding Englis
 });
 
 test('shell status compacts operator action lifecycle states into operator-grade badge semantics', () => {
-  const shellStatus = read('packages/sdkwork-craw-chat-admin-shell/src/components/ShellStatus.tsx');
-  const i18n = read('packages/sdkwork-craw-chat-admin-core/src/i18n.tsx');
+  const shellStatus = read('packages/sdkwork-control-plane-shell/src/components/ShellStatus.tsx');
+  const i18n = read('packages/sdkwork-control-plane-core/src/i18n.tsx');
 
   assert.match(shellStatus, /'saving'/);
   assert.match(shellStatus, /'creating'/);
@@ -693,22 +685,23 @@ test('shell status compacts operator action lifecycle states into operator-grade
 
 test('workbench failure handling normalizes technical transport errors before they reach operator-facing shell copy', () => {
   const operatorErrorStatus = read(
-    'packages/sdkwork-craw-chat-admin-core/src/operatorErrorStatus.ts',
+    'packages/sdkwork-control-plane-core/src/operatorErrorStatus.ts',
   );
-  const workbench = read('packages/sdkwork-craw-chat-admin-core/src/workbench.tsx');
+  const workbench = read('packages/sdkwork-control-plane-core/src/workbench.tsx');
   const workbenchActions = read(
-    'packages/sdkwork-craw-chat-admin-core/src/workbenchActions.ts',
+    'packages/sdkwork-control-plane-core/src/workbenchActions.ts',
   );
-  const i18n = read('packages/sdkwork-craw-chat-admin-core/src/i18n.tsx');
+  const i18n = read('packages/sdkwork-control-plane-core/src/i18n.tsx');
 
   assert.match(operatorErrorStatus, /export function resolveAdminOperatorErrorStatus/);
-  assert.match(operatorErrorStatus, /@sdkwork\/craw-chat-admin-sdk/);
-  assert.doesNotMatch(operatorErrorStatus, /sdkwork-craw-chat-admin-admin-api/);
-  assert.match(operatorErrorStatus, /AdminApiError/);
+  assert.match(operatorErrorStatus, /export function getAdminErrorStatus/);
+  assert.doesNotMatch(operatorErrorStatus, /sdkwork-control-plane-admin-api/);
+  assert.doesNotMatch(operatorErrorStatus, /AdminApiError/);
   assert.match(operatorErrorStatus, /status === 401/);
   assert.match(operatorErrorStatus, /status === 403/);
   assert.match(operatorErrorStatus, /status === 429/);
   assert.match(operatorErrorStatus, /status >= 500/);
+  assert.match(operatorErrorStatus, /httpStatus/);
   assert.match(operatorErrorStatus, /Admin request failed with status/);
   assert.match(operatorErrorStatus, /Admin session token not found/);
   assert.match(operatorErrorStatus, /Tauri invoke bridge is unavailable\./);
@@ -733,9 +726,9 @@ test('workbench failure handling normalizes technical transport errors before th
 
 test('system rollout risks normalize runtime and provider messages before they reach operator-facing cards', () => {
   const operatorErrorStatus = read(
-    'packages/sdkwork-craw-chat-admin-core/src/operatorErrorStatus.ts',
+    'packages/sdkwork-control-plane-core/src/operatorErrorStatus.ts',
   );
-  const system = read('packages/sdkwork-craw-chat-admin-system/src/index.tsx');
+  const system = read('packages/sdkwork-control-plane-system/src/index.tsx');
 
   assert.match(operatorErrorStatus, /export function resolveAdminOperatorMessage/);
   assert.match(system, /resolveAdminOperatorMessage\(\s*runtime\.message,/);
@@ -745,10 +738,10 @@ test('system rollout risks normalize runtime and provider messages before they r
 });
 
 test('system rollout risks render provider display names instead of raw provider ids', () => {
-  const providerCopy = read('packages/sdkwork-craw-chat-admin-core/src/adminProviderCopy.ts');
-  const coreIndex = read('packages/sdkwork-craw-chat-admin-core/src/index.tsx');
-  const system = read('packages/sdkwork-craw-chat-admin-system/src/index.tsx');
-  const i18n = read('packages/sdkwork-craw-chat-admin-core/src/i18n.tsx');
+  const providerCopy = read('packages/sdkwork-control-plane-core/src/adminProviderCopy.ts');
+  const coreIndex = read('packages/sdkwork-control-plane-core/src/index.tsx');
+  const system = read('packages/sdkwork-control-plane-system/src/index.tsx');
+  const i18n = read('packages/sdkwork-control-plane-core/src/i18n.tsx');
 
   assert.match(providerCopy, /export function resolveAdminProviderLabel/);
   assert.match(coreIndex, /resolveAdminProviderLabel/);
@@ -765,10 +758,10 @@ test('system rollout risks render provider display names instead of raw provider
 });
 
 test('automation run history renders operator-grade route labels instead of raw route keys or capabilities', () => {
-  const routingCopy = read('packages/sdkwork-craw-chat-admin-core/src/adminRoutingCopy.ts');
-  const coreIndex = read('packages/sdkwork-craw-chat-admin-core/src/index.tsx');
-  const automation = read('packages/sdkwork-craw-chat-admin-automation/src/index.tsx');
-  const i18n = read('packages/sdkwork-craw-chat-admin-core/src/i18n.tsx');
+  const routingCopy = read('packages/sdkwork-control-plane-core/src/adminRoutingCopy.ts');
+  const coreIndex = read('packages/sdkwork-control-plane-core/src/index.tsx');
+  const automation = read('packages/sdkwork-control-plane-automation/src/index.tsx');
+  const i18n = read('packages/sdkwork-control-plane-core/src/i18n.tsx');
 
   assert.match(routingCopy, /export function resolveAdminRoutingDecisionLabel/);
   assert.match(coreIndex, /resolveAdminRoutingDecisionLabel/);
@@ -785,10 +778,10 @@ test('automation run history renders operator-grade route labels instead of raw 
 });
 
 test('api key issuance uses operator-friendly expiry scheduling instead of raw epoch milliseconds', () => {
-  const shared = read('packages/sdkwork-craw-chat-admin-tenants/src/page/shared.tsx');
-  const dialog = read('packages/sdkwork-craw-chat-admin-tenants/src/page/ApiKeyDialog.tsx');
-  const tenants = read('packages/sdkwork-craw-chat-admin-tenants/src/index.tsx');
-  const i18n = read('packages/sdkwork-craw-chat-admin-core/src/i18n.tsx');
+  const shared = read('packages/sdkwork-control-plane-tenants/src/page/shared.tsx');
+  const dialog = read('packages/sdkwork-control-plane-tenants/src/page/ApiKeyDialog.tsx');
+  const tenants = read('packages/sdkwork-control-plane-tenants/src/index.tsx');
+  const i18n = read('packages/sdkwork-control-plane-core/src/i18n.tsx');
 
   assert.match(shared, /export function formatApiKeyExpiryInputValue/);
   assert.match(shared, /export function parseApiKeyExpiryInputValue/);
@@ -809,12 +802,12 @@ test('api key issuance uses operator-friendly expiry scheduling instead of raw e
 });
 
 test('plaintext key handoff uses project and environment labels instead of raw ids and enum values', () => {
-  const shared = read('packages/sdkwork-craw-chat-admin-tenants/src/page/shared.tsx');
+  const shared = read('packages/sdkwork-control-plane-tenants/src/page/shared.tsx');
   const plaintextDialog = read(
-    'packages/sdkwork-craw-chat-admin-tenants/src/page/PlaintextApiKeyDialog.tsx',
+    'packages/sdkwork-control-plane-tenants/src/page/PlaintextApiKeyDialog.tsx',
   );
-  const tenants = read('packages/sdkwork-craw-chat-admin-tenants/src/index.tsx');
-  const i18n = read('packages/sdkwork-craw-chat-admin-core/src/i18n.tsx');
+  const tenants = read('packages/sdkwork-control-plane-tenants/src/index.tsx');
+  const i18n = read('packages/sdkwork-control-plane-core/src/i18n.tsx');
 
   assert.match(shared, /export function resolveRevealedApiKeySummary/);
   assert.match(shared, /export function resolveApiKeyEnvironmentLabel/);
@@ -830,11 +823,11 @@ test('plaintext key handoff uses project and environment labels instead of raw i
 });
 
 test('messages and conversations use operator-grade workspace labels instead of raw project ids', () => {
-  const projectCopy = read('packages/sdkwork-craw-chat-admin-core/src/adminProjectCopy.ts');
-  const coreIndex = read('packages/sdkwork-craw-chat-admin-core/src/index.tsx');
-  const messages = read('packages/sdkwork-craw-chat-admin-messages/src/index.tsx');
-  const conversations = read('packages/sdkwork-craw-chat-admin-conversations/src/index.tsx');
-  const i18n = read('packages/sdkwork-craw-chat-admin-core/src/i18n.tsx');
+  const projectCopy = read('packages/sdkwork-control-plane-core/src/adminProjectCopy.ts');
+  const coreIndex = read('packages/sdkwork-control-plane-core/src/index.tsx');
+  const messages = read('packages/sdkwork-control-plane-messages/src/index.tsx');
+  const conversations = read('packages/sdkwork-control-plane-conversations/src/index.tsx');
+  const i18n = read('packages/sdkwork-control-plane-core/src/i18n.tsx');
 
   assert.match(projectCopy, /export function resolveAdminProjectLabel/);
   assert.match(coreIndex, /resolveAdminProjectLabel/);
@@ -846,15 +839,15 @@ test('messages and conversations use operator-grade workspace labels instead of 
 });
 
 test('tenant and group governance surfaces label internal identifiers instead of rendering bare ids', () => {
-  const groups = read('packages/sdkwork-craw-chat-admin-groups/src/index.tsx');
-  const tenants = read('packages/sdkwork-craw-chat-admin-tenants/src/index.tsx');
+  const groups = read('packages/sdkwork-control-plane-groups/src/index.tsx');
+  const tenants = read('packages/sdkwork-control-plane-tenants/src/index.tsx');
   const tenantDetailPanel = read(
-    'packages/sdkwork-craw-chat-admin-tenants/src/page/TenantsDetailPanel.tsx',
+    'packages/sdkwork-control-plane-tenants/src/page/TenantsDetailPanel.tsx',
   );
   const tenantDetailDrawer = read(
-    'packages/sdkwork-craw-chat-admin-tenants/src/page/TenantsDetailDrawer.tsx',
+    'packages/sdkwork-control-plane-tenants/src/page/TenantsDetailDrawer.tsx',
   );
-  const i18n = read('packages/sdkwork-craw-chat-admin-core/src/i18n.tsx');
+  const i18n = read('packages/sdkwork-control-plane-core/src/i18n.tsx');
 
   assert.match(groups, /t\('Group ID: \{id\}',\s*\{\s*id:\s*group\.id\s*\}\)/);
   assert.doesNotMatch(groups, />\s*\{group\.id\}\s*<\/div>/);
@@ -884,10 +877,10 @@ test('tenant and group governance surfaces label internal identifiers instead of
 });
 
 test('tenant provisioning dialogs and destructive confirmations label identifiers instead of parenthesized raw ids', () => {
-  const shared = read('packages/sdkwork-craw-chat-admin-tenants/src/page/shared.tsx');
-  const tenants = read('packages/sdkwork-craw-chat-admin-tenants/src/index.tsx');
-  const apiKeyDialog = read('packages/sdkwork-craw-chat-admin-tenants/src/page/ApiKeyDialog.tsx');
-  const projectDialog = read('packages/sdkwork-craw-chat-admin-tenants/src/page/ProjectDialog.tsx');
+  const shared = read('packages/sdkwork-control-plane-tenants/src/page/shared.tsx');
+  const tenants = read('packages/sdkwork-control-plane-tenants/src/index.tsx');
+  const apiKeyDialog = read('packages/sdkwork-control-plane-tenants/src/page/ApiKeyDialog.tsx');
+  const projectDialog = read('packages/sdkwork-control-plane-tenants/src/page/ProjectDialog.tsx');
 
   assert.match(shared, /export function resolveTenantSelectionLabel/);
   assert.match(shared, /export function resolveProjectSelectionLabel/);
@@ -904,10 +897,10 @@ test('tenant provisioning dialogs and destructive confirmations label identifier
 });
 
 test('tenant provisioning dialogs use operator-grade ID field labels instead of lowercase technical id copy', () => {
-  const tenantDialog = read('packages/sdkwork-craw-chat-admin-tenants/src/page/TenantDialog.tsx');
-  const projectDialog = read('packages/sdkwork-craw-chat-admin-tenants/src/page/ProjectDialog.tsx');
-  const apiKeyDialog = read('packages/sdkwork-craw-chat-admin-tenants/src/page/ApiKeyDialog.tsx');
-  const i18n = read('packages/sdkwork-craw-chat-admin-core/src/i18n.tsx');
+  const tenantDialog = read('packages/sdkwork-control-plane-tenants/src/page/TenantDialog.tsx');
+  const projectDialog = read('packages/sdkwork-control-plane-tenants/src/page/ProjectDialog.tsx');
+  const apiKeyDialog = read('packages/sdkwork-control-plane-tenants/src/page/ApiKeyDialog.tsx');
+  const i18n = read('packages/sdkwork-control-plane-core/src/i18n.tsx');
 
   assert.match(tenantDialog, /label=\{t\('Tenant ID'\)\}/);
   assert.doesNotMatch(tenantDialog, /label=\{t\('Tenant id'\)\}/);
@@ -922,7 +915,7 @@ test('tenant provisioning dialogs use operator-grade ID field labels instead of 
 });
 
 test('tenant selection labels and environment summaries avoid mojibake and raw environment enums', () => {
-  const shared = read('packages/sdkwork-craw-chat-admin-tenants/src/page/shared.tsx');
+  const shared = read('packages/sdkwork-control-plane-tenants/src/page/shared.tsx');
 
   assert.match(shared, /export function resolveTenantSelectionLabel/);
   assert.match(shared, /export function resolveProjectSelectionLabel/);
@@ -934,8 +927,8 @@ test('tenant selection labels and environment summaries avoid mojibake and raw e
 });
 
 test('tenant directory search placeholder uses operator-grade workspace guidance', () => {
-  const tenants = read('packages/sdkwork-craw-chat-admin-tenants/src/index.tsx');
-  const i18n = read('packages/sdkwork-craw-chat-admin-core/src/i18n.tsx');
+  const tenants = read('packages/sdkwork-control-plane-tenants/src/index.tsx');
+  const i18n = read('packages/sdkwork-control-plane-core/src/i18n.tsx');
 
   assert.match(
     tenants,
@@ -946,9 +939,9 @@ test('tenant directory search placeholder uses operator-grade workspace guidance
 });
 
 test('operator error resolver falls back for technical transport failures while preserving operator-safe messages', async () => {
-  const { AdminApiError, resolveAdminOperatorErrorStatus } =
-    await loadOperatorErrorStatusRuntimeModule();
-  const fallback = 'Failed to refresh the IM operator workspace.';
+  const { resolveAdminOperatorErrorStatus } = await loadOperatorErrorStatusRuntimeModule();
+  const fallback = 'Failed to refresh the control-plane workspace.';
+  const httpError = (status, message) => Object.assign(new Error(message), { httpStatus: status });
 
   assert.equal(
     resolveAdminOperatorErrorStatus(new Error('TypeError: Failed to fetch'), fallback),
@@ -959,7 +952,7 @@ test('operator error resolver falls back for technical transport failures while 
     fallback,
   );
   assert.equal(
-    resolveAdminOperatorErrorStatus(new AdminApiError(400, 'socket hang up'), fallback),
+    resolveAdminOperatorErrorStatus(httpError(400, 'socket hang up'), fallback),
     fallback,
   );
   assert.equal(
@@ -967,7 +960,7 @@ test('operator error resolver falls back for technical transport failures while 
     'Tenant already exists.',
   );
   assert.equal(
-    resolveAdminOperatorErrorStatus(new AdminApiError(400, 'Tenant already exists.'), fallback),
+    resolveAdminOperatorErrorStatus(httpError(400, 'Tenant already exists.'), fallback),
     'Tenant already exists.',
   );
 });
@@ -993,8 +986,8 @@ test('operator message resolver falls back for technical runtime strings while p
 });
 
 test('tenant operator handoff localizes embedded live workspace status copy instead of interpolating raw shell status text', () => {
-  const tenants = read('packages/sdkwork-craw-chat-admin-tenants/src/index.tsx');
-  const i18n = read('packages/sdkwork-craw-chat-admin-core/src/i18n.tsx');
+  const tenants = read('packages/sdkwork-control-plane-tenants/src/index.tsx');
+  const i18n = read('packages/sdkwork-control-plane-core/src/i18n.tsx');
 
   assert.match(
     tenants,
@@ -1004,7 +997,7 @@ test('tenant operator handoff localizes embedded live workspace status copy inst
 });
 
 test('workbench action statuses stay translation-friendly and avoid embedding dynamic identifiers into shell-wide feedback', () => {
-  const workbenchActions = read('packages/sdkwork-craw-chat-admin-core/src/workbenchActions.ts');
+  const workbenchActions = read('packages/sdkwork-control-plane-core/src/workbenchActions.ts');
 
   assert.doesNotMatch(workbenchActions, /`Saving tenant \$\{input\.id\}\.\.\.`/);
   assert.doesNotMatch(workbenchActions, /`Saving project \$\{input\.id\}\.\.\.`/);
@@ -1031,7 +1024,7 @@ test('workbench action statuses stay translation-friendly and avoid embedding dy
 });
 
 test('zh-CN translations cover operator action statuses emitted by workbench actions', () => {
-  const i18n = read('packages/sdkwork-craw-chat-admin-core/src/i18n.tsx');
+  const i18n = read('packages/sdkwork-control-plane-core/src/i18n.tsx');
   const keys = [
     'Failed to save operator user.',
     'Updating operator identity...',
@@ -1137,10 +1130,10 @@ test('zh-CN translations cover operator action statuses emitted by workbench act
 });
 
 test('user-facing IM copy avoids router and commerce fallback residue', () => {
-  const tenants = read('packages/sdkwork-craw-chat-admin-tenants/src/index.tsx');
-  const automation = read('packages/sdkwork-craw-chat-admin-automation/src/index.tsx');
-  const realtime = read('packages/sdkwork-craw-chat-admin-realtime/src/index.tsx');
-  const workbenchSnapshot = read('packages/sdkwork-craw-chat-admin-core/src/workbenchSnapshot.ts');
+  const tenants = read('packages/sdkwork-control-plane-tenants/src/index.tsx');
+  const automation = read('packages/sdkwork-control-plane-automation/src/index.tsx');
+  const realtime = read('packages/sdkwork-control-plane-realtime/src/index.tsx');
+  const workbenchSnapshot = read('packages/sdkwork-control-plane-core/src/workbenchSnapshot.ts');
 
   assert.doesNotMatch(tenants, /US commerce/);
   assert.doesNotMatch(automation, /Routing bot|Completed routing sweep/);
@@ -1152,9 +1145,9 @@ test('user-facing IM copy avoids router and commerce fallback residue', () => {
 });
 
 test('zh-CN translations cover shell continuity, settings center, and live workspace status strings', () => {
-  const i18n = read('packages/sdkwork-craw-chat-admin-core/src/i18n.tsx');
+  const i18n = read('packages/sdkwork-control-plane-core/src/i18n.tsx');
   const commandPalette = read(
-    'packages/sdkwork-craw-chat-admin-shell/src/components/CommandPalette.tsx',
+    'packages/sdkwork-control-plane-shell/src/components/CommandPalette.tsx',
   );
 
   assert.match(i18n, /'Continuity cue':/);
@@ -1164,7 +1157,7 @@ test('zh-CN translations cover shell continuity, settings center, and live works
   assert.match(i18n, /'Settings center':/);
   assert.match(i18n, /'Route context strip':/);
   assert.match(i18n, /'Choose the operator workspace language\. Dates, numbers, and shared shell copy follow this setting immediately\.':/);
-  assert.match(i18n, /'Current shell posture for the IM operator workspace\.':/);
+  assert.match(i18n, /'Current shell posture for the control-plane workspace\.':/);
   assert.match(i18n, /'Theme mode':/);
   assert.match(i18n, /'Theme color':/);
   assert.match(i18n, /'Sidebar mode':/);
@@ -1180,7 +1173,7 @@ test('zh-CN translations cover shell continuity, settings center, and live works
   assert.match(i18n, /'Pull open moderation, realtime, automation, and system interventions from one persistent drawer\.':/);
   assert.match(i18n, /'Route directly into the linked module with the current incident context still in view\.':/);
   assert.match(i18n, /'\{count\} active incidents require operator ownership\.':/);
-  assert.match(i18n, /'IM operator':/);
+  assert.match(i18n, /'Control-plane workspace':/);
   assert.match(i18n, /'No published channel capabilities are available\. Review integrations before opening live message traffic\.':/);
   assert.match(i18n, /'Connector credentials are missing':/);
   assert.match(
@@ -1193,11 +1186,11 @@ test('zh-CN translations cover shell continuity, settings center, and live works
 });
 
 test('zh-CN translations cover auth, sidebar, and advanced settings panels', () => {
-  const i18n = read('packages/sdkwork-craw-chat-admin-core/src/i18n.tsx');
+  const i18n = read('packages/sdkwork-control-plane-core/src/i18n.tsx');
 
   assert.match(i18n, /'Request operator access':/);
   assert.match(i18n, /'Recover access':/);
-  assert.match(i18n, /'Request operator access and enter the IM operator workspace after an existing admin provisions your identity\.':/);
+  assert.match(i18n, /'Request operator access and enter the control-plane workspace after an existing admin provisions your identity\.':/);
   assert.match(i18n, /'Password reset links are not enabled for this workspace yet\. Continue back to sign in with your operator email\.':/);
   assert.match(i18n, /'Operator session':/);
   assert.match(i18n, /'Protected operator access':/);
@@ -1225,7 +1218,7 @@ test('zh-CN translations cover auth, sidebar, and advanced settings panels', () 
   assert.match(i18n, /'Enter your password':/);
   assert.match(i18n, /'Open user menu':/);
   assert.match(i18n, /'Close user menu':/);
-  assert.match(i18n, /'Sign in to manage the IM operator workspace':/);
+  assert.match(i18n, /'Sign in to manage the control-plane workspace':/);
   assert.match(i18n, /'Expand sidebar':/);
   assert.match(i18n, /'Collapse sidebar':/);
   assert.match(i18n, /'Theme posture':/);
@@ -1245,21 +1238,21 @@ test('zh-CN translations cover auth, sidebar, and advanced settings panels', () 
   assert.match(i18n, /'Appearance':/);
   assert.match(i18n, /'General':/);
   assert.match(i18n, /'Navigation':/);
-  assert.match(i18n, /'Operator workspace':/);
+  assert.match(i18n, /'Control-plane workspace':/);
   assert.match(i18n, /'Operator shell continuity':/);
-  assert.match(i18n, /'IM operator settings center':/);
+  assert.match(i18n, /'control-plane settings center':/);
   assert.match(i18n, /'Search settings':/);
   assert.match(i18n, /'No settings match your search':/);
   assert.match(i18n, /'Try a different keyword or browse the navigation without a search term\.':/);
   assert.match(i18n, /'Clear filters':/);
   assert.match(i18n, /'Shell':/);
   assert.match(i18n, /'Live':/);
-  assert.match(i18n, /'Refreshing live IM admin data\.\.\.':/);
-  assert.match(i18n, /'Live IM operator data synchronized\.':/);
+  assert.match(i18n, /'Refreshing live control-plane data\.\.\.':/);
+  assert.match(i18n, /'Live control-plane data synchronized\.':/);
   assert.match(i18n, /'Establishing operator session\.\.\.':/);
-  assert.match(i18n, /'Operator session established\. Loading the IM operator workspace\.\.\.':/);
-  assert.match(i18n, /'Signed out of the IM operator workspace\.':/);
-  assert.match(i18n, /'Failed to refresh the IM operator workspace\.':/);
+  assert.match(i18n, /'Operator session established\. Loading the control-plane workspace\.\.\.':/);
+  assert.match(i18n, /'Signed out of the control-plane workspace\.':/);
+  assert.match(i18n, /'Failed to refresh the control-plane workspace\.':/);
   assert.match(i18n, /'Login failed\.':/);
   assert.match(i18n, /'Realtime posture and tenant coverage remain visible while sign-in stays on the verified password-first path\.':/);
   assert.doesNotMatch(i18n, /'Create operator access':/);
@@ -1271,7 +1264,7 @@ test('zh-CN translations cover auth, sidebar, and advanced settings panels', () 
 });
 
 test('auth page renders progress and sign-out statuses as operator guidance instead of error red copy', () => {
-  const auth = read('packages/sdkwork-craw-chat-admin-auth/src/index.tsx');
+  const auth = read('packages/sdkwork-control-plane-auth/src/index.tsx');
 
   assert.match(auth, /function resolveLoginFeedbackClassName\(status: string, loading: boolean\)/);
   assert.match(auth, /normalized\.includes\('signed out'\)/);
@@ -1286,7 +1279,7 @@ test('auth page renders progress and sign-out statuses as operator guidance inst
 });
 
 test('auth page only presents truthful sign-in capabilities and avoids fake qr or social login entrypoints', () => {
-  const auth = read('packages/sdkwork-craw-chat-admin-auth/src/index.tsx');
+  const auth = read('packages/sdkwork-control-plane-auth/src/index.tsx');
 
   assert.match(auth, /Protected operator access/);
   assert.match(auth, /Password-first access/);
@@ -1300,14 +1293,14 @@ test('auth page only presents truthful sign-in capabilities and avoids fake qr o
 });
 
 test('auth page frames onboarding as operator provisioning instead of self-service account creation', () => {
-  const auth = read('packages/sdkwork-craw-chat-admin-auth/src/index.tsx');
+  const auth = read('packages/sdkwork-control-plane-auth/src/index.tsx');
 
   assert.match(auth, /title: 'Request operator access'/);
   assert.match(auth, /Need access\?/);
   assert.match(auth, /Already provisioned\?/);
   assert.match(auth, /placeholder=\{t\('Operations lead'\)\}/);
   assert.match(auth, /placeholder=\{t\('ops@workspace\.example'\)\}/);
-  assert.match(auth, /Operator account requests stay inside the IM operator workspace\. Ask an existing admin to review and provision \{name\} access from Identity\./);
+  assert.match(auth, /Operator account requests stay inside the control-plane workspace\. Ask an existing admin to review and provision \{name\} access from Identity\./);
   assert.doesNotMatch(auth, /title: 'Create operator access'/);
   assert.doesNotMatch(auth, /No account\?/);
   assert.doesNotMatch(auth, /Already have an account\?/);
@@ -1317,33 +1310,33 @@ test('auth page frames onboarding as operator provisioning instead of self-servi
 });
 
 test('identity governance uses Identity as the operator-facing module label instead of Users', () => {
-  const usersPage = read('packages/sdkwork-craw-chat-admin-users/src/index.tsx');
-  const routes = read('packages/sdkwork-craw-chat-admin-core/src/routes.ts');
-  const routeManifest = read('packages/sdkwork-craw-chat-admin-core/src/routeManifest.ts');
-  const i18n = read('packages/sdkwork-craw-chat-admin-core/src/i18n.tsx');
-  const auth = read('packages/sdkwork-craw-chat-admin-auth/src/index.tsx');
+  const usersPage = read('packages/sdkwork-control-plane-users/src/index.tsx');
+  const routes = read('packages/sdkwork-control-plane-core/src/routes.ts');
+  const routeManifest = read('packages/sdkwork-control-plane-core/src/routeManifest.ts');
+  const i18n = read('packages/sdkwork-control-plane-core/src/i18n.tsx');
+  const auth = read('packages/sdkwork-control-plane-auth/src/index.tsx');
 
   assert.match(usersPage, /title=\{t\('Identity'\)\}/);
   assert.doesNotMatch(usersPage, /title=\{t\('Users'\)\}/);
   assert.match(routes, /key: 'users'[\s\S]*label: 'Identity'[\s\S]*eyebrow: 'Identity'/);
   assert.doesNotMatch(routes, /key: 'users'[\s\S]*label: 'Users'/);
-  assert.match(routeManifest, /moduleId: 'sdkwork-craw-chat-admin-users'[\s\S]*displayName: 'Identity'/);
-  assert.doesNotMatch(routeManifest, /moduleId: 'sdkwork-craw-chat-admin-users'[\s\S]*displayName: 'Users'/);
+  assert.match(routeManifest, /moduleId: 'sdkwork-control-plane-users'[\s\S]*displayName: 'Identity'/);
+  assert.doesNotMatch(routeManifest, /moduleId: 'sdkwork-control-plane-users'[\s\S]*displayName: 'Users'/);
   assert.match(auth, /review and provision \{name\} access from Identity\./);
   assert.match(i18n, /^\s*'Identity':/m);
   assert.doesNotMatch(i18n, /^\s*'Users':/m);
 });
 
 test('tenant governance uses workspace-first operator labels instead of raw project copy', () => {
-  const overview = read('packages/sdkwork-craw-chat-admin-overview/src/index.tsx');
-  const tenants = read('packages/sdkwork-craw-chat-admin-tenants/src/index.tsx');
+  const overview = read('packages/sdkwork-control-plane-overview/src/index.tsx');
+  const tenants = read('packages/sdkwork-control-plane-tenants/src/index.tsx');
   const registrySection = read(
-    'packages/sdkwork-craw-chat-admin-tenants/src/page/TenantsRegistrySection.tsx',
+    'packages/sdkwork-control-plane-tenants/src/page/TenantsRegistrySection.tsx',
   );
-  const projectDialog = read('packages/sdkwork-craw-chat-admin-tenants/src/page/ProjectDialog.tsx');
-  const detailPanel = read('packages/sdkwork-craw-chat-admin-tenants/src/page/TenantsDetailPanel.tsx');
-  const detailDrawer = read('packages/sdkwork-craw-chat-admin-tenants/src/page/TenantsDetailDrawer.tsx');
-  const i18n = read('packages/sdkwork-craw-chat-admin-core/src/i18n.tsx');
+  const projectDialog = read('packages/sdkwork-control-plane-tenants/src/page/ProjectDialog.tsx');
+  const detailPanel = read('packages/sdkwork-control-plane-tenants/src/page/TenantsDetailPanel.tsx');
+  const detailDrawer = read('packages/sdkwork-control-plane-tenants/src/page/TenantsDetailDrawer.tsx');
+  const i18n = read('packages/sdkwork-control-plane-core/src/i18n.tsx');
 
   assert.match(overview, /\{count\} active tenant workspaces are contributing to the current operator load\./);
   assert.match(tenants, /\{count\} active tenant workspaces are contributing to the current operator load\./);
@@ -1390,11 +1383,11 @@ test('tenant governance uses workspace-first operator labels instead of raw proj
 });
 
 test('tenant access governance uses access-facing labels instead of gateway jargon', () => {
-  const tenants = read('packages/sdkwork-craw-chat-admin-tenants/src/index.tsx');
-  const apiKeyDialog = read('packages/sdkwork-craw-chat-admin-tenants/src/page/ApiKeyDialog.tsx');
-  const detailDrawer = read('packages/sdkwork-craw-chat-admin-tenants/src/page/TenantsDetailDrawer.tsx');
-  const detailPanel = read('packages/sdkwork-craw-chat-admin-tenants/src/page/TenantsDetailPanel.tsx');
-  const i18n = read('packages/sdkwork-craw-chat-admin-core/src/i18n.tsx');
+  const tenants = read('packages/sdkwork-control-plane-tenants/src/index.tsx');
+  const apiKeyDialog = read('packages/sdkwork-control-plane-tenants/src/page/ApiKeyDialog.tsx');
+  const detailDrawer = read('packages/sdkwork-control-plane-tenants/src/page/TenantsDetailDrawer.tsx');
+  const detailPanel = read('packages/sdkwork-control-plane-tenants/src/page/TenantsDetailPanel.tsx');
+  const i18n = read('packages/sdkwork-control-plane-core/src/i18n.tsx');
 
   assert.match(tenants, /header:\s*t\('Access posture'\)/);
   assert.doesNotMatch(tenants, /header:\s*t\('Gateway posture'\)/);
@@ -1415,14 +1408,14 @@ test('tenant access governance uses access-facing labels instead of gateway jarg
 });
 
 test('tenant key issuance guidance uses workspace labels instead of workspace-environment jargon', () => {
-  const tenants = read('packages/sdkwork-craw-chat-admin-tenants/src/index.tsx');
+  const tenants = read('packages/sdkwork-control-plane-tenants/src/index.tsx');
   const registrySection = read(
-    'packages/sdkwork-craw-chat-admin-tenants/src/page/TenantsRegistrySection.tsx',
+    'packages/sdkwork-control-plane-tenants/src/page/TenantsRegistrySection.tsx',
   );
-  const apiKeyDialog = read('packages/sdkwork-craw-chat-admin-tenants/src/page/ApiKeyDialog.tsx');
-  const detailPanel = read('packages/sdkwork-craw-chat-admin-tenants/src/page/TenantsDetailPanel.tsx');
-  const shared = read('packages/sdkwork-craw-chat-admin-tenants/src/page/shared.tsx');
-  const i18n = read('packages/sdkwork-craw-chat-admin-core/src/i18n.tsx');
+  const apiKeyDialog = read('packages/sdkwork-control-plane-tenants/src/page/ApiKeyDialog.tsx');
+  const detailPanel = read('packages/sdkwork-control-plane-tenants/src/page/TenantsDetailPanel.tsx');
+  const shared = read('packages/sdkwork-control-plane-tenants/src/page/shared.tsx');
+  const i18n = read('packages/sdkwork-control-plane-core/src/i18n.tsx');
 
   assert.match(tenants, /t\('Key issuance remains guarded until a workspace exists and coverage can be reviewed\.'\)/);
   assert.match(tenants, /detail=\{t\('Workspaces connected to the operator shell\.'\)\}/);
@@ -1461,7 +1454,7 @@ test('tenant key issuance guidance uses workspace labels instead of workspace-en
 });
 
 test('zh-CN translations cover overview and primary workspace governance modules', () => {
-  const i18n = read('packages/sdkwork-craw-chat-admin-core/src/i18n.tsx');
+  const i18n = read('packages/sdkwork-control-plane-core/src/i18n.tsx');
   const keys = [
     'Ops',
     'Identity',
@@ -1645,7 +1638,7 @@ test('zh-CN translations cover overview and primary workspace governance modules
 });
 
 test('zh-CN translations cover secondary governance, safety, and live operations modules', () => {
-  const i18n = read('packages/sdkwork-craw-chat-admin-core/src/i18n.tsx');
+  const i18n = read('packages/sdkwork-control-plane-core/src/i18n.tsx');
   const keys = [
     'Community governance',
     'Groups',
@@ -1812,8 +1805,8 @@ test('zh-CN translations cover secondary governance, safety, and live operations
 });
 
 test('automation and announcements localize fallback status labels instead of rendering raw English state', () => {
-  const automation = read('packages/sdkwork-craw-chat-admin-automation/src/index.tsx');
-  const announcements = read('packages/sdkwork-craw-chat-admin-announcements/src/index.tsx');
+  const automation = read('packages/sdkwork-control-plane-automation/src/index.tsx');
+  const announcements = read('packages/sdkwork-control-plane-announcements/src/index.tsx');
 
   assert.doesNotMatch(automation, /status: 'Running'/);
   assert.doesNotMatch(automation, /status: 'Standby'/);

@@ -422,7 +422,7 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
         all_http_methods(),
         &["/api/v1/control/{*path}"],
         RouteVisibility::Internal,
-        vec![SdkTarget::CrawChatAdminSdk],
+        vec![SdkTarget::ControlPlaneSdk],
         "control",
     ));
     entries.extend(exact_routes(
@@ -1267,7 +1267,7 @@ fn gateway_discovery_schema_components() -> Map<String, Value> {
         "GatewaySdkTarget".to_owned(),
         json!({
             "type": "string",
-            "enum": ["crawChatAppSdk", "crawChatAdminSdk", "none"]
+            "enum": ["crawChatAppSdk", "controlPlaneSdk", "none"]
         }),
     );
     schemas.insert(

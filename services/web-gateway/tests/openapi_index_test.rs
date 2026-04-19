@@ -27,7 +27,7 @@ async fn gateway_exposes_aggregate_openapi_json() {
         "control-plane-api",
         json!({
             "openapi": "3.1.0",
-            "info": { "title": "Craw Chat Control Plane API", "version": "0.1.0" },
+            "info": { "title": "Control Plane API", "version": "0.1.0" },
             "paths": {
                 "/api/v1/control/protocol-registry": {
                     "get": { "summary": "Get protocol registry", "responses": { "200": { "description": "ok" } } }
@@ -131,7 +131,7 @@ async fn gateway_exposes_openapi_service_index_and_service_schema_proxy() {
         "control-plane-api",
         json!({
             "openapi": "3.1.0",
-            "info": { "title": "Craw Chat Control Plane API", "version": "0.1.0" },
+            "info": { "title": "Control Plane API", "version": "0.1.0" },
             "paths": {
                 "/api/v1/control/protocol-registry": {
                     "get": { "summary": "Get protocol registry", "responses": { "200": { "description": "ok" } } }
@@ -182,7 +182,7 @@ async fn gateway_exposes_openapi_service_index_and_service_schema_proxy() {
     );
     assert_eq!(
         index_value["services"][0]["sdkTargets"],
-        json!(["crawChatAdminSdk"])
+        json!(["controlPlaneSdk"])
     );
     assert_eq!(index_value["services"][0]["protocols"], json!(["http"]));
     assert!(
@@ -197,7 +197,7 @@ async fn gateway_exposes_openapi_service_index_and_service_schema_proxy() {
                     && route["methods"]
                         == json!(["delete", "get", "head", "options", "patch", "post", "put"])
                     && route["protocol"] == "http"
-                    && route["sdkTargets"] == json!(["crawChatAdminSdk"])
+                    && route["sdkTargets"] == json!(["controlPlaneSdk"])
             })
     );
     assert!(
@@ -210,7 +210,7 @@ async fn gateway_exposes_openapi_service_index_and_service_schema_proxy() {
                     && group["operationGroup"] == "control"
                     && group["visibility"] == "internal"
                     && group["routeCount"] == 1
-                    && group["sdkTargets"] == json!(["crawChatAdminSdk"])
+                    && group["sdkTargets"] == json!(["controlPlaneSdk"])
                     && group["protocols"] == json!(["http"])
             })
     );
@@ -236,7 +236,7 @@ async fn gateway_exposes_openapi_service_index_and_service_schema_proxy() {
     .expect("service schema should be valid json");
     assert_eq!(
         service_value["info"]["title"],
-        "Craw Chat Control Plane API"
+        "Control Plane API"
     );
 }
 
@@ -454,7 +454,7 @@ async fn gateway_exposes_runtime_summary_json() {
         "control-plane-api",
         json!({
             "openapi": "3.1.0",
-            "info": { "title": "Craw Chat Control Plane API", "version": "0.1.0" },
+            "info": { "title": "Control Plane API", "version": "0.1.0" },
             "paths": {
                 "/api/v1/control/protocol-registry": {
                     "get": { "summary": "Get protocol registry", "responses": { "200": { "description": "ok" } } }
@@ -587,7 +587,7 @@ fn startup_summary_lists_gateway_openapi_endpoints() {
         "public session-gateway realtime [sdk:crawChatAppSdk] [protocols:http,websocket]: 2 routes"
     ));
     assert!(text.contains(
-        "internal control-plane-api control [sdk:crawChatAdminSdk] [protocols:http]: 1 routes"
+        "internal control-plane-api control [sdk:controlPlaneSdk] [protocols:http]: 1 routes"
     ));
 }
 

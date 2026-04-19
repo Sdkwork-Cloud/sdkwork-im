@@ -9,15 +9,15 @@ function read(relativePath) {
   return readFileSync(path.join(appRoot, relativePath), 'utf8');
 }
 
-test('auth package exists and exposes the IM operator login page', () => {
+test('auth package exists and exposes the control-plane login page', () => {
   assert.equal(
-    existsSync(path.join(appRoot, 'packages', 'sdkwork-craw-chat-admin-auth', 'src', 'index.tsx')),
+    existsSync(path.join(appRoot, 'packages', 'sdkwork-control-plane-auth', 'src', 'index.tsx')),
     true,
   );
 
-  const auth = read('packages/sdkwork-craw-chat-admin-auth/src/index.tsx');
+  const auth = read('packages/sdkwork-control-plane-auth/src/index.tsx');
 
-  assert.match(auth, /Craw Chat Admin|IM operator workspace/);
+  assert.match(auth, /Craw Chat Admin|control-plane workspace/);
   assert.match(auth, /Welcome back|Sign in/);
   assert.match(auth, /Protected operator access|Password-first access/);
   assert.match(auth, /Identity provider availability|External identity providers remain disabled/);
@@ -43,7 +43,7 @@ test('auth package exists and exposes the IM operator login page', () => {
 });
 
 test('shell routes keep auth outside the authenticated shell', () => {
-  const routes = read('packages/sdkwork-craw-chat-admin-shell/src/application/router/AppRoutes.tsx');
+  const routes = read('packages/sdkwork-control-plane-shell/src/application/router/AppRoutes.tsx');
 
   assert.match(routes, /AdminLoginPage/);
   assert.match(routes, /MainLayout/);

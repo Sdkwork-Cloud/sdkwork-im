@@ -1,4 +1,4 @@
-# Craw Chat SDK Docs Professionalization Implementation Plan
+# IM SDK Docs Professionalization Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -6,16 +6,16 @@
 
 **Architecture:** Keep the existing VitePress site and API page generator intact, but rebuild the navigation, homepage, and SDK section around integration tasks rather than workspace notes. Author all SDK-facing content from the real worktree manifests, module exports, and composed SDK entrypoints, then add reciprocal SDK mapping blocks in the App API reference so API and SDK documentation stay synchronized.
 
-**Tech Stack:** VitePress 1.6, Markdown, TypeScript theme config, existing `docs:generate` / `docs:build` / `docs:verify` scripts, trilanguage Craw Chat SDK workspace under `.worktrees/craw-chat-sdk-trilanguage-expansion`
+**Tech Stack:** VitePress 1.6, Markdown, TypeScript theme config, existing `docs:generate` / `docs:build` / `docs:verify` scripts, trilanguage IM SDK workspace under `.worktrees/im-sdk-trilanguage-expansion`
 
 ---
 
 ## Spec Basis
 
 - Approved design spec in the main workspace:
-  `D:\javasource\spring-ai-plus\spring-ai-plus-business\apps\craw-chat\docs\superpowers\specs\2026-04-14-craw-chat-sdk-docs-professionalization-design.md`
+  `D:\javasource\spring-ai-plus\spring-ai-plus-business\apps\craw-chat\docs\superpowers\specs\2026-04-14-im-sdk-docs-professionalization-design.md`
 - Implementation branch and worktree:
-  `.worktrees/craw-chat-sdk-trilanguage-expansion`
+  `.worktrees/im-sdk-trilanguage-expansion`
 
 ## File Structure
 
@@ -219,12 +219,12 @@ The page should keep the professional open-source tone but change the action ord
 Use real package and crate identities:
 
 ```md
-- TypeScript composed: `@sdkwork/craw-chat-sdk`
-- Flutter composed: `craw_chat_sdk`
-- Rust composed: `craw-chat-sdk`
-- TypeScript generated: `@sdkwork/craw-chat-backend-sdk`
-- Flutter generated: `backend_sdk`
-- Rust generated: `sdkwork-craw-chat-backend-sdk`
+- TypeScript composed: `@sdkwork/im-sdk`
+- Flutter composed: `im_sdk`
+- Rust composed: `im-sdk`
+- TypeScript generated: `@sdkwork-internal/im-sdk-generated`
+- Flutter generated: `im_sdk_generated`
+- Rust generated: `sdkwork-im-sdk-generated`
 ```
 
 Document the delivery-state vocabulary explicitly:
@@ -302,7 +302,7 @@ Include a shared initialization table:
 Use the actual package and entrypoint names:
 
 ```ts
-import { CrawChatClient } from "@sdkwork/craw-chat-sdk";
+import { CrawChatClient } from "@sdkwork/im-sdk";
 
 const client = new CrawChatClient({
   baseUrl: "http://127.0.0.1:18090",
@@ -326,7 +326,7 @@ final client = CrawChatClient.create(
 Rust should use the real composed crate surface:
 
 ```rust
-use craw_chat_sdk::CrawChatClient;
+use im_sdk::CrawChatClient;
 
 let client = CrawChatClient::new_with_base_url("http://127.0.0.1:18090")?;
 client.set_auth_token(token);
@@ -613,7 +613,7 @@ Review the new pages for:
 Use:
 
 ```bash
-rg "CrawChatClient|@sdkwork/craw-chat-sdk|craw_chat_sdk|craw-chat-sdk|generated/server-openapi|Workspace present but not published" docs/sites/sdk docs/sites/api-reference docs/sites/index.md
+rg "CrawChatClient|@sdkwork/im-sdk|im_sdk|im-sdk|generated/server-openapi|Workspace present but not published" docs/sites/sdk docs/sites/api-reference docs/sites/index.md
 ```
 
 - [ ] **Step 3: Run documentation verification**

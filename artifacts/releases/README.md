@@ -171,9 +171,9 @@ The SDK release catalog is a machine-readable release snapshot, not a hand-maint
 - authority source:
   - the checked-in `.sdkwork-assembly.json` files under each SDK workspace
 - current workspaces:
-  - `sdks/sdkwork-craw-chat-sdk`
-  - `sdks/sdkwork-craw-chat-sdk-admin`
-  - `sdks/sdkwork-craw-chat-sdk-management`
+  - `sdks/sdkwork-im-sdk`
+  - `sdks/sdkwork-control-plane-sdk`
+  - `sdks/sdkwork-im-admin-sdk`
 - synchronization script:
   - `node artifacts/releases/sync-sdk-release-catalog.mjs --bundle <bundle-id>`
 - drift check:
@@ -192,14 +192,9 @@ The release-state semantics are:
 
 - `wave-d-2026-04-08` already includes a checked-in `sdk-release-catalog.json`
 - the current SDK release-catalog state is `generated_pending_publication`
-- the tracked artifact set currently covers six SDK outputs:
-  - `app-typescript`
-  - `app-flutter`
-  - `admin-typescript`
-  - `admin-flutter`
-  - `management-typescript`
-  - `management-flutter`
-- all six currently show:
+- the tracked artifact set currently covers the full app multi-language family plus the admin and
+  IM admin TypeScript/Flutter outputs recorded in `sdk-release-catalog.json`
+- every tracked artifact currently shows:
   - `generationStatus = generated`
   - `releaseStatus = not_published`
 - version-freeze fields remain explicit until publication is planned:

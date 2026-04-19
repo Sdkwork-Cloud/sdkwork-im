@@ -131,7 +131,7 @@ The SDK workspaces under `sdks/` have their own root command wrappers.
 
 ### App SDK Derived Specs And Verification
 
-The app-facing SDK workspace is `sdks/sdkwork-craw-chat-sdk`.
+The app-facing SDK workspace is `sdks/sdkwork-im-sdk`.
 
 Its checked-in authority and derived generator inputs live under `openapi/`:
 
@@ -142,9 +142,9 @@ Its checked-in authority and derived generator inputs live under `openapi/`:
 Run from the repository root:
 
 ```powershell
-node .\sdks\sdkwork-craw-chat-sdk\bin\prepare-openapi-source.mjs
-node .\sdks\sdkwork-craw-chat-sdk\bin\verify-sdk.mjs
-node .\sdks\sdkwork-craw-chat-sdk\bin\verify-sdk.mjs --with-dart
+node .\sdks\sdkwork-im-sdk\bin\prepare-openapi-source.mjs
+node .\sdks\sdkwork-im-sdk\bin\verify-sdk.mjs
+node .\sdks\sdkwork-im-sdk\bin\verify-sdk.mjs --with-dart
 ```
 
 That path validates the root workspace, language packages, and final assembly output. Successful
@@ -152,31 +152,31 @@ verification updates `.sdkwork-assembly.json`, which records package `manifestPa
 `generated` / `composed` layer split, and the stable `generatedAt` timestamp used for release-facing
 inspection.
 
-### Admin SDK Derived Specs And Verification
+### Control-Plane SDK Derived Specs And Verification
 
-The admin control-plane SDK workspace is `sdks/sdkwork-craw-chat-sdk-admin`.
+The admin control-plane SDK workspace is `sdks/sdkwork-control-plane-sdk`.
 
-### Admin SDK Contract Refresh
+### Control-Plane SDK Contract Refresh
 
 Run from the repository root when you need to refresh the checked-in admin authority contract:
 
 ```powershell
-node .\sdks\sdkwork-craw-chat-sdk-admin\bin\fetch-openapi-source.mjs
-node .\sdks\sdkwork-craw-chat-sdk-admin\bin\prepare-openapi-source.mjs
+node .\sdks\sdkwork-control-plane-sdk\bin\fetch-openapi-source.mjs
+node .\sdks\sdkwork-control-plane-sdk\bin\prepare-openapi-source.mjs
 ```
 
 That flow refreshes:
 
-- `openapi/admin-control-plane.openapi.yaml`
-- `openapi/admin-control-plane.sdkgen.yaml`
+- `openapi/control-plane.openapi.yaml`
+- `openapi/control-plane.sdkgen.yaml`
 
-### Admin SDK Verification And Assembly
+### Control-Plane SDK Verification And Assembly
 
 Run from the repository root:
 
 ```powershell
-node .\sdks\sdkwork-craw-chat-sdk-admin\bin\verify-sdk.mjs --language typescript --language flutter
-node .\sdks\sdkwork-craw-chat-sdk-admin\bin\verify-sdk.mjs --language flutter --with-dart
+node .\sdks\sdkwork-control-plane-sdk\bin\verify-sdk.mjs --language typescript --language flutter
+node .\sdks\sdkwork-control-plane-sdk\bin\verify-sdk.mjs --language flutter --with-dart
 ```
 
 The root verification path runs workspace automation checks, language verification, and final
@@ -184,23 +184,23 @@ assembly refresh. Successful verification updates `.sdkwork-assembly.json`, whic
 workspace package inventory, generated package `manifestPath` values, the `generated` / `composed`
 layer split, and the stable `generatedAt` timestamp used for release-facing inspection.
 
-### Management SDK Derived Specs And Verification
+### IM Admin SDK Derived Specs And Verification
 
-The operator-console management SDK workspace is `sdks/sdkwork-craw-chat-sdk-management`.
+The operator-console IM admin SDK workspace is `sdks/sdkwork-im-admin-sdk`.
 
 Run from the repository root:
 
 ```powershell
-node .\sdks\sdkwork-craw-chat-sdk-management\bin\verify-sdk.mjs
+node .\sdks\sdkwork-im-admin-sdk\bin\verify-sdk.mjs
 ```
 
 Regenerate the checked-in authority inventory and language workspaces:
 
 ```powershell
-.\sdks\sdkwork-craw-chat-sdk-management\bin\generate-sdk.ps1
+.\sdks\sdkwork-im-admin-sdk\bin\generate-sdk.ps1
 ```
 
-The management workspace follows the same generated-versus-composed package split and refreshes its
+The IM admin workspace follows the same generated-versus-composed package split and refreshes its
 own `.sdkwork-assembly.json` snapshot as part of verification and assembly.
 
 ## Help Conventions

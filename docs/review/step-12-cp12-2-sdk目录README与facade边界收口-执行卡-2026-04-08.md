@@ -25,8 +25,8 @@
   - `test_step12_sdk_readmes_freeze_facade_boundaries_and_workspace_entry_points`
 - 该测试当前冻结了以下事实：
   - `sdks/README.md` 必须公开两套 SDK 入口、`compatibility matrix`、`TypeScript`、`Flutter`
-  - `sdks/sdkwork-craw-chat-sdk/README.md` 必须声明 `payload.json`、`ccp/ws/1`、`bearer` 与 app-facing 边界
-  - `sdks/sdkwork-craw-chat-sdk-admin/README.md` 必须声明 `control-plane`、`protocol governance` 与 admin-facing 边界
+  - `sdks/sdkwork-im-sdk/README.md` 必须声明 `payload.json`、`ccp/ws/1`、`bearer` 与 app-facing 边界
+  - `sdks/sdkwork-control-plane-sdk/README.md` 必须声明 `control-plane`、`protocol governance` 与 admin-facing 边界
   - 根 `README.md` 必须链接 `sdks/README.md`
 
 ### 2. 已把 workspace 根入口补到 SDK 总览
@@ -38,24 +38,24 @@
 ### 3. 已冻结 `sdks/` 总览与两套 facade 容器边界
 - 更新：
   - `sdks/README.md`
-  - `sdks/sdkwork-craw-chat-sdk/README.md`
-  - `sdks/sdkwork-craw-chat-sdk-admin/README.md`
+  - `sdks/sdkwork-im-sdk/README.md`
+  - `sdks/sdkwork-control-plane-sdk/README.md`
 - 当前已明确：
-  - `sdkwork-craw-chat-sdk`
+  - `sdkwork-im-sdk`
     - 只承接 app-facing conversation / message / timeline / realtime facade
     - 遵守 `payload.json`、`ccp/ws/1`、bearer 与 `auth_bind`
     - capability 是否启用由 `compatibility matrix` 与协商结果决定
-  - `sdkwork-craw-chat-sdk-admin`
+  - `sdkwork-control-plane-sdk`
     - 只承接 `control-plane` / `protocol governance` / `compatibility matrix`
     - 不冒充聊天产品 SDK
     - 协议能力决策以 control-plane snapshot 为准
 
 ### 4. 已把 `TypeScript` / `Flutter` 子目录从空壳路径升级为稳定占位入口
 - 新增：
-  - `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/README.md`
-  - `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-flutter/README.md`
-  - `sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-typescript/README.md`
-  - `sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-flutter/README.md`
+  - `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/README.md`
+  - `sdks/sdkwork-im-sdk/sdkwork-im-sdk-flutter/README.md`
+  - `sdks/sdkwork-control-plane-sdk/sdkwork-control-plane-sdk-typescript/README.md`
+  - `sdks/sdkwork-control-plane-sdk/sdkwork-control-plane-sdk-flutter/README.md`
 - 当前这些目录不再只是空文件夹，而是有了最小可信职责声明：
   - 谁消费 app-facing facade
   - 谁消费 admin-facing facade

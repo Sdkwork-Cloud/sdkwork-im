@@ -81,12 +81,32 @@ function verifySourceOperationBlock(filePath, anchor, block) {
     }
 
     if (
-      (relativePath.includes("docs/sites/api-reference/platform/") ||
-        relativePath.includes("docs/sites/api-reference/iot/")) &&
-      metaMatch[1].includes("`sdkwork-craw-chat-sdk`")
+      (relativePath.startsWith("api-reference/platform/") ||
+        relativePath.startsWith("api-reference/iot/")) &&
+      metaMatch[1].includes("`sdkwork-im-sdk`")
     ) {
       issues.push(
-        `${location}: platform and IoT operation docs must not claim sdkwork-craw-chat-sdk as the SDK surface`,
+        `${location}: platform and IoT operation docs must not claim sdkwork-im-sdk as the SDK surface`,
+      );
+    }
+
+    if (
+      (relativePath.startsWith("api-reference/control-plane/social") ||
+        relativePath.startsWith("api-reference/control-plane/social-runtime")) &&
+      metaMatch[1].includes("`sdkwork-im-sdk`")
+    ) {
+      issues.push(
+        `${location}: control-plane social docs must use the control-plane SDK family instead of sdkwork-im-sdk`,
+      );
+    }
+
+    if (
+      (relativePath.startsWith("api-reference/control-plane/social") ||
+        relativePath.startsWith("api-reference/control-plane/social-runtime")) &&
+      metaMatch[1].includes("Authenticated principal.")
+    ) {
+      issues.push(
+        `${location}: control-plane social docs must use explicit control-plane permissions, not generic authenticated principal text`,
       );
     }
 
@@ -162,6 +182,28 @@ for (const link of sidebarLinks) {
   if (!/### Response `\d+`/.test(markdownContent)) {
     issues.push(`sidebar ${link}: missing explicit response section`);
   }
+  if (link.startsWith("/api-reference/operations/app/portal-and-auth/")) {
+    if (!markdownContent.includes("@sdkwork/im-sdk")) {
+      issues.push(`${link}: portal/auth operation page must reference @sdkwork/im-sdk`);
+    }
+    if (markdownContent.includes("`sdkwork-im-sdk`")) {
+      issues.push(`${link}: portal/auth operation page must not use workspace-level sdkwork-im-sdk labels`);
+    }
+  }
+  if (
+    link.startsWith("/api-reference/operations/control-plane/social/") ||
+    link.startsWith("/api-reference/operations/control-plane/social-runtime/")
+  ) {
+    if (!markdownContent.includes("sdkwork-control-plane-sdk")) {
+      issues.push(`${link}: control-plane social operation page must reference sdkwork-control-plane-sdk`);
+    }
+    if (markdownContent.includes("`sdkwork-im-sdk`")) {
+      issues.push(`${link}: control-plane social operation page must not claim sdkwork-im-sdk`);
+    }
+    if (markdownContent.includes("Authenticated principal.")) {
+      issues.push(`${link}: control-plane social operation page must not use generic authenticated principal permission text`);
+    }
+  }
 }
 
 for (const link of expectedSidebarLinks) {
@@ -208,13 +250,13 @@ const appApiSource = read(appApiPath);
 requireIncludes(
   appApiSource,
   appApiPath,
-  "@sdkwork/craw-chat-sdk",
+  "@sdkwork/im-sdk",
   "must point TypeScript consumers to the official root package",
 );
 requireIncludes(
   appApiSource,
   appApiPath,
-  "craw_chat_sdk",
+  "im_sdk",
   "must point Flutter consumers to the official consumer package",
 );
 requireExcludes(
@@ -237,13 +279,13 @@ for (const relativePath of [
   requireIncludes(
     source,
     relativePath,
-    "@sdkwork/craw-chat-sdk",
+    "@sdkwork/im-sdk",
     "must reference the official TypeScript root package when linking SDK usage",
   );
   requireIncludes(
     source,
     relativePath,
-    "craw_chat_sdk",
+    "im_sdk",
     "must reference the official Flutter consumer package when linking SDK usage",
   );
 }
@@ -400,8 +442,8 @@ requireExcludes(
 requireExcludes(
   rtcSource,
   rtcPath,
-  "`sdkwork-craw-chat-sdk` / rtc",
-  "must not use the retired sdkwork-craw-chat-sdk / rtc meta label on the RTC API page",
+  "`sdkwork-im-sdk` / rtc",
+  "must not use the retired sdkwork-im-sdk / rtc meta label on the RTC API page",
 );
 
 const sessionRealtimePath = "api-reference/app/session-and-realtime.md";
@@ -499,8 +541,8 @@ requireExcludes(
 requireExcludes(
   sessionRealtimeSource,
   sessionRealtimePath,
-  "`sdkwork-craw-chat-sdk` / session",
-  "must not use the retired sdkwork-craw-chat-sdk / session meta label on the session and realtime API page",
+  "`sdkwork-im-sdk` / session",
+  "must not use the retired sdkwork-im-sdk / session meta label on the session and realtime API page",
 );
 
 const deviceSyncPath = "api-reference/app/device-sync.md";
@@ -526,8 +568,8 @@ requireExcludes(
 requireExcludes(
   deviceSyncSource,
   deviceSyncPath,
-  "`sdkwork-craw-chat-sdk` / device-sync",
-  "must not use the retired sdkwork-craw-chat-sdk / device-sync meta label on the device sync API page",
+  "`sdkwork-im-sdk` / device-sync",
+  "must not use the retired sdkwork-im-sdk / device-sync meta label on the device sync API page",
 );
 
 const streamsPath = "api-reference/app/streams.md";
@@ -553,8 +595,8 @@ requireExcludes(
 requireExcludes(
   streamsSource,
   streamsPath,
-  "`sdkwork-craw-chat-sdk` / streams",
-  "must not use the retired sdkwork-craw-chat-sdk / streams meta label on the streams API page",
+  "`sdkwork-im-sdk` / streams",
+  "must not use the retired sdkwork-im-sdk / streams meta label on the streams API page",
 );
 
 const membershipPath = "api-reference/app/membership-and-read-state.md";
@@ -583,20 +625,26 @@ const portalAuthSource = read(portalAuthPath);
 requireIncludes(
   portalAuthSource,
   portalAuthPath,
-  "@sdkwork/craw-chat-sdk",
+  "@sdkwork/im-sdk",
   "must describe the TypeScript portal surface through the official root package",
 );
 requireIncludes(
   portalAuthSource,
   portalAuthPath,
-  "craw_chat_sdk",
+  "im_sdk",
   "must describe the current Flutter portal gap through the official Flutter package naming",
 );
 requireIncludes(
   portalAuthSource,
   portalAuthPath,
-  "backend_sdk",
+  "im_sdk_generated",
   "must describe the current Flutter portal gap through the generated package naming",
+);
+requireExcludes(
+  portalAuthSource,
+  portalAuthPath,
+  "`sdkwork-im-sdk`",
+  "must not use workspace-level sdkwork-im-sdk meta labels on the portal and auth API page",
 );
 requireExcludes(
   portalAuthSource,
@@ -604,6 +652,25 @@ requireExcludes(
   "generated and composed layers",
   "must not describe TypeScript or Flutter package surfaces as generic generated-and-composed layers",
 );
+
+for (const [relativePath, requiredSdkLabel] of [
+  ["api-reference/control-plane/social.md", "sdkwork-control-plane-sdk"],
+  ["api-reference/control-plane/social-runtime.md", "sdkwork-control-plane-sdk"],
+]) {
+  const source = read(relativePath);
+  requireIncludes(
+    source,
+    relativePath,
+    requiredSdkLabel,
+    "must use the control-plane SDK family for control-plane social surfaces",
+  );
+  requireExcludes(
+    source,
+    relativePath,
+    "`sdkwork-im-sdk`",
+    "must not claim the app SDK family on control-plane social surfaces",
+  );
+}
 
 if (issues.length > 0) {
   console.error(issues.join("\n"));

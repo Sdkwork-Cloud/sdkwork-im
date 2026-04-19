@@ -42,7 +42,7 @@
 - Request and response payloads are rendered from a shared schema registry to keep documentation aligned with implementation.
 - Nested request and response fields are expandable so large payloads remain readable on desktop and mobile.
 - Shared auth rules and error envelope semantics are documented in [Authentication and Errors](/api-reference/auth-and-errors).
-- SDK families remain boundary-specific: `sdkwork-craw-chat-sdk` maps to the public app API, `sdkwork-craw-chat-sdk-admin` maps to control-plane governance, and `sdkwork-craw-chat-sdk-management` maps to the unified gateway's `/api/admin/*` operator surface.
+- SDK families remain boundary-specific: `sdkwork-im-sdk` maps to the public app API, `sdkwork-control-plane-sdk` maps to control-plane governance, and `sdkwork-im-admin-sdk` maps to the unified gateway's `/api/admin/*` operator surface.
 
 ## How To Use This Page
 
@@ -59,7 +59,7 @@ That split keeps HTTP semantics and consumer package surfaces from being mixed t
 ## When To Switch To SDK Docs
 
 - Use [TypeScript SDK](/sdk/typescript-sdk) or [Flutter SDK](/sdk/flutter-sdk) when you need checked-in import paths and client examples for the app runtime.
-- Use [Admin SDK](/sdk/admin-sdk) when you need the governance consumer boundary and release-state limits for control-plane integrations.
+- Use [Control-Plane SDK](/sdk/control-plane-sdk) when you need the governance consumer boundary and release-state limits for control-plane integrations.
 - Use [SDK Overview](/sdk/index) when you need to decide whether a repo package also implies public registry availability.
 
 ## What To Read Next

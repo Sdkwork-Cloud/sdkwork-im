@@ -22,10 +22,10 @@
 
 - 总入口 `sdks/README.md` 只能解决 workspace 导航问题
 - 真实消费方很可能直接打开：
-  - `sdkwork-craw-chat-sdk-typescript`
-  - `sdkwork-craw-chat-sdk-flutter`
-  - `sdkwork-craw-chat-sdk-admin-typescript`
-  - `sdkwork-craw-chat-sdk-admin-flutter`
+  - `sdkwork-im-sdk-typescript`
+  - `sdkwork-im-sdk-flutter`
+  - `sdkwork-control-plane-sdk-typescript`
+  - `sdkwork-control-plane-sdk-flutter`
 - 如果叶子 README 不带发布边界，消费方仍会误以为这些目录已经具备独立的真实生成或发布状态
 
 ## 非目标

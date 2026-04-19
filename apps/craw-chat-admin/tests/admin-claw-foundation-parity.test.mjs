@@ -12,8 +12,8 @@ function read(relativePath) {
 test('admin root imports shared ui css while the shell package owns layout host primitives', () => {
   const main = read('src/main.tsx');
   const themeCss = read('src/theme.css');
-  const shellEntry = read('packages/sdkwork-craw-chat-admin-shell/src/index.ts');
-  const shellHost = read('packages/sdkwork-craw-chat-admin-shell/src/styles/shell-host.css');
+  const shellEntry = read('packages/sdkwork-control-plane-shell/src/index.ts');
+  const shellHost = read('packages/sdkwork-control-plane-shell/src/styles/shell-host.css');
 
   assert.match(main, /@sdkwork\/ui-pc-react\/styles\.css/);
   assert.match(main, /\.\/theme\.css/);
@@ -30,30 +30,30 @@ test('admin root imports shared ui css while the shell package owns layout host 
   assert.match(shellHost, /admin-shell-host/);
   assert.match(shellHost, /admin-shell-route-scroll/);
   assert.match(shellHost, /admin-shell-sidebar-resize-handle/);
-  assert.match(shellHost, /data-sdk-shell='craw-chat-admin-desktop'/);
+  assert.match(shellHost, /data-sdk-shell='control-plane-desktop'/);
   assert.doesNotMatch(shellHost, /admin-shell-auth-stage/);
 });
 
 test('admin keeps localization in core and does not ship a legacy commons package manifest', () => {
-  const coreIndex = read('packages/sdkwork-craw-chat-admin-core/src/index.tsx');
-  const coreI18n = read('packages/sdkwork-craw-chat-admin-core/src/i18n.tsx');
+  const coreIndex = read('packages/sdkwork-control-plane-core/src/index.tsx');
+  const coreI18n = read('packages/sdkwork-control-plane-core/src/i18n.tsx');
 
   assert.match(coreIndex, /AdminI18nProvider/);
   assert.match(coreIndex, /useAdminI18n/);
   assert.match(coreI18n, /translateAdminText/);
   assert.match(coreI18n, /ADMIN_LOCALE_OPTIONS/);
   assert.equal(
-    existsSync(path.join(appRoot, 'packages', 'sdkwork-craw-chat-admin-commons', 'package.json')),
+    existsSync(path.join(appRoot, 'packages', 'sdkwork-control-plane-commons', 'package.json')),
     false,
   );
 });
 
 test('admin shell chrome keeps shared desktop shell interaction primitives for the IM console', () => {
-  const layout = read('packages/sdkwork-craw-chat-admin-shell/src/application/layouts/MainLayout.tsx');
-  const header = read('packages/sdkwork-craw-chat-admin-shell/src/components/AppHeader.tsx');
-  const sidebar = read('packages/sdkwork-craw-chat-admin-shell/src/components/Sidebar.tsx');
+  const layout = read('packages/sdkwork-control-plane-shell/src/application/layouts/MainLayout.tsx');
+  const header = read('packages/sdkwork-control-plane-shell/src/components/AppHeader.tsx');
+  const sidebar = read('packages/sdkwork-control-plane-shell/src/components/Sidebar.tsx');
   const routePrefetch = read(
-    'packages/sdkwork-craw-chat-admin-shell/src/application/router/routePrefetch.ts',
+    'packages/sdkwork-control-plane-shell/src/application/router/routePrefetch.ts',
   );
 
   assert.match(layout, /relative flex h-screen flex-col overflow-hidden/);
@@ -106,16 +106,16 @@ test('admin shell chrome keeps shared desktop shell interaction primitives for t
   assert.match(sidebar, /prefetchSidebarRoute\(accountSettingsTarget\)/);
   assert.match(routePrefetch, /createSidebarRoutePrefetchController/);
   assert.match(routePrefetch, /scheduleDelayMs = 120/);
-  assert.match(routePrefetch, /sdkwork-craw-chat-admin-overview/);
-  assert.match(routePrefetch, /sdkwork-craw-chat-admin-users/);
-  assert.match(routePrefetch, /sdkwork-craw-chat-admin-settings/);
-  assert.match(routePrefetch, /sdkwork-craw-chat-admin-realtime/);
+  assert.match(routePrefetch, /sdkwork-control-plane-overview/);
+  assert.match(routePrefetch, /sdkwork-control-plane-users/);
+  assert.match(routePrefetch, /sdkwork-control-plane-settings/);
+  assert.match(routePrefetch, /sdkwork-control-plane-realtime/);
   assert.doesNotMatch(sidebar, /NavigationRail|DropdownMenu|AvatarFallback|<Avatar/);
 });
 
 test('admin sidebar collapse heuristics and persisted preference remain part of the shared shell baseline', () => {
-  const adminStore = read('packages/sdkwork-craw-chat-admin-core/src/store.ts');
-  const adminAutoCollapse = read('packages/sdkwork-craw-chat-admin-core/src/sidebarAutoCollapse.ts');
+  const adminStore = read('packages/sdkwork-control-plane-core/src/store.ts');
+  const adminAutoCollapse = read('packages/sdkwork-control-plane-core/src/sidebarAutoCollapse.ts');
 
   const adminAutoCollapseSnippets = [
     'const COMPACT_VIEWPORT_WIDTH = 1440;',

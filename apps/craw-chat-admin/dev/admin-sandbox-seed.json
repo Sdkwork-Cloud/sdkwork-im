@@ -5,7 +5,7 @@
     "claims": {
       "sub": "operator_admin_001",
       "iss": "sdkwork-admin-sandbox",
-      "aud": "sdkwork-craw-chat-admin",
+      "aud": "sdkwork-control-plane",
       "exp": 1763356800,
       "iat": 1762752000
     },

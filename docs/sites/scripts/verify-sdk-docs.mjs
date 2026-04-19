@@ -5,6 +5,12 @@ import { fileURLToPath } from "node:url";
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const docsRoot = path.resolve(currentDir, "..");
 const issues = [];
+const removedLegacyTsCompatClientName = ['Craw', 'Chat', 'Client'].join('');
+const removedGeneratedClientName = ['Im', 'Generated', 'Client'].join('');
+const removedGeneratedPackageName = '@sdkwork/im-sdk-generated';
+const removedGeneratedClientImport = `import { ${removedGeneratedClientName} } from '${removedGeneratedPackageName}';`;
+const removedLegacyTsTwoPackageNarrative =
+  `a generated transport package and a composed package built around \`${removedLegacyTsCompatClientName}\``;
 
 function read(relativePath) {
   const absolutePath = path.join(docsRoot, relativePath);
@@ -42,7 +48,7 @@ function requireLanguageDocStructure(relativePath, source, markers) {
     "repo contract",
     "sdk-gen.ps1",
     "sdk-verify.ps1",
-    "SdkworkBackendClient",
+    "ImTransportClient",
     ...markers,
   ]) {
     requireIncludes(
@@ -59,7 +65,7 @@ function requireTransportLanguageApiMap(relativePath, source) {
     "API Reference Map",
     "What To Read Next",
     "generated/server-openapi/README.md",
-    "SdkworkBackendClient",
+    "ImTransportClient",
     "/api-reference/app/portal-and-auth",
     "/api-reference/app/conversations",
     "/api-reference/app/membership-and-read-state",
@@ -84,14 +90,14 @@ const typescriptDocSource = read(typescriptDocPath);
 requireIncludes(
   typescriptDocSource,
   typescriptDocPath,
-  "@sdkwork/craw-chat-sdk",
-  "must document @sdkwork/craw-chat-sdk as the official TypeScript consumer package",
+  "@sdkwork/im-sdk",
+  "must document @sdkwork/im-sdk as the official TypeScript consumer package",
 );
 requireIncludes(
   typescriptDocSource,
   typescriptDocPath,
-  "CrawChatSdkClient",
-  "must document CrawChatSdkClient as the primary TypeScript client",
+  "ImSdkClient",
+  "must document ImSdkClient as the primary TypeScript client",
 );
 requireIncludes(
   typescriptDocSource,
@@ -114,14 +120,38 @@ requireIncludes(
 requireIncludes(
   typescriptDocSource,
   typescriptDocPath,
-  "SdkworkBackendClient",
-  "must document low-level generated access from the root TypeScript package",
+  "sdk.session.resume(...)",
+  "must document sdk.session.resume(...) as the root TypeScript session transport entrypoint",
 );
 requireIncludes(
   typescriptDocSource,
   typescriptDocPath,
-  "new CrawChatSdkClient({",
-  "must teach synchronous CrawChatSdkClient construction",
+  "sdk.presence.getPresenceMe()",
+  "must document sdk.presence.getPresenceMe() as the root TypeScript presence transport entrypoint",
+);
+requireIncludes(
+  typescriptDocSource,
+  typescriptDocPath,
+  "sdk.realtime.listRealtimeEvents(...)",
+  "must document sdk.realtime.listRealtimeEvents(...) as the root TypeScript realtime transport entrypoint",
+);
+requireIncludes(
+  typescriptDocSource,
+  typescriptDocPath,
+  "sdk.device.register(...)",
+  "must document sdk.device.register(...) as the root TypeScript device transport entrypoint",
+);
+requireIncludes(
+  typescriptDocSource,
+  typescriptDocPath,
+  "sdk.stream.open(...)",
+  "must document sdk.stream.open(...) as the root TypeScript stream transport entrypoint",
+);
+requireIncludes(
+  typescriptDocSource,
+  typescriptDocPath,
+  "new ImSdkClient({",
+  "must teach synchronous ImSdkClient construction",
 );
 requireIncludes(
   typescriptDocSource,
@@ -240,8 +270,8 @@ requireIncludes(
 requireIncludes(
   typescriptDocSource,
   typescriptDocPath,
-  "sdk.generated.inbox.getInbox()",
-  "must document sdk.generated.inbox.getInbox() in the TypeScript guide",
+  "sdk.inbox.getInbox()",
+  "must document sdk.inbox.getInbox() in the TypeScript guide",
 );
 requireIncludes(
   typescriptDocSource,
@@ -336,31 +366,61 @@ for (const marker of [
 requireExcludes(
   typescriptDocSource,
   typescriptDocPath,
-  "import { SdkworkBackendClient } from '@sdkwork/craw-chat-backend-sdk';",
-  "must not tell consumers to import SdkworkBackendClient from @sdkwork/craw-chat-backend-sdk",
+  removedGeneratedClientImport,
+  `must not tell consumers to import ${removedGeneratedClientName} from ${removedGeneratedPackageName}`,
 );
 requireExcludes(
   typescriptDocSource,
   typescriptDocPath,
-  "a generated transport package and a composed package built around `CrawChatClient`",
+  "@sdkwork-internal/im-sdk-generated",
+  "must not expose the internal generated package alias in the TypeScript guide",
+);
+requireExcludes(
+  typescriptDocSource,
+  typescriptDocPath,
+  "@sdkwork/im-sdk-generated",
+  "must not mention the unsupported @sdkwork/im-sdk-generated package identity in the TypeScript guide",
+);
+requireExcludes(
+  typescriptDocSource,
+  typescriptDocPath,
+  removedGeneratedClientName,
+  `must not document ${removedGeneratedClientName} in the TypeScript guide`,
+);
+requireExcludes(
+  typescriptDocSource,
+  typescriptDocPath,
+  "createGeneratedClient",
+  "must not document createGeneratedClient in the TypeScript guide",
+);
+requireExcludes(
+  typescriptDocSource,
+  typescriptDocPath,
+  "sdk.generated.",
+  "must not document sdk.generated.* in the TypeScript guide",
+);
+requireExcludes(
+  typescriptDocSource,
+  typescriptDocPath,
+  removedLegacyTsTwoPackageNarrative,
   "must not describe the TypeScript SDK as a two-package consumer model",
 );
 requireExcludes(
   typescriptDocSource,
   typescriptDocPath,
-  "composed/package.json` owns `@sdkwork/craw-chat-sdk`",
+  "composed/package.json` owns `@sdkwork/im-sdk`",
   "must not describe composed/package.json as the public TypeScript consumer package contract",
 );
 requireExcludes(
   typescriptDocSource,
   typescriptDocPath,
-  "CrawChatClient",
-  "must not teach the removed CrawChatClient compatibility alias in the TypeScript guide",
+  removedLegacyTsCompatClientName,
+  "must not teach the removed TypeScript compatibility alias in the TypeScript guide",
 );
 requireExcludes(
   typescriptDocSource,
   typescriptDocPath,
-  "CrawChatSdkClient.create(",
+  "ImSdkClient.create(",
   "must not teach async static create() in the TypeScript guide",
 );
 requireExcludes(
@@ -447,44 +507,44 @@ const flutterDocSource = read(flutterDocPath);
 requireIncludes(
   flutterDocSource,
   flutterDocPath,
-  "craw_chat_sdk",
-  "must document craw_chat_sdk as the official Flutter consumer package",
+  "im_sdk",
+  "must document im_sdk as the official Flutter consumer package",
 );
 requireIncludes(
   flutterDocSource,
   flutterDocPath,
-  "backend_sdk",
-  "must document backend_sdk as the generated Flutter transport package",
+  "im_sdk_generated",
+  "must document im_sdk_generated as the generated Flutter transport package",
 );
 requireIncludes(
   flutterDocSource,
   flutterDocPath,
-  "CrawChatSdkClient",
-  "must document CrawChatSdkClient as the primary Flutter client",
+  "ImSdkClient",
+  "must document ImSdkClient as the primary Flutter client",
 );
 requireIncludes(
   flutterDocSource,
   flutterDocPath,
-  "re-exports `backend_sdk`",
-  "must explain that craw_chat_sdk re-exports backend_sdk",
+  "re-exports `im_sdk_generated`",
+  "must explain that im_sdk re-exports im_sdk_generated",
 );
 requireIncludes(
   flutterDocSource,
   flutterDocPath,
-  "package:craw_chat_sdk/craw_chat_sdk.dart",
-  "must point app consumers to the craw_chat_sdk package entrypoint",
+  "package:im_sdk/im_sdk.dart",
+  "must point app consumers to the im_sdk package entrypoint",
 );
 requireIncludes(
   flutterDocSource,
   flutterDocPath,
   "AuthApi",
-  "must document that backend_sdk now exports AuthApi in the Flutter guide",
+  "must document that im_sdk_generated now exports AuthApi in the Flutter guide",
 );
 requireIncludes(
   flutterDocSource,
   flutterDocPath,
   "PortalApi",
-  "must document that backend_sdk now exports PortalApi in the Flutter guide",
+  "must document that im_sdk_generated now exports PortalApi in the Flutter guide",
 );
 requireIncludes(
   flutterDocSource,
@@ -552,19 +612,19 @@ requireIncludes(
 requireIncludes(
   sdkIndexSource,
   sdkIndexPath,
-  "@sdkwork/craw-chat-sdk",
-  "must list @sdkwork/craw-chat-sdk in the SDK naming model",
+  "@sdkwork/im-sdk",
+  "must list @sdkwork/im-sdk in the SDK naming model",
 );
 requireIncludes(
   sdkIndexSource,
   sdkIndexPath,
-  "craw_chat_sdk",
-  "must list craw_chat_sdk in the SDK naming model",
+  "im_sdk",
+  "must list im_sdk in the SDK naming model",
 );
 requireIncludes(
   sdkIndexSource,
   sdkIndexPath,
-  "SdkworkBackendClient",
+  "ImTransportClient",
   "must explain the current raw generated client naming model in the SDK overview",
 );
 for (const marker of [
@@ -724,8 +784,26 @@ requireIncludes(
 requireIncludes(
   appSdkSource,
   appSdkPath,
-  "sdk.generated.inbox.getInbox()",
-  "must document sdk.generated.inbox.getInbox() in the app SDK guide",
+  "sdk.inbox.getInbox()",
+  "must document sdk.inbox.getInbox() in the app SDK guide",
+);
+requireIncludes(
+  appSdkSource,
+  appSdkPath,
+  "sdk.session.resume(...)",
+  "must document sdk.session.resume(...) in the app SDK guide",
+);
+requireIncludes(
+  appSdkSource,
+  appSdkPath,
+  "sdk.device.register(...)",
+  "must document sdk.device.register(...) in the app SDK guide",
+);
+requireIncludes(
+  appSdkSource,
+  appSdkPath,
+  "sdk.stream.open(...)",
+  "must document sdk.stream.open(...) in the app SDK guide",
 );
 requireIncludes(
   appSdkSource,
@@ -793,6 +871,24 @@ requireExcludes(
 requireExcludes(
   appSdkSource,
   appSdkPath,
+  "@sdkwork-internal/im-sdk-generated",
+  "must not expose the internal generated package alias in the app SDK guide",
+);
+requireExcludes(
+  appSdkSource,
+  appSdkPath,
+  removedGeneratedClientName,
+  `must not document ${removedGeneratedClientName} in the app SDK guide`,
+);
+requireExcludes(
+  appSdkSource,
+  appSdkPath,
+  "sdk.generated.",
+  "must not document sdk.generated.* in the app SDK guide",
+);
+requireExcludes(
+  appSdkSource,
+  appSdkPath,
   "sdk.messages.createAiImage(...)",
   "must not teach the removed sdk.messages.createAiImage(...) builder in the app SDK guide",
 );
@@ -844,7 +940,7 @@ requireIncludes(
 requireIncludes(
   languageSupportSource,
   languageSupportPath,
-  "@sdkwork/craw-chat-sdk",
+  "@sdkwork/im-sdk",
   "must identify the official TypeScript consumer package",
 );
 requireIncludes(
@@ -886,8 +982,14 @@ requireIncludes(
 requireIncludes(
   languageSupportSource,
   languageSupportPath,
-  "SdkworkBackendClient",
+  "ImTransportClient",
   "must explain the current raw generated transport client naming model in language support",
+);
+requireExcludes(
+  languageSupportSource,
+  languageSupportPath,
+  removedGeneratedClientName,
+  `must not document the removed ${removedGeneratedClientName} name in language support`,
 );
 requireIncludes(
   languageSupportSource,
@@ -905,11 +1007,11 @@ for (const marker of [
   "Python",
   "Tier A",
   "Tier B",
-  "sdkwork-craw-chat-backend-sdk",
-  "com.sdkwork:craw-chat-backend-sdk",
-  "Sdkwork.CrawChat.BackendSdk",
-  "CrawChatBackendSdk",
-  "github.com/sdkwork/craw-chat-backend-sdk",
+  "sdkwork-im-sdk-generated",
+  "com.sdkwork:im-sdk-generated",
+  "Sdkwork.Im.Sdk.Generated",
+  "ImSdkGenerated",
+  "github.com/sdkwork/im-sdk-generated",
   "generated/server-openapi",
   "composed",
   "What To Read Next",
@@ -937,84 +1039,84 @@ requireExcludes(
 const rustDocPath = "sdk/rust-sdk.md";
 const rustDocSource = readRequired(rustDocPath);
 requireLanguageDocStructure(rustDocPath, rustDocSource, [
-  "sdkwork-craw-chat-backend-sdk",
-  "craw_chat_sdk",
+  "sdkwork-im-sdk-generated",
+  "im_sdk",
   "Tier A",
   "generated/server-openapi",
   "composed",
-  "CrawChatSdkClient",
+  "ImSdkClient",
 ]);
 requireTransportLanguageApiMap(rustDocPath, rustDocSource);
 
 const javaDocPath = "sdk/java-sdk.md";
 const javaDocSource = readRequired(javaDocPath);
 requireLanguageDocStructure(javaDocPath, javaDocSource, [
-  "com.sdkwork:craw-chat-backend-sdk",
-  "com.sdkwork:craw-chat-sdk",
+  "com.sdkwork:im-sdk-generated",
+  "com.sdkwork:im-sdk",
   "Tier B",
   "generated/server-openapi",
   "composed",
-  "CrawChatSdkClient",
+  "ImSdkClient",
 ]);
 requireTransportLanguageApiMap(javaDocPath, javaDocSource);
 
 const csharpDocPath = "sdk/csharp-sdk.md";
 const csharpDocSource = readRequired(csharpDocPath);
 requireLanguageDocStructure(csharpDocPath, csharpDocSource, [
-  "Sdkwork.CrawChat.BackendSdk",
-  "Sdkwork.CrawChat.Sdk",
+  "Sdkwork.Im.Sdk.Generated",
+  "Sdkwork.Im.Sdk",
   "Tier B",
   "generated/server-openapi",
   "composed",
-  "CrawChatSdkClient",
+  "ImSdkClient",
 ]);
 requireTransportLanguageApiMap(csharpDocPath, csharpDocSource);
 
 const swiftDocPath = "sdk/swift-sdk.md";
 const swiftDocSource = readRequired(swiftDocPath);
 requireLanguageDocStructure(swiftDocPath, swiftDocSource, [
-  "CrawChatBackendSdk",
-  "CrawChatSdk",
+  "ImSdkGenerated",
+  "ImSdk",
   "Tier B",
   "generated/server-openapi",
   "composed",
-  "CrawChatSdkClient",
+  "ImSdkClient",
 ]);
 requireTransportLanguageApiMap(swiftDocPath, swiftDocSource);
 
 const kotlinDocPath = "sdk/kotlin-sdk.md";
 const kotlinDocSource = readRequired(kotlinDocPath);
 requireLanguageDocStructure(kotlinDocPath, kotlinDocSource, [
-  "com.sdkwork:craw-chat-backend-sdk",
-  "com.sdkwork:craw-chat-sdk",
+  "com.sdkwork:im-sdk-generated",
+  "com.sdkwork:im-sdk",
   "Tier B",
   "generated/server-openapi",
   "composed",
-  "CrawChatSdkClient",
+  "ImSdkClient",
 ]);
 requireTransportLanguageApiMap(kotlinDocPath, kotlinDocSource);
 
 const goDocPath = "sdk/go-sdk.md";
 const goDocSource = readRequired(goDocPath);
 requireLanguageDocStructure(goDocPath, goDocSource, [
-  "github.com/sdkwork/craw-chat-backend-sdk",
-  "github.com/sdkwork/craw-chat-sdk",
+  "github.com/sdkwork/im-sdk-generated",
+  "github.com/sdkwork/im-sdk",
   "Tier B",
   "generated/server-openapi",
   "composed",
-  "CrawChatSdkClient",
+  "ImSdkClient",
 ]);
 requireTransportLanguageApiMap(goDocPath, goDocSource);
 
 const pythonDocPath = "sdk/python-sdk.md";
 const pythonDocSource = readRequired(pythonDocPath);
 requireLanguageDocStructure(pythonDocPath, pythonDocSource, [
-  "sdkwork-craw-chat-backend-sdk",
-  "sdkwork-craw-chat-sdk",
+  "sdkwork-im-sdk-generated",
+  "sdkwork-im-sdk",
   "Tier B",
   "generated/server-openapi",
   "composed",
-  "CrawChatSdkClient",
+  "ImSdkClient",
 ]);
 requireTransportLanguageApiMap(pythonDocPath, pythonDocSource);
 
@@ -1031,16 +1133,16 @@ for (const marker of [
   "/sdk/app-sdk",
   "/sdk/typescript-sdk",
   "/sdk/language-support",
-  "/sdk/admin-sdk",
+  "/sdk/control-plane-sdk",
 ]) {
   requireIncludes(boundaryDocSource, boundaryDocPath, marker, `must include ${marker}`);
 }
 
-const adminSdkPath = "sdk/admin-sdk.md";
+const adminSdkPath = "sdk/control-plane-sdk.md";
 const adminSdkSource = readRequired(adminSdkPath);
 for (const marker of [
   "Choose This Family When",
-  "Do Not Use The Admin SDK For",
+  "Do Not Use The Control-Plane SDK For",
   "Control Plane Reference Map",
   "protocol registry",
   "provider governance",
@@ -1066,7 +1168,7 @@ const homePageSource = read(homePagePath);
 requireIncludes(
   homePageSource,
   homePagePath,
-  "@sdkwork/craw-chat-sdk",
+  "@sdkwork/im-sdk",
   "must surface the official TypeScript SDK package on the docs home page",
 );
 

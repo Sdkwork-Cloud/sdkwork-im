@@ -5308,9 +5308,9 @@ fn control_plane_openapi_document() -> JsonValue {
     serde_json::json!({
         "openapi": "3.0.3",
         "info": {
-            "title": "Craw Chat Admin Control Plane API",
+            "title": "Control Plane API",
             "version": env!("CARGO_PKG_VERSION"),
-            "description": "Live OpenAPI contract for the Craw Chat admin control-plane runtime. This document is emitted by the running service and is intended to be captured into the admin SDK workspace before generation."
+            "description": "Live OpenAPI contract for the control-plane control-plane runtime. This document is emitted by the running service and is intended to be captured into the admin SDK workspace before generation."
         },
         "servers": [
             {
@@ -10609,7 +10609,7 @@ async fn docs() -> Html<String> {
 
 fn control_plane_openapi_spec() -> OpenApiServiceSpec<'static> {
     OpenApiServiceSpec {
-        title: "Craw Chat Admin Control Plane API",
+        title: "Control Plane API",
         version: env!("CARGO_PKG_VERSION"),
         description: "Detailed OpenAPI contract for the Craw Chat control-plane runtime, including protocol governance, provider policy, social control workflows, and node lifecycle operations.",
         openapi_path: "/openapi.json",
@@ -12820,8 +12820,8 @@ fn business_policy_vocabulary_response(
 
 fn sdk_compatibility_baseline_response(registry: &CcpRegistry) -> SdkCompatibilityBaselineResponse {
     SdkCompatibilityBaselineResponse {
-        app_sdk_facade: "sdkwork-craw-chat-sdk",
-        admin_sdk_facade: "sdkwork-craw-chat-sdk-admin",
+        app_sdk_facade: "sdkwork-im-sdk",
+        admin_sdk_facade: "sdkwork-control-plane-sdk",
         matrix_client_types: registry.compatibility_matrix().keys().cloned().collect(),
         protocol_registry_path: "/api/v1/control/protocol-registry",
         protocol_governance_path: "/api/v1/control/protocol-governance",

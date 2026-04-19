@@ -1,4 +1,4 @@
-# Craw Chat TypeScript SDK Next-Generation Refactor Implementation Plan
+# IM TypeScript SDK Next-Generation Refactor Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -13,13 +13,13 @@
 ### Task 1: Lock The New Public Contract With Failing Tests
 
 **Files:**
-- Modify: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/composed/test/craw-chat-client.test.mjs`
-- Assemble to: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/test/craw-chat-client.test.mjs`
+- Modify: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/composed/test/craw-chat-client.test.mjs`
+- Assemble to: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/test/craw-chat-client.test.mjs`
 
 - [ ] **Step 1: Write failing tests for the new root construction and domain layout**
 
 Add tests that expect:
-- `new CrawChatSdkClient({ baseUrl, authToken })` to work synchronously
+- `new ImSdkClient({ baseUrl, authToken })` to work synchronously
 - `sdk.auth` to exist and absorb portal-auth operations
 - `sdk.messages.createText(...)` and `sdk.messages.send(...)` to be the primary path
 - `sdk.connect(...)` to exist as the main live entrypoint
@@ -27,7 +27,7 @@ Add tests that expect:
 
 - [ ] **Step 2: Run the focused smoke file and confirm the failures are real contract gaps**
 
-Run: `npm --prefix sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript run smoke`
+Run: `npm --prefix sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript run smoke`
 
 Expected: FAIL because the new public APIs do not exist yet.
 
@@ -41,7 +41,7 @@ Add tests that expect:
 
 - [ ] **Step 4: Re-run the focused smoke file**
 
-Run: `npm --prefix sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript run smoke`
+Run: `npm --prefix sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript run smoke`
 
 Expected: FAIL on missing `connect()` / `live` / context-first receive behavior.
 
@@ -58,22 +58,22 @@ Add tests that expect typed creation and decode coverage for:
 
 - [ ] **Step 6: Re-run the focused smoke file**
 
-Run: `npm --prefix sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript run smoke`
+Run: `npm --prefix sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript run smoke`
 
 Expected: FAIL on missing message families and builder coverage.
 
 ### Task 2: Refactor Root Construction And Auth Domain
 
 **Files:**
-- Modify: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/composed/src/sdk.ts`
-- Modify: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/composed/src/sdk-context.ts`
-- Modify: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/composed/src/types.ts`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/composed/src/auth-module.ts`
-- Modify: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/composed/src/index.ts`
+- Modify: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/composed/src/sdk.ts`
+- Modify: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/composed/src/sdk-context.ts`
+- Modify: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/composed/src/types.ts`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/composed/src/auth-module.ts`
+- Modify: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/composed/src/index.ts`
 
 - [ ] **Step 1: Implement synchronous top-level construction**
 
-Support `new CrawChatSdkClient({ baseUrl, apiBaseUrl, websocketBaseUrl, authToken, tokenProvider, backendClient, webSocketFactory })` directly, without requiring `static create(...)` for the standard path.
+Support `new ImSdkClient({ baseUrl, apiBaseUrl, websocketBaseUrl, authToken, tokenProvider, backendClient, webSocketFactory })` directly, without requiring `static create(...)` for the standard path.
 
 - [ ] **Step 2: Move public auth operations under `sdk.auth`**
 
@@ -95,19 +95,19 @@ Remove internal-first exports from the public barrel where possible:
 
 - [ ] **Step 4: Run the smoke test**
 
-Run: `npm --prefix sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript run smoke`
+Run: `npm --prefix sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript run smoke`
 
 Expected: root construction and auth tests PASS; remaining failures are in messaging/live/sync areas.
 
 ### Task 3: Move Messaging Into The Messages Domain
 
 **Files:**
-- Modify: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/composed/src/messages-module.ts`
-- Modify: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/composed/src/builders.ts`
-- Modify: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/composed/src/message-codec.ts`
-- Modify: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/composed/src/message-standards.ts`
-- Modify: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/composed/src/types.ts`
-- Modify: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/composed/src/sdk.ts`
+- Modify: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/composed/src/messages-module.ts`
+- Modify: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/composed/src/builders.ts`
+- Modify: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/composed/src/message-codec.ts`
+- Modify: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/composed/src/message-standards.ts`
+- Modify: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/composed/src/types.ts`
+- Modify: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/composed/src/sdk.ts`
 
 - [ ] **Step 1: Implement `sdk.messages.createXxx()` and `sdk.messages.send()`**
 
@@ -133,20 +133,20 @@ Preserve:
 
 - [ ] **Step 4: Run the smoke test**
 
-Run: `npm --prefix sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript run smoke`
+Run: `npm --prefix sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript run smoke`
 
 Expected: messaging tests PASS; remaining failures are in live/sync orchestration.
 
 ### Task 4: Replace Transport-Leaning Receive APIs With `live` And `sync`
 
 **Files:**
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/composed/src/live-module.ts`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/composed/src/sync-module.ts`
-- Modify: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/composed/src/websocket-receiver.ts`
-- Modify: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/composed/src/receiver.ts`
-- Modify: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/composed/src/realtime-module.ts`
-- Modify: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/composed/src/sdk.ts`
-- Modify: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/composed/src/types.ts`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/composed/src/live-module.ts`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/composed/src/sync-module.ts`
+- Modify: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/composed/src/websocket-receiver.ts`
+- Modify: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/composed/src/receiver.ts`
+- Modify: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/composed/src/realtime-module.ts`
+- Modify: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/composed/src/sdk.ts`
+- Modify: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/composed/src/types.ts`
 
 - [ ] **Step 1: Add `sdk.connect(...)` and return a live runtime object**
 
@@ -175,14 +175,14 @@ Existing low-level receiver code can remain as implementation detail if it makes
 
 - [ ] **Step 5: Run the smoke test**
 
-Run: `npm --prefix sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript run smoke`
+Run: `npm --prefix sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript run smoke`
 
 Expected: live and sync tests PASS.
 
 ### Task 5: Align The Published Docs With The Real SDK
 
 **Files:**
-- Modify: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/README.md`
+- Modify: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/README.md`
 - Modify: `docs/sites/sdk/typescript-sdk.md`
 - Modify: `docs/sites/sdk/app-sdk.md`
 - Modify: `docs/sites/sdk/index.md`
@@ -193,7 +193,7 @@ Expected: live and sync tests PASS.
 - [ ] **Step 1: Rewrite the quick start around synchronous construction**
 
 Show:
-- `new CrawChatSdkClient({...})`
+- `new ImSdkClient({...})`
 - split `apiBaseUrl` / `websocketBaseUrl`
 - auth through `sdk.auth`
 
@@ -224,19 +224,19 @@ Run the relevant local verification commands from `docs/sites/scripts` and SDK v
 
 - [ ] **Step 1: Assemble the single package**
 
-Run: `node sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/bin/assemble-single-package.mjs`
+Run: `node sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/bin/assemble-single-package.mjs`
 
 - [ ] **Step 2: Run root package typecheck**
 
-Run: `npm --prefix sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript run typecheck`
+Run: `npm --prefix sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript run typecheck`
 
 - [ ] **Step 3: Run root package smoke tests**
 
-Run: `npm --prefix sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript run smoke`
+Run: `npm --prefix sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript run smoke`
 
 - [ ] **Step 4: Run SDK workspace verification**
 
-Run: `node sdks/sdkwork-craw-chat-sdk/bin/verify-typescript-workspace.mjs`
+Run: `node sdks/sdkwork-im-sdk/bin/verify-typescript-workspace.mjs`
 
 - [ ] **Step 5: Re-audit remaining public-surface gaps**
 

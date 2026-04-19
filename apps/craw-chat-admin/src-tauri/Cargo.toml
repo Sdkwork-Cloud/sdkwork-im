@@ -1,5 +1,5 @@
 [package]
-name = "sdkwork-craw-chat-admin-tauri"
+name = "sdkwork-control-plane-tauri"
 version = "0.1.0"
 edition = "2021"
 

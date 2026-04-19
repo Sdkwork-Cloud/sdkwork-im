@@ -22,10 +22,10 @@
 
 ### 2.2 四个叶子 README 已对齐版本占位状态
 
-- 更新：`sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/README.md`
-- 更新：`sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-flutter/README.md`
-- 更新：`sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-typescript/README.md`
-- 更新：`sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-flutter/README.md`
+- 更新：`sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/README.md`
+- 更新：`sdks/sdkwork-im-sdk/sdkwork-im-sdk-flutter/README.md`
+- 更新：`sdks/sdkwork-control-plane-sdk/sdkwork-control-plane-sdk-typescript/README.md`
+- 更新：`sdks/sdkwork-control-plane-sdk/sdkwork-control-plane-sdk-flutter/README.md`
 - 当前每个叶子 README 都已显式公开：
   - 当前没有计划版本号
   - 当前仍待版本冻结

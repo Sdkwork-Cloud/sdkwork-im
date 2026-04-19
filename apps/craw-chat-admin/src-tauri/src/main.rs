@@ -104,7 +104,7 @@ fn workspace_site_dirs() -> ProductSiteDirs {
         .parent()
         .expect("admin app must live inside the apps directory");
     ProductSiteDirs::new(
-        apps_root.join("craw-chat-admin").join("dist"),
+        apps_root.join("control-plane").join("dist"),
         apps_root.join("craw-chat-portal").join("dist"),
     )
 }
@@ -144,7 +144,7 @@ mod tests {
     #[test]
     fn choose_site_dir_for_runtime_prefers_embedded_resource_dir() {
         let embedded = PathBuf::from("embedded-sites/admin");
-        let fallback = PathBuf::from("apps/craw-chat-admin/dist");
+        let fallback = PathBuf::from("apps/control-plane/dist");
 
         let resolved = choose_site_dir_for_runtime(
             Some(embedded.clone()),
@@ -159,7 +159,7 @@ mod tests {
 
     #[test]
     fn choose_site_dir_for_runtime_allows_workspace_fallback_in_debug_style_contexts() {
-        let fallback = PathBuf::from("apps/craw-chat-admin/dist");
+        let fallback = PathBuf::from("apps/control-plane/dist");
 
         let resolved =
             choose_site_dir_for_runtime(None, fallback.clone(), "embedded-sites/admin", true)
@@ -172,7 +172,7 @@ mod tests {
     fn choose_site_dir_for_runtime_rejects_release_without_embedded_resources() {
         let error = choose_site_dir_for_runtime(
             None,
-            PathBuf::from("apps/craw-chat-admin/dist"),
+            PathBuf::from("apps/control-plane/dist"),
             "embedded-sites/admin",
             false,
         )

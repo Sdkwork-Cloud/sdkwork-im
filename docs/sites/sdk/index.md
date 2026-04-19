@@ -2,16 +2,16 @@
 
 The repository currently defines three SDK families with different consumers, contracts, and release truths:
 
-- `sdkwork-craw-chat-sdk`
+- `sdkwork-im-sdk`
   App-facing runtime integrations generated from the live Craw Chat OpenAPI 3.x contract.
-- `sdkwork-craw-chat-sdk-admin`
-  Admin and control-plane integrations.
-- `sdkwork-craw-chat-sdk-management`
-  Operator-console and `/api/admin/*` management integrations.
+- `sdkwork-control-plane-sdk`
+  Admin app boundary and control-plane integrations.
+- `sdkwork-im-admin-sdk`
+  IM admin and `/api/admin/*` operator integrations.
 
 For application integration, start from the app SDK family and the TypeScript package
-`@sdkwork/craw-chat-sdk`. That remains the strongest checked-in consumer SDK and the reference
-contract for future semantic SDKs in other languages.
+`@sdkwork/im-sdk`. That remains the strongest checked-in consumer SDK and the reference
+contract the other language lanes converge toward.
 
 ## Start Here
 
@@ -26,13 +26,13 @@ contract for future semantic SDKs in other languages.
 | Current language parity, tiers, and transport status | [Language Support](/sdk/language-support) |
 | Generated-versus-semantic ownership rules | [Generator Boundary](/sdk/generator-boundary) |
 | Route-level HTTP semantics | [App API Overview](/api-reference/app-api) |
-| Admin and control-plane workflows | [Admin SDK](/sdk/admin-sdk) |
-| Operator-console `/api/admin/*` workflows | [Management SDK](/sdk/management-sdk) |
+| Control-plane workflows | [Control-Plane SDK](/sdk/control-plane-sdk) |
+| Operator-console `/api/admin/*` workflows | [IM Admin SDK](/sdk/im-admin-sdk) |
 
 ## SDK Family Matrix
 
 For day-to-day engineering, treat the checked-in SDK workspaces and their `.sdkwork-assembly.json`
-files as the repository truth. App, Admin, and Management families all have materialized
+files as the repository truth. App, Control-Plane, and IM Admin families all have materialized
 TypeScript and Flutter workspaces in-repo, and all of them remain unpublished.
 
 ### Release Snapshot
@@ -41,35 +41,34 @@ The current release catalog under `artifacts/releases/wave-d-2026-04-08/sdk-rele
 reports `state = generated_pending_publication`. Every tracked artifact in that catalog currently
 records `generationStatus = generated` and `releaseStatus = not_published`.
 
-The repository truth is therefore stronger than "planned SDK structure": `sdkwork-craw-chat-sdk`,
-`sdkwork-craw-chat-sdk-admin`, and `sdkwork-craw-chat-sdk-management` all exist as checked-in
-workspaces, and `sdkwork-craw-chat-sdk-management` has materialized TypeScript and Flutter package
-workspaces.
-
-`sdkwork-craw-chat-sdk-management` has materialized TypeScript and Flutter package workspaces.
+The repository truth is therefore stronger than "planned SDK structure": `sdkwork-im-sdk`,
+`sdkwork-control-plane-sdk`, and `sdkwork-im-admin-sdk` all exist as checked-in workspaces, and
+`sdkwork-im-admin-sdk` has materialized TypeScript and Flutter package workspaces.
 
 | Family | Audience | Best entry page | Contract source | Current repo state |
 | --- | --- | --- | --- | --- |
-| `sdkwork-craw-chat-sdk` | Product and app integrations | [App SDK](/sdk/app-sdk) | App OpenAPI authority under `sdks/sdkwork-craw-chat-sdk/openapi/` | TypeScript and Flutter consumer lines materialized; additional language workspaces generated in-repo; publication pending |
-| `sdkwork-craw-chat-sdk-admin` | Governance and control-plane tooling | [Admin SDK](/sdk/admin-sdk) | Control-plane authority under `sdks/sdkwork-craw-chat-sdk-admin/openapi/` | TypeScript and Flutter lines materialized; publication pending |
-| `sdkwork-craw-chat-sdk-management` | Operator-console and `/api/admin/*` tooling | [Management SDK](/sdk/management-sdk) | Management authority under `sdks/sdkwork-craw-chat-sdk-management/openapi/` | TypeScript and Flutter lines materialized; publication pending |
+| `sdkwork-im-sdk` | Product and app integrations | [App SDK](/sdk/app-sdk) | App OpenAPI authority under `sdks/sdkwork-im-sdk/openapi/` | TypeScript and Flutter consumer lines materialized; additional language workspaces generated in-repo; publication pending |
+| `sdkwork-control-plane-sdk` | Governance and control-plane tooling | [Control-Plane SDK](/sdk/control-plane-sdk) | Control-plane authority under `sdks/sdkwork-control-plane-sdk/openapi/` | TypeScript and Flutter lines materialized; publication pending |
+| `sdkwork-im-admin-sdk` | IM admin and `/api/admin/*` tooling | [IM Admin SDK](/sdk/im-admin-sdk) | IM admin authority under `sdks/sdkwork-im-admin-sdk/openapi/` | TypeScript and Flutter lines materialized; publication pending |
 
 Generated symbols must be consumed through package root entrypoints only.
 
 App SDK consumers target `local-minimal-node` during direct local development and the unified
 `craw-chat-server` / `web-gateway` public origin in packaged installs.
 
-Admin SDK consumers can target `control-plane-api` directly during standalone governance
+Control-plane SDK consumers can target `control-plane-api` directly during standalone governance
 development, but packaged installs should switch to the unified gateway public origin.
 
-Management SDK consumers target the deployed surface that serves `/api/admin/*`; in packaged
+IM admin SDK consumers target the deployed surface that serves `/api/admin/*`; in packaged
 installs that is also the unified gateway public origin.
 
 | API group | SDK family | Current boundary |
 | --- | --- | --- |
-| App Runtime (`/api/v1/*`) | `sdkwork-craw-chat-sdk` | Checked-in app OpenAPI authority plus materialized TypeScript and Flutter consumer packages |
-| Control Plane Governance (`/api/v1/control/*`) | `sdkwork-craw-chat-sdk-admin` | Checked-in control-plane authority plus materialized TypeScript and Flutter consumer packages |
-| Operator Console Admin API (`/api/admin/*`) | `sdkwork-craw-chat-sdk-management` | Checked-in authority plus materialized TypeScript and Flutter generated/composed packages exist; the admin console already consumes this family through its TypeScript compatibility layer |
+| App Runtime (`/api/v1/*`) | `sdkwork-im-sdk` | Checked-in app OpenAPI authority plus materialized TypeScript and Flutter consumer packages |
+| Control Plane Governance (`/api/v1/control/*`) | `sdkwork-control-plane-sdk` | Checked-in control-plane authority plus materialized TypeScript and Flutter consumer packages |
+| Operator Console Admin API (`/api/admin/*`) | `sdkwork-im-admin-sdk` | Checked-in authority plus materialized TypeScript and Flutter generated/composed packages exist; `/api/admin/*` authority stays in this family while the admin console consumes the unified `@sdkwork/control-plane-sdk` boundary |
+
+## Choose By Scenario
 
 Use this rule of thumb before reading the rest of the matrix:
 
@@ -85,7 +84,7 @@ Use this rule of thumb before reading the rest of the matrix:
 - If you need generated transport only for JVM, .NET, Swift, Go, Python, or current Rust service
   integration, start from the language page for that transport-standardized workspace.
 - If you are building control-plane or governance tooling, skip the app SDK family and start with
-  [Admin SDK](/sdk/admin-sdk).
+  [Control-Plane SDK](/sdk/control-plane-sdk).
 
 ## Quick Starts And Module Docs
 
@@ -132,19 +131,20 @@ Read the matrix this way:
 
 | Language | Tier | Current public surface | Primary client | Best current reading |
 | --- | --- | --- | --- | --- |
-| TypeScript | Tier A | `@sdkwork/craw-chat-sdk` with generated transport assembled under `src/generated/**` | `CrawChatSdkClient` | [TypeScript SDK](/sdk/typescript-sdk) |
-| Flutter | Tier A | `craw_chat_sdk` above generated `backend_sdk` | `CrawChatClient` | [Flutter SDK](/sdk/flutter-sdk) |
-| Rust | Tier A target | Generated crate `sdkwork-craw-chat-backend-sdk`; semantic crate target `craw_chat_sdk` remains under `composed` | `CrawChatSdkClient` target | [Rust SDK](/sdk/rust-sdk) |
-| Java | Tier B | Generated artifact `com.sdkwork:craw-chat-backend-sdk`; semantic reserve under `composed` | `CrawChatSdkClient` target | [Java SDK](/sdk/java-sdk) |
-| C# | Tier B | Generated package `Sdkwork.CrawChat.BackendSdk`; semantic reserve under `composed` | `CrawChatSdkClient` target | [C# SDK](/sdk/csharp-sdk) |
-| Swift | Tier B | Generated package `CrawChatBackendSdk`; semantic reserve under `composed` | `CrawChatSdkClient` target | [Swift SDK](/sdk/swift-sdk) |
-| Kotlin | Tier B | Generated artifact `com.sdkwork:craw-chat-backend-sdk`; semantic reserve under `composed` | `CrawChatSdkClient` target | [Kotlin SDK](/sdk/kotlin-sdk) |
-| Go | Tier B | Generated module `github.com/sdkwork/craw-chat-backend-sdk`; semantic reserve under `composed` | `CrawChatSdkClient` target | [Go SDK](/sdk/go-sdk) |
-| Python | Tier B | Generated package `sdkwork-craw-chat-backend-sdk`; semantic reserve under `composed` | `CrawChatSdkClient` target | [Python SDK](/sdk/python-sdk) |
+| TypeScript | Tier A | `@sdkwork/im-sdk` with generated transport assembled under `src/generated/**` | `ImSdkClient` | [TypeScript SDK](/sdk/typescript-sdk) |
+| Flutter | Tier A | `im_sdk` above generated `im_sdk_generated` | `ImSdkClient` | [Flutter SDK](/sdk/flutter-sdk) |
+| Rust | Tier A | `im-sdk` above generated `sdkwork-im-sdk-generated` | `ImSdkClient` | [Rust SDK](/sdk/rust-sdk) |
+| Java | Tier B | Generated artifact `com.sdkwork:im-sdk-generated`; semantic reserve under `composed` | `ImSdkClient` target | [Java SDK](/sdk/java-sdk) |
+| C# | Tier B | Generated package `Sdkwork.Im.Sdk.Generated`; semantic reserve under `composed` | `ImSdkClient` target | [C# SDK](/sdk/csharp-sdk) |
+| Swift | Tier B | Generated package `ImSdkGenerated`; semantic reserve under `composed` | `ImSdkClient` target | [Swift SDK](/sdk/swift-sdk) |
+| Kotlin | Tier B | Generated artifact `com.sdkwork:im-sdk-generated`; semantic reserve under `composed` | `ImSdkClient` target | [Kotlin SDK](/sdk/kotlin-sdk) |
+| Go | Tier B | Generated module `github.com/sdkwork/im-sdk-generated`; semantic reserve under `composed` | `ImSdkClient` target | [Go SDK](/sdk/go-sdk) |
+| Python | Tier B | Generated package `sdkwork-im-sdk-generated`; semantic reserve under `composed` | `ImSdkClient` target | [Python SDK](/sdk/python-sdk) |
 
-For every non-TypeScript language without a shipped semantic client, the real checked-in transport
-entrypoint is the generated `SdkworkBackendClient` surface in that language's generated package,
-while `CrawChatSdkClient` remains the target semantic client name for a later manual layer.
+For Java, C#, Swift, Kotlin, Go, and Python, the real checked-in transport entrypoint is still the
+generated `ImTransportClient` surface in that language's generated package. Rust now ships
+`ImSdkClient` under `im-sdk`, while the remaining languages still reserve `ImSdkClient` as the
+future semantic client name for a later manual layer.
 
 ## Tier Model
 
@@ -158,8 +158,8 @@ driving toward the TypeScript standard of:
 - workflow-first app guidance instead of route-group-only guidance
 
 Today, TypeScript is fully in that shape. Flutter is a checked-in consumer SDK with known parity
-gaps. Rust is the next Tier A target, with the generated transport verified and the manual semantic
-boundary reserved under `composed`.
+gaps. Rust now also ships a checked-in semantic client under `composed`, with auth/portal and
+websocket live runtime still trailing the TypeScript baseline.
 
 ### Tier B
 
@@ -177,25 +177,25 @@ those handwritten layers actually exist.
 
 The TypeScript app SDK remains the reference implementation:
 
-- official consumer package: `@sdkwork/craw-chat-sdk`
-- primary client: `CrawChatSdkClient`
-- synchronous construction: `new CrawChatSdkClient({...})`
+- official consumer package: `@sdkwork/im-sdk`
+- primary client: `ImSdkClient`
+- synchronous construction: `new ImSdkClient({...})`
 - flat config with `baseUrl`, `apiBaseUrl`, `websocketBaseUrl`, `authToken`, and
   `webSocketFactory`
 - message-first outbound APIs through `sdk.createXxxMessage(...)` and `sdk.send(...)`
 - payload-first domain receive APIs through `sdk.connect(...)` and durable replay through `sdk.sync`
-- low-level generated transport available from the same package through `SdkworkBackendClient` and
-  `generated`
+- exact route-aligned transport modules available directly on `ImSdkClient`
+- generated transport clients named `ImTransportClient` in the non-TypeScript generated packages
 
 ## Choose The Right Surface
 
 | Need | Best fit |
 | --- | --- |
-| Application integration that needs the richest checked-in semantics | `CrawChatSdkClient` in `@sdkwork/craw-chat-sdk` |
-| Route-aligned Dart integration above a generated package | `CrawChatClient` in `craw_chat_sdk` |
+| Application integration that needs the richest checked-in semantics | `ImSdkClient` in `@sdkwork/im-sdk` |
+| Route-aligned Dart integration above a generated package | `ImSdkClient` in `im_sdk` |
 | Transport-standardized JVM/.NET/Swift/Go/Python work | The generated transport artifact documented on the language page |
 | Generated-versus-semantic rules before extending a language | [Generator Boundary](/sdk/generator-boundary) |
-| Exact generated DTOs and route groups | `SdkworkBackendClient`, `generated`, or the generated transport artifact for that language |
+| Exact generated DTOs and route groups | `ImTransportClient` or the generated transport artifact for that language; in TypeScript use the route-aligned modules on `ImSdkClient` |
 
 ## Contract Source
 
@@ -204,7 +204,7 @@ running service at `/openapi/craw-chat-app.openapi.yaml`.
 
 For every official language:
 
-- the checked-in authority snapshot lives under `sdks/sdkwork-craw-chat-sdk/openapi/craw-chat-app.openapi.yaml`
+- the checked-in authority snapshot lives under `sdks/sdkwork-im-sdk/openapi/craw-chat-app.openapi.yaml`
 - the generator-owned transport boundary lives under `generated/server-openapi`
 - the handwritten semantic boundary lives under `composed`, except for the TypeScript single-package
   assembly that exposes the generated layer under `src/generated/**`
@@ -227,8 +227,8 @@ For every official language:
 - [Go SDK](/sdk/go-sdk)
 - [Python SDK](/sdk/python-sdk)
 - [Generator Boundary](/sdk/generator-boundary)
-- [Admin SDK](/sdk/admin-sdk)
-- [Management SDK](/sdk/management-sdk)
+- [Control-Plane SDK](/sdk/control-plane-sdk)
+- [IM Admin SDK](/sdk/im-admin-sdk)
 - [Language Support](/sdk/language-support)
 - [App API Overview](/api-reference/app-api)
 - [Control Plane API Overview](/api-reference/control-plane-api)

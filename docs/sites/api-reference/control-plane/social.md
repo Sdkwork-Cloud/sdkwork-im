@@ -8,10 +8,10 @@
 
 <div class="api-link-list">
   <a href="/api-reference/control-plane-api"><code>Control Plane</code> Back to Control Plane overview</a>
-  <a href="/sdk/admin-sdk"><code>Admin SDK</code> See the cross-language client surface</a>
+  <a href="/sdk/control-plane-sdk"><code>Control-Plane SDK</code> See the cross-language client surface</a>
 </div>
 
-The checked-in admin control-plane authority keeps current social response payloads open-ended on
+The checked-in control-plane authority keeps current social response payloads open-ended on
 purpose. Mutation inputs, route semantics, and permission boundaries are stable; response bodies
 should be treated as opaque JSON and consumed through the generated admin SDK surfaces.
 
@@ -30,8 +30,8 @@ Bind a direct chat to a conversation.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.social`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
@@ -42,7 +42,7 @@ Bind a direct chat to a conversation.
 ### Response `200`
 
 `SocialDirectChatCommitResponse` is currently modeled as an open-ended social commit payload in the
-checked-in admin control-plane authority. Treat it as opaque JSON.
+checked-in control-plane authority. Treat it as opaque JSON.
 
 ### Error Responses
 
@@ -71,8 +71,8 @@ Submit a friend request event.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.social`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
@@ -83,7 +83,7 @@ Submit a friend request event.
 ### Response `200`
 
 `SocialFriendRequestCommitResponse` is currently modeled as an open-ended social commit payload in
-the checked-in admin control-plane authority. Treat it as opaque JSON.
+the checked-in control-plane authority. Treat it as opaque JSON.
 
 ### Error Responses
 
@@ -112,8 +112,8 @@ Read a friend request snapshot.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.social`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
@@ -126,7 +126,7 @@ Read a friend request snapshot.
 ### Response `200`
 
 `SocialFriendRequestSnapshotResponse` is currently modeled as an open-ended social snapshot payload
-in the checked-in admin control-plane authority. Treat it as opaque JSON.
+in the checked-in control-plane authority. Treat it as opaque JSON.
 
 ### Error Responses
 
@@ -155,8 +155,8 @@ Activate a friendship event.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.social`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
@@ -167,7 +167,7 @@ Activate a friendship event.
 ### Response `200`
 
 `SocialFriendshipCommitResponse` is currently modeled as an open-ended social commit payload in the
-checked-in admin control-plane authority. Treat it as opaque JSON.
+checked-in control-plane authority. Treat it as opaque JSON.
 
 ### Error Responses
 
@@ -196,8 +196,8 @@ Read a friendship snapshot.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.social`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
@@ -210,7 +210,7 @@ Read a friendship snapshot.
 ### Response `200`
 
 `SocialFriendshipSnapshotResponse` is currently modeled as an open-ended social snapshot payload in
-the checked-in admin control-plane authority. Treat it as opaque JSON.
+the checked-in control-plane authority. Treat it as opaque JSON.
 
 ### Error Responses
 
@@ -239,8 +239,8 @@ Apply a shared-channel policy.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.social`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
@@ -251,7 +251,7 @@ Apply a shared-channel policy.
 ### Response `200`
 
 `SocialSharedChannelPolicyCommitResponse` is currently modeled as an open-ended social commit
-payload in the checked-in admin control-plane authority. Treat it as opaque JSON.
+payload in the checked-in control-plane authority. Treat it as opaque JSON.
 
 ### Error Responses
 
@@ -280,8 +280,8 @@ Read a shared-channel policy snapshot.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.social`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
@@ -294,7 +294,7 @@ Read a shared-channel policy snapshot.
 ### Response `200`
 
 `SocialSharedChannelPolicySnapshotResponse` is currently modeled as an open-ended social snapshot
-payload in the checked-in admin control-plane authority. Treat it as opaque JSON.
+payload in the checked-in control-plane authority. Treat it as opaque JSON.
 
 ### Error Responses
 
@@ -323,8 +323,8 @@ Block a user in the social graph.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.social`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
@@ -335,7 +335,7 @@ Block a user in the social graph.
 ### Response `200`
 
 `SocialUserBlockCommitResponse` is currently modeled as an open-ended social commit payload in the
-checked-in admin control-plane authority. Treat it as opaque JSON.
+checked-in control-plane authority. Treat it as opaque JSON.
 
 ### Error Responses
 
@@ -364,8 +364,8 @@ Read a user block snapshot.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.social`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
@@ -378,7 +378,7 @@ Read a user block snapshot.
 ### Response `200`
 
 `SocialUserBlockSnapshotResponse` is currently modeled as an open-ended social snapshot payload in
-the checked-in admin control-plane authority. Treat it as opaque JSON.
+the checked-in control-plane authority. Treat it as opaque JSON.
 
 ### Error Responses
 
@@ -407,8 +407,8 @@ Read a direct chat snapshot.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.social`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
@@ -421,7 +421,7 @@ Read a direct chat snapshot.
 ### Response `200`
 
 `SocialDirectChatSnapshotResponse` is currently modeled as an open-ended social snapshot payload in
-the checked-in admin control-plane authority. Treat it as opaque JSON.
+the checked-in control-plane authority. Treat it as opaque JSON.
 
 ### Error Responses
 
@@ -450,8 +450,8 @@ Establish an external collaboration connection.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.social`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
@@ -462,7 +462,7 @@ Establish an external collaboration connection.
 ### Response `200`
 
 `SocialExternalConnectionCommitResponse` is currently modeled as an open-ended social commit payload
-in the checked-in admin control-plane authority. Treat it as opaque JSON.
+in the checked-in control-plane authority. Treat it as opaque JSON.
 
 ### Error Responses
 
@@ -491,8 +491,8 @@ Read an external connection snapshot.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.social`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
@@ -505,7 +505,7 @@ Read an external connection snapshot.
 ### Response `200`
 
 `SocialExternalConnectionSnapshotResponse` is currently modeled as an open-ended social snapshot
-payload in the checked-in admin control-plane authority. Treat it as opaque JSON.
+payload in the checked-in control-plane authority. Treat it as opaque JSON.
 
 ### Error Responses
 
@@ -534,8 +534,8 @@ Bind an external member link.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.social`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
@@ -546,7 +546,7 @@ Bind an external member link.
 ### Response `200`
 
 `SocialExternalMemberLinkCommitResponse` is currently modeled as an open-ended social commit payload
-in the checked-in admin control-plane authority. Treat it as opaque JSON.
+in the checked-in control-plane authority. Treat it as opaque JSON.
 
 ### Error Responses
 
@@ -575,8 +575,8 @@ Read an external member link snapshot.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.social`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
@@ -589,7 +589,7 @@ Read an external member link snapshot.
 ### Response `200`
 
 `SocialExternalMemberLinkSnapshotResponse` is currently modeled as an open-ended social snapshot
-payload in the checked-in admin control-plane authority. Treat it as opaque JSON.
+payload in the checked-in control-plane authority. Treat it as opaque JSON.
 
 ### Error Responses
 

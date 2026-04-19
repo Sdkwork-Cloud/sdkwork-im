@@ -9,8 +9,8 @@
 <div class="api-link-list">
   <a href="/api-reference/auth-and-errors"><code>Auth</code> Shared bearer rules and error-envelope behavior are documented separately</a>
   <a href="/api-reference/app-api"><code>App API</code> Return to the full app-runtime domain overview</a>
-  <a href="/sdk/typescript-sdk"><code>TypeScript SDK</code> <code>@sdkwork/craw-chat-sdk</code> currently exposes <code>auth</code> and <code>portal</code> through root generated exports and semantic portal helpers</a>
-  <a href="/sdk/flutter-sdk"><code>Flutter SDK</code> The official <code>craw_chat_sdk</code> package and underlying <code>backend_sdk</code> transport package do not yet export <code>auth</code> or <code>portal</code></a>
+  <a href="/sdk/typescript-sdk"><code>TypeScript SDK</code> <code>@sdkwork/im-sdk</code> currently exposes <code>auth</code> and <code>portal</code> through root generated exports and semantic portal helpers</a>
+  <a href="/sdk/flutter-sdk"><code>Flutter SDK</code> The official <code>im_sdk</code> package and underlying <code>im_sdk_generated</code> transport package do not yet export <code>auth</code> or <code>portal</code></a>
 </div>
 
 <a id="login"></a>
@@ -28,7 +28,7 @@ Signs a portal operator into the current tenant workspace and returns bearer-tok
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.auth.login(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PortalLoginResponse`</span></div>
 </div>
@@ -112,7 +112,7 @@ Reads the current portal session and returns the resolved tenant, user, and work
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.auth.me()`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PortalMeResponse`</span></div>
 </div>
@@ -145,7 +145,7 @@ Reads the public tenant-portal home snapshot used for the landing experience.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.portal.getHome()`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PortalSnapshot`</span></div>
 </div>
@@ -177,7 +177,7 @@ Reads the public sign-in snapshot for the tenant portal.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.portal.getAuth()`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PortalSnapshot`</span></div>
 </div>
@@ -209,7 +209,7 @@ Reads the current authenticated tenant workspace summary used by the portal shel
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.portal.getWorkspace()`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PortalWorkspaceView`</span></div>
 </div>
@@ -258,7 +258,7 @@ Reads the authenticated dashboard snapshot for tenant operations.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.portal.getDashboard()`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PortalSnapshot`</span></div>
 </div>
@@ -292,7 +292,7 @@ Reads the portal conversations module snapshot.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.portal.getConversations()`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PortalSnapshot`</span></div>
 </div>
@@ -326,7 +326,7 @@ Reads the portal realtime posture snapshot.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.portal.getRealtime()`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PortalSnapshot`</span></div>
 </div>
@@ -360,7 +360,7 @@ Reads the portal media and RTC snapshot.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.portal.getMedia()`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PortalSnapshot`</span></div>
 </div>
@@ -394,7 +394,7 @@ Reads the portal automation and notification posture snapshot.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.portal.getAutomation()`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PortalSnapshot`</span></div>
 </div>
@@ -428,7 +428,7 @@ Reads the portal governance and compliance snapshot.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.portal.getGovernance()`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PortalSnapshot`</span></div>
 </div>

@@ -13,11 +13,7 @@ const distIndexHtml = path.join(appRoot, 'dist/index.html');
 const distVendorEntries = [
   path.join(
     appRoot,
-    'dist/__vendor__/sdkwork-craw-chat-sdk/index.js',
-  ),
-  path.join(
-    appRoot,
-    'dist/__vendor__/sdkwork-craw-chat-backend-sdk/index.js',
+    'dist/__vendor__/sdkwork-im-sdk/index.js',
   ),
   path.join(
     appRoot,
@@ -123,6 +119,12 @@ test('portal builds into a standalone distributable without external installs', 
   for (const vendorEntry of distVendorEntries) {
     await access(vendorEntry);
   }
+
+  const distIndexSource = await readFile(distIndexHtml, 'utf8');
+  const imSdkVendorSource = await readFile(distVendorEntries[0], 'utf8');
+  const retiredBackendVendorPattern = new RegExp(['craw', 'chat', 'backend', 'sdk'].join('-'));
+  assert.doesNotMatch(distIndexSource, retiredBackendVendorPattern);
+  assert.doesNotMatch(imSdkVendorSource, retiredBackendVendorPattern);
 });
 
 test('portal build tolerates concurrent invocations targeting the same dist directory', async () => {
@@ -177,7 +179,7 @@ test('portal preview serves vendored SDK modules and returns 404 for missing ven
 
   try {
     const vendorResponse = await fetch(
-      `http://127.0.0.1:${port}/__vendor__/sdkwork-craw-chat-sdk/index.js`,
+      `http://127.0.0.1:${port}/__vendor__/sdkwork-im-sdk/index.js`,
       { signal: AbortSignal.timeout(5000) },
     );
     const vendorBody = await vendorResponse.text();
@@ -190,7 +192,7 @@ test('portal preview serves vendored SDK modules and returns 404 for missing ven
     assert.match(vendorBody, /types\.js/);
 
     const missingVendorResponse = await fetch(
-      `http://127.0.0.1:${port}/__vendor__/sdkwork-craw-chat-sdk/missing-entry.js`,
+      `http://127.0.0.1:${port}/__vendor__/sdkwork-im-sdk/missing-entry.js`,
       { signal: AbortSignal.timeout(5000) },
     );
     const missingVendorBody = await missingVendorResponse.text();
@@ -210,7 +212,7 @@ test('portal preview path containment rejects sibling directories that only shar
     appRoot,
     'dist',
     '__vendor__',
-    'sdkwork-craw-chat-sdk',
+    'sdkwork-im-sdk',
     'index.js',
   );
 

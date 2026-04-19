@@ -24,10 +24,10 @@
 
 ### 2.2 四个叶子 README 已对齐 bundle 真源
 
-- 更新：`sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/README.md`
-- 更新：`sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-flutter/README.md`
-- 更新：`sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-typescript/README.md`
-- 更新：`sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-flutter/README.md`
+- 更新：`sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/README.md`
+- 更新：`sdks/sdkwork-im-sdk/sdkwork-im-sdk-flutter/README.md`
+- 更新：`sdks/sdkwork-control-plane-sdk/sdkwork-control-plane-sdk-typescript/README.md`
+- 更新：`sdks/sdkwork-control-plane-sdk/sdkwork-control-plane-sdk-flutter/README.md`
 - 当前每个 README 都已显式说明：
   - 当前 bundle 级发布目录真源
   - 当前仍为 `template_only_pending_generation`

@@ -1,6 +1,6 @@
 # Swift SDK
 
-The Swift workspace is a Tier B member of the `craw-chat-sdk` business SDK family and is currently
+The Swift workspace is a Tier B member of the `im-sdk` business SDK family and is currently
 standardized around generated transport delivery.
 
 ## Current Delivery Reality
@@ -9,7 +9,7 @@ This page describes the current checked-in repo contract validated on 2026-04-16
 itself claim Swift Package Index publication or a shipped semantic Swift client.
 
 Today the verified Swift entrypoint is the generated package under `generated/server-openapi`.
-Swift-specific workspace normalization keeps that package named `CrawChatBackendSdk`, while the
+Swift-specific workspace normalization keeps that package named `ImSdkGenerated`, while the
 semantic Swift package remains reserved under `composed`.
 
 ## Package Contract
@@ -17,44 +17,44 @@ semantic Swift package remains reserved under `composed`.
 | Concern | Value |
 | --- | --- |
 | Maturity tier | Tier B |
-| Generated transport package | `CrawChatBackendSdk` |
-| Raw generated import | `import CrawChatBackendSdk` |
-| Raw generated client | `SdkworkBackendClient` |
-| Reserved semantic package | `CrawChatSdk` |
-| Target business client | `CrawChatSdkClient` |
+| Generated transport package | `ImSdkGenerated` |
+| Raw generated import | `import ImSdkGenerated` |
+| Raw generated client | `ImTransportClient` |
+| Reserved semantic package | `ImSdk` |
+| Target business client | `ImSdkClient` |
 | Generator-owned boundary | `generated/server-openapi` |
 | Manual semantic boundary | `composed` |
 
 ## What Ships Today
 
 - live-schema generation from the Craw Chat OpenAPI 3.x export
-- Swift workspace normalization that preserves the generated package name `CrawChatBackendSdk`
+- Swift workspace normalization that preserves the generated package name `ImSdkGenerated`
 - verified generated package boundary and assembly metadata
-- a raw generated transport client named `SdkworkBackendClient`
+- a raw generated transport client named `ImTransportClient`
 
 For exact generated installation and raw API examples, use
 `generated/server-openapi/README.md` as the transport reference.
 
 ## Raw Generated Client
 
-If you are integrating Swift today, start from `CrawChatBackendSdk` and `SdkworkBackendClient`.
+If you are integrating Swift today, start from `ImSdkGenerated` and `ImTransportClient`.
 
-- generated package: `CrawChatBackendSdk`
-- raw generated client: `SdkworkBackendClient`
-- reserved semantic package: `CrawChatSdk`
+- generated package: `ImSdkGenerated`
+- raw generated client: `ImTransportClient`
+- reserved semantic package: `ImSdk`
 
 That is the checked-in Swift surface the workspace verifies today.
 
 ## API Reference Map
 
-Use `generated/server-openapi/README.md` together with `SdkworkBackendClient` when you need the
+Use `generated/server-openapi/README.md` together with `ImTransportClient` when you need the
 exact Swift route-group names and DTO entrypoints. Use the map below to jump from transport
 concern to the matching HTTP reference:
 
 | Transport concern | Generated transport focus today | Exact API reference |
 | --- | --- | --- |
-| Auth and portal shell reads | auth and portal route groups on `SdkworkBackendClient` | [Portal and Auth](/api-reference/app/portal-and-auth) |
-| Conversation lifecycle and handoff | conversation route groups on `SdkworkBackendClient` | [Conversations](/api-reference/app/conversations) |
+| Auth and portal shell reads | auth and portal route groups on `ImTransportClient` | [Portal and Auth](/api-reference/app/portal-and-auth) |
+| Conversation lifecycle and handoff | conversation route groups on `ImTransportClient` | [Conversations](/api-reference/app/conversations) |
 | Membership and read cursors | conversation membership and read-state route groups | [Membership and Read State](/api-reference/app/membership-and-read-state) |
 | Message send payloads and timeline schemas | message route groups and DTOs | [Messages](/api-reference/app/messages) |
 | Upload and attachment lifecycle | media route groups and DTOs | [Media](/api-reference/app/media) |
@@ -65,11 +65,11 @@ concern to the matching HTTP reference:
 
 This keeps the Swift page precise: the repo-standard delivery today is transport-first, so the API
 reference plus `generated/server-openapi/README.md` remains the exact route authority until a
-future semantic `CrawChatSdkClient` is implemented under `composed`.
+future semantic `ImSdkClient` is implemented under `composed`.
 
 ## What Is Not Shipped Yet
 
-- no checked-in semantic Swift package that already exposes `CrawChatSdkClient`
+- no checked-in semantic Swift package that already exposes `ImSdkClient`
 - no handwritten message-first layer above generated route groups
 - no delivered websocket live runtime abstraction comparable to the TypeScript SDK
 
@@ -79,7 +79,7 @@ Treat this page as a repo contract for current Swift delivery, not as a claim of
 
 Use `composed` only when you are intentionally implementing the future semantic Swift layer:
 
-- `CrawChatSdkClient`
+- `ImSdkClient`
 - business-friendly wrappers above generated transport
 - message-first helpers
 - live runtime orchestration
@@ -91,20 +91,20 @@ Do not hand-edit generated Swift files under `generated/server-openapi`.
 Root workspace:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\sdks\sdkwork-craw-chat-sdk\bin\generate-sdk.ps1 -Languages swift
-node .\sdks\sdkwork-craw-chat-sdk\bin\verify-sdk.mjs --language swift
+powershell -ExecutionPolicy Bypass -File .\sdks\sdkwork-im-sdk\bin\generate-sdk.ps1 -Languages swift
+node .\sdks\sdkwork-im-sdk\bin\verify-sdk.mjs --language swift
 ```
 
 Swift workspace wrappers:
 
 ```powershell
-.\sdks\sdkwork-craw-chat-sdk\sdkwork-craw-chat-sdk-swift\bin\sdk-gen.ps1
-.\sdks\sdkwork-craw-chat-sdk\sdkwork-craw-chat-sdk-swift\bin\sdk-verify.ps1
+.\sdks\sdkwork-im-sdk\sdkwork-im-sdk-swift\bin\sdk-gen.ps1
+.\sdks\sdkwork-im-sdk\sdkwork-im-sdk-swift\bin\sdk-verify.ps1
 ```
 
 ```bash
-./sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-swift/bin/sdk-gen.sh
-./sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-swift/bin/sdk-verify.sh
+./sdks/sdkwork-im-sdk/sdkwork-im-sdk-swift/bin/sdk-gen.sh
+./sdks/sdkwork-im-sdk/sdkwork-im-sdk-swift/bin/sdk-verify.sh
 ```
 
 ## When To Choose Swift

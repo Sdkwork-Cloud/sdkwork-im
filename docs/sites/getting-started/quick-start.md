@@ -172,9 +172,8 @@ posts a message, and verifies the resulting conversation summary.
 
 These scripts are for local verification and demo workflows. They do not replace the generated SDK
 families. These scripts help validate a local node; application integrations should move to the
-public `sdkwork-craw-chat-sdk` packages instead of scripting raw HTTP once the node is healthy.
-
-These scripts help validate a local node; application integrations should move to the public `sdkwork-craw-chat-sdk` packages instead of scripting raw HTTP once the node is healthy.
+official IM SDK packages such as `@sdkwork/im-sdk` instead of scripting raw HTTP once the node is
+healthy.
 
 ## 8. First Manual API Call
 

@@ -7,23 +7,24 @@ maintainers and contributors, not just downstream consumers.
 
 `generated/server-openapi` is generator-owned output for every supported language:
 
-- TypeScript: `sdkwork-craw-chat-sdk-typescript/generated/server-openapi`
-- Flutter: `sdkwork-craw-chat-sdk-flutter/generated/server-openapi`
-- Rust: `sdkwork-craw-chat-sdk-rust/generated/server-openapi`
+- TypeScript: `sdkwork-im-sdk-typescript/generated/server-openapi`
+- Flutter: `sdkwork-im-sdk-flutter/generated/server-openapi`
+- Rust: `sdkwork-im-sdk-rust/generated/server-openapi`
 
 Do not hand-edit files in these directories to fix product behavior.
 
 ## Manual-Owned Surface
 
-`composed` is the manual-owned SDK layer and the preferred public integration surface:
+`composed` is the manual-owned SDK authoring layer for every non-TypeScript language and the
+pre-assembly authoring layer for TypeScript:
 
-- TypeScript composed package: `@sdkwork/craw-chat-sdk`
-- Flutter composed package: `craw_chat_sdk`
-- Rust composed crate: `craw-chat-sdk`
+- TypeScript public package: `@sdkwork/im-sdk`
+- Flutter composed package: `im_sdk`
+- Rust composed crate: `im-sdk`
 
 This layer owns:
 
-- `CrawChatClient`
+- business-facing semantic clients such as `ImSdkClient`
 - semantic modules
 - builder helpers
 - public consumer documentation and examples

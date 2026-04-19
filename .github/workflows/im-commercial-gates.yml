@@ -106,7 +106,7 @@ jobs:
         run: cargo test -p session-gateway --test device_access_provider_mainline_test test_conflicting_session_resume_does_not_call_provider_for_second_owner -- --exact
 
       - name: Test admin architecture release safety
-        working-directory: apps/craw-chat-admin
+        working-directory: apps/control-plane
         run: node --test --experimental-test-isolation=none tests/admin-architecture.test.mjs
 
       - name: Test portal dist release safety

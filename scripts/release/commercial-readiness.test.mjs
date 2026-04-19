@@ -43,7 +43,7 @@ test('commercial readiness checks cover the verified frontend and backend gate c
   assert.equal(checks[0].env?.npm_config_update_notifier, 'false');
   assert.equal(
     checks.find((check) => check.id === 'admin-test')?.cwd,
-    path.join(repoRoot, 'apps', 'craw-chat-admin'),
+    path.join(repoRoot, 'apps', 'control-plane'),
   );
   assert.deepEqual(
     checks.find((check) => check.id === 'admin-test')?.args,

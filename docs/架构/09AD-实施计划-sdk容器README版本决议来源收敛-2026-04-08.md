@@ -8,8 +8,8 @@
 
 1. 在 `tools/chat-cli/tests/chat_cli_contract_test.rs` 先写红测
 2. 更新：
-   - `sdks/sdkwork-craw-chat-sdk/README.md`
-   - `sdks/sdkwork-craw-chat-sdk-admin/README.md`
+   - `sdks/sdkwork-im-sdk/README.md`
+   - `sdks/sdkwork-control-plane-sdk/README.md`
 3. 每个容器 README 至少补齐：
    - `versionDecisionSourcePath`
    - 当前值 `null`

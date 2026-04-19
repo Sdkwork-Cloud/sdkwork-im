@@ -192,10 +192,10 @@ scripted mode 当前最小保证：
 
 | clientType | registry bindings | registry codecs | 当前高风险 / 降级边界 | 当前消费面 |
 | --- | --- | --- | --- | --- |
-| `web` | `ccp/http/1` `ccp/ws/1` `ccp/sse/1` | `json` | 默认不放开 `agent.tool_call`、`device.signature` | `sdkwork-craw-chat-sdk`、`tools/chat-cli` |
-| `desktop` | `ccp/http/1` `ccp/ws/1` `ccp/sse/1` | `json` `cbor` | `payload.cbor` 仍可能被 kill switch 收回 | `sdkwork-craw-chat-sdk`、`chat-window` |
-| `mobile` | `ccp/http/1` `ccp/ws/1` `ccp/sse/1` | `json` `cbor` | `device.signature` 当前仍不在稳定消费面 | `sdkwork-craw-chat-sdk` |
-| `backend` | `ccp/http/1` `ccp/ws/1` `ccp/sse/1` `ccp/mqtt/1` | `json` `cbor` | `ccp/mqtt/1` 与 `payload.cbor` 当前可能被 control-plane kill switch 暂停 | `sdkwork-craw-chat-sdk-admin` |
+| `web` | `ccp/http/1` `ccp/ws/1` `ccp/sse/1` | `json` | 默认不放开 `agent.tool_call`、`device.signature` | `sdkwork-im-sdk`、`tools/chat-cli` |
+| `desktop` | `ccp/http/1` `ccp/ws/1` `ccp/sse/1` | `json` `cbor` | `payload.cbor` 仍可能被 kill switch 收回 | `sdkwork-im-sdk`、`chat-window` |
+| `mobile` | `ccp/http/1` `ccp/ws/1` `ccp/sse/1` | `json` `cbor` | `device.signature` 当前仍不在稳定消费面 | `sdkwork-im-sdk` |
+| `backend` | `ccp/http/1` `ccp/ws/1` `ccp/sse/1` `ccp/mqtt/1` | `json` `cbor` | `ccp/mqtt/1` 与 `payload.cbor` 当前可能被 control-plane kill switch 暂停 | `sdkwork-control-plane-sdk` |
 
 当前 CLI 明确消费的能力包括：
 
@@ -218,7 +218,7 @@ scripted mode 当前最小保证：
 | `effectiveSnapshot.allowedBindings` | 把 matrix 中可声明的 binding 收口为当前允许 binding |
 | `effectiveSnapshot.allowedCodecs` | 把 matrix 中可声明的 codec 收口为当前允许 codec |
 | `effectiveSnapshot.enabledCapabilities` | 把 matrix 中可声明 capability 收口为当前允许 capability |
-| `sdkCompatibilityBaseline` | 把 `sdkwork-craw-chat-sdk` / `sdkwork-craw-chat-sdk-admin` 对应到当前稳定 `matrixClientTypes` |
+| `sdkCompatibilityBaseline` | 把 `sdkwork-im-sdk` / `sdkwork-control-plane-sdk` 对应到当前稳定 `matrixClientTypes` |
 
 当前稳定控制面结论是：
 

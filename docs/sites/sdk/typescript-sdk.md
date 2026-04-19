@@ -1,26 +1,36 @@
 # TypeScript SDK
 
-The official TypeScript consumer package for Craw Chat is `@sdkwork/craw-chat-sdk`.
+The official TypeScript consumer package in the IM SDK family is `@sdkwork/im-sdk`.
 
 This package is the primary app-facing SDK for browser and Node.js and follows one package rule:
 
 - one installable package for normal consumers
-- one primary client class: `CrawChatSdkClient`
+- one primary client class: `ImSdkClient`
 - one generated transport boundary assembled under `src/generated/**`
 - one semantic SDK surface at the package root
 
-Use `CrawChatSdkClient` for application code. Use `SdkworkBackendClient` or `generated` only when
-you explicitly need transport-level access.
+Use `ImSdkClient` for application code. Route-aligned transport modules such as `sdk.session`,
+`sdk.presence`, `sdk.realtime`, `sdk.device`, `sdk.inbox`, and `sdk.stream` are mounted directly on
+the same client when you need exact OpenAPI transport control.
+
+## Current Delivery Reality
+
+The TypeScript standard is now intentionally narrow and explicit:
+
+- one public consumer package: `@sdkwork/im-sdk`
+- one primary public client: `ImSdkClient`
+- one internal generated layer assembled from `generated/server-openapi`
+- one generator-owned authoring boundary under `generated/server-openapi`
+- no second backend-named public companion package
 
 ## Package Contract
 
 | Concern | Value |
 | --- | --- |
-| Official package | `@sdkwork/craw-chat-sdk` |
-| Primary client | `CrawChatSdkClient` |
+| Official package | `@sdkwork/im-sdk` |
+| Primary client | `ImSdkClient` |
 | Runtime targets | Browser and Node.js |
-| Generated transport export | `SdkworkBackendClient` |
-| Generated namespace | `generated` |
+| Route-aligned transport modules | `sdk.session`, `sdk.presence`, `sdk.realtime`, `sdk.device`, `sdk.inbox`, `sdk.stream` |
 | Generated source boundary | `src/generated/**` |
 | Generator-owned authoring boundary | `generated/server-openapi` |
 
@@ -29,9 +39,9 @@ you explicitly need transport-level access.
 ### Browser
 
 ```ts
-import { CrawChatSdkClient } from '@sdkwork/craw-chat-sdk';
+import { ImSdkClient } from '@sdkwork/im-sdk';
 
-const sdk = new CrawChatSdkClient({
+const sdk = new ImSdkClient({
   baseUrl: import.meta.env.VITE_CRAW_CHAT_BASE_URL,
   authToken: window.localStorage.getItem('craw-chat-token') ?? undefined,
 });
@@ -40,9 +50,9 @@ const sdk = new CrawChatSdkClient({
 ### Node.js
 
 ```ts
-import { CrawChatSdkClient } from '@sdkwork/craw-chat-sdk';
+import { ImSdkClient } from '@sdkwork/im-sdk';
 
-const sdk = new CrawChatSdkClient({
+const sdk = new ImSdkClient({
   baseUrl: process.env.CRAW_CHAT_BASE_URL!,
   authToken: process.env.CRAW_CHAT_TOKEN,
 });
@@ -53,14 +63,14 @@ const sdk = new CrawChatSdkClient({
 If HTTP and realtime upgrades terminate on different origins, keep the config flat:
 
 ```ts
-const sdk = new CrawChatSdkClient({
+const sdk = new ImSdkClient({
   apiBaseUrl: 'https://api.example.com',
   websocketBaseUrl: 'wss://realtime.example.com',
   authToken: window.localStorage.getItem('craw-chat-token') ?? undefined,
 });
 ```
 
-This is the preferred configuration model. You do not need a nested `backendConfig` wrapper for
+This is the preferred configuration model. You do not need a nested transport-config wrapper for
 normal use.
 
 ## Authentication
@@ -101,9 +111,8 @@ const dashboard = await sdk.portal.getDashboard();
 console.log(home.hero?.title, workspace.name, dashboard.hero?.title);
 ```
 
-The TypeScript root client currently promotes the generated portal route group directly, so these
-helpers stay stable and discoverable on the main application client instead of requiring
-`sdk.generated.portal`.
+The TypeScript root client promotes the exact portal route group directly, so these helpers stay
+stable and discoverable on the main application client.
 
 | Snapshot | Method |
 | --- | --- |
@@ -121,7 +130,7 @@ helpers stay stable and discoverable on the main application client instead of r
 
 For a new application, build against the SDK in this order:
 
-1. Construct `CrawChatSdkClient`
+1. Construct `ImSdkClient`
 2. Authenticate with `sdk.auth`
 3. Send a text message with `sdk.createTextMessage(...)` and `sdk.send(...)`
 4. Add live push with `sdk.connect(...)`
@@ -146,10 +155,10 @@ when you need exact OpenAPI operations, request bodies, or transport DTO details
 | Membership and read cursors | `sdk.conversations.listMembers`, `sdk.conversations.addMember`, `sdk.conversations.updateReadCursor` | [Membership and Read State](/api-reference/app/membership-and-read-state) |
 | Message schemas and semantic send ergonomics | `sdk.createTextMessage(...)`, `sdk.send(...)`, `sdk.decodeMessage(...)` | [Messages](/api-reference/app/messages) |
 | Upload registration, presigned client upload, completion, and attachment | `sdk.media.createUploadSession(...)`, `sdk.media.upload(...)`, `sdk.upload(...)`, `sdk.media.completeUpload(...)`, `sdk.media.attachText(...)` | [Media](/api-reference/app/media) |
-| Session, presence, live subscriptions, and durable replay | `sdk.connect(...)`, `sdk.sync.catchUp(...)`, `sdk.sync.ack(...)`, `sdk.generated.session`, `sdk.generated.presence`, `sdk.generated.realtime` | [Session and Realtime](/api-reference/app/session-and-realtime) |
-| Device registration and sync feeds | `sdk.generated.device.register(...)`, `sdk.generated.device.getDeviceSyncFeed(...)` | [Device Sync](/api-reference/app/device-sync) |
+| Session, presence, live subscriptions, and durable replay | `sdk.connect(...)`, `sdk.sync.catchUp(...)`, `sdk.sync.ack(...)`, `sdk.session`, `sdk.presence`, `sdk.realtime` | [Session and Realtime](/api-reference/app/session-and-realtime) |
+| Device registration and sync feeds | `sdk.device.register(...)`, `sdk.device.getDeviceSyncFeed(...)` | [Device Sync](/api-reference/app/device-sync) |
 | RTC lifecycle and signaling-side HTTP calls | `sdk.rtc.create(...)`, `sdk.rtc.postJsonSignal(...)`, `sdk.rtc.issueParticipantCredential(...)`, `sdk.rtc.getRecordingArtifact(...)` | [RTC](/api-reference/app/rtc) |
-| Stream transport and checkpointing | `sdk.generated.stream.open(...)`, `sdk.generated.stream.appendStreamFrame(...)`, `sdk.generated.stream.checkpoint(...)`, `sdk.generated.stream.complete(...)` | [Streams](/api-reference/app/streams) |
+| Stream transport and checkpointing | `sdk.stream.open(...)`, `sdk.stream.appendStreamFrame(...)`, `sdk.stream.checkpoint(...)`, `sdk.stream.complete(...)` | [Streams](/api-reference/app/streams) |
 
 ## Conversations
 
@@ -278,10 +287,10 @@ console.log(timeline.items.length);
 
 ### Inbox
 
-Inbox is currently exposed on the generated transport boundary:
+Inbox is exposed directly on the root client:
 
 ```ts
-const inbox = await sdk.generated.inbox.getInbox();
+const inbox = await sdk.inbox.getInbox();
 console.log(inbox.items.length);
 ```
 
@@ -451,6 +460,11 @@ application needs explicit control over upload sessions, presigned client upload
 signed download URLs, or direct media attachment. Use `sdk.upload(...)` at the client root when
 you want the default application upload path.
 
+`sdk.media.createUploadSession(...)` returns a normalized `ImMediaUploadSession`.
+`sdk.media.upload(...)`, `sdk.media.uploadAndComplete(...)`, and `sdk.upload(...)` return
+`ImUploadedMediaAsset`, which keeps the semantic upload helper stable while still exposing the
+generated upload-session data you need for advanced diagnostics.
+
 | Task | Method |
 | --- | --- |
 | Create a presigned upload session | `sdk.media.createUploadSession(...)` |
@@ -613,7 +627,7 @@ through `webSocketFactory`.
 ```ts
 import WebSocket from 'ws';
 
-const sdk = new CrawChatSdkClient({
+const sdk = new ImSdkClient({
   baseUrl: process.env.CRAW_CHAT_BASE_URL!,
   authToken: process.env.CRAW_CHAT_TOKEN,
   webSocketFactory: ({ url, protocols, headers }) =>
@@ -658,31 +672,29 @@ Handle incoming RTC signaling through `live.signals.onRtcSession(...)`. Use
 `sdk.rtc.postJsonSignal(...)` for common JSON signaling, `sdk.rtc.issueParticipantCredential(...)`
 for provider join credentials, and `sdk.rtc.getRecordingArtifact(...)` for recording metadata.
 
-## Generated Transport Access
+## Route-Aligned Transport Modules
 
-Some route groups are intentionally generated-first today. Use the semantic modules for chat, live,
-sync, media, and RTC. Use `sdk.generated.*` when the TypeScript package exposes exact transport
-control without a dedicated semantic facade yet, including device registration, presence/session
-routes, and stream transport.
-
-The same package also exposes the generated OpenAPI transport.
+Some route groups are intentionally exposed as direct transport modules on `ImSdkClient` because
+they already match the public OpenAPI contract cleanly. Use the higher-level semantic modules for
+chat, live receive, media, and RTC workflows. Use the root transport modules when you need exact
+route-group control for session, presence, realtime coordination, device registration, inbox, or
+stream transport.
 
 ```ts
-import {
-  CrawChatSdkClient,
-  SdkworkBackendClient,
-  createGeneratedBackendClient,
-  generated,
-} from '@sdkwork/craw-chat-sdk';
+import { ImSdkClient } from '@sdkwork/im-sdk';
 
-const sdk = new CrawChatSdkClient({
+const sdk = new ImSdkClient({
   baseUrl: 'http://127.0.0.1:18090',
   authToken: 'token',
 });
 
-await sdk.generated.conversation.listConversationMessages('conversation-1');
-await sdk.generated.device.register({ deviceId: 'web-chrome-01' });
-await sdk.generated.stream.open({
+await sdk.session.resume({ deviceId: 'web-chrome-01' });
+await sdk.presence.getPresenceMe();
+await sdk.realtime.listRealtimeEvents({ limit: 20 });
+await sdk.conversations.listMessages('conversation-1');
+await sdk.device.register({ deviceId: 'web-chrome-01' });
+await sdk.inbox.getInbox();
+await sdk.stream.open({
   streamId: 'stream-demo-1',
   streamType: 'custom.delta.text',
   scopeKind: 'conversation',
@@ -690,31 +702,57 @@ await sdk.generated.stream.open({
   durabilityClass: 'durableSession',
   schemaRef: 'custom.delta.text.v1',
 });
-
-const rawClient = new SdkworkBackendClient({
-  baseUrl: 'http://127.0.0.1:18090',
-  authToken: 'token',
-});
-
-const rawClient2 = createGeneratedBackendClient({
-  baseUrl: 'http://127.0.0.1:18090',
-  authToken: 'token',
-});
-
-console.log(generated);
 ```
 
-Use the generated layer when you need exact DTOs, exact route groups, or transport-level control.
-Use `CrawChatSdkClient` for normal application integration.
+Use the root transport modules when you need exact DTOs or route-group control. Reach for
+`sdk.session.resume(...)`, `sdk.presence.getPresenceMe()`, `sdk.realtime.listRealtimeEvents(...)`,
+`sdk.device.register(...)`, `sdk.inbox.getInbox()`, and `sdk.stream.open(...)` when the route group
+already matches the API cleanly. Use the semantic domains on `ImSdkClient` for normal application
+integration.
+
+## Assembly Metadata
+
+The TypeScript workspace publishes its contract into `.sdkwork-assembly.json`.
+
+Use that file when you need the verified package-layer picture instead of guessing from folder
+names:
+
+- `generatedAt` tells you whether the assembly content actually changed
+- `manifestPath` records the manifest that defined each package layer
+- TypeScript records `generated`, `composed`, and `root` package layers together
+- the internal generated layer is assembled from `generated/server-openapi` and emitted under `src/generated/**`
+- the public consumer layer is the root `@sdkwork/im-sdk` package
+
+## Local Workspace Workflow
+
+When you maintain the checked-in TypeScript workspace locally, use the folders for their exact
+roles:
+
+- `generated/server-openapi`
+  Generator-owned internal build workspace that materializes the assembled transport layer
+- `composed`
+  Manual-owned authoring boundary that imports the generated layer through the internal alias
+- repository package root
+  The assembled single-package consumer output published as `@sdkwork/im-sdk`
+
+If you are debugging package metadata or release layout, start from `.sdkwork-assembly.json` before
+editing manifests by hand.
 
 ## Verification
 
 Local verification from the TypeScript workspace:
 
 ```bash
+node ../bin/verify-typescript-workspace.mjs
 node ./bin/assemble-single-package.mjs
 node ../../../../../sdk/sdkwork-sdk-generator/node_modules/typescript/bin/tsc -p tsconfig.build.json --noEmit
 node ./test/craw-chat-client.test.mjs
+```
+
+From the repository root, the family-level entrypoint is:
+
+```bash
+node ./sdks/sdkwork-im-sdk/bin/verify-sdk.mjs --language typescript
 ```
 
 ## What To Read Next

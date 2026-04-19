@@ -17,21 +17,21 @@
 - `crates/craw-chat-contract-admin/src/lib.rs`
 - `crates/sdkwork-api-product-runtime/src/admin_sandbox.rs`
 - `crates/sdkwork-api-product-runtime/src/lib.rs` if the sandbox dispatch needs route plumbing
-- `apps/craw-chat-admin/dev/admin-sandbox-seed.json`
-- `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-admin-api/src/index.ts`
-- `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-types/src/index.ts`
-- `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-core/src/routes.ts`
-- `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-core/src/routePaths.ts`
-- `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-core/src/routeManifest.ts`
-- `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-core/src/workbenchSnapshot.ts`
-- `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-core/src/workbench.tsx`
-- `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-system/src/index.tsx`
-- `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-shell/src/application/router/AppRoutes.tsx`
-- `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-shell/src/application/router/routePrefetch.ts`
-- `apps/craw-chat-admin/package.json`
-- `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/src/media-upload-runtime.ts`
-- `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/src/types.ts`
-- `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/README.md`
+- `apps/control-plane/dev/admin-sandbox-seed.json`
+- `apps/control-plane/packages/sdkwork-control-plane-admin-api/src/index.ts`
+- `apps/control-plane/packages/sdkwork-control-plane-types/src/index.ts`
+- `apps/control-plane/packages/sdkwork-control-plane-core/src/routes.ts`
+- `apps/control-plane/packages/sdkwork-control-plane-core/src/routePaths.ts`
+- `apps/control-plane/packages/sdkwork-control-plane-core/src/routeManifest.ts`
+- `apps/control-plane/packages/sdkwork-control-plane-core/src/workbenchSnapshot.ts`
+- `apps/control-plane/packages/sdkwork-control-plane-core/src/workbench.tsx`
+- `apps/control-plane/packages/sdkwork-control-plane-system/src/index.tsx`
+- `apps/control-plane/packages/sdkwork-control-plane-shell/src/application/router/AppRoutes.tsx`
+- `apps/control-plane/packages/sdkwork-control-plane-shell/src/application/router/routePrefetch.ts`
+- `apps/control-plane/package.json`
+- `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/media-upload-runtime.ts`
+- `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/types.ts`
+- `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/README.md`
 - `docs/sites/.vitepress/api-reference-sidebar.mjs`
 - `docs/sites/api-reference/index.md`
 - `docs/sites/api-reference/control-plane-api.md`
@@ -46,15 +46,15 @@
 - `crates/craw-chat-contract-admin/src/storage.rs`
 - `crates/craw-chat-contract-admin/tests/storage_contract_test.rs`
 - `crates/sdkwork-api-product-runtime/tests/admin_storage_sandbox_test.rs`
-- `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-admin-api/src/storage.ts`
-- `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-types/src/storage.ts`
-- `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-storage/package.json`
-- `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-storage/src/index.tsx`
-- `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-storage/src/providerSchemas.ts`
-- `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-storage/src/storagePageModel.ts`
-- `apps/craw-chat-admin/tests/admin-storage-routing.test.mjs`
-- `apps/craw-chat-admin/tests/admin-storage-page.test.mjs`
-- `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/test/media-upload-runtime.test.ts`
+- `apps/control-plane/packages/sdkwork-control-plane-admin-api/src/storage.ts`
+- `apps/control-plane/packages/sdkwork-control-plane-types/src/storage.ts`
+- `apps/control-plane/packages/sdkwork-control-plane-storage/package.json`
+- `apps/control-plane/packages/sdkwork-control-plane-storage/src/index.tsx`
+- `apps/control-plane/packages/sdkwork-control-plane-storage/src/providerSchemas.ts`
+- `apps/control-plane/packages/sdkwork-control-plane-storage/src/storagePageModel.ts`
+- `apps/control-plane/tests/admin-storage-routing.test.mjs`
+- `apps/control-plane/tests/admin-storage-page.test.mjs`
+- `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/test/media-upload-runtime.test.ts`
 - `docs/sites/api-reference/control-plane/storage.md`
 - `docs/sites/api-reference/operations/control-plane/storage/get-storage-providers.md`
 - `docs/sites/api-reference/operations/control-plane/storage/get-storage-config.md`
@@ -124,11 +124,11 @@ git commit -m "feat(storage): define admin storage contract"
 **Files:**
 - Modify: `crates/sdkwork-api-product-runtime/src/admin_sandbox.rs`
 - Create: `crates/sdkwork-api-product-runtime/tests/admin_storage_sandbox_test.rs`
-- Modify: `apps/craw-chat-admin/dev/admin-sandbox-seed.json`
-- Create: `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-admin-api/src/storage.ts`
-- Modify: `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-admin-api/src/index.ts`
-- Create: `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-types/src/storage.ts`
-- Modify: `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-types/src/index.ts`
+- Modify: `apps/control-plane/dev/admin-sandbox-seed.json`
+- Create: `apps/control-plane/packages/sdkwork-control-plane-admin-api/src/storage.ts`
+- Modify: `apps/control-plane/packages/sdkwork-control-plane-admin-api/src/index.ts`
+- Create: `apps/control-plane/packages/sdkwork-control-plane-types/src/storage.ts`
+- Modify: `apps/control-plane/packages/sdkwork-control-plane-types/src/index.ts`
 
 - [ ] **Step 1: Write the failing sandbox and client tests**
 
@@ -177,25 +177,25 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add crates/sdkwork-api-product-runtime/src/admin_sandbox.rs crates/sdkwork-api-product-runtime/tests/admin_storage_sandbox_test.rs apps/craw-chat-admin/dev/admin-sandbox-seed.json apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-admin-api/src/storage.ts apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-admin-api/src/index.ts apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-types/src/storage.ts apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-types/src/index.ts
+git add crates/sdkwork-api-product-runtime/src/admin_sandbox.rs crates/sdkwork-api-product-runtime/tests/admin_storage_sandbox_test.rs apps/control-plane/dev/admin-sandbox-seed.json apps/control-plane/packages/sdkwork-control-plane-admin-api/src/storage.ts apps/control-plane/packages/sdkwork-control-plane-admin-api/src/index.ts apps/control-plane/packages/sdkwork-control-plane-types/src/storage.ts apps/control-plane/packages/sdkwork-control-plane-types/src/index.ts
 git commit -m "feat(admin): add storage sandbox api"
 ```
 
 ### Task 3: Add A Dedicated Admin Storage Module And Route
 
 **Files:**
-- Modify: `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-core/src/routes.ts`
-- Modify: `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-core/src/routePaths.ts`
-- Modify: `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-core/src/routeManifest.ts`
-- Modify: `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-core/src/workbenchSnapshot.ts`
-- Modify: `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-core/src/workbench.tsx`
-- Modify: `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-system/src/index.tsx`
-- Modify: `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-shell/src/application/router/AppRoutes.tsx`
-- Modify: `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-shell/src/application/router/routePrefetch.ts`
-- Modify: `apps/craw-chat-admin/package.json`
-- Create: `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-storage/package.json`
-- Create: `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-storage/src/index.tsx`
-- Create: `apps/craw-chat-admin/tests/admin-storage-routing.test.mjs`
+- Modify: `apps/control-plane/packages/sdkwork-control-plane-core/src/routes.ts`
+- Modify: `apps/control-plane/packages/sdkwork-control-plane-core/src/routePaths.ts`
+- Modify: `apps/control-plane/packages/sdkwork-control-plane-core/src/routeManifest.ts`
+- Modify: `apps/control-plane/packages/sdkwork-control-plane-core/src/workbenchSnapshot.ts`
+- Modify: `apps/control-plane/packages/sdkwork-control-plane-core/src/workbench.tsx`
+- Modify: `apps/control-plane/packages/sdkwork-control-plane-system/src/index.tsx`
+- Modify: `apps/control-plane/packages/sdkwork-control-plane-shell/src/application/router/AppRoutes.tsx`
+- Modify: `apps/control-plane/packages/sdkwork-control-plane-shell/src/application/router/routePrefetch.ts`
+- Modify: `apps/control-plane/package.json`
+- Create: `apps/control-plane/packages/sdkwork-control-plane-storage/package.json`
+- Create: `apps/control-plane/packages/sdkwork-control-plane-storage/src/index.tsx`
+- Create: `apps/control-plane/tests/admin-storage-routing.test.mjs`
 
 - [ ] **Step 1: Write the failing routing and module-loading assertions**
 
@@ -210,7 +210,7 @@ Add tests that require:
 Run:
 
 ```bash
-node apps/craw-chat-admin/tests/admin-storage-routing.test.mjs
+node apps/control-plane/tests/admin-storage-routing.test.mjs
 ```
 
 Expected: FAIL because the storage route and package do not exist yet.
@@ -224,8 +224,8 @@ Create a dedicated storage admin package with one page entry point and register 
 Run:
 
 ```bash
-node apps/craw-chat-admin/tests/admin-storage-routing.test.mjs
-pnpm --dir apps/craw-chat-admin typecheck
+node apps/control-plane/tests/admin-storage-routing.test.mjs
+pnpm --dir apps/control-plane typecheck
 ```
 
 Expected: PASS
@@ -233,17 +233,17 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-core/src/routes.ts apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-core/src/routePaths.ts apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-core/src/routeManifest.ts apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-core/src/workbenchSnapshot.ts apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-core/src/workbench.tsx apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-system/src/index.tsx apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-shell/src/application/router/AppRoutes.tsx apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-shell/src/application/router/routePrefetch.ts apps/craw-chat-admin/package.json apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-storage
+git add apps/control-plane/packages/sdkwork-control-plane-core/src/routes.ts apps/control-plane/packages/sdkwork-control-plane-core/src/routePaths.ts apps/control-plane/packages/sdkwork-control-plane-core/src/routeManifest.ts apps/control-plane/packages/sdkwork-control-plane-core/src/workbenchSnapshot.ts apps/control-plane/packages/sdkwork-control-plane-core/src/workbench.tsx apps/control-plane/packages/sdkwork-control-plane-system/src/index.tsx apps/control-plane/packages/sdkwork-control-plane-shell/src/application/router/AppRoutes.tsx apps/control-plane/packages/sdkwork-control-plane-shell/src/application/router/routePrefetch.ts apps/control-plane/package.json apps/control-plane/packages/sdkwork-control-plane-storage
 git commit -m "feat(admin): add storage navigation"
 ```
 
 ### Task 4: Build The Storage Management Page And Provider-Specific Forms
 
 **Files:**
-- Create: `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-storage/src/providerSchemas.ts`
-- Create: `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-storage/src/storagePageModel.ts`
-- Create: `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-storage/src/index.tsx`
-- Create: `apps/craw-chat-admin/tests/admin-storage-page.test.mjs`
+- Create: `apps/control-plane/packages/sdkwork-control-plane-storage/src/providerSchemas.ts`
+- Create: `apps/control-plane/packages/sdkwork-control-plane-storage/src/storagePageModel.ts`
+- Create: `apps/control-plane/packages/sdkwork-control-plane-storage/src/index.tsx`
+- Create: `apps/control-plane/tests/admin-storage-page.test.mjs`
 
 - [ ] **Step 1: Write the failing page-model tests**
 
@@ -259,7 +259,7 @@ Add tests that require:
 Run:
 
 ```bash
-node apps/craw-chat-admin/tests/admin-storage-page.test.mjs
+node apps/control-plane/tests/admin-storage-page.test.mjs
 ```
 
 Expected: FAIL because the storage page model and provider schemas are not implemented yet.
@@ -278,8 +278,8 @@ Build the page around a provider schema registry so each provider renders the ri
 Run:
 
 ```bash
-node apps/craw-chat-admin/tests/admin-storage-page.test.mjs
-pnpm --dir apps/craw-chat-admin typecheck
+node apps/control-plane/tests/admin-storage-page.test.mjs
+pnpm --dir apps/control-plane typecheck
 ```
 
 Expected: PASS
@@ -287,17 +287,17 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-storage/src/providerSchemas.ts apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-storage/src/storagePageModel.ts apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-storage/src/index.tsx apps/craw-chat-admin/tests/admin-storage-page.test.mjs
+git add apps/control-plane/packages/sdkwork-control-plane-storage/src/providerSchemas.ts apps/control-plane/packages/sdkwork-control-plane-storage/src/storagePageModel.ts apps/control-plane/packages/sdkwork-control-plane-storage/src/index.tsx apps/control-plane/tests/admin-storage-page.test.mjs
 git commit -m "feat(admin): build storage management page"
 ```
 
 ### Task 5: Align Media Upload Helpers And SDK Docs To The Storage Contract
 
 **Files:**
-- Modify: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/src/media-upload-runtime.ts`
-- Modify: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/src/types.ts`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/test/media-upload-runtime.test.ts`
-- Modify: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/README.md`
+- Modify: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/media-upload-runtime.ts`
+- Modify: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/types.ts`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/test/media-upload-runtime.test.ts`
+- Modify: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/README.md`
 - Modify: `docs/sites/sdk/app-sdk.md`
 - Modify: `docs/sites/sdk/typescript-sdk.md`
 - Modify: `docs/sites/api-reference/app/media.md`
@@ -316,7 +316,7 @@ Add tests that require the media upload helper to preserve the stable upload-ses
 Run:
 
 ```bash
-npm --prefix sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript run test
+npm --prefix sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript run test
 ```
 
 Expected: FAIL until the helper and docs agree on the storage-session contract.
@@ -330,8 +330,8 @@ Update the TypeScript SDK helper to keep the storage upload flow ergonomic, then
 Run:
 
 ```bash
-npm --prefix sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript run test
-npm --prefix sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript run typecheck
+npm --prefix sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript run test
+npm --prefix sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript run typecheck
 ```
 
 Expected: PASS
@@ -339,7 +339,7 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/src/media-upload-runtime.ts sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/src/types.ts sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/test/media-upload-runtime.test.ts sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/README.md docs/sites/sdk/app-sdk.md docs/sites/sdk/typescript-sdk.md docs/sites/api-reference/app/media.md
+git add sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/media-upload-runtime.ts sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/types.ts sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/test/media-upload-runtime.test.ts sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/README.md docs/sites/sdk/app-sdk.md docs/sites/sdk/typescript-sdk.md docs/sites/api-reference/app/media.md
 git commit -m "docs(sdk): align media upload helpers with storage contract"
 ```
 
@@ -371,7 +371,7 @@ Run:
 
 ```bash
 node docs/sites/scripts/verify-sdk-docs.mjs
-node sdks/sdkwork-craw-chat-sdk/bin/verify-docs-contract-tests.mjs
+node sdks/sdkwork-im-sdk/bin/verify-docs-contract-tests.mjs
 ```
 
 Expected: FAIL until the new storage docs pages exist and are linked.
@@ -392,7 +392,7 @@ Run:
 
 ```bash
 node docs/sites/scripts/verify-sdk-docs.mjs
-node sdks/sdkwork-craw-chat-sdk/bin/verify-docs-contract-tests.mjs
+node sdks/sdkwork-im-sdk/bin/verify-docs-contract-tests.mjs
 ```
 
 Expected: PASS
@@ -423,9 +423,9 @@ cargo test -p sdkwork-api-product-runtime admin_storage_sandbox_test -- --exact
 Run:
 
 ```bash
-pnpm --dir apps/craw-chat-admin typecheck
-node apps/craw-chat-admin/tests/admin-storage-routing.test.mjs
-node apps/craw-chat-admin/tests/admin-storage-page.test.mjs
+pnpm --dir apps/control-plane typecheck
+node apps/control-plane/tests/admin-storage-routing.test.mjs
+node apps/control-plane/tests/admin-storage-page.test.mjs
 ```
 
 - [ ] **Step 3: Run the SDK and docs checks**
@@ -433,10 +433,10 @@ node apps/craw-chat-admin/tests/admin-storage-page.test.mjs
 Run:
 
 ```bash
-npm --prefix sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript run test
-npm --prefix sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript run typecheck
+npm --prefix sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript run test
+npm --prefix sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript run typecheck
 node docs/sites/scripts/verify-sdk-docs.mjs
-node sdks/sdkwork-craw-chat-sdk/bin/verify-docs-contract-tests.mjs
+node sdks/sdkwork-im-sdk/bin/verify-docs-contract-tests.mjs
 ```
 
 - [ ] **Step 4: Refresh any baseline docs or audit notes**

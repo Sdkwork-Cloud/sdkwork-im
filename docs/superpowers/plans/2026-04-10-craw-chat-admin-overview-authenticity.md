@@ -13,17 +13,17 @@
 ### Task 1: Lock The Product Constraint
 
 **Files:**
-- Modify: `apps/craw-chat-admin/tests/admin-product-experience.test.mjs`
+- Modify: `apps/control-plane/tests/admin-product-experience.test.mjs`
 
 - [ ] Step 1: Keep the failing Overview authenticity contract that bans numeric fallbacks and seeded placeholder queues.
-- [ ] Step 2: Run `node --experimental-test-isolation=none --test apps/craw-chat-admin/tests/admin-product-experience.test.mjs`.
+- [ ] Step 2: Run `node --experimental-test-isolation=none --test apps/control-plane/tests/admin-product-experience.test.mjs`.
 - [ ] Step 3: Confirm the failure is caused by synthetic Overview fallback content rather than an unrelated regression.
 
 ### Task 2: Extract Snapshot-Derived Overview Model
 
 **Files:**
-- Create: `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-overview/src/overviewModel.ts`
-- Modify: `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-overview/src/index.tsx`
+- Create: `apps/control-plane/packages/sdkwork-control-plane-overview/src/overviewModel.ts`
+- Modify: `apps/control-plane/packages/sdkwork-control-plane-overview/src/index.tsx`
 
 - [ ] Step 1: Add focused helper types for metrics, hot conversations, incident watch, tenant load, and command-board cards.
 - [ ] Step 2: Derive message throughput, moderation backlog, and online users directly from `AdminWorkspaceSnapshot`.
@@ -34,7 +34,7 @@
 ### Task 3: Localize Any New Honest-State Copy
 
 **Files:**
-- Modify: `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-core/src/i18n.tsx`
+- Modify: `apps/control-plane/packages/sdkwork-control-plane-core/src/i18n.tsx`
 
 - [ ] Step 1: Add `zh-CN` translations for any new Overview empty-state and command-board strings.
 - [ ] Step 2: Reuse existing workspace-status translation keys where they already describe live admin posture accurately.
@@ -42,11 +42,11 @@
 ### Task 4: Verify Overview Regression Surface
 
 **Files:**
-- Review only: `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-overview/src/index.tsx`
-- Review only: `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-overview/src/overviewModel.ts`
-- Review only: `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-core/src/i18n.tsx`
+- Review only: `apps/control-plane/packages/sdkwork-control-plane-overview/src/index.tsx`
+- Review only: `apps/control-plane/packages/sdkwork-control-plane-overview/src/overviewModel.ts`
+- Review only: `apps/control-plane/packages/sdkwork-control-plane-core/src/i18n.tsx`
 
-- [ ] Step 1: Run `node --experimental-test-isolation=none --test apps/craw-chat-admin/tests/admin-product-experience.test.mjs`.
-- [ ] Step 2: Run `node --experimental-test-isolation=none --test apps/craw-chat-admin/tests/*.mjs`.
-- [ ] Step 3: Run `pnpm.cmd typecheck` from `apps/craw-chat-admin`.
+- [ ] Step 1: Run `node --experimental-test-isolation=none --test apps/control-plane/tests/admin-product-experience.test.mjs`.
+- [ ] Step 2: Run `node --experimental-test-isolation=none --test apps/control-plane/tests/*.mjs`.
+- [ ] Step 3: Run `pnpm.cmd typecheck` from `apps/control-plane`.
 - [ ] Step 4: Summarize any residual product gaps if Overview still lacks a first-class live conversation source beyond project traffic summaries.

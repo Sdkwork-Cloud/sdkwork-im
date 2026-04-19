@@ -15,8 +15,8 @@
    - `events.pull`
 3. 更新：
    - `docs/部署/CLI聊天验证与兼容矩阵.md`
-   - `sdks/sdkwork-craw-chat-sdk/README.md`
-   - `sdks/sdkwork-craw-chat-sdk-admin/README.md`
+   - `sdks/sdkwork-im-sdk/README.md`
+   - `sdks/sdkwork-control-plane-sdk/README.md`
    - `docs/部署/兼容矩阵与SDK-CLI-operator验证索引.md`
 4. 回归同一条契约测试
 5. 回写 `docs/step`、`docs/架构`、`docs/review`

@@ -57,85 +57,127 @@ function inferSuccessLabel(method, route, block) {
 
 function sdkLabel(page, route, method) {
   const labels = {
-    "app/session-and-realtime": "`@sdkwork/craw-chat-sdk` / session, presence, and realtime helpers",
-    "app/device-sync": "`@sdkwork/craw-chat-sdk` / generated device-sync transport",
+    "app/session-and-realtime": "`@sdkwork/im-sdk` / session, presence, and realtime helpers",
+    "app/device-sync": "`@sdkwork/im-sdk` / generated device-sync transport",
     "app/conversations": route === "/api/v1/inbox"
-      ? "`@sdkwork/craw-chat-sdk` / `sdk.generated.inbox.getInbox()`"
-      : "`@sdkwork/craw-chat-sdk` / `sdk.conversations`",
-    "app/membership-and-read-state": "`@sdkwork/craw-chat-sdk` / `sdk.conversations`",
-    "app/messages": "`@sdkwork/craw-chat-sdk` / `sdk.messages`",
-    "app/media": "`@sdkwork/craw-chat-sdk` / `sdk.media`",
-    "app/streams": "`@sdkwork/craw-chat-sdk` / generated stream transport",
-    "app/rtc": "`@sdkwork/craw-chat-sdk` / `sdk.rtc`",
+      ? "`@sdkwork/im-sdk` / `sdk.generated.inbox.getInbox()`"
+      : "`@sdkwork/im-sdk` / `sdk.conversations`",
+    "app/membership-and-read-state": "`@sdkwork/im-sdk` / `sdk.conversations`",
+    "app/messages": "`@sdkwork/im-sdk` / `sdk.messages`",
+    "app/media": "`@sdkwork/im-sdk` / `sdk.media`",
+    "app/streams": "`@sdkwork/im-sdk` / generated stream transport",
+    "app/rtc": "`@sdkwork/im-sdk` / `sdk.rtc`",
     "platform/notifications": "No standalone published SDK family",
     "platform/automation": "No standalone published SDK family",
     "platform/audit": "No standalone published SDK family",
     "platform/ops": "No standalone published SDK family",
     "platform/provider-health": "No standalone published SDK family",
     "iot/protocol-and-health": "No standalone published SDK family",
-    "control-plane/protocol": "`sdkwork-craw-chat-sdk-admin` / protocol-governance",
-    "control-plane/providers": "`sdkwork-craw-chat-sdk-admin` / provider-governance",
-    "control-plane/nodes": "`sdkwork-craw-chat-sdk-admin` / node-operations",
+    "control-plane/protocol": "`sdkwork-control-plane-sdk` / protocol-governance",
+    "control-plane/providers": "`sdkwork-control-plane-sdk` / provider-governance",
+    "control-plane/social": "`sdkwork-control-plane-sdk` / `sdk.social`",
+    "control-plane/social-runtime": "`sdkwork-control-plane-sdk` / `sdk.socialRuntime`",
+    "control-plane/nodes": "`sdkwork-control-plane-sdk` / node-operations",
   };
   if (page === "app/session-and-realtime") {
     if (route === "/healthz" || route === "/readyz") {
       return "Direct HTTP probe";
     }
     if (route === "/api/v1/sessions/resume") {
-      return "`@sdkwork/craw-chat-sdk` / `sdk.connect({ deviceId })`, `sdk.generated.session.resume(...)`";
+      return "`@sdkwork/im-sdk` / `sdk.connect({ deviceId })`, `sdk.generated.session.resume(...)`";
     }
     if (route === "/api/v1/sessions/disconnect") {
-      return "`@sdkwork/craw-chat-sdk` / `sdk.generated.session.disconnect(...)`";
+      return "`@sdkwork/im-sdk` / `sdk.generated.session.disconnect(...)`";
     }
     if (route === "/api/v1/presence/heartbeat") {
-      return "`@sdkwork/craw-chat-sdk` / `sdk.generated.presence.heartbeat(...)`";
+      return "`@sdkwork/im-sdk` / `sdk.generated.presence.heartbeat(...)`";
     }
     if (route === "/api/v1/presence/me") {
-      return "`@sdkwork/craw-chat-sdk` / `sdk.auth.me()`, `sdk.generated.presence.getPresenceMe()`";
+      return "`@sdkwork/im-sdk` / `sdk.auth.me()`, `sdk.generated.presence.getPresenceMe()`";
     }
     if (route === "/api/v1/realtime/subscriptions/sync") {
-      return "`@sdkwork/craw-chat-sdk` / `sdk.connect(...)`, `sdk.generated.realtime.syncRealtimeSubscriptions(...)`";
+      return "`@sdkwork/im-sdk` / `sdk.connect(...)`, `sdk.generated.realtime.syncRealtimeSubscriptions(...)`";
     }
     if (route === "/api/v1/realtime/events") {
-      return "`@sdkwork/craw-chat-sdk` / `sdk.sync.catchUp(...)`, `sdk.generated.realtime.listRealtimeEvents(...)`";
+      return "`@sdkwork/im-sdk` / `sdk.sync.catchUp(...)`, `sdk.generated.realtime.listRealtimeEvents(...)`";
     }
     if (route === "/api/v1/realtime/events/ack") {
-      return "`@sdkwork/craw-chat-sdk` / `sdk.sync.ack(...)`, `context.ack()`, `sdk.generated.realtime.ackRealtimeEvents(...)`";
+      return "`@sdkwork/im-sdk` / `sdk.sync.ack(...)`, `context.ack()`, `sdk.generated.realtime.ackRealtimeEvents(...)`";
     }
     if (route.endsWith("/ws")) {
-      return "`@sdkwork/craw-chat-sdk` / `sdk.connect(...)`";
+      return "`@sdkwork/im-sdk` / `sdk.connect(...)`";
+    }
+  }
+
+  if (page === "app/portal-and-auth") {
+    if (route === "/api/v1/auth/login") {
+      return "`@sdkwork/im-sdk` / `sdk.auth.login(...)`";
+    }
+    if (route === "/api/v1/auth/me") {
+      return "`@sdkwork/im-sdk` / `sdk.auth.me()`";
+    }
+    if (route === "/api/v1/portal/home") {
+      return "`@sdkwork/im-sdk` / `sdk.portal.getHome()`";
+    }
+    if (route === "/api/v1/portal/auth") {
+      return "`@sdkwork/im-sdk` / `sdk.portal.getAuth()`";
+    }
+    if (route === "/api/v1/portal/workspace") {
+      return "`@sdkwork/im-sdk` / `sdk.portal.getWorkspace()`";
+    }
+    if (route === "/api/v1/portal/dashboard") {
+      return "`@sdkwork/im-sdk` / `sdk.portal.getDashboard()`";
+    }
+    if (route === "/api/v1/portal/conversations") {
+      return "`@sdkwork/im-sdk` / `sdk.portal.getConversations()`";
+    }
+    if (route === "/api/v1/portal/realtime") {
+      return "`@sdkwork/im-sdk` / `sdk.portal.getRealtime()`";
+    }
+    if (route === "/api/v1/portal/media") {
+      return "`@sdkwork/im-sdk` / `sdk.portal.getMedia()`";
+    }
+    if (route === "/api/v1/portal/automation") {
+      return "`@sdkwork/im-sdk` / `sdk.portal.getAutomation()`";
+    }
+    if (route === "/api/v1/portal/governance") {
+      return "`@sdkwork/im-sdk` / `sdk.portal.getGovernance()`";
     }
   }
 
   if (page === "app/device-sync") {
     if (route === "/api/v1/devices/register") {
-      return "`@sdkwork/craw-chat-sdk` / `sdk.generated.device.register(...)`";
+      return "`@sdkwork/im-sdk` / `sdk.generated.device.register(...)`";
     }
-    return "`@sdkwork/craw-chat-sdk` / `sdk.generated.device.getDeviceSyncFeed(...)`";
+    return "`@sdkwork/im-sdk` / `sdk.generated.device.getDeviceSyncFeed(...)`";
   }
 
   if (page === "app/streams") {
     if (route === "/api/v1/streams") {
-      return "`@sdkwork/craw-chat-sdk` / `sdk.generated.stream.open(...)`";
+      return "`@sdkwork/im-sdk` / `sdk.generated.stream.open(...)`";
     }
     if (route.endsWith("/frames") && method === "GET") {
-      return "`@sdkwork/craw-chat-sdk` / `sdk.generated.stream.listStreamFrames(...)`";
+      return "`@sdkwork/im-sdk` / `sdk.generated.stream.listStreamFrames(...)`";
     }
     if (route.endsWith("/frames")) {
-      return "`@sdkwork/craw-chat-sdk` / `sdk.generated.stream.appendStreamFrame(...)`";
+      return "`@sdkwork/im-sdk` / `sdk.generated.stream.appendStreamFrame(...)`";
     }
     if (route.endsWith("/checkpoint")) {
-      return "`@sdkwork/craw-chat-sdk` / `sdk.generated.stream.checkpoint(...)`";
+      return "`@sdkwork/im-sdk` / `sdk.generated.stream.checkpoint(...)`";
     }
     if (route.endsWith("/complete")) {
-      return "`@sdkwork/craw-chat-sdk` / `sdk.generated.stream.complete(...)`";
+      return "`@sdkwork/im-sdk` / `sdk.generated.stream.complete(...)`";
     }
     if (route.endsWith("/abort")) {
-      return "`@sdkwork/craw-chat-sdk` / `sdk.generated.stream.abort(...)`";
+      return "`@sdkwork/im-sdk` / `sdk.generated.stream.abort(...)`";
     }
   }
 
-  return labels[page] ?? "`sdkwork-craw-chat-sdk`";
+  if (!(page in labels)) {
+    throw new Error(`Unconfigured SDK label mapping for ${page}.`);
+  }
+
+  return labels[page];
 }
 
 function securityLabel(route, page) {
@@ -263,6 +305,8 @@ function permissionLabel(page, method, route) {
       return "Registered device scope with `device.command.send`.";
     case "control-plane/protocol":
     case "control-plane/providers":
+    case "control-plane/social":
+    case "control-plane/social-runtime":
     case "control-plane/nodes":
       return method === "GET"
         ? "`control.read` or `control.write`"
@@ -407,12 +451,16 @@ function errorRows(page, method, route) {
             ];
     case "control-plane/protocol":
     case "control-plane/providers":
+    case "control-plane/social":
+    case "control-plane/social-runtime":
     case "control-plane/nodes":
       return method === "GET"
         ? [
             ["400", "`invalid_request`", "Query or path parameters are invalid."],
             ["401", "`missing_authorization`, `invalid_token`", "Authentication failed."],
             ["403", "`permission_denied`", "The caller lacks the required control-plane permission."],
+            ["404", "`*_not_found`", "The requested control-plane resource does not exist."],
+            ["409", "`*_conflict`", "Current control-plane state blocks the read."],
             ["503", "`*_unavailable`", "The governance snapshot or provider runtime is unavailable."],
           ]
         : [

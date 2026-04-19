@@ -37,23 +37,22 @@
 
 ## SDK Alignment
 
-- These endpoints are the checked-in authority for `sdkwork-craw-chat-sdk-admin`.
-- Read the SDK guides at [Admin SDK](/sdk/admin-sdk), [Admin TypeScript SDK](/sdk/admin-typescript-sdk), and [Admin Flutter SDK](/sdk/admin-flutter-sdk).
-- The live contract source is `services/control-plane-api`, exposed at `/openapi.json` and `/api/v1/control/openapi.json`, then normalized into `sdks/sdkwork-craw-chat-sdk-admin/openapi/admin-control-plane.openapi.yaml`.
-- The checked-in admin OpenAPI authority also includes
-  `sdks/sdkwork-craw-chat-sdk-admin/openapi/craw-chat-control-plane.openapi.json`.
+- These endpoints are the checked-in authority for `sdkwork-control-plane-sdk`.
+- Read the SDK guides at [Control-Plane SDK](/sdk/control-plane-sdk), [Control-Plane TypeScript SDK](/sdk/control-plane-typescript-sdk), and [Control-Plane Flutter SDK](/sdk/control-plane-flutter-sdk).
+- The live contract source is `services/control-plane-api`, exposed at `/openapi.json` and `/api/v1/control/openapi.json`, then normalized into `sdks/sdkwork-control-plane-sdk/openapi/control-plane.openapi.yaml`.
+- The checked-in OpenAPI authority also includes
+  `sdks/sdkwork-control-plane-sdk/openapi/control-plane.openapi.json`.
 - Read and write permissions are split between `control.read` and `control.write`.
 - Standalone governance development can call `control-plane-api` directly, but packaged installs
   expose the same governance routes through the unified `craw-chat-server` / `web-gateway` public
   origin.
-- Standalone governance development can call `control-plane-api` directly, but packaged installs expose the same governance routes through the unified `craw-chat-server` / `web-gateway` public origin.
 
 ## How To Use This Page
 
 Use the control-plane API docs as the semantic authority first:
 
 1. Read this overview and the linked control-plane operation groups for request, response, and permission behavior.
-2. Use [Admin SDK](/sdk/admin-sdk) only to confirm audience boundary, source-of-truth files, and release-state limits.
+2. Use [Control-Plane SDK](/sdk/control-plane-sdk) only to confirm audience boundary, source-of-truth files, and release-state limits.
 3. Do not infer that every browser-only `/api/admin/*` route is already generated from OpenAPI just because the control-plane authority and validated consumer package manifests now exist.
 
 That split is intentional: control-plane route behavior is documented as delivered, while admin
@@ -61,7 +60,7 @@ consumer package surfaces are still documented conservatively.
 
 ## What To Read Next
 
-- [Admin SDK](/sdk/admin-sdk)
+- [Control-Plane SDK](/sdk/control-plane-sdk)
 - [SDK Overview](/sdk/index)
 - [Authentication and Errors](/api-reference/auth-and-errors)
 

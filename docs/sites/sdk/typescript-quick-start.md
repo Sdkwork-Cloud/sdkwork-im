@@ -3,13 +3,16 @@
 ## Audience
 
 Use this page when you are integrating Craw Chat from a TypeScript or JavaScript application and
-want the preferred composed SDK surface.
+want the preferred public SDK surface.
 
 ## Package
 
-- preferred public package: `@sdkwork/craw-chat-sdk`
-- generated transport package: `@sdkwork/craw-chat-backend-sdk`
-- workspace path: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/composed`
+- preferred public package: `@sdkwork/im-sdk`
+- primary client: `ImSdkClient`
+- local workspace path before publication: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript`
+- generator-owned authoring boundary:
+  `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/generated/server-openapi`
+  This boundary is internal-only and not a consumer package.
 
 ## Install
 
@@ -19,7 +22,7 @@ a local file or workspace dependency:
 ```json
 {
   "dependencies": {
-    "@sdkwork/craw-chat-sdk": "file:../../sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/composed"
+    "@sdkwork/im-sdk": "file:../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript"
   }
 }
 ```
@@ -27,49 +30,58 @@ a local file or workspace dependency:
 ## Create a client
 
 ```ts
-import { CrawChatClient, type SdkworkBackendConfig } from "@sdkwork/craw-chat-sdk";
+import { ImSdkClient } from "@sdkwork/im-sdk";
 
-const backendConfig: SdkworkBackendConfig = {
+const sdk = new ImSdkClient({
   baseUrl: "http://127.0.0.1:18090",
   authToken: process.env.CRAW_CHAT_TOKEN,
-};
-
-const client = await CrawChatClient.create({ backendConfig });
+});
 ```
 
 ## First read call
 
 ```ts
-const inbox = await client.inbox.list();
+const workspace = await sdk.portal.getWorkspace();
+console.log(workspace.name);
 ```
 
 ## First write call
 
 ```ts
-await client.devices.register({
+await sdk.conversations.postText("conv-demo-01", "hello from TypeScript");
+```
+
+## Message-first send path
+
+```ts
+const message = sdk.createTextMessage({
+  conversationId: "conv-demo-01",
+  text: "hello from TypeScript",
+});
+
+await sdk.send(message);
+```
+
+## Generated transport when needed
+
+```ts
+const inbox = await sdk.inbox.getInbox();
+console.log(inbox.items.length);
+```
+
+## Common entrypoints
+
+```ts
+await sdk.auth.me();
+await sdk.sync.catchUp({ limit: 20 });
+
+const live = await sdk.connect({
   deviceId: "device-web-01",
 });
-```
 
-## Common module entrypoints
-
-```ts
-await client.session.resume({ deviceId: "device-web-01", lastSeenSyncSeq: 0 });
-await client.presence.current();
-await client.realtime.pullEvents({ afterSeq: 0, limit: 50 });
-await client.conversations.postText("conv-demo-01", "hello from TypeScript");
-```
-
-## Builder helpers
-
-The package also exports convenience helpers:
-
-```ts
-import {
-  buildTextMessageRequest,
-  buildTextFrameRequest,
-  buildJsonRtcSignalRequest,
-} from "@sdkwork/craw-chat-sdk";
+live.messages.on((message, context) => {
+  console.log(message.type, context.sequence);
+});
 ```
 
 ## Next Steps

@@ -12,7 +12,7 @@ export function resolveTypescriptGeneratedBuildVerifyPaths({
 }) {
   const generatedRoot = path.join(
     workspaceRoot,
-    'sdkwork-craw-chat-sdk-typescript',
+    'sdkwork-im-sdk-typescript',
     'generated',
     'server-openapi',
   );

@@ -22,8 +22,8 @@ Apply a shared-channel policy.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.social`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
@@ -34,7 +34,7 @@ Apply a shared-channel policy.
 ### Response `200`
 
 `SocialSharedChannelPolicyCommitResponse` is currently modeled as an open-ended social commit
-payload in the checked-in admin control-plane authority. Treat it as opaque JSON.
+payload in the checked-in control-plane authority. Treat it as opaque JSON.
 
 ### Error Responses
 

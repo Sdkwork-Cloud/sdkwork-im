@@ -1,0 +1,12 @@
+name: im_admin_sdk
+description: Composed IM admin Flutter SDK built on the generated im_admin_backend_sdk package
+version: 0.1.0
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  im_admin_backend_sdk: ^0.1.0
+
+dev_dependencies:
+  lints: ^3.0.0

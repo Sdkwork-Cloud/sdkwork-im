@@ -23,7 +23,7 @@ Returns the liveness state of the control-plane process.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Open endpoint</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / protocol-governance</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / protocol-governance</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Not required</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ControlPlaneHealthResponse`</span></div>
 </div>

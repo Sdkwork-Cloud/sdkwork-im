@@ -1636,9 +1636,9 @@
 - Loop `27`
 - 执行 step：`S14`
 - 修复 app SDK README 合约漂移：
-  - `sdks/sdkwork-craw-chat-sdk/README.md`
-  - `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/README.md`
-  - `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-flutter/README.md`
+  - `sdks/sdkwork-im-sdk/README.md`
+  - `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/README.md`
+  - `sdks/sdkwork-im-sdk/sdkwork-im-sdk-flutter/README.md`
 - 补回冻结文本：
   - `payload.json`
   - `session.disconnect / realtime.overload / goaway / resume fallback`
@@ -1882,7 +1882,7 @@
 - 在 `crates/craw-chat-ccp-registry/src/lib.rs` 为 `ProtocolGovernanceSnapshot` 新增 `business_policy_vocabulary`，正式冻结 `policy_version / capability_flags / history_visibility / retention_policy_ref` 字段名，以及 `historyVisibilityModes / retentionPolicyScopes` 的稳定值集合。
 - 在 `services/control-plane-api/src/lib.rs` 为 `/api/v1/control/protocol-governance` 新增 `businessPolicyVocabulary` 输出，使协议治理快照对 control-plane reader 与后续 SDK facade 可直接消费，不再只停留在架构文档口径。
 - 以 TDD 扩展 `crates/craw-chat-ccp-registry/tests/governance_snapshot_test.rs`、`services/control-plane-api/tests/protocol_governance_test.rs`，先得到缺字段红灯，再转协议快照与 JSON surface 绿灯。
-- 更新 `docs/review/S09-*`、`docs/架构/152CJ-current-architecture-as-built-alignment-2026-04-09.md`、`docs/架构/152CJ-Loop16补充-2026-04-10.md`、`sdks/README.md`、`sdks/sdkwork-craw-chat-sdk/README.md`、`sdks/sdkwork-craw-chat-sdk-admin/README.md`、`docs/release/2026-04-10-v0.0.16-loop-16.md`，把 `S09` 的协议词汇发布面回写为当前 as-built。
+- 更新 `docs/review/S09-*`、`docs/架构/152CJ-current-architecture-as-built-alignment-2026-04-09.md`、`docs/架构/152CJ-Loop16补充-2026-04-10.md`、`sdks/README.md`、`sdks/sdkwork-im-sdk/README.md`、`sdks/sdkwork-control-plane-sdk/README.md`、`docs/release/2026-04-10-v0.0.16-loop-16.md`，把 `S09` 的协议词汇发布面回写为当前 as-built。
 - fresh verification：
   - `cargo test -p control-plane-api --offline --tests`：`40 passed`
   - `cargo test -p craw-chat-ccp-registry --offline`：`2 passed`
@@ -2056,7 +2056,7 @@
 - 影响 step：`S09`、`S14`
 - fresh 执行 `cargo test -p craw-chat-ccp-registry --offline` 与 `cargo test -p im-platform-contracts --offline`，确认 `S09` 的 registry / contract / provider policy 基线具备可执行证据。
 - 在 `services/control-plane-api/tests/protocol_governance_test.rs` 新增 `protocolGovernancePath` 断言，锁定 `sdkCompatibilityBaseline` 的控制面治理路径。
-- 更新 `sdks/README.md`、`sdks/sdkwork-craw-chat-sdk/README.md`、`sdks/sdkwork-craw-chat-sdk-admin/README.md`，使 SDK 文档与 `sdkCompatibilityBaseline` 的 facade、registry、governance、matrix 口径完全一致。
+- 更新 `sdks/README.md`、`sdks/sdkwork-im-sdk/README.md`、`sdks/sdkwork-control-plane-sdk/README.md`，使 SDK 文档与 `sdkCompatibilityBaseline` 的 facade、registry、governance、matrix 口径完全一致。
 
 ## v0.0.2 - 2026-04-10
 

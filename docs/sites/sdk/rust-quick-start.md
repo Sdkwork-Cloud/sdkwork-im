@@ -1,4 +1,4 @@
-# Rust Quick Start
+﻿# Rust Quick Start
 
 ## Audience
 
@@ -7,9 +7,9 @@ application and want the preferred composed crate.
 
 ## Crate
 
-- preferred public crate: `craw-chat-sdk`
-- generated transport crate: `sdkwork-craw-chat-backend-sdk`
-- workspace path: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-rust/composed`
+- preferred public crate: `im-sdk`
+- generated transport crate: `sdkwork-im-sdk-generated`
+- workspace path: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed`
 
 ## Add the dependency
 
@@ -18,15 +18,15 @@ crate directly:
 
 ```toml
 [dependencies]
-craw-chat-sdk = { path = "../../sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-rust/composed" }
+im-sdk = { path = "../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed" }
 ```
 
 ## Create a client
 
 ```rust
-use craw_chat_sdk::CrawChatClient;
+use im_sdk::ImSdkClient;
 
-let client = CrawChatClient::new_with_base_url("http://127.0.0.1:18090")?;
+let client = ImSdkClient::new_with_base_url("http://127.0.0.1:18090")?;
 client.set_auth_token(token);
 ```
 
@@ -39,7 +39,7 @@ let inbox = client.inbox().list().await?;
 ## First write call
 
 ```rust
-use craw_chat_sdk::RegisterDeviceRequest;
+use im_sdk::RegisterDeviceRequest;
 
 client
   .devices()
@@ -52,7 +52,7 @@ client
 ## Common module entrypoints
 
 ```rust
-use craw_chat_sdk::{PostTextOptions, ResumeSessionRequest};
+use im_sdk::{PostTextOptions, ResumeSessionRequest};
 
 client
   .session()
@@ -74,7 +74,7 @@ client
 The crate re-exports builder helpers for common payload creation:
 
 ```rust
-use craw_chat_sdk::{
+use im_sdk::{
   JsonRtcSignalOptions,
   PostTextOptions,
   TextFrameOptions,
@@ -90,3 +90,4 @@ use craw_chat_sdk::{
 - [Module Map](/sdk/module-map)
 - [Messages Module](/sdk/modules/messages)
 - [Stream and RTC](/sdk/examples/stream-and-rtc)
+

@@ -1,6 +1,6 @@
 # Go SDK
 
-The Go workspace is a Tier B member of the `craw-chat-sdk` business SDK family and currently ships
+The Go workspace is a Tier B member of the `im-sdk` business SDK family and currently ships
 as a transport-standardized module.
 
 ## Current Delivery Reality
@@ -16,10 +16,10 @@ semantic Go module remains reserved under `composed`.
 | Concern | Value |
 | --- | --- |
 | Maturity tier | Tier B |
-| Generated transport module | `github.com/sdkwork/craw-chat-backend-sdk` |
-| Raw generated client | `SdkworkBackendClient` |
-| Reserved semantic module | `github.com/sdkwork/craw-chat-sdk` |
-| Target business client | `CrawChatSdkClient` |
+| Generated transport module | `github.com/sdkwork/im-sdk-generated` |
+| Raw generated client | `ImTransportClient` |
+| Reserved semantic module | `github.com/sdkwork/im-sdk` |
+| Target business client | `ImSdkClient` |
 | Generator-owned boundary | `generated/server-openapi` |
 | Manual semantic boundary | `composed` |
 
@@ -28,31 +28,31 @@ semantic Go module remains reserved under `composed`.
 - live-schema generation from the Craw Chat OpenAPI 3.x export
 - verified generated module naming and assembly metadata
 - a stable split between `generated/server-openapi` and `composed`
-- a raw generated transport client named `SdkworkBackendClient`
+- a raw generated transport client named `ImTransportClient`
 
 For exact import examples and raw transport usage, use `generated/server-openapi/README.md` as the
 transport reference.
 
 ## Raw Generated Client
 
-If you are integrating Go today, start from the generated module and `SdkworkBackendClient`.
+If you are integrating Go today, start from the generated module and `ImTransportClient`.
 
-- generated module: `github.com/sdkwork/craw-chat-backend-sdk`
-- raw generated client: `SdkworkBackendClient`
-- reserved semantic module: `github.com/sdkwork/craw-chat-sdk`
+- generated module: `github.com/sdkwork/im-sdk-generated`
+- raw generated client: `ImTransportClient`
+- reserved semantic module: `github.com/sdkwork/im-sdk`
 
 That is the checked-in Go surface the workspace verifies today.
 
 ## API Reference Map
 
-Use `generated/server-openapi/README.md` together with `SdkworkBackendClient` when you need the
+Use `generated/server-openapi/README.md` together with `ImTransportClient` when you need the
 exact Go route-group names and DTO entrypoints. Use the map below to jump from transport concern
 to the matching HTTP reference:
 
 | Transport concern | Generated transport focus today | Exact API reference |
 | --- | --- | --- |
-| Auth and portal shell reads | auth and portal route groups on `SdkworkBackendClient` | [Portal and Auth](/api-reference/app/portal-and-auth) |
-| Conversation lifecycle and handoff | conversation route groups on `SdkworkBackendClient` | [Conversations](/api-reference/app/conversations) |
+| Auth and portal shell reads | auth and portal route groups on `ImTransportClient` | [Portal and Auth](/api-reference/app/portal-and-auth) |
+| Conversation lifecycle and handoff | conversation route groups on `ImTransportClient` | [Conversations](/api-reference/app/conversations) |
 | Membership and read cursors | conversation membership and read-state route groups | [Membership and Read State](/api-reference/app/membership-and-read-state) |
 | Message send payloads and timeline schemas | message route groups and DTOs | [Messages](/api-reference/app/messages) |
 | Upload and attachment lifecycle | media route groups and DTOs | [Media](/api-reference/app/media) |
@@ -63,11 +63,11 @@ to the matching HTTP reference:
 
 This keeps the Go page precise: the repo-standard delivery today is transport-first, so the API
 reference plus `generated/server-openapi/README.md` remains the exact route authority until a
-future semantic `CrawChatSdkClient` is implemented under `composed`.
+future semantic `ImSdkClient` is implemented under `composed`.
 
 ## What Is Not Shipped Yet
 
-- no checked-in semantic Go module that already exposes `CrawChatSdkClient`
+- no checked-in semantic Go module that already exposes `ImSdkClient`
 - no handwritten message-first business layer above generated route groups
 - no delivered websocket live runtime abstraction above the generated transport module
 
@@ -77,7 +77,7 @@ Treat this page as a repo contract for current Go delivery, not as a claim of se
 
 Use `composed` only when you are intentionally implementing the future semantic Go layer:
 
-- `CrawChatSdkClient`
+- `ImSdkClient`
 - business wrappers above raw route groups
 - message-first helpers
 - live runtime orchestration above transport-level coordination
@@ -89,20 +89,20 @@ Do not hand-edit generated Go files under `generated/server-openapi`.
 Root workspace:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\sdks\sdkwork-craw-chat-sdk\bin\generate-sdk.ps1 -Languages go
-node .\sdks\sdkwork-craw-chat-sdk\bin\verify-sdk.mjs --language go
+powershell -ExecutionPolicy Bypass -File .\sdks\sdkwork-im-sdk\bin\generate-sdk.ps1 -Languages go
+node .\sdks\sdkwork-im-sdk\bin\verify-sdk.mjs --language go
 ```
 
 Go workspace wrappers:
 
 ```powershell
-.\sdks\sdkwork-craw-chat-sdk\sdkwork-craw-chat-sdk-go\bin\sdk-gen.ps1
-.\sdks\sdkwork-craw-chat-sdk\sdkwork-craw-chat-sdk-go\bin\sdk-verify.ps1
+.\sdks\sdkwork-im-sdk\sdkwork-im-sdk-go\bin\sdk-gen.ps1
+.\sdks\sdkwork-im-sdk\sdkwork-im-sdk-go\bin\sdk-verify.ps1
 ```
 
 ```bash
-./sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-go/bin/sdk-gen.sh
-./sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-go/bin/sdk-verify.sh
+./sdks/sdkwork-im-sdk/sdkwork-im-sdk-go/bin/sdk-gen.sh
+./sdks/sdkwork-im-sdk/sdkwork-im-sdk-go/bin/sdk-verify.sh
 ```
 
 ## When To Choose Go

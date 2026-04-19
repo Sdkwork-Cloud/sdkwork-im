@@ -71,19 +71,19 @@ assertContainsInFirstExisting(
 assertContains("index.md", "/reference/admin-storage-contract");
 assertContains("architecture/storage-management.md", "/reference/admin-storage-contract");
 assertContains("reference/cli-and-scripts.md", "npm run docs:verify");
-assertContains("reference/cli-and-scripts.md", "sdkwork-craw-chat-sdk");
+assertContains("reference/cli-and-scripts.md", "sdkwork-im-sdk");
 assertContains("reference/cli-and-scripts.md", "craw-chat-app.sdkgen.yaml");
 assertContains("reference/cli-and-scripts.md", "craw-chat-app.flutter.sdkgen.yaml");
 assertContains(
   "reference/cli-and-scripts.md",
-  "node .\\sdks\\sdkwork-craw-chat-sdk\\bin\\verify-sdk.mjs",
+  "node .\\sdks\\sdkwork-im-sdk\\bin\\verify-sdk.mjs",
 );
-assertContains("reference/cli-and-scripts.md", "sdkwork-craw-chat-sdk-admin");
+assertContains("reference/cli-and-scripts.md", "sdkwork-control-plane-sdk");
 assertContains("reference/cli-and-scripts.md", "fetch-openapi-source.mjs");
 assertContains("reference/cli-and-scripts.md", "prepare-openapi-source.mjs");
 assertContains(
   "reference/cli-and-scripts.md",
-  "node .\\sdks\\sdkwork-craw-chat-sdk-admin\\bin\\verify-sdk.mjs --language typescript --language flutter",
+  "node .\\sdks\\sdkwork-control-plane-sdk\\bin\\verify-sdk.mjs --language typescript --language flutter",
 );
 assertContains("reference/cli-and-scripts.md", ".sdkwork-assembly.json");
 

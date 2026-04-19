@@ -28,7 +28,7 @@ export function buildCommercialReadinessChecks({
     {
       id: 'admin-install',
       label: 'Admin frozen install',
-      cwd: path.join(repoRoot, 'apps', 'craw-chat-admin'),
+      cwd: path.join(repoRoot, 'apps', 'control-plane'),
       command: pnpmExecutable,
       args: ['install', '--frozen-lockfile', '--ignore-scripts'],
       env: pnpmRuntimeEnv,
@@ -36,7 +36,7 @@ export function buildCommercialReadinessChecks({
     {
       id: 'admin-test',
       label: 'Admin workspace tests',
-      cwd: path.join(repoRoot, 'apps', 'craw-chat-admin'),
+      cwd: path.join(repoRoot, 'apps', 'control-plane'),
       command: pnpmExecutable,
       args: ['test'],
       env: pnpmRuntimeEnv,
@@ -44,7 +44,7 @@ export function buildCommercialReadinessChecks({
     {
       id: 'admin-typecheck',
       label: 'Admin typecheck',
-      cwd: path.join(repoRoot, 'apps', 'craw-chat-admin'),
+      cwd: path.join(repoRoot, 'apps', 'control-plane'),
       command: pnpmExecutable,
       args: ['typecheck'],
       env: pnpmRuntimeEnv,
@@ -52,7 +52,7 @@ export function buildCommercialReadinessChecks({
     {
       id: 'admin-build',
       label: 'Admin production build',
-      cwd: path.join(repoRoot, 'apps', 'craw-chat-admin'),
+      cwd: path.join(repoRoot, 'apps', 'control-plane'),
       command: pnpmExecutable,
       args: ['build'],
       env: pnpmRuntimeEnv,

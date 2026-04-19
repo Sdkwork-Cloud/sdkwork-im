@@ -7,7 +7,7 @@
 
 <div class="api-link-list">
   <a href="/api-reference/app/session-and-realtime"><code>Session</code> Session resume, presence, and realtime polling are documented separately</a>
-  <a href="/sdk/app-sdk"><code>App SDK</code> TypeScript currently exposes these routes through <code>sdk.generated.device</code>; Flutter consumers use <code>craw_chat_sdk</code> with the same underlying contract</a>
+  <a href="/sdk/app-sdk"><code>App SDK</code> TypeScript currently exposes these routes through <code>sdk.generated.device</code>; Flutter consumers use <code>im_sdk</code> with the same underlying contract</a>
 </div>
 
 ## Recommended SDK Mapping
@@ -47,7 +47,7 @@ realtime delivery and projection sync.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.generated.device.register(...)`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.generated.device.register(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; `deviceId` must match the bound auth context when present.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 RegisteredDeviceView`</span></div>
 </div>
@@ -109,7 +109,7 @@ Reads sync-feed entries for a device after the last sequence already processed b
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.generated.device.getDeviceSyncFeed(...)`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.generated.device.getDeviceSyncFeed(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Registered device owner.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 DeviceSyncFeedResponse`</span></div>
 </div>

@@ -1,9 +1,0 @@
-import type { ContentPart } from './content-part.js';
-import type { StringMap } from './string-map.js';
-
-export interface EditMessageRequest {
-  summary?: string;
-  text?: string;
-  parts?: ContentPart[];
-  renderHints?: StringMap;
-}
