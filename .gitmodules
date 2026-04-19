@@ -1,0 +1,3 @@
+[submodule "sdks/sdkwork-rtc-sdk"]
+	path = sdks/sdkwork-rtc-sdk
+	url = https://github.com/Sdkwork-Cloud/sdkwork-rtc-sdk.git
