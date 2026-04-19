@@ -108,9 +108,9 @@ already published.
 - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/plan-release-server.ps1 -ReleaseGatePath artifacts/releases/wave-d-2026-04-08/server/release-gate.json`
 - `node artifacts/releases/sync-sdk-release-catalog.mjs --bundle wave-d-2026-04-08 --check`
 - `node docs/sites/sdk/verify-sdk-site-docs.mjs`
-- `node sdks/sdkwork-craw-chat-sdk/bin/verify-sdk-automation.mjs`
-- `node sdks/sdkwork-craw-chat-sdk-admin/bin/verify-sdk-automation.mjs`
-- `node sdks/sdkwork-craw-chat-sdk-management/bin/verify-sdk-automation.mjs`
+- `node sdks/sdkwork-im-sdk/bin/verify-sdk-automation.mjs`
+- `node sdks/sdkwork-control-plane-sdk/bin/verify-sdk-automation.mjs`
+- `node sdks/sdkwork-im-admin-sdk/bin/verify-sdk-automation.mjs`
 
 ## Rollout And Recovery Entrypoints
 

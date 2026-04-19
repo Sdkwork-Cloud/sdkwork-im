@@ -1,0 +1,799 @@
+{
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "bearerFormat": "Bearer token",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "description": "Live OpenAPI contract generated from the control-plane-api router for governance, provider management, social control workflows, and node operations.",
+    "title": "Control Plane API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/control/nodes/{node_id}/activate": {
+      "post": {
+        "operationId": "post_api_v1_control_nodes_node_id_activate",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Post nodes {node_id} activate",
+        "tags": [
+          "cluster"
+        ]
+      }
+    },
+    "/api/v1/control/nodes/{node_id}/drain": {
+      "post": {
+        "operationId": "post_api_v1_control_nodes_node_id_drain",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Post nodes {node_id} drain",
+        "tags": [
+          "cluster"
+        ]
+      }
+    },
+    "/api/v1/control/nodes/{node_id}/routes/migrate": {
+      "post": {
+        "operationId": "post_api_v1_control_nodes_node_id_routes_migrate",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Post nodes {node_id} routes migrate",
+        "tags": [
+          "cluster"
+        ]
+      }
+    },
+    "/api/v1/control/protocol-governance": {
+      "get": {
+        "operationId": "get_api_v1_control_protocol_governance",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Get protocol governance snapshot",
+        "tags": [
+          "protocol"
+        ]
+      }
+    },
+    "/api/v1/control/protocol-registry": {
+      "get": {
+        "operationId": "get_api_v1_control_protocol_registry",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Get protocol registry snapshot",
+        "tags": [
+          "protocol"
+        ]
+      }
+    },
+    "/api/v1/control/provider-bindings": {
+      "get": {
+        "operationId": "get_api_v1_control_provider_bindings",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Get provider-bindings",
+        "tags": [
+          "providers"
+        ]
+      },
+      "post": {
+        "operationId": "post_api_v1_control_provider_bindings",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Post provider-bindings",
+        "tags": [
+          "providers"
+        ]
+      }
+    },
+    "/api/v1/control/provider-policies": {
+      "get": {
+        "operationId": "get_api_v1_control_provider_policies",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Get provider-policies",
+        "tags": [
+          "providers"
+        ]
+      }
+    },
+    "/api/v1/control/provider-policies/diff": {
+      "get": {
+        "operationId": "get_api_v1_control_provider_policies_diff",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Get provider-policies diff",
+        "tags": [
+          "providers"
+        ]
+      }
+    },
+    "/api/v1/control/provider-policies/preview": {
+      "post": {
+        "operationId": "post_api_v1_control_provider_policies_preview",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Post provider-policies preview",
+        "tags": [
+          "providers"
+        ]
+      }
+    },
+    "/api/v1/control/provider-policies/rollback": {
+      "post": {
+        "operationId": "post_api_v1_control_provider_policies_rollback",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Post provider-policies rollback",
+        "tags": [
+          "providers"
+        ]
+      }
+    },
+    "/api/v1/control/provider-registry": {
+      "get": {
+        "operationId": "get_api_v1_control_provider_registry",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Get provider registry snapshot",
+        "tags": [
+          "providers"
+        ]
+      }
+    },
+    "/api/v1/control/social/direct-chats/bindings": {
+      "post": {
+        "operationId": "post_api_v1_control_social_direct_chats_bindings",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Post social direct-chats bindings",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/control/social/direct-chats/{direct_chat_id}": {
+      "get": {
+        "operationId": "get_api_v1_control_social_direct_chats_direct_chat_id",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Get social direct-chats {direct_chat_id}",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/control/social/external-connections": {
+      "post": {
+        "operationId": "post_api_v1_control_social_external_connections",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Post social external-connections",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/control/social/external-connections/{connection_id}": {
+      "get": {
+        "operationId": "get_api_v1_control_social_external_connections_connection_id",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Get social external-connections {connection_id}",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/control/social/external-member-links": {
+      "post": {
+        "operationId": "post_api_v1_control_social_external_member_links",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Post social external-member-links",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/control/social/external-member-links/{link_id}": {
+      "get": {
+        "operationId": "get_api_v1_control_social_external_member_links_link_id",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Get social external-member-links {link_id}",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/control/social/friend-requests": {
+      "post": {
+        "operationId": "post_api_v1_control_social_friend_requests",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Post social friend-requests",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/control/social/friend-requests/{request_id}": {
+      "get": {
+        "operationId": "get_api_v1_control_social_friend_requests_request_id",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Get social friend-requests {request_id}",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/control/social/friendships": {
+      "post": {
+        "operationId": "post_api_v1_control_social_friendships",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Post social friendships",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/control/social/friendships/{friendship_id}": {
+      "get": {
+        "operationId": "get_api_v1_control_social_friendships_friendship_id",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Get social friendships {friendship_id}",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/control/social/runtime/claim-pending-shared-channel-sync-targeted": {
+      "post": {
+        "operationId": "post_api_v1_control_social_runtime_claim_pending_shared_channel_sync_targeted",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Post social runtime claim-pending-shared-channel-sync-targeted",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/control/social/runtime/dead-letter-shared-channel-sync": {
+      "get": {
+        "operationId": "get_api_v1_control_social_runtime_dead_letter_shared_channel_sync",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Get social runtime dead-letter-shared-channel-sync",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/control/social/runtime/delivered-shared-channel-sync": {
+      "get": {
+        "operationId": "get_api_v1_control_social_runtime_delivered_shared_channel_sync",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Get social runtime delivered-shared-channel-sync",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/control/social/runtime/delivery-state-shared-channel-sync": {
+      "get": {
+        "operationId": "get_api_v1_control_social_runtime_delivery_state_shared_channel_sync",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Get social runtime delivery-state-shared-channel-sync",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/control/social/runtime/pending-shared-channel-sync": {
+      "get": {
+        "operationId": "get_api_v1_control_social_runtime_pending_shared_channel_sync",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Get social runtime pending-shared-channel-sync",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/control/social/runtime/reclaim-stale-pending-shared-channel-sync": {
+      "post": {
+        "operationId": "post_api_v1_control_social_runtime_reclaim_stale_pending_shared_channel_sync",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Post social runtime reclaim-stale-pending-shared-channel-sync",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/control/social/runtime/release-pending-shared-channel-sync-targeted": {
+      "post": {
+        "operationId": "post_api_v1_control_social_runtime_release_pending_shared_channel_sync_targeted",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Post social runtime release-pending-shared-channel-sync-targeted",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/control/social/runtime/repair-derived-snapshot": {
+      "post": {
+        "operationId": "post_api_v1_control_social_runtime_repair_derived_snapshot",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Post social runtime repair-derived-snapshot",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/control/social/runtime/repair-shared-channel-sync": {
+      "post": {
+        "operationId": "post_api_v1_control_social_runtime_repair_shared_channel_sync",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Post social runtime repair-shared-channel-sync",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/control/social/runtime/republish-pending-shared-channel-sync-targeted": {
+      "post": {
+        "operationId": "post_api_v1_control_social_runtime_republish_pending_shared_channel_sync_targeted",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Post social runtime republish-pending-shared-channel-sync-targeted",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/control/social/runtime/requeue-dead-letter-shared-channel-sync": {
+      "post": {
+        "operationId": "post_api_v1_control_social_runtime_requeue_dead_letter_shared_channel_sync",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Post social runtime requeue-dead-letter-shared-channel-sync",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/control/social/runtime/requeue-dead-letter-shared-channel-sync-targeted": {
+      "post": {
+        "operationId": "post_api_v1_control_social_runtime_requeue_dead_letter_shared_channel_sync_targeted",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Post social runtime requeue-dead-letter-shared-channel-sync-targeted",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/control/social/runtime/takeover-pending-shared-channel-sync-targeted": {
+      "post": {
+        "operationId": "post_api_v1_control_social_runtime_takeover_pending_shared_channel_sync_targeted",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Post social runtime takeover-pending-shared-channel-sync-targeted",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/control/social/shared-channel-policies": {
+      "post": {
+        "operationId": "post_api_v1_control_social_shared_channel_policies",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Post social shared-channel-policies",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/control/social/shared-channel-policies/{policy_id}": {
+      "get": {
+        "operationId": "get_api_v1_control_social_shared_channel_policies_policy_id",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Get social shared-channel-policies {policy_id}",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/control/social/user-blocks": {
+      "post": {
+        "operationId": "post_api_v1_control_social_user_blocks",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Post social user-blocks",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/control/social/user-blocks/{block_id}": {
+      "get": {
+        "operationId": "get_api_v1_control_social_user_blocks_block_id",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Get social user-blocks {block_id}",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/healthz": {
+      "get": {
+        "operationId": "get_healthz",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        },
+        "summary": "Check control plane health",
+        "tags": [
+          "system"
+        ]
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "tags": [
+    {
+      "description": "Cluster operations",
+      "name": "cluster"
+    },
+    {
+      "description": "Protocol operations",
+      "name": "protocol"
+    },
+    {
+      "description": "Providers operations",
+      "name": "providers"
+    },
+    {
+      "description": "Social operations",
+      "name": "social"
+    },
+    {
+      "description": "System operations",
+      "name": "system"
+    }
+  ]
+}

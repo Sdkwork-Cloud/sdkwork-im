@@ -1,0 +1,29 @@
+{
+  "name": "@sdkwork/im-admin-sdk",
+  "version": "0.1.0",
+  "description": "Composed IM admin TypeScript SDK built on the generated admin backend SDK",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "src"
+  ],
+  "dependencies": {
+    "@sdkwork/im-admin-backend-sdk": "file:../generated/server-openapi"
+  },
+  "scripts": {
+    "typecheck": "node ../../../../../../sdk/sdkwork-sdk-generator/node_modules/typescript/bin/tsc -p tsconfig.build.json --noEmit",
+    "build": "node ../../../../../../sdk/sdkwork-sdk-generator/node_modules/typescript/bin/tsc -p tsconfig.build.json && node ./bin/clean-dist.mjs",
+    "test": "node ./test/im-admin-sdk-client.test.mjs"
+  }
+}

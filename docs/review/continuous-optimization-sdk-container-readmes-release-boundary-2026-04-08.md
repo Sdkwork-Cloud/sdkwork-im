@@ -21,8 +21,8 @@
 
 ### 2.2 两份容器 README 已对齐发布边界
 
-- 更新：`sdks/sdkwork-craw-chat-sdk/README.md`
-- 更新：`sdks/sdkwork-craw-chat-sdk-admin/README.md`
+- 更新：`sdks/sdkwork-im-sdk/README.md`
+- 更新：`sdks/sdkwork-control-plane-sdk/README.md`
 - 现在 app/admin 容器 README 不再只表达 facade 边界和版本占位，也显式表达当前 bundle 内的唯一 SDK 发布真源
 
 ### 2.3 bundle evidence 已同步

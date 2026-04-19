@@ -8,7 +8,7 @@
 <div class="api-link-list">
   <a href="/api-reference/app/streams"><code>Streams</code> Stream transport and frame delivery are documented separately</a>
   <a href="/api-reference/platform/provider-health"><code>Provider Health</code> RTC provider health snapshots live under Platform APIs</a>
-  <a href="/sdk/app-sdk"><code>SDK</code> <code>@sdkwork/craw-chat-sdk</code> and <code>craw_chat_sdk</code> both expose RTC helpers above these transport routes</a>
+  <a href="/sdk/app-sdk"><code>SDK</code> <code>@sdkwork/im-sdk</code> and <code>im_sdk</code> both expose RTC helpers above these transport routes</a>
 </div>
 
 ## Recommended SDK Mapping
@@ -67,7 +67,7 @@ Creates a new RTC session.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.rtc`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.rtc`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation `rtc.create` capability when the session is bound to a conversation.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 RtcSession`</span></div>
 </div>
@@ -109,7 +109,7 @@ Starts the invitation phase for the RTC session.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.rtc`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.rtc`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation `rtc.invite` capability.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 RtcSession`</span></div>
 </div>
@@ -157,7 +157,7 @@ Accepts the RTC session.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.rtc`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.rtc`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation `rtc.accept` capability.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 RtcSession`</span></div>
 </div>
@@ -205,7 +205,7 @@ Rejects the RTC session.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.rtc`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.rtc`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation `rtc.reject` capability.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 RtcSession`</span></div>
 </div>
@@ -253,7 +253,7 @@ Ends the RTC session.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.rtc`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.rtc`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation `rtc.end` capability.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 RtcSession`</span></div>
 </div>
@@ -301,7 +301,7 @@ Posts a custom RTC signal event.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.rtc`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.rtc`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation `rtc.signal` capability.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 RtcSignalEvent`</span></div>
 </div>
@@ -349,7 +349,7 @@ Issues a provider credential for a participant.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.rtc`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.rtc`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation `rtc.issue_credential` capability.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 RtcParticipantCredential`</span></div>
 </div>
@@ -397,7 +397,7 @@ Returns recording artifact metadata when available.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.rtc`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.rtc`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation `rtc.artifact` capability.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 RtcRecordingArtifact`</span></div>
 </div>
@@ -440,7 +440,7 @@ Maps a provider callback into an internal RTC domain event.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.rtc`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.rtc`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; provider callback mapping is validated by the RTC runtime.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 RtcCallbackEvent`</span></div>
 </div>

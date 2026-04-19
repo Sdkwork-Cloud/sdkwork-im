@@ -19,26 +19,13 @@ const contentTypes = {
 };
 const vendorMappings = [
   {
-    prefix: '/__vendor__/sdkwork-craw-chat-sdk/',
+    prefix: '/__vendor__/sdkwork-im-sdk/',
     root: path.join(
       repoRoot,
       'sdks',
-      'sdkwork-craw-chat-sdk',
-      'sdkwork-craw-chat-sdk-typescript',
-      'composed',
+      'sdkwork-im-sdk',
+      'sdkwork-im-sdk-typescript',
       'dist',
-    ),
-  },
-  {
-    prefix: '/__vendor__/sdkwork-craw-chat-backend-sdk/',
-    root: path.join(
-      repoRoot,
-      'sdks',
-      'sdkwork-craw-chat-sdk',
-      'sdkwork-craw-chat-sdk-typescript',
-      'generated',
-      'server-openapi',
-      'browser',
     ),
   },
   {
@@ -46,8 +33,8 @@ const vendorMappings = [
     root: path.join(
       repoRoot,
       'sdks',
-      'sdkwork-craw-chat-sdk',
-      'sdkwork-craw-chat-sdk-typescript',
+      'sdkwork-im-sdk',
+      'sdkwork-im-sdk-typescript',
       'generated',
       'server-openapi',
       'node_modules',

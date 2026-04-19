@@ -58,7 +58,7 @@ async fn test_public_app_exports_live_openapi_json() {
         serde_json::from_slice(&body).expect("body should be valid json");
 
     assert_eq!(value["openapi"], "3.0.3");
-    assert_eq!(value["info"]["title"], "Craw Chat Admin Control Plane API");
+    assert_eq!(value["info"]["title"], "Control Plane API");
     assert!(value["paths"]["/api/v1/control/protocol-registry"].is_object());
 }
 
@@ -87,7 +87,7 @@ async fn test_public_app_serves_docs_page_for_live_openapi() {
     let html = String::from_utf8(body.to_vec()).expect("docs should be valid utf-8");
 
     assert!(html.contains("OpenAPI 3.1"));
-    assert!(html.contains("Craw Chat Admin Control Plane API"));
+    assert!(html.contains("Control Plane API"));
     assert!(html.contains("/openapi.json"));
 }
 

@@ -7,9 +7,9 @@ composed SDK layer.
 
 ## Package
 
-- preferred public package: `craw_chat_sdk`
-- generated transport package: `backend_sdk`
-- workspace path: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-flutter/composed`
+- preferred public package: `im_sdk`
+- generated transport package: `im_sdk_generated`
+- workspace path: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-flutter/composed`
 
 ## Install
 
@@ -18,16 +18,16 @@ a local path dependency:
 
 ```yaml
 dependencies:
-  craw_chat_sdk:
-    path: ../../sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-flutter/composed
+  im_sdk:
+    path: ../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-flutter/composed
 ```
 
 ## Create a client
 
 ```dart
-import 'package:craw_chat_sdk/craw_chat_sdk.dart';
+import 'package:im_sdk/im_sdk.dart';
 
-final client = CrawChatClient.create(
+final client = ImSdkClient.create(
   baseUrl: 'http://127.0.0.1:18090',
   authToken: token,
 );
@@ -64,14 +64,14 @@ await client.conversations.postText(
 );
 ```
 
-## Builder helpers
+## Builder Helpers
 
-The Flutter package exposes a `CrawChatBuilders` utility surface:
+The Flutter package exposes an `ImBuilders` utility surface:
 
 ```dart
-final draft = CrawChatBuilders.textMessage(text: 'hello');
-final frame = CrawChatBuilders.textFrame(
-  CrawChatAppendTextFrameOptions(frameSeq: 1, text: 'partial'),
+final draft = ImBuilders.textMessage(text: 'hello');
+final frame = ImBuilders.textFrame(
+  ImAppendTextFrameOptions(frameSeq: 1, text: 'partial'),
 );
 ```
 

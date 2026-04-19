@@ -20,65 +20,62 @@
     "paths": {
       "motion/react": ["src/vendor/motion-react.tsx"],
       "@sdkwork/ui-pc-react": ["src/types/sdkwork-ui-pc-react-shim.d.ts"],
-      "@sdkwork/ui-pc-react/theme": ["../../../../../sdkwork-ui/sdkwork-ui-pc-react/dist/theme/index.d.ts"],
-      "@sdkwork/ui-pc-react/*": ["../../../../../sdkwork-ui/sdkwork-ui-pc-react/dist/*"],
+      "@sdkwork/ui-pc-react/theme": ["packages/sdkwork-ui-pc-react/dist/theme/index.d.ts"],
+      "@sdkwork/ui-pc-react/*": ["packages/sdkwork-ui-pc-react/dist/*"],
       "@sdkwork/ui-pc-react/styles.css": [
-        "../../../../../sdkwork-ui/sdkwork-ui-pc-react/dist/sdkwork-ui.css"
+        "packages/sdkwork-ui-pc-react/dist/sdkwork-ui.css"
       ],
-      "@sdkwork/craw-chat-sdk-management": [
-        "../../sdks/sdkwork-craw-chat-sdk-management/sdkwork-craw-chat-sdk-management-typescript/composed/src/index.ts"
+      "@sdkwork/control-plane-sdk": [
+        "../../sdks/sdkwork-control-plane-sdk/sdkwork-control-plane-sdk-typescript/composed/src/index.ts"
       ],
-      "@sdkwork/craw-chat-management-backend-sdk": [
-        "../../sdks/sdkwork-craw-chat-sdk-management/sdkwork-craw-chat-sdk-management-typescript/generated/server-openapi/src/index.ts"
+      "@sdkwork/im-admin-backend-sdk": [
+        "../../sdks/sdkwork-im-admin-sdk/sdkwork-im-admin-sdk-typescript/generated/server-openapi/src/index.ts"
       ],
       "@sdkwork/sdk-common": [
         "../../sdk/sdkwork-sdk-commons/sdkwork-sdk-common-typescript/dist/index.d.ts"
       ],
-      "@sdkwork/craw-chat-admin-sdk": [
-        "../../sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-typescript/composed/src/index.ts"
-      ],
-      "sdkwork-craw-chat-admin-conversations": ["packages/sdkwork-craw-chat-admin-conversations/src/index.tsx"],
-      "sdkwork-craw-chat-admin-auth": ["packages/sdkwork-craw-chat-admin-auth/src/index.tsx"],
-      "sdkwork-craw-chat-admin-groups": ["packages/sdkwork-craw-chat-admin-groups/src/index.tsx"],
-      "sdkwork-craw-chat-admin-automation": ["packages/sdkwork-craw-chat-admin-automation/src/index.tsx"],
-      "sdkwork-craw-chat-admin-core": ["packages/sdkwork-craw-chat-admin-core/src/index.tsx"],
-      "sdkwork-craw-chat-admin-moderation": ["packages/sdkwork-craw-chat-admin-moderation/src/index.tsx"],
-      "sdkwork-craw-chat-admin-system": ["packages/sdkwork-craw-chat-admin-system/src/index.tsx"],
-      "sdkwork-craw-chat-admin-overview": ["packages/sdkwork-craw-chat-admin-overview/src/index.tsx"],
-      "sdkwork-craw-chat-admin-announcements": ["packages/sdkwork-craw-chat-admin-announcements/src/index.tsx"],
-      "sdkwork-craw-chat-admin-realtime": ["packages/sdkwork-craw-chat-admin-realtime/src/index.tsx"],
-      "sdkwork-craw-chat-admin-settings": ["packages/sdkwork-craw-chat-admin-settings/src/index.tsx"],
-      "sdkwork-craw-chat-admin-shell": ["packages/sdkwork-craw-chat-admin-shell/src/index.ts"],
-      "sdkwork-craw-chat-admin-storage": ["packages/sdkwork-craw-chat-admin-storage/src/index.tsx"],
-      "sdkwork-craw-chat-admin-tenants": ["packages/sdkwork-craw-chat-admin-tenants/src/index.tsx"],
-      "sdkwork-craw-chat-admin-messages": ["packages/sdkwork-craw-chat-admin-messages/src/index.tsx"],
-      "sdkwork-craw-chat-admin-types": ["packages/sdkwork-craw-chat-admin-types/src/index.ts"],
-      "sdkwork-craw-chat-admin-users": ["packages/sdkwork-craw-chat-admin-users/src/index.tsx"]
+      "sdkwork-control-plane-conversations": ["packages/sdkwork-control-plane-conversations/src/index.tsx"],
+      "sdkwork-control-plane-auth": ["packages/sdkwork-control-plane-auth/src/index.tsx"],
+      "sdkwork-control-plane-groups": ["packages/sdkwork-control-plane-groups/src/index.tsx"],
+      "sdkwork-control-plane-automation": ["packages/sdkwork-control-plane-automation/src/index.tsx"],
+      "sdkwork-control-plane-core": ["packages/sdkwork-control-plane-core/src/index.tsx"],
+      "sdkwork-control-plane-moderation": ["packages/sdkwork-control-plane-moderation/src/index.tsx"],
+      "sdkwork-control-plane-system": ["packages/sdkwork-control-plane-system/src/index.tsx"],
+      "sdkwork-control-plane-overview": ["packages/sdkwork-control-plane-overview/src/index.tsx"],
+      "sdkwork-control-plane-announcements": ["packages/sdkwork-control-plane-announcements/src/index.tsx"],
+      "sdkwork-control-plane-realtime": ["packages/sdkwork-control-plane-realtime/src/index.tsx"],
+      "sdkwork-control-plane-settings": ["packages/sdkwork-control-plane-settings/src/index.tsx"],
+      "sdkwork-control-plane-shell": ["packages/sdkwork-control-plane-shell/src/index.ts"],
+      "sdkwork-control-plane-storage": ["packages/sdkwork-control-plane-storage/src/index.tsx"],
+      "sdkwork-control-plane-tenants": ["packages/sdkwork-control-plane-tenants/src/index.tsx"],
+      "sdkwork-control-plane-messages": ["packages/sdkwork-control-plane-messages/src/index.tsx"],
+      "sdkwork-control-plane-types": ["packages/sdkwork-control-plane-types/src/index.ts"],
+      "sdkwork-control-plane-users": ["packages/sdkwork-control-plane-users/src/index.tsx"]
     }
   },
   "include": [
     "src",
     "vite.config.ts",
-    "packages/sdkwork-craw-chat-admin-auth/src/**/*.tsx",
-    "packages/sdkwork-craw-chat-admin-core/src/**/*.ts",
-    "packages/sdkwork-craw-chat-admin-core/src/**/*.tsx",
-    "packages/sdkwork-craw-chat-admin-overview/src/index.tsx",
-    "packages/sdkwork-craw-chat-admin-tenants/src/index.tsx",
-    "packages/sdkwork-craw-chat-admin-users/src/index.tsx",
-    "packages/sdkwork-craw-chat-admin-conversations/src/index.tsx",
-    "packages/sdkwork-craw-chat-admin-messages/src/index.tsx",
-    "packages/sdkwork-craw-chat-admin-groups/src/index.tsx",
-    "packages/sdkwork-craw-chat-admin-moderation/src/index.tsx",
-    "packages/sdkwork-craw-chat-admin-automation/src/index.tsx",
-    "packages/sdkwork-craw-chat-admin-announcements/src/index.tsx",
-    "packages/sdkwork-craw-chat-admin-realtime/src/index.tsx",
-    "packages/sdkwork-craw-chat-admin-system/src/index.tsx",
-    "packages/sdkwork-craw-chat-admin-storage/src/**/*.ts",
-    "packages/sdkwork-craw-chat-admin-storage/src/**/*.tsx",
-    "packages/sdkwork-craw-chat-admin-settings/src/index.tsx",
-    "packages/sdkwork-craw-chat-admin-shell/src/**/*.ts",
-    "packages/sdkwork-craw-chat-admin-shell/src/**/*.tsx",
-    "packages/sdkwork-craw-chat-admin-types/src/**/*.ts"
+    "packages/sdkwork-control-plane-auth/src/**/*.tsx",
+    "packages/sdkwork-control-plane-core/src/**/*.ts",
+    "packages/sdkwork-control-plane-core/src/**/*.tsx",
+    "packages/sdkwork-control-plane-overview/src/index.tsx",
+    "packages/sdkwork-control-plane-tenants/src/index.tsx",
+    "packages/sdkwork-control-plane-users/src/index.tsx",
+    "packages/sdkwork-control-plane-conversations/src/index.tsx",
+    "packages/sdkwork-control-plane-messages/src/index.tsx",
+    "packages/sdkwork-control-plane-groups/src/index.tsx",
+    "packages/sdkwork-control-plane-moderation/src/index.tsx",
+    "packages/sdkwork-control-plane-automation/src/index.tsx",
+    "packages/sdkwork-control-plane-announcements/src/index.tsx",
+    "packages/sdkwork-control-plane-realtime/src/index.tsx",
+    "packages/sdkwork-control-plane-system/src/index.tsx",
+    "packages/sdkwork-control-plane-storage/src/**/*.ts",
+    "packages/sdkwork-control-plane-storage/src/**/*.tsx",
+    "packages/sdkwork-control-plane-settings/src/index.tsx",
+    "packages/sdkwork-control-plane-shell/src/**/*.ts",
+    "packages/sdkwork-control-plane-shell/src/**/*.tsx",
+    "packages/sdkwork-control-plane-types/src/**/*.ts"
   ],
   "exclude": ["packages/**/node_modules/**"]
 }

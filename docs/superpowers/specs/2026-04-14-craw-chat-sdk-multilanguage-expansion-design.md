@@ -1,10 +1,10 @@
-# Craw Chat SDK Multilanguage Expansion Design
+# IM SDK Multilanguage Expansion Design
 
 ## Goal
 
-Extend `sdks/sdkwork-craw-chat-sdk` from a TypeScript and Flutter HTTP SDK workspace into a professional three-language app-facing SDK family covering TypeScript, Flutter, and Rust, with a strict split between generator-owned transport output and manual-owned composed SDK layers.
+Extend `sdks/sdkwork-im-sdk` from a TypeScript and Flutter HTTP SDK workspace into a professional three-language app-facing SDK family covering TypeScript, Flutter, and Rust, with a strict split between generator-owned transport output and manual-owned composed SDK layers.
 
-This design extends `docs/superpowers/specs/2026-04-09-craw-chat-sdk-generation-design.md` rather than replacing its contract-source decisions.
+This design extends `docs/superpowers/specs/2026-04-09-im-sdk-generation-design.md` rather than replacing its contract-source decisions.
 
 ## Scope
 
@@ -34,7 +34,7 @@ This round does not cover:
 
 ## Decisions
 
-- Workspace family: `sdks/sdkwork-craw-chat-sdk` becomes a three-language app-facing SDK workspace for `typescript`, `flutter`, and `rust`.
+- Workspace family: `sdks/sdkwork-im-sdk` becomes a three-language app-facing SDK workspace for `typescript`, `flutter`, and `rust`.
 - Contract source: continue using `openapi/craw-chat-app.openapi.yaml` as authority and derived sdkgen inputs under `openapi/`.
 - Auth model: continue enforcing the public bearer-token model. Generated public auth surfaces must not drift toward trusted internal headers.
 - Realtime boundary: generated SDKs continue to cover HTTP coordination only. WebSocket transport remains documented but not implemented as a handwritten adapter in this round.
@@ -56,12 +56,12 @@ The root workspace continues to own:
 Per-language workspaces own only language-specific packaging, composed SDK code, and thin forwarding scripts:
 
 ```text
-sdkwork-craw-chat-sdk/
+sdkwork-im-sdk/
   openapi/
   bin/
-  sdkwork-craw-chat-sdk-typescript/
-  sdkwork-craw-chat-sdk-flutter/
-  sdkwork-craw-chat-sdk-rust/
+  sdkwork-im-sdk-typescript/
+  sdkwork-im-sdk-flutter/
+  sdkwork-im-sdk-rust/
 ```
 
 Each language workspace follows the same top-level pattern:
@@ -81,15 +81,15 @@ Each language workspace follows the same top-level pattern:
 
 Keep the current mature layout:
 
-- generated package: `sdkwork-craw-chat-sdk-typescript/generated/server-openapi`
-- composed package: `sdkwork-craw-chat-sdk-typescript/composed`
+- generated package: `sdkwork-im-sdk-typescript/generated/server-openapi`
+- composed package: `sdkwork-im-sdk-typescript/composed`
 - public package names:
-  - generated: `@sdkwork/craw-chat-backend-sdk`
-  - composed: `@sdkwork/craw-chat-sdk`
+  - generated: `@sdkwork-internal/im-sdk-generated`
+  - composed: `@sdkwork/im-sdk`
 
 The composed package remains the preferred consumer surface and continues to expose:
 
-- `CrawChatClient`
+- `ImSdkClient`
 - business modules
 - message, stream, and RTC builders
 
@@ -97,11 +97,11 @@ The composed package remains the preferred consumer surface and continues to exp
 
 Keep the current mature layout:
 
-- generated package: `sdkwork-craw-chat-sdk-flutter/generated/server-openapi`
-- composed package: `sdkwork-craw-chat-sdk-flutter/composed`
+- generated package: `sdkwork-im-sdk-flutter/generated/server-openapi`
+- composed package: `sdkwork-im-sdk-flutter/composed`
 - public package names:
   - generated: `backend_sdk`
-  - composed: `craw_chat_sdk`
+  - composed: `im_sdk`
 
 The composed package remains the preferred consumer surface and continues to expose:
 
@@ -114,7 +114,7 @@ The composed package remains the preferred consumer surface and continues to exp
 Add a new language workspace:
 
 ```text
-sdkwork-craw-chat-sdk-rust/
+sdkwork-im-sdk-rust/
   README.md
   bin/
     sdk-assemble.ps1

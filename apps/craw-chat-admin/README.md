@@ -1,6 +1,6 @@
 # Craw Chat Admin
 
-`sdkwork-craw-chat-admin` is the standalone React and Tauri operator workspace for Craw Chat.
+`sdkwork-control-plane` is the standalone React and Tauri operator workspace for Craw Chat.
 
 It provides the browser and desktop shell for moderation, tenancy, identity, automation, realtime governance, and platform operations. The app must stay thin at the root and converge on the formal admin SDK boundary wherever the corresponding control-plane contract already exists.
 
@@ -8,15 +8,15 @@ It provides the browser and desktop shell for moderation, tenancy, identity, aut
 
 - use `@sdkwork/ui-pc-react` as the shared UI foundation
 - keep the root app thin and move real composition into workspace packages
-- route formal control-plane HTTP access through `@sdkwork/craw-chat-admin-sdk`
+- route formal admin HTTP access through `@sdkwork/control-plane-sdk`
 - avoid raw `fetch`, duplicated DTOs, and handwritten route maps inside app packages
 - keep browser and desktop runtime behavior aligned
-- preserve an explicit sandbox mode when no compatible management backend is available
+- preserve an explicit sandbox mode when no compatible `/api/admin/*` backend is available
 
 ## Workspace Layout
 
 ```text
-apps/craw-chat-admin/
+apps/control-plane/
   src/          # root bootstrap only
   packages/     # shell, core, and business modules
   tests/        # architecture and product-surface verification
@@ -29,43 +29,44 @@ apps/craw-chat-admin/
 
 ### Foundation
 
-- `sdkwork-craw-chat-admin-types`
-- `sdkwork-craw-chat-admin-core`
-- `sdkwork-craw-chat-admin-shell`
+- `sdkwork-control-plane-types`
+- `sdkwork-control-plane-core`
+- `sdkwork-control-plane-shell`
 
 ### Business
 
-- `sdkwork-craw-chat-admin-auth`
-- `sdkwork-craw-chat-admin-overview`
-- `sdkwork-craw-chat-admin-tenants`
-- `sdkwork-craw-chat-admin-users`
-- `sdkwork-craw-chat-admin-conversations`
-- `sdkwork-craw-chat-admin-messages`
-- `sdkwork-craw-chat-admin-groups`
-- `sdkwork-craw-chat-admin-moderation`
-- `sdkwork-craw-chat-admin-automation`
-- `sdkwork-craw-chat-admin-announcements`
-- `sdkwork-craw-chat-admin-realtime`
-- `sdkwork-craw-chat-admin-system`
-- `sdkwork-craw-chat-admin-settings`
+- `sdkwork-control-plane-auth`
+- `sdkwork-control-plane-overview`
+- `sdkwork-control-plane-tenants`
+- `sdkwork-control-plane-users`
+- `sdkwork-control-plane-conversations`
+- `sdkwork-control-plane-messages`
+- `sdkwork-control-plane-groups`
+- `sdkwork-control-plane-moderation`
+- `sdkwork-control-plane-automation`
+- `sdkwork-control-plane-announcements`
+- `sdkwork-control-plane-realtime`
+- `sdkwork-control-plane-system`
+- `sdkwork-control-plane-settings`
 
 ## Formal Admin SDK Boundary
 
-The formal control-plane transport boundary is `@sdkwork/craw-chat-admin-sdk`.
+The formal admin app boundary is `@sdkwork/control-plane-sdk`.
 
-- control-plane URLs, auth handling, and DTO ownership for `/api/v1/control/*` belong to the SDK layers
-- generated OpenAPI transport code belongs under `sdks/sdkwork-craw-chat-sdk-admin/*/generated/server-openapi`
-- ergonomic business-facing admin client code belongs under `sdks/sdkwork-craw-chat-sdk-admin/*/composed`
+- the checked-in control-plane workspace lives under `sdks/sdkwork-control-plane-sdk`
+- the checked-in `/api/admin/*` authority, sdkgen input, and assembly snapshot still live under `sdks/sdkwork-im-admin-sdk`
+- generated control-plane OpenAPI transport code belongs under `sdks/sdkwork-control-plane-sdk/*/generated/server-openapi`
+- ergonomic browser-facing admin helper exports now belong under `sdks/sdkwork-control-plane-sdk/*/composed`
 - app-local helpers may exist for React state, loaders, or UI wiring, but they must wrap the formal SDK rather than re-implement transport
-- the current package now carries both generated `/api/v1/control/*` modules and manual-owned `/api/admin/*` adapter exports, so the admin app no longer needs a separate local admin API workspace package
-- browser-only `/api/admin/*` routes are still a separate contract-promotion track until those routes gain the same checked-in OpenAPI authority as the control-plane surface
+- the app now standardizes on `@sdkwork/control-plane-sdk` direct imports instead of a second app-local transport wrapper
+- browser packages must not add a second handwritten `/api/admin/*` transport layer or a duplicate local admin API workspace
 
 ## UI Standard
 
 - shared styles come from `@sdkwork/ui-pc-react/styles.css`
 - shell composition uses shared UI primitives plus app-owned desktop layout modules
 - local shell CSS is limited to host layout selectors and app-specific presentation
-- theme state, locale, command palette, operations pulse, and route continuity are owned by `sdkwork-craw-chat-admin-core`
+- theme state, locale, command palette, operations pulse, and route continuity are owned by `sdkwork-control-plane-core`
 
 ## Product Surfaces
 
@@ -115,13 +116,10 @@ The workspace uses package-local wrappers so `pnpm run` and `npm.cmd run` remain
 
 ## Runtime Contract
 
-The browser and desktop admin shell target a compatible management backend that serves `/api/admin/*`.
+The browser and desktop admin shell target a compatible admin backend that serves `/api/admin/*`.
 
-This contract is intentionally separate from `sdkwork-craw-chat-sdk-admin`.
-That SDK family currently standardizes the `/api/v1/control/*` control-plane surface, not the
-operator-console `/api/admin/*` backend consumed by this workspace.
-The checked-in authority snapshot for the management backend now lives under
-`sdks/sdkwork-craw-chat-sdk-management/`.
+The checked-in `/api/admin/*` authority snapshot for that backend still lives under
+`sdks/sdkwork-im-admin-sdk/`, while the browser app imports `@sdkwork/control-plane-sdk`.
 
 - browser development: set `SDKWORK_ADMIN_PROXY_TARGET=http://host:port` before `pnpm dev`
 - desktop runtime: set `SDKWORK_ADMIN_PROXY_TARGET=http://host:port` before `pnpm tauri:dev` or `pnpm tauri:build`
@@ -133,7 +131,7 @@ The checked-in authority snapshot for the management backend now lives under
 
 ## Local Sandbox
 
-The local admin sandbox is intended for shell walkthroughs, product verification, and package smoke checks when no management backend is available.
+The local admin sandbox is intended for shell walkthroughs, product verification, and package smoke checks when no compatible `/api/admin/*` backend is available.
 
 - enable with `SDKWORK_ADMIN_SANDBOX=1`
 - default credentials: `admin@sdkwork.local` / `ChangeMe123!`
@@ -145,11 +143,11 @@ The local admin sandbox is intended for shell walkthroughs, product verification
 
 Inside the current `craw-chat` workspace, the discovered control-plane service binds `127.0.0.1:18081` and serves `/api/v1/control/*`.
 
-- that runtime is the current authority source for admin SDK OpenAPI 3.x capture
+- that runtime is the current authority source for control-plane SDK OpenAPI 3.x capture
 - it is not a drop-in replacement for every browser `/api/admin/*` route expected by the admin shell
 - formal SDK generation and documentation must track the real `/api/v1/control/*` surface instead of inventing routes
-- the checked-in `/api/admin/*` authority inventory and the management SDK family now live under `sdks/sdkwork-craw-chat-sdk-management/`
-- the browser operator shell should keep consuming `@sdkwork/craw-chat-admin-sdk`; browser-only `/api/admin/*` helpers remain manual-owned exports in that formal package instead of a separate local `sdkwork-craw-chat-admin-admin-api` workspace package
+- the checked-in `/api/admin/*` authority inventory still lives under `sdks/sdkwork-im-admin-sdk/`
+- the browser operator shell now consumes `@sdkwork/control-plane-sdk` directly instead of a second app-local runtime wrapper
 - if you want this admin workspace to run against local services, you still need a compatible adapter or backend that exposes the expected `/api/admin/*` surface, including login and admin resource routes
 
 ## Storage Contract Reference

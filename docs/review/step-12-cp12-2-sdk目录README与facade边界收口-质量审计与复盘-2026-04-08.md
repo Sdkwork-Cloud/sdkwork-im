@@ -3,12 +3,12 @@
 ## 审计范围
 - `README.md`
 - `sdks/README.md`
-- `sdks/sdkwork-craw-chat-sdk/README.md`
-- `sdks/sdkwork-craw-chat-sdk-admin/README.md`
-- `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/README.md`
-- `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-flutter/README.md`
-- `sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-typescript/README.md`
-- `sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-flutter/README.md`
+- `sdks/sdkwork-im-sdk/README.md`
+- `sdks/sdkwork-control-plane-sdk/README.md`
+- `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/README.md`
+- `sdks/sdkwork-im-sdk/sdkwork-im-sdk-flutter/README.md`
+- `sdks/sdkwork-control-plane-sdk/sdkwork-control-plane-sdk-typescript/README.md`
+- `sdks/sdkwork-control-plane-sdk/sdkwork-control-plane-sdk-flutter/README.md`
 - `tools/chat-cli/tests/chat_cli_contract_test.rs`
 
 ## 审计结论
@@ -18,7 +18,7 @@
 
 ## 正向结果
 - `sdks/README.md` 已成为两套 SDK 的统一入口，不再需要靠目录名猜测职责。
-- `sdkwork-craw-chat-sdk` 与 `sdkwork-craw-chat-sdk-admin` 的边界已经分离：
+- `sdkwork-im-sdk` 与 `sdkwork-control-plane-sdk` 的边界已经分离：
   - 前者承接 app-facing conversation / message / realtime facade
   - 后者承接 `control-plane` / `protocol governance` / `compatibility matrix`
 - `TypeScript` 与 `Flutter` 目录现在是稳定入口，而不是后续容易被忽略的空文件夹。

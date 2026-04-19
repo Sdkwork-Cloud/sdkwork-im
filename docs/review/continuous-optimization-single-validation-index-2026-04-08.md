@@ -16,8 +16,8 @@
 - 新增：`docs/部署/兼容矩阵与SDK-CLI-operator验证索引.md`
 - 当前索引页统一收敛：
   - `compatibility matrix`
-  - `sdkwork-craw-chat-sdk`
-  - `sdkwork-craw-chat-sdk-admin`
+  - `sdkwork-im-sdk`
+  - `sdkwork-control-plane-sdk`
   - `craw-chat-cli`
   - `open-chat-test`
   - `chat_cli_contract_test.rs`

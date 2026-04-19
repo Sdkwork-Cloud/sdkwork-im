@@ -15,8 +15,8 @@ import {
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = path.resolve(scriptDir, '..');
 const REQUIRED_PORTAL_VENDOR_FILES = Object.freeze([
-  '__vendor__/sdkwork-craw-chat-sdk/index.js',
-  '__vendor__/sdkwork-craw-chat-backend-sdk/index.js',
+  '__vendor__/sdkwork-im-sdk/index.js',
+  '__vendor__/sdkwork-sdk-common/index.js',
 ]);
 
 export function createDesktopAssetBuildPlan({
@@ -25,7 +25,7 @@ export function createDesktopAssetBuildPlan({
 } = {}) {
   return [
     {
-      cwd: path.join(buildWorkspaceRoot, 'apps', 'craw-chat-admin'),
+      cwd: path.join(buildWorkspaceRoot, 'apps', 'control-plane'),
       ...pnpmProcessSpec(['build'], { platform }),
     },
   ];
@@ -81,9 +81,9 @@ export async function assertDesktopSiteBuildReady({
 
 export async function assertDesktopEmbeddedSitesReady({
   workspaceRoot: buildWorkspaceRoot = workspaceRoot,
-  adminDistRoot = path.join(buildWorkspaceRoot, 'apps', 'craw-chat-admin', 'dist'),
+  adminDistRoot = path.join(buildWorkspaceRoot, 'apps', 'control-plane', 'dist'),
   portalDistRoot = path.join(buildWorkspaceRoot, 'apps', 'craw-chat-portal', 'dist'),
-  portalDesktopDistRoot = path.join(buildWorkspaceRoot, 'apps', 'craw-chat-admin', 'dist-portal'),
+  portalDesktopDistRoot = path.join(buildWorkspaceRoot, 'apps', 'control-plane', 'dist-portal'),
 } = {}) {
   await assertDesktopSiteBuildReady({
     siteLabel: 'admin desktop site build',
@@ -107,7 +107,7 @@ export async function assertDesktopEmbeddedSitesReady({
 export async function syncPortalDesktopAssets({
   workspaceRoot: buildWorkspaceRoot = workspaceRoot,
   portalDistRoot = path.join(buildWorkspaceRoot, 'apps', 'craw-chat-portal', 'dist'),
-  portalDesktopDistRoot = path.join(buildWorkspaceRoot, 'apps', 'craw-chat-admin', 'dist-portal'),
+  portalDesktopDistRoot = path.join(buildWorkspaceRoot, 'apps', 'control-plane', 'dist-portal'),
 } = {}) {
   await access(portalDistRoot);
   await rm(portalDesktopDistRoot, { force: true, recursive: true });

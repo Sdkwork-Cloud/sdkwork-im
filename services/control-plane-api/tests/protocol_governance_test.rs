@@ -68,11 +68,11 @@ async fn test_control_plane_exposes_protocol_governance_snapshot_to_control_read
         .expect("protocol governance should expose sdk compatibility baseline");
     assert_eq!(
         sdk_compatibility_baseline["appSdkFacade"],
-        serde_json::json!("sdkwork-craw-chat-sdk")
+        serde_json::json!("sdkwork-im-sdk")
     );
     assert_eq!(
         sdk_compatibility_baseline["adminSdkFacade"],
-        serde_json::json!("sdkwork-craw-chat-sdk-admin")
+        serde_json::json!("sdkwork-control-plane-sdk")
     );
     assert_eq!(
         sdk_compatibility_baseline["protocolRegistryPath"],

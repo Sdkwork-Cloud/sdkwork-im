@@ -229,7 +229,7 @@ const LOCAL_NODE_AUDIT_RECORD_ID_MAX_BYTES: usize = 256;
 const APP_OPENAPI_SCHEMA_PATH_ENV: &str = "CRAW_CHAT_APP_OPENAPI_SCHEMA_PATH";
 const APP_OPENAPI_SCHEMA_PATH: &str = "/openapi/craw-chat-app.openapi.yaml";
 const APP_OPENAPI_SCHEMA_EMBEDDED_YAML: &str =
-    include_str!("../../../sdks/sdkwork-craw-chat-sdk/openapi/craw-chat-app.openapi.yaml");
+    include_str!("../../../sdks/sdkwork-im-sdk/openapi/craw-chat-app.openapi.yaml");
 const PUBLIC_BROWSER_ORIGINS_ENV: &str = "CRAW_CHAT_BROWSER_ORIGINS";
 const DEFAULT_PUBLIC_BROWSER_ORIGINS: &[&str] = &["http://127.0.0.1:4176", "http://localhost:4176"];
 
@@ -1285,7 +1285,7 @@ pub fn resolve_app_openapi_schema_source_path() -> PathBuf {
         .map(PathBuf::from)
         .unwrap_or_else(|_| {
             PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("../../sdks/sdkwork-craw-chat-sdk/openapi/craw-chat-app.openapi.yaml")
+                .join("../../sdks/sdkwork-im-sdk/openapi/craw-chat-app.openapi.yaml")
         })
 }
 

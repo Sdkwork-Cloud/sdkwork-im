@@ -22,8 +22,8 @@ Repair shared-channel sync backlog state.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.socialRuntime`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
@@ -34,7 +34,7 @@ None. This operation does not accept a JSON request body.
 ### Response `200`
 
 `SocialSharedChannelSyncRepairResponse` is currently modeled as an open-ended runtime repair
-payload in the checked-in admin control-plane authority. Treat it as opaque JSON.
+payload in the checked-in control-plane authority. Treat it as opaque JSON.
 
 ### Error Responses
 

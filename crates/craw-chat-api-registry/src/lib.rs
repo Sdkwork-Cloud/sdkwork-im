@@ -33,7 +33,7 @@ pub enum RouteVisibility {
 #[serde(rename_all = "camelCase")]
 pub enum SdkTarget {
     CrawChatAppSdk,
-    CrawChatAdminSdk,
+    ControlPlaneSdk,
     None,
 }
 

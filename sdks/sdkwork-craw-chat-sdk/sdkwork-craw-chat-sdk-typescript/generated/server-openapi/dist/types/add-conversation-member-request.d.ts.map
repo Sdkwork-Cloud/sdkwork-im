@@ -1,1 +1,0 @@
-{"version":3,"file":"add-conversation-member-request.d.ts","sourceRoot":"","sources":["../../src/types/add-conversation-member-request.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,cAAc,EAAE,MAAM,mBAAmB,CAAC;AAExD,MAAM,WAAW,4BAA4B;IAC3C,WAAW,EAAE,MAAM,CAAC;IACpB,aAAa,EAAE,MAAM,CAAC;IACtB,IAAI,EAAE,cAAc,CAAC;CACtB"}

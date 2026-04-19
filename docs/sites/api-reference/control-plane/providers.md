@@ -8,7 +8,7 @@
 <div class="api-link-list">
   <a href="/api-reference/control-plane/protocol"><code>Protocol</code> Protocol registry and governance snapshots are documented separately</a>
   <a href="/api-reference/control-plane/nodes"><code>Nodes</code> Drain, activate, and route migration are documented separately</a>
-  <a href="/sdk/admin-sdk"><code>Admin SDK</code> Admin SDK docs explain why consumer imports are still documented conservatively</a>
+  <a href="/sdk/control-plane-sdk"><code>Control-Plane SDK</code> Control-plane SDK docs explain why consumer imports are still documented conservatively</a>
 </div>
 
 <a id="get-provider-registry"></a>
@@ -28,7 +28,7 @@ bindings resolved by the registry.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / provider-governance</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / provider-governance</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ProviderRegistrySnapshotResponse`</span></div>
 </div>
@@ -64,7 +64,7 @@ Reads effective provider bindings for the deployment scope or a tenant override 
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / provider-governance</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / provider-governance</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ProviderBindingsResponse`</span></div>
 </div>
@@ -105,7 +105,7 @@ Writes a deployment-level or tenant-level provider binding policy entry.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / provider-governance</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / provider-governance</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ProviderBindingCommitResponse`</span></div>
 </div>
@@ -143,7 +143,7 @@ Returns provider policy history.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / provider-governance</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / provider-governance</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ProviderPolicyHistoryResponse`</span></div>
 </div>
@@ -179,7 +179,7 @@ Compares two provider policy versions.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / provider-governance</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / provider-governance</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ProviderPolicyDiffResponse`</span></div>
 </div>
@@ -222,7 +222,7 @@ Previews a provider policy mutation without persisting it.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / provider-governance</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / provider-governance</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ProviderPolicyPreview`</span></div>
 </div>
@@ -266,7 +266,7 @@ Rolls back the provider policy history to a specific version.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / provider-governance</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / provider-governance</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ProviderPolicyHistoryResponse`</span></div>
 </div>

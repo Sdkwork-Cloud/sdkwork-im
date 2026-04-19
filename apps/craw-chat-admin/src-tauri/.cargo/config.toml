@@ -1,2 +1,2 @@
 [build]
-target-dir = "../../../target/sdkwork-craw-chat-admin-tauri"
+target-dir = "../../../target/sdkwork-control-plane-tauri"

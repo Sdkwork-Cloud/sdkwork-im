@@ -10,7 +10,7 @@ This addendum supersedes the craw-chat-specific storage ownership assumption in 
 - Shared storage HTTP/input payloads should be expressed as typed storage contract structs instead of ad-hoc JSON maps wherever Rust backends or adapters own request decoding.
 - Shared storage persistence boundaries should be expressed through generic storage snapshot contracts and store traits so future admin/control-plane backends can hydrate runtime state without re-encoding provider rules.
 - `craw-chat-contract-admin` is an adapter entry point that re-exports the generic storage contracts for admin consumers that still anchor on the craw-chat admin package.
-- `apps/craw-chat-admin` is a consumer of the storage domain through typed API and view-model adapters. It does not define a separate storage model.
+- `apps/control-plane` is a consumer of the storage domain through typed API and view-model adapters. It does not define a separate storage model.
 - `sdkwork-api-product-runtime` and any future admin/control-plane backends should consume the generic runtime/contracts instead of encoding storage rules directly in sandbox or product-specific handlers.
 
 ## Updated Boundary Rules
@@ -32,15 +32,15 @@ The current implementation baseline in this branch is:
 - `crates/im-storage-runtime`
 - `crates/craw-chat-contract-admin` re-export compatibility for `storage`
 - `crates/sdkwork-api-product-runtime/src/admin_sandbox.rs` generic storage sandbox wiring
-- `apps/craw-chat-admin/dev/admin-sandbox.mjs` storage route support
-- `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-types/src/storage.ts`
-- `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-admin-api/src/storage.ts`
-- `apps/craw-chat-admin/packages/sdkwork-craw-chat-admin-storage` UI package and route registration
+- `apps/control-plane/dev/admin-sandbox.mjs` storage route support
+- `apps/control-plane/packages/sdkwork-control-plane-types/src/storage.ts`
+- `apps/control-plane/packages/sdkwork-control-plane-admin-api/src/storage.ts`
+- `apps/control-plane/packages/sdkwork-control-plane-storage` UI package and route registration
 - Mode-aware credential field schema added across Rust contracts, sandbox catalogs, and admin form logic
 - Shared mode-aware secret validation and API payload parsing added to `crates/im-storage-runtime`, with Rust admin sandbox refactored to consume that shared entry point
 - Typed `StorageConfigUpsertInput` contract added to `crates/im-storage-contracts`, matching the admin TypeScript storage input shape and giving Rust backends a reusable request model
 - `StorageDomainSnapshotStore` plus runtime snapshot import/export helpers now form the first reusable persistence seam for generic storage state
 - JS dev admin sandbox validation updated to match shared runtime semantics for unsupported credential modes and provider-config payload shape
-- `apps/craw-chat-admin/tests/admin-ui-resolution.test.mjs` regression coverage for worktree UI declaration resolution
+- `apps/control-plane/tests/admin-ui-resolution.test.mjs` regression coverage for worktree UI declaration resolution
 
 The remaining work is to finish persistence adapters, tenant/global configuration management UX refinement, SDK upload integration, and public documentation for the generic storage module.

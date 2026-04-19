@@ -2,7 +2,7 @@
 
 ## Goal
 
-Define the production standard for expanding `sdkwork-craw-chat-sdk` from a TypeScript-first
+Define the production standard for expanding `sdkwork-im-sdk` from a TypeScript-first
 workspace into a real multi-language SDK family that is generated from the live Craw Chat OpenAPI
 3.x contract and then assembled into language-appropriate consumer SDKs.
 
@@ -15,7 +15,7 @@ This design treats the current TypeScript SDK as the baseline public standard fo
   workflows
 - one root workspace that owns refresh, generation, normalization, verification, and docs
 
-The immediate objective is to make `sdkwork-craw-chat-sdk` the contract and verification hub for
+The immediate objective is to make `sdkwork-im-sdk` the contract and verification hub for
 all supported languages, not just `typescript` and `flutter`.
 
 ## Current Baseline
@@ -25,9 +25,9 @@ the current public standard that other languages should align with.
 
 Accepted TypeScript baseline:
 
-- installable consumer package: `@sdkwork/craw-chat-sdk`
-- primary client: `CrawChatSdkClient`
-- synchronous construction: `new CrawChatSdkClient({...})`
+- installable consumer package: `@sdkwork/im-sdk`
+- primary client: `ImSdkClient`
+- synchronous construction: `new ImSdkClient({...})`
 - flat config for normal use: `baseUrl`, `apiBaseUrl`, `websocketBaseUrl`, `authToken`, and
   runtime adapters at the top level
 - message-first outbound workflow:
@@ -71,7 +71,7 @@ The actual generator source currently lives outside that writable root:
 
 - `sdk/sdkwork-sdk-generator`
 
-This means the first implementation phase can fully standardize the Craw Chat SDK workspace,
+This means the first implementation phase can fully standardize the IM SDK workspace,
 language workspaces, docs, verification, and integration contracts, but it cannot directly patch
 the external generator source in this environment.
 
@@ -101,7 +101,7 @@ workspace-owned, verified SDK family.
 
 Adopt a root-workspace-first multi-language SDK standard:
 
-1. `sdkwork-craw-chat-sdk` is the only official generation, verification, and docs hub.
+1. `sdkwork-im-sdk` is the only official generation, verification, and docs hub.
 2. Every language workspace must expose a hard generated versus non-generated boundary.
 3. OpenAPI 3.x generation owns only the HTTP transport contract layer.
 4. Semantic SDK behavior such as message builders, live receive, sync replay, RTC helpers, and
@@ -114,7 +114,7 @@ Adopt a root-workspace-first multi-language SDK standard:
 
 ## Target Language Set
 
-The official language set for `sdkwork-craw-chat-sdk` becomes:
+The official language set for `sdkwork-im-sdk` becomes:
 
 - `typescript`
 - `flutter`
@@ -142,19 +142,19 @@ These languages must be treated as first-class workspace entries in:
 The root workspace should converge on this shape:
 
 ```text
-sdkwork-craw-chat-sdk/
+sdkwork-im-sdk/
   openapi/
   bin/
   docs/
-  sdkwork-craw-chat-sdk-typescript/
-  sdkwork-craw-chat-sdk-flutter/
-  sdkwork-craw-chat-sdk-rust/
-  sdkwork-craw-chat-sdk-java/
-  sdkwork-craw-chat-sdk-csharp/
-  sdkwork-craw-chat-sdk-swift/
-  sdkwork-craw-chat-sdk-kotlin/
-  sdkwork-craw-chat-sdk-go/
-  sdkwork-craw-chat-sdk-python/
+  sdkwork-im-sdk-typescript/
+  sdkwork-im-sdk-flutter/
+  sdkwork-im-sdk-rust/
+  sdkwork-im-sdk-java/
+  sdkwork-im-sdk-csharp/
+  sdkwork-im-sdk-swift/
+  sdkwork-im-sdk-kotlin/
+  sdkwork-im-sdk-go/
+  sdkwork-im-sdk-python/
   .sdkwork-assembly.json
   README.md
 ```
@@ -194,8 +194,8 @@ Rules:
 
 Package and client naming are derived from the SDK workspace family name:
 
-- workspace family: `sdkwork-craw-chat-sdk`
-- business family name: `craw-chat-sdk`
+- workspace family: `sdkwork-im-sdk`
+- business family name: `im-sdk`
 
 The public consumer-facing names must be business-facing, not transport-facing.
 
@@ -203,18 +203,18 @@ The public consumer-facing names must be business-facing, not transport-facing.
 
 The following names define the intended consumer-facing standard:
 
-- TypeScript package: `@sdkwork/craw-chat-sdk`
-- TypeScript primary client: `CrawChatSdkClient`
-- Flutter package: `craw_chat_sdk`
-- Flutter primary entry type: `CrawChatSdkClient` or the nearest idiomatic equivalent
-- Rust crate: `craw_chat_sdk`
-- Rust primary client: `CrawChatSdkClient` or `CrawChatClient`
-- Java artifact family: must preserve `craw-chat-sdk` in the artifact identity
-- C# package family: must preserve `CrawChatSdk` in the package identity
-- Swift package/product: must preserve `CrawChatSdk`
-- Kotlin artifact family: must preserve `craw-chat-sdk`
-- Go module path: must preserve `craw-chat-sdk`
-- Python package: `sdkwork_craw_chat_sdk` or an equally explicit `craw_chat_sdk` package naming
+- TypeScript package: `@sdkwork/im-sdk`
+- TypeScript primary client: `ImSdkClient`
+- Flutter package: `im_sdk`
+- Flutter primary entry type: `ImSdkClient` or the nearest idiomatic equivalent
+- Rust crate: `im_sdk`
+- Rust primary client: `ImSdkClient` or `CrawChatClient`
+- Java artifact family: must preserve `im-sdk` in the artifact identity
+- C# package family: must preserve `ImSdk` in the package identity
+- Swift package/product: must preserve `ImSdk`
+- Kotlin artifact family: must preserve `im-sdk`
+- Go module path: must preserve `im-sdk`
+- Python package: `sdkwork_im_sdk` or an equally explicit `im_sdk` package naming
   rule, depending on workspace conventions
 
 Generated transport package names may remain transport-oriented where ecosystem tooling requires it,
@@ -566,11 +566,11 @@ Once writable access to `sdkwork-sdk-generator` is available:
 
 This design is successful when:
 
-- the root Craw Chat SDK workspace can generate all supported languages from the live service
+- the root IM SDK workspace can generate all supported languages from the live service
   schema
 - every supported language is represented in generation, verification, assembly, and docs
 - every language has a documented generated/manual ownership boundary
-- naming is business-facing and consistent with `craw-chat-sdk`
+- naming is business-facing and consistent with `im-sdk`
 - the TypeScript baseline remains the reference standard and is not regressed
 - verification can identify generation defects instead of letting them silently drift
 - docs accurately reflect both the common standard and per-language maturity
@@ -578,7 +578,7 @@ This design is successful when:
 
 ## Decision
 
-The correct next step is to treat `sdkwork-craw-chat-sdk` as the official multi-language SDK
+The correct next step is to treat `sdkwork-im-sdk` as the official multi-language SDK
 standard workspace for Craw Chat, expand it to cover the full generator language set, and use it to
 lock package structure, naming, verification, and documentation standards before generator-core
 changes are made outside the writable scope.

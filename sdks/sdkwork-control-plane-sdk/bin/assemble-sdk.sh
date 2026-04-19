@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+ARGS=("${SCRIPT_DIR}/assemble-sdk.mjs")
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --language)
+      if [[ $# -lt 2 ]]; then
+        echo "[sdkwork-control-plane-sdk] Missing value for --language" >&2
+        exit 1
+      fi
+      ARGS+=("$1" "${2,,}")
+      shift 2
+      ;;
+    *)
+      echo "[sdkwork-control-plane-sdk] Unknown argument: $1" >&2
+      exit 1
+      ;;
+  esac
+done
+
+node "${ARGS[@]}"

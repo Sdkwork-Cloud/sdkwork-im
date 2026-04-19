@@ -8,10 +8,10 @@
 
 <div class="api-link-list">
   <a href="/api-reference/control-plane-api"><code>Control Plane</code> Back to Control Plane overview</a>
-  <a href="/sdk/admin-sdk"><code>Admin SDK</code> See the cross-language client surface</a>
+  <a href="/sdk/control-plane-sdk"><code>Control-Plane SDK</code> See the cross-language client surface</a>
 </div>
 
-The checked-in admin control-plane authority intentionally leaves current runtime repair and
+The checked-in control-plane authority intentionally leaves current runtime repair and
 inventory responses open-ended. Queue-control inputs, route semantics, and permissions are stable;
 response bodies should be treated as opaque JSON and consumed through the generated admin SDK
 surfaces.
@@ -31,15 +31,15 @@ Read the pending shared-channel sync queue.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.socialRuntime`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
 ### Response `200`
 
 `SocialSharedChannelSyncPendingInventoryResponse` is currently modeled as an open-ended runtime
-inventory payload in the checked-in admin control-plane authority. Treat it as opaque JSON.
+inventory payload in the checked-in control-plane authority. Treat it as opaque JSON.
 
 ### Error Responses
 
@@ -68,15 +68,15 @@ Read merged shared-channel sync delivery state.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.socialRuntime`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
 ### Response `200`
 
 `SocialSharedChannelSyncDeliveryStateInventoryResponse` is currently modeled as an open-ended
-runtime inventory payload in the checked-in admin control-plane authority. Treat it as opaque JSON.
+runtime inventory payload in the checked-in control-plane authority. Treat it as opaque JSON.
 
 ### Error Responses
 
@@ -105,15 +105,15 @@ Read the delivered shared-channel sync ledger.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.socialRuntime`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
 ### Response `200`
 
 `SocialSharedChannelSyncDeliveredInventoryResponse` is currently modeled as an open-ended runtime
-inventory payload in the checked-in admin control-plane authority. Treat it as opaque JSON.
+inventory payload in the checked-in control-plane authority. Treat it as opaque JSON.
 
 ### Error Responses
 
@@ -142,15 +142,15 @@ Read the dead-letter shared-channel sync queue.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.socialRuntime`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
 ### Response `200`
 
 `SocialSharedChannelSyncDeadLetterInventoryResponse` is currently modeled as an open-ended runtime
-inventory payload in the checked-in admin control-plane authority. Treat it as opaque JSON.
+inventory payload in the checked-in control-plane authority. Treat it as opaque JSON.
 
 ### Error Responses
 
@@ -179,8 +179,8 @@ Requeue all dead-letter shared-channel sync entries.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.socialRuntime`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
@@ -191,7 +191,7 @@ None. This operation does not accept a JSON request body.
 ### Response `200`
 
 `SocialSharedChannelSyncDeadLetterRequeueResponse` is currently modeled as an open-ended runtime
-operation payload in the checked-in admin control-plane authority. Treat it as opaque JSON.
+operation payload in the checked-in control-plane authority. Treat it as opaque JSON.
 
 ### Error Responses
 
@@ -220,8 +220,8 @@ Requeue selected dead-letter shared-channel sync entries.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.socialRuntime`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
@@ -232,7 +232,7 @@ Requeue selected dead-letter shared-channel sync entries.
 ### Response `200`
 
 `SocialSharedChannelSyncDeadLetterTargetedRequeueResponse` is currently modeled as an open-ended
-runtime operation payload in the checked-in admin control-plane authority. Treat it as opaque JSON.
+runtime operation payload in the checked-in control-plane authority. Treat it as opaque JSON.
 
 ### Error Responses
 
@@ -261,8 +261,8 @@ Repair the persisted social runtime derived snapshot.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.socialRuntime`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
@@ -273,7 +273,7 @@ None. This operation does not accept a JSON request body.
 ### Response `200`
 
 `SocialRuntimeRepairResponse` is currently modeled as an open-ended runtime repair payload in the
-checked-in admin control-plane authority. Treat it as opaque JSON.
+checked-in control-plane authority. Treat it as opaque JSON.
 
 ### Error Responses
 
@@ -302,8 +302,8 @@ Repair shared-channel sync backlog state.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.socialRuntime`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
@@ -314,7 +314,7 @@ None. This operation does not accept a JSON request body.
 ### Response `200`
 
 `SocialSharedChannelSyncRepairResponse` is currently modeled as an open-ended runtime repair
-payload in the checked-in admin control-plane authority. Treat it as opaque JSON.
+payload in the checked-in control-plane authority. Treat it as opaque JSON.
 
 ### Error Responses
 
@@ -343,8 +343,8 @@ Claim selected pending shared-channel sync entries.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.socialRuntime`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
@@ -355,7 +355,7 @@ Claim selected pending shared-channel sync entries.
 ### Response `200`
 
 `SocialSharedChannelSyncPendingClaimResponse` is currently modeled as an open-ended runtime
-operation payload in the checked-in admin control-plane authority. Treat it as opaque JSON.
+operation payload in the checked-in control-plane authority. Treat it as opaque JSON.
 
 ### Error Responses
 
@@ -384,8 +384,8 @@ Release selected pending shared-channel sync entries.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.socialRuntime`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
@@ -396,7 +396,7 @@ Release selected pending shared-channel sync entries.
 ### Response `200`
 
 `SocialSharedChannelSyncPendingReleaseResponse` is currently modeled as an open-ended runtime
-operation payload in the checked-in admin control-plane authority. Treat it as opaque JSON.
+operation payload in the checked-in control-plane authority. Treat it as opaque JSON.
 
 ### Error Responses
 
@@ -425,8 +425,8 @@ Reclaim stale shared-channel sync pending ownership.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.socialRuntime`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
@@ -437,7 +437,7 @@ None. This operation does not accept a JSON request body.
 ### Response `200`
 
 `SocialSharedChannelSyncPendingStaleReclaimResponse` is currently modeled as an open-ended runtime
-operation payload in the checked-in admin control-plane authority. Treat it as opaque JSON.
+operation payload in the checked-in control-plane authority. Treat it as opaque JSON.
 
 ### Error Responses
 
@@ -466,8 +466,8 @@ Republish selected pending shared-channel sync entries.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.socialRuntime`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
@@ -478,7 +478,7 @@ Republish selected pending shared-channel sync entries.
 ### Response `200`
 
 `SocialSharedChannelSyncTargetedRepublishResponse` is currently modeled as an open-ended runtime
-operation payload in the checked-in admin control-plane authority. Treat it as opaque JSON.
+operation payload in the checked-in control-plane authority. Treat it as opaque JSON.
 
 ### Error Responses
 
@@ -507,8 +507,8 @@ Take over selected pending shared-channel sync entries.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.socialRuntime`</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
@@ -519,7 +519,7 @@ Take over selected pending shared-channel sync entries.
 ### Response `200`
 
 `SocialSharedChannelSyncPendingTakeoverResponse` is currently modeled as an open-ended runtime
-operation payload in the checked-in admin control-plane authority. Treat it as opaque JSON.
+operation payload in the checked-in control-plane authority. Treat it as opaque JSON.
 
 ### Error Responses
 

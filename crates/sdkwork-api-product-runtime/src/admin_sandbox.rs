@@ -17,7 +17,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 const ADMIN_SANDBOX_SEED_JSON: &str =
-    include_str!("../../../apps/craw-chat-admin/dev/admin-sandbox-seed.json");
+    include_str!("../../../apps/control-plane/dev/admin-sandbox-seed.json");
 const DEFAULT_ADMIN_SANDBOX_PASSWORD: &str = "ChangeMe123!";
 
 #[derive(Clone)]
@@ -387,7 +387,7 @@ fn update_auth_session_for_user(state: &mut AdminSandboxState, user: Value) -> V
         "claims": {
             "sub": user_id,
             "iss": "sdkwork-admin-sandbox",
-            "aud": "sdkwork-craw-chat-admin",
+            "aud": "sdkwork-control-plane",
             "exp": issued_at_seconds + 7 * 24 * 60 * 60,
             "iat": issued_at_seconds,
         },

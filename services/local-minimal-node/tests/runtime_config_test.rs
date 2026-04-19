@@ -83,7 +83,7 @@ fn test_resolve_app_openapi_schema_source_path_defaults_and_supports_override() 
     assert!(
         default_schema_path
             .to_string_lossy()
-            .ends_with("sdks/sdkwork-craw-chat-sdk/openapi/craw-chat-app.openapi.yaml"),
+            .ends_with("sdks/sdkwork-im-sdk/openapi/craw-chat-app.openapi.yaml"),
         "default schema path should point at the workspace authority contract: {}",
         default_schema_path.display()
     );

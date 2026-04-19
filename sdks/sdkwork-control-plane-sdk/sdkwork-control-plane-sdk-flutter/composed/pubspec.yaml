@@ -1,0 +1,13 @@
+name: control_plane_sdk
+description: Composed Flutter SDK for the control plane
+version: 0.1.0
+homepage: https://github.com/sdkwork-team/spring-ai-plus/tree/main/spring-ai-plus-business/apps/craw-chat/sdks/sdkwork-control-plane-sdk/sdkwork-control-plane-sdk-flutter/composed
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  control_plane_backend_sdk: ^0.1.0
+
+dev_dependencies:
+  lints: ^3.0.0

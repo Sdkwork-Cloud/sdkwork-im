@@ -24,14 +24,14 @@
    - [`CLI聊天验证与兼容矩阵.md`](./CLI聊天验证与兼容矩阵.md)
 3. SDK facade 边界
    - [`../../sdks/README.md`](../../sdks/README.md)
-   - [`../../sdks/sdkwork-craw-chat-sdk/README.md`](../../sdks/sdkwork-craw-chat-sdk/README.md)
-   - [`../../sdks/sdkwork-craw-chat-sdk-admin/README.md`](../../sdks/sdkwork-craw-chat-sdk-admin/README.md)
+   - [`../../sdks/sdkwork-im-sdk/README.md`](../../sdks/sdkwork-im-sdk/README.md)
+   - [`../../sdks/sdkwork-control-plane-sdk/README.md`](../../sdks/sdkwork-control-plane-sdk/README.md)
 
 ## 3. 从 compatibility matrix 到消费者
 
 ### 3.1 app-facing
 
-- `sdkwork-craw-chat-sdk`
+- `sdkwork-im-sdk`
 - 负责 conversation / message / timeline / realtime watch / session surface
 - 当前消费基线：
   - `payload.json`
@@ -41,7 +41,7 @@
 
 ### 3.2 admin-facing
 
-- `sdkwork-craw-chat-sdk-admin`
+- `sdkwork-control-plane-sdk`
 - 负责：
   - `compatibility matrix`
   - `protocol governance`
@@ -130,8 +130,8 @@
    - `protocol_registry_test.rs`
    - `protocol_governance_test.rs`
 2. 再看 SDK facade 边界：
-   - `sdkwork-craw-chat-sdk`
-   - `sdkwork-craw-chat-sdk-admin`
+   - `sdkwork-im-sdk`
+   - `sdkwork-control-plane-sdk`
 3. 再看 CLI / operator 入口：
    - `craw-chat-cli`
    - `open-chat-test`

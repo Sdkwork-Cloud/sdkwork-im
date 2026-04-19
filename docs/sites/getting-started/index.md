@@ -74,15 +74,13 @@ The implementation also allows `control.write` to satisfy read access.
 - Want the full endpoint inventory: [API Reference](/api-reference/index)
 - Want to understand SDK reality before promising packages: [SDK Overview](/sdk/index)
 
-`sdkwork-craw-chat-sdk` maps to the app-facing routes. Local development points at
-`local-minimal-node`; packaged installs point at the unified `craw-chat-server` / `web-gateway`
-public origin.
+The app-facing IM SDK family lives in `sdkwork-im-sdk`, with the public TypeScript package
+`@sdkwork/im-sdk`. Local development points at `local-minimal-node`; packaged installs point at the
+unified `craw-chat-server` / `web-gateway` public origin.
 
-`sdkwork-craw-chat-sdk` maps to the app-facing routes. Local development points at `local-minimal-node`; packaged installs point at the unified `craw-chat-server` / `web-gateway` public origin.
-
-`sdkwork-craw-chat-sdk-admin` maps to governance and control-plane routes. Standalone governance
+`sdkwork-control-plane-sdk` maps to governance and control-plane routes. Standalone governance
 development can point directly at `control-plane-api`; packaged installs should switch to the
 unified gateway public origin.
 
-`sdkwork-craw-chat-sdk-management` maps to the deployed `/api/admin/*` surface. In packaged
+`sdkwork-im-admin-sdk` maps to the deployed `/api/admin/*` surface. In packaged
 installs that surface is also reached through the unified gateway public origin.

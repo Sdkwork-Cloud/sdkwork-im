@@ -73,18 +73,18 @@ function buildCatalog(repoRoot, bundleId) {
   const workspaceConfigs = [
     {
       audience: 'app',
-      workspace: 'sdkwork-craw-chat-sdk',
-      assemblyPath: path.join(repoRoot, 'sdks', 'sdkwork-craw-chat-sdk', '.sdkwork-assembly.json'),
+      workspace: 'sdkwork-im-sdk',
+      assemblyPath: path.join(repoRoot, 'sdks', 'sdkwork-im-sdk', '.sdkwork-assembly.json'),
     },
     {
       audience: 'admin',
-      workspace: 'sdkwork-craw-chat-sdk-admin',
-      assemblyPath: path.join(repoRoot, 'sdks', 'sdkwork-craw-chat-sdk-admin', '.sdkwork-assembly.json'),
+      workspace: 'sdkwork-control-plane-sdk',
+      assemblyPath: path.join(repoRoot, 'sdks', 'sdkwork-control-plane-sdk', '.sdkwork-assembly.json'),
     },
     {
-      audience: 'management',
-      workspace: 'sdkwork-craw-chat-sdk-management',
-      assemblyPath: path.join(repoRoot, 'sdks', 'sdkwork-craw-chat-sdk-management', '.sdkwork-assembly.json'),
+      audience: 'im-admin',
+      workspace: 'sdkwork-im-admin-sdk',
+      assemblyPath: path.join(repoRoot, 'sdks', 'sdkwork-im-admin-sdk', '.sdkwork-assembly.json'),
     },
   ];
 

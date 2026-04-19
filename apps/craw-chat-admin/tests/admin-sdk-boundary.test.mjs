@@ -30,12 +30,12 @@ function walkFiles(rootPath) {
   return files;
 }
 
-test('formal admin SDK package is the only supported admin client boundary', () => {
+test('control-plane SDK package is the supported admin app client boundary', () => {
   const typedAdminSdkPackagePath = path.join(
     workspaceRoot,
     'sdks',
-    'sdkwork-craw-chat-sdk-admin',
-    'sdkwork-craw-chat-sdk-admin-typescript',
+    'sdkwork-control-plane-sdk',
+    'sdkwork-control-plane-sdk-typescript',
     'composed',
     'package.json',
   );
@@ -46,7 +46,7 @@ test('formal admin SDK package is the only supported admin client boundary', () 
     '..',
     '..',
     'sdks',
-    'sdkwork-craw-chat-sdk-admin',
+    'sdkwork-control-plane-sdk',
     'README.md',
   );
   const adminTypeScriptReadmePath = path.resolve(
@@ -54,8 +54,8 @@ test('formal admin SDK package is the only supported admin client boundary', () 
     '..',
     '..',
     'sdks',
-    'sdkwork-craw-chat-sdk-admin',
-    'sdkwork-craw-chat-sdk-admin-typescript',
+    'sdkwork-control-plane-sdk',
+    'sdkwork-control-plane-sdk-typescript',
     'README.md',
   );
 
@@ -65,7 +65,7 @@ test('formal admin SDK package is the only supported admin client boundary', () 
   assert.equal(existsSync(adminSdkReadmePath), true);
   assert.equal(existsSync(adminTypeScriptReadmePath), true);
   assert.equal(
-    existsSync(path.join(appRoot, 'packages', 'sdkwork-craw-chat-admin-admin-api', 'package.json')),
+    existsSync(path.join(appRoot, 'packages', 'sdkwork-control-plane-admin-api', 'package.json')),
     false,
   );
 
@@ -75,16 +75,18 @@ test('formal admin SDK package is the only supported admin client boundary', () 
   const adminSdkReadmeSource = readFileSync(adminSdkReadmePath, 'utf8');
   const adminTypeScriptReadmeSource = readFileSync(adminTypeScriptReadmePath, 'utf8');
 
-  assert.equal(typedAdminSdkPackage.name, '@sdkwork/craw-chat-admin-sdk');
-  assert.match(packageJsonSource, /@sdkwork\/craw-chat-admin-sdk/);
-  assert.doesNotMatch(packageJsonSource, /sdkwork-craw-chat-admin-admin-api/);
-  assert.match(appReadmeSource, /compatible management backend that serves `\/api\/admin\/\*`/);
-  assert.match(appReadmeSource, /sdks\/sdkwork-craw-chat-sdk-management/);
-  assert.match(appReadmeSource, /@sdkwork\/craw-chat-admin-sdk/);
-  assert.match(adminSdkReadmeSource, /browser-only operator helpers currently required by `apps\/craw-chat-admin` for `\/api\/admin\/\*`/);
-  assert.match(adminSdkReadmeSource, /second handwritten admin API package/);
-  assert.match(adminTypeScriptReadmeSource, /manual-owned browser helpers/);
-  assert.match(adminTypeScriptReadmeSource, /target browser-facing `\/api\/admin\/\*` routes/);
+  assert.equal(typedAdminSdkPackage.name, '@sdkwork/control-plane-sdk');
+  assert.match(packageJsonSource, /@sdkwork\/control-plane-sdk/);
+  assert.doesNotMatch(packageJsonSource, /@sdkwork\/im-admin-sdk/);
+  assert.doesNotMatch(packageJsonSource, /sdkwork-control-plane-admin-api/);
+  assert.match(appReadmeSource, /compatible admin backend that serves `\/api\/admin\/\*`/);
+  assert.match(appReadmeSource, /sdks\/sdkwork-control-plane-sdk/);
+  assert.match(appReadmeSource, /sdks\/sdkwork-im-admin-sdk/);
+  assert.match(appReadmeSource, /@sdkwork\/control-plane-sdk/);
+  assert.match(adminSdkReadmeSource, /sdkwork-control-plane-sdk/);
+  assert.match(adminSdkReadmeSource, /@sdkwork\/control-plane-sdk/);
+  assert.match(adminTypeScriptReadmeSource, /ControlPlaneSdkClient/);
+  assert.match(adminTypeScriptReadmeSource, /@sdkwork\/control-plane-backend-sdk/);
 });
 
 test('business packages do not hardcode raw admin control-plane HTTP calls', () => {
@@ -101,27 +103,27 @@ test('business packages do not hardcode raw admin control-plane HTTP calls', () 
   }
 });
 
-test('management sdk authority snapshot formalizes the current /api/admin boundary', () => {
-  const managementSdkRoot = path.resolve(
+test('im admin sdk authority snapshot formalizes the current /api/admin boundary', () => {
+  const imAdminSdkRoot = path.resolve(
     appRoot,
     '..',
     '..',
     'sdks',
-    'sdkwork-craw-chat-sdk-management',
+    'sdkwork-im-admin-sdk',
   );
-  const assemblyPath = path.join(managementSdkRoot, '.sdkwork-assembly.json');
+  const assemblyPath = path.join(imAdminSdkRoot, '.sdkwork-assembly.json');
   const authorityPath = path.join(
-    managementSdkRoot,
+    imAdminSdkRoot,
     'openapi',
-    'craw-chat-management.openapi.json',
+    'im-admin.openapi.json',
   );
   const derivedPath = path.join(
-    managementSdkRoot,
+    imAdminSdkRoot,
     'openapi',
-    'craw-chat-management.sdkgen.json',
+    'im-admin.sdkgen.json',
   );
 
-  assert.equal(existsSync(managementSdkRoot), true);
+  assert.equal(existsSync(imAdminSdkRoot), true);
   assert.equal(existsSync(assemblyPath), true);
   assert.equal(existsSync(authorityPath), true);
   assert.equal(existsSync(derivedPath), true);
@@ -134,11 +136,11 @@ test('management sdk authority snapshot formalizes the current /api/admin bounda
     (entry) => entry.operationGroup,
   );
 
-  assert.equal(assembly.workspace, 'sdkwork-craw-chat-sdk-management');
+  assert.equal(assembly.workspace, 'sdkwork-im-admin-sdk');
   assert.equal(authority.openapi, '3.1.0');
   assert.equal(derived.openapi, '3.1.0');
-  assert.equal(assembly.discoverySurface?.sdkTarget, 'crawChatManagementSdk');
-  assert.ok(pathKeys.length >= 20, 'management authority should cover the current admin route inventory');
+  assert.equal(assembly.discoverySurface?.sdkTarget, 'imAdminSdk');
+  assert.ok(pathKeys.length >= 20, 'IM admin authority should cover the current admin route inventory');
   assert.ok(pathKeys.includes('/api/admin/auth/login'));
   assert.ok(pathKeys.includes('/api/admin/auth/me'));
   assert.ok(pathKeys.includes('/api/admin/users/operators'));
@@ -147,32 +149,38 @@ test('management sdk authority snapshot formalizes the current /api/admin bounda
   assert.ok(pathKeys.includes('/api/admin/api-keys'));
   assert.ok(pathKeys.includes('/api/admin/gateway/rate-limit-policies'));
   assert.ok(pathKeys.includes('/api/admin/extensions/runtime-reloads'));
+  assert.ok(pathKeys.includes('/api/admin/storage/providers'));
   assert.ok(surfaceGroups.includes('auth'));
   assert.ok(surfaceGroups.includes('users'));
+  assert.ok(surfaceGroups.includes('marketing'));
   assert.ok(surfaceGroups.includes('tenants'));
   assert.ok(surfaceGroups.includes('access'));
+  assert.ok(surfaceGroups.includes('routing'));
   assert.ok(surfaceGroups.includes('catalog'));
+  assert.ok(surfaceGroups.includes('usage'));
+  assert.ok(surfaceGroups.includes('billing'));
   assert.ok(surfaceGroups.includes('operations'));
+  assert.ok(surfaceGroups.includes('storage'));
 });
 
-test('management sdk workspace reserves the standard generated and composed TypeScript package layout', () => {
-  const managementSdkRoot = path.resolve(
+test('im admin sdk workspace reserves the standard generated and composed TypeScript package layout', () => {
+  const imAdminSdkRoot = path.resolve(
     appRoot,
     '..',
     '..',
     'sdks',
-    'sdkwork-craw-chat-sdk-management',
+    'sdkwork-im-admin-sdk',
   );
   const generatedPackagePath = path.join(
-    managementSdkRoot,
-    'sdkwork-craw-chat-sdk-management-typescript',
+    imAdminSdkRoot,
+    'sdkwork-im-admin-sdk-typescript',
     'generated',
     'server-openapi',
     'package.json',
   );
   const composedPackagePath = path.join(
-    managementSdkRoot,
-    'sdkwork-craw-chat-sdk-management-typescript',
+    imAdminSdkRoot,
+    'sdkwork-im-admin-sdk-typescript',
     'composed',
     'package.json',
   );
@@ -183,25 +191,25 @@ test('management sdk workspace reserves the standard generated and composed Type
   const generatedPackage = JSON.parse(readFileSync(generatedPackagePath, 'utf8'));
   const composedPackage = JSON.parse(readFileSync(composedPackagePath, 'utf8'));
 
-  assert.equal(generatedPackage.name, '@sdkwork/craw-chat-management-backend-sdk');
-  assert.equal(composedPackage.name, '@sdkwork/craw-chat-sdk-management');
+  assert.equal(generatedPackage.name, '@sdkwork/im-admin-backend-sdk');
+  assert.equal(composedPackage.name, '@sdkwork/im-admin-sdk');
   assert.match(
-    String(composedPackage.dependencies?.['@sdkwork/craw-chat-management-backend-sdk'] || ''),
+    String(composedPackage.dependencies?.['@sdkwork/im-admin-backend-sdk'] || ''),
     /\.\.\/generated\/server-openapi/,
   );
 });
 
-test('management sdk remains the checked-in authority inventory for the /api/admin surface', () => {
+test('im admin sdk remains the checked-in authority inventory for the /api/admin surface', () => {
   const appReadmePath = path.join(appRoot, 'README.md');
-  const sdkIndexPath = path.resolve(appRoot, '..', '..', 'docs', 'sites', 'sdk', 'management-sdk.md');
+  const sdkReadmePath = path.resolve(appRoot, '..', '..', 'sdks', 'sdkwork-im-admin-sdk', 'README.md');
 
   assert.equal(existsSync(appReadmePath), true);
-  assert.equal(existsSync(sdkIndexPath), true);
+  assert.equal(existsSync(sdkReadmePath), true);
 
   const appReadmeSource = readFileSync(appReadmePath, 'utf8');
-  const managementSdkDocSource = readFileSync(sdkIndexPath, 'utf8');
+  const sdkReadmeSource = readFileSync(sdkReadmePath, 'utf8');
 
-  assert.match(appReadmeSource, /sdks\/sdkwork-craw-chat-sdk-management/);
-  assert.match(managementSdkDocSource, /sdkwork-craw-chat-sdk-management/);
-  assert.match(managementSdkDocSource, /\/api\/admin\/\*/);
+  assert.match(appReadmeSource, /sdks\/sdkwork-im-admin-sdk/);
+  assert.match(sdkReadmeSource, /sdkwork-im-admin-sdk/);
+  assert.match(sdkReadmeSource, /\/api\/admin\/\*/);
 });

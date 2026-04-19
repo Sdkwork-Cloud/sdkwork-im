@@ -32,6 +32,15 @@ function defaultFileExists(filePath) {
   return fs.existsSync(filePath);
 }
 
+function defaultPathEntryExists(filePath) {
+  try {
+    fs.lstatSync(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function defaultSymlinkDirectory(targetPath, linkPath, platform = process.platform) {
   fs.symlinkSync(targetPath, linkPath, platform === 'win32' ? 'junction' : 'dir');
 }
@@ -171,6 +180,7 @@ export function ensureLocalNodeModules({
   donorRoots = resolveWorkspaceDonorRoots(appRoot),
   requiredPackages = [],
   fileExists = defaultFileExists,
+  pathEntryExists = defaultPathEntryExists,
   renamePath = defaultRenamePath,
   symlinkDirectory = defaultSymlinkDirectory,
   platform = process.platform,
@@ -207,10 +217,10 @@ export function ensureLocalNodeModules({
     );
   }
 
-  if (fileExists(localNodeModulesPath)) {
+  if (pathEntryExists(localNodeModulesPath)) {
     let backupIndex = 0;
     let backupPath = `${localNodeModulesPath}.__stale__donor`;
-    while (fileExists(backupPath)) {
+    while (pathEntryExists(backupPath)) {
       backupIndex += 1;
       backupPath = `${localNodeModulesPath}.__stale__donor_${backupIndex}`;
     }
@@ -221,7 +231,7 @@ export function ensureLocalNodeModules({
   try {
     symlinkDirectory(donorNodeModulesPath, localNodeModulesPath, platform);
   } catch (error) {
-    if (!(error && error.code === 'EEXIST' && fileExists(localNodeModulesPath))) {
+    if (!(error && error.code === 'EEXIST' && pathEntryExists(localNodeModulesPath))) {
       throw error;
     }
   }

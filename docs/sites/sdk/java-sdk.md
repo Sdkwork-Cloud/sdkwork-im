@@ -1,6 +1,6 @@
 # Java SDK
 
-The Java workspace is a Tier B member of the `craw-chat-sdk` business SDK family and is currently
+The Java workspace is a Tier B member of the `im-sdk` business SDK family and is currently
 standardized around generated transport delivery first.
 
 ## Current Delivery Reality
@@ -16,11 +16,11 @@ The semantic Java artifact remains reserved under `composed`.
 | Concern | Value |
 | --- | --- |
 | Maturity tier | Tier B |
-| Generated transport artifact | `com.sdkwork:craw-chat-backend-sdk` |
-| Raw generated client | `SdkworkBackendClient` |
-| Generated Java package root | `com.sdkwork.craw.chat.backend` |
-| Reserved semantic artifact | `com.sdkwork:craw-chat-sdk` |
-| Target business client | `CrawChatSdkClient` |
+| Generated transport artifact | `com.sdkwork:im-sdk-generated` |
+| Raw generated client | `ImTransportClient` |
+| Generated Java package root | `com.sdkwork.im.generated` |
+| Reserved semantic artifact | `com.sdkwork:im-sdk` |
+| Target business client | `ImSdkClient` |
 | Generator-owned boundary | `generated/server-openapi` |
 | Manual semantic boundary | `composed` |
 
@@ -29,7 +29,7 @@ The semantic Java artifact remains reserved under `composed`.
 - live-schema generation from the Craw Chat OpenAPI 3.x export
 - verified generated artifact naming and assembly metadata
 - a stable split between `generated/server-openapi` and `composed`
-- a raw generated transport client named `SdkworkBackendClient`
+- a raw generated transport client named `ImTransportClient`
 
 For installation snippets, raw route-group usage, and DTO examples, use
 `generated/server-openapi/README.md` as the exact transport reference.
@@ -37,24 +37,24 @@ For installation snippets, raw route-group usage, and DTO examples, use
 ## Raw Generated Client
 
 If you are integrating Java today, start from the generated transport artifact and
-`com.sdkwork.craw.chat.backend.SdkworkBackendClient`.
+`com.sdkwork.im.generated.ImTransportClient`.
 
-- generated artifact: `com.sdkwork:craw-chat-backend-sdk`
-- raw generated client: `SdkworkBackendClient`
-- semantic artifact reserved for later: `com.sdkwork:craw-chat-sdk`
+- generated artifact: `com.sdkwork:im-sdk-generated`
+- raw generated client: `ImTransportClient`
+- semantic artifact reserved for later: `com.sdkwork:im-sdk`
 
 This is the only checked-in Java entrypoint that is verified as shipped in the repo today.
 
 ## API Reference Map
 
-Use `generated/server-openapi/README.md` together with `SdkworkBackendClient` when you need the
+Use `generated/server-openapi/README.md` together with `ImTransportClient` when you need the
 exact Java route-group names and DTO entrypoints. Use the map below to jump from transport concern
 to the matching HTTP reference:
 
 | Transport concern | Generated transport focus today | Exact API reference |
 | --- | --- | --- |
-| Auth and portal shell reads | auth and portal route groups on `SdkworkBackendClient` | [Portal and Auth](/api-reference/app/portal-and-auth) |
-| Conversation lifecycle and handoff | conversation route groups on `SdkworkBackendClient` | [Conversations](/api-reference/app/conversations) |
+| Auth and portal shell reads | auth and portal route groups on `ImTransportClient` | [Portal and Auth](/api-reference/app/portal-and-auth) |
+| Conversation lifecycle and handoff | conversation route groups on `ImTransportClient` | [Conversations](/api-reference/app/conversations) |
 | Membership and read cursors | conversation membership and read-state route groups | [Membership and Read State](/api-reference/app/membership-and-read-state) |
 | Message send payloads and timeline schemas | message route groups and DTOs | [Messages](/api-reference/app/messages) |
 | Upload and attachment lifecycle | media route groups and DTOs | [Media](/api-reference/app/media) |
@@ -65,11 +65,11 @@ to the matching HTTP reference:
 
 This keeps the Java page precise: the repo-standard delivery today is transport-first, so the API
 reference plus `generated/server-openapi/README.md` remains the exact route authority until a
-future semantic `CrawChatSdkClient` is implemented under `composed`.
+future semantic `ImSdkClient` is implemented under `composed`.
 
 ## What Is Not Shipped Yet
 
-- no checked-in semantic Java artifact that already exposes `CrawChatSdkClient`
+- no checked-in semantic Java artifact that already exposes `ImSdkClient`
 - no handwritten message-first business layer
 - no delivered websocket live runtime layer above the generated transport artifact
 
@@ -80,7 +80,7 @@ TypeScript-level semantics.
 
 Use `composed` only when you are intentionally building the future semantic Java surface:
 
-- `CrawChatSdkClient`
+- `ImSdkClient`
 - business-oriented wrappers above raw route groups
 - higher-level message helpers
 - live runtime abstractions
@@ -92,20 +92,20 @@ Do not hand-edit generator output under `generated/server-openapi`.
 Root workspace:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\sdks\sdkwork-craw-chat-sdk\bin\generate-sdk.ps1 -Languages java
-node .\sdks\sdkwork-craw-chat-sdk\bin\verify-sdk.mjs --language java
+powershell -ExecutionPolicy Bypass -File .\sdks\sdkwork-im-sdk\bin\generate-sdk.ps1 -Languages java
+node .\sdks\sdkwork-im-sdk\bin\verify-sdk.mjs --language java
 ```
 
 Java workspace wrappers:
 
 ```powershell
-.\sdks\sdkwork-craw-chat-sdk\sdkwork-craw-chat-sdk-java\bin\sdk-gen.ps1
-.\sdks\sdkwork-craw-chat-sdk\sdkwork-craw-chat-sdk-java\bin\sdk-verify.ps1
+.\sdks\sdkwork-im-sdk\sdkwork-im-sdk-java\bin\sdk-gen.ps1
+.\sdks\sdkwork-im-sdk\sdkwork-im-sdk-java\bin\sdk-verify.ps1
 ```
 
 ```bash
-./sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-java/bin/sdk-gen.sh
-./sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-java/bin/sdk-verify.sh
+./sdks/sdkwork-im-sdk/sdkwork-im-sdk-java/bin/sdk-gen.sh
+./sdks/sdkwork-im-sdk/sdkwork-im-sdk-java/bin/sdk-verify.sh
 ```
 
 ## When To Choose Java

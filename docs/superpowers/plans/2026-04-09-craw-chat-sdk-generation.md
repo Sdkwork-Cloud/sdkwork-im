@@ -1,4 +1,4 @@
-# Craw Chat SDK Generation Implementation Plan
+# IM SDK Generation Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -13,12 +13,12 @@
 ### Task 1: Establish Workspace And Documentation Skeleton
 
 **Files:**
-- Create: `docs/superpowers/specs/2026-04-09-craw-chat-sdk-generation-design.md`
-- Create: `docs/superpowers/plans/2026-04-09-craw-chat-sdk-generation.md`
-- Modify: `sdks/sdkwork-craw-chat-sdk/README.md`
-- Modify: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/README.md`
-- Modify: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-flutter/README.md`
-- Create: `sdks/sdkwork-craw-chat-sdk/openapi/README.md`
+- Create: `docs/superpowers/specs/2026-04-09-im-sdk-generation-design.md`
+- Create: `docs/superpowers/plans/2026-04-09-im-sdk-generation.md`
+- Modify: `sdks/sdkwork-im-sdk/README.md`
+- Modify: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/README.md`
+- Modify: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-flutter/README.md`
+- Create: `sdks/sdkwork-im-sdk/openapi/README.md`
 
 - [ ] Step 1: Write the workspace design and execution docs.
 - [ ] Step 2: Replace placeholder README content with clear English regeneration docs and ownership boundaries.
@@ -28,7 +28,7 @@
 ### Task 2: Author The OpenAPI Authority Contract
 
 **Files:**
-- Create: `sdks/sdkwork-craw-chat-sdk/openapi/craw-chat-app.openapi.yaml`
+- Create: `sdks/sdkwork-im-sdk/openapi/craw-chat-app.openapi.yaml`
 
 - [ ] Step 1: Map the app-facing path list from `services/local-minimal-node/src/node/build.rs`.
 - [ ] Step 2: Encode bearer auth, shared responses, and tag taxonomy in the authority contract.
@@ -39,11 +39,11 @@
 ### Task 3: Add The Derived sdkgen Input And Regeneration Scripts
 
 **Files:**
-- Create: `sdks/sdkwork-craw-chat-sdk/openapi/craw-chat-app.sdkgen.yaml`
-- Create: `sdks/sdkwork-craw-chat-sdk/bin/prepare-openapi-source.mjs`
-- Create: `sdks/sdkwork-craw-chat-sdk/bin/assemble-sdk.mjs`
-- Create: `sdks/sdkwork-craw-chat-sdk/bin/generate-sdk.ps1`
-- Create: `sdks/sdkwork-craw-chat-sdk/bin/generate-sdk.sh`
+- Create: `sdks/sdkwork-im-sdk/openapi/craw-chat-app.sdkgen.yaml`
+- Create: `sdks/sdkwork-im-sdk/bin/prepare-openapi-source.mjs`
+- Create: `sdks/sdkwork-im-sdk/bin/assemble-sdk.mjs`
+- Create: `sdks/sdkwork-im-sdk/bin/generate-sdk.ps1`
+- Create: `sdks/sdkwork-im-sdk/bin/generate-sdk.sh`
 
 - [ ] Step 1: Add a derived `sdkgen` input file based on the authority contract.
 - [ ] Step 2: Implement `prepare-openapi-source.mjs` so the derived file can be refreshed deterministically from the authority spec.
@@ -54,14 +54,14 @@
 ### Task 4: Create The TypeScript And Flutter Layered Workspace Shells
 
 **Files:**
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/bin/sdk-gen.ps1`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/bin/sdk-gen.sh`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/bin/sdk-assemble.ps1`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/bin/sdk-assemble.sh`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-flutter/bin/sdk-gen.ps1`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-flutter/bin/sdk-gen.sh`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-flutter/bin/sdk-assemble.ps1`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-flutter/bin/sdk-assemble.sh`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/bin/sdk-gen.ps1`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/bin/sdk-gen.sh`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/bin/sdk-assemble.ps1`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/bin/sdk-assemble.sh`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-flutter/bin/sdk-gen.ps1`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-flutter/bin/sdk-gen.sh`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-flutter/bin/sdk-assemble.ps1`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-flutter/bin/sdk-assemble.sh`
 
 - [ ] Step 1: Add thin per-language forwarding scripts back to the root wrappers.
 - [ ] Step 2: Create stable directories for `generated/server-openapi`.
@@ -70,8 +70,8 @@
 ### Task 5: Generate Both SDKs
 
 **Files:**
-- Modify: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/generated/server-openapi/*`
-- Modify: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-flutter/generated/server-openapi/*`
+- Modify: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/generated/server-openapi/*`
+- Modify: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-flutter/generated/server-openapi/*`
 
 - [ ] Step 1: Run the root generation wrapper for TypeScript and Flutter.
 - [ ] Step 2: Inspect generated package manifests and top-level exports.

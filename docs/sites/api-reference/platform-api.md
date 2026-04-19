@@ -34,17 +34,14 @@
 - These endpoints are typically consumed through administrative or backend SDK layers rather than the public app SDK.
 - Permission requirements are documented in [Authentication and Errors](/api-reference/auth-and-errors) and repeated on operation pages when they are mandatory.
 - This site does not document a separate published Platform SDK family. Treat these APIs as HTTP-first surfaces unless a repo backend or admin consumer layer is documented elsewhere.
-- Operator and `/api/admin/*` platform surfaces are intended for `sdkwork-craw-chat-sdk-management`;
-  control-plane governance stays in `sdkwork-craw-chat-sdk-admin`; neither belongs in the public
-  `sdkwork-craw-chat-sdk` surface.
+- Operator and `/api/admin/*` platform surfaces are intended for `sdkwork-im-admin-sdk`;
+  control-plane governance stays in `sdkwork-control-plane-sdk`; neither belongs in the public
+  app-consumer surface exposed through `@sdkwork/im-sdk`.
 - In packaged installs, these routes are still reached through the unified `craw-chat-server` /
   `web-gateway` public origin even though the implementation remains on the app-node side of the
   runtime.
 - The local `platform/*` routes documented on this page do not currently have a standalone
   published SDK family.
-- Operator and `/api/admin/*` platform surfaces are intended for `sdkwork-craw-chat-sdk-management`; control-plane governance stays in `sdkwork-craw-chat-sdk-admin`; neither belongs in the public `sdkwork-craw-chat-sdk` surface.
-- In packaged installs, these routes are still reached through the unified `craw-chat-server` / `web-gateway` public origin even though the implementation remains on the app-node side of the runtime.
-- The local `platform/*` routes documented on this page do not currently have a standalone published SDK family.
 
 ## How To Use This Page
 

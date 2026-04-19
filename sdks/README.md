@@ -3,21 +3,24 @@
 `sdks/` is the repository home for the Craw Chat SDK workspaces. The directory is organized by
 consumer-facing SDK family, not by one-off generated package dumps.
 
-The repository currently maintains three SDK families:
+The repository currently maintains four SDK families:
 
-- `sdkwork-craw-chat-sdk`
+- `sdkwork-im-sdk`
   App-facing product SDKs for the public chat surface.
-- `sdkwork-craw-chat-sdk-admin`
-  Admin and control-plane SDKs for `/api/v1/control/*`.
-- `sdkwork-craw-chat-sdk-management`
-  Operator-console management SDKs for `/api/admin/*`.
+- `sdkwork-control-plane-sdk`
+  Control-plane SDKs for `/api/v1/control/*`.
+- `sdkwork-im-admin-sdk`
+  IM admin SDKs for `/api/admin/*`.
+- `sdkwork-rtc-sdk`
+  Provider-standard RTC SDKs for unified multi-provider audio/video integration.
 
 ## Current Repository Truth
 
 For day-to-day engineering, the checked-in SDK workspaces and their
 `.sdkwork-assembly.json` snapshots are the current source of truth.
 
-At the repository level, all three SDK families now have materialized language workspaces for:
+At the repository level, all three API-contract SDK families now have materialized language
+workspaces for:
 
 - TypeScript
 - Flutter
@@ -33,10 +36,23 @@ This means the repository no longer treats the SDK families as placeholder-only 
 Generated packages, composed packages, regeneration wrappers, verification entrypoints, and package
 documentation all exist in-repo for the currently supported language lines.
 
+## Compatibility And Validation Inputs
+
+The SDK workspace index also tracks the shared contract vocabulary that downstream verification
+consumes.
+
+- The public app-facing family remains pinned to the current `compatibility matrix` vocabulary and
+  recovery registry.
+- Control-plane governance remains the upstream source for protocol registry, protocol governance,
+  compatibility visibility, and recovery-state terminology shared across SDK families.
+- The single verification index for SDK, CLI, and operator consumers is
+  `docs/部署/兼容矩阵与SDK-CLI-operator验证索引.md`.
+
 ## Release Snapshot
 
-The machine-readable release catalog under `artifacts/releases/wave-d-2026-04-08/` is now aligned
-with the checked-in workspace generation state for all three SDK families.
+The machine-readable release catalog under
+`artifacts/releases/wave-d-2026-04-08/sdk-release-catalog.json` is now aligned with the checked-in
+workspace generation state for all three API-contract SDK families.
 
 Current release-catalog values include:
 
@@ -55,12 +71,17 @@ richer engineering truth.
 
 | Workspace | Audience | Languages | Primary composed package(s) | Primary generated package(s) |
 | --- | --- | --- | --- | --- |
-| `sdkwork-craw-chat-sdk` | App and product integrations | TypeScript, Flutter | `@sdkwork/craw-chat-sdk`, `craw_chat_sdk` | `@sdkwork/craw-chat-backend-sdk`, `backend_sdk` |
-| `sdkwork-craw-chat-sdk-admin` | Admin and control-plane integrations | TypeScript, Flutter | `@sdkwork/craw-chat-sdk-admin`, `craw_chat_sdk_admin` | `@sdkwork/craw-chat-admin-backend-sdk`, `craw_chat_admin_backend_sdk` |
-| `sdkwork-craw-chat-sdk-management` | Operator-console management integrations | TypeScript, Flutter | `@sdkwork/craw-chat-sdk-management`, `craw_chat_sdk_management` | `@sdkwork/craw-chat-management-backend-sdk`, `craw_chat_management_backend_sdk` |
+| `sdkwork-im-sdk` | App and product integrations | TypeScript, Flutter | `@sdkwork/im-sdk`, `im_sdk` | `@sdkwork-internal/im-sdk-generated`, `im_sdk_generated` |
+| `sdkwork-control-plane-sdk` | Control-plane integrations | TypeScript, Flutter | `@sdkwork/control-plane-sdk`, `control_plane_sdk` | `@sdkwork/control-plane-backend-sdk`, `control_plane_backend_sdk` |
+| `sdkwork-im-admin-sdk` | IM admin and operator-console integrations | TypeScript, Flutter | `@sdkwork/im-admin-sdk`, `im_admin_sdk` | `@sdkwork/im-admin-backend-sdk`, `im_admin_backend_sdk` |
+| `sdkwork-rtc-sdk` | RTC provider-standard integrations | TypeScript, Flutter, Rust, Java, C#, Swift, Kotlin, Go, Python | `@sdkwork/rtc-sdk` | Provider-adapter workspaces, not OpenAPI-generated transport packages |
 
 All current package lines are materialized locally and remain `not_published` until a release
 freeze assigns publishable versions.
+
+For `sdkwork-im-sdk`, the TypeScript generated package name
+`@sdkwork-internal/im-sdk-generated` is a workspace-internal identity only. App consumers
+should install `@sdkwork/im-sdk`, not the generated package directly.
 
 ## Standard Package Boundary
 
@@ -76,15 +97,21 @@ Every SDK family follows the same boundary rules:
 - Downstream code must not import generated private source paths such as
   `generated/server-openapi/src/*` or language-specific private internals.
 
+`sdkwork-rtc-sdk` intentionally differs from the OpenAPI-first families:
+
+- it is a provider-standard workspace, not a route-generated SDK workspace
+- it standardizes `Driver`, `DriverManager`, `DataSource`, `capabilities`, and `unwrap()`
+- it materializes provider adapters instead of generated transport packages
+
 ## Endpoint Targeting Model
 
 The SDK families are intentionally split by runtime surface:
 
 - App SDK clients target the app-facing public surface. In packaged installs, that is the unified
   `craw-chat-server` / `web-gateway` public origin.
-- Admin SDK clients may target `control-plane-api` directly during standalone governance
+- Control-plane SDK clients may target `control-plane-api` directly during standalone governance
   development, but packaged installs should also move to the unified public origin.
-- Management SDK clients target the deployed `/api/admin/*` surface, which is likewise served from
+- IM admin SDK clients target the deployed `/api/admin/*` surface, which is likewise served from
   the unified public origin in packaged installs.
 
 ## Regeneration And Verification
@@ -109,7 +136,9 @@ Current verification coverage includes:
 
 ## Recommended Reading
 
-- [`sdks/sdkwork-craw-chat-sdk/README.md`](./sdkwork-craw-chat-sdk/README.md)
-- [`sdks/sdkwork-craw-chat-sdk-admin/README.md`](./sdkwork-craw-chat-sdk-admin/README.md)
-- [`sdks/sdkwork-craw-chat-sdk-management/README.md`](./sdkwork-craw-chat-sdk-management/README.md)
+- [`sdks/sdkwork-im-sdk/README.md`](./sdkwork-im-sdk/README.md)
+- [`sdks/sdkwork-control-plane-sdk/README.md`](./sdkwork-control-plane-sdk/README.md)
+- [`sdks/sdkwork-im-admin-sdk/README.md`](./sdkwork-im-admin-sdk/README.md)
+- [`sdks/sdkwork-rtc-sdk/README.md`](./sdkwork-rtc-sdk/README.md)
+- [`docs/部署/兼容矩阵与SDK-CLI-operator验证索引.md`](../docs/部署/兼容矩阵与SDK-CLI-operator验证索引.md)
 - [`docs/sites/sdk/index.md`](../docs/sites/sdk/index.md)

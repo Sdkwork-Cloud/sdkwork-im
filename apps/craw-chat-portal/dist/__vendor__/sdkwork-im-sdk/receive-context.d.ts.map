@@ -1,0 +1,1 @@
+{"version":3,"file":"receive-context.d.ts","sourceRoot":"","sources":["../src/receive-context.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,uBAAuB,EAAE,MAAM,8BAA8B,CAAC;AAC5E,OAAO,KAAK,EAGV,gBAAgB,EAChB,eAAe,EAGf,gBAAgB,EACjB,MAAM,YAAY,CAAC;AAEpB,wBAAgB,gBAAgB,CAC9B,KAAK,EAAE,uBAAuB,EAC9B,MAAM,EAAE,eAAe,EACvB,GAAG,EAAE,MAAM,OAAO,CAAC,gBAAgB,CAAC,GACnC,gBAAgB,CA4ClB"}

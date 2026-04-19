@@ -40,7 +40,7 @@
 - `services/local-minimal-node/src/node.rs`
 - `services/local-minimal-node/src/node/build.rs`
 - `services/local-minimal-node/src/main.rs`
-- `sdks/sdkwork-craw-chat-sdk/openapi/README.md`
+- `sdks/sdkwork-im-sdk/openapi/README.md`
 - `docs/sites/api-reference/index.md`
 - `docs/sites/sdk/index.md`
 
@@ -399,7 +399,7 @@ git commit -m "feat(api): add aggregate schemas and schema index"
 **Files:**
 - Modify: `services/local-minimal-node/src/node.rs`
 - Modify: `services/local-minimal-node/src/node/build.rs`
-- Modify: `sdks/sdkwork-craw-chat-sdk/openapi/README.md`
+- Modify: `sdks/sdkwork-im-sdk/openapi/README.md`
 - Modify: `docs/sites/api-reference/index.md`
 - Modify: `docs/sites/sdk/index.md`
 - Create: `docs/sites/api-reference/gateway-overview.md`
@@ -443,7 +443,7 @@ Expected: PASS with the new references present.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add services/local-minimal-node sdks/sdkwork-craw-chat-sdk/openapi/README.md docs/sites/api-reference/index.md docs/sites/sdk/index.md docs/sites/api-reference/gateway-overview.md docs/sites/api-reference/service-contracts.md
+git add services/local-minimal-node sdks/sdkwork-im-sdk/openapi/README.md docs/sites/api-reference/index.md docs/sites/sdk/index.md docs/sites/api-reference/gateway-overview.md docs/sites/api-reference/service-contracts.md
 git commit -m "docs(api): align gateway authority contracts"
 ```
 

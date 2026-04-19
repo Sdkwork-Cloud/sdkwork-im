@@ -1,6 +1,6 @@
 # Kotlin SDK
 
-The Kotlin workspace is a Tier B member of the `craw-chat-sdk` business SDK family and currently
+The Kotlin workspace is a Tier B member of the `im-sdk` business SDK family and currently
 ships as a transport-standardized JVM lane.
 
 ## Current Delivery Reality
@@ -16,11 +16,11 @@ The semantic Kotlin artifact remains reserved under `composed`.
 | Concern | Value |
 | --- | --- |
 | Maturity tier | Tier B |
-| Generated transport artifact | `com.sdkwork:craw-chat-backend-sdk` |
-| Raw generated package root | `com.sdkwork.craw.chat.backend` |
-| Raw generated client | `SdkworkBackendClient` |
-| Reserved semantic artifact | `com.sdkwork:craw-chat-sdk` |
-| Target business client | `CrawChatSdkClient` |
+| Generated transport artifact | `com.sdkwork:im-sdk-generated` |
+| Raw generated package root | `com.sdkwork.im.generated` |
+| Raw generated client | `ImTransportClient` |
+| Reserved semantic artifact | `com.sdkwork:im-sdk` |
+| Target business client | `ImSdkClient` |
 | Generator-owned boundary | `generated/server-openapi` |
 | Manual semantic boundary | `composed` |
 
@@ -29,7 +29,7 @@ The semantic Kotlin artifact remains reserved under `composed`.
 - live-schema generation from the Craw Chat OpenAPI 3.x export
 - verified generated artifact naming and assembly metadata
 - a stable split between `generated/server-openapi` and `composed`
-- a raw generated transport client named `SdkworkBackendClient`
+- a raw generated transport client named `ImTransportClient`
 
 For exact installation and raw API examples, use `generated/server-openapi/README.md` as the
 transport reference.
@@ -37,24 +37,24 @@ transport reference.
 ## Raw Generated Client
 
 If you are integrating Kotlin today, start from the generated artifact and
-`com.sdkwork.craw.chat.backend.SdkworkBackendClient`.
+`com.sdkwork.im.generated.ImTransportClient`.
 
-- generated artifact: `com.sdkwork:craw-chat-backend-sdk`
-- raw generated client: `SdkworkBackendClient`
-- reserved semantic artifact: `com.sdkwork:craw-chat-sdk`
+- generated artifact: `com.sdkwork:im-sdk-generated`
+- raw generated client: `ImTransportClient`
+- reserved semantic artifact: `com.sdkwork:im-sdk`
 
 That is the checked-in Kotlin surface the workspace verifies today.
 
 ## API Reference Map
 
-Use `generated/server-openapi/README.md` together with `SdkworkBackendClient` when you need the
+Use `generated/server-openapi/README.md` together with `ImTransportClient` when you need the
 exact Kotlin route-group names and DTO entrypoints. Use the map below to jump from transport
 concern to the matching HTTP reference:
 
 | Transport concern | Generated transport focus today | Exact API reference |
 | --- | --- | --- |
-| Auth and portal shell reads | auth and portal route groups on `SdkworkBackendClient` | [Portal and Auth](/api-reference/app/portal-and-auth) |
-| Conversation lifecycle and handoff | conversation route groups on `SdkworkBackendClient` | [Conversations](/api-reference/app/conversations) |
+| Auth and portal shell reads | auth and portal route groups on `ImTransportClient` | [Portal and Auth](/api-reference/app/portal-and-auth) |
+| Conversation lifecycle and handoff | conversation route groups on `ImTransportClient` | [Conversations](/api-reference/app/conversations) |
 | Membership and read cursors | conversation membership and read-state route groups | [Membership and Read State](/api-reference/app/membership-and-read-state) |
 | Message send payloads and timeline schemas | message route groups and DTOs | [Messages](/api-reference/app/messages) |
 | Upload and attachment lifecycle | media route groups and DTOs | [Media](/api-reference/app/media) |
@@ -65,11 +65,11 @@ concern to the matching HTTP reference:
 
 This keeps the Kotlin page precise: the repo-standard delivery today is transport-first, so the
 API reference plus `generated/server-openapi/README.md` remains the exact route authority until a
-future semantic `CrawChatSdkClient` is implemented under `composed`.
+future semantic `ImSdkClient` is implemented under `composed`.
 
 ## What Is Not Shipped Yet
 
-- no checked-in semantic Kotlin artifact that already exposes `CrawChatSdkClient`
+- no checked-in semantic Kotlin artifact that already exposes `ImSdkClient`
 - no handwritten message-first business layer above generated route groups
 - no delivered websocket live runtime abstraction above the generated transport artifact
 
@@ -80,7 +80,7 @@ semantic completeness.
 
 Use `composed` only when you are intentionally building the future semantic Kotlin layer:
 
-- `CrawChatSdkClient`
+- `ImSdkClient`
 - business wrappers above raw route groups
 - higher-level message helpers
 - live runtime abstractions
@@ -92,20 +92,20 @@ Do not hand-edit generated Kotlin files under `generated/server-openapi`.
 Root workspace:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\sdks\sdkwork-craw-chat-sdk\bin\generate-sdk.ps1 -Languages kotlin
-node .\sdks\sdkwork-craw-chat-sdk\bin\verify-sdk.mjs --language kotlin
+powershell -ExecutionPolicy Bypass -File .\sdks\sdkwork-im-sdk\bin\generate-sdk.ps1 -Languages kotlin
+node .\sdks\sdkwork-im-sdk\bin\verify-sdk.mjs --language kotlin
 ```
 
 Kotlin workspace wrappers:
 
 ```powershell
-.\sdks\sdkwork-craw-chat-sdk\sdkwork-craw-chat-sdk-kotlin\bin\sdk-gen.ps1
-.\sdks\sdkwork-craw-chat-sdk\sdkwork-craw-chat-sdk-kotlin\bin\sdk-verify.ps1
+.\sdks\sdkwork-im-sdk\sdkwork-im-sdk-kotlin\bin\sdk-gen.ps1
+.\sdks\sdkwork-im-sdk\sdkwork-im-sdk-kotlin\bin\sdk-verify.ps1
 ```
 
 ```bash
-./sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-kotlin/bin/sdk-gen.sh
-./sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-kotlin/bin/sdk-verify.sh
+./sdks/sdkwork-im-sdk/sdkwork-im-sdk-kotlin/bin/sdk-gen.sh
+./sdks/sdkwork-im-sdk/sdkwork-im-sdk-kotlin/bin/sdk-verify.sh
 ```
 
 ## When To Choose Kotlin

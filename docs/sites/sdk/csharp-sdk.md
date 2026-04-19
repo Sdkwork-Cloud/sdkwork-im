@@ -1,6 +1,6 @@
 # C# SDK
 
-The C# workspace is a Tier B member of the `craw-chat-sdk` business SDK family and currently ships
+The C# workspace is a Tier B member of the `im-sdk` business SDK family and currently ships
 as a transport-standardized .NET lane.
 
 ## Current Delivery Reality
@@ -16,11 +16,11 @@ future semantic .NET package remains reserved under `composed`.
 | Concern | Value |
 | --- | --- |
 | Maturity tier | Tier B |
-| Generated transport package | `Sdkwork.CrawChat.BackendSdk` |
-| Raw generated namespace | `Sdkwork.CrawChat.BackendSdk` |
-| Raw generated client | `SdkworkBackendClient` |
-| Reserved semantic package | `Sdkwork.CrawChat.Sdk` |
-| Target business client | `CrawChatSdkClient` |
+| Generated transport package | `Sdkwork.Im.Sdk.Generated` |
+| Raw generated namespace | `Sdkwork.Im.Sdk.Generated` |
+| Raw generated client | `ImTransportClient` |
+| Reserved semantic package | `Sdkwork.Im.Sdk` |
+| Target business client | `ImSdkClient` |
 | Generator-owned boundary | `generated/server-openapi` |
 | Manual semantic boundary | `composed` |
 
@@ -29,31 +29,31 @@ future semantic .NET package remains reserved under `composed`.
 - live-schema generation from the Craw Chat OpenAPI 3.x contract
 - verified generated package naming and assembly metadata
 - a stable ownership split between `generated/server-openapi` and `composed`
-- a raw generated transport client named `SdkworkBackendClient`
+- a raw generated transport client named `ImTransportClient`
 
 For install commands, generated namespace usage, and raw API examples, use
 `generated/server-openapi/README.md` as the exact transport reference.
 
 ## Raw Generated Client
 
-If you are integrating C# today, start from the generated package and `SdkworkBackendClient`.
+If you are integrating C# today, start from the generated package and `ImTransportClient`.
 
-- generated package: `Sdkwork.CrawChat.BackendSdk`
-- raw generated client: `SdkworkBackendClient`
-- reserved semantic package: `Sdkwork.CrawChat.Sdk`
+- generated package: `Sdkwork.Im.Sdk.Generated`
+- raw generated client: `ImTransportClient`
+- reserved semantic package: `Sdkwork.Im.Sdk`
 
 That is the current checked-in .NET surface that the workspace verifies today.
 
 ## API Reference Map
 
-Use `generated/server-openapi/README.md` together with `SdkworkBackendClient` when you need the
+Use `generated/server-openapi/README.md` together with `ImTransportClient` when you need the
 exact C# route-group names and DTO entrypoints. Use the map below to jump from transport concern
 to the matching HTTP reference:
 
 | Transport concern | Generated transport focus today | Exact API reference |
 | --- | --- | --- |
-| Auth and portal shell reads | auth and portal route groups on `SdkworkBackendClient` | [Portal and Auth](/api-reference/app/portal-and-auth) |
-| Conversation lifecycle and handoff | conversation route groups on `SdkworkBackendClient` | [Conversations](/api-reference/app/conversations) |
+| Auth and portal shell reads | auth and portal route groups on `ImTransportClient` | [Portal and Auth](/api-reference/app/portal-and-auth) |
+| Conversation lifecycle and handoff | conversation route groups on `ImTransportClient` | [Conversations](/api-reference/app/conversations) |
 | Membership and read cursors | conversation membership and read-state route groups | [Membership and Read State](/api-reference/app/membership-and-read-state) |
 | Message send payloads and timeline schemas | message route groups and DTOs | [Messages](/api-reference/app/messages) |
 | Upload and attachment lifecycle | media route groups and DTOs | [Media](/api-reference/app/media) |
@@ -64,11 +64,11 @@ to the matching HTTP reference:
 
 This keeps the C# page precise: the repo-standard delivery today is transport-first, so the API
 reference plus `generated/server-openapi/README.md` remains the exact route authority until a
-future semantic `CrawChatSdkClient` is implemented under `composed`.
+future semantic `ImSdkClient` is implemented under `composed`.
 
 ## What Is Not Shipped Yet
 
-- no checked-in semantic package that already exposes `CrawChatSdkClient`
+- no checked-in semantic package that already exposes `ImSdkClient`
 - no handwritten message-first SDK layer above generated route groups
 - no delivered websocket live runtime surface comparable to the TypeScript SDK
 
@@ -78,7 +78,7 @@ Treat this page as a repo contract for current .NET delivery, not as proof of fu
 
 Use `composed` only when you are intentionally implementing the future semantic .NET layer:
 
-- `CrawChatSdkClient`
+- `ImSdkClient`
 - higher-level business wrappers
 - message-first helpers
 - live runtime orchestration above transport-level coordination
@@ -90,20 +90,20 @@ Do not hand-edit generated C# files under `generated/server-openapi`.
 Root workspace:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\sdks\sdkwork-craw-chat-sdk\bin\generate-sdk.ps1 -Languages csharp
-node .\sdks\sdkwork-craw-chat-sdk\bin\verify-sdk.mjs --language csharp
+powershell -ExecutionPolicy Bypass -File .\sdks\sdkwork-im-sdk\bin\generate-sdk.ps1 -Languages csharp
+node .\sdks\sdkwork-im-sdk\bin\verify-sdk.mjs --language csharp
 ```
 
 C# workspace wrappers:
 
 ```powershell
-.\sdks\sdkwork-craw-chat-sdk\sdkwork-craw-chat-sdk-csharp\bin\sdk-gen.ps1
-.\sdks\sdkwork-craw-chat-sdk\sdkwork-craw-chat-sdk-csharp\bin\sdk-verify.ps1
+.\sdks\sdkwork-im-sdk\sdkwork-im-sdk-csharp\bin\sdk-gen.ps1
+.\sdks\sdkwork-im-sdk\sdkwork-im-sdk-csharp\bin\sdk-verify.ps1
 ```
 
 ```bash
-./sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-csharp/bin/sdk-gen.sh
-./sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-csharp/bin/sdk-verify.sh
+./sdks/sdkwork-im-sdk/sdkwork-im-sdk-csharp/bin/sdk-gen.sh
+./sdks/sdkwork-im-sdk/sdkwork-im-sdk-csharp/bin/sdk-verify.sh
 ```
 
 ## When To Choose C#

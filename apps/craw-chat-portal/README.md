@@ -84,7 +84,7 @@ That alignment now also applies to `home` and `auth`, so public entry surfaces f
 
 ## Replaceable Data Boundary
 
-The default runtime now uses an HTTP-backed default data source that resolves the generated Craw Chat TypeScript SDK at runtime, so public pages and protected console modules share one authenticated control-plane path without handwritten request assembly in feature code.
+The default runtime now uses an HTTP-backed default data source that resolves the generated IM TypeScript SDK at runtime, so public pages and protected console modules share one authenticated control-plane path without handwritten request assembly in feature code.
 
 Relevant files:
 

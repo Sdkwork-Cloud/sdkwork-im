@@ -24,13 +24,13 @@ The first landing implementation is TypeScript for browser and Node.js, but the 
 
 ## Canonical Inputs
 
-- TypeScript SDK workspace: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript`
-- SDK root workspace: `sdks/sdkwork-craw-chat-sdk`
+- TypeScript SDK workspace: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript`
+- SDK root workspace: `sdks/sdkwork-im-sdk`
 - Current live schema export endpoint: `/openapi/craw-chat-app.openapi.yaml`
-- Checked-in authority schema: `sdks/sdkwork-craw-chat-sdk/openapi/craw-chat-app.openapi.yaml`
-- Current live schema refresh script: `sdks/sdkwork-craw-chat-sdk/bin/refresh-live-openapi-source.mjs`
-- Current TypeScript client implementation: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/src/sdk.ts`
-- Current TypeScript public types: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/src/types.ts`
+- Checked-in authority schema: `sdks/sdkwork-im-sdk/openapi/craw-chat-app.openapi.yaml`
+- Current live schema refresh script: `sdks/sdkwork-im-sdk/bin/refresh-live-openapi-source.mjs`
+- Current TypeScript client implementation: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/sdk.ts`
+- Current TypeScript public types: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/types.ts`
 - Current SDK docs: `docs/sites/sdk/*.md`
 
 ## Problem Statement
@@ -73,15 +73,15 @@ Package naming is derived from the SDK workspace root name.
 
 Example:
 
-- SDK workspace root: `sdkwork-craw-chat-sdk`
-- official npm package: `@sdkwork/craw-chat-sdk`
-- primary client class: `CrawChatSdkClient`
+- SDK workspace root: `sdkwork-im-sdk`
+- official npm package: `@sdkwork/im-sdk`
+- primary client class: `ImSdkClient`
 
 The same derivation rule should apply in other ecosystems:
 
-- Flutter package: `craw_chat_sdk`
-- Java artifact: `sdkwork-craw-chat-sdk`
-- Rust crate: `craw_chat_sdk`
+- Flutter package: `im_sdk`
+- Java artifact: `sdkwork-im-sdk`
+- Rust crate: `im_sdk`
 
 The public client class or main entry type should always use the business name, not the generated transport name.
 
@@ -98,7 +98,7 @@ Inside that package:
 
 For TypeScript, the standard is:
 
-- package: `@sdkwork/craw-chat-sdk`
+- package: `@sdkwork/im-sdk`
 - generated layer location: `src/generated/**`
 - public semantic layer location: `src/**` outside `src/generated/**`
 
@@ -151,7 +151,7 @@ The public SDK experience is defined entirely by this semantic layer.
 The TypeScript package should converge on the following structure:
 
 ```text
-sdkwork-craw-chat-sdk-typescript/
+sdkwork-im-sdk-typescript/
   package.json
   src/
     index.ts
@@ -202,9 +202,9 @@ The new standard should not make client construction asynchronous.
 Preferred shape:
 
 ```ts
-import { CrawChatSdkClient } from '@sdkwork/craw-chat-sdk';
+import { ImSdkClient } from '@sdkwork/im-sdk';
 
-const sdk = new CrawChatSdkClient({
+const sdk = new ImSdkClient({
   baseUrl: import.meta.env.VITE_CRAW_CHAT_BASE_URL,
   authToken: window.localStorage.getItem('craw-chat-token')!,
 });
@@ -299,7 +299,7 @@ The main realtime lifecycle entrypoint for a new application should be `connect(
 Preferred shape:
 
 ```ts
-const sdk = new CrawChatSdkClient({
+const sdk = new ImSdkClient({
   baseUrl: 'http://127.0.0.1:18090',
   authToken: token,
 });
@@ -549,7 +549,7 @@ The official package should still expose the generated layer for advanced consum
 Preferred export shape:
 
 ```ts
-import { CrawChatSdkClient, generated } from '@sdkwork/craw-chat-sdk';
+import { ImSdkClient, generated } from '@sdkwork/im-sdk';
 ```
 
 `generated` should expose:
@@ -600,9 +600,9 @@ The generator must not attempt to auto-generate all of the semantic IM experienc
 The TypeScript standard should converge toward this usage model:
 
 ```ts
-import { CrawChatSdkClient } from '@sdkwork/craw-chat-sdk';
+import { ImSdkClient } from '@sdkwork/im-sdk';
 
-const sdk = new CrawChatSdkClient({
+const sdk = new ImSdkClient({
   apiBaseUrl: import.meta.env.VITE_CRAW_CHAT_API_BASE_URL,
   websocketBaseUrl: import.meta.env.VITE_CRAW_CHAT_WS_BASE_URL,
   authToken: window.localStorage.getItem('craw-chat-token')!,
@@ -659,7 +659,7 @@ Required editorial rules:
 ### Phase 1: Finalize TypeScript Public Standard
 
 - replace compatibility-shaped docs examples with the new standard usage
-- converge client construction on `new CrawChatSdkClient(...)`
+- converge client construction on `new ImSdkClient(...)`
 - move message builders under `sdk.messages`
 - define `sdk.connect(...)` and a standard live connection object
 - rename durable replay APIs into `sdk.sync`

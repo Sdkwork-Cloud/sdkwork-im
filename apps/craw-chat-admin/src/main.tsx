@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import '@sdkwork/ui-pc-react/styles.css';
-import { bootstrapShellRuntime } from 'sdkwork-craw-chat-admin-shell';
+import { bootstrapShellRuntime } from 'sdkwork-control-plane-shell';
 
 import { App } from './App';
 import './theme.css';

@@ -1,8 +1,8 @@
-# Craw Chat SDK Docs Professionalization Design
+# IM SDK Docs Professionalization Design
 
 ## Goal
 
-Upgrade `docs/sites` into a professional open-source documentation portal for Craw Chat SDK consumers, with SDK-first onboarding, multi-language integration guidance for TypeScript, Flutter, and Rust, precise ownership boundaries between generated and manual SDK layers, and strong cross-linking between SDK modules and the underlying App API reference.
+Upgrade `docs/sites` into a professional open-source documentation portal for IM SDK consumers, with SDK-first onboarding, multi-language integration guidance for TypeScript, Flutter, and Rust, precise ownership boundaries between generated and manual SDK layers, and strong cross-linking between SDK modules and the underlying App API reference.
 
 This design extends the site-level direction already captured in `docs/superpowers/specs/2026-04-09-craw-chat-open-source-docs-site-design.md` and aligns documentation to the currently implemented trilanguage app SDK state in this repository.
 
@@ -25,13 +25,13 @@ The documentation should optimize for the path from "I need to integrate chat" t
 - Documentation site shell: `docs/sites/.vitepress/config.ts`, `docs/sites/index.md`
 - Current SDK docs: `docs/sites/sdk/*.md`
 - Current API docs: `docs/sites/api-reference/**/*.md`
-- App SDK workspace root: `sdks/sdkwork-craw-chat-sdk`
-- Trilang implementation-aligned worktree: `.worktrees/craw-chat-sdk-trilanguage-expansion`
-- App SDK authority contract: `sdks/sdkwork-craw-chat-sdk/openapi/craw-chat-app.openapi.yaml`
-- App SDK derived generator input: `sdks/sdkwork-craw-chat-sdk/openapi/craw-chat-app.sdkgen.yaml`
-- TypeScript composed SDK: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/composed/src`
-- Flutter composed SDK: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-flutter/composed/lib`
-- Rust composed SDK: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-rust/composed/src`
+- App SDK workspace root: `sdks/sdkwork-im-sdk`
+- Trilang implementation-aligned worktree: `.worktrees/im-sdk-trilanguage-expansion`
+- App SDK authority contract: `sdks/sdkwork-im-sdk/openapi/craw-chat-app.openapi.yaml`
+- App SDK derived generator input: `sdks/sdkwork-im-sdk/openapi/craw-chat-app.sdkgen.yaml`
+- TypeScript composed SDK: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/composed/src`
+- Flutter composed SDK: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-flutter/composed/lib`
+- Rust composed SDK: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/src`
 - API routing authority: `services/local-minimal-node/src/node/build.rs`
 - Public auth behavior and realtime constraints: app API tests and session gateway implementation under `services/local-minimal-node` and `services/session-gateway`
 
@@ -65,7 +65,7 @@ This keeps the delivery risk low while producing documentation that reads like a
 
 ## Repository Alignment Rule
 
-At the time of this design, the current main workspace does not yet mirror the full trilanguage SDK state, while `.worktrees/craw-chat-sdk-trilanguage-expansion` does contain the Rust SDK workspace and the latest trilanguage app SDK implementation.
+At the time of this design, the current main workspace does not yet mirror the full trilanguage SDK state, while `.worktrees/im-sdk-trilanguage-expansion` does contain the Rust SDK workspace and the latest trilanguage app SDK implementation.
 
 Therefore:
 
@@ -77,7 +77,7 @@ Therefore:
 
 The documentation should prioritize the integration path below:
 
-1. What Craw Chat SDKs exist
+1. What IM SDKs exist
 2. Which language package or crate should I start with
 3. How do I authenticate and initialize the client
 4. Which module solves my use case
@@ -286,8 +286,8 @@ Documentation completion is not "content written". It requires structural and fa
 
 Required checks:
 
-- confirm page claims against current SDK source trees under `sdks/sdkwork-craw-chat-sdk`
-- when working in the trilanguage SDK effort, confirm those claims against `.worktrees/craw-chat-sdk-trilanguage-expansion/sdks/sdkwork-craw-chat-sdk`
+- confirm page claims against current SDK source trees under `sdks/sdkwork-im-sdk`
+- when working in the trilanguage SDK effort, confirm those claims against `.worktrees/im-sdk-trilanguage-expansion/sdks/sdkwork-im-sdk`
 - confirm package and crate names against manifests
 - confirm module names against composed SDK source files
 - confirm API mappings against app routing and current API reference organization

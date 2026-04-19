@@ -45,7 +45,7 @@ plus checked-in SDK workspaces built from those services:
 - `services/web-gateway`, the unified external entrypoint that publishes the canonical
   `craw-chat-server` binary, aggregates OpenAPI discovery, and fronts operator-facing single-port
   server installs.
-- `sdks/`, which currently contains the App, Admin, and Management SDK families used by product,
+- `sdks/`, which currently contains the App, Control-Plane, and IM Admin SDK families used by product,
   governance, and operator-console integrations.
 
 The default runnable profile is `local-minimal`. The `local-default` profile already has script,
@@ -82,7 +82,7 @@ For most new integrations, the fastest reading order is:
   </div>
   <div class="fact-card">
     <h3>SDK Delivery State</h3>
-    <p>The official application-facing TypeScript package is <code>@sdkwork/craw-chat-sdk</code>. App, Admin, and Management SDK families all have materialized TypeScript and Flutter workspaces in-repo, while package publication is still pending for every line.</p>
+    <p>The official application-facing TypeScript package is <code>@sdkwork/im-sdk</code>. App, Control-Plane, and IM Admin SDK families all have materialized TypeScript and Flutter workspaces in-repo, while package publication is still pending for every line.</p>
   </div>
 </div>
 
@@ -132,7 +132,7 @@ For most new integrations, the fastest reading order is:
 | Control plane | Protocol registry, protocol governance, provider registry, effective bindings, provider policy preview and rollback, plus node drain, activate, and route migration |
 | Unified gateway and server | `web-gateway` publishes the canonical `craw-chat-server` binary, the aggregate OpenAPI and discovery routes, service-schema proxies, rendered docs, and the single-port server install contract |
 | Deployment | Local binary lifecycle scripts, Docker Compose bootstrap, server install/service-management scripts, runtime inspection, repair, backup listing, archive, preview, and restore |
-| SDK workspaces | App SDK workspace with checked-in OpenAPI authority and derived sdkgen input; admin SDK workspace with checked-in OpenAPI authority plus materialized TypeScript and Flutter package lines; management SDK workspace with checked-in OpenAPI authority, derived sdkgen input, and materialized TypeScript and Flutter package lines |
+| SDK workspaces | App SDK workspace with checked-in OpenAPI authority and derived sdkgen input; control-plane SDK workspace with checked-in OpenAPI authority plus materialized TypeScript and Flutter package lines; IM admin SDK workspace with checked-in OpenAPI authority, derived sdkgen input, and materialized TypeScript and Flutter package lines |
 | Frontend apps | `apps/craw-chat-admin` already provides a verified standalone operator shell, a first-class storage-management workflow, and a documented `/api/admin/storage/*` contract surface, while `apps/craw-chat-portal` exists in-repo but is not yet documented here as a mature product surface |
 
 ::: warning Scope rule

@@ -23,7 +23,7 @@ Accepts the handoff from the target side. No JSON request body is required.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/craw-chat-sdk` / `sdk.conversations`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Active conversation member with `handoff.accept` authority.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 AgentHandoffStateView`</span></div>
 </div>

@@ -10,8 +10,8 @@
 - `bin/chat-cli*`
 - `bin/chat-window*`
 - `bin/open-chat-test*`
-- `sdks/sdkwork-craw-chat-sdk`
-- `sdks/sdkwork-craw-chat-sdk-admin`
+- `sdks/sdkwork-im-sdk`
+- `sdks/sdkwork-control-plane-sdk`
 - compatibility matrix
 
 ### 1.1 执行输入
@@ -115,8 +115,8 @@ CLI 不是临时脚本，而是标准验证工具，至少用于：
 - `bin/chat-cli*`
 - `bin/chat-window*`
 - `bin/open-chat-test*`
-- `sdks/sdkwork-craw-chat-sdk/`
-- `sdks/sdkwork-craw-chat-sdk-admin/`
+- `sdks/sdkwork-im-sdk/`
+- `sdks/sdkwork-control-plane-sdk/`
 - `services/control-plane-api/`
 
 ### 5.3 收口顺序

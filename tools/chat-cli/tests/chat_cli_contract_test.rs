@@ -163,13 +163,13 @@ fn test_step12_sdk_readmes_freeze_facade_boundaries_and_workspace_entry_points()
         .unwrap_or_else(|_| panic!("missing SDK index README: {}", sdk_index_path.display()));
     let app_sdk_path = root
         .join("sdks")
-        .join("sdkwork-craw-chat-sdk")
+        .join("sdkwork-im-sdk")
         .join("README.md");
     let app_sdk = fs::read_to_string(&app_sdk_path)
         .unwrap_or_else(|_| panic!("missing app SDK README: {}", app_sdk_path.display()));
     let admin_sdk_path = root
         .join("sdks")
-        .join("sdkwork-craw-chat-sdk-admin")
+        .join("sdkwork-control-plane-sdk")
         .join("README.md");
     let admin_sdk = fs::read_to_string(&admin_sdk_path)
         .unwrap_or_else(|_| panic!("missing admin SDK README: {}", admin_sdk_path.display()));
@@ -178,8 +178,8 @@ fn test_step12_sdk_readmes_freeze_facade_boundaries_and_workspace_entry_points()
         .unwrap_or_else(|_| panic!("missing repository README: {}", readme_path.display()));
 
     for required_text in [
-        "sdkwork-craw-chat-sdk",
-        "sdkwork-craw-chat-sdk-admin",
+        "sdkwork-im-sdk",
+        "sdkwork-control-plane-sdk",
         "compatibility matrix",
         "TypeScript",
         "Flutter",
@@ -191,7 +191,7 @@ fn test_step12_sdk_readmes_freeze_facade_boundaries_and_workspace_entry_points()
     }
 
     for required_text in [
-        "sdkwork-craw-chat-sdk",
+        "sdkwork-im-sdk",
         "TypeScript",
         "Flutter",
         "payload.json",
@@ -206,7 +206,7 @@ fn test_step12_sdk_readmes_freeze_facade_boundaries_and_workspace_entry_points()
     }
 
     for required_text in [
-        "sdkwork-craw-chat-sdk-admin",
+        "sdkwork-control-plane-sdk",
         "TypeScript",
         "Flutter",
         "control-plane",
@@ -236,13 +236,13 @@ fn test_step12_cli_and_sdk_docs_freeze_recovery_baseline() {
         .unwrap_or_else(|_| panic!("missing Step 12 CLI doc: {}", cli_doc_path.display()));
     let app_sdk_path = root
         .join("sdks")
-        .join("sdkwork-craw-chat-sdk")
+        .join("sdkwork-im-sdk")
         .join("README.md");
     let app_sdk = fs::read_to_string(&app_sdk_path)
         .unwrap_or_else(|_| panic!("missing app SDK README: {}", app_sdk_path.display()));
     let admin_sdk_path = root
         .join("sdks")
-        .join("sdkwork-craw-chat-sdk-admin")
+        .join("sdkwork-control-plane-sdk")
         .join("README.md");
     let admin_sdk = fs::read_to_string(&admin_sdk_path)
         .unwrap_or_else(|_| panic!("missing admin SDK README: {}", admin_sdk_path.display()));
@@ -295,13 +295,13 @@ fn test_continuous_optimization_docs_freeze_detailed_recovery_registry_baseline(
         .unwrap_or_else(|_| panic!("missing Step 12 CLI doc: {}", cli_doc_path.display()));
     let app_sdk_path = root
         .join("sdks")
-        .join("sdkwork-craw-chat-sdk")
+        .join("sdkwork-im-sdk")
         .join("README.md");
     let app_sdk = fs::read_to_string(&app_sdk_path)
         .unwrap_or_else(|_| panic!("missing app SDK README: {}", app_sdk_path.display()));
     let admin_sdk_path = root
         .join("sdks")
-        .join("sdkwork-craw-chat-sdk-admin")
+        .join("sdkwork-control-plane-sdk")
         .join("README.md");
     let admin_sdk = fs::read_to_string(&admin_sdk_path)
         .unwrap_or_else(|_| panic!("missing admin SDK README: {}", admin_sdk_path.display()));
@@ -390,8 +390,8 @@ fn test_continuous_optimization_docs_freeze_single_validation_index() {
 
     for required_text in [
         "compatibility matrix",
-        "sdkwork-craw-chat-sdk",
-        "sdkwork-craw-chat-sdk-admin",
+        "sdkwork-im-sdk",
+        "sdkwork-control-plane-sdk",
         "craw-chat-cli",
         "open-chat-test",
         "chat_cli_contract_test.rs",
@@ -445,8 +445,8 @@ fn test_continuous_optimization_docs_freeze_release_bundle_archive_convention() 
         "step-13-release-readiness-2026-04-08.md",
         "wave-d-93-总验收-2026-04-08.md",
         "go / no-go",
-        "可审计",
-        "可回滚",
+        "auditable",
+        "rollback-ready",
     ] {
         assert!(
             bundle_readme.contains(required_text) || wave_bundle_manifest.contains(required_text),
@@ -500,7 +500,7 @@ fn test_continuous_optimization_docs_freeze_sdk_release_catalog_contract() {
 
     assert_eq!(catalog_json["bundleId"], "wave-d-2026-04-08");
     assert_eq!(catalog_json["artifact"], "sdk-release-catalog");
-    assert_eq!(catalog_json["state"], "template_only_pending_generation");
+    assert_eq!(catalog_json["state"], "generated_pending_publication");
 
     let artifacts = catalog_json["sdkArtifacts"]
         .as_array()
@@ -510,29 +510,43 @@ fn test_continuous_optimization_docs_freeze_sdk_release_catalog_contract() {
             "app-typescript",
             "app",
             "typescript",
-            "sdkwork-craw-chat-sdk-typescript",
-            "sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/README.md",
+            "sdkwork-im-sdk-typescript",
+            "sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/README.md",
         ),
         (
             "app-flutter",
             "app",
             "flutter",
-            "sdkwork-craw-chat-sdk-flutter",
-            "sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-flutter/README.md",
+            "sdkwork-im-sdk-flutter",
+            "sdks/sdkwork-im-sdk/sdkwork-im-sdk-flutter/README.md",
         ),
         (
             "admin-typescript",
             "admin",
             "typescript",
-            "sdkwork-craw-chat-sdk-admin-typescript",
-            "sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-typescript/README.md",
+            "sdkwork-control-plane-sdk-typescript",
+            "sdks/sdkwork-control-plane-sdk/sdkwork-control-plane-sdk-typescript/README.md",
         ),
         (
             "admin-flutter",
             "admin",
             "flutter",
-            "sdkwork-craw-chat-sdk-admin-flutter",
-            "sdks/sdkwork-craw-chat-sdk-admin/sdkwork-craw-chat-sdk-admin-flutter/README.md",
+            "sdkwork-control-plane-sdk-flutter",
+            "sdks/sdkwork-control-plane-sdk/sdkwork-control-plane-sdk-flutter/README.md",
+        ),
+        (
+            "im-admin-typescript",
+            "im-admin",
+            "typescript",
+            "sdkwork-im-admin-sdk-typescript",
+            "sdks/sdkwork-im-admin-sdk/sdkwork-im-admin-sdk-typescript/README.md",
+        ),
+        (
+            "im-admin-flutter",
+            "im-admin",
+            "flutter",
+            "sdkwork-im-admin-sdk-flutter",
+            "sdks/sdkwork-im-admin-sdk/sdkwork-im-admin-sdk-flutter/README.md",
         ),
     ] {
         assert!(
@@ -542,7 +556,7 @@ fn test_continuous_optimization_docs_freeze_sdk_release_catalog_contract() {
                     && artifact["language"] == language
                     && artifact["package"] == package_name
                     && artifact["readmePath"] == readme_path
-                    && artifact["generationStatus"] == "template_only_pending_generation"
+                    && artifact["generationStatus"] == "generated"
                     && artifact["releaseStatus"] == "not_published"
             }),
             "SDK release catalog must contain {id} / {audience} / {language}"
@@ -667,12 +681,12 @@ fn test_continuous_optimization_sdk_leaf_readmes_freeze_release_catalog_boundary
         (
             "app TypeScript README",
             root.join("sdks")
-                .join("sdkwork-craw-chat-sdk")
-                .join("sdkwork-craw-chat-sdk-typescript")
+                .join("sdkwork-im-sdk")
+                .join("sdkwork-im-sdk-typescript")
                 .join("README.md"),
             [
                 "sdk-release-catalog.json",
-                "template_only_pending_generation",
+                "generated_pending_publication",
                 "not_published",
                 catalog_path,
             ],
@@ -680,12 +694,12 @@ fn test_continuous_optimization_sdk_leaf_readmes_freeze_release_catalog_boundary
         (
             "app Flutter README",
             root.join("sdks")
-                .join("sdkwork-craw-chat-sdk")
-                .join("sdkwork-craw-chat-sdk-flutter")
+                .join("sdkwork-im-sdk")
+                .join("sdkwork-im-sdk-flutter")
                 .join("README.md"),
             [
                 "sdk-release-catalog.json",
-                "template_only_pending_generation",
+                "generated_pending_publication",
                 "not_published",
                 catalog_path,
             ],
@@ -693,12 +707,12 @@ fn test_continuous_optimization_sdk_leaf_readmes_freeze_release_catalog_boundary
         (
             "admin TypeScript README",
             root.join("sdks")
-                .join("sdkwork-craw-chat-sdk-admin")
-                .join("sdkwork-craw-chat-sdk-admin-typescript")
+                .join("sdkwork-control-plane-sdk")
+                .join("sdkwork-control-plane-sdk-typescript")
                 .join("README.md"),
             [
                 "sdk-release-catalog.json",
-                "template_only_pending_generation",
+                "generated_pending_publication",
                 "not_published",
                 catalog_path,
             ],
@@ -706,12 +720,12 @@ fn test_continuous_optimization_sdk_leaf_readmes_freeze_release_catalog_boundary
         (
             "admin Flutter README",
             root.join("sdks")
-                .join("sdkwork-craw-chat-sdk-admin")
-                .join("sdkwork-craw-chat-sdk-admin-flutter")
+                .join("sdkwork-control-plane-sdk")
+                .join("sdkwork-control-plane-sdk-flutter")
                 .join("README.md"),
             [
                 "sdk-release-catalog.json",
-                "template_only_pending_generation",
+                "generated_pending_publication",
                 "not_published",
                 catalog_path,
             ],
@@ -737,13 +751,13 @@ fn test_continuous_optimization_sdk_container_readmes_freeze_release_catalog_bou
         (
             "app SDK container README",
             root.join("sdks")
-                .join("sdkwork-craw-chat-sdk")
+                .join("sdkwork-im-sdk")
                 .join("README.md"),
         ),
         (
             "admin SDK container README",
             root.join("sdks")
-                .join("sdkwork-craw-chat-sdk-admin")
+                .join("sdkwork-control-plane-sdk")
                 .join("README.md"),
         ),
     ] {
@@ -751,7 +765,7 @@ fn test_continuous_optimization_sdk_container_readmes_freeze_release_catalog_bou
             .unwrap_or_else(|_| panic!("missing {label}: {}", path.display()));
         for required_text in [
             "sdk-release-catalog.json",
-            "template_only_pending_generation",
+            "generated_pending_publication",
             "not_published",
             catalog_path,
         ] {
@@ -955,32 +969,32 @@ fn test_continuous_optimization_sdk_leaf_readmes_freeze_version_decision_source_
             "app TypeScript README",
             workspace_root()
                 .join("sdks")
-                .join("sdkwork-craw-chat-sdk")
-                .join("sdkwork-craw-chat-sdk-typescript")
+                .join("sdkwork-im-sdk")
+                .join("sdkwork-im-sdk-typescript")
                 .join("README.md"),
         ),
         (
             "app Flutter README",
             workspace_root()
                 .join("sdks")
-                .join("sdkwork-craw-chat-sdk")
-                .join("sdkwork-craw-chat-sdk-flutter")
+                .join("sdkwork-im-sdk")
+                .join("sdkwork-im-sdk-flutter")
                 .join("README.md"),
         ),
         (
             "admin TypeScript README",
             workspace_root()
                 .join("sdks")
-                .join("sdkwork-craw-chat-sdk-admin")
-                .join("sdkwork-craw-chat-sdk-admin-typescript")
+                .join("sdkwork-control-plane-sdk")
+                .join("sdkwork-control-plane-sdk-typescript")
                 .join("README.md"),
         ),
         (
             "admin Flutter README",
             workspace_root()
                 .join("sdks")
-                .join("sdkwork-craw-chat-sdk-admin")
-                .join("sdkwork-craw-chat-sdk-admin-flutter")
+                .join("sdkwork-control-plane-sdk")
+                .join("sdkwork-control-plane-sdk-flutter")
                 .join("README.md"),
         ),
     ] {
@@ -1002,32 +1016,32 @@ fn test_continuous_optimization_sdk_leaf_readmes_freeze_version_placeholder_boun
             "app TypeScript README",
             workspace_root()
                 .join("sdks")
-                .join("sdkwork-craw-chat-sdk")
-                .join("sdkwork-craw-chat-sdk-typescript")
+                .join("sdkwork-im-sdk")
+                .join("sdkwork-im-sdk-typescript")
                 .join("README.md"),
         ),
         (
             "app Flutter README",
             workspace_root()
                 .join("sdks")
-                .join("sdkwork-craw-chat-sdk")
-                .join("sdkwork-craw-chat-sdk-flutter")
+                .join("sdkwork-im-sdk")
+                .join("sdkwork-im-sdk-flutter")
                 .join("README.md"),
         ),
         (
             "admin TypeScript README",
             workspace_root()
                 .join("sdks")
-                .join("sdkwork-craw-chat-sdk-admin")
-                .join("sdkwork-craw-chat-sdk-admin-typescript")
+                .join("sdkwork-control-plane-sdk")
+                .join("sdkwork-control-plane-sdk-typescript")
                 .join("README.md"),
         ),
         (
             "admin Flutter README",
             workspace_root()
                 .join("sdks")
-                .join("sdkwork-craw-chat-sdk-admin")
-                .join("sdkwork-craw-chat-sdk-admin-flutter")
+                .join("sdkwork-control-plane-sdk")
+                .join("sdkwork-control-plane-sdk-flutter")
                 .join("README.md"),
         ),
     ] {
@@ -1054,14 +1068,14 @@ fn test_continuous_optimization_sdk_container_readmes_freeze_version_placeholder
             "app SDK container README",
             workspace_root()
                 .join("sdks")
-                .join("sdkwork-craw-chat-sdk")
+                .join("sdkwork-im-sdk")
                 .join("README.md"),
         ),
         (
             "admin SDK container README",
             workspace_root()
                 .join("sdks")
-                .join("sdkwork-craw-chat-sdk-admin")
+                .join("sdkwork-control-plane-sdk")
                 .join("README.md"),
         ),
     ] {
@@ -1088,14 +1102,14 @@ fn test_continuous_optimization_sdk_container_readmes_freeze_version_decision_so
             "app SDK container README",
             workspace_root()
                 .join("sdks")
-                .join("sdkwork-craw-chat-sdk")
+                .join("sdkwork-im-sdk")
                 .join("README.md"),
         ),
         (
             "admin SDK container README",
             workspace_root()
                 .join("sdks")
-                .join("sdkwork-craw-chat-sdk-admin")
+                .join("sdkwork-control-plane-sdk")
                 .join("README.md"),
         ),
     ] {
@@ -1131,8 +1145,8 @@ fn test_step12_compatibility_matrix_doc_freezes_control_plane_mapping_and_client
         "/api/v1/control/protocol-registry",
         "/api/v1/control/protocol-governance",
         "sdkCompatibilityBaseline",
-        "sdkwork-craw-chat-sdk",
-        "sdkwork-craw-chat-sdk-admin",
+        "sdkwork-im-sdk",
+        "sdkwork-control-plane-sdk",
     ] {
         assert!(
             doc.contains(required_text),

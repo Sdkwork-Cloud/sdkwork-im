@@ -537,7 +537,7 @@ test('portal sdk browser runtime defaults backend calls to the current origin', 
 
   try {
     assert.deepEqual(
-      sdkClientModule.resolvePortalBackendConfig(),
+      sdkClientModule.resolvePortalSdkConfig(),
       { baseUrl: 'http://127.0.0.1:4176' },
     );
   } finally {
@@ -566,7 +566,7 @@ test('portal sdk browser runtime honors an explicit API base URL override before
 
   try {
     assert.deepEqual(
-      sdkClientModule.resolvePortalBackendConfig(),
+      sdkClientModule.resolvePortalSdkConfig(),
       { baseUrl: 'https://api.example.com/tenant-edge' },
     );
   } finally {
@@ -589,7 +589,7 @@ test('portal sdk node runtime retains the explicit localhost fallback for non-br
 
   try {
     assert.deepEqual(
-      sdkClientModule.resolvePortalBackendConfig(),
+      sdkClientModule.resolvePortalSdkConfig(),
       { baseUrl: 'http://127.0.0.1:18124' },
     );
   } finally {

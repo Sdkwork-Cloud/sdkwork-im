@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import {
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
+  symlinkSync,
   utimesSync,
   writeFileSync,
 } from 'node:fs';
@@ -47,7 +49,7 @@ function listVerifiedWorktreeAdminRoots(currentWorkspaceRoot) {
 
   return readdirSync(worktreesRoot, { withFileTypes: true })
     .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
-    .map((entry) => path.join(worktreesRoot, entry.name, 'apps', 'craw-chat-admin'))
+    .map((entry) => path.join(worktreesRoot, entry.name, 'apps', 'control-plane'))
     .filter((candidateRoot) => (
       candidateRoot !== appRoot
       && existsSync(path.join(candidateRoot, 'package.json'))
@@ -56,25 +58,25 @@ function listVerifiedWorktreeAdminRoots(currentWorkspaceRoot) {
 }
 
 const requiredPackages = [
-  'sdkwork-craw-chat-admin-types',
-  'sdkwork-craw-chat-admin-core',
-  'sdkwork-craw-chat-admin-shell',
-  'sdkwork-craw-chat-admin-auth',
-  'sdkwork-craw-chat-admin-overview',
-  'sdkwork-craw-chat-admin-tenants',
-  'sdkwork-craw-chat-admin-users',
-  'sdkwork-craw-chat-admin-conversations',
-  'sdkwork-craw-chat-admin-messages',
-  'sdkwork-craw-chat-admin-groups',
-  'sdkwork-craw-chat-admin-moderation',
-  'sdkwork-craw-chat-admin-automation',
-  'sdkwork-craw-chat-admin-announcements',
-  'sdkwork-craw-chat-admin-realtime',
-  'sdkwork-craw-chat-admin-system',
-  'sdkwork-craw-chat-admin-settings',
+  'sdkwork-control-plane-types',
+  'sdkwork-control-plane-core',
+  'sdkwork-control-plane-shell',
+  'sdkwork-control-plane-auth',
+  'sdkwork-control-plane-overview',
+  'sdkwork-control-plane-tenants',
+  'sdkwork-control-plane-users',
+  'sdkwork-control-plane-conversations',
+  'sdkwork-control-plane-messages',
+  'sdkwork-control-plane-groups',
+  'sdkwork-control-plane-moderation',
+  'sdkwork-control-plane-automation',
+  'sdkwork-control-plane-announcements',
+  'sdkwork-control-plane-realtime',
+  'sdkwork-control-plane-system',
+  'sdkwork-control-plane-settings',
 ];
 
-test('standalone craw-chat-admin app root exists', () => {
+test('standalone control-plane app root exists', () => {
   assert.equal(existsSync(path.join(appRoot, 'package.json')), true);
   assert.equal(existsSync(path.join(appRoot, 'pnpm-workspace.yaml')), true);
   assert.equal(existsSync(path.join(appRoot, 'turbo.json')), true);
@@ -100,7 +102,7 @@ test('app root exposes standalone browser and tauri scripts', () => {
   assert.match(packageJsonSource, /run-vite-cli\.mjs preview --configLoader native --host 0\.0\.0\.0 --port 4173 --strictPort/);
   assert.match(packageJsonSource, /run-tauri-cli\.mjs dev/);
   assert.match(packageJsonSource, /run-tauri-cli\.mjs build/);
-  assert.match(packageJsonSource, /craw-chat-admin/);
+  assert.match(packageJsonSource, /control-plane/);
 });
 
 test('workspace-level cli runner scripts mirror router-admin bootstrap conventions', () => {
@@ -163,26 +165,26 @@ test('tauri cli runner preserves explicit windows native build concurrency overr
 
 test('tauri cli runner extracts wix bundle artifacts from tauri output', () => {
   const sampleOutput = [
-    'Running candle for "C:\\temp\\sdkwork-tauri-target\\craw-chat-admin\\release\\wix\\x64\\main.wxs"',
-    'Running light to produce C:\\temp\\sdkwork-tauri-target\\craw-chat-admin\\release\\bundle\\msi\\Craw Chat Admin_0.1.0_x64_en-US.msi',
+    'Running candle for "C:\\temp\\sdkwork-tauri-target\\control-plane\\release\\wix\\x64\\main.wxs"',
+    'Running light to produce C:\\temp\\sdkwork-tauri-target\\control-plane\\release\\bundle\\msi\\Craw Chat Admin_0.1.0_x64_en-US.msi',
   ].join('\n');
 
   const artifacts = tauriCliRunner.extractWindowsWixBundleArtifacts(sampleOutput);
 
   assert.deepEqual(artifacts, {
-    wixDir: 'C:\\temp\\sdkwork-tauri-target\\craw-chat-admin\\release\\wix\\x64',
-    wixSourcePath: 'C:\\temp\\sdkwork-tauri-target\\craw-chat-admin\\release\\wix\\x64\\main.wxs',
-    wixObjPath: 'C:\\temp\\sdkwork-tauri-target\\craw-chat-admin\\release\\wix\\x64\\main.wixobj',
-    wixPdbPath: 'C:\\temp\\sdkwork-tauri-target\\craw-chat-admin\\release\\wix\\x64\\output.wixpdb',
-    localePath: 'C:\\temp\\sdkwork-tauri-target\\craw-chat-admin\\release\\wix\\x64\\locale.wxl',
-    msiPath: 'C:\\temp\\sdkwork-tauri-target\\craw-chat-admin\\release\\bundle\\msi\\Craw Chat Admin_0.1.0_x64_en-US.msi',
+    wixDir: 'C:\\temp\\sdkwork-tauri-target\\control-plane\\release\\wix\\x64',
+    wixSourcePath: 'C:\\temp\\sdkwork-tauri-target\\control-plane\\release\\wix\\x64\\main.wxs',
+    wixObjPath: 'C:\\temp\\sdkwork-tauri-target\\control-plane\\release\\wix\\x64\\main.wixobj',
+    wixPdbPath: 'C:\\temp\\sdkwork-tauri-target\\control-plane\\release\\wix\\x64\\output.wixpdb',
+    localePath: 'C:\\temp\\sdkwork-tauri-target\\control-plane\\release\\wix\\x64\\locale.wxl',
+    msiPath: 'C:\\temp\\sdkwork-tauri-target\\control-plane\\release\\bundle\\msi\\Craw Chat Admin_0.1.0_x64_en-US.msi',
   });
 });
 
 test('tauri cli runner flags windows light failures for sval retry', () => {
   const sampleOutput = [
-    'Running candle for "C:\\temp\\sdkwork-tauri-target\\craw-chat-admin\\release\\wix\\x64\\main.wxs"',
-    'Running light to produce C:\\temp\\sdkwork-tauri-target\\craw-chat-admin\\release\\bundle\\msi\\Craw Chat Admin_0.1.0_x64_en-US.msi',
+    'Running candle for "C:\\temp\\sdkwork-tauri-target\\control-plane\\release\\wix\\x64\\main.wxs"',
+    'Running light to produce C:\\temp\\sdkwork-tauri-target\\control-plane\\release\\bundle\\msi\\Craw Chat Admin_0.1.0_x64_en-US.msi',
     'failed to bundle project `failed to run C:\\Users\\admin\\AppData\\Local\\tauri\\WixTools314\\light.exe`',
   ].join('\n');
 
@@ -216,8 +218,8 @@ test('tauri cli runner keeps foreground stdio inherited to avoid nested windows 
 });
 
 test('tauri cli runner can infer wix bundle artifacts from the cargo target dir without captured output', () => {
-  const sandboxRoot = mkdtempSync(path.join(os.tmpdir(), 'craw-chat-admin-wix-artifacts-'));
-  const targetDir = path.join(sandboxRoot, 'sdkwork-tauri-target', 'craw-chat-admin');
+  const sandboxRoot = mkdtempSync(path.join(os.tmpdir(), 'control-plane-wix-artifacts-'));
+  const targetDir = path.join(sandboxRoot, 'sdkwork-tauri-target', 'control-plane');
   const wixDir = path.join(targetDir, 'release', 'wix', 'x64');
   const buildStartedAt = Date.now() - 1_000;
 
@@ -266,8 +268,8 @@ test('tauri cli runner can infer wix bundle artifacts from the cargo target dir 
 });
 
 test('tauri cli runner ignores stale wix bundle artifacts from earlier builds', () => {
-  const sandboxRoot = mkdtempSync(path.join(os.tmpdir(), 'craw-chat-admin-wix-stale-'));
-  const targetDir = path.join(sandboxRoot, 'sdkwork-tauri-target', 'craw-chat-admin');
+  const sandboxRoot = mkdtempSync(path.join(os.tmpdir(), 'control-plane-wix-stale-'));
+  const targetDir = path.join(sandboxRoot, 'sdkwork-tauri-target', 'control-plane');
   const wixDir = path.join(targetDir, 'release', 'wix', 'x64');
 
   mkdirSync(wixDir, { recursive: true });
@@ -319,7 +321,7 @@ test('workspace donor roots include at least one available sibling or worktree d
 });
 
 test('workspace runtime library can materialize a local node_modules donor link', () => {
-  const sandboxRoot = mkdtempSync(path.join(os.tmpdir(), 'craw-chat-admin-runtime-lib-'));
+  const sandboxRoot = mkdtempSync(path.join(os.tmpdir(), 'control-plane-runtime-lib-'));
   const isolatedAppRoot = path.join(sandboxRoot, 'official-app');
   const donorAppRoot = path.join(sandboxRoot, 'donor-app');
 
@@ -347,7 +349,7 @@ test('workspace runtime library can materialize a local node_modules donor link'
 });
 
 test('workspace runtime library replaces incomplete local node_modules when required packages are missing', () => {
-  const sandboxRoot = mkdtempSync(path.join(os.tmpdir(), 'craw-chat-admin-runtime-lib-stale-'));
+  const sandboxRoot = mkdtempSync(path.join(os.tmpdir(), 'control-plane-runtime-lib-stale-'));
   const isolatedAppRoot = path.join(sandboxRoot, 'official-app');
   const donorAppRoot = path.join(sandboxRoot, 'donor-app');
 
@@ -375,8 +377,40 @@ test('workspace runtime library replaces incomplete local node_modules when requ
   );
 });
 
+test('workspace runtime library replaces a broken local node_modules junction when donor packages are available', () => {
+  const sandboxRoot = mkdtempSync(path.join(os.tmpdir(), 'control-plane-runtime-lib-broken-link-'));
+  const isolatedAppRoot = path.join(sandboxRoot, 'official-app');
+  const donorAppRoot = path.join(sandboxRoot, 'donor-app');
+  const brokenNodeModulesTarget = path.join(sandboxRoot, 'missing-node-modules-target');
+  const localNodeModulesPath = path.join(isolatedAppRoot, 'node_modules');
+
+  mkdirSync(isolatedAppRoot, { recursive: true });
+  mkdirSync(donorAppRoot, { recursive: true });
+  writeFileSync(path.join(isolatedAppRoot, 'package.json'), '{"name":"official-app"}');
+  writeFileSync(path.join(donorAppRoot, 'package.json'), '{"name":"donor-app"}');
+  addNodeModulesPackage(donorAppRoot, 'react');
+
+  symlinkSync(
+    brokenNodeModulesTarget,
+    localNodeModulesPath,
+    process.platform === 'win32' ? 'junction' : 'dir',
+  );
+
+  assert.equal(existsSync(localNodeModulesPath), false);
+  assert.equal(lstatSync(localNodeModulesPath).isSymbolicLink(), true);
+
+  const resolvedNodeModulesPath = viteRuntimeLib.ensureLocalNodeModules({
+    appRoot: isolatedAppRoot,
+    donorRoots: [donorAppRoot],
+    requiredPackages: ['react'],
+  });
+
+  assert.equal(resolvedNodeModulesPath, localNodeModulesPath);
+  assert.equal(existsSync(path.join(localNodeModulesPath, 'react', 'package.json')), true);
+});
+
 test('workspace runtime library prefers donor roots that satisfy all required packages', () => {
-  const sandboxRoot = mkdtempSync(path.join(os.tmpdir(), 'craw-chat-admin-runtime-lib-complete-'));
+  const sandboxRoot = mkdtempSync(path.join(os.tmpdir(), 'control-plane-runtime-lib-complete-'));
   const isolatedAppRoot = path.join(sandboxRoot, 'official-app');
   const incompleteDonorAppRoot = path.join(sandboxRoot, 'incomplete-donor-app');
   const completeDonorAppRoot = path.join(sandboxRoot, 'complete-donor-app');
@@ -429,7 +463,7 @@ test('root app stays thin and mounts the shell package', () => {
   const app = read('src/App.tsx');
   const main = read('src/main.tsx');
 
-  assert.match(app, /sdkwork-craw-chat-admin-shell/);
+  assert.match(app, /sdkwork-control-plane-shell/);
   assert.match(app, /AppRoot/);
   assert.match(main, /bootstrapShellRuntime/);
   assert.match(main, /@sdkwork\/ui-pc-react\/styles\.css/);
@@ -437,28 +471,28 @@ test('root app stays thin and mounts the shell package', () => {
 });
 
 test('core route manifest formalizes IM product modules', () => {
-  const routeManifest = read('packages/sdkwork-craw-chat-admin-core/src/routeManifest.ts');
-  const coreIndex = read('packages/sdkwork-craw-chat-admin-core/src/index.tsx');
+  const routeManifest = read('packages/sdkwork-control-plane-core/src/routeManifest.ts');
+  const coreIndex = read('packages/sdkwork-control-plane-core/src/index.tsx');
 
-  assert.match(routeManifest, /sdkwork-craw-chat-admin-overview/);
-  assert.match(routeManifest, /sdkwork-craw-chat-admin-conversations/);
-  assert.match(routeManifest, /sdkwork-craw-chat-admin-messages/);
-  assert.match(routeManifest, /sdkwork-craw-chat-admin-moderation/);
-  assert.match(routeManifest, /sdkwork-craw-chat-admin-system/);
+  assert.match(routeManifest, /sdkwork-control-plane-overview/);
+  assert.match(routeManifest, /sdkwork-control-plane-conversations/);
+  assert.match(routeManifest, /sdkwork-control-plane-messages/);
+  assert.match(routeManifest, /sdkwork-control-plane-moderation/);
+  assert.match(routeManifest, /sdkwork-control-plane-system/);
   assert.match(routeManifest, /requiredPermissions:/);
   assert.match(routeManifest, /capabilityTags:/);
   assert.match(routeManifest, /strategy: 'lazy'/);
   assert.match(coreIndex, /adminRouteManifest/);
   assert.doesNotMatch(
     routeManifest,
-    /sdkwork-router-admin|sdkwork-craw-chat-admin-(apirouter|traffic|catalog|coupons|commercial|pricing)/,
+    /sdkwork-router-admin|sdkwork-control-plane-(apirouter|traffic|catalog|coupons|commercial|pricing)/,
   );
 });
 
 test('shell owns router and auth isolation', () => {
-  const routes = read('packages/sdkwork-craw-chat-admin-shell/src/application/router/AppRoutes.tsx');
-  const layout = read('packages/sdkwork-craw-chat-admin-shell/src/application/layouts/MainLayout.tsx');
-  const shellHostStyles = read('packages/sdkwork-craw-chat-admin-shell/src/styles/shell-host.css');
+  const routes = read('packages/sdkwork-control-plane-shell/src/application/router/AppRoutes.tsx');
+  const layout = read('packages/sdkwork-control-plane-shell/src/application/layouts/MainLayout.tsx');
+  const shellHostStyles = read('packages/sdkwork-control-plane-shell/src/styles/shell-host.css');
 
   assert.match(routes, /AdminLoginPage/);
   assert.match(routes, /ROUTE_PATHS\.LOGIN/);
@@ -466,15 +500,15 @@ test('shell owns router and auth isolation', () => {
   assert.match(routes, /ROUTE_PATHS\.FORGOT_PASSWORD/);
   assert.match(layout, /Sidebar/);
   assert.match(layout, /AppHeader/);
-  assert.match(layout, /data-sdk-shell="craw-chat-admin-desktop"/);
-  assert.match(shellHostStyles, /\[data-sdk-shell='craw-chat-admin-desktop'\]/);
+  assert.match(layout, /data-sdk-shell="control-plane-desktop"/);
+  assert.match(shellHostStyles, /\[data-sdk-shell='control-plane-desktop'\]/);
   assert.doesNotMatch(layout, /router-admin-desktop/);
   assert.doesNotMatch(shellHostStyles, /router-admin-desktop/);
   assert.doesNotMatch(layout, /Craw Chat Admin|API Router|Catalog/);
 });
 
 test('auth login page only prefills sandbox credentials from explicit dev environment variables', () => {
-  const authPage = read('packages/sdkwork-craw-chat-admin-auth/src/index.tsx');
+  const authPage = read('packages/sdkwork-control-plane-auth/src/index.tsx');
 
   assert.match(authPage, /VITE_ADMIN_SANDBOX_EMAIL/);
   assert.match(authPage, /VITE_ADMIN_SANDBOX_PASSWORD/);
@@ -554,7 +588,7 @@ test('desktop asset build script mirrors router-admin pnpm launch safety while t
 
   assert.equal(existsSync(pnpmLaunchLib), true);
   assert.match(desktopAssetBuildScript, /pnpmProcessSpec/);
-  assert.match(desktopAssetBuildScript, /craw-chat-admin/);
+  assert.match(desktopAssetBuildScript, /control-plane/);
   assert.match(desktopAssetBuildScript, /craw-chat-portal/);
   assert.match(desktopAssetBuildScript, /dist-portal/);
   assert.match(desktopAssetBuildScript, /assertPortalDistReleaseSafe/);
@@ -567,13 +601,13 @@ test('desktop asset build script syncs the portal release dist into dist-portal 
   );
 
   const sandboxRoot = mkdtempSync(path.join(os.tmpdir(), 'craw-chat-desktop-assets-'));
-  const adminDistRoot = path.join(sandboxRoot, 'apps', 'craw-chat-admin', 'dist');
+  const adminDistRoot = path.join(sandboxRoot, 'apps', 'control-plane', 'dist');
   const portalDistRoot = path.join(sandboxRoot, 'apps', 'craw-chat-portal', 'dist');
-  const adminDistPortalRoot = path.join(sandboxRoot, 'apps', 'craw-chat-admin', 'dist-portal');
+  const adminDistPortalRoot = path.join(sandboxRoot, 'apps', 'control-plane', 'dist-portal');
 
   mkdirSync(adminDistRoot, { recursive: true });
-  mkdirSync(path.join(portalDistRoot, '__vendor__', 'sdkwork-craw-chat-sdk'), { recursive: true });
-  mkdirSync(path.join(portalDistRoot, '__vendor__', 'sdkwork-craw-chat-backend-sdk'), { recursive: true });
+  mkdirSync(path.join(portalDistRoot, '__vendor__', 'sdkwork-im-sdk'), { recursive: true });
+  mkdirSync(path.join(portalDistRoot, '__vendor__', 'sdkwork-sdk-common'), { recursive: true });
   mkdirSync(path.join(portalDistRoot, 'src'), { recursive: true });
   mkdirSync(path.join(portalDistRoot, 'packages', 'craw-chat-portal-core'), { recursive: true });
   mkdirSync(adminDistPortalRoot, { recursive: true });
@@ -581,12 +615,12 @@ test('desktop asset build script syncs the portal release dist into dist-portal 
   writeFileSync(path.join(adminDistRoot, 'index.html'), '<!doctype html><title>admin-dist</title>');
   writeFileSync(path.join(portalDistRoot, 'index.html'), '<!doctype html><title>portal-dist</title>');
   writeFileSync(
-    path.join(portalDistRoot, '__vendor__', 'sdkwork-craw-chat-sdk', 'index.js'),
+    path.join(portalDistRoot, '__vendor__', 'sdkwork-im-sdk', 'index.js'),
     'export const source = "portal-dist-vendor";',
   );
   writeFileSync(
-    path.join(portalDistRoot, '__vendor__', 'sdkwork-craw-chat-backend-sdk', 'index.js'),
-    'export const source = "portal-dist-backend-vendor";',
+    path.join(portalDistRoot, '__vendor__', 'sdkwork-sdk-common', 'index.js'),
+    'export const source = "portal-dist-sdk-common";',
   );
   writeFileSync(
     path.join(portalDistRoot, 'src', 'main.js'),
@@ -609,17 +643,17 @@ test('desktop asset build script syncs the portal release dist into dist-portal 
   );
   assert.equal(
     readFileSync(
-      path.join(adminDistPortalRoot, '__vendor__', 'sdkwork-craw-chat-sdk', 'index.js'),
+      path.join(adminDistPortalRoot, '__vendor__', 'sdkwork-im-sdk', 'index.js'),
       'utf8',
     ),
     'export const source = "portal-dist-vendor";',
   );
   assert.equal(
     readFileSync(
-      path.join(adminDistPortalRoot, '__vendor__', 'sdkwork-craw-chat-backend-sdk', 'index.js'),
+      path.join(adminDistPortalRoot, '__vendor__', 'sdkwork-sdk-common', 'index.js'),
       'utf8',
     ),
-    'export const source = "portal-dist-backend-vendor";',
+    'export const source = "portal-dist-sdk-common";',
   );
   assert.equal(
     readFileSync(path.join(adminDistPortalRoot, 'src', 'main.js'), 'utf8'),
@@ -644,7 +678,7 @@ test('desktop asset build script rejects portal bundles that are missing vendore
   );
 
   const sandboxRoot = mkdtempSync(path.join(os.tmpdir(), 'craw-chat-desktop-assets-invalid-'));
-  const adminDistRoot = path.join(sandboxRoot, 'apps', 'craw-chat-admin', 'dist');
+  const adminDistRoot = path.join(sandboxRoot, 'apps', 'control-plane', 'dist');
   const portalDistRoot = path.join(sandboxRoot, 'apps', 'craw-chat-portal', 'dist');
 
   mkdirSync(adminDistRoot, { recursive: true });
@@ -656,7 +690,7 @@ test('desktop asset build script rejects portal bundles that are missing vendore
     () => desktopAssetBuildModule.assertDesktopEmbeddedSitesReady({
       workspaceRoot: sandboxRoot,
     }),
-    /portal site build required asset is missing: .*sdkwork-craw-chat-sdk[\\/]index\.js/i,
+    /portal site build required asset is missing: .*sdkwork-im-sdk[\\/]index\.js/i,
   );
 });
 
@@ -666,12 +700,12 @@ test('desktop asset build script rejects embedded portal bundles that contain re
   );
 
   const sandboxRoot = mkdtempSync(path.join(os.tmpdir(), 'craw-chat-desktop-assets-leaky-'));
-  const adminDistRoot = path.join(sandboxRoot, 'apps', 'craw-chat-admin', 'dist');
+  const adminDistRoot = path.join(sandboxRoot, 'apps', 'control-plane', 'dist');
   const portalDistRoot = path.join(sandboxRoot, 'apps', 'craw-chat-portal', 'dist');
 
   mkdirSync(adminDistRoot, { recursive: true });
-  mkdirSync(path.join(portalDistRoot, '__vendor__', 'sdkwork-craw-chat-sdk'), { recursive: true });
-  mkdirSync(path.join(portalDistRoot, '__vendor__', 'sdkwork-craw-chat-backend-sdk'), { recursive: true });
+  mkdirSync(path.join(portalDistRoot, '__vendor__', 'sdkwork-im-sdk'), { recursive: true });
+  mkdirSync(path.join(portalDistRoot, '__vendor__', 'sdkwork-sdk-common'), { recursive: true });
   mkdirSync(path.join(portalDistRoot, 'packages', 'craw-chat-portal-auth', 'src'), {
     recursive: true,
   });
@@ -679,12 +713,12 @@ test('desktop asset build script rejects embedded portal bundles that contain re
   writeFileSync(path.join(adminDistRoot, 'index.html'), '<!doctype html><title>admin-dist</title>');
   writeFileSync(path.join(portalDistRoot, 'index.html'), '<!doctype html><title>portal-dist</title>');
   writeFileSync(
-    path.join(portalDistRoot, '__vendor__', 'sdkwork-craw-chat-sdk', 'index.js'),
+    path.join(portalDistRoot, '__vendor__', 'sdkwork-im-sdk', 'index.js'),
     'export const source = "portal-dist-vendor";',
   );
   writeFileSync(
-    path.join(portalDistRoot, '__vendor__', 'sdkwork-craw-chat-backend-sdk', 'index.js'),
-    'export const source = "portal-dist-backend-vendor";',
+    path.join(portalDistRoot, '__vendor__', 'sdkwork-sdk-common', 'index.js'),
+    'export const source = "portal-dist-sdk-common";',
   );
   writeFileSync(
     path.join(portalDistRoot, 'packages', 'craw-chat-portal-auth', 'src', 'index.js'),
@@ -726,10 +760,21 @@ test('workspace cli runners prebuild sdkwork ui dist before build and typecheck'
   assert.match(runTscCli, /ensureSdkworkUiDist/);
 });
 
+test('sdkwork ui runtime bootstrap installs workspace package dependencies from the app root without interactive prompts', () => {
+  const runtimeLib = readFileSync(
+    path.join(workspaceRoot, 'scripts', 'dev', 'sdkwork-ui-runtime-lib.mjs'),
+    'utf8',
+  );
+
+  assert.match(runtimeLib, /pnpm-workspace\.yaml/);
+  assert.match(runtimeLib, /--force/);
+  assert.match(runtimeLib, /--config\.confirmModulesPurge=false/);
+});
+
 test('vite config resolves @sdkwork/ui-pc-react through dist entries after prebuild', () => {
   const viteConfig = read('vite.config.ts');
 
-  assert.match(viteConfig, /sdkwork-ui-pc-react'\)/);
+  assert.match(viteConfig, /path\.join\(configDir, 'packages', 'sdkwork-ui-pc-react'\)/);
   assert.match(viteConfig, /path\.join\(packageRoot, 'dist', entryPath\)/);
   assert.match(viteConfig, /sdkwork-ui\.css/);
   assert.match(viteConfig, /theme\.js/);
@@ -752,17 +797,18 @@ test('tsconfig mirrors dist-backed ui type shims for root and grouped ui entries
   );
   assert.match(
     tsconfig,
-    /"@sdkwork\/ui-pc-react\/theme":\s*\[\s*"[^"]*sdkwork-ui-pc-react\/dist\/theme\/index\.d\.ts"\s*\]/,
+    /"@sdkwork\/ui-pc-react\/theme":\s*\[\s*"packages\/sdkwork-ui-pc-react\/dist\/theme\/index\.d\.ts"\s*\]/,
   );
   assert.match(
     tsconfig,
-    /"@sdkwork\/ui-pc-react\/\*":\s*\[\s*"[^"]*sdkwork-ui-pc-react\/dist\/\*"\s*\]/,
+    /"@sdkwork\/ui-pc-react\/\*":\s*\[\s*"packages\/sdkwork-ui-pc-react\/dist\/\*"\s*\]/,
   );
   assert.match(
     tsconfig,
-    /"@sdkwork\/ui-pc-react\/styles\.css":\s*\[\s*"[^"]*sdkwork-ui-pc-react\/dist\/sdkwork-ui\.css"\s*\]/,
+    /"@sdkwork\/ui-pc-react\/styles\.css":\s*\[\s*"packages\/sdkwork-ui-pc-react\/dist\/sdkwork-ui\.css"\s*\]/,
   );
-  assert.match(uiShim, /export \* from '[^']*sdkwork-ui-pc-react\/dist\/index';/);
+  assert.match(uiShim, /export \* from '\.\.\/\.\.\/packages\/sdkwork-ui-pc-react\/dist\/index';/);
+  assert.doesNotMatch(uiShim, /sdkwork-ui\/sdkwork-ui-pc-react/);
 });
 
 test('ui shim and tsconfig path targets resolve to real sdkwork-ui dist assets', () => {
@@ -806,7 +852,7 @@ test('theme establishes a dedicated admin visual system', () => {
 });
 
 test('core i18n surface stays focused on craw-chat admin runtime concerns', () => {
-  const i18n = read('packages/sdkwork-craw-chat-admin-core/src/i18n.tsx');
+  const i18n = read('packages/sdkwork-control-plane-core/src/i18n.tsx');
 
   assert.match(i18n, /export const ADMIN_LOCALE_OPTIONS/);
   assert.match(i18n, /export function AdminI18nProvider/);
@@ -818,15 +864,15 @@ test('core i18n surface stays focused on craw-chat admin runtime concerns', () =
 
 test('core workbench consumes the formal admin SDK boundary and avoids router-admin commerce preload and catalog language', () => {
   const packageJsonSource = read('package.json');
-  const workbench = read('packages/sdkwork-craw-chat-admin-core/src/workbench.tsx');
-  const workbenchActions = read('packages/sdkwork-craw-chat-admin-core/src/workbenchActions.ts');
-  const workbenchSnapshot = read('packages/sdkwork-craw-chat-admin-core/src/workbenchSnapshot.ts');
+  const workbench = read('packages/sdkwork-control-plane-core/src/workbench.tsx');
+  const workbenchActions = read('packages/sdkwork-control-plane-core/src/workbenchActions.ts');
+  const workbenchSnapshot = read('packages/sdkwork-control-plane-core/src/workbenchSnapshot.ts');
 
-  assert.match(packageJsonSource, /@sdkwork\/craw-chat-admin-sdk/);
-  assert.doesNotMatch(packageJsonSource, /sdkwork-craw-chat-admin-admin-api/);
-  assert.match(workbench, /@sdkwork\/craw-chat-admin-sdk/);
-  assert.match(workbenchActions, /@sdkwork\/craw-chat-admin-sdk/);
-  assert.match(workbenchSnapshot, /@sdkwork\/craw-chat-admin-sdk/);
+  assert.match(packageJsonSource, /@sdkwork\/control-plane-sdk/);
+  assert.doesNotMatch(packageJsonSource, /sdkwork-control-plane-admin-api/);
+  assert.match(workbench, /@sdkwork\/control-plane-sdk/);
+  assert.match(workbenchActions, /@sdkwork\/control-plane-sdk/);
+  assert.match(workbenchSnapshot, /@sdkwork\/control-plane-sdk/);
   assert.doesNotMatch(
     workbench,
     /listCoupons|listRecentCommerceOrders|listCommercePaymentEvents|listMarketingCoupon|listCommercialAccount|listCommercialPricing/,
@@ -842,9 +888,9 @@ test('core workbench consumes the formal admin SDK boundary and avoids router-ad
 });
 
 test('workspace snapshot stays focused on IM runtime data and excludes dormant commerce payloads', () => {
-  const typesSource = read('packages/sdkwork-craw-chat-admin-types/src/index.ts');
-  const workbench = read('packages/sdkwork-craw-chat-admin-core/src/workbench.tsx');
-  const workbenchSnapshot = read('packages/sdkwork-craw-chat-admin-core/src/workbenchSnapshot.ts');
+  const typesSource = read('packages/sdkwork-control-plane-types/src/index.ts');
+  const workbench = read('packages/sdkwork-control-plane-core/src/workbench.tsx');
+  const workbenchSnapshot = read('packages/sdkwork-control-plane-core/src/workbenchSnapshot.ts');
 
   assert.match(typesSource, /marketingCampaigns:/);
   assert.doesNotMatch(
@@ -875,7 +921,7 @@ test('workspace snapshot stays focused on IM runtime data and excludes dormant c
 });
 
 test('app header avoids import meta asset resolution to stay worktree-safe', () => {
-  const header = read('packages/sdkwork-craw-chat-admin-shell/src/components/AppHeader.tsx');
+  const header = read('packages/sdkwork-control-plane-shell/src/components/AppHeader.tsx');
 
   assert.doesNotMatch(header, /import\.meta\.url/);
   assert.doesNotMatch(header, /new URL\(/);
@@ -886,13 +932,13 @@ test('app header avoids import meta asset resolution to stay worktree-safe', () 
 });
 
 test('shell command center is implemented as an in-place command palette', () => {
-  const layout = read('packages/sdkwork-craw-chat-admin-shell/src/application/layouts/MainLayout.tsx');
-  const header = read('packages/sdkwork-craw-chat-admin-shell/src/components/AppHeader.tsx');
+  const layout = read('packages/sdkwork-control-plane-shell/src/application/layouts/MainLayout.tsx');
+  const header = read('packages/sdkwork-control-plane-shell/src/components/AppHeader.tsx');
   const commandPalette = read(
-    'packages/sdkwork-craw-chat-admin-shell/src/components/CommandPalette.tsx',
+    'packages/sdkwork-control-plane-shell/src/components/CommandPalette.tsx',
   );
-  const shellIndex = read('packages/sdkwork-craw-chat-admin-shell/src/index.ts');
-  const store = read('packages/sdkwork-craw-chat-admin-core/src/store.ts');
+  const shellIndex = read('packages/sdkwork-control-plane-shell/src/index.ts');
+  const store = read('packages/sdkwork-control-plane-core/src/store.ts');
 
   assert.match(layout, /CommandPalette/);
   assert.match(header, /setCommandPaletteOpen|openCommandPalette/);
@@ -908,13 +954,13 @@ test('shell command center is implemented as an in-place command palette', () =>
 });
 
 test('shell exposes a persistent operations pulse drawer for cross-route continuity', () => {
-  const layout = read('packages/sdkwork-craw-chat-admin-shell/src/application/layouts/MainLayout.tsx');
-  const header = read('packages/sdkwork-craw-chat-admin-shell/src/components/AppHeader.tsx');
+  const layout = read('packages/sdkwork-control-plane-shell/src/application/layouts/MainLayout.tsx');
+  const header = read('packages/sdkwork-control-plane-shell/src/components/AppHeader.tsx');
   const operationsPulse = read(
-    'packages/sdkwork-craw-chat-admin-shell/src/components/OperationsPulseDrawer.tsx',
+    'packages/sdkwork-control-plane-shell/src/components/OperationsPulseDrawer.tsx',
   );
-  const shellIndex = read('packages/sdkwork-craw-chat-admin-shell/src/index.ts');
-  const store = read('packages/sdkwork-craw-chat-admin-core/src/store.ts');
+  const shellIndex = read('packages/sdkwork-control-plane-shell/src/index.ts');
+  const store = read('packages/sdkwork-control-plane-core/src/store.ts');
 
   assert.match(layout, /OperationsPulseDrawer/);
   assert.match(header, /dataSlot="app-header-pulse"/);
@@ -932,11 +978,11 @@ test('shell exposes a persistent operations pulse drawer for cross-route continu
 });
 
 test('shell exposes a persistent route context strip for active module governance', () => {
-  const layout = read('packages/sdkwork-craw-chat-admin-shell/src/application/layouts/MainLayout.tsx');
+  const layout = read('packages/sdkwork-control-plane-shell/src/application/layouts/MainLayout.tsx');
   const routeContext = read(
-    'packages/sdkwork-craw-chat-admin-shell/src/components/RouteContextStrip.tsx',
+    'packages/sdkwork-control-plane-shell/src/components/RouteContextStrip.tsx',
   );
-  const shellIndex = read('packages/sdkwork-craw-chat-admin-shell/src/index.ts');
+  const shellIndex = read('packages/sdkwork-control-plane-shell/src/index.ts');
 
   assert.match(layout, /RouteContextStrip/);
   assert.match(routeContext, /adminRouteManifest/);
@@ -952,118 +998,118 @@ test('shell exposes a persistent route context strip for active module governanc
 
 test('legacy router-admin subapps are removed from IM module packages', () => {
   const removedPaths = [
-    'packages/sdkwork-craw-chat-admin-overview/src/view-model.ts',
-    'packages/sdkwork-craw-chat-admin-core/src/commercialPricing.ts',
-    'packages/sdkwork-craw-chat-admin-core/src/i18nTranslations.ts',
-    'packages/sdkwork-craw-chat-admin-core/src/i18nTranslationsCommercial.ts',
-    'packages/sdkwork-craw-chat-admin-core/src/i18nTranslationsCore.ts',
-    'packages/sdkwork-craw-chat-admin-core/src/i18nTranslationsRecovery.ts',
-    'packages/sdkwork-craw-chat-admin-core/src/i18nTranslationsRouting.ts',
-    'packages/sdkwork-craw-chat-admin-admin-api/package.json',
-    'packages/sdkwork-craw-chat-admin-admin-api/src/index.ts',
-    'packages/sdkwork-craw-chat-admin-admin-api/src/storage.ts',
-    'packages/sdkwork-craw-chat-admin-admin-api/src/transport.ts',
-    'packages/sdkwork-craw-chat-admin-admin-api/src/commerce.ts',
-    'packages/sdkwork-craw-chat-admin-users/src/page/OperatorUserDialog.tsx',
-    'packages/sdkwork-craw-chat-admin-users/src/page/PortalUserDialog.tsx',
-    'packages/sdkwork-craw-chat-admin-users/src/page/shared.tsx',
-    'packages/sdkwork-craw-chat-admin-users/src/page/UsersDetailDrawer.tsx',
-    'packages/sdkwork-craw-chat-admin-users/src/page/UsersDetailPanel.tsx',
-    'packages/sdkwork-craw-chat-admin-users/src/page/UsersRegistrySection.tsx',
-    'packages/sdkwork-craw-chat-admin-groups/src/page/CatalogChannelDialog.tsx',
-    'packages/sdkwork-craw-chat-admin-groups/src/page/CatalogChannelModelDialog.tsx',
-    'packages/sdkwork-craw-chat-admin-groups/src/page/CatalogCredentialDialog.tsx',
-    'packages/sdkwork-craw-chat-admin-groups/src/page/CatalogDetailDrawer.tsx',
-    'packages/sdkwork-craw-chat-admin-groups/src/page/CatalogDetailPanel.tsx',
-    'packages/sdkwork-craw-chat-admin-groups/src/page/CatalogDialogs.tsx',
-    'packages/sdkwork-craw-chat-admin-groups/src/page/CatalogModelPriceDialog.tsx',
-    'packages/sdkwork-craw-chat-admin-groups/src/page/CatalogProviderDialog.tsx',
-    'packages/sdkwork-craw-chat-admin-groups/src/page/CatalogRegistrySection.tsx',
-    'packages/sdkwork-craw-chat-admin-groups/src/page/shared.tsx',
-    'packages/sdkwork-craw-chat-admin-groups/src/page/useCatalogWorkspaceState.tsx',
-    'packages/sdkwork-craw-chat-admin-moderation/src/page/CouponDialog.tsx',
-    'packages/sdkwork-craw-chat-admin-moderation/src/page/CouponsDetailDrawer.tsx',
-    'packages/sdkwork-craw-chat-admin-moderation/src/page/CouponsDetailPanel.tsx',
-    'packages/sdkwork-craw-chat-admin-moderation/src/page/CouponsRegistrySection.tsx',
-    'packages/sdkwork-craw-chat-admin-moderation/src/page/shared.tsx',
-    'packages/sdkwork-craw-chat-admin-conversations/src/index.ts',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/billingEventAnalytics.ts',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/GatewayAccessPage.tsx',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/GatewayModelMappingsPage.tsx',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/GatewayRateLimitsPage.tsx',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/GatewayRoutesPage.tsx',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/GatewayUsagePage.tsx',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/shared.tsx',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/useGatewayAccessWorkspaceState.tsx',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/access/GatewayAccessDetailDrawer.tsx',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/access/GatewayAccessDetailPanel.tsx',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/access/GatewayAccessForms.tsx',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/access/GatewayAccessRegistrySection.tsx',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/access/GatewayApiKeyCreateDialog.tsx',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/access/GatewayApiKeyEditDialog.tsx',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/access/GatewayApiKeyGroupsDialog.tsx',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/access/GatewayApiKeyRouteDialog.tsx',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/access/GatewayApiKeyUsageDialog.tsx',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/access/shared.ts',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/mappings/GatewayModelMappingEditorDialog.tsx',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/mappings/GatewayModelMappingsDetailDrawer.tsx',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/mappings/GatewayModelMappingsDetailPanel.tsx',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/mappings/GatewayModelMappingsRegistrySection.tsx',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/mappings/shared.ts',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/rate-limits/GatewayRateLimitPolicyDialog.tsx',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/rate-limits/GatewayRateLimitsDetailDrawer.tsx',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/rate-limits/GatewayRateLimitsRegistrySection.tsx',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/rate-limits/shared.ts',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/routes/GatewayProviderDialog.tsx',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/routes/GatewayRoutesDetailDrawer.tsx',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/routes/GatewayRoutesDetailPanel.tsx',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/routes/GatewayRoutesRegistrySection.tsx',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/routes/GatewayRoutingProfilesDialog.tsx',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/routes/GatewayRoutingSnapshotsDialog.tsx',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/routes/routingSnapshotAnalytics.ts',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/routes/shared.ts',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/usage/GatewayUsageDetailDrawer.tsx',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/usage/GatewayUsageDetailPanel.tsx',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/usage/GatewayUsageRegistrySection.tsx',
-    'packages/sdkwork-craw-chat-admin-conversations/src/pages/usage/shared.ts',
-    'packages/sdkwork-craw-chat-admin-conversations/src/services/gatewayApiKeyAccessService.ts',
-    'packages/sdkwork-craw-chat-admin-conversations/src/services/gatewayOverlayStore.ts',
-    'packages/sdkwork-craw-chat-admin-conversations/src/services/gatewayViewService.ts',
-    'packages/sdkwork-craw-chat-admin-automation/src/commercialOrderAuditDrawer.tsx',
-    'packages/sdkwork-craw-chat-admin-automation/src/commercialOverviewSections.tsx',
-    'packages/sdkwork-craw-chat-admin-automation/src/formatters.ts',
-    'packages/sdkwork-craw-chat-admin-automation/src/ledgerTimeline.ts',
-    'packages/sdkwork-craw-chat-admin-automation/src/orderAuditLookup.ts',
-    'packages/sdkwork-craw-chat-admin-automation/src/orderPaymentAudit.ts',
-    'packages/sdkwork-craw-chat-admin-automation/src/paymentCredentialBindingsDialog.tsx',
-    'packages/sdkwork-craw-chat-admin-automation/src/paymentMethodDialog.tsx',
-    'packages/sdkwork-craw-chat-admin-automation/src/paymentMethodManagerSection.tsx',
-    'packages/sdkwork-craw-chat-admin-automation/src/paymentOrderOperationsSection.tsx',
-    'packages/sdkwork-craw-chat-admin-automation/src/paymentReconciliationSection.tsx',
-    'packages/sdkwork-craw-chat-admin-automation/src/paymentRefundDialog.tsx',
-    'packages/sdkwork-craw-chat-admin-automation/src/paymentShared.tsx',
-    'packages/sdkwork-craw-chat-admin-automation/src/paymentWebhookInboxSection.tsx',
+    'packages/sdkwork-control-plane-overview/src/view-model.ts',
+    'packages/sdkwork-control-plane-core/src/commercialPricing.ts',
+    'packages/sdkwork-control-plane-core/src/i18nTranslations.ts',
+    'packages/sdkwork-control-plane-core/src/i18nTranslationsCommercial.ts',
+    'packages/sdkwork-control-plane-core/src/i18nTranslationsCore.ts',
+    'packages/sdkwork-control-plane-core/src/i18nTranslationsRecovery.ts',
+    'packages/sdkwork-control-plane-core/src/i18nTranslationsRouting.ts',
+    'packages/sdkwork-control-plane-admin-api/package.json',
+    'packages/sdkwork-control-plane-admin-api/src/index.ts',
+    'packages/sdkwork-control-plane-admin-api/src/storage.ts',
+    'packages/sdkwork-control-plane-admin-api/src/transport.ts',
+    'packages/sdkwork-control-plane-admin-api/src/commerce.ts',
+    'packages/sdkwork-control-plane-users/src/page/OperatorUserDialog.tsx',
+    'packages/sdkwork-control-plane-users/src/page/PortalUserDialog.tsx',
+    'packages/sdkwork-control-plane-users/src/page/shared.tsx',
+    'packages/sdkwork-control-plane-users/src/page/UsersDetailDrawer.tsx',
+    'packages/sdkwork-control-plane-users/src/page/UsersDetailPanel.tsx',
+    'packages/sdkwork-control-plane-users/src/page/UsersRegistrySection.tsx',
+    'packages/sdkwork-control-plane-groups/src/page/CatalogChannelDialog.tsx',
+    'packages/sdkwork-control-plane-groups/src/page/CatalogChannelModelDialog.tsx',
+    'packages/sdkwork-control-plane-groups/src/page/CatalogCredentialDialog.tsx',
+    'packages/sdkwork-control-plane-groups/src/page/CatalogDetailDrawer.tsx',
+    'packages/sdkwork-control-plane-groups/src/page/CatalogDetailPanel.tsx',
+    'packages/sdkwork-control-plane-groups/src/page/CatalogDialogs.tsx',
+    'packages/sdkwork-control-plane-groups/src/page/CatalogModelPriceDialog.tsx',
+    'packages/sdkwork-control-plane-groups/src/page/CatalogProviderDialog.tsx',
+    'packages/sdkwork-control-plane-groups/src/page/CatalogRegistrySection.tsx',
+    'packages/sdkwork-control-plane-groups/src/page/shared.tsx',
+    'packages/sdkwork-control-plane-groups/src/page/useCatalogWorkspaceState.tsx',
+    'packages/sdkwork-control-plane-moderation/src/page/CouponDialog.tsx',
+    'packages/sdkwork-control-plane-moderation/src/page/CouponsDetailDrawer.tsx',
+    'packages/sdkwork-control-plane-moderation/src/page/CouponsDetailPanel.tsx',
+    'packages/sdkwork-control-plane-moderation/src/page/CouponsRegistrySection.tsx',
+    'packages/sdkwork-control-plane-moderation/src/page/shared.tsx',
+    'packages/sdkwork-control-plane-conversations/src/index.ts',
+    'packages/sdkwork-control-plane-conversations/src/pages/billingEventAnalytics.ts',
+    'packages/sdkwork-control-plane-conversations/src/pages/GatewayAccessPage.tsx',
+    'packages/sdkwork-control-plane-conversations/src/pages/GatewayModelMappingsPage.tsx',
+    'packages/sdkwork-control-plane-conversations/src/pages/GatewayRateLimitsPage.tsx',
+    'packages/sdkwork-control-plane-conversations/src/pages/GatewayRoutesPage.tsx',
+    'packages/sdkwork-control-plane-conversations/src/pages/GatewayUsagePage.tsx',
+    'packages/sdkwork-control-plane-conversations/src/pages/shared.tsx',
+    'packages/sdkwork-control-plane-conversations/src/pages/useGatewayAccessWorkspaceState.tsx',
+    'packages/sdkwork-control-plane-conversations/src/pages/access/GatewayAccessDetailDrawer.tsx',
+    'packages/sdkwork-control-plane-conversations/src/pages/access/GatewayAccessDetailPanel.tsx',
+    'packages/sdkwork-control-plane-conversations/src/pages/access/GatewayAccessForms.tsx',
+    'packages/sdkwork-control-plane-conversations/src/pages/access/GatewayAccessRegistrySection.tsx',
+    'packages/sdkwork-control-plane-conversations/src/pages/access/GatewayApiKeyCreateDialog.tsx',
+    'packages/sdkwork-control-plane-conversations/src/pages/access/GatewayApiKeyEditDialog.tsx',
+    'packages/sdkwork-control-plane-conversations/src/pages/access/GatewayApiKeyGroupsDialog.tsx',
+    'packages/sdkwork-control-plane-conversations/src/pages/access/GatewayApiKeyRouteDialog.tsx',
+    'packages/sdkwork-control-plane-conversations/src/pages/access/GatewayApiKeyUsageDialog.tsx',
+    'packages/sdkwork-control-plane-conversations/src/pages/access/shared.ts',
+    'packages/sdkwork-control-plane-conversations/src/pages/mappings/GatewayModelMappingEditorDialog.tsx',
+    'packages/sdkwork-control-plane-conversations/src/pages/mappings/GatewayModelMappingsDetailDrawer.tsx',
+    'packages/sdkwork-control-plane-conversations/src/pages/mappings/GatewayModelMappingsDetailPanel.tsx',
+    'packages/sdkwork-control-plane-conversations/src/pages/mappings/GatewayModelMappingsRegistrySection.tsx',
+    'packages/sdkwork-control-plane-conversations/src/pages/mappings/shared.ts',
+    'packages/sdkwork-control-plane-conversations/src/pages/rate-limits/GatewayRateLimitPolicyDialog.tsx',
+    'packages/sdkwork-control-plane-conversations/src/pages/rate-limits/GatewayRateLimitsDetailDrawer.tsx',
+    'packages/sdkwork-control-plane-conversations/src/pages/rate-limits/GatewayRateLimitsRegistrySection.tsx',
+    'packages/sdkwork-control-plane-conversations/src/pages/rate-limits/shared.ts',
+    'packages/sdkwork-control-plane-conversations/src/pages/routes/GatewayProviderDialog.tsx',
+    'packages/sdkwork-control-plane-conversations/src/pages/routes/GatewayRoutesDetailDrawer.tsx',
+    'packages/sdkwork-control-plane-conversations/src/pages/routes/GatewayRoutesDetailPanel.tsx',
+    'packages/sdkwork-control-plane-conversations/src/pages/routes/GatewayRoutesRegistrySection.tsx',
+    'packages/sdkwork-control-plane-conversations/src/pages/routes/GatewayRoutingProfilesDialog.tsx',
+    'packages/sdkwork-control-plane-conversations/src/pages/routes/GatewayRoutingSnapshotsDialog.tsx',
+    'packages/sdkwork-control-plane-conversations/src/pages/routes/routingSnapshotAnalytics.ts',
+    'packages/sdkwork-control-plane-conversations/src/pages/routes/shared.ts',
+    'packages/sdkwork-control-plane-conversations/src/pages/usage/GatewayUsageDetailDrawer.tsx',
+    'packages/sdkwork-control-plane-conversations/src/pages/usage/GatewayUsageDetailPanel.tsx',
+    'packages/sdkwork-control-plane-conversations/src/pages/usage/GatewayUsageRegistrySection.tsx',
+    'packages/sdkwork-control-plane-conversations/src/pages/usage/shared.ts',
+    'packages/sdkwork-control-plane-conversations/src/services/gatewayApiKeyAccessService.ts',
+    'packages/sdkwork-control-plane-conversations/src/services/gatewayOverlayStore.ts',
+    'packages/sdkwork-control-plane-conversations/src/services/gatewayViewService.ts',
+    'packages/sdkwork-control-plane-automation/src/commercialOrderAuditDrawer.tsx',
+    'packages/sdkwork-control-plane-automation/src/commercialOverviewSections.tsx',
+    'packages/sdkwork-control-plane-automation/src/formatters.ts',
+    'packages/sdkwork-control-plane-automation/src/ledgerTimeline.ts',
+    'packages/sdkwork-control-plane-automation/src/orderAuditLookup.ts',
+    'packages/sdkwork-control-plane-automation/src/orderPaymentAudit.ts',
+    'packages/sdkwork-control-plane-automation/src/paymentCredentialBindingsDialog.tsx',
+    'packages/sdkwork-control-plane-automation/src/paymentMethodDialog.tsx',
+    'packages/sdkwork-control-plane-automation/src/paymentMethodManagerSection.tsx',
+    'packages/sdkwork-control-plane-automation/src/paymentOrderOperationsSection.tsx',
+    'packages/sdkwork-control-plane-automation/src/paymentReconciliationSection.tsx',
+    'packages/sdkwork-control-plane-automation/src/paymentRefundDialog.tsx',
+    'packages/sdkwork-control-plane-automation/src/paymentShared.tsx',
+    'packages/sdkwork-control-plane-automation/src/paymentWebhookInboxSection.tsx',
   ];
 
   for (const relativePath of removedPaths) {
     assert.equal(
       existsSync(path.join(appRoot, relativePath)),
       false,
-      `${relativePath} should be removed from the IM admin workspace`,
+      `${relativePath} should be removed from the control-plane workspace`,
     );
   }
 });
 
 test('tenants module restores router-admin page decomposition for IM governance workflows', () => {
   const tenantPageFiles = [
-    'packages/sdkwork-craw-chat-admin-tenants/src/page/ApiKeyDialog.tsx',
-    'packages/sdkwork-craw-chat-admin-tenants/src/page/PlaintextApiKeyDialog.tsx',
-    'packages/sdkwork-craw-chat-admin-tenants/src/page/ProjectDialog.tsx',
-    'packages/sdkwork-craw-chat-admin-tenants/src/page/shared.tsx',
-    'packages/sdkwork-craw-chat-admin-tenants/src/page/TenantDialog.tsx',
-    'packages/sdkwork-craw-chat-admin-tenants/src/page/TenantsDetailDrawer.tsx',
-    'packages/sdkwork-craw-chat-admin-tenants/src/page/TenantsDetailPanel.tsx',
-    'packages/sdkwork-craw-chat-admin-tenants/src/page/TenantsRegistrySection.tsx',
+    'packages/sdkwork-control-plane-tenants/src/page/ApiKeyDialog.tsx',
+    'packages/sdkwork-control-plane-tenants/src/page/PlaintextApiKeyDialog.tsx',
+    'packages/sdkwork-control-plane-tenants/src/page/ProjectDialog.tsx',
+    'packages/sdkwork-control-plane-tenants/src/page/shared.tsx',
+    'packages/sdkwork-control-plane-tenants/src/page/TenantDialog.tsx',
+    'packages/sdkwork-control-plane-tenants/src/page/TenantsDetailDrawer.tsx',
+    'packages/sdkwork-control-plane-tenants/src/page/TenantsDetailPanel.tsx',
+    'packages/sdkwork-control-plane-tenants/src/page/TenantsRegistrySection.tsx',
   ];
 
   for (const relativePath of tenantPageFiles) {
@@ -1074,17 +1120,17 @@ test('tenants module restores router-admin page decomposition for IM governance 
     );
   }
 
-  const tenantsIndex = read('packages/sdkwork-craw-chat-admin-tenants/src/index.tsx');
+  const tenantsIndex = read('packages/sdkwork-control-plane-tenants/src/index.tsx');
   const registrySection = read(
-    'packages/sdkwork-craw-chat-admin-tenants/src/page/TenantsRegistrySection.tsx',
+    'packages/sdkwork-control-plane-tenants/src/page/TenantsRegistrySection.tsx',
   );
   const detailDrawer = read(
-    'packages/sdkwork-craw-chat-admin-tenants/src/page/TenantsDetailDrawer.tsx',
+    'packages/sdkwork-control-plane-tenants/src/page/TenantsDetailDrawer.tsx',
   );
-  const projectDialog = read('packages/sdkwork-craw-chat-admin-tenants/src/page/ProjectDialog.tsx');
-  const apiKeyDialog = read('packages/sdkwork-craw-chat-admin-tenants/src/page/ApiKeyDialog.tsx');
+  const projectDialog = read('packages/sdkwork-control-plane-tenants/src/page/ProjectDialog.tsx');
+  const apiKeyDialog = read('packages/sdkwork-control-plane-tenants/src/page/ApiKeyDialog.tsx');
   const plaintextApiKeyDialog = read(
-    'packages/sdkwork-craw-chat-admin-tenants/src/page/PlaintextApiKeyDialog.tsx',
+    'packages/sdkwork-control-plane-tenants/src/page/PlaintextApiKeyDialog.tsx',
   );
 
   assert.match(tenantsIndex, /TenantsRegistrySection/);
@@ -1108,15 +1154,15 @@ test('tenants module restores router-admin page decomposition for IM governance 
 
 test('tenants page decomposition stays on the router-admin root ui entrypoint', () => {
   const tenantSources = [
-    'packages/sdkwork-craw-chat-admin-tenants/src/index.tsx',
-    'packages/sdkwork-craw-chat-admin-tenants/src/page/ApiKeyDialog.tsx',
-    'packages/sdkwork-craw-chat-admin-tenants/src/page/PlaintextApiKeyDialog.tsx',
-    'packages/sdkwork-craw-chat-admin-tenants/src/page/ProjectDialog.tsx',
-    'packages/sdkwork-craw-chat-admin-tenants/src/page/TenantDialog.tsx',
-    'packages/sdkwork-craw-chat-admin-tenants/src/page/TenantsDetailDrawer.tsx',
-    'packages/sdkwork-craw-chat-admin-tenants/src/page/TenantsDetailPanel.tsx',
-    'packages/sdkwork-craw-chat-admin-tenants/src/page/TenantsRegistrySection.tsx',
-    'packages/sdkwork-craw-chat-admin-tenants/src/page/shared.tsx',
+    'packages/sdkwork-control-plane-tenants/src/index.tsx',
+    'packages/sdkwork-control-plane-tenants/src/page/ApiKeyDialog.tsx',
+    'packages/sdkwork-control-plane-tenants/src/page/PlaintextApiKeyDialog.tsx',
+    'packages/sdkwork-control-plane-tenants/src/page/ProjectDialog.tsx',
+    'packages/sdkwork-control-plane-tenants/src/page/TenantDialog.tsx',
+    'packages/sdkwork-control-plane-tenants/src/page/TenantsDetailDrawer.tsx',
+    'packages/sdkwork-control-plane-tenants/src/page/TenantsDetailPanel.tsx',
+    'packages/sdkwork-control-plane-tenants/src/page/TenantsRegistrySection.tsx',
+    'packages/sdkwork-control-plane-tenants/src/page/shared.tsx',
   ];
 
   for (const relativePath of tenantSources) {

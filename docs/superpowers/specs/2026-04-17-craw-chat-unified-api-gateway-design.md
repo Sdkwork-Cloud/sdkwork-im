@@ -73,7 +73,7 @@ External clients must only rely on the gateway base URL, never on direct service
 
 - all current standalone services remain the business owners of their routes
 - `local-minimal-node` remains available for embedded/local workflows
-- `sdks/sdkwork-craw-chat-sdk` continues to consume the public app authority contract
+- `sdks/sdkwork-im-sdk` continues to consume the public app authority contract
 
 ## 6. API Layering
 
@@ -83,7 +83,7 @@ The gateway exposes four contract layers:
    - full single-port contract for the real external surface
    - used for gateway docs, debugging, contract review
 2. `public app`
-   - formal public contract for `sdkwork-craw-chat-sdk`
+   - formal public contract for `sdkwork-im-sdk`
 3. `control`
    - formal admin/control contract for admin SDK and control-plane tools
 4. `service`
@@ -201,7 +201,7 @@ Direct service endpoints should converge on:
 
 For compatibility with existing SDK workflows, the app authority snapshot may also be mirrored into:
 
-- `sdks/sdkwork-craw-chat-sdk/openapi/craw-chat-app.openapi.yaml`
+- `sdks/sdkwork-im-sdk/openapi/craw-chat-app.openapi.yaml`
 
 The long-term source of truth remains `openapi/*`, not `sdks/*`.
 

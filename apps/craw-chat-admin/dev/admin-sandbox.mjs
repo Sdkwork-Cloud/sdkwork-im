@@ -149,7 +149,7 @@ function createClaimsForUser(userId, issuedAtMs) {
   return {
     sub: userId,
     iss: 'sdkwork-admin-sandbox',
-    aud: 'sdkwork-craw-chat-admin',
+    aud: 'sdkwork-control-plane',
     exp: issuedAtSeconds + 7 * 24 * 60 * 60,
     iat: issuedAtSeconds,
   };

@@ -1,6 +1,6 @@
 # Generator Boundary
 
-The Craw Chat SDK family uses one cross-language rule set for generated code and handwritten SDK
+The IM SDK family uses one cross-language rule set for generated code and handwritten SDK
 behavior.
 
 ## Source Of Truth
@@ -8,7 +8,7 @@ behavior.
 Every official language starts from the same live contract export:
 
 - endpoint: `/openapi/craw-chat-app.openapi.yaml`
-- checked-in authority snapshot: `sdks/sdkwork-craw-chat-sdk/openapi/craw-chat-app.openapi.yaml`
+- checked-in authority snapshot: `sdks/sdkwork-im-sdk/openapi/craw-chat-app.openapi.yaml`
 
 The root wrappers refresh that authority snapshot before generation. Language-specific SDK delivery
 then starts from the same contract instead of diverging per workspace.
@@ -52,8 +52,8 @@ consumer package assembles that transport into `src/generated/**`.
 
 That is why the TypeScript consumer contract is still a single package:
 
-- `@sdkwork/craw-chat-sdk`
-- `CrawChatSdkClient`
+- `@sdkwork/im-sdk`
+- `ImSdkClient`
 
 Consumers use one package, while maintainers still keep a hard generator boundary under
 `generated/server-openapi`.
@@ -111,5 +111,5 @@ When a new language grows beyond transport-standardized delivery, keep the rule 
   that exposes generated transport under `src/generated/**`.
 - Read [Language Support](/sdk/language-support) when you need the full cross-language maturity
   matrix and current delivery status.
-- Read [Admin SDK](/sdk/admin-sdk) when your consumer boundary is governance or control-plane
+- Read [Control-Plane SDK](/sdk/control-plane-sdk) when your consumer boundary is governance or control-plane
   rather than the public app runtime.

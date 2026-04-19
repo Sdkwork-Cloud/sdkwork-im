@@ -23,8 +23,8 @@
 ### 2.2 Step 12 operator / SDK 文档已补恢复基线
 
 - 更新：`docs/部署/CLI聊天验证与兼容矩阵.md`
-- 更新：`sdks/sdkwork-craw-chat-sdk/README.md`
-- 更新：`sdks/sdkwork-craw-chat-sdk-admin/README.md`
+- 更新：`sdks/sdkwork-im-sdk/README.md`
+- 更新：`sdks/sdkwork-control-plane-sdk/README.md`
 - 当前公开恢复语义已明确冻结：
   - `session.disconnect`
   - `realtime.overload`

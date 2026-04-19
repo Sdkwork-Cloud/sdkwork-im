@@ -1,4 +1,4 @@
-# Craw Chat SDK Generation Design
+# IM SDK Generation Design
 
 ## Goal
 
@@ -6,7 +6,7 @@ Build professional app-facing SDK workspaces for `craw-chat` TypeScript and Flut
 
 ## Decisions
 
-- Contract source: use a checked-in OpenAPI 3.x snapshot in `sdks/sdkwork-craw-chat-sdk/openapi/`.
+- Contract source: use a checked-in OpenAPI 3.x snapshot in `sdks/sdkwork-im-sdk/openapi/`.
 - Canonical runtime surface: public app-facing routes from `services/local-minimal-node/src/node/build.rs`.
 - SDK scope: include app-facing IM, session, realtime HTTP, conversation, message, media, stream, and RTC endpoints.
 - Excluded scope: admin, ops, audit, IoT, provider health, and other control-plane-only endpoints.
@@ -17,37 +17,37 @@ Build professional app-facing SDK workspaces for `craw-chat` TypeScript and Flut
 
 ## Architecture
 
-The workspace root `sdks/sdkwork-craw-chat-sdk` will own the OpenAPI source, regeneration wrappers, and release-facing documentation. Each language workspace will receive generator output under `generated/server-openapi`, preserving a clean boundary for future handwritten adapters or composed SDK layers. The initial round focuses on correct HTTP SDK generation and professional regeneration ergonomics rather than speculative custom realtime clients.
+The workspace root `sdks/sdkwork-im-sdk` will own the OpenAPI source, regeneration wrappers, and release-facing documentation. Each language workspace will receive generator output under `generated/server-openapi`, preserving a clean boundary for future handwritten adapters or composed SDK layers. The initial round focuses on correct HTTP SDK generation and professional regeneration ergonomics rather than speculative custom realtime clients.
 
 ## Files And Responsibilities
 
-- `sdks/sdkwork-craw-chat-sdk/openapi/craw-chat-app.openapi.yaml`
+- `sdks/sdkwork-im-sdk/openapi/craw-chat-app.openapi.yaml`
   Authority OpenAPI 3.x contract for the app-facing craw-chat surface.
-- `sdks/sdkwork-craw-chat-sdk/openapi/craw-chat-app.sdkgen.yaml`
+- `sdks/sdkwork-im-sdk/openapi/craw-chat-app.sdkgen.yaml`
   Generator-compatible derived spec consumed by `sdkwork-sdk-generator`.
-- `sdks/sdkwork-craw-chat-sdk/openapi/README.md`
+- `sdks/sdkwork-im-sdk/openapi/README.md`
   Documents authority-vs-derived ownership and offline regeneration rules.
-- `sdks/sdkwork-craw-chat-sdk/bin/generate-sdk.ps1`
+- `sdks/sdkwork-im-sdk/bin/generate-sdk.ps1`
   Root Windows regeneration entrypoint for TypeScript and Flutter.
-- `sdks/sdkwork-craw-chat-sdk/bin/generate-sdk.sh`
+- `sdks/sdkwork-im-sdk/bin/generate-sdk.sh`
   Root POSIX regeneration entrypoint for TypeScript and Flutter.
-- `sdks/sdkwork-craw-chat-sdk/bin/prepare-openapi-source.mjs`
+- `sdks/sdkwork-im-sdk/bin/prepare-openapi-source.mjs`
   Normalizes the checked-in authority spec into the derived sdkgen input.
-- `sdks/sdkwork-craw-chat-sdk/bin/assemble-sdk.mjs`
+- `sdks/sdkwork-im-sdk/bin/assemble-sdk.mjs`
   Refreshes workspace metadata after generation.
-- `sdks/sdkwork-craw-chat-sdk/README.md`
+- `sdks/sdkwork-im-sdk/README.md`
   Workspace-level documentation for scope, boundaries, regeneration, and packaging.
-- `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/README.md`
+- `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/README.md`
   TypeScript workspace documentation and generation entrypoints.
-- `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/bin/*`
+- `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/bin/*`
   Thin forwarding scripts to root regeneration and assembly commands.
-- `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-flutter/README.md`
+- `sdks/sdkwork-im-sdk/sdkwork-im-sdk-flutter/README.md`
   Flutter workspace documentation and generation entrypoints.
-- `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-flutter/bin/*`
+- `sdks/sdkwork-im-sdk/sdkwork-im-sdk-flutter/bin/*`
   Thin forwarding scripts to root regeneration and assembly commands.
-- `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-typescript/generated/server-openapi/*`
+- `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/generated/server-openapi/*`
   Generator-owned TypeScript SDK output.
-- `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-flutter/generated/server-openapi/*`
+- `sdks/sdkwork-im-sdk/sdkwork-im-sdk-flutter/generated/server-openapi/*`
   Generator-owned Flutter SDK output.
 
 ## Contract Strategy

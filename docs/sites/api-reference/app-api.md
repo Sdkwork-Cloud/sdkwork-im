@@ -39,7 +39,7 @@
 - These endpoints map to the App SDK documentation in [SDK Overview](/sdk/index) and [App SDK](/sdk/app-sdk).
 - Portal auth and portal snapshot helpers are currently exposed most completely in the TypeScript SDK.
 - Session resume, realtime subscription sync, poll, and ACK map directly into generated HTTP SDK layers, while the TypeScript package additionally delivers a semantic live runtime through `sdk.connect(...)` above that boundary for `/api/v1/realtime/ws`.
-- The repo App SDK authority contract is `sdks/sdkwork-craw-chat-sdk/openapi/craw-chat-app.openapi.yaml`, with `craw-chat-app.sdkgen.yaml` as the derived generator input.
+- The repo App SDK authority contract is `sdks/sdkwork-im-sdk/openapi/craw-chat-app.openapi.yaml`, with `craw-chat-app.sdkgen.yaml` as the derived generator input.
 - Sidebar grouping follows the same runtime boundaries used in the implementation: portal, session gateway, conversation runtime, media, streaming, and RTC services.
 - In packaged installs, this same app-facing HTTP surface is exposed through the unified
   `craw-chat-server` / `web-gateway` public origin rather than a separate public app-node port.
@@ -50,7 +50,7 @@
 Use the App API pages for route semantics first:
 
 1. Read this section and the linked operation pages for request or response contracts.
-2. Switch to [App SDK](/sdk/app-sdk) when you need the official consumer package in each language workspace: `@sdkwork/craw-chat-sdk` in TypeScript and `craw_chat_sdk` in Flutter.
+2. Switch to [App SDK](/sdk/app-sdk) when you need the official consumer package in each language workspace: `@sdkwork/im-sdk` in TypeScript and `im_sdk` in Flutter.
 3. Switch to [TypeScript SDK](/sdk/typescript-sdk) when you need checked-in portal auth or portal snapshot helpers today.
 4. Switch to [Flutter SDK](/sdk/flutter-sdk) when you need the current Dart export surface and parity caveats.
 

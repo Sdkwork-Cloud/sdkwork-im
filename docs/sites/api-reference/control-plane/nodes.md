@@ -8,7 +8,7 @@
 <div class="api-link-list">
   <a href="/api-reference/control-plane/protocol"><code>Protocol</code> Protocol governance snapshots are documented separately</a>
   <a href="/api-reference/control-plane/providers"><code>Providers</code> Provider registry and binding policy flows are documented separately</a>
-  <a href="/sdk/admin-sdk"><code>Admin SDK</code> Admin SDK docs explain the current control-plane consumer boundary</a>
+  <a href="/sdk/control-plane-sdk"><code>Control-Plane SDK</code> Control-plane SDK docs explain the current control-plane consumer boundary</a>
 </div>
 
 <a id="drain-node"></a>
@@ -26,7 +26,7 @@ Marks the node as draining.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / node-operations</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / node-operations</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 RouteNodeLifecycle`</span></div>
 </div>
@@ -73,7 +73,7 @@ Reactivates a previously drained node.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / node-operations</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / node-operations</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 RouteNodeLifecycle`</span></div>
 </div>
@@ -120,7 +120,7 @@ Migrates owned realtime routes from the source node to a target node.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-craw-chat-sdk-admin` / node-operations</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / node-operations</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 RouteMigrationResult`</span></div>
 </div>

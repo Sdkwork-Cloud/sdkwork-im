@@ -19,8 +19,8 @@
 
 ### 2.2 两份容器 README 已对齐
 
-- 更新：`sdks/sdkwork-craw-chat-sdk/README.md`
-- 更新：`sdks/sdkwork-craw-chat-sdk-admin/README.md`
+- 更新：`sdks/sdkwork-im-sdk/README.md`
+- 更新：`sdks/sdkwork-control-plane-sdk/README.md`
 - 现在两个容器 README 都显式表达：
   - `plannedVersion = null`
   - `versionStatus = version_unassigned_pending_freeze`

@@ -2,7 +2,7 @@
 
 ## Goal
 
-Build `apps/craw-chat-admin` as the professional IM control-plane workspace for Craw Chat by fully reproducing the architecture standard of `apps/sdkwork-api-router/apps/sdkwork-router-admin`, including:
+Build `apps/control-plane` as the professional IM control-plane workspace for Craw Chat by fully reproducing the architecture standard of `apps/sdkwork-api-router/apps/sdkwork-router-admin`, including:
 
 - a standalone React and Tauri workspace
 - a thin root app with package-first composition
@@ -24,7 +24,7 @@ The result must feel like a real operator-grade IM management console rather tha
 
 `apps/sdkwork-api-router/apps/sdkwork-router-admin` is the architectural source of truth.
 
-`apps/craw-chat-admin` must match its standards in these areas:
+`apps/control-plane` must match its standards in these areas:
 
 - root workspace files: `package.json`, `pnpm-workspace.yaml`, `turbo.json`, `tsconfig.json`, `vite.config.ts`
 - root app behavior: `src/main.tsx` bootstraps shared shell runtime; `src/App.tsx` only mounts `AppRoot`
@@ -72,7 +72,7 @@ The first professional IM admin release will ship these product modules.
 The workspace will mirror the reference layout.
 
 ```text
-apps/craw-chat-admin/
+apps/control-plane/
 |- src/          # root bootstrap only
 |- packages/     # foundation and IM product modules
 |- tests/        # architecture and product regression tests
@@ -84,26 +84,26 @@ apps/craw-chat-admin/
 
 ### Foundation Packages
 
-- `sdkwork-craw-chat-admin-types`
-- `sdkwork-craw-chat-admin-core`
-- `sdkwork-craw-chat-admin-shell`
-- `sdkwork-craw-chat-admin-admin-api`
-- `sdkwork-craw-chat-admin-auth`
+- `sdkwork-control-plane-types`
+- `sdkwork-control-plane-core`
+- `sdkwork-control-plane-shell`
+- `sdkwork-control-plane-admin-api`
+- `sdkwork-control-plane-auth`
 
 ### Business Packages
 
-- `sdkwork-craw-chat-admin-overview`
-- `sdkwork-craw-chat-admin-tenants`
-- `sdkwork-craw-chat-admin-users`
-- `sdkwork-craw-chat-admin-conversations`
-- `sdkwork-craw-chat-admin-messages`
-- `sdkwork-craw-chat-admin-groups`
-- `sdkwork-craw-chat-admin-moderation`
-- `sdkwork-craw-chat-admin-automation`
-- `sdkwork-craw-chat-admin-announcements`
-- `sdkwork-craw-chat-admin-realtime`
-- `sdkwork-craw-chat-admin-system`
-- `sdkwork-craw-chat-admin-settings`
+- `sdkwork-control-plane-overview`
+- `sdkwork-control-plane-tenants`
+- `sdkwork-control-plane-users`
+- `sdkwork-control-plane-conversations`
+- `sdkwork-control-plane-messages`
+- `sdkwork-control-plane-groups`
+- `sdkwork-control-plane-moderation`
+- `sdkwork-control-plane-automation`
+- `sdkwork-control-plane-announcements`
+- `sdkwork-control-plane-realtime`
+- `sdkwork-control-plane-system`
+- `sdkwork-control-plane-settings`
 
 ## Route And Shell Model
 
@@ -136,7 +136,7 @@ The admin app must consume admin control-plane APIs through the admin SDK bounda
 
 Required path:
 
-`craw-chat-admin app -> sdkwork-craw-chat-admin-admin-api -> sdkwork-craw-chat-sdk-admin`
+`control-plane app -> sdkwork-control-plane-admin-api -> sdkwork-control-plane-sdk`
 
 Rules:
 
@@ -147,7 +147,7 @@ Rules:
 
 ## Workbench Model
 
-`sdkwork-craw-chat-admin-core` will own:
+`sdkwork-control-plane-core` will own:
 
 - route constants and route metadata
 - sidebar state and theme preferences
@@ -156,7 +156,7 @@ Rules:
 - workbench actions
 - shell-wide loading and error state contracts
 
-`sdkwork-craw-chat-admin-admin-api` will own:
+`sdkwork-control-plane-admin-api` will own:
 
 - typed admin service functions
 - normalization of backend errors into operator-readable failures
@@ -217,7 +217,7 @@ Testing will follow the reference workspace pattern and start before production 
 
 Implementation should proceed in this order:
 
-1. copy and rename the reference workspace skeleton into `apps/craw-chat-admin`
+1. copy and rename the reference workspace skeleton into `apps/control-plane`
 2. write failing architecture tests that define the IM admin workspace contract
 3. make the copied workspace satisfy the renamed contract
 4. replace router-admin module map with IM module map
@@ -235,9 +235,9 @@ Implementation should proceed in this order:
 
 ## Acceptance Criteria
 
-- `apps/craw-chat-admin` matches the structural architecture of `sdkwork-router-admin`
+- `apps/control-plane` matches the structural architecture of `sdkwork-router-admin`
 - login exists and is routed outside the authenticated shell
 - all primary IM admin modules are present and navigable
 - route manifest and package boundaries are package-first
-- admin business calls are funneled through `sdkwork-craw-chat-admin-admin-api`
+- admin business calls are funneled through `sdkwork-control-plane-admin-api`
 - the workspace builds and its targeted regression tests pass

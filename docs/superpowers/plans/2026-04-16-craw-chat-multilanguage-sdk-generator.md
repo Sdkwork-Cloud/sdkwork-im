@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Expand `sdks/sdkwork-craw-chat-sdk` into a verified multi-language SDK workspace that standardizes generation, normalization, assembly, verification, and docs for `typescript`, `flutter`, `rust`, `java`, `csharp`, `swift`, `kotlin`, `go`, and `python`, using the live Craw Chat OpenAPI 3.x schema as the source of truth.
+**Goal:** Expand `sdks/sdkwork-im-sdk` into a verified multi-language SDK workspace that standardizes generation, normalization, assembly, verification, and docs for `typescript`, `flutter`, `rust`, `java`, `csharp`, `swift`, `kotlin`, `go`, and `python`, using the live Craw Chat OpenAPI 3.x schema as the source of truth.
 
 **Architecture:** Keep OpenAPI generation isolated under each language workspace's `generated/server-openapi` boundary and treat all live runtime, message ergonomics, RTC helpers, and higher-level product-facing workflows as non-generated semantic code. In the current writable scope, implementation focuses on the Craw Chat workspace itself: root wrappers, language workspace skeletons, capability metadata, verification, and docs. Any generator-core fixes outside `apps/craw-chat` are captured as workspace-level contract failures and follow-up backlog rather than edited directly here.
 
@@ -14,41 +14,41 @@
 
 ### Existing files to modify
 
-- `sdks/sdkwork-craw-chat-sdk/README.md`
-- `sdks/sdkwork-craw-chat-sdk/.sdkwork-assembly.json`
-- `sdks/sdkwork-craw-chat-sdk/bin/generate-sdk.ps1`
-- `sdks/sdkwork-craw-chat-sdk/bin/generate-sdk.sh`
-- `sdks/sdkwork-craw-chat-sdk/bin/verify-sdk.mjs`
-- `sdks/sdkwork-craw-chat-sdk/bin/verify-sdk.ps1`
-- `sdks/sdkwork-craw-chat-sdk/bin/verify-sdk.sh`
-- `sdks/sdkwork-craw-chat-sdk/bin/assemble-sdk.mjs`
-- `sdks/sdkwork-craw-chat-sdk/bin/normalize-generated-auth-surface.mjs`
+- `sdks/sdkwork-im-sdk/README.md`
+- `sdks/sdkwork-im-sdk/.sdkwork-assembly.json`
+- `sdks/sdkwork-im-sdk/bin/generate-sdk.ps1`
+- `sdks/sdkwork-im-sdk/bin/generate-sdk.sh`
+- `sdks/sdkwork-im-sdk/bin/verify-sdk.mjs`
+- `sdks/sdkwork-im-sdk/bin/verify-sdk.ps1`
+- `sdks/sdkwork-im-sdk/bin/verify-sdk.sh`
+- `sdks/sdkwork-im-sdk/bin/assemble-sdk.mjs`
+- `sdks/sdkwork-im-sdk/bin/normalize-generated-auth-surface.mjs`
 - `docs/sites/sdk/index.md`
 - `docs/sites/sdk/language-support.md`
 - `docs/sites/README.md`
 
 ### New language workspaces to create
 
-- `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-rust/`
-- `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-java/`
-- `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-csharp/`
-- `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-swift/`
-- `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-kotlin/`
-- `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-go/`
-- `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-python/`
+- `sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/`
+- `sdks/sdkwork-im-sdk/sdkwork-im-sdk-java/`
+- `sdks/sdkwork-im-sdk/sdkwork-im-sdk-csharp/`
+- `sdks/sdkwork-im-sdk/sdkwork-im-sdk-swift/`
+- `sdks/sdkwork-im-sdk/sdkwork-im-sdk-kotlin/`
+- `sdks/sdkwork-im-sdk/sdkwork-im-sdk-go/`
+- `sdks/sdkwork-im-sdk/sdkwork-im-sdk-python/`
 
 ### New verification and maintainer files to create
 
-- `sdks/sdkwork-craw-chat-sdk/bin/verify-rust-workspace.mjs`
-- `sdks/sdkwork-craw-chat-sdk/bin/verify-java-workspace.mjs`
-- `sdks/sdkwork-craw-chat-sdk/bin/verify-csharp-workspace.mjs`
-- `sdks/sdkwork-craw-chat-sdk/bin/verify-swift-workspace.mjs`
-- `sdks/sdkwork-craw-chat-sdk/bin/verify-kotlin-workspace.mjs`
-- `sdks/sdkwork-craw-chat-sdk/bin/verify-go-workspace.mjs`
-- `sdks/sdkwork-craw-chat-sdk/bin/verify-python-workspace.mjs`
-- `sdks/sdkwork-craw-chat-sdk/docs/multilanguage-generator-standard.md`
-- `sdks/sdkwork-craw-chat-sdk/docs/multilanguage-capability-matrix.md`
-- `sdks/sdkwork-craw-chat-sdk/docs/multilanguage-audit-report.md`
+- `sdks/sdkwork-im-sdk/bin/verify-rust-workspace.mjs`
+- `sdks/sdkwork-im-sdk/bin/verify-java-workspace.mjs`
+- `sdks/sdkwork-im-sdk/bin/verify-csharp-workspace.mjs`
+- `sdks/sdkwork-im-sdk/bin/verify-swift-workspace.mjs`
+- `sdks/sdkwork-im-sdk/bin/verify-kotlin-workspace.mjs`
+- `sdks/sdkwork-im-sdk/bin/verify-go-workspace.mjs`
+- `sdks/sdkwork-im-sdk/bin/verify-python-workspace.mjs`
+- `sdks/sdkwork-im-sdk/docs/multilanguage-generator-standard.md`
+- `sdks/sdkwork-im-sdk/docs/multilanguage-capability-matrix.md`
+- `sdks/sdkwork-im-sdk/docs/multilanguage-audit-report.md`
 
 ### New public SDK docs to create
 
@@ -76,14 +76,14 @@
 ### Task 1: Lock the full language set into root workspace automation
 
 **Files:**
-- Modify: `sdks/sdkwork-craw-chat-sdk/bin/generate-sdk.ps1`
-- Modify: `sdks/sdkwork-craw-chat-sdk/bin/generate-sdk.sh`
-- Modify: `sdks/sdkwork-craw-chat-sdk/bin/verify-sdk.mjs`
-- Modify: `sdks/sdkwork-craw-chat-sdk/bin/verify-sdk.ps1`
-- Modify: `sdks/sdkwork-craw-chat-sdk/bin/verify-sdk.sh`
-- Modify: `sdks/sdkwork-craw-chat-sdk/README.md`
-- Test: `sdks/sdkwork-craw-chat-sdk/bin/verify-sdk-automation.mjs`
-- Test: `sdks/sdkwork-craw-chat-sdk/bin/verify-powershell-wrapper-args.mjs`
+- Modify: `sdks/sdkwork-im-sdk/bin/generate-sdk.ps1`
+- Modify: `sdks/sdkwork-im-sdk/bin/generate-sdk.sh`
+- Modify: `sdks/sdkwork-im-sdk/bin/verify-sdk.mjs`
+- Modify: `sdks/sdkwork-im-sdk/bin/verify-sdk.ps1`
+- Modify: `sdks/sdkwork-im-sdk/bin/verify-sdk.sh`
+- Modify: `sdks/sdkwork-im-sdk/README.md`
+- Test: `sdks/sdkwork-im-sdk/bin/verify-sdk-automation.mjs`
+- Test: `sdks/sdkwork-im-sdk/bin/verify-powershell-wrapper-args.mjs`
 
 - [ ] **Step 1: Write the failing automation assertions**
 
@@ -114,8 +114,8 @@ The guardrails should fail until:
 Run:
 
 ```bash
-node sdks/sdkwork-craw-chat-sdk/bin/verify-sdk-automation.mjs
-node sdks/sdkwork-craw-chat-sdk/bin/verify-powershell-wrapper-args.mjs
+node sdks/sdkwork-im-sdk/bin/verify-sdk-automation.mjs
+node sdks/sdkwork-im-sdk/bin/verify-powershell-wrapper-args.mjs
 ```
 
 Expected: FAIL because current wrappers and docs still only recognize `typescript` and `flutter`.
@@ -138,8 +138,8 @@ languages are official inputs.
 Run:
 
 ```bash
-node sdks/sdkwork-craw-chat-sdk/bin/verify-sdk-automation.mjs
-node sdks/sdkwork-craw-chat-sdk/bin/verify-powershell-wrapper-args.mjs
+node sdks/sdkwork-im-sdk/bin/verify-sdk-automation.mjs
+node sdks/sdkwork-im-sdk/bin/verify-powershell-wrapper-args.mjs
 ```
 
 Expected: PASS
@@ -147,63 +147,63 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add sdks/sdkwork-craw-chat-sdk/bin/generate-sdk.ps1 sdks/sdkwork-craw-chat-sdk/bin/generate-sdk.sh sdks/sdkwork-craw-chat-sdk/bin/verify-sdk.mjs sdks/sdkwork-craw-chat-sdk/bin/verify-sdk.ps1 sdks/sdkwork-craw-chat-sdk/bin/verify-sdk.sh sdks/sdkwork-craw-chat-sdk/README.md
+git add sdks/sdkwork-im-sdk/bin/generate-sdk.ps1 sdks/sdkwork-im-sdk/bin/generate-sdk.sh sdks/sdkwork-im-sdk/bin/verify-sdk.mjs sdks/sdkwork-im-sdk/bin/verify-sdk.ps1 sdks/sdkwork-im-sdk/bin/verify-sdk.sh sdks/sdkwork-im-sdk/README.md
 git commit -m "feat(sdk): register full multilanguage workspace set"
 ```
 
 ### Task 2: Scaffold all missing language workspaces with a uniform boundary
 
 **Files:**
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-rust/README.md`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-rust/bin/sdk-gen.ps1`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-rust/bin/sdk-gen.sh`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-rust/bin/sdk-verify.ps1`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-rust/bin/sdk-verify.sh`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-rust/generated/server-openapi/.gitkeep`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-rust/composed/README.md`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-java/README.md`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-java/bin/sdk-gen.ps1`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-java/bin/sdk-gen.sh`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-java/bin/sdk-verify.ps1`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-java/bin/sdk-verify.sh`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-java/generated/server-openapi/.gitkeep`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-java/composed/README.md`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-csharp/README.md`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-csharp/bin/sdk-gen.ps1`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-csharp/bin/sdk-gen.sh`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-csharp/bin/sdk-verify.ps1`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-csharp/bin/sdk-verify.sh`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-csharp/generated/server-openapi/.gitkeep`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-csharp/composed/README.md`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-swift/README.md`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-swift/bin/sdk-gen.ps1`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-swift/bin/sdk-gen.sh`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-swift/bin/sdk-verify.ps1`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-swift/bin/sdk-verify.sh`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-swift/generated/server-openapi/.gitkeep`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-swift/composed/README.md`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-kotlin/README.md`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-kotlin/bin/sdk-gen.ps1`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-kotlin/bin/sdk-gen.sh`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-kotlin/bin/sdk-verify.ps1`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-kotlin/bin/sdk-verify.sh`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-kotlin/generated/server-openapi/.gitkeep`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-kotlin/composed/README.md`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-go/README.md`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-go/bin/sdk-gen.ps1`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-go/bin/sdk-gen.sh`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-go/bin/sdk-verify.ps1`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-go/bin/sdk-verify.sh`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-go/generated/server-openapi/.gitkeep`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-go/composed/README.md`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-python/README.md`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-python/bin/sdk-gen.ps1`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-python/bin/sdk-gen.sh`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-python/bin/sdk-verify.ps1`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-python/bin/sdk-verify.sh`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-python/generated/server-openapi/.gitkeep`
-- Create: `sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-python/composed/README.md`
-- Test: `sdks/sdkwork-craw-chat-sdk/bin/verify-sdk-automation.mjs`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/README.md`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/bin/sdk-gen.ps1`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/bin/sdk-gen.sh`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/bin/sdk-verify.ps1`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/bin/sdk-verify.sh`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/generated/server-openapi/.gitkeep`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/README.md`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-java/README.md`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-java/bin/sdk-gen.ps1`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-java/bin/sdk-gen.sh`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-java/bin/sdk-verify.ps1`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-java/bin/sdk-verify.sh`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-java/generated/server-openapi/.gitkeep`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-java/composed/README.md`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-csharp/README.md`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-csharp/bin/sdk-gen.ps1`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-csharp/bin/sdk-gen.sh`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-csharp/bin/sdk-verify.ps1`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-csharp/bin/sdk-verify.sh`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-csharp/generated/server-openapi/.gitkeep`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-csharp/composed/README.md`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-swift/README.md`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-swift/bin/sdk-gen.ps1`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-swift/bin/sdk-gen.sh`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-swift/bin/sdk-verify.ps1`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-swift/bin/sdk-verify.sh`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-swift/generated/server-openapi/.gitkeep`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-swift/composed/README.md`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-kotlin/README.md`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-kotlin/bin/sdk-gen.ps1`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-kotlin/bin/sdk-gen.sh`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-kotlin/bin/sdk-verify.ps1`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-kotlin/bin/sdk-verify.sh`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-kotlin/generated/server-openapi/.gitkeep`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-kotlin/composed/README.md`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-go/README.md`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-go/bin/sdk-gen.ps1`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-go/bin/sdk-gen.sh`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-go/bin/sdk-verify.ps1`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-go/bin/sdk-verify.sh`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-go/generated/server-openapi/.gitkeep`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-go/composed/README.md`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-python/README.md`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-python/bin/sdk-gen.ps1`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-python/bin/sdk-gen.sh`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-python/bin/sdk-verify.ps1`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-python/bin/sdk-verify.sh`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-python/generated/server-openapi/.gitkeep`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-python/composed/README.md`
+- Test: `sdks/sdkwork-im-sdk/bin/verify-sdk-automation.mjs`
 
 - [ ] **Step 1: Add a failing workspace-boundary contract**
 
@@ -222,7 +222,7 @@ requirePath(`${workspace}/composed`);
 Run:
 
 ```bash
-node sdks/sdkwork-craw-chat-sdk/bin/verify-sdk-automation.mjs
+node sdks/sdkwork-im-sdk/bin/verify-sdk-automation.mjs
 ```
 
 Expected: FAIL because the new language workspaces do not exist yet.
@@ -253,7 +253,7 @@ bash "${SCRIPT_DIR}/../../bin/generate-sdk.sh" --language rust "$@"
 Run:
 
 ```bash
-node sdks/sdkwork-craw-chat-sdk/bin/verify-sdk-automation.mjs
+node sdks/sdkwork-im-sdk/bin/verify-sdk-automation.mjs
 ```
 
 Expected: PASS
@@ -261,17 +261,17 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-rust sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-java sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-csharp sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-swift sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-kotlin sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-go sdks/sdkwork-craw-chat-sdk/sdkwork-craw-chat-sdk-python
+git add sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust sdks/sdkwork-im-sdk/sdkwork-im-sdk-java sdks/sdkwork-im-sdk/sdkwork-im-sdk-csharp sdks/sdkwork-im-sdk/sdkwork-im-sdk-swift sdks/sdkwork-im-sdk/sdkwork-im-sdk-kotlin sdks/sdkwork-im-sdk/sdkwork-im-sdk-go sdks/sdkwork-im-sdk/sdkwork-im-sdk-python
 git commit -m "feat(sdk): scaffold multilanguage workspace boundaries"
 ```
 
 ### Task 3: Extend assembly metadata and root README for the full SDK family
 
 **Files:**
-- Modify: `sdks/sdkwork-craw-chat-sdk/.sdkwork-assembly.json`
-- Modify: `sdks/sdkwork-craw-chat-sdk/README.md`
-- Create: `sdks/sdkwork-craw-chat-sdk/docs/multilanguage-capability-matrix.md`
-- Test: `sdks/sdkwork-craw-chat-sdk/bin/verify-sdk-automation.mjs`
+- Modify: `sdks/sdkwork-im-sdk/.sdkwork-assembly.json`
+- Modify: `sdks/sdkwork-im-sdk/README.md`
+- Create: `sdks/sdkwork-im-sdk/docs/multilanguage-capability-matrix.md`
+- Test: `sdks/sdkwork-im-sdk/bin/verify-sdk-automation.mjs`
 
 - [ ] **Step 1: Write the failing metadata assertions**
 
@@ -287,9 +287,9 @@ Example expected metadata fragment:
 ```json
 {
   "language": "rust",
-  "workspace": "sdkwork-craw-chat-sdk-rust",
+  "workspace": "sdkwork-im-sdk-rust",
   "maturityTier": "tier-a",
-  "primaryClient": "CrawChatSdkClient"
+  "primaryClient": "ImSdkClient"
 }
 ```
 
@@ -298,7 +298,7 @@ Example expected metadata fragment:
 Run:
 
 ```bash
-node sdks/sdkwork-craw-chat-sdk/bin/verify-sdk-automation.mjs
+node sdks/sdkwork-im-sdk/bin/verify-sdk-automation.mjs
 ```
 
 Expected: FAIL because `.sdkwork-assembly.json` only contains `typescript` and `flutter`.
@@ -327,7 +327,7 @@ Update the root README so it documents:
 Run:
 
 ```bash
-node sdks/sdkwork-craw-chat-sdk/bin/verify-sdk-automation.mjs
+node sdks/sdkwork-im-sdk/bin/verify-sdk-automation.mjs
 ```
 
 Expected: PASS
@@ -335,24 +335,24 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add sdks/sdkwork-craw-chat-sdk/.sdkwork-assembly.json sdks/sdkwork-craw-chat-sdk/README.md sdks/sdkwork-craw-chat-sdk/docs/multilanguage-capability-matrix.md
+git add sdks/sdkwork-im-sdk/.sdkwork-assembly.json sdks/sdkwork-im-sdk/README.md sdks/sdkwork-im-sdk/docs/multilanguage-capability-matrix.md
 git commit -m "docs(sdk): add multilanguage assembly metadata"
 ```
 
 ### Task 4: Add per-language verification entrypoints and root dispatch
 
 **Files:**
-- Create: `sdks/sdkwork-craw-chat-sdk/bin/verify-rust-workspace.mjs`
-- Create: `sdks/sdkwork-craw-chat-sdk/bin/verify-java-workspace.mjs`
-- Create: `sdks/sdkwork-craw-chat-sdk/bin/verify-csharp-workspace.mjs`
-- Create: `sdks/sdkwork-craw-chat-sdk/bin/verify-swift-workspace.mjs`
-- Create: `sdks/sdkwork-craw-chat-sdk/bin/verify-kotlin-workspace.mjs`
-- Create: `sdks/sdkwork-craw-chat-sdk/bin/verify-go-workspace.mjs`
-- Create: `sdks/sdkwork-craw-chat-sdk/bin/verify-python-workspace.mjs`
-- Modify: `sdks/sdkwork-craw-chat-sdk/bin/verify-sdk.mjs`
-- Modify: `sdks/sdkwork-craw-chat-sdk/bin/verify-sdk.ps1`
-- Modify: `sdks/sdkwork-craw-chat-sdk/bin/verify-sdk.sh`
-- Test: `sdks/sdkwork-craw-chat-sdk/bin/verify-sdk.mjs`
+- Create: `sdks/sdkwork-im-sdk/bin/verify-rust-workspace.mjs`
+- Create: `sdks/sdkwork-im-sdk/bin/verify-java-workspace.mjs`
+- Create: `sdks/sdkwork-im-sdk/bin/verify-csharp-workspace.mjs`
+- Create: `sdks/sdkwork-im-sdk/bin/verify-swift-workspace.mjs`
+- Create: `sdks/sdkwork-im-sdk/bin/verify-kotlin-workspace.mjs`
+- Create: `sdks/sdkwork-im-sdk/bin/verify-go-workspace.mjs`
+- Create: `sdks/sdkwork-im-sdk/bin/verify-python-workspace.mjs`
+- Modify: `sdks/sdkwork-im-sdk/bin/verify-sdk.mjs`
+- Modify: `sdks/sdkwork-im-sdk/bin/verify-sdk.ps1`
+- Modify: `sdks/sdkwork-im-sdk/bin/verify-sdk.sh`
+- Test: `sdks/sdkwork-im-sdk/bin/verify-sdk.mjs`
 
 - [ ] **Step 1: Add failing verify expectations**
 
@@ -369,8 +369,8 @@ script. The new workspace verifiers should at minimum check:
 Run:
 
 ```bash
-node sdks/sdkwork-craw-chat-sdk/bin/verify-sdk.mjs --language rust
-node sdks/sdkwork-craw-chat-sdk/bin/verify-sdk.mjs --language java
+node sdks/sdkwork-im-sdk/bin/verify-sdk.mjs --language rust
+node sdks/sdkwork-im-sdk/bin/verify-sdk.mjs --language java
 ```
 
 Expected: FAIL because those verify entrypoints do not exist yet.
@@ -396,7 +396,7 @@ Native build checks should be capability-aware:
 Run:
 
 ```bash
-node sdks/sdkwork-craw-chat-sdk/bin/verify-sdk.mjs --language rust --language java --language csharp --language swift --language kotlin --language go --language python
+node sdks/sdkwork-im-sdk/bin/verify-sdk.mjs --language rust --language java --language csharp --language swift --language kotlin --language go --language python
 ```
 
 Expected: PASS for structural verification in the current workspace state.
@@ -404,19 +404,19 @@ Expected: PASS for structural verification in the current workspace state.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add sdks/sdkwork-craw-chat-sdk/bin/verify-rust-workspace.mjs sdks/sdkwork-craw-chat-sdk/bin/verify-java-workspace.mjs sdks/sdkwork-craw-chat-sdk/bin/verify-csharp-workspace.mjs sdks/sdkwork-craw-chat-sdk/bin/verify-swift-workspace.mjs sdks/sdkwork-craw-chat-sdk/bin/verify-kotlin-workspace.mjs sdks/sdkwork-craw-chat-sdk/bin/verify-go-workspace.mjs sdks/sdkwork-craw-chat-sdk/bin/verify-python-workspace.mjs sdks/sdkwork-craw-chat-sdk/bin/verify-sdk.mjs sdks/sdkwork-craw-chat-sdk/bin/verify-sdk.ps1 sdks/sdkwork-craw-chat-sdk/bin/verify-sdk.sh
+git add sdks/sdkwork-im-sdk/bin/verify-rust-workspace.mjs sdks/sdkwork-im-sdk/bin/verify-java-workspace.mjs sdks/sdkwork-im-sdk/bin/verify-csharp-workspace.mjs sdks/sdkwork-im-sdk/bin/verify-swift-workspace.mjs sdks/sdkwork-im-sdk/bin/verify-kotlin-workspace.mjs sdks/sdkwork-im-sdk/bin/verify-go-workspace.mjs sdks/sdkwork-im-sdk/bin/verify-python-workspace.mjs sdks/sdkwork-im-sdk/bin/verify-sdk.mjs sdks/sdkwork-im-sdk/bin/verify-sdk.ps1 sdks/sdkwork-im-sdk/bin/verify-sdk.sh
 git commit -m "feat(sdk): add multilanguage workspace verification"
 ```
 
 ### Task 5: Extend generation and normalization dispatch for all languages
 
 **Files:**
-- Modify: `sdks/sdkwork-craw-chat-sdk/bin/generate-sdk.ps1`
-- Modify: `sdks/sdkwork-craw-chat-sdk/bin/generate-sdk.sh`
-- Modify: `sdks/sdkwork-craw-chat-sdk/bin/normalize-generated-auth-surface.mjs`
-- Modify: `sdks/sdkwork-craw-chat-sdk/bin/assemble-sdk.mjs`
-- Test: `sdks/sdkwork-craw-chat-sdk/bin/generate-sdk.ps1`
-- Test: `sdks/sdkwork-craw-chat-sdk/bin/generate-sdk.sh`
+- Modify: `sdks/sdkwork-im-sdk/bin/generate-sdk.ps1`
+- Modify: `sdks/sdkwork-im-sdk/bin/generate-sdk.sh`
+- Modify: `sdks/sdkwork-im-sdk/bin/normalize-generated-auth-surface.mjs`
+- Modify: `sdks/sdkwork-im-sdk/bin/assemble-sdk.mjs`
+- Test: `sdks/sdkwork-im-sdk/bin/generate-sdk.ps1`
+- Test: `sdks/sdkwork-im-sdk/bin/generate-sdk.sh`
 
 - [ ] **Step 1: Write failing dispatch checks**
 
@@ -433,11 +433,11 @@ Add guardrails that require:
 Run:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File sdks/sdkwork-craw-chat-sdk/bin/generate-sdk.ps1 -Languages rust
+powershell -ExecutionPolicy Bypass -File sdks/sdkwork-im-sdk/bin/generate-sdk.ps1 -Languages rust
 ```
 
 ```bash
-./sdks/sdkwork-craw-chat-sdk/bin/generate-sdk.sh --language java
+./sdks/sdkwork-im-sdk/bin/generate-sdk.sh --language java
 ```
 
 Expected: FAIL because only `typescript` and `flutter` are currently configured.
@@ -448,8 +448,8 @@ Add official language configuration entries similar to:
 
 ```powershell
 rust = @{
-  OutputDir = Join-Path $WorkspaceDir "sdkwork-craw-chat-sdk-rust\generated\server-openapi"
-  PackageName = "sdkwork-craw-chat-backend-sdk-rust"
+  OutputDir = Join-Path $WorkspaceDir "sdkwork-im-sdk-rust\generated\server-openapi"
+  PackageName = "sdkwork-im-sdk-generated"
   Input = $PreparedInput
 }
 ```
@@ -471,7 +471,7 @@ language-specific derived input is actually required.
 Run:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File sdks/sdkwork-craw-chat-sdk/bin/generate-sdk.ps1 -Languages rust,java,csharp,swift,kotlin,go,python
+powershell -ExecutionPolicy Bypass -File sdks/sdkwork-im-sdk/bin/generate-sdk.ps1 -Languages rust,java,csharp,swift,kotlin,go,python
 ```
 
 Expected: generation dispatch completes or fails only on real per-language generator issues rather
@@ -480,24 +480,24 @@ than unsupported-language wrapper rejection.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add sdks/sdkwork-craw-chat-sdk/bin/generate-sdk.ps1 sdks/sdkwork-craw-chat-sdk/bin/generate-sdk.sh sdks/sdkwork-craw-chat-sdk/bin/normalize-generated-auth-surface.mjs sdks/sdkwork-craw-chat-sdk/bin/assemble-sdk.mjs
+git add sdks/sdkwork-im-sdk/bin/generate-sdk.ps1 sdks/sdkwork-im-sdk/bin/generate-sdk.sh sdks/sdkwork-im-sdk/bin/normalize-generated-auth-surface.mjs sdks/sdkwork-im-sdk/bin/assemble-sdk.mjs
 git commit -m "feat(sdk): extend multilanguage generation dispatch"
 ```
 
 ### Task 6: Run all languages against the live schema and capture the first audit baseline
 
 **Files:**
-- Create: `sdks/sdkwork-craw-chat-sdk/docs/multilanguage-audit-report.md`
-- Modify: `sdks/sdkwork-craw-chat-sdk/.sdkwork-assembly.json`
-- Test: `sdks/sdkwork-craw-chat-sdk/bin/generate-sdk.ps1`
-- Test: `sdks/sdkwork-craw-chat-sdk/bin/verify-sdk.mjs`
+- Create: `sdks/sdkwork-im-sdk/docs/multilanguage-audit-report.md`
+- Modify: `sdks/sdkwork-im-sdk/.sdkwork-assembly.json`
+- Test: `sdks/sdkwork-im-sdk/bin/generate-sdk.ps1`
+- Test: `sdks/sdkwork-im-sdk/bin/verify-sdk.mjs`
 
 - [ ] **Step 1: Generate the full language family from the live service schema**
 
 Run:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File sdks/sdkwork-craw-chat-sdk/bin/generate-sdk.ps1 -Languages typescript,flutter,rust,java,csharp,swift,kotlin,go,python
+powershell -ExecutionPolicy Bypass -File sdks/sdkwork-im-sdk/bin/generate-sdk.ps1 -Languages typescript,flutter,rust,java,csharp,swift,kotlin,go,python
 ```
 
 Expected: every language is attempted from the same live Craw Chat schema export.
@@ -507,7 +507,7 @@ Expected: every language is attempted from the same live Craw Chat schema export
 Run:
 
 ```bash
-node sdks/sdkwork-craw-chat-sdk/bin/verify-sdk.mjs --language typescript --language flutter --language rust --language java --language csharp --language swift --language kotlin --language go --language python
+node sdks/sdkwork-im-sdk/bin/verify-sdk.mjs --language typescript --language flutter --language rust --language java --language csharp --language swift --language kotlin --language go --language python
 ```
 
 Expected: some languages may fail on real generator-quality issues; the important result is that
@@ -540,7 +540,7 @@ Update `.sdkwork-assembly.json` so the first full-language generation audit is r
 - [ ] **Step 5: Commit**
 
 ```bash
-git add sdks/sdkwork-craw-chat-sdk/docs/multilanguage-audit-report.md sdks/sdkwork-craw-chat-sdk/.sdkwork-assembly.json
+git add sdks/sdkwork-im-sdk/docs/multilanguage-audit-report.md sdks/sdkwork-im-sdk/.sdkwork-assembly.json
 git commit -m "docs(sdk): capture multilanguage generation audit baseline"
 ```
 
@@ -559,7 +559,7 @@ git commit -m "docs(sdk): capture multilanguage generation audit baseline"
 - Create: `docs/sites/sdk/generator-boundary.md`
 - Modify: `docs/sites/README.md`
 - Test: `docs/sites/scripts/verify-sdk-docs.mjs`
-- Test: `sdks/sdkwork-craw-chat-sdk/bin/verify-docs-contract-tests.mjs`
+- Test: `sdks/sdkwork-im-sdk/bin/verify-docs-contract-tests.mjs`
 
 - [ ] **Step 1: Add failing docs contract assertions**
 
@@ -577,7 +577,7 @@ Run:
 
 ```bash
 node docs/sites/scripts/verify-sdk-docs.mjs
-node sdks/sdkwork-craw-chat-sdk/bin/verify-docs-contract-tests.mjs
+node sdks/sdkwork-im-sdk/bin/verify-docs-contract-tests.mjs
 ```
 
 Expected: FAIL because only TypeScript and Flutter are currently documented.
@@ -609,7 +609,7 @@ Run:
 
 ```bash
 node docs/sites/scripts/verify-sdk-docs.mjs
-node sdks/sdkwork-craw-chat-sdk/bin/verify-docs-contract-tests.mjs
+node sdks/sdkwork-im-sdk/bin/verify-docs-contract-tests.mjs
 ```
 
 Expected: PASS
@@ -624,11 +624,11 @@ git commit -m "docs(sdk): add multilanguage sdk site coverage"
 ### Task 8: Stabilize the maintainer docs and strict verification story
 
 **Files:**
-- Create: `sdks/sdkwork-craw-chat-sdk/docs/multilanguage-generator-standard.md`
-- Modify: `sdks/sdkwork-craw-chat-sdk/README.md`
+- Create: `sdks/sdkwork-im-sdk/docs/multilanguage-generator-standard.md`
+- Modify: `sdks/sdkwork-im-sdk/README.md`
 - Modify: `docs/superpowers/specs/2026-04-16-craw-chat-multilanguage-sdk-generator-design.md`
 - Modify: `docs/superpowers/plans/2026-04-16-craw-chat-multilanguage-sdk-generator.md`
-- Test: `sdks/sdkwork-craw-chat-sdk/bin/verify-internal-docs.mjs`
+- Test: `sdks/sdkwork-im-sdk/bin/verify-internal-docs.mjs`
 
 - [ ] **Step 1: Write the missing maintainer-doc assertions**
 
@@ -645,7 +645,7 @@ Add verification expectations so internal docs must cover:
 Run:
 
 ```bash
-node sdks/sdkwork-craw-chat-sdk/bin/verify-internal-docs.mjs
+node sdks/sdkwork-im-sdk/bin/verify-internal-docs.mjs
 ```
 
 Expected: FAIL until the maintainer docs mention the new standard.
@@ -665,7 +665,7 @@ Write `multilanguage-generator-standard.md` so a future maintainer can answer:
 Run:
 
 ```bash
-node sdks/sdkwork-craw-chat-sdk/bin/verify-internal-docs.mjs
+node sdks/sdkwork-im-sdk/bin/verify-internal-docs.mjs
 ```
 
 Expected: PASS
@@ -673,22 +673,22 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add sdks/sdkwork-craw-chat-sdk/docs/multilanguage-generator-standard.md sdks/sdkwork-craw-chat-sdk/README.md docs/superpowers/specs/2026-04-16-craw-chat-multilanguage-sdk-generator-design.md docs/superpowers/plans/2026-04-16-craw-chat-multilanguage-sdk-generator.md
+git add sdks/sdkwork-im-sdk/docs/multilanguage-generator-standard.md sdks/sdkwork-im-sdk/README.md docs/superpowers/specs/2026-04-16-craw-chat-multilanguage-sdk-generator-design.md docs/superpowers/plans/2026-04-16-craw-chat-multilanguage-sdk-generator.md
 git commit -m "docs(sdk): formalize multilanguage generator standard"
 ```
 
 ### Task 9: Run the full multilanguage verification baseline
 
 **Files:**
-- Modify: `sdks/sdkwork-craw-chat-sdk/docs/multilanguage-audit-report.md`
-- Modify: `sdks/sdkwork-craw-chat-sdk/.sdkwork-assembly.json`
+- Modify: `sdks/sdkwork-im-sdk/docs/multilanguage-audit-report.md`
+- Modify: `sdks/sdkwork-im-sdk/.sdkwork-assembly.json`
 
 - [ ] **Step 1: Run root generation from the live service**
 
 Run:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File sdks/sdkwork-craw-chat-sdk/bin/generate-sdk.ps1 -Languages typescript,flutter,rust,java,csharp,swift,kotlin,go,python
+powershell -ExecutionPolicy Bypass -File sdks/sdkwork-im-sdk/bin/generate-sdk.ps1 -Languages typescript,flutter,rust,java,csharp,swift,kotlin,go,python
 ```
 
 Expected: the live service schema is refreshed and all supported languages are attempted.
@@ -698,15 +698,15 @@ Expected: the live service schema is refreshed and all supported languages are a
 Run:
 
 ```bash
-node sdks/sdkwork-craw-chat-sdk/bin/verify-sdk.mjs --language typescript
-node sdks/sdkwork-craw-chat-sdk/bin/verify-sdk.mjs --language flutter
-node sdks/sdkwork-craw-chat-sdk/bin/verify-sdk.mjs --language rust
-node sdks/sdkwork-craw-chat-sdk/bin/verify-sdk.mjs --language java
-node sdks/sdkwork-craw-chat-sdk/bin/verify-sdk.mjs --language csharp
-node sdks/sdkwork-craw-chat-sdk/bin/verify-sdk.mjs --language swift
-node sdks/sdkwork-craw-chat-sdk/bin/verify-sdk.mjs --language kotlin
-node sdks/sdkwork-craw-chat-sdk/bin/verify-sdk.mjs --language go
-node sdks/sdkwork-craw-chat-sdk/bin/verify-sdk.mjs --language python
+node sdks/sdkwork-im-sdk/bin/verify-sdk.mjs --language typescript
+node sdks/sdkwork-im-sdk/bin/verify-sdk.mjs --language flutter
+node sdks/sdkwork-im-sdk/bin/verify-sdk.mjs --language rust
+node sdks/sdkwork-im-sdk/bin/verify-sdk.mjs --language java
+node sdks/sdkwork-im-sdk/bin/verify-sdk.mjs --language csharp
+node sdks/sdkwork-im-sdk/bin/verify-sdk.mjs --language swift
+node sdks/sdkwork-im-sdk/bin/verify-sdk.mjs --language kotlin
+node sdks/sdkwork-im-sdk/bin/verify-sdk.mjs --language go
+node sdks/sdkwork-im-sdk/bin/verify-sdk.mjs --language python
 ```
 
 Expected: PASS where the language meets the current workspace standard, or a reproducible
@@ -718,8 +718,8 @@ Run:
 
 ```bash
 node docs/sites/scripts/verify-sdk-docs.mjs
-node sdks/sdkwork-craw-chat-sdk/bin/verify-docs-contract-tests.mjs
-node sdks/sdkwork-craw-chat-sdk/bin/verify-internal-docs.mjs
+node sdks/sdkwork-im-sdk/bin/verify-docs-contract-tests.mjs
+node sdks/sdkwork-im-sdk/bin/verify-internal-docs.mjs
 ```
 
 Expected: PASS
@@ -732,7 +732,7 @@ plan.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add sdks/sdkwork-craw-chat-sdk/docs/multilanguage-audit-report.md sdks/sdkwork-craw-chat-sdk/.sdkwork-assembly.json
+git add sdks/sdkwork-im-sdk/docs/multilanguage-audit-report.md sdks/sdkwork-im-sdk/.sdkwork-assembly.json
 git commit -m "test(sdk): record multilanguage workspace verification baseline"
 ```
 

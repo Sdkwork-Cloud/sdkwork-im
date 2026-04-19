@@ -1,1 +1,0 @@
-{"version":3,"file":"message-mutation-result.d.ts","sourceRoot":"","sources":["../../src/types/message-mutation-result.ts"],"names":[],"mappings":"AAAA,MAAM,WAAW,qBAAqB;IACpC,cAAc,EAAE,MAAM,CAAC;IACvB,SAAS,EAAE,MAAM,CAAC;IAClB,UAAU,EAAE,MAAM,CAAC;IACnB,OAAO,EAAE,MAAM,CAAC;CACjB"}
