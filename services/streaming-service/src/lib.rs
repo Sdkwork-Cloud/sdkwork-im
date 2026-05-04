@@ -936,10 +936,9 @@ async fn readyz() -> Json<HealthResponse> {
 }
 
 async fn openapi_json() -> Result<Json<serde_json::Value>, StreamingError> {
-    Ok(Json(
-        build_streaming_service_openapi_document()
-            .map_err(|message| StreamingError::internal("openapi_export_failed", message))?,
-    ))
+    Ok(Json(build_streaming_service_openapi_document().map_err(
+        |message| StreamingError::internal("openapi_export_failed", message),
+    )?))
 }
 
 async fn docs() -> Html<String> {

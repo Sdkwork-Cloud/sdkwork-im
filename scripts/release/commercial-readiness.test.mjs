@@ -28,6 +28,7 @@ test('commercial readiness checks cover the verified frontend and backend gate c
       'admin-test',
       'admin-typecheck',
       'admin-build',
+      'portal-user-center-standard',
       'portal-test',
       'portal-build',
       'control-plane-api-tests',
@@ -43,11 +44,27 @@ test('commercial readiness checks cover the verified frontend and backend gate c
   assert.equal(checks[0].env?.npm_config_update_notifier, 'false');
   assert.equal(
     checks.find((check) => check.id === 'admin-test')?.cwd,
-    path.join(repoRoot, 'apps', 'control-plane'),
+    path.join(repoRoot, 'apps', 'craw-chat-admin'),
   );
   assert.deepEqual(
     checks.find((check) => check.id === 'admin-test')?.args,
     ['test'],
+  );
+  assert.equal(
+    checks.find((check) => check.id === 'admin-build')?.cwd,
+    path.join(repoRoot, 'apps', 'craw-chat-admin'),
+  );
+  assert.deepEqual(
+    checks.find((check) => check.id === 'portal-user-center-standard')?.args,
+    [path.join(repoRoot, 'scripts', 'run-user-center-standard.mjs')],
+  );
+  assert.equal(
+    checks.find((check) => check.id === 'portal-user-center-standard')?.command,
+    process.execPath,
+  );
+  assert.equal(
+    checks.find((check) => check.id === 'portal-user-center-standard')?.cwd,
+    repoRoot,
   );
   assert.deepEqual(
     checks.find((check) => check.id === 'portal-build')?.args,
@@ -187,7 +204,7 @@ test('commercial readiness converts malformed capacity evidence into a controlle
   assert.equal(result.ok, false);
   assert.equal(result.exitCode, COMMAND_FAILURE_EXIT_CODE);
   assert.equal(result.capacityAssessment, null);
-  assert.equal(result.checks.length, 11);
+  assert.equal(result.checks.length, buildCommercialReadinessChecks({ repoRoot: tempRepoRoot }).length);
   assert.equal(result.failure.stage, 'capacity-evidence-load');
   assert.match(result.failure.summary, /JSON/i);
   assert.match(result.failure.evidenceIndexPath, /capacity-tier-evidence-index\.json$/);

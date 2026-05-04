@@ -133,7 +133,9 @@ async fn gateway_routes_conversation_reads_and_writes_to_different_upstreams() {
     assert_eq!(write_value["serviceId"], "conversation-runtime");
 }
 
-fn test_gateway_config(upstreams: Vec<craw_chat_gateway_config::ServiceUpstreamConfig>) -> WebGatewayConfig {
+fn test_gateway_config(
+    upstreams: Vec<craw_chat_gateway_config::ServiceUpstreamConfig>,
+) -> WebGatewayConfig {
     WebGatewayConfig {
         bind_addr: "127.0.0.1:0".to_owned(),
         runtime_mode: GatewayRuntimeMode::Split,

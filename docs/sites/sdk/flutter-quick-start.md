@@ -33,6 +33,16 @@ final client = ImSdkClient.create(
 );
 ```
 
+If your app uses a split realtime origin, set `websocketBaseUrl` as well:
+
+```dart
+final client = ImSdkClient.create(
+  baseUrl: 'https://api.example.com',
+  websocketBaseUrl: 'wss://realtime.example.com',
+  authToken: token,
+);
+```
+
 ## First read call
 
 ```dart
@@ -46,6 +56,30 @@ await client.devices.register(
   RegisterDeviceRequest(deviceId: 'device-mobile-01'),
 );
 ```
+
+## First live receive
+
+```dart
+final live = await client.connect(
+  const ImConnectOptions(
+    deviceId: 'device-mobile-01',
+    subscriptions: ImRealtimeSubscriptionGroups(
+      conversations: <String>['conv-demo-01'],
+    ),
+  ),
+);
+
+live.messages.onConversation('conv-demo-01', (message, context) {
+  print(message.summary);
+  void context.ack();
+});
+```
+
+`ImWebSocketAuthOptions.automatic()` is the standard default. On Flutter mobile and desktop it uses
+bearer upgrade headers. On Flutter Web it falls back to query bearer auth so the browser runtime
+can still establish the websocket when custom upgrade headers are not available.
+When the gateway supports browser-safe token exchange, prefer `credentialProvider` with a
+short-lived realtime credential.
 
 ## Common module entrypoints
 

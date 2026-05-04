@@ -22,8 +22,8 @@
     "@sdkwork/im-admin-backend-sdk": "file:../generated/server-openapi"
   },
   "scripts": {
-    "typecheck": "node ../../../../../../sdk/sdkwork-sdk-generator/node_modules/typescript/bin/tsc -p tsconfig.build.json --noEmit",
-    "build": "node ../../../../../../sdk/sdkwork-sdk-generator/node_modules/typescript/bin/tsc -p tsconfig.build.json && node ./bin/clean-dist.mjs",
-    "test": "node ./test/im-admin-sdk-client.test.mjs"
+    "typecheck": "call \"%npm_node_execpath%\" ./bin/package-task.mjs typecheck || \"$npm_node_execpath\" ./bin/package-task.mjs typecheck || node ./bin/package-task.mjs typecheck",
+    "build": "call \"%npm_node_execpath%\" ./bin/package-task.mjs build || \"$npm_node_execpath\" ./bin/package-task.mjs build || node ./bin/package-task.mjs build",
+    "test": "call \"%npm_node_execpath%\" ./bin/package-task.mjs test || \"$npm_node_execpath\" ./bin/package-task.mjs test || node ./bin/package-task.mjs test"
   }
 }

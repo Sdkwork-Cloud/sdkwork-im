@@ -26,16 +26,19 @@ use reqwest::Client;
 use serde::Serialize;
 use serde_json::{Map, Value, json};
 use std::collections::BTreeSet;
+use std::time::Duration;
 use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream, connect_async, tungstenite,
     tungstenite::client::IntoClientRequest,
 };
+use tower::ServiceExt;
 
 #[derive(Clone)]
 struct GatewayState {
     client: Client,
     config: WebGatewayConfig,
     registry: RouteRegistry,
+    product_runtime_router: Option<Router>,
 }
 
 #[derive(Debug, Serialize)]
@@ -53,6 +56,14 @@ pub fn build_app(config: WebGatewayConfig) -> Router {
 }
 
 pub fn build_app_with_registry(config: WebGatewayConfig, registry: RouteRegistry) -> Router {
+    build_app_with_registry_and_product_runtime(config, registry, None)
+}
+
+pub fn build_app_with_registry_and_product_runtime(
+    config: WebGatewayConfig,
+    registry: RouteRegistry,
+    product_runtime_router: Option<Router>,
+) -> Router {
     Router::new()
         .route("/healthz", get(healthz))
         .route("/readyz", get(readyz))
@@ -74,6 +85,7 @@ pub fn build_app_with_registry(config: WebGatewayConfig, registry: RouteRegistry
             client: Client::new(),
             config,
             registry,
+            product_runtime_router,
         })
 }
 
@@ -159,7 +171,11 @@ async fn proxy_get_request(
         }
     }
 
-    proxy_request(State(state), request).await
+    if route.is_some() {
+        return proxy_request(State(state), request).await;
+    }
+
+    delegate_to_product_runtime(state.product_runtime_router.clone(), request).await
 }
 
 async fn proxy_websocket_request(
@@ -227,18 +243,22 @@ async fn proxy_websocket_request(
 
 async fn proxy_request(State(state): State<GatewayState>, request: Request) -> Response {
     let (parts, body) = request.into_parts();
-    let method = parts.method;
-    let headers = parts.headers;
-    let uri = parts.uri;
-    let Some(registry_method) = map_http_method(&method) else {
+    let Some(registry_method) = map_http_method(&parts.method) else {
         return json_error_response(
             StatusCode::METHOD_NOT_ALLOWED,
             "gateway does not support proxying this method",
         );
     };
-    let Some(route) = state.registry.resolve(registry_method, uri.path()) else {
-        return json_error_response(StatusCode::NOT_FOUND, "gateway route owner not found");
+    let Some(route) = state.registry.resolve(registry_method, parts.uri.path()) else {
+        return delegate_to_product_runtime(
+            state.product_runtime_router.clone(),
+            Request::from_parts(parts, body),
+        )
+        .await;
     };
+    let method = parts.method;
+    let headers = parts.headers;
+    let uri = parts.uri;
     let Some(upstream_base_url) = state.config.upstream_base_url(route.service_id.as_str()) else {
         return json_error_response(
             StatusCode::BAD_GATEWAY,
@@ -282,6 +302,20 @@ async fn proxy_request(State(state): State<GatewayState>, request: Request) -> R
             )
             .as_str(),
         ),
+    }
+}
+
+async fn delegate_to_product_runtime(
+    product_runtime_router: Option<Router>,
+    request: Request,
+) -> Response {
+    let Some(router) = product_runtime_router else {
+        return json_error_response(StatusCode::NOT_FOUND, "gateway route owner not found");
+    };
+
+    match router.oneshot(request).await {
+        Ok(response) => response,
+        Err(error) => match error {},
     }
 }
 
@@ -758,11 +792,20 @@ fn upstream_to_downstream_message(message: tungstenite::Message) -> Option<Messa
 async fn fetch_service_openapi_documents(
     state: &GatewayState,
 ) -> Result<Vec<ServiceOpenApiDocument>, Response> {
+    let fetches = state.config.upstreams.iter().map(|upstream| {
+        let service_id = upstream.service_id.clone();
+        async move {
+            (
+                service_id.clone(),
+                fetch_service_openapi_document(state, service_id.as_str()).await,
+            )
+        }
+    });
     let mut documents = Vec::new();
-    for upstream in &state.config.upstreams {
-        match fetch_service_openapi_document(state, upstream.service_id.as_str()).await {
+    for (service_id, result) in futures_util::future::join_all(fetches).await {
+        match result {
             Ok(document) => documents.push(ServiceOpenApiDocument {
-                service_id: upstream.service_id.clone(),
+                service_id,
                 document,
             }),
             Err(error) if state.config.strict_startup => return Err(error),
@@ -783,12 +826,18 @@ async fn fetch_service_openapi_document(
         ));
     };
     let url = format!("{}/openapi.json", base_url.trim_end_matches('/'));
-    let response = state.client.get(url).send().await.map_err(|error| {
-        json_error_response(
-            StatusCode::BAD_GATEWAY,
-            format!("failed to fetch upstream schema for {service_id}: {error}").as_str(),
-        )
-    })?;
+    let response = state
+        .client
+        .get(url)
+        .timeout(Duration::from_secs(2))
+        .send()
+        .await
+        .map_err(|error| {
+            json_error_response(
+                StatusCode::BAD_GATEWAY,
+                format!("failed to fetch upstream schema for {service_id}: {error}").as_str(),
+            )
+        })?;
     let status = response.status();
     if !status.is_success() {
         return Err(json_error_response(

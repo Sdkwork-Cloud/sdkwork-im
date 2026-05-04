@@ -299,6 +299,9 @@ function renderGeneratedSdkworkConfig() {
 }
 
 function renderComposedPackageJson() {
+  const renderTaskCommand = (task) =>
+    `call "%npm_node_execpath%" ./bin/package-task.mjs ${task} || "$npm_node_execpath" ./bin/package-task.mjs ${task} || node ./bin/package-task.mjs ${task}`;
+
   return `${JSON.stringify({
     name: '@sdkwork/im-admin-sdk',
     version: '0.1.0',
@@ -320,11 +323,88 @@ function renderComposedPackageJson() {
       '@sdkwork/im-admin-backend-sdk': 'file:../generated/server-openapi',
     },
     scripts: {
-      typecheck: 'node ../../../../../../sdk/sdkwork-sdk-generator/node_modules/typescript/bin/tsc -p tsconfig.build.json --noEmit',
-      build: 'node ../../../../../../sdk/sdkwork-sdk-generator/node_modules/typescript/bin/tsc -p tsconfig.build.json && node ./bin/clean-dist.mjs',
-      test: 'node ./test/im-admin-sdk-client.test.mjs',
+      typecheck: renderTaskCommand('typecheck'),
+      build: renderTaskCommand('build'),
+      test: renderTaskCommand('test'),
     },
   }, null, 2)}\n`;
+}
+
+function renderComposedRunTsc() {
+  return `#!/usr/bin/env node
+import { spawnSync } from 'node:child_process';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { resolveGeneratorModulePath } from '../../../bin/generator-runtime.mjs';
+
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+const packageRoot = path.resolve(scriptDir, '..');
+const workspaceRoot = path.resolve(packageRoot, '..', '..');
+const tscPath = resolveGeneratorModulePath(workspaceRoot, 'typescript', 'bin', 'tsc');
+
+const result = spawnSync(process.execPath, [tscPath, ...process.argv.slice(2)], {
+  cwd: packageRoot,
+  stdio: 'inherit',
+  shell: false,
+});
+
+if (result.error) {
+  throw result.error;
+}
+
+process.exit(result.status ?? 1);
+`;
+}
+
+function renderComposedPackageTask() {
+  return `#!/usr/bin/env node
+import { spawnSync } from 'node:child_process';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+function fail(message) {
+  console.error(\`[sdkwork-im-admin-sdk] \${message}\`);
+  process.exit(1);
+}
+
+function run(step, args, cwd = packageRoot) {
+  const result = spawnSync(process.execPath, args, {
+    cwd,
+    stdio: 'inherit',
+    shell: false,
+  });
+
+  if (result.error) {
+    fail(\`\${step} failed to start: \${result.error.message}\`);
+  }
+  if (typeof result.status === 'number' && result.status !== 0) {
+    fail(\`\${step} failed with exit code \${result.status}\`);
+  }
+  if (result.signal) {
+    fail(\`\${step} terminated with signal \${result.signal}\`);
+  }
+}
+
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+const packageRoot = path.resolve(scriptDir, '..');
+const task = (process.argv[2] || '').trim();
+
+switch (task) {
+  case 'typecheck':
+    run('typescript:composed-typecheck', [path.join(scriptDir, 'run-tsc.mjs'), '-p', 'tsconfig.build.json', '--noEmit']);
+    break;
+  case 'build':
+    run('typescript:composed-build', [path.join(scriptDir, 'run-tsc.mjs'), '-p', 'tsconfig.build.json']);
+    run('typescript:composed-clean', [path.join(scriptDir, 'clean-dist.mjs')]);
+    break;
+  case 'test':
+    run('typescript:composed-test', [path.join(packageRoot, 'test', 'im-admin-sdk-client.test.mjs')]);
+    break;
+  default:
+    fail(\`Unsupported package task "\${task}". Expected one of: typecheck, build, test.\`);
+}
+`;
 }
 
 function renderComposedTypes() {
@@ -963,6 +1043,8 @@ for (const relativePath of ['dist/composed', 'dist/generated']) {
   }
 }
 `);
+  writeFile(path.join(composedRoot, 'bin', 'run-tsc.mjs'), renderComposedRunTsc());
+  writeFile(path.join(composedRoot, 'bin', 'package-task.mjs'), renderComposedPackageTask());
   writeFile(path.join(composedRoot, 'src', 'generated-backend-types.ts'), `import type { ImAdminBackendConfig } from '@sdkwork/im-admin-backend-sdk';
 
 export type { ImAdminBackendConfig } from '@sdkwork/im-admin-backend-sdk';

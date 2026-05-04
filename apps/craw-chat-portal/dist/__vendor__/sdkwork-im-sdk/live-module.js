@@ -173,6 +173,7 @@ export class ImLiveModule {
     }
     async connect(options = {}) {
         const receiver = new ImWebSocketReceiver(new ImRealtimeModule(this.context), this.context, {
+            deviceId: options.deviceId,
             url: options.url,
             mode: 'legacy_json',
             authToken: this.context.getAuthToken(),
@@ -181,6 +182,7 @@ export class ImLiveModule {
             socket: options.socket,
             createSocket: options.socket ? undefined : this.context.webSocketFactory,
             requestTimeoutMs: options.requestTimeoutMs,
+            webSocketAuth: options.webSocketAuth ?? this.context.webSocketAuth,
         });
         try {
             if (options.deviceId) {

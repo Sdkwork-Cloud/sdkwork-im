@@ -495,7 +495,7 @@ test('auth store clears a stale persisted session token when bootstrap cannot re
       ? dataSourceModule.getActivePortalDataSource()
       : dataSourceModule.activePortalDataSource;
 
-  localStorage.setItem('craw-chat-portal.session.v1', 'stale-session-token');
+  localStorage.setItem('craw-chat-portal.user-center.session-token', 'stale-session-token');
 
   global.window = {
     localStorage,
@@ -519,7 +519,7 @@ test('auth store clears a stale persisted session token when bootstrap cannot re
       user: null,
       workspace: null,
     });
-    assert.equal(localStorage.getItem('craw-chat-portal.session.v1'), null);
+    assert.equal(localStorage.getItem('craw-chat-portal.user-center.session-token'), null);
   } finally {
     dataSourceModule.resetActivePortalDataSource();
     global.window = originalWindow;
@@ -583,7 +583,7 @@ test('auth store rejects malformed sign-in session payloads before fetching work
       user: null,
       workspace: null,
     });
-    assert.equal(localStorage.getItem('craw-chat-portal.session.v1'), null);
+    assert.equal(localStorage.getItem('craw-chat-portal.user-center.session-token'), null);
   } finally {
     dataSourceModule.resetActivePortalDataSource();
     global.window = originalWindow;
@@ -641,7 +641,7 @@ test('auth store rejects malformed workspace payloads during sign-in before pers
       user: null,
       workspace: null,
     });
-    assert.equal(localStorage.getItem('craw-chat-portal.session.v1'), null);
+    assert.equal(localStorage.getItem('craw-chat-portal.user-center.session-token'), null);
   } finally {
     dataSourceModule.resetActivePortalDataSource();
     global.window = originalWindow;
@@ -670,7 +670,7 @@ test('auth store clears the persisted session token when hydrate receives a malf
       ? dataSourceModule.getActivePortalDataSource()
       : dataSourceModule.activePortalDataSource;
 
-  localStorage.setItem('craw-chat-portal.session.v1', 'tenant-demo-session');
+  localStorage.setItem('craw-chat-portal.user-center.session-token', 'tenant-demo-session');
 
   global.window = {
     localStorage,
@@ -710,7 +710,7 @@ test('auth store clears the persisted session token when hydrate receives a malf
       user: null,
       workspace: null,
     });
-    assert.equal(localStorage.getItem('craw-chat-portal.session.v1'), null);
+    assert.equal(localStorage.getItem('craw-chat-portal.user-center.session-token'), null);
   } finally {
     dataSourceModule.resetActivePortalDataSource();
     global.window = originalWindow;
@@ -745,7 +745,7 @@ test('portal app syncs the current console route into persisted shell state on i
   const originalEvent = global.Event;
   const localStorage = storageDouble();
 
-  localStorage.setItem('craw-chat-portal.session.v1', 'tenant-demo-session');
+  localStorage.setItem('craw-chat-portal.user-center.session-token', 'tenant-demo-session');
 
   const root = createRootDouble();
 
@@ -943,7 +943,7 @@ test('portal app renders a bootstrap state instead of a blank screen while sessi
       ? dataSourceModule.getActivePortalDataSource()
       : dataSourceModule.activePortalDataSource;
 
-  localStorage.setItem('craw-chat-portal.session.v1', 'tenant-demo-session');
+  localStorage.setItem('craw-chat-portal.user-center.session-token', 'tenant-demo-session');
 
   const root = createRootDouble();
 
@@ -1141,7 +1141,7 @@ test('portal app renders a recovery state and can retry when console data loadin
       ? dataSourceModule.getActivePortalDataSource()
       : dataSourceModule.activePortalDataSource;
 
-  localStorage.setItem('craw-chat-portal.session.v1', 'tenant-demo-session');
+  localStorage.setItem('craw-chat-portal.user-center.session-token', 'tenant-demo-session');
 
   const root = createRootDouble();
 
@@ -1351,7 +1351,7 @@ test('portal app retries auth hydration when console bootstrap recovery is reque
       : dataSourceModule.activePortalDataSource;
   let bootstrapAttempts = 0;
 
-  localStorage.setItem('craw-chat-portal.session.v1', 'tenant-demo-session');
+  localStorage.setItem('craw-chat-portal.user-center.session-token', 'tenant-demo-session');
 
   const root = createRootDouble();
 
@@ -1612,7 +1612,7 @@ test('portal app lets operators hide a sidebar module from settings while keepin
   const originalEvent = global.Event;
   const localStorage = storageDouble();
 
-  localStorage.setItem('craw-chat-portal.session.v1', 'tenant-demo-session');
+  localStorage.setItem('craw-chat-portal.user-center.session-token', 'tenant-demo-session');
 
   const root = createRootDouble();
 
@@ -1683,7 +1683,7 @@ test('portal app keeps current and pinned sidebar modules locked visible inside 
   const originalEvent = global.Event;
   const localStorage = storageDouble();
 
-  localStorage.setItem('craw-chat-portal.session.v1', 'tenant-demo-session');
+  localStorage.setItem('craw-chat-portal.user-center.session-token', 'tenant-demo-session');
   localStorage.setItem(
     'craw-chat-portal.shell.v1',
     JSON.stringify({
@@ -1794,7 +1794,7 @@ test('portal app reflects shell preference changes in the command deck posture s
   const originalEvent = global.Event;
   const localStorage = storageDouble();
 
-  localStorage.setItem('craw-chat-portal.session.v1', 'tenant-demo-session');
+  localStorage.setItem('craw-chat-portal.user-center.session-token', 'tenant-demo-session');
 
   const root = createRootDouble();
 
@@ -1905,7 +1905,7 @@ test('portal app resets customized shell posture from the command deck without d
   const originalEvent = global.Event;
   const localStorage = storageDouble();
 
-  localStorage.setItem('craw-chat-portal.session.v1', 'tenant-demo-session');
+  localStorage.setItem('craw-chat-portal.user-center.session-token', 'tenant-demo-session');
 
   const root = createRootDouble();
 
@@ -2033,7 +2033,7 @@ test('portal app resets shell preferences from settings without dropping the cur
   const originalEvent = global.Event;
   const localStorage = storageDouble();
 
-  localStorage.setItem('craw-chat-portal.session.v1', 'tenant-demo-session');
+  localStorage.setItem('craw-chat-portal.user-center.session-token', 'tenant-demo-session');
 
   const root = createRootDouble();
 
@@ -2169,7 +2169,7 @@ test('portal app ignores disabled settings actions when click events are dispatc
   const originalEvent = global.Event;
   const localStorage = storageDouble();
 
-  localStorage.setItem('craw-chat-portal.session.v1', 'tenant-demo-session');
+  localStorage.setItem('craw-chat-portal.user-center.session-token', 'tenant-demo-session');
 
   const root = createRootDouble();
 
@@ -2244,7 +2244,7 @@ test('portal app restores focus to the settings dialog after reset reopens the s
   const localStorage = storageDouble();
   const closeSettingsButton = createFocusableDouble();
 
-  localStorage.setItem('craw-chat-portal.session.v1', 'tenant-demo-session');
+  localStorage.setItem('craw-chat-portal.user-center.session-token', 'tenant-demo-session');
 
   const root = createRootDouble();
 
@@ -2340,7 +2340,7 @@ test('portal app ignores stale module renders when a slower route resolves after
       ? dataSourceModule.getActivePortalDataSource()
       : dataSourceModule.activePortalDataSource;
 
-  localStorage.setItem('craw-chat-portal.session.v1', 'tenant-demo-session');
+  localStorage.setItem('craw-chat-portal.user-center.session-token', 'tenant-demo-session');
 
   const root = createRootDouble();
 
@@ -2418,7 +2418,7 @@ test('portal app closes the settings panel on Escape for operator workflows', as
   const originalEvent = global.Event;
   const localStorage = storageDouble();
 
-  localStorage.setItem('craw-chat-portal.session.v1', 'tenant-demo-session');
+  localStorage.setItem('craw-chat-portal.user-center.session-token', 'tenant-demo-session');
 
   const root = createRootDouble();
 
@@ -2490,7 +2490,7 @@ test('portal app moves focus into the settings dialog when operators open it', a
   const localStorage = storageDouble();
   const closeSettingsButton = createFocusableDouble();
 
-  localStorage.setItem('craw-chat-portal.session.v1', 'tenant-demo-session');
+  localStorage.setItem('craw-chat-portal.user-center.session-token', 'tenant-demo-session');
 
   const root = createRootDouble();
 
@@ -2550,7 +2550,7 @@ test('portal app restores focus to the selected theme control after settings rer
   const closeSettingsButton = createFocusableDouble();
   const emberThemeButton = createFocusableDouble();
 
-  localStorage.setItem('craw-chat-portal.session.v1', 'tenant-demo-session');
+  localStorage.setItem('craw-chat-portal.user-center.session-token', 'tenant-demo-session');
 
   const root = createRootDouble();
 
@@ -2626,7 +2626,7 @@ test('portal app restores focus to the settings sidebar action instead of the ra
   const settingsToggleSidebarButton = createFocusableDouble();
   const railToggleSidebarButton = createFocusableDouble();
 
-  localStorage.setItem('craw-chat-portal.session.v1', 'tenant-demo-session');
+  localStorage.setItem('craw-chat-portal.user-center.session-token', 'tenant-demo-session');
 
   const root = createRootDouble();
 
@@ -2707,7 +2707,7 @@ test('portal app restores focus to the settings trigger when operators close the
   const closeSettingsButton = createFocusableDouble();
   const restoredSettingsTrigger = createFocusableDouble();
 
-  localStorage.setItem('craw-chat-portal.session.v1', 'tenant-demo-session');
+  localStorage.setItem('craw-chat-portal.user-center.session-token', 'tenant-demo-session');
 
   const root = createRootDouble();
 
@@ -2776,7 +2776,7 @@ test('portal app traps keyboard focus inside the settings dialog', async () => {
   const signalThemeButton = createFocusableDouble();
   const atlasThemeButton = createFocusableDouble();
 
-  localStorage.setItem('craw-chat-portal.session.v1', 'tenant-demo-session');
+  localStorage.setItem('craw-chat-portal.user-center.session-token', 'tenant-demo-session');
 
   const root = createRootDouble();
 
@@ -2882,7 +2882,7 @@ test('portal app traps keyboard focus using only enabled settings controls', asy
     },
   };
 
-  localStorage.setItem('craw-chat-portal.session.v1', 'tenant-demo-session');
+  localStorage.setItem('craw-chat-portal.user-center.session-token', 'tenant-demo-session');
 
   const root = createRootDouble();
 
@@ -2979,7 +2979,7 @@ test('portal app resets transient settings state across sign-out and next sign-i
   const originalEvent = global.Event;
   const localStorage = storageDouble();
 
-  localStorage.setItem('craw-chat-portal.session.v1', 'tenant-demo-session');
+  localStorage.setItem('craw-chat-portal.user-center.session-token', 'tenant-demo-session');
 
   const root = createRootDouble();
 
@@ -3089,7 +3089,7 @@ test('portal app closes the settings panel when navigating to another console mo
   const originalEvent = global.Event;
   const localStorage = storageDouble();
 
-  localStorage.setItem('craw-chat-portal.session.v1', 'tenant-demo-session');
+  localStorage.setItem('craw-chat-portal.user-center.session-token', 'tenant-demo-session');
 
   const root = createRootDouble();
 
@@ -3166,7 +3166,7 @@ test('portal app closes the settings panel when browser history changes route vi
   const originalEvent = global.Event;
   const localStorage = storageDouble();
 
-  localStorage.setItem('craw-chat-portal.session.v1', 'tenant-demo-session');
+  localStorage.setItem('craw-chat-portal.user-center.session-token', 'tenant-demo-session');
 
   const root = createRootDouble();
 
@@ -3237,7 +3237,7 @@ test('portal app resolves interactive clicks even when the event target is a nes
   const originalEvent = global.Event;
   const localStorage = storageDouble();
 
-  localStorage.setItem('craw-chat-portal.session.v1', 'tenant-demo-session');
+  localStorage.setItem('craw-chat-portal.user-center.session-token', 'tenant-demo-session');
 
   const root = createRootDouble();
 

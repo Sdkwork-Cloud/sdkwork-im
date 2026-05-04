@@ -57,6 +57,13 @@ if (languages.includes('typescript')) {
   runVerifyCommand({
     prefix,
     command: 'node',
+    args: [path.join(workspaceRoot, 'tests', 'typescript-publish-core.test.mjs')],
+    cwd: workspaceRoot,
+    step: 'typescript:publish-core',
+  });
+  runVerifyCommand({
+    prefix,
+    command: 'node',
     args: [path.join(scriptDir, 'verify-typescript-workspace.mjs')],
     cwd: workspaceRoot,
     step: 'typescript:workspace',

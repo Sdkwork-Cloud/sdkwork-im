@@ -87,7 +87,6 @@ impl RouterProductRuntime {
         config: StandaloneConfig,
         options: RouterProductRuntimeOptions,
     ) -> Result<Self> {
-        validate_product_site_dirs(options.site_dirs.clone()).await?;
         let listener = TcpListener::bind(resolve_runtime_bind_addr(
             config.runtime_bind_addr.as_str(),
         )?)
@@ -97,44 +96,8 @@ impl RouterProductRuntime {
             .local_addr()
             .context("failed to resolve local desktop runtime listener address")?;
         let (shutdown_tx, shutdown_rx) = oneshot::channel();
-        let admin_proxy_target = trim_trailing_slash(config.admin_proxy_target);
-        let admin_sandbox = if admin_proxy_target.trim().is_empty() && config.admin_sandbox_enabled
-        {
-            let state = match config.admin_sandbox_storage_file {
-                Some(storage_file) => {
-                    SharedAdminSandboxState::seeded_with_storage_file(storage_file)
-                }
-                None => SharedAdminSandboxState::seeded(),
-            };
-            let credentials = state.login_credentials();
-            eprintln!(
-                "warning: SDKWORK_ADMIN_SANDBOX is enabled. Admin sandbox login: {} / {} ({}). Override with SDKWORK_ADMIN_SANDBOX_EMAIL and SDKWORK_ADMIN_SANDBOX_PASSWORD.",
-                credentials.email, credentials.password, credentials.source
-            );
-            Some(state)
-        } else {
-            None
-        };
-        let portal_api_base_url = config.portal_api_base_url;
-        let site_dirs = options.site_dirs;
-
-        let app = Router::new()
-            .route("/api/admin", any(proxy_admin_request))
-            .route("/api/admin/{*path}", any(proxy_admin_request))
-            .route("/api", any(api_not_found))
-            .route("/api/{*path}", any(api_not_found))
-            .route("/admin", get(redirect_admin_root))
-            .route("/admin/", get(serve_admin_site))
-            .route("/admin/{*path}", get(serve_admin_site))
-            .route("/", get(serve_portal_site))
-            .route("/{*path}", get(serve_portal_site))
-            .with_state(RuntimeProxyState {
-                client: Client::new(),
-                admin_proxy_target,
-                admin_sandbox,
-                portal_api_base_url,
-                site_dirs: site_dirs.clone(),
-            });
+        let site_dirs = options.site_dirs.clone();
+        let app = build_product_runtime_router(config, options).await?;
 
         tokio::spawn(async move {
             let _ = axum::serve(listener, app)
@@ -160,6 +123,56 @@ async fn validate_product_site_dirs(site_dirs: ProductSiteDirs) -> Result<()> {
     validate_site_dir(site_dirs.admin_site_dir.as_path(), "admin").await?;
     validate_site_dir(site_dirs.portal_site_dir.as_path(), "portal").await?;
     Ok(())
+}
+
+pub async fn build_product_runtime_router(
+    config: StandaloneConfig,
+    options: RouterProductRuntimeOptions,
+) -> Result<Router> {
+    validate_product_site_dirs(options.site_dirs.clone()).await?;
+    let site_dirs = options.site_dirs;
+    let state = build_runtime_proxy_state(config, site_dirs.clone());
+
+    Ok(Router::new()
+        .route("/api/admin", any(proxy_admin_request))
+        .route("/api/admin/{*path}", any(proxy_admin_request))
+        .route("/api", any(api_not_found))
+        .route("/api/{*path}", any(api_not_found))
+        .route("/admin", get(redirect_admin_root))
+        .route("/admin/", get(serve_admin_site))
+        .route("/admin/{*path}", get(serve_admin_site))
+        .route("/", get(serve_portal_site))
+        .route("/{*path}", get(serve_portal_site))
+        .with_state(state))
+}
+
+fn build_runtime_proxy_state(
+    config: StandaloneConfig,
+    site_dirs: ProductSiteDirs,
+) -> RuntimeProxyState {
+    let admin_proxy_target = trim_trailing_slash(config.admin_proxy_target);
+    let admin_sandbox = if admin_proxy_target.trim().is_empty() && config.admin_sandbox_enabled {
+        let state = match config.admin_sandbox_storage_file {
+            Some(storage_file) => SharedAdminSandboxState::seeded_with_storage_file(storage_file),
+            None => SharedAdminSandboxState::seeded(),
+        };
+        let credentials = state.login_credentials();
+        eprintln!(
+            "warning: SDKWORK_ADMIN_SANDBOX is enabled. Admin sandbox login: {} / {} ({}). Override with SDKWORK_ADMIN_SANDBOX_EMAIL and SDKWORK_ADMIN_SANDBOX_PASSWORD.",
+            credentials.email, credentials.password, credentials.source
+        );
+        Some(state)
+    } else {
+        None
+    };
+
+    RuntimeProxyState {
+        client: Client::new(),
+        admin_proxy_target,
+        admin_sandbox,
+        portal_api_base_url: config.portal_api_base_url,
+        site_dirs,
+    }
 }
 
 async fn validate_site_dir(site_dir: &StdPath, site_name: &str) -> Result<()> {
@@ -400,6 +413,7 @@ async fn serve_portal_shell(path: &StdPath, portal_api_base_url: &str) -> Respon
 }
 
 fn inject_portal_api_base_url(html: &str, portal_api_base_url: &str, script_nonce: &str) -> String {
+    let html = apply_nonce_to_inline_portal_scripts(html, script_nonce);
     let serialized_url = serde_json::to_string(portal_api_base_url)
         .expect("portal api base url should serialize into javascript");
     let script = format!(
@@ -415,6 +429,45 @@ fn inject_portal_api_base_url(html: &str, portal_api_base_url: &str, script_nonc
     }
 
     format!("{script}{html}")
+}
+
+fn apply_nonce_to_inline_portal_scripts(html: &str, script_nonce: &str) -> String {
+    let mut result = String::with_capacity(html.len() + 64);
+    let mut cursor = 0;
+
+    while let Some(relative_start) = html[cursor..].find("<script") {
+        let start = cursor + relative_start;
+        result.push_str(&html[cursor..start]);
+
+        let Some(relative_end) = html[start..].find('>') else {
+            result.push_str(&html[start..]);
+            return result;
+        };
+        let end = start + relative_end + 1;
+        let opening_tag = &html[start..end];
+
+        if script_tag_requires_runtime_nonce(opening_tag) {
+            let tag_without_close = &opening_tag[..opening_tag.len() - 1];
+            result.push_str(tag_without_close);
+            result.push_str(format!(" nonce=\"{script_nonce}\">").as_str());
+        } else {
+            result.push_str(opening_tag);
+        }
+
+        cursor = end;
+    }
+
+    result.push_str(&html[cursor..]);
+    result
+}
+
+fn script_tag_requires_runtime_nonce(opening_tag: &str) -> bool {
+    let normalized = opening_tag.to_ascii_lowercase();
+    let is_importmap = normalized.contains(r#"type="importmap""#)
+        || normalized.contains("type='importmap'")
+        || normalized.contains("type=importmap");
+
+    is_importmap && !normalized.contains(" src=") && !normalized.contains(" nonce=")
 }
 
 struct HtmlShellSecurityPolicy {
@@ -891,6 +944,19 @@ mod tests {
         assert!(content_security_policy.contains(format!("'nonce-{nonce}'").as_str()));
         assert!(content_security_policy.contains("script-src 'self' 'nonce-"));
         assert!(!content_security_policy.contains("script-src 'self' 'unsafe-inline'"));
+    }
+
+    #[test]
+    fn portal_shell_injection_applies_runtime_nonce_to_inline_importmap_scripts() {
+        let html = r#"<!doctype html><html><head><script type="importmap">{ "imports": { "@sdkwork/sdk-common": "/__vendor__/sdkwork-sdk-common/index.js" } }</script></head><body>portal</body></html>"#;
+
+        let injected = inject_portal_api_base_url(
+            html,
+            "https://portal-api.example.com/runtime-edge",
+            "nonce123",
+        );
+
+        assert!(injected.contains(r#"<script type="importmap" nonce="nonce123">"#));
     }
 
     #[tokio::test]

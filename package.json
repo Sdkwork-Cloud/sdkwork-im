@@ -1,0 +1,11 @@
+{
+  "name": "craw-chat",
+  "private": true,
+  "packageManager": "pnpm@10.0.0",
+  "scripts": {
+    "check:commercial-readiness": "node scripts/release/commercial-readiness.mjs",
+    "test:workflow-commercial-gates": "node scripts/run-commercial-gates-governance-node-tests.mjs",
+    "test:user-center-standard": "node scripts/run-user-center-standard.mjs",
+    "server:dev": "node ./scripts/dev/start-craw-chat-unified-web.mjs"
+  }
+}

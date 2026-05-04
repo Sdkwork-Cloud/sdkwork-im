@@ -179,8 +179,8 @@ test('portal auth store forwards explicit credentials to the portal-api login se
 
     assert.deepEqual(capturedCredentials, explicitCredentials);
     assert.equal(capturedWorkspaceToken, 'portal_access_token_demo');
-    assert.equal(sessionStorage.getItem('craw-chat-portal.session.v1'), 'portal_access_token_demo');
-    assert.equal(localStorage.getItem('craw-chat-portal.session.v1'), null);
+    assert.equal(sessionStorage.getItem('craw-chat-portal.user-center.session-token'), 'portal_access_token_demo');
+    assert.equal(localStorage.getItem('craw-chat-portal.user-center.session-token'), null);
   } finally {
     dataSourceModule.resetActivePortalDataSource();
     global.window = originalWindow;
@@ -330,8 +330,8 @@ test('portal app reads login form credentials and routes real sign-in through th
 
     assert.deepEqual(capturedCredentials, explicitCredentials);
     assert.equal(capturedWorkspaceToken, 'portal_access_token_live');
-    assert.equal(sessionStorage.getItem('craw-chat-portal.session.v1'), 'portal_access_token_live');
-    assert.equal(localStorage.getItem('craw-chat-portal.session.v1'), null);
+    assert.equal(sessionStorage.getItem('craw-chat-portal.user-center.session-token'), 'portal_access_token_live');
+    assert.equal(localStorage.getItem('craw-chat-portal.user-center.session-token'), null);
     assert.equal(global.window.location.pathname, '/console/dashboard');
 
     teardown();

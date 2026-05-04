@@ -17,7 +17,7 @@ The checked-in Flutter standard is:
 - primary public client: `ImSdkClient`
 - generated transport boundary: `im_sdk_generated`
 - route-aligned HTTP coverage for auth, portal, conversations, media, streams, and RTC
-- no delivered websocket live adapter in this round
+- a delivered WebSocket adapter plus `sdk.connect(...)` in the manual-owned `im_sdk` layer
 
 ## How To Use This Page
 
@@ -189,9 +189,12 @@ The checked-in Dart surface is intentionally narrower than the TypeScript SDK:
 - `sdk.auth.login(...)` automatically applies the returned `accessToken` when present, while
   `sdk.auth.useToken(...)`, `sdk.auth.clearToken()`, and `sdk.auth.me()` give the composed layer a
   standard auth workflow.
-- The Flutter runtime does not ship `sdk.connect(...)`; realtime is HTTP coordination only through
-  `sdk.realtime.replaceSubscriptions(...)`, `sdk.realtime.pullEvents(...)`, and
-  `sdk.realtime.ackEvents(...)`.
+- The Flutter runtime is WebSocket-first for interactive realtime delivery through
+  `sdk.connect(...)` and the delivered adapter in `im_sdk`.
+- The generated transport and `sdk.realtime.*` modules still expose explicit HTTP coordination
+  through `sdk.realtime.replaceSubscriptions(...)`, `sdk.realtime.catchUpEvents(...)`, and
+  `sdk.realtime.ackEvents(...)`, but those are operational coordination surfaces rather than the
+  default live receive path.
 - The Flutter package does not yet ship `sdk.createXxxMessage()`, `sdk.send()`, or
   `sdk.decodeMessage()`.
 - Text posting shortcuts currently live on `sdk.conversations.postText(...)`,
@@ -199,6 +202,48 @@ The checked-in Dart surface is intentionally narrower than the TypeScript SDK:
   `ImBuilders.*`.
 - `sdk.messages` currently covers message mutation only: `edit(...)`, `editText(...)`, and
   `recall(...)`.
+
+## Live WebSocket Receive
+
+```dart
+final sdk = ImSdkClient.create(
+  baseUrl: 'https://api.example.com',
+  websocketBaseUrl: 'wss://realtime.example.com',
+  authToken: 'your-bearer-token',
+);
+
+final live = await sdk.connect(
+  const ImConnectOptions(
+    deviceId: 'device-mobile-01',
+    subscriptions: ImRealtimeSubscriptionGroups(
+      conversations: <String>['conversation-1'],
+      rtcSessions: <String>['rtc-1'],
+    ),
+  ),
+);
+
+live.messages.onConversation('conversation-1', (message, context) {
+  print(message.summary);
+  void context.ack();
+});
+
+live.signals.onRtcSession('rtc-1', (signal, context) {
+  print(signal.signalType);
+  void context.ack();
+});
+```
+
+The delivered WebSocket adapter is part of the manual-owned `im_sdk` package, not the generated
+transport package.
+
+`ImWebSocketAuthOptions.automatic()` is the standard default:
+
+- Flutter mobile and desktop use bearer authentication in the WebSocket upgrade header
+- Flutter Web falls back to query bearer auth because the browser runtime cannot attach custom
+  upgrade headers through the default connector
+- Flutter Web should prefer `credentialProvider` with a short-lived realtime ticket or exchanged
+  query credential when the gateway supports it
+- custom gateways can override the transport by providing `webSocketFactory`
 
 ## Module Coverage Map
 
@@ -217,14 +262,14 @@ The checked-in Dart surface is intentionally narrower than the TypeScript SDK:
 
 ## Current Parity Gap
 
-The Flutter SDK currently trails the TypeScript SDK on live transport and message-first authoring:
+The Flutter SDK still trails the TypeScript SDK on message-first authoring:
 
-- the checked-in Flutter runtime does not ship `sdk.connect(...)` or a delivered websocket live
-  adapter
 - the checked-in Flutter runtime does not yet ship `sdk.createXxxMessage()`,
   `sdk.send()`, or `sdk.decodeMessage()`
-- if you need websocket live push or the richer message-first send surface today, use the
-  TypeScript SDK until the Flutter semantic runtime catches up
+- the generated transport package remains HTTP-only; the delivered WebSocket adapter lives in the
+  manual-owned `im_sdk` layer
+- if you need the richer message-first send surface today, use the TypeScript SDK until the
+  Flutter semantic runtime catches up
 
 This page intentionally documents the checked-in exported surface, not only the OpenAPI authority.
 
@@ -233,8 +278,8 @@ The corresponding HTTP surface is still documented in:
 - [Portal and Auth](/api-reference/app/portal-and-auth)
 - [App API Overview](/api-reference/app-api)
 
-If your product needs websocket live push or the richer message-first outbound surface, the
-current documented fallback is the TypeScript SDK.
+If your product needs the richer message-first outbound surface, the current documented fallback is
+the TypeScript SDK.
 
 ## Helper Builders
 
@@ -254,8 +299,12 @@ semantic helpers with explicit generated request types.
 - Prefer `sdk.auth.useToken(...)` and `sdk.auth.clearToken()` at the composed layer.
 - `setAuthToken()` remains available on `ImTransportClient` and `ImSdkClient` for low-level
   fallback control.
-- The WebSocket endpoint is documented at the API layer, but the checked-in Flutter SDK does not
-  ship `sdk.connect(...)` and no delivered WebSocket adapter is treated as shipped in this round.
+- The WebSocket endpoint is documented at the API layer and the delivered WebSocket adapter now
+  ships from the manual-owned `im_sdk` package.
+- `ImWebSocketAuthOptions.automatic()` is the standard default.
+- `ImWebSocketAuthOptions.headerBearer()` is preferred on native runtimes.
+- Flutter Web should keep `automatic()` or use `queryBearer()` unless a custom `webSocketFactory`
+  can attach authenticated upgrade headers.
 
 ## Assembly Metadata
 

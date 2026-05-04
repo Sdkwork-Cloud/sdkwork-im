@@ -12,12 +12,12 @@ use axum::{
     Json, Router,
     routing::{get, post},
 };
-use im_auth_context::{
-    AuthContext, AuthContextError, resolve_auth_context, resolve_public_bearer_auth_context,
-};
 use craw_chat_api_registry::HttpMethod;
 use craw_chat_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
+};
+use im_auth_context::{
+    AuthContext, AuthContextError, resolve_auth_context, resolve_public_bearer_auth_context,
 };
 use im_domain_core::conversation::{
     ConversationMember, ConversationReadCursorView, MembershipRole,

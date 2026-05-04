@@ -56,6 +56,8 @@ pub struct GatewaySurfaceGroupSummary {
 pub struct GatewayStartupSummary {
     pub bind_addr: String,
     pub base_url: String,
+    pub portal_url: String,
+    pub admin_url: String,
     pub aggregate_openapi_url: String,
     pub openapi_index_url: String,
     pub runtime_summary_url: String,
@@ -83,6 +85,8 @@ pub fn build_startup_summary_with_registry(
     GatewayStartupSummary {
         bind_addr: config.bind_addr.clone(),
         base_url: base_url.clone(),
+        portal_url: format!("{}/", base_url),
+        admin_url: format!("{}/admin/", base_url),
         aggregate_openapi_url: format!("{}/openapi.json", base_url),
         openapi_index_url: format!("{}/openapi/index.json", base_url),
         runtime_summary_url: format!("{}/openapi/runtime-summary.json", base_url),
@@ -123,6 +127,8 @@ pub fn format_startup_summary(summary: &GatewayStartupSummary) -> String {
         format!("  bind: {}", summary.bind_addr),
         "Unified Access".to_owned(),
         format!("  base: {}", summary.base_url),
+        format!("  portal: {}", summary.portal_url),
+        format!("  admin: {}", summary.admin_url),
         format!("  healthz: {}/healthz", summary.base_url),
         format!("  readyz: {}/readyz", summary.base_url),
         "OpenAPI 3.1 Schemas".to_owned(),

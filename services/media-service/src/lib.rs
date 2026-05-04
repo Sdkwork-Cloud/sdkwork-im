@@ -811,10 +811,9 @@ async fn readyz() -> Json<HealthResponse> {
 }
 
 async fn openapi_json() -> Result<Json<serde_json::Value>, MediaError> {
-    Ok(Json(
-        build_media_service_openapi_document()
-            .map_err(|message| MediaError::internal("openapi_export_failed", message))?,
-    ))
+    Ok(Json(build_media_service_openapi_document().map_err(
+        |message| MediaError::internal("openapi_export_failed", message),
+    )?))
 }
 
 async fn docs() -> Html<String> {

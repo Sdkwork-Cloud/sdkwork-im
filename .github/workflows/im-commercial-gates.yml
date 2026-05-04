@@ -5,7 +5,49 @@ on:
     branches:
       - main
   pull_request:
+    paths:
+      - '.github/workflows/im-commercial-gates.yml'
+      - '.github/workflows/user-center-upstream-sync.yml'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'package.json'
+      - 'README.md'
+      - 'apps/craw-chat-admin/**'
+      - 'apps/craw-chat-portal/**'
+      - 'crates/**'
+      - 'deployments/**'
+      - 'docs/**'
+      - 'scripts/build-craw-chat-desktop-assets.mjs'
+      - 'scripts/commercial-gates-governance-node-test-catalog.mjs'
+      - 'scripts/commercial-gates-governance-node-test-catalog.test.mjs'
+      - 'scripts/im-commercial-gates-contracts.mjs'
+      - 'scripts/im-commercial-gates-step-contract-catalog.mjs'
+      - 'scripts/im-commercial-gates-step-contract-catalog.test.mjs'
+      - 'scripts/im-commercial-gates-watch-catalog.mjs'
+      - 'scripts/im-commercial-gates-watch-catalog.test.mjs'
+      - 'scripts/im-commercial-gates-workflow.test.mjs'
+      - 'scripts/run-commercial-gates-governance-node-tests.mjs'
+      - 'scripts/run-commercial-gates-governance-node-tests.test.mjs'
+      - 'scripts/run-user-center-standard.mjs'
+      - 'scripts/run-user-center-standard.test.mjs'
+      - 'scripts/server-user-center-entrypoint-contract.test.mjs'
+      - 'scripts/user-center-upstream-sync-payload.mjs'
+      - 'scripts/user-center-upstream-sync-payload.test.mjs'
+      - 'scripts/user-center-upstream-sync-workflow.test.mjs'
+      - 'scripts/strict-contract-catalog.mjs'
+      - 'scripts/strict-contract-catalog.test.mjs'
+      - 'scripts/dev/**'
+      - 'scripts/release/**'
+      - 'services/**'
+      - 'sdks/**'
+      - 'vendor/**'
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 concurrency:
   group: im-commercial-gates-${{ github.ref }}
@@ -18,12 +60,15 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 22
+
+      - name: Run commercial gates governance node tests
+        run: node scripts/run-commercial-gates-governance-node-tests.mjs
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -106,12 +151,15 @@ jobs:
         run: cargo test -p session-gateway --test device_access_provider_mainline_test test_conflicting_session_resume_does_not_call_provider_for_second_owner -- --exact
 
       - name: Test admin architecture release safety
-        working-directory: apps/control-plane
+        working-directory: apps/craw-chat-admin
         run: node --test --experimental-test-isolation=none tests/admin-architecture.test.mjs
 
       - name: Test portal dist release safety
         working-directory: apps/craw-chat-portal
         run: node --test tests/portal-build-smoke.test.mjs
+
+      - name: Test portal user-center standard
+        run: node scripts/run-user-center-standard.mjs
 
       - name: Test portal real auth boundary
         working-directory: apps/craw-chat-portal
@@ -178,7 +226,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -314,7 +362,7 @@ jobs:
       CARGO_INCREMENTAL: "0"
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -387,7 +435,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -410,7 +458,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable

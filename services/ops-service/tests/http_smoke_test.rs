@@ -38,12 +38,7 @@ async fn test_public_app_serves_docs_page_for_live_openapi() {
     let app = ops_service::build_public_app();
 
     let response = app
-        .oneshot(
-            Request::builder()
-                .uri("/docs")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/docs").body(Body::empty()).unwrap())
         .await
         .expect("request should succeed");
 

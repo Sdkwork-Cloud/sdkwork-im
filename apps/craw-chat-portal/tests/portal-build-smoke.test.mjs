@@ -127,6 +127,17 @@ test('portal builds into a standalone distributable without external installs', 
   assert.doesNotMatch(imSdkVendorSource, retiredBackendVendorPattern);
 });
 
+test('portal shell keeps styles in html instead of css module imports so the unified runtime can serve raw browser modules safely', async () => {
+  const portalIndexSource = await readFile(path.join(appRoot, 'index.html'), 'utf8');
+  const portalMainSource = await readFile(path.join(appRoot, 'src/main.js'), 'utf8');
+
+  assert.match(
+    portalIndexSource,
+    /<link\s+rel="stylesheet"\s+href="\.\/src\/theme\.css"\s*\/?>/i,
+  );
+  assert.doesNotMatch(portalMainSource, /import\s+['"]\.\/theme\.css['"]/);
+});
+
 test('portal build tolerates concurrent invocations targeting the same dist directory', async () => {
   await Promise.all([rebuildDist(), rebuildDist(), rebuildDist(), rebuildDist()]);
   await access(distIndexHtml);

@@ -4,6 +4,7 @@ param(
     [string]$ConfigDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "CrawChat", "default", "config")),
     [string]$LogDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "CrawChat", "default", "logs")),
     [string]$RunDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "CrawChat", "default", "run")),
+    [string]$EnvFile,
     [string]$BinaryPath,
     [switch]$Release,
     [switch]$Foreground,
@@ -25,8 +26,8 @@ if ($PSBoundParameters.ContainsKey("InstanceName") -and -not $PSBoundParameters.
 }
 
 if ($Help) {
-    Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/start-server.ps1 [-InstanceName <name>] [-InstallRoot <path>] [-ConfigDir <path>] [-LogDir <path>] [-RunDir <path>] [-BinaryPath <path>] [-Release] [-Foreground] [-HealthUrl <url>] [-SkipHealthCheck]"
-    Write-Host "Usage: cmd /c .\bin\start-server.cmd [--instance <name>] [--install-root <path>] [--config-dir <path>] [--log-dir <path>] [--run-dir <path>] [--binary-path <path>] [--release] [--foreground] [--health-url <url>] [--skip-health-check]"
+    Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/start-server.ps1 [-InstanceName <name>] [-InstallRoot <path>] [-ConfigDir <path>] [-LogDir <path>] [-RunDir <path>] [-EnvFile <path>] [-BinaryPath <path>] [-Release] [-Foreground] [-HealthUrl <url>] [-SkipHealthCheck]"
+    Write-Host "Usage: cmd /c .\bin\start-server.cmd [--instance <name>] [--install-root <path>] [--config-dir <path>] [--log-dir <path>] [--run-dir <path>] [--env-file <path>] [--binary-path <path>] [--release] [--foreground] [--health-url <url>] [--skip-health-check]"
     Write-Host "Start the craw-chat-server runtime service for an instance with config loading, binary resolution, log and run directory management, health checks, and status-friendly foreground or background execution."
     exit 0
 }
@@ -40,6 +41,81 @@ function Read-ConfigValue {
         }
     }
     return $null
+}
+
+function Resolve-ServerEnvFilePath {
+    param([string]$ExplicitEnvFile, [string]$ResolvedConfigDir)
+
+    if (-not [string]::IsNullOrWhiteSpace($ExplicitEnvFile)) {
+        return $ExplicitEnvFile
+    }
+
+    return (Join-Path $ResolvedConfigDir "server.env")
+}
+
+function Read-ServerEnvFile {
+    param([string]$EnvFilePath)
+
+    $values = @{}
+    if (-not (Test-Path $EnvFilePath)) {
+        return $values
+    }
+
+    foreach ($line in Get-Content -Path $EnvFilePath) {
+        $trimmed = $line.Trim()
+        if ($trimmed.Length -eq 0 -or $trimmed.StartsWith('#')) {
+            continue
+        }
+        if ($trimmed.StartsWith('export ')) {
+            $trimmed = $trimmed.Substring(7).Trim()
+        }
+
+        $parts = $trimmed -split '=', 2
+        if ($parts.Count -ne 2) {
+            continue
+        }
+
+        $key = $parts[0].Trim()
+        if ([string]::IsNullOrWhiteSpace($key)) {
+            continue
+        }
+
+        $value = $parts[1].Trim()
+        if ($value.Length -ge 2) {
+            if (($value.StartsWith('"') -and $value.EndsWith('"')) -or ($value.StartsWith("'") -and $value.EndsWith("'"))) {
+                $value = $value.Substring(1, $value.Length - 2)
+            }
+        }
+
+        $values[$key] = $value
+    }
+
+    return $values
+}
+
+function Import-ServerEnvFile {
+    param([string]$EnvFilePath)
+
+    foreach ($entry in (Read-ServerEnvFile -EnvFilePath $EnvFilePath).GetEnumerator()) {
+        if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($entry.Key))) {
+            Set-Item -Path ("Env:" + $entry.Key) -Value $entry.Value
+        }
+    }
+}
+
+function Set-ServerUserCenterRuntimeEnv {
+    param([hashtable]$Mappings)
+
+    foreach ($mapping in $Mappings.GetEnumerator()) {
+        $sourceKey = $mapping.Key
+        $value = [Environment]::GetEnvironmentVariable($sourceKey)
+        if ([string]::IsNullOrWhiteSpace($value)) {
+            continue
+        }
+
+        Set-Item -Path ("Env:" + $mapping.Value.CanonicalKey) -Value $value
+        Set-Item -Path ("Env:" + $mapping.Value.AppKey) -Value $value
+    }
 }
 
 function Resolve-ServerBinaryPath {
@@ -119,6 +195,86 @@ function Get-ManagedProcess {
 }
 
 $root = Split-Path -Parent $PSScriptRoot
+$serverEnvPath = Resolve-ServerEnvFilePath -ExplicitEnvFile $EnvFile -ResolvedConfigDir $ConfigDir
+Import-ServerEnvFile -EnvFilePath $serverEnvPath
+Set-ServerUserCenterRuntimeEnv -Mappings ([ordered]@{
+    CRAW_CHAT_SERVER_USER_CENTER_MODE = @{
+        CanonicalKey = 'SDKWORK_USER_CENTER_MODE'
+        AppKey = 'CRAW_CHAT_USER_CENTER_MODE'
+    }
+    CRAW_CHAT_SERVER_USER_CENTER_PROVIDER_KEY = @{
+        CanonicalKey = 'SDKWORK_USER_CENTER_PROVIDER_KEY'
+        AppKey = 'CRAW_CHAT_USER_CENTER_PROVIDER_KEY'
+    }
+    CRAW_CHAT_SERVER_USER_CENTER_LOCAL_API_BASE_PATH = @{
+        CanonicalKey = 'SDKWORK_USER_CENTER_LOCAL_API_BASE_PATH'
+        AppKey = 'CRAW_CHAT_USER_CENTER_LOCAL_API_BASE_PATH'
+    }
+    CRAW_CHAT_SERVER_USER_CENTER_AUTHORIZATION_HEADER_NAME = @{
+        CanonicalKey = 'SDKWORK_USER_CENTER_AUTHORIZATION_HEADER_NAME'
+        AppKey = 'CRAW_CHAT_USER_CENTER_AUTHORIZATION_HEADER_NAME'
+    }
+    CRAW_CHAT_SERVER_USER_CENTER_ACCESS_TOKEN_HEADER_NAME = @{
+        CanonicalKey = 'SDKWORK_USER_CENTER_ACCESS_TOKEN_HEADER_NAME'
+        AppKey = 'CRAW_CHAT_USER_CENTER_ACCESS_TOKEN_HEADER_NAME'
+    }
+    CRAW_CHAT_SERVER_USER_CENTER_REFRESH_TOKEN_HEADER_NAME = @{
+        CanonicalKey = 'SDKWORK_USER_CENTER_REFRESH_TOKEN_HEADER_NAME'
+        AppKey = 'CRAW_CHAT_USER_CENTER_REFRESH_TOKEN_HEADER_NAME'
+    }
+    CRAW_CHAT_SERVER_USER_CENTER_SESSION_HEADER_NAME = @{
+        CanonicalKey = 'SDKWORK_USER_CENTER_SESSION_HEADER_NAME'
+        AppKey = 'CRAW_CHAT_USER_CENTER_SESSION_HEADER_NAME'
+    }
+    CRAW_CHAT_SERVER_USER_CENTER_AUTHORIZATION_SCHEME = @{
+        CanonicalKey = 'SDKWORK_USER_CENTER_AUTHORIZATION_SCHEME'
+        AppKey = 'CRAW_CHAT_USER_CENTER_AUTHORIZATION_SCHEME'
+    }
+    CRAW_CHAT_SERVER_USER_CENTER_ALLOW_AUTHORIZATION_FALLBACK_TO_ACCESS_TOKEN = @{
+        CanonicalKey = 'SDKWORK_USER_CENTER_ALLOW_AUTHORIZATION_FALLBACK_TO_ACCESS_TOKEN'
+        AppKey = 'CRAW_CHAT_USER_CENTER_ALLOW_AUTHORIZATION_FALLBACK_TO_ACCESS_TOKEN'
+    }
+    CRAW_CHAT_SERVER_USER_CENTER_APP_ID = @{
+        CanonicalKey = 'SDKWORK_USER_CENTER_APP_ID'
+        AppKey = 'CRAW_CHAT_USER_CENTER_APP_ID'
+    }
+    CRAW_CHAT_SERVER_USER_CENTER_APP_API_BASE_URL = @{
+        CanonicalKey = 'SDKWORK_USER_CENTER_APP_API_BASE_URL'
+        AppKey = 'CRAW_CHAT_USER_CENTER_APP_API_BASE_URL'
+    }
+    CRAW_CHAT_SERVER_USER_CENTER_SECRET_ID = @{
+        CanonicalKey = 'SDKWORK_USER_CENTER_SECRET_ID'
+        AppKey = 'CRAW_CHAT_USER_CENTER_SECRET_ID'
+    }
+    CRAW_CHAT_SERVER_USER_CENTER_SHARED_SECRET = @{
+        CanonicalKey = 'SDKWORK_USER_CENTER_SHARED_SECRET'
+        AppKey = 'CRAW_CHAT_USER_CENTER_SHARED_SECRET'
+    }
+    CRAW_CHAT_SERVER_USER_CENTER_EXTERNAL_BASE_URL = @{
+        CanonicalKey = 'SDKWORK_USER_CENTER_EXTERNAL_BASE_URL'
+        AppKey = 'CRAW_CHAT_USER_CENTER_EXTERNAL_BASE_URL'
+    }
+    CRAW_CHAT_SERVER_USER_CENTER_DATABASE_URL = @{
+        CanonicalKey = 'SDKWORK_USER_CENTER_DATABASE_URL'
+        AppKey = 'CRAW_CHAT_USER_CENTER_DATABASE_URL'
+    }
+    CRAW_CHAT_SERVER_USER_CENTER_SCHEMA_NAME = @{
+        CanonicalKey = 'SDKWORK_USER_CENTER_SCHEMA_NAME'
+        AppKey = 'CRAW_CHAT_USER_CENTER_SCHEMA_NAME'
+    }
+    CRAW_CHAT_SERVER_USER_CENTER_SQLITE_PATH = @{
+        CanonicalKey = 'SDKWORK_USER_CENTER_SQLITE_PATH'
+        AppKey = 'CRAW_CHAT_USER_CENTER_SQLITE_PATH'
+    }
+    CRAW_CHAT_SERVER_USER_CENTER_TABLE_PREFIX = @{
+        CanonicalKey = 'SDKWORK_USER_CENTER_TABLE_PREFIX'
+        AppKey = 'CRAW_CHAT_USER_CENTER_TABLE_PREFIX'
+    }
+    CRAW_CHAT_SERVER_USER_CENTER_HANDSHAKE_FRESHNESS_WINDOW_MS = @{
+        CanonicalKey = 'SDKWORK_USER_CENTER_HANDSHAKE_FRESHNESS_WINDOW_MS'
+        AppKey = 'CRAW_CHAT_USER_CENTER_HANDSHAKE_FRESHNESS_WINDOW_MS'
+    }
+})
 $serverYamlPath = Join-Path $ConfigDir "server.yaml"
 if (-not (Test-Path $serverYamlPath)) {
     throw "Missing server config. Run init-config-server first: $serverYamlPath"

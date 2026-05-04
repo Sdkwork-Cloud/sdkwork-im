@@ -20,6 +20,7 @@ export function buildCommercialReadinessChecks({
   platform = process.platform,
 } = {}) {
   const pnpmExecutable = resolvePnpmExecutable(platform);
+  const nodeExecutable = process.execPath;
   const pnpmRuntimeEnv = {
     npm_config_update_notifier: 'false',
   };
@@ -28,7 +29,7 @@ export function buildCommercialReadinessChecks({
     {
       id: 'admin-install',
       label: 'Admin frozen install',
-      cwd: path.join(repoRoot, 'apps', 'control-plane'),
+      cwd: path.join(repoRoot, 'apps', 'craw-chat-admin'),
       command: pnpmExecutable,
       args: ['install', '--frozen-lockfile', '--ignore-scripts'],
       env: pnpmRuntimeEnv,
@@ -36,7 +37,7 @@ export function buildCommercialReadinessChecks({
     {
       id: 'admin-test',
       label: 'Admin workspace tests',
-      cwd: path.join(repoRoot, 'apps', 'control-plane'),
+      cwd: path.join(repoRoot, 'apps', 'craw-chat-admin'),
       command: pnpmExecutable,
       args: ['test'],
       env: pnpmRuntimeEnv,
@@ -44,7 +45,7 @@ export function buildCommercialReadinessChecks({
     {
       id: 'admin-typecheck',
       label: 'Admin typecheck',
-      cwd: path.join(repoRoot, 'apps', 'control-plane'),
+      cwd: path.join(repoRoot, 'apps', 'craw-chat-admin'),
       command: pnpmExecutable,
       args: ['typecheck'],
       env: pnpmRuntimeEnv,
@@ -52,10 +53,17 @@ export function buildCommercialReadinessChecks({
     {
       id: 'admin-build',
       label: 'Admin production build',
-      cwd: path.join(repoRoot, 'apps', 'control-plane'),
+      cwd: path.join(repoRoot, 'apps', 'craw-chat-admin'),
       command: pnpmExecutable,
       args: ['build'],
       env: pnpmRuntimeEnv,
+    },
+    {
+      id: 'portal-user-center-standard',
+      label: 'Portal user-center standard',
+      cwd: repoRoot,
+      command: nodeExecutable,
+      args: [path.join(repoRoot, 'scripts', 'run-user-center-standard.mjs')],
     },
     {
       id: 'portal-test',

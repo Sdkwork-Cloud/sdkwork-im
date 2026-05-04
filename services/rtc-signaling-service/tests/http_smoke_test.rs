@@ -29,7 +29,10 @@ async fn test_public_app_exports_live_openapi_json() {
         serde_json::from_slice(&body).expect("body should be valid json");
 
     assert_eq!(value["openapi"], "3.1.0");
-    assert_eq!(value["info"]["title"], "Craw Chat RTC Signaling Service API");
+    assert_eq!(
+        value["info"]["title"],
+        "Craw Chat RTC Signaling Service API"
+    );
     assert!(value["paths"]["/api/v1/rtc/sessions"].is_object());
 }
 
@@ -38,12 +41,7 @@ async fn test_public_app_serves_docs_page_for_live_openapi() {
     let app = rtc_signaling_service::build_public_app();
 
     let response = app
-        .oneshot(
-            Request::builder()
-                .uri("/docs")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/docs").body(Body::empty()).unwrap())
         .await
         .expect("request should succeed");
 

@@ -573,8 +573,14 @@ requireIncludes(
 requireIncludes(
   flutterDocSource,
   flutterDocPath,
-  "does not ship `sdk.connect(...)`",
-  "must state that Flutter has no delivered websocket live runtime",
+  "sdk.connect(...)",
+  "must document sdk.connect(...) as the delivered Flutter websocket live runtime entrypoint",
+);
+requireIncludes(
+  flutterDocSource,
+  flutterDocPath,
+  "ImWebSocketAuthOptions.automatic()",
+  "must document the standard Flutter websocket auth strategy",
 );
 requireIncludes(
   flutterDocSource,
@@ -994,8 +1000,8 @@ requireExcludes(
 requireIncludes(
   languageSupportSource,
   languageSupportPath,
-  "HTTP coordination only",
-  "must describe Flutter realtime as HTTP coordination only when websocket runtime is absent",
+  "Realtime WebSocket adapter | Yes | Yes",
+  "must record that both TypeScript and Flutter currently ship websocket live runtimes",
 );
 for (const marker of [
   "Rust",

@@ -1,4 +1,4 @@
-import type { ImDecodedDataPayload, ImDecodedMessage, ImDecodedRtcSignal, ImWebSocketFactory, ImWebSocketLike, RealtimeAckState, RealtimeEvent, RealtimeEventWindow, RealtimeSubscriptionSnapshot } from './types.js';
+import type { ImDecodedDataPayload, ImDecodedMessage, ImDecodedRtcSignal, ImWebSocketAuthOptions, ImWebSocketFactory, ImWebSocketLike, RealtimeAckState, RealtimeEvent, RealtimeEventWindow, RealtimeSubscriptionSnapshot } from './types.js';
 export type ImInternalRealtimeWebSocketMode = 'legacy_json' | 'ccp_json';
 export interface ImInternalReceiverEventBase<TKind extends string> {
     kind: TKind;
@@ -28,7 +28,7 @@ export interface ImInternalRealtimeBatch {
     highestSeq: number;
     rawWindow: RealtimeEventWindow;
 }
-export interface ImInternalReceiverPullAckResult {
+export interface ImInternalReceiverCatchUpAckResult {
     batch: ImInternalRealtimeBatch;
     ack?: RealtimeAckState;
 }
@@ -59,9 +59,11 @@ export interface ImInternalRealtimeWebSocketCcpOptions {
     lastAckedSeq?: number;
 }
 export interface ImInternalRealtimeWebSocketReceiverOptions {
+    deviceId?: string;
     url?: string;
     mode?: ImInternalRealtimeWebSocketMode;
     authToken?: string;
+    webSocketAuth?: ImWebSocketAuthOptions;
     headers?: Record<string, string>;
     protocols?: string[];
     socket?: ImWebSocketLike;

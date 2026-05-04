@@ -1,5 +1,4 @@
 import { App } from './App.js';
-import './theme.css';
 
 const root = document.querySelector('#root');
 

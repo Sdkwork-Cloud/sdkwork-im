@@ -44,6 +44,8 @@
 
 ## 6. 商业化交付统一验证入口
 
+- 进入 release / go-no-go 评估前，建议先单独执行 `pnpm test:user-center-standard`
+- 该命令会先执行共享 `sdkwork-appbase` 用户中心标准合同，再执行 `craw-chat-portal` 的用户中心桥接合同，用于冻结 AuthToken / AccessToken / secret-handshake 与独立 validation plugin 的统一标准
 - 进入 release / go-no-go 评估前，必须先执行 `node scripts/release/commercial-readiness.mjs`
 - 该命令按固定顺序运行 admin install/test/typecheck/build、portal test/build、control-plane API、commercial contract、session-gateway、performance baseline 与 drill catalog
 - 若任一验证命令执行失败、依赖缺失、或 `capacity-tier-evidence-index.json` 无法读取 / 解析，则命令必须以 `exit code 1` 失败退出，并视为验证链路异常

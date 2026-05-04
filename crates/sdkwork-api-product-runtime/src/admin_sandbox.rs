@@ -17,7 +17,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 const ADMIN_SANDBOX_SEED_JSON: &str =
-    include_str!("../../../apps/control-plane/dev/admin-sandbox-seed.json");
+    include_str!("../../../apps/craw-chat-admin/dev/admin-sandbox-seed.json");
 const DEFAULT_ADMIN_SANDBOX_PASSWORD: &str = "ChangeMe123!";
 
 #[derive(Clone)]
@@ -70,6 +70,7 @@ impl SharedAdminSandboxState {
         Self::seeded_from_credentials(Some(file_path.into()), credentials)
     }
 
+    #[cfg(test)]
     pub fn seeded_with_credentials(email: impl Into<String>, password: impl Into<String>) -> Self {
         Self::seeded_from_credentials(
             None,

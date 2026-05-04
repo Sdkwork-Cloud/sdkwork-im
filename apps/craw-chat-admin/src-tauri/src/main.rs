@@ -104,7 +104,7 @@ fn workspace_site_dirs() -> ProductSiteDirs {
         .parent()
         .expect("admin app must live inside the apps directory");
     ProductSiteDirs::new(
-        apps_root.join("control-plane").join("dist"),
+        apps_root.join("craw-chat-admin").join("dist"),
         apps_root.join("craw-chat-portal").join("dist"),
     )
 }
@@ -133,7 +133,7 @@ mod tests {
     use anyhow::anyhow;
     use std::path::PathBuf;
 
-    use super::{box_setup_error, choose_site_dir_for_runtime};
+    use super::{box_setup_error, choose_site_dir_for_runtime, workspace_site_dirs};
 
     #[test]
     fn box_setup_error_preserves_context_message() {
@@ -144,7 +144,7 @@ mod tests {
     #[test]
     fn choose_site_dir_for_runtime_prefers_embedded_resource_dir() {
         let embedded = PathBuf::from("embedded-sites/admin");
-        let fallback = PathBuf::from("apps/control-plane/dist");
+        let fallback = PathBuf::from("apps/craw-chat-admin/dist");
 
         let resolved = choose_site_dir_for_runtime(
             Some(embedded.clone()),
@@ -159,7 +159,7 @@ mod tests {
 
     #[test]
     fn choose_site_dir_for_runtime_allows_workspace_fallback_in_debug_style_contexts() {
-        let fallback = PathBuf::from("apps/control-plane/dist");
+        let fallback = PathBuf::from("apps/craw-chat-admin/dist");
 
         let resolved =
             choose_site_dir_for_runtime(None, fallback.clone(), "embedded-sites/admin", true)
@@ -172,7 +172,7 @@ mod tests {
     fn choose_site_dir_for_runtime_rejects_release_without_embedded_resources() {
         let error = choose_site_dir_for_runtime(
             None,
-            PathBuf::from("apps/control-plane/dist"),
+            PathBuf::from("apps/craw-chat-admin/dist"),
             "embedded-sites/admin",
             false,
         )
@@ -180,5 +180,31 @@ mod tests {
 
         assert!(error.to_string().contains("embedded-sites/admin"));
         assert!(error.to_string().contains("bundle.resources"));
+    }
+
+    #[test]
+    fn workspace_site_dirs_points_admin_fallback_to_craw_chat_admin_dist() {
+        let site_dirs = workspace_site_dirs();
+
+        assert_eq!(
+            site_dirs.admin_site_dir,
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .parent()
+                .expect("admin src-tauri must live inside the admin app")
+                .parent()
+                .expect("admin app must live inside the apps directory")
+                .join("craw-chat-admin")
+                .join("dist"),
+        );
+        assert_eq!(
+            site_dirs.portal_site_dir,
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .parent()
+                .expect("admin src-tauri must live inside the admin app")
+                .parent()
+                .expect("admin app must live inside the apps directory")
+                .join("craw-chat-portal")
+                .join("dist"),
+        );
     }
 }

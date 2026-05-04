@@ -501,10 +501,9 @@ async fn readyz() -> Json<HealthResponse> {
 }
 
 async fn openapi_json() -> Result<Json<serde_json::Value>, AuditError> {
-    Ok(Json(
-        build_audit_service_openapi_document()
-            .map_err(|message| AuditError::internal("openapi_export_failed", message))?,
-    ))
+    Ok(Json(build_audit_service_openapi_document().map_err(
+        |message| AuditError::internal("openapi_export_failed", message),
+    )?))
 }
 
 async fn docs() -> Html<String> {
@@ -553,7 +552,11 @@ fn audit_service_summary(path: &str, method: HttpMethod) -> String {
     match (path, method) {
         ("/healthz", HttpMethod::Get) => "Check audit service health".to_owned(),
         ("/readyz", HttpMethod::Get) => "Check audit service readiness".to_owned(),
-        _ => format!("{} {}", audit_service_method_display(method), path.trim_matches('/').replace('/', " ")),
+        _ => format!(
+            "{} {}",
+            audit_service_method_display(method),
+            path.trim_matches('/').replace('/', " ")
+        ),
     }
 }
 

@@ -154,7 +154,8 @@ where
                     operation.insert(
                         "x-craw-chat-websocket-subprotocols".to_owned(),
                         Value::Array(
-                            route.websocket_subprotocols
+                            route
+                                .websocket_subprotocols
                                 .iter()
                                 .cloned()
                                 .map(Value::String)
@@ -577,7 +578,10 @@ fn split_route_call(route_call: &str) -> Result<(&str, &str), String> {
     }
 
     index += 1;
-    Ok((&route_call[path_start..path_end], route_call[index..].trim()))
+    Ok((
+        &route_call[path_start..path_end],
+        route_call[index..].trim(),
+    ))
 }
 
 fn extract_methods(handler_expr: &str) -> BTreeSet<HttpMethod> {

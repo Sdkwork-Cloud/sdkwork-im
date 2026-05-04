@@ -43,7 +43,7 @@ use im_adapters_local_disk::{
 };
 use im_adapters_local_memory::{MemoryCommitJournal, MemoryRealtimeCheckpointStore};
 use im_auth_context::AuthContext;
-use im_auth_context::{AuthContextError, resolve_auth_context, resolve_public_bearer_auth_context};
+use im_auth_context::{AuthContextError, resolve_public_bearer_auth_context};
 use im_domain_core::conversation::{
     ConversationInboxEntry, ConversationMember, ConversationReadCursorView, DeviceSyncFeedEntry,
     MembershipRole,
@@ -121,6 +121,7 @@ mod session;
 mod social;
 mod stream;
 mod twin;
+mod user_center;
 mod user_module;
 
 use self::device_registration::{DisconnectActiveDeviceRouteOutcome, LocalNodeDeviceRegistration};
@@ -147,6 +148,8 @@ pub use runtime_dir::{
     list_runtime_backups, preview_restore_runtime_dir, prune_archived_runtime_backups,
     repair_runtime_dir, restore_runtime_dir, restore_runtime_dir_with_expected_preview_fingerprint,
 };
+pub use user_center::{UserCenterProviderKind, UserCenterRuntimeConfig, UserCenterRuntimeMode,
+    resolve_user_center_runtime_config};
 
 #[derive(Clone)]
 struct AppState {
@@ -1372,24 +1375,38 @@ fn normalize_public_browser_origin(value: &str) -> Result<String, String> {
 }
 
 async fn require_public_bearer_auth(request: Request<axum::body::Body>, next: Next) -> Response {
-    match request.uri().path() {
+    let user_center_config = user_center::resolve_effective_user_center_runtime_config();
+    let user_center_login_path = user_center::login_path(&user_center_config);
+    let user_center_refresh_path = user_center::refresh_path(&user_center_config);
+    let user_center_health_path = user_center::health_path(&user_center_config);
+    let path = request.uri().path();
+    let method = request.method();
+    let allows_public_route = matches!(
+        path,
         "/healthz"
-        | "/readyz"
-        | APP_OPENAPI_SCHEMA_PATH
-        | "/api/v1/auth/login"
-        | "/api/v1/auth/refresh"
-        | "/api/v1/portal/home"
-        | "/api/v1/portal/auth"
-            if request.method() == axum::http::Method::GET
-                || request.method() == axum::http::Method::POST =>
-        {
-            next.run(request).await
-        }
-        _ if request.method() == axum::http::Method::OPTIONS => next.run(request).await,
-        _ => match resolve_public_bearer_auth_context(request.headers()) {
-            Ok(_) => next.run(request).await,
-            Err(error) => ApiError::from(error).into_response(),
-        },
+            | "/readyz"
+            | APP_OPENAPI_SCHEMA_PATH
+            | "/api/v1/auth/login"
+            | "/api/v1/auth/refresh"
+            | "/api/v1/portal/home"
+            | "/api/v1/portal/auth"
+    ) || path == user_center_login_path
+        || path == user_center_refresh_path
+        || path == user_center_health_path;
+
+    if method == axum::http::Method::OPTIONS {
+        return next.run(request).await;
+    }
+
+    if allows_public_route
+        && (method == axum::http::Method::GET || method == axum::http::Method::POST)
+    {
+        return next.run(request).await;
+    }
+
+    match resolve_public_bearer_auth_context(request.headers()) {
+        Ok(_) => next.run(request).await,
+        Err(error) => ApiError::from(error).into_response(),
     }
 }
 
@@ -1414,4 +1431,8 @@ async fn export_app_openapi_schema() -> impl IntoResponse {
         [(CONTENT_TYPE, "application/yaml; charset=utf-8")],
         load_app_openapi_schema_yaml(),
     )
+}
+
+fn resolve_auth_context(headers: &HeaderMap) -> Result<AuthContext, ApiError> {
+    user_center::resolve_auth_context(headers)
 }

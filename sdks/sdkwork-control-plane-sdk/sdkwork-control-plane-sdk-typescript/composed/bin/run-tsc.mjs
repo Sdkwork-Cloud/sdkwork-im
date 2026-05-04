@@ -2,33 +2,22 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-
-function resolveCanonicalWorkspaceRoot(workspaceRoot) {
-  const worktreeMarker = `${path.sep}.worktrees${path.sep}`;
-  const markerIndex = workspaceRoot.lastIndexOf(worktreeMarker);
-  if (markerIndex === -1) {
-    return workspaceRoot;
-  }
-  return workspaceRoot.slice(0, markerIndex);
-}
-
-function resolveCandidateTscPaths(packageRoot) {
-  const workspaceRoot = path.resolve(packageRoot, '..', '..');
-  const canonicalWorkspaceRoot = resolveCanonicalWorkspaceRoot(workspaceRoot);
-  const canonicalGeneratorRoot = process.env.SDKWORK_GENERATOR_ROOT
-    ? path.resolve(process.env.SDKWORK_GENERATOR_ROOT)
-    : path.resolve(canonicalWorkspaceRoot, '..', '..', 'sdk', 'sdkwork-sdk-generator');
-
-  return [
-    path.join(packageRoot, 'node_modules', 'typescript', 'bin', 'tsc'),
-    path.join(packageRoot, '..', 'generated', 'server-openapi', 'node_modules', 'typescript', 'bin', 'tsc'),
-    path.join(canonicalGeneratorRoot, 'node_modules', 'typescript', 'bin', 'tsc'),
-  ];
-}
+import { resolveGeneratorModulePath } from '../../../bin/generator-runtime.mjs';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const packageRoot = path.resolve(scriptDir, '..');
-const tscPath = resolveCandidateTscPaths(packageRoot).find((candidate) => existsSync(candidate));
+const workspaceRoot = path.resolve(packageRoot, '..', '..');
+const tscCandidates = [
+  path.join(packageRoot, 'node_modules', 'typescript', 'bin', 'tsc'),
+  path.join(packageRoot, '..', 'generated', 'server-openapi', 'node_modules', 'typescript', 'bin', 'tsc'),
+];
+
+try {
+  tscCandidates.push(resolveGeneratorModulePath(workspaceRoot, 'typescript', 'bin', 'tsc'));
+} catch {
+}
+
+const tscPath = tscCandidates.find((candidate) => existsSync(candidate));
 
 if (!tscPath) {
   console.error(

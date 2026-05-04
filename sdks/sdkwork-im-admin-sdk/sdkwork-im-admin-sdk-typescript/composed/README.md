@@ -11,3 +11,9 @@ published by the generated backend transport package.
 
 - Consume generated transport symbols only through `@sdkwork/im-admin-backend-sdk`.
 - Do not import `generated/server-openapi/src/*` private source paths from manual or downstream code.
+
+## Verification
+
+- `node ./bin/package-task.mjs typecheck`
+- `node ./bin/package-task.mjs build`
+- `node ./bin/package-task.mjs test`

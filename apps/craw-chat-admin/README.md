@@ -16,7 +16,7 @@ It provides the browser and desktop shell for moderation, tenancy, identity, aut
 ## Workspace Layout
 
 ```text
-apps/control-plane/
+apps/craw-chat-admin/
   src/          # root bootstrap only
   packages/     # shell, core, and business modules
   tests/        # architecture and product-surface verification

@@ -25,7 +25,7 @@ export class ImSdkClient {
     constructor(options) {
         const resolved = resolveImClientOptions(options);
         const transportClient = resolved.transportClient;
-        this.context = new ImSdkContext(transportClient, resolved.transport, resolved.webSocketFactory, resolved.authToken);
+        this.context = new ImSdkContext(transportClient, resolved.transport, resolved.webSocketFactory, resolved.webSocketAuth, resolved.authToken);
         this.auth = new ImAuthModule(this.context);
         this.portal = transportClient.portal;
         this.session = transportClient.session;

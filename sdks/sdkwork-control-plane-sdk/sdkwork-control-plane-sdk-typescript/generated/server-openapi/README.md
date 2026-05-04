@@ -94,5 +94,7 @@ This generated client currently standardizes on bearer-token auth through `setAu
 - Apply mode also writes `.sdkwork/sdkwork-generator-report.json` with the full execution report,
   including `schemaVersion`, `generator`, stable artifact paths, and the execution handoff
   commands that match CLI `--json` output.
+- `bin/sdk-gen.sh` and `bin/sdk-gen.bat` delegate to `bin/sdk-gen-core.mjs`, which resolves npm
+  from the active Node.js runtime instead of assuming a bare `npm` binary on PATH.
 - Put hand-written wrappers, adapters, and orchestration in `custom/`.
 - Files scaffolded under `custom/` are created once and preserved across regenerations.

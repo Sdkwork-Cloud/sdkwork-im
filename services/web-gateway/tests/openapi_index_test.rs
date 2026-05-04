@@ -234,10 +234,7 @@ async fn gateway_exposes_openapi_service_index_and_service_schema_proxy() {
             .to_bytes(),
     )
     .expect("service schema should be valid json");
-    assert_eq!(
-        service_value["info"]["title"],
-        "Control Plane API"
-    );
+    assert_eq!(service_value["info"]["title"], "Control Plane API");
 }
 
 #[tokio::test]
@@ -580,6 +577,8 @@ fn startup_summary_lists_gateway_openapi_endpoints() {
     assert!(text.contains("http://127.0.0.1:18079/openapi.json"));
     assert!(text.contains("http://127.0.0.1:18079/openapi/index.json"));
     assert!(text.contains("http://127.0.0.1:18079/openapi/runtime-summary.json"));
+    assert!(text.contains("http://127.0.0.1:18079/"));
+    assert!(text.contains("http://127.0.0.1:18079/admin/"));
     assert!(text.contains("Gateway Endpoints"));
     assert!(text.contains("/api/v1/realtime/ws"));
     assert!(text.contains("Gateway Surface Groups"));

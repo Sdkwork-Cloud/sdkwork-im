@@ -2,7 +2,7 @@
 
 ## What This Module Is For
 
-This module covers realtime coordination through the HTTP-oriented public surface.
+This module covers realtime coordination through the standard WebSocket-first SDK model.
 
 ## Public Entrypoints
 
@@ -14,11 +14,17 @@ The primary App API alignment is the session and realtime domain.
 
 ## Common Workflows
 
-Typical flows include subscription sync, pull windows, and event acknowledgements.
+Typical flows include live WebSocket receive, durable catch-up, subscription sync, and event
+acknowledgements.
 
 ## Ownership and Status
 
-This page will separate documented WebSocket transport notes from implemented SDK capabilities.
+This page separates semantic SDK capabilities from raw route-level transport operations. The
+consumer standard is:
+
+- live push through `sdk.connect(...)`
+- durable replay through `sdk.sync.catchUp(...)`
+- route-level HTTP control through `sdk.realtime.*` only when exact transport alignment is needed
 
 ## Example
 

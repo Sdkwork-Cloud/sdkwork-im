@@ -19,7 +19,7 @@ If you are documenting or implementing a public consumer path, prefer bearer-tok
 | Language | Preferred client surface | Auth update method |
 | --- | --- | --- |
 | TypeScript | `new ImSdkClient({ baseUrl, authToken })` | `sdk.auth.useToken(token)` |
-| Flutter | `ImSdkClient.create(...)` | `client.setAuthToken(token)` |
+| Flutter | `ImSdkClient.create(...)` | `sdk.auth.useToken(token)` |
 | Rust | `ImSdkClient::new_with_base_url(...)` | `client.set_auth_token(token)` |
 
 All three languages also expose the generated transport layer, but the preferred integration surface
@@ -95,12 +95,21 @@ let session = client
 
 ## Realtime Transport Note
 
-The current SDK round is HTTP-coordination-first:
+The current SDK family splits realtime into generated HTTP coordination and manual live runtimes:
 
-- session resume, subscription sync, event pull, and event acknowledgement are exposed directly
-- WebSocket transport semantics may still be documented for system understanding
-- a manual realtime WebSocket adapter is not implied unless it is explicitly documented as
-  implemented
+- session resume, subscription sync, catch-up, and event acknowledgement remain exposed directly
+- TypeScript and Flutter both ship `sdk.connect(...)` from their manual-owned consumer packages
+- TypeScript and Flutter now both keep `ImWebSocketAuthOptions.automatic()` as the standard
+  default
+- TypeScript automatic auth resolves to query bearer on the default browser `WebSocket` path and
+  to header bearer when a custom `webSocketFactory` is present
+- Flutter automatic auth resolves to header bearer on native runtimes and query bearer fallback on
+  Flutter Web
+- TypeScript browser runtimes can still prefer `sdk.connect({ url })` when the gateway issues a
+  fully pre-signed realtime URL instead of a credential exchange flow
+- Flutter Web should prefer `credentialProvider` with a short-lived realtime ticket when the
+  gateway supports browser-safe WebSocket token exchange
+- Rust and the transport-standardized languages still remain HTTP-coordination-only today
 
 ## Related Pages
 

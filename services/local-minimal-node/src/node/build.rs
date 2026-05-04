@@ -413,6 +413,28 @@ fn build_public_app_with_bind_addr_and_runtime_dir(
 }
 
 fn build_public_browser_cors_layer() -> CorsLayer {
+    let user_center_config = user_center::resolve_effective_user_center_runtime_config();
+    let mut allowed_headers = Vec::new();
+    for header_name in [
+        axum::http::header::AUTHORIZATION.as_str(),
+        axum::http::header::CONTENT_TYPE.as_str(),
+        user_center_config.authorization_header_name.as_str(),
+        user_center_config.access_token_header_name.as_str(),
+        user_center_config.refresh_token_header_name.as_str(),
+        user_center_config.session_header_name.as_str(),
+        "x-sdkwork-app-id",
+        "x-sdkwork-user-center-provider-key",
+        "x-sdkwork-user-center-handshake-mode",
+        "x-sdkwork-user-center-secret-id",
+        "x-sdkwork-user-center-signature",
+        "x-sdkwork-user-center-signed-at",
+    ] {
+        if let Ok(parsed) = header_name.parse::<axum::http::header::HeaderName>() {
+            if !allowed_headers.contains(&parsed) {
+                allowed_headers.push(parsed);
+            }
+        }
+    }
     let allowed_origins = resolve_public_browser_origins()
         .into_iter()
         .map(|origin| {
@@ -428,10 +450,7 @@ fn build_public_browser_cors_layer() -> CorsLayer {
             axum::http::Method::POST,
             axum::http::Method::OPTIONS,
         ]))
-        .allow_headers(AllowHeaders::list([
-            axum::http::header::AUTHORIZATION,
-            axum::http::header::CONTENT_TYPE,
-        ]))
+        .allow_headers(AllowHeaders::list(allowed_headers))
 }
 
 fn build_local_minimal_realtime_plane(
@@ -905,6 +924,11 @@ fn replay_projection_journal(
 }
 
 fn build_app(state: AppState) -> Router {
+    let user_center_config = user_center::resolve_effective_user_center_runtime_config();
+    let user_center_login_path = user_center::login_path(&user_center_config);
+    let user_center_refresh_path = user_center::refresh_path(&user_center_config);
+    let user_center_profile_path = user_center::profile_path(&user_center_config);
+    let user_center_health_path = user_center::health_path(&user_center_config);
     Router::new()
         .route("/healthz", get(healthz))
         .route("/readyz", get(readyz))
@@ -912,6 +936,13 @@ fn build_app(state: AppState) -> Router {
         .route("/api/v1/auth/login", post(auth::login))
         .route("/api/v1/auth/refresh", post(auth::refresh))
         .route("/api/v1/auth/me", get(auth::me))
+        .route(user_center_login_path.as_str(), post(auth::login))
+        .route(user_center_refresh_path.as_str(), post(auth::refresh))
+        .route(user_center_profile_path.as_str(), get(auth::me))
+        .route(
+            user_center_health_path.as_str(),
+            get(user_center::get_user_center_health),
+        )
         .route("/api/v1/portal/home", get(portal::get_home))
         .route("/api/v1/portal/auth", get(portal::get_auth))
         .route("/api/v1/portal/workspace", get(portal::get_workspace))

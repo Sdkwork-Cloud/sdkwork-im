@@ -67,7 +67,7 @@ struct AuthRefreshSessionRecord {
     expires_at: u64,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct LoginRequest {
     tenant_id: String,
@@ -78,7 +78,7 @@ pub(super) struct LoginRequest {
     client_kind: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct RefreshRequest {
     refresh_token: String,
@@ -89,6 +89,7 @@ pub(super) struct RefreshRequest {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct LoginResponse {
+    auth_token: String,
     access_token: String,
     refresh_token: String,
     expires_at: u64,
@@ -441,6 +442,7 @@ impl AuthRuntime {
         let expires_at = now + ACCESS_TOKEN_TTL_SECONDS;
         let access_token =
             issue_access_token(account, device_id.as_str(), session_id.as_str(), now)?;
+        let auth_token = access_token.clone();
         let refresh_token = generate_secret_token(32);
 
         prune_expired_refresh_sessions(&mut store.refresh_sessions, now);
@@ -468,6 +470,7 @@ impl AuthRuntime {
         })?;
 
         Ok(LoginResponse {
+            auth_token,
             access_token,
             refresh_token,
             expires_at,
@@ -486,26 +489,63 @@ impl AuthRuntime {
 pub(super) async fn login(
     State(state): State<AppState>,
     Json(request): Json<LoginRequest>,
-) -> Result<Json<LoginResponse>, ApiError> {
-    Ok(Json(state.auth_runtime.login(request)?))
+) -> Result<Response, ApiError> {
+    let config = resolve_user_center_authority_config()?;
+    if user_center::mode_requires_remote_authority(&config) {
+        let path = user_center::login_path(&config);
+        return user_center::proxy_json_request(
+            &config,
+            "POST",
+            path.as_str(),
+            &HeaderMap::new(),
+            Some(&request),
+        )
+        .await;
+    }
+
+    Ok(Json(state.auth_runtime.login(request)?).into_response())
 }
 
 pub(super) async fn refresh(
     State(state): State<AppState>,
     Json(request): Json<RefreshRequest>,
-) -> Result<Json<LoginResponse>, ApiError> {
-    Ok(Json(state.auth_runtime.refresh(request)?))
+) -> Result<Response, ApiError> {
+    let config = resolve_user_center_authority_config()?;
+    if user_center::mode_requires_remote_authority(&config) {
+        let path = user_center::refresh_path(&config);
+        return user_center::proxy_json_request(
+            &config,
+            "POST",
+            path.as_str(),
+            &HeaderMap::new(),
+            Some(&request),
+        )
+        .await;
+    }
+
+    Ok(Json(state.auth_runtime.refresh(request)?).into_response())
 }
 
 pub(super) async fn me(
     headers: HeaderMap,
     State(state): State<AppState>,
-) -> Result<Json<MeResponse>, ApiError> {
+) -> Result<Response, ApiError> {
+    let config = resolve_user_center_authority_config()?;
+    if user_center::mode_requires_remote_authority(&config) {
+        let path = user_center::profile_path(&config);
+        return user_center::proxy_json_request::<Value>(
+            &config,
+            "GET",
+            path.as_str(),
+            &headers,
+            None,
+        )
+        .await;
+    }
+
     let auth = resolve_auth_context(&headers)?;
     let client_kind_hint = client_kind_from_headers(&headers);
-    Ok(Json(
-        state.auth_runtime.me(&auth, client_kind_hint.as_deref())?,
-    ))
+    Ok(Json(state.auth_runtime.me(&auth, client_kind_hint.as_deref())?).into_response())
 }
 
 fn account_user_view(account: &AuthAccountRecord) -> AuthUserView {
@@ -1019,6 +1059,11 @@ fn fill_random_bytes(buffer: &mut [u8]) {
     fill_random(buffer).unwrap_or_else(|error| {
         panic!("system entropy unavailable for auth secret generation: {error}")
     });
+}
+
+fn resolve_user_center_authority_config() -> Result<UserCenterRuntimeConfig, ApiError> {
+    resolve_user_center_runtime_config()
+        .map_err(|error| ApiError::service_unavailable("auth_authority_unavailable", error))
 }
 
 #[cfg(test)]

@@ -1,26 +1,124 @@
 {
   "name": "@sdkwork/ui-pc-react",
-  "private": true,
-  "version": "0.1.0-local",
+  "version": "0.1.0",
+  "description": "SDKWORK shared PC React UI framework built on shadcn-style primitives and desktop application patterns.",
   "type": "module",
-  "main": "./src/index.ts",
-  "module": "./src/index.ts",
-  "types": "./src/index.ts",
+  "packageManager": "pnpm@10.30.2",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/src/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "sideEffects": [
     "**/*.css"
   ],
   "exports": {
-    ".": "./src/index.ts",
-    "./theme": "./src/theme/index.ts",
-    "./components/ui": "./src/components/ui/index.ts",
-    "./components/ui/feedback": "./src/components/ui/feedback/index.ts",
-    "./components/patterns/app-shell": "./src/components/patterns/app-shell/index.ts",
-    "./components/patterns/desktop-shell": "./src/components/patterns/desktop-shell/index.ts",
-    "./styles.css": "./src/styles/sdkwork-ui.css"
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./theme": {
+      "types": "./dist/src/theme/index.d.ts",
+      "import": "./dist/theme.js"
+    },
+    "./components/ui": {
+      "types": "./dist/src/components/ui/index.d.ts",
+      "import": "./dist/components-ui.js"
+    },
+    "./components/ui/actions": {
+      "types": "./dist/src/components/ui/actions/index.d.ts",
+      "import": "./dist/ui-actions.js"
+    },
+    "./components/ui/data-entry": {
+      "types": "./dist/src/components/ui/data-entry/index.d.ts",
+      "import": "./dist/ui-data-entry.js"
+    },
+    "./components/ui/data-display": {
+      "types": "./dist/src/components/ui/data-display/index.d.ts",
+      "import": "./dist/ui-data-display.js"
+    },
+    "./components/ui/form": {
+      "types": "./dist/src/components/ui/form/index.d.ts",
+      "import": "./dist/ui-form.js"
+    },
+    "./components/ui/feedback": {
+      "types": "./dist/src/components/ui/feedback/index.d.ts",
+      "import": "./dist/ui-feedback.js"
+    },
+    "./components/ui/layout": {
+      "types": "./dist/src/components/ui/layout/index.d.ts",
+      "import": "./dist/ui-layout.js"
+    },
+    "./components/ui/navigation": {
+      "types": "./dist/src/components/ui/navigation/index.d.ts",
+      "import": "./dist/ui-navigation.js"
+    },
+    "./components/ui/overlays": {
+      "types": "./dist/src/components/ui/overlays/index.d.ts",
+      "import": "./dist/ui-overlays.js"
+    },
+    "./components/ui/catalog": {
+      "types": "./dist/src/components/ui/catalog.d.ts",
+      "import": "./dist/ui-catalog.js"
+    },
+    "./components/patterns": {
+      "types": "./dist/src/components/patterns/index.d.ts",
+      "import": "./dist/components-patterns.js"
+    },
+    "./components/patterns/app-shell": {
+      "types": "./dist/src/components/patterns/app-shell/index.d.ts",
+      "import": "./dist/patterns-app-shell.js"
+    },
+    "./components/patterns/command": {
+      "types": "./dist/src/components/patterns/command/index.d.ts",
+      "import": "./dist/patterns-command.js"
+    },
+    "./components/patterns/desktop-shell": {
+      "types": "./dist/src/components/patterns/desktop-shell/index.d.ts",
+      "import": "./dist/patterns-desktop-shell.js"
+    },
+    "./components/patterns/detail": {
+      "types": "./dist/src/components/patterns/detail/index.d.ts",
+      "import": "./dist/patterns-detail.js"
+    },
+    "./components/patterns/picker": {
+      "types": "./dist/src/components/patterns/picker/index.d.ts",
+      "import": "./dist/patterns-picker.js"
+    },
+    "./components/patterns/settings": {
+      "types": "./dist/src/components/patterns/settings/index.d.ts",
+      "import": "./dist/patterns-settings.js"
+    },
+    "./components/patterns/system": {
+      "types": "./dist/src/components/patterns/system/index.d.ts",
+      "import": "./dist/patterns-system.js"
+    },
+    "./components/patterns/workbench": {
+      "types": "./dist/src/components/patterns/workbench/index.d.ts",
+      "import": "./dist/patterns-workbench.js"
+    },
+    "./components/patterns/workspace": {
+      "types": "./dist/src/components/patterns/workspace/index.d.ts",
+      "import": "./dist/patterns-workspace.js"
+    },
+    "./styles.css": "./dist/sdkwork-ui.css"
+  },
+  "scripts": {
+    "build": "./scripts/run-vite-build.cmd",
+    "prepare": "./scripts/run-vite-build.cmd",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "docs:dev": "node scripts/run-vitepress.mjs dev docs --host 127.0.0.1 --port 4175",
+    "docs:build": "node scripts/run-vitepress.mjs build docs",
+    "docs:preview": "node scripts/run-vitepress.mjs preview docs --host 127.0.0.1 --port 4176"
   },
   "peerDependencies": {
     "react": ">=18.0.0 <20.0.0",
-    "react-dom": ">=18.0.0 <20.0.0"
+    "react-dom": ">=18.0.0 <20.0.0",
+    "react-hook-form": ">=7.0.0 <8.0.0"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.1.11",
@@ -47,9 +145,28 @@
     "cmdk": "^1.1.1",
     "lucide-react": "1.7.0",
     "react-day-picker": "^9.14.0",
-    "react-hook-form": "^7.72.1",
     "react-resizable-panels": "^4.9.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.5.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.2.2",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/node": "^25.5.2",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.1",
+    "jsdom": "^29.0.1",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "react-hook-form": "^7.72.1",
+    "tailwindcss": "4.2.2",
+    "typescript": "6.0.2",
+    "vite": "8.0.3",
+    "vite-plugin-dts": "^4.5.4",
+    "vitepress": "^1.6.4",
+    "vitest": "^4.1.2",
+    "vue": "^3.5.32"
   }
 }

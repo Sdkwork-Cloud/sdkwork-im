@@ -335,10 +335,9 @@ async fn healthz() -> Json<HealthResponse> {
 }
 
 async fn openapi_json() -> Result<Json<serde_json::Value>, ApiError> {
-    Ok(Json(
-        build_session_gateway_openapi_document()
-            .map_err(|message| ApiError::internal("openapi_export_failed", message))?,
-    ))
+    Ok(Json(build_session_gateway_openapi_document().map_err(
+        |message| ApiError::internal("openapi_export_failed", message),
+    )?))
 }
 
 async fn docs() -> Html<String> {

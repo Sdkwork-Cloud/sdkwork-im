@@ -40,8 +40,10 @@ const requiredPaths = [
   'bin/verify-sdk-automation.mjs',
   'bin/verify-powershell-wrapper-args.mjs',
   'bin/verify-shell-wrapper-args.mjs',
+  'bin/npm-runtime.mjs',
   'bin/build-typescript-generated-package.mjs',
   'bin/verify-typescript-generated-package.mjs',
+  'bin/verify-typescript-generated-sdk-gen-runtime.mjs',
   'bin/verify-typescript-usage-surface.mjs',
   'bin/verify-typescript-public-api-boundary.mjs',
   'bin/verify-typescript-workspace.mjs',
@@ -52,6 +54,8 @@ const requiredPaths = [
   'bin/verify-flutter-dart-analysis.dart',
   'bin/verify-flutter-workspace.mjs',
   'tests/assemble-sdk.test.mjs',
+  'tests/typescript-publish-core.test.mjs',
+  'tests/typescript-generated-sdk-gen-runtime.test.mjs',
   'tests/verify-sdk-automation.test.mjs',
   'sdkwork-control-plane-sdk-typescript/bin/sdk-assemble.ps1',
   'sdkwork-control-plane-sdk-typescript/bin/sdk-assemble.sh',
@@ -83,11 +87,31 @@ const ps1Source = read('bin/generate-sdk.ps1');
 const shSource = read('bin/generate-sdk.sh');
 const verifySdkSource = read('bin/verify-sdk.mjs');
 const verifyFlutterWorkspaceSource = read('bin/verify-flutter-workspace.mjs');
+const npmRuntimeSource = read('bin/npm-runtime.mjs');
+const typescriptWorkspaceVerifierSource = read('bin/verify-typescript-workspace.mjs');
+const generatedTypeScriptRunTscSource = read(
+  'sdkwork-control-plane-sdk-typescript/generated/server-openapi/bin/run-tsc.mjs',
+);
+const composedTypeScriptRunTscSource = read(
+  'sdkwork-control-plane-sdk-typescript/composed/bin/run-tsc.mjs',
+);
 const workspaceVerifySharedSource = read('../workspace-verify-shared.mjs');
 const verifySdkInfrastructureSource = [
   verifySdkSource,
   workspaceVerifySharedSource,
 ].join('\n');
+const generatedTypeScriptSdkGenCoreSource = read(
+  'sdkwork-control-plane-sdk-typescript/generated/server-openapi/bin/sdk-gen-core.mjs',
+);
+const generatedTypeScriptSdkGenShellSource = read(
+  'sdkwork-control-plane-sdk-typescript/generated/server-openapi/bin/sdk-gen.sh',
+);
+const generatedTypeScriptSdkGenBatchSource = read(
+  'sdkwork-control-plane-sdk-typescript/generated/server-openapi/bin/sdk-gen.bat',
+);
+const generatedTypeScriptPublishCoreSource = read(
+  'sdkwork-control-plane-sdk-typescript/generated/server-openapi/bin/publish-core.mjs',
+);
 
 appendScriptInvocationFailures({
   source: ps1Source,
@@ -345,6 +369,119 @@ requireMatch({
   message: 'verify-flutter-workspace.mjs must execute verify-flutter-usage-surface.mjs.',
   failures,
 });
+requireMatch({
+  source: typescriptWorkspaceVerifierSource,
+  pattern: /verify-typescript-generated-sdk-gen-runtime\.mjs/,
+  message: 'verify-typescript-workspace.mjs must execute verify-typescript-generated-sdk-gen-runtime.mjs.',
+  failures,
+});
+requireMatch({
+  source: typescriptWorkspaceVerifierSource,
+  pattern: /typescript:generated-sdk-gen-runtime/,
+  message: 'verify-typescript-workspace.mjs must label the generated sdk-gen runtime step as typescript:generated-sdk-gen-runtime.',
+  failures,
+});
+requireMatch({
+  source: npmRuntimeSource,
+  pattern: /resolveNpmInvocation/,
+  message: 'bin/npm-runtime.mjs must export resolveNpmInvocation.',
+  failures,
+});
+requireMatch({
+  source: npmRuntimeSource,
+  pattern: /createNpmCommandArgs/,
+  message: 'bin/npm-runtime.mjs must export createNpmCommandArgs.',
+  failures,
+});
+requireMatch({
+  source: generatedTypeScriptSdkGenCoreSource,
+  pattern: /npm-runtime\.mjs/,
+  message: 'TypeScript generated sdk-gen-core.mjs must import bin/npm-runtime.mjs.',
+  failures,
+});
+requireMatch({
+  source: generatedTypeScriptSdkGenCoreSource,
+  pattern: /createNpmCommandArgs/,
+  message: 'TypeScript generated sdk-gen-core.mjs must resolve npm through createNpmCommandArgs.',
+  failures,
+});
+requireMatch({
+  source: generatedTypeScriptSdkGenShellSource,
+  pattern: /sdk-gen-core\.mjs/,
+  message: 'TypeScript generated sdk-gen.sh must delegate to sdk-gen-core.mjs.',
+  failures,
+});
+requireNotMatch({
+  source: generatedTypeScriptSdkGenShellSource,
+  pattern: /npm install && npm run build/,
+  message: 'TypeScript generated sdk-gen.sh must not inline bare npm install/build commands.',
+  failures,
+});
+requireMatch({
+  source: generatedTypeScriptSdkGenBatchSource,
+  pattern: /sdk-gen-core\.mjs/i,
+  message: 'TypeScript generated sdk-gen.bat must delegate to sdk-gen-core.mjs.',
+  failures,
+});
+requireNotMatch({
+  source: generatedTypeScriptSdkGenBatchSource,
+  pattern: /npm install && npm run build/i,
+  message: 'TypeScript generated sdk-gen.bat must not inline bare npm install/build commands.',
+  failures,
+});
+requireMatch({
+  source: verifySdkSource,
+  pattern: /typescript-publish-core\.test\.mjs/,
+  message: 'verify-sdk.mjs must execute tests/typescript-publish-core.test.mjs for the TypeScript language.',
+  failures,
+});
+requireMatch({
+  source: verifySdkSource,
+  pattern: /typescript:publish-core/,
+  message: 'verify-sdk.mjs must label the TypeScript publish-core regression step as typescript:publish-core.',
+  failures,
+});
+requireMatch({
+  source: generatedTypeScriptPublishCoreSource,
+  pattern: /npm-runtime\.mjs/,
+  message: 'TypeScript generated publish-core.mjs must import bin/npm-runtime.mjs.',
+  failures,
+});
+requireMatch({
+  source: generatedTypeScriptPublishCoreSource,
+  pattern: /createNpmCommandArgs/,
+  message: 'TypeScript generated publish-core.mjs must resolve npm through createNpmCommandArgs.',
+  failures,
+});
+requireNotMatch({
+  source: generatedTypeScriptPublishCoreSource,
+  pattern: /run\('npm'/,
+  message: 'TypeScript generated publish-core.mjs must not execute bare npm commands directly.',
+  failures,
+});
+for (const [label, source] of [
+  ['generated TypeScript run-tsc.mjs', generatedTypeScriptRunTscSource],
+  ['composed TypeScript run-tsc.mjs', composedTypeScriptRunTscSource],
+]) {
+  requireMatch({
+    source,
+    pattern: /generator-runtime\.mjs/,
+    message: `${label} must import bin/generator-runtime.mjs.`,
+    failures,
+  });
+  requireMatch({
+    source,
+    pattern: /resolveGeneratorModulePath/,
+    message: `${label} must resolve the generator-owned TypeScript compiler through resolveGeneratorModulePath.`,
+    failures,
+  });
+  requireNotMatch({
+    source,
+    pattern: /sdkwork-sdk-generator/,
+    message: `${label} must not hardcode sdkwork-sdk-generator path math locally.`,
+    failures,
+  });
+}
 appendGitignorePatternFailures({
   source: workspaceGitignoreSource,
   failures,

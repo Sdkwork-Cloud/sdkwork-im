@@ -13,6 +13,7 @@
     "test:storage": "scripts\\run-node.cmd tests/admin-sandbox.test.mjs && scripts\\run-node.cmd packages/sdkwork-control-plane-storage/src/storageDraft.test.ts",
     "verify": "scripts\\run-node.cmd tests/admin-architecture.test.mjs && scripts\\run-node.cmd tests/admin-auth-surface.test.mjs && scripts\\run-node.cmd tests/admin-claw-foundation-parity.test.mjs && scripts\\run-node.cmd tests/admin-product-experience.test.mjs && scripts\\run-node.cmd tests/admin-sandbox.test.mjs && scripts\\run-node.cmd tests/admin-sdk-boundary.test.mjs && scripts\\run-node.cmd tests/admin-shell-parity.test.mjs && scripts\\run-node.cmd tests/admin-ui-resolution.test.mjs && scripts\\run-node.cmd ../../scripts/dev/run-tsc-cli.mjs --noEmit && scripts\\run-node.cmd ../../scripts/dev/run-vite-cli.mjs build --configLoader native",
     "verify:storage": "scripts\\run-node.cmd tests/admin-sandbox.test.mjs && scripts\\run-node.cmd packages/sdkwork-control-plane-storage/src/storageDraft.test.ts && scripts\\run-node.cmd ../../scripts/dev/run-tsc-cli.mjs --noEmit && scripts\\run-node.cmd ../../scripts/dev/run-vite-cli.mjs build --configLoader native",
+    "server": "node ../../scripts/dev/start-craw-chat-unified-web.mjs",
     "preview": "scripts\\run-node.cmd ../../scripts/dev/run-vite-cli.mjs preview --configLoader native --host 0.0.0.0 --port 4173 --strictPort",
     "tauri:dev": "scripts\\run-node.cmd ../../scripts/run-tauri-cli.mjs dev",
     "tauri:build": "scripts\\run-node.cmd ../../scripts/run-tauri-cli.mjs build"

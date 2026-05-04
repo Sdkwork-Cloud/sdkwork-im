@@ -2,6 +2,7 @@
 import { existsSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { createNpmCommandArgs } from '../../../../bin/npm-runtime.mjs';
 
 const SUPPORTED_LANGUAGES = new Set([
   'typescript',
@@ -41,19 +42,6 @@ function quoteArg(arg) {
   return /\s/.test(arg) ? '"' + arg.replace(/"/g, '\\"') + '"' : arg;
 }
 
-function resolveNpmCommand() {
-  if (process.platform !== 'win32') {
-    return 'npm';
-  }
-
-  const siblingNpmCmd = path.join(path.dirname(process.execPath), 'npm.cmd');
-  if (existsSync(siblingNpmCmd)) {
-    return siblingNpmCmd;
-  }
-
-  return 'npm.cmd';
-}
-
 function run(command, args, options = {}) {
   const cwd = options.cwd || process.cwd();
   const env = options.env || process.env;
@@ -71,6 +59,11 @@ function run(command, args, options = {}) {
   if ((result.status ?? 1) !== 0) {
     fail('Command failed (' + result.status + '): ' + commandLine);
   }
+}
+
+function runNpm(args, options = {}) {
+  const invocation = createNpmCommandArgs(args);
+  run(invocation.command, invocation.args, options);
 }
 
 function capture(command, args, cwd) {
@@ -241,16 +234,15 @@ function runTypeScript(ctx) {
   ensureFile(packageFile, 'package.json');
   const packageJson = loadJson(packageFile);
   const hasBuildScript = Boolean(packageJson?.scripts?.build);
-  const npmCommand = resolveNpmCommand();
 
   if (ctx.action === 'check') {
-    run(npmCommand, ['pack', '--dry-run'], { cwd: ctx.projectDir });
+    runNpm(['pack', '--dry-run'], { cwd: ctx.projectDir });
     return;
   }
 
-  run(npmCommand, ['install'], { cwd: ctx.projectDir });
+  runNpm(['install'], { cwd: ctx.projectDir });
   if (hasBuildScript) {
-    run(npmCommand, ['run', 'build'], { cwd: ctx.projectDir });
+    runNpm(['run', 'build'], { cwd: ctx.projectDir });
   } else {
     log('No build script found in package.json, skipping build.');
   }
@@ -267,7 +259,7 @@ function runTypeScript(ctx) {
   if (ctx.dryRun) {
     args.push('--dry-run');
   }
-  run(npmCommand, args, { cwd: ctx.projectDir });
+  runNpm(args, { cwd: ctx.projectDir });
 }
 
 function runDart(ctx) {

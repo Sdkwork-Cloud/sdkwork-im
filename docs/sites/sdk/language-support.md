@@ -95,7 +95,7 @@ and verification scripts agree on what is actually delivered today.
 | Language | Tier | Workspace | Official consumer package or current transport artifact | Current primary client status | Generated boundary | Current delivery |
 | --- | --- | --- | --- | --- | --- | --- |
 | TypeScript | Tier A | `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript` | `@sdkwork/im-sdk` | `ImSdkClient` ships today | `generated/server-openapi`, assembled into `src/generated/**` | Full app runtime plus portal auth, portal snapshots, rich IM and AI message builders, payload-first live domain streams, durable replay helpers, and RTC signal helpers from one package |
-| Flutter | Tier A | `sdks/sdkwork-im-sdk/sdkwork-im-sdk-flutter` | `im_sdk` above generated `im_sdk_generated` | `ImSdkClient` ships today | `generated/server-openapi` | Route-aligned app runtime modules from `ImSdkClient`, including `sdk.auth` and `sdk.portal`; `im_sdk` re-exports `im_sdk_generated`, whose `ImTransportClient` also mounts `client.auth` and `client.portal`, while websocket live runtime and the TypeScript message-first builder surface remain absent |
+| Flutter | Tier A | `sdks/sdkwork-im-sdk/sdkwork-im-sdk-flutter` | `im_sdk` above generated `im_sdk_generated` | `ImSdkClient` ships today | `generated/server-openapi` | Route-aligned app runtime modules from `ImSdkClient`, including `sdk.auth`, `sdk.portal`, `sdk.connect(...)`, and a delivered WebSocket adapter in `im_sdk`; `im_sdk` re-exports `im_sdk_generated`, whose `ImTransportClient` also mounts `client.auth` and `client.portal`, while the TypeScript message-first builder surface remains absent |
 | Rust | Tier A | `sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust` | `im-sdk` above generated `sdkwork-im-sdk-generated` | `ImSdkClient` ships today | `generated/server-openapi` | Route-aligned Rust helpers ship in `im-sdk`; generated transport remains available for auth, portal, and DTO-level fallback, while websocket live runtime and the TypeScript message-first receive surface remain absent |
 | Java | Tier B | `sdks/sdkwork-im-sdk/sdkwork-im-sdk-java` | Generated artifact `com.sdkwork:im-sdk-generated` | `ImSdkClient` is a target semantic name only | `generated/server-openapi` | Transport-standardized workspace with generated artifact verified and semantic reserve under `composed` |
 | C# | Tier B | `sdks/sdkwork-im-sdk/sdkwork-im-sdk-csharp` | Generated package `Sdkwork.Im.Sdk.Generated` | `ImSdkClient` is a target semantic name only | `generated/server-openapi` | Transport-standardized workspace with generated package verified and semantic reserve under `composed` |
@@ -118,12 +118,12 @@ semantic name rather than the current instantiable entrypoint.
 | Session and presence | Yes | Yes | Yes | Transport only | Rust ships route-aligned session and presence modules on `ImSdkClient` |
 | Realtime HTTP coordination | Yes | Yes | Yes | Transport only | Rust ships HTTP coordination helpers but not a websocket live runtime |
 | Message-first builders (`createXxxMessage`, `send`, `decodeMessage`) | Yes | No | No | Not shipped | TypeScript remains the only checked-in message-first baseline |
-| Realtime WebSocket adapter | Yes | No | Not shipped | Not shipped | TypeScript ships the handwritten live runtime behind `sdk.connect(...)` |
+| Realtime WebSocket adapter | Yes | Yes | Not shipped | Not shipped | TypeScript and Flutter ship handwritten live runtimes behind `sdk.connect(...)` |
 | Generated transport from live schema | Yes | Yes | Yes | Yes | Every official language is wired to the same live schema source |
 
-In Flutter, the checked-in client surface now includes `sdk.auth`, `sdk.portal`, `client.auth`,
-and `client.portal` on `ImSdkClient` plus the re-exported generated transport. The remaining
-parity gap is the missing websocket live runtime and the message-first builder family.
+In Flutter, the checked-in client surface now includes `sdk.auth`, `sdk.portal`, `sdk.connect(...)`,
+`client.auth`, and `client.portal` on `ImSdkClient` plus the re-exported generated transport. The
+remaining parity gap is the message-first builder family.
 
 ## Verification Signals
 
@@ -137,9 +137,8 @@ When you need to verify the real repo contract instead of relying on prose alone
 
 - Choose TypeScript when you need the strongest checked-in consumer SDK, one package, and
   `sdk.connect(...)`, `sdk.sync.catchUp(...)`, `sdk.createXxxMessage(...)`, or portal helpers.
-- Choose Flutter when you are integrating route-aligned app-runtime HTTP flows, including
-  `sdk.auth` and `sdk.portal`, and you do not need a delivered websocket live runtime or the
-  TypeScript message-first builders. Its realtime story is HTTP coordination only today.
+- Choose Flutter when you are integrating route-aligned app-runtime flows, including `sdk.auth`,
+  `sdk.portal`, and `sdk.connect(...)`, and you do not need the TypeScript message-first builders.
 - Choose Rust when you want a transport-standardized SDK in a Tier A language that is being pushed
   toward a future semantic `im_sdk` layer.
 - Choose Java, C#, Swift, Kotlin, Go, or Python when a verified generated transport artifact is the

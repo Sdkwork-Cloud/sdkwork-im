@@ -42,12 +42,37 @@ export interface ImAuthSession {
 }
 export type ImAppSnapshot = Record<string, unknown>;
 export type ImTokenProvider = AuthTokenManager;
+export type ImWebSocketAuthMode = 'automatic' | 'headerBearer' | 'queryBearer' | 'none';
+export interface ImWebSocketCredentialRequest {
+    mode: Exclude<ImWebSocketAuthMode, 'automatic'>;
+    url: string;
+    deviceId?: string;
+    authToken?: string;
+    headerName: string;
+    queryParameterName: string;
+    scheme: string;
+}
+export type ImWebSocketCredentialProvider = (request: ImWebSocketCredentialRequest) => string | undefined | Promise<string | undefined>;
+export interface ImWebSocketAuthOptions {
+    mode?: ImWebSocketAuthMode;
+    headerName?: string;
+    queryParameterName?: string;
+    scheme?: string;
+    credentialProvider?: ImWebSocketCredentialProvider;
+}
+export declare const ImWebSocketAuthOptions: {
+    readonly automatic: (init?: Omit<ImWebSocketAuthOptions, "mode">) => ImWebSocketAuthOptions;
+    readonly headerBearer: (init?: Omit<ImWebSocketAuthOptions, "mode">) => ImWebSocketAuthOptions;
+    readonly queryBearer: (init?: Omit<ImWebSocketAuthOptions, "mode">) => ImWebSocketAuthOptions;
+    readonly none: (init?: Omit<ImWebSocketAuthOptions, "mode">) => ImWebSocketAuthOptions;
+};
 export interface ImSdkClientOptions {
     baseUrl?: string;
     apiBaseUrl?: string;
     websocketBaseUrl?: string;
     authToken?: string;
     tokenProvider?: ImTokenProvider;
+    webSocketAuth?: ImWebSocketAuthOptions;
     webSocketFactory?: ImWebSocketFactory;
 }
 export interface ImRealtimeSubscriptionScopeOptions {
@@ -661,6 +686,7 @@ export interface ImConnectOptions {
     headers?: Record<string, string>;
     protocols?: string[];
     requestTimeoutMs?: number;
+    webSocketAuth?: ImWebSocketAuthOptions;
 }
 export interface ImLiveMessageStream {
     on(handler: (message: ImDecodedMessage, context: ImMessageContext) => void): ImSubscription;

@@ -14,6 +14,7 @@ fs4 = "0.13.1"
 futures-util.workspace = true
 getrandom = "0.3.4"
 hex = "0.4.3"
+hmac = "0.12.1"
 http-body-util.workspace = true
 im-adapter-iot-access-local = { path = "../../adapters/iot-access-local" }
 im-adapter-iot-mqtt = { path = "../../adapters/iot-mqtt" }
@@ -29,6 +30,7 @@ notification-service = { path = "../notification-service" }
 ops-service = { path = "../ops-service" }
 pbkdf2 = "0.12.2"
 projection-service = { path = "../projection-service" }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 rtc-signaling-service = { path = "../rtc-signaling-service" }
 session-gateway = { path = "../session-gateway" }
 serde.workspace = true

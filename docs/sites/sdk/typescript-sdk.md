@@ -620,9 +620,47 @@ If your realtime gateway needs a custom upgrade strategy, pass `webSocketFactory
 construction time.
 
 Important: the default global `WebSocket` constructor cannot attach `Authorization` headers. In
-plain browser environments, authenticated realtime usually requires an auth-capable gateway or
-another runtime-specific upgrade strategy. Node.js and custom runtimes can provide that behavior
-through `webSocketFactory`.
+plain browser environments, authenticated realtime should use a browser-safe credential path:
+
+- `ImWebSocketAuthOptions.automatic()` is the standard TypeScript default
+- automatic auth resolves to query bearer for the default browser `WebSocket` constructor
+- automatic auth resolves to header bearer when a custom `webSocketFactory` is present
+- prefer exchanging the primary access token for a short-lived realtime ticket or query credential
+- prefer `wss://` plus short-lived credentials over long-lived query bearer tokens
+- use `sdk.connect({ url })` when the gateway returns a pre-signed realtime URL
+
+Node.js and custom runtimes can provide header-based upgrades through `webSocketFactory`.
+
+```ts
+import { ImSdkClient, ImWebSocketAuthOptions } from '@sdkwork/im-sdk';
+
+const sdk = new ImSdkClient({
+  baseUrl: 'https://api.example.com',
+  authToken: window.localStorage.getItem('craw-chat-token') ?? undefined,
+  webSocketAuth: ImWebSocketAuthOptions.queryBearer({
+    queryParameterName: 'rt',
+    credentialProvider: async ({ authToken }) =>
+      issueRealtimeTicket(authToken),
+  }),
+});
+
+const live = await sdk.connect({
+  subscriptions: {
+    conversations: ['conversation-1'],
+  },
+});
+```
+
+```ts
+const realtimeTicket = await issueRealtimeTicket();
+
+const live = await sdk.connect({
+  url: `wss://realtime.example.com/api/v1/realtime/ws?rt=${encodeURIComponent(realtimeTicket)}`,
+  subscriptions: {
+    conversations: ['conversation-1'],
+  },
+});
+```
 
 ```ts
 import WebSocket from 'ws';
@@ -630,6 +668,7 @@ import WebSocket from 'ws';
 const sdk = new ImSdkClient({
   baseUrl: process.env.CRAW_CHAT_BASE_URL!,
   authToken: process.env.CRAW_CHAT_TOKEN,
+  webSocketAuth: ImWebSocketAuthOptions.headerBearer(),
   webSocketFactory: ({ url, protocols, headers }) =>
     new WebSocket(url, protocols, { headers }),
 });

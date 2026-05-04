@@ -4,8 +4,10 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/preview.mjs --root . --port 4176",
+    "server": "node ../../scripts/dev/start-craw-chat-unified-web.mjs",
     "build": "node scripts/build.mjs",
     "preview": "node scripts/preview.mjs --root dist --port 4176",
+    "test:user-center-standard": "node ../../scripts/run-user-center-standard.mjs",
     "test": "node --test --experimental-test-isolation=none tests/*.test.mjs"
   }
 }

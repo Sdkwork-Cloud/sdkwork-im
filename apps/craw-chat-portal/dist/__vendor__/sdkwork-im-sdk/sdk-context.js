@@ -1,5 +1,6 @@
 import { createTransportClient as createRawTransportClient } from './generated/index.js';
 import { ImSdkError } from './errors.js';
+import { normalizeImWebSocketAuthOptions, } from './websocket-auth.js';
 export const DEFAULT_REALTIME_WEBSOCKET_PATH = 'api/v1/realtime/ws';
 export function createTransportClient(transportConfig) {
     return createRawTransportClient(transportConfig);
@@ -11,11 +12,13 @@ export function normalizeImSdkCreateOptions(options) {
         apiBaseUrl,
         websocketBaseUrl: firstDefinedString(options.websocketBaseUrl),
     };
+    const webSocketAuth = normalizeImWebSocketAuthOptions(options.webSocketAuth);
     if (options.transportClient) {
         return {
             transportClient: options.transportClient,
             transport,
             authToken,
+            webSocketAuth,
             webSocketFactory: options.webSocketFactory,
         };
     }
@@ -30,6 +33,7 @@ export function normalizeImSdkCreateOptions(options) {
         return {
             transport,
             authToken,
+            webSocketAuth,
             webSocketFactory: options.webSocketFactory,
         };
     }
@@ -46,6 +50,7 @@ export function normalizeImSdkCreateOptions(options) {
         }),
         transport,
         authToken,
+        webSocketAuth,
         webSocketFactory: options.webSocketFactory,
     };
 }
@@ -65,6 +70,7 @@ export function resolveImClientOptions(options) {
         transportClient: resolveTransportClient(options),
         transport: normalized.transport,
         authToken: normalized.authToken,
+        webSocketAuth: normalized.webSocketAuth,
         webSocketFactory: normalized.webSocketFactory,
     };
 }
@@ -82,11 +88,13 @@ export class ImSdkContext {
     transportClient;
     transport;
     webSocketFactory;
+    webSocketAuth;
     authToken;
-    constructor(transportClient, transport = {}, webSocketFactory, initialAuthToken) {
+    constructor(transportClient, transport = {}, webSocketFactory, webSocketAuth = normalizeImWebSocketAuthOptions(), initialAuthToken) {
         this.transportClient = transportClient;
         this.transport = transport;
         this.webSocketFactory = webSocketFactory;
+        this.webSocketAuth = webSocketAuth;
         if (initialAuthToken) {
             this.setAuthToken(initialAuthToken);
         }

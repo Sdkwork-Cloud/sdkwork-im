@@ -161,10 +161,7 @@ fn test_step12_sdk_readmes_freeze_facade_boundaries_and_workspace_entry_points()
     let sdk_index_path = root.join("sdks").join("README.md");
     let sdk_index = fs::read_to_string(&sdk_index_path)
         .unwrap_or_else(|_| panic!("missing SDK index README: {}", sdk_index_path.display()));
-    let app_sdk_path = root
-        .join("sdks")
-        .join("sdkwork-im-sdk")
-        .join("README.md");
+    let app_sdk_path = root.join("sdks").join("sdkwork-im-sdk").join("README.md");
     let app_sdk = fs::read_to_string(&app_sdk_path)
         .unwrap_or_else(|_| panic!("missing app SDK README: {}", app_sdk_path.display()));
     let admin_sdk_path = root
@@ -234,10 +231,7 @@ fn test_step12_cli_and_sdk_docs_freeze_recovery_baseline() {
         .join("CLI聊天验证与兼容矩阵.md");
     let cli_doc = fs::read_to_string(&cli_doc_path)
         .unwrap_or_else(|_| panic!("missing Step 12 CLI doc: {}", cli_doc_path.display()));
-    let app_sdk_path = root
-        .join("sdks")
-        .join("sdkwork-im-sdk")
-        .join("README.md");
+    let app_sdk_path = root.join("sdks").join("sdkwork-im-sdk").join("README.md");
     let app_sdk = fs::read_to_string(&app_sdk_path)
         .unwrap_or_else(|_| panic!("missing app SDK README: {}", app_sdk_path.display()));
     let admin_sdk_path = root
@@ -293,10 +287,7 @@ fn test_continuous_optimization_docs_freeze_detailed_recovery_registry_baseline(
         .join("CLI聊天验证与兼容矩阵.md");
     let cli_doc = fs::read_to_string(&cli_doc_path)
         .unwrap_or_else(|_| panic!("missing Step 12 CLI doc: {}", cli_doc_path.display()));
-    let app_sdk_path = root
-        .join("sdks")
-        .join("sdkwork-im-sdk")
-        .join("README.md");
+    let app_sdk_path = root.join("sdks").join("sdkwork-im-sdk").join("README.md");
     let app_sdk = fs::read_to_string(&app_sdk_path)
         .unwrap_or_else(|_| panic!("missing app SDK README: {}", app_sdk_path.display()));
     let admin_sdk_path = root
@@ -750,9 +741,7 @@ fn test_continuous_optimization_sdk_container_readmes_freeze_release_catalog_bou
     for (label, path) in [
         (
             "app SDK container README",
-            root.join("sdks")
-                .join("sdkwork-im-sdk")
-                .join("README.md"),
+            root.join("sdks").join("sdkwork-im-sdk").join("README.md"),
         ),
         (
             "admin SDK container README",

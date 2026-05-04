@@ -12,6 +12,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { createNpmCommandArgs } from './npm-runtime.mjs';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = path.resolve(scriptDir, '..');
@@ -29,19 +30,6 @@ const requiredArtifacts = [
   'index.cjs',
   'index.d.ts',
 ];
-
-function resolveNpmCommand() {
-  if (process.platform !== 'win32') {
-    return 'npm';
-  }
-
-  const siblingNpmCmd = path.join(path.dirname(process.execPath), 'npm.cmd');
-  if (existsSync(siblingNpmCmd)) {
-    return siblingNpmCmd;
-  }
-
-  return 'npm.cmd';
-}
 
 function fail(message) {
   console.error(`[sdkwork-im-admin-sdk] ${message}`);
@@ -121,11 +109,8 @@ function run(command, args, options = {}) {
 }
 
 function runNpm(args, options = {}) {
-  if (process.platform === 'win32') {
-    return run('cmd.exe', ['/d', '/s', '/c', resolveNpmCommand(), ...args], options);
-  }
-
-  return run(resolveNpmCommand(), args, options);
+  const invocation = createNpmCommandArgs(args);
+  return run(invocation.command, invocation.args, options);
 }
 
 function parseJson(step, source) {

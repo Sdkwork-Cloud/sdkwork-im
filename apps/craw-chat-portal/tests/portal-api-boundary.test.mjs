@@ -371,6 +371,20 @@ test('portal-api runtime implementation does not handcraft fetch calls or Author
   assert.doesNotMatch(runtimeSource, /\bAccess-Token\b/);
 });
 
+test('portal-api runtime routes login and bootstrap through the shared user-center runtime bridge instead of hand-written portal auth SDK seams', async () => {
+  const runtimeSource = await readFile(
+    path.join(
+      appRoot,
+      'packages/craw-chat-portal-portal-api/src/runtime/dataSources/httpPortalDataSource.js',
+    ),
+    'utf8',
+  );
+
+  assert.match(runtimeSource, /createCrawChatPortalUserCenterRuntimeClient/);
+  assert.match(runtimeSource, /loginSession\(/);
+  assert.match(runtimeSource, /bootstrapSession\(/);
+});
+
 test('feature packages do not bypass the portal-api boundary with raw HTTP calls', async () => {
   const packageFiles = [
     'packages/craw-chat-portal-dashboard/src/index.js',
@@ -438,8 +452,8 @@ test('portal-api rejects malformed persisted session tokens before touching brow
       },
     );
 
-    assert.equal(sessionStorage.getItem('craw-chat-portal.session.v1'), null);
-    assert.equal(localStorage.getItem('craw-chat-portal.session.v1'), null);
+    assert.equal(sessionStorage.getItem('craw-chat-portal.user-center.session-token'), null);
+    assert.equal(localStorage.getItem('craw-chat-portal.user-center.session-token'), null);
   } finally {
     global.window = originalWindow;
   }
@@ -453,7 +467,7 @@ test('portal-api clears malformed persisted session tokens when reading browser 
   const originalWindow = global.window;
   const localStorage = storageDouble();
   const sessionStorage = storageDouble();
-  sessionStorage.setItem('craw-chat-portal.session.v1', '   ');
+  sessionStorage.setItem('craw-chat-portal.user-center.session-token', '   ');
 
   global.window = {
     sessionStorage,
@@ -462,7 +476,7 @@ test('portal-api clears malformed persisted session tokens when reading browser 
 
   try {
     assert.equal(apiModule.readPortalSessionToken(), null);
-    assert.equal(sessionStorage.getItem('craw-chat-portal.session.v1'), null);
+    assert.equal(sessionStorage.getItem('craw-chat-portal.user-center.session-token'), null);
   } finally {
     global.window = originalWindow;
   }
@@ -476,7 +490,7 @@ test('portal-api migrates legacy local storage session tokens into session stora
   const originalWindow = global.window;
   const localStorage = storageDouble();
   const sessionStorage = storageDouble();
-  localStorage.setItem('craw-chat-portal.session.v1', 'legacy-session-token');
+  localStorage.setItem('craw-chat-portal.user-center.session-token', 'legacy-session-token');
 
   global.window = {
     sessionStorage,
@@ -485,8 +499,8 @@ test('portal-api migrates legacy local storage session tokens into session stora
 
   try {
     assert.equal(apiModule.readPortalSessionToken(), 'legacy-session-token');
-    assert.equal(sessionStorage.getItem('craw-chat-portal.session.v1'), 'legacy-session-token');
-    assert.equal(localStorage.getItem('craw-chat-portal.session.v1'), null);
+    assert.equal(sessionStorage.getItem('craw-chat-portal.user-center.session-token'), 'legacy-session-token');
+    assert.equal(localStorage.getItem('craw-chat-portal.user-center.session-token'), null);
   } finally {
     global.window = originalWindow;
   }
@@ -500,7 +514,7 @@ test('portal-api persists new session tokens in session storage and clears legac
   const originalWindow = global.window;
   const localStorage = storageDouble();
   const sessionStorage = storageDouble();
-  localStorage.setItem('craw-chat-portal.session.v1', 'legacy-session-token');
+  localStorage.setItem('craw-chat-portal.user-center.session-token', 'legacy-session-token');
 
   global.window = {
     sessionStorage,
@@ -510,8 +524,8 @@ test('portal-api persists new session tokens in session storage and clears legac
   try {
     apiModule.persistPortalSessionToken('fresh-session-token');
 
-    assert.equal(sessionStorage.getItem('craw-chat-portal.session.v1'), 'fresh-session-token');
-    assert.equal(localStorage.getItem('craw-chat-portal.session.v1'), null);
+    assert.equal(sessionStorage.getItem('craw-chat-portal.user-center.session-token'), 'fresh-session-token');
+    assert.equal(localStorage.getItem('craw-chat-portal.user-center.session-token'), null);
   } finally {
     global.window = originalWindow;
   }

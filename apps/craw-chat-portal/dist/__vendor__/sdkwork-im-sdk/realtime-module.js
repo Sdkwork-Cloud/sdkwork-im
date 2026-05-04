@@ -23,7 +23,7 @@ export class ImRealtimeModule {
     replaceRtcSubscriptions(rtcSessionIds, eventTypes = ['rtc.signal'], options = {}) {
         return this.replaceScopeSubscriptions('rtc_session', rtcSessionIds, eventTypes, options);
     }
-    pullEvents(params) {
+    catchUpEvents(params) {
         return this.context.transportClient.realtime.listRealtimeEvents(params);
     }
     ackEvents(body) {

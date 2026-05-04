@@ -11,6 +11,11 @@ The preferred consumer entrypoint is `ImAdminSdkClient`.
 
 ## Verification
 
+- `node ../bin/build-typescript-generated-package.mjs`
+- `node ../bin/verify-typescript-generated-package.mjs`
+- `node ./composed/bin/package-task.mjs typecheck`
+- `node ./composed/bin/package-task.mjs build`
+- `node ./composed/bin/package-task.mjs test`
 - `./bin/sdk-verify.sh`
 - `./bin/sdk-verify.ps1`
 - root workspace command `node ./sdks/sdkwork-im-admin-sdk/bin/verify-sdk.mjs`

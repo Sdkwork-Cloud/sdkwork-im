@@ -28,6 +28,10 @@ const runTscPath = path.join(composedRoot, 'bin', 'run-tsc.mjs');
 const cleanDistPath = path.join(composedRoot, 'bin', 'clean-dist.mjs');
 const tsconfigPath = path.join(composedRoot, 'tsconfig.build.json');
 const smokeTestPath = path.join(composedRoot, 'test', 'control-plane-client.test.mjs');
+const generatedSdkGenRuntimeVerifyPath = path.join(
+  scriptDir,
+  'verify-typescript-generated-sdk-gen-runtime.mjs',
+);
 const removedLegacySmokeTestPath = path.join(
   composedRoot,
   'test',
@@ -92,6 +96,13 @@ runWorkspaceCommand({
   args: [path.join(scriptDir, 'build-typescript-generated-package.mjs')],
   cwd: workspaceRoot,
   step: 'typescript:generated-build',
+});
+runWorkspaceCommand({
+  prefix,
+  command: 'node',
+  args: [generatedSdkGenRuntimeVerifyPath],
+  cwd: workspaceRoot,
+  step: 'typescript:generated-sdk-gen-runtime',
 });
 runWorkspaceCommand({
   prefix,

@@ -3,7 +3,7 @@ set -euo pipefail
 
 show_help() {
   cat <<'EOF'
-Usage: bash bin/start-server.sh [--instance <name>] [--install-root <path>] [--config-dir <path>] [--log-dir <path>] [--run-dir <path>] [--binary-path <path>] [--release] [--foreground] [--health-url <url>] [--skip-health-check]
+Usage: bash bin/start-server.sh [--instance <name>] [--install-root <path>] [--config-dir <path>] [--log-dir <path>] [--run-dir <path>] [--env-file <path>] [--binary-path <path>] [--release] [--foreground] [--health-url <url>] [--skip-health-check]
 
 Start the craw-chat-server runtime service for an instance with config loading, binary resolution, log and run directory management, health checks, and status-friendly foreground or background execution.
 EOF
@@ -14,6 +14,7 @@ install_root="/opt/craw-chat"
 config_dir="/etc/craw-chat/default"
 log_dir="/var/log/craw-chat/default"
 run_dir="/var/run/craw-chat/default"
+env_file=""
 binary_path=""
 release_mode=0
 foreground=0
@@ -43,6 +44,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --run-dir)
       run_dir="$2"
+      shift 2
+      ;;
+    --env-file)
+      env_file="$2"
       shift 2
       ;;
     --binary-path)
@@ -78,6 +83,9 @@ while [[ $# -gt 0 ]]; do
 done
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if [[ -z "$env_file" ]]; then
+  env_file="${config_dir}/server.env"
+fi
 server_yaml="${config_dir}/server.yaml"
 [[ -f "$server_yaml" ]] || { echo "Missing server config. Run init-config-server first: ${server_yaml}" >&2; exit 1; }
 
@@ -85,6 +93,70 @@ read_yaml_value() {
   local file="$1"
   local key="$2"
   awk -F': ' -v key="$key" '$1 ~ key"$" {gsub(/"/, "", $2); print $2; exit}' "$file"
+}
+
+load_env_file() {
+  local env_file_path="$1"
+  local raw_line
+  local line
+  local normalized_line
+  local key
+  local value
+  [[ -f "$env_file_path" ]] || return 0
+
+  while IFS= read -r raw_line || [[ -n "$raw_line" ]]; do
+    line="${raw_line%$'\r'}"
+    [[ -z "${line//[[:space:]]/}" || "$line" == \#* ]] && continue
+    normalized_line="$line"
+    if [[ "$normalized_line" == export\ * ]]; then
+      normalized_line="${normalized_line#export }"
+    fi
+    [[ "$normalized_line" == *=* ]] || continue
+    key="${normalized_line%%=*}"
+    value="${normalized_line#*=}"
+    key="$(printf '%s' "$key" | xargs)"
+    [[ -n "$key" ]] || continue
+    if [[ ${value:0:1} == '"' && ${value: -1} == '"' ]]; then
+      value="${value:1:${#value}-2}"
+    elif [[ ${value:0:1} == "'" && ${value: -1} == "'" ]]; then
+      value="${value:1:${#value}-2}"
+    fi
+    if [[ -z "${!key+x}" ]]; then
+      export "${key}=${value}"
+    fi
+  done <"$env_file_path"
+}
+
+map_server_user_center_env() {
+  local source_key="$1"
+  local canonical_key="$2"
+  local app_key="$3"
+  local source_value="${!source_key:-}"
+  [[ -n "$source_value" ]] || return 0
+  export "${canonical_key}=${source_value}"
+  export "${app_key}=${source_value}"
+}
+
+configure_user_center_runtime_env() {
+  map_server_user_center_env "CRAW_CHAT_SERVER_USER_CENTER_MODE" "SDKWORK_USER_CENTER_MODE" "CRAW_CHAT_USER_CENTER_MODE"
+  map_server_user_center_env "CRAW_CHAT_SERVER_USER_CENTER_PROVIDER_KEY" "SDKWORK_USER_CENTER_PROVIDER_KEY" "CRAW_CHAT_USER_CENTER_PROVIDER_KEY"
+  map_server_user_center_env "CRAW_CHAT_SERVER_USER_CENTER_LOCAL_API_BASE_PATH" "SDKWORK_USER_CENTER_LOCAL_API_BASE_PATH" "CRAW_CHAT_USER_CENTER_LOCAL_API_BASE_PATH"
+  map_server_user_center_env "CRAW_CHAT_SERVER_USER_CENTER_AUTHORIZATION_HEADER_NAME" "SDKWORK_USER_CENTER_AUTHORIZATION_HEADER_NAME" "CRAW_CHAT_USER_CENTER_AUTHORIZATION_HEADER_NAME"
+  map_server_user_center_env "CRAW_CHAT_SERVER_USER_CENTER_ACCESS_TOKEN_HEADER_NAME" "SDKWORK_USER_CENTER_ACCESS_TOKEN_HEADER_NAME" "CRAW_CHAT_USER_CENTER_ACCESS_TOKEN_HEADER_NAME"
+  map_server_user_center_env "CRAW_CHAT_SERVER_USER_CENTER_REFRESH_TOKEN_HEADER_NAME" "SDKWORK_USER_CENTER_REFRESH_TOKEN_HEADER_NAME" "CRAW_CHAT_USER_CENTER_REFRESH_TOKEN_HEADER_NAME"
+  map_server_user_center_env "CRAW_CHAT_SERVER_USER_CENTER_SESSION_HEADER_NAME" "SDKWORK_USER_CENTER_SESSION_HEADER_NAME" "CRAW_CHAT_USER_CENTER_SESSION_HEADER_NAME"
+  map_server_user_center_env "CRAW_CHAT_SERVER_USER_CENTER_AUTHORIZATION_SCHEME" "SDKWORK_USER_CENTER_AUTHORIZATION_SCHEME" "CRAW_CHAT_USER_CENTER_AUTHORIZATION_SCHEME"
+  map_server_user_center_env "CRAW_CHAT_SERVER_USER_CENTER_ALLOW_AUTHORIZATION_FALLBACK_TO_ACCESS_TOKEN" "SDKWORK_USER_CENTER_ALLOW_AUTHORIZATION_FALLBACK_TO_ACCESS_TOKEN" "CRAW_CHAT_USER_CENTER_ALLOW_AUTHORIZATION_FALLBACK_TO_ACCESS_TOKEN"
+  map_server_user_center_env "CRAW_CHAT_SERVER_USER_CENTER_APP_ID" "SDKWORK_USER_CENTER_APP_ID" "CRAW_CHAT_USER_CENTER_APP_ID"
+  map_server_user_center_env "CRAW_CHAT_SERVER_USER_CENTER_APP_API_BASE_URL" "SDKWORK_USER_CENTER_APP_API_BASE_URL" "CRAW_CHAT_USER_CENTER_APP_API_BASE_URL"
+  map_server_user_center_env "CRAW_CHAT_SERVER_USER_CENTER_SECRET_ID" "SDKWORK_USER_CENTER_SECRET_ID" "CRAW_CHAT_USER_CENTER_SECRET_ID"
+  map_server_user_center_env "CRAW_CHAT_SERVER_USER_CENTER_SHARED_SECRET" "SDKWORK_USER_CENTER_SHARED_SECRET" "CRAW_CHAT_USER_CENTER_SHARED_SECRET"
+  map_server_user_center_env "CRAW_CHAT_SERVER_USER_CENTER_EXTERNAL_BASE_URL" "SDKWORK_USER_CENTER_EXTERNAL_BASE_URL" "CRAW_CHAT_USER_CENTER_EXTERNAL_BASE_URL"
+  map_server_user_center_env "CRAW_CHAT_SERVER_USER_CENTER_DATABASE_URL" "SDKWORK_USER_CENTER_DATABASE_URL" "CRAW_CHAT_USER_CENTER_DATABASE_URL"
+  map_server_user_center_env "CRAW_CHAT_SERVER_USER_CENTER_SCHEMA_NAME" "SDKWORK_USER_CENTER_SCHEMA_NAME" "CRAW_CHAT_USER_CENTER_SCHEMA_NAME"
+  map_server_user_center_env "CRAW_CHAT_SERVER_USER_CENTER_SQLITE_PATH" "SDKWORK_USER_CENTER_SQLITE_PATH" "CRAW_CHAT_USER_CENTER_SQLITE_PATH"
+  map_server_user_center_env "CRAW_CHAT_SERVER_USER_CENTER_TABLE_PREFIX" "SDKWORK_USER_CENTER_TABLE_PREFIX" "CRAW_CHAT_USER_CENTER_TABLE_PREFIX"
+  map_server_user_center_env "CRAW_CHAT_SERVER_USER_CENTER_HANDSHAKE_FRESHNESS_WINDOW_MS" "SDKWORK_USER_CENTER_HANDSHAKE_FRESHNESS_WINDOW_MS" "CRAW_CHAT_USER_CENTER_HANDSHAKE_FRESHNESS_WINDOW_MS"
 }
 
 resolve_binary_path() {
@@ -148,6 +220,9 @@ resolve_health_url() {
   fi
   printf 'http://%s:%s/healthz\n' "$host" "$port"
 }
+
+load_env_file "$env_file"
+configure_user_center_runtime_env
 
 bind_address="$(read_yaml_value "$server_yaml" "bindAddress")"
 [[ -n "$bind_address" ]] || bind_address="127.0.0.1:18079"

@@ -1,6 +1,6 @@
 import { decodeRealtimeEvent } from './message-codec.js';
 import type { ImRealtimeModule } from './realtime-module.js';
-import type { ImInternalRealtimeBatch, ImInternalReceiverDataEvent, ImInternalReceiverEvent, ImInternalReceiverMessageEvent, ImInternalReceiverPullAckResult, ImInternalReceiverRtcSignalEvent } from './receiver-internal-types.js';
+import type { ImInternalRealtimeBatch, ImInternalReceiverCatchUpAckResult, ImInternalReceiverDataEvent, ImInternalReceiverEvent, ImInternalReceiverMessageEvent, ImInternalReceiverRtcSignalEvent } from './receiver-internal-types.js';
 import type { ImSubscription, QueryParams, RealtimeAckState } from './types.js';
 export declare class ImReceiver {
     private readonly realtime;
@@ -15,8 +15,8 @@ export declare class ImReceiver {
     onRtcSignalEvent(handler: (event: ImInternalReceiverRtcSignalEvent) => void): ImSubscription;
     onScope(scopeType: string, scopeId: string | number, handler: (event: ImInternalReceiverEvent) => void): ImSubscription;
     dispatchRealtimeEvent(event: Parameters<typeof decodeRealtimeEvent>[0]): ImInternalReceiverEvent;
-    pull(params?: QueryParams): Promise<ImInternalRealtimeBatch>;
+    catchUp(params?: QueryParams): Promise<ImInternalRealtimeBatch>;
     ack(batchOrSeq: ImInternalRealtimeBatch | number): Promise<RealtimeAckState>;
-    pullAndAck(params?: QueryParams): Promise<ImInternalReceiverPullAckResult>;
+    catchUpAndAck(params?: QueryParams): Promise<ImInternalReceiverCatchUpAckResult>;
 }
 //# sourceMappingURL=receiver.d.ts.map

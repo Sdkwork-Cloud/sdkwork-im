@@ -1,5 +1,6 @@
 import { ImSdkError } from './errors.js';
 import { ImReceiver } from './receiver.js';
+import { normalizeImWebSocketAuthOptions, resolveAutomaticImWebSocketAuthMode, } from './websocket-auth.js';
 const CCP_WEBSOCKET_SUBPROTOCOL = 'ccp/ws/1';
 const DEFAULT_REQUEST_TIMEOUT_MS = 15_000;
 export class ImWebSocketReceiver {
@@ -177,18 +178,36 @@ export class ImWebSocketReceiver {
         }
         const protocols = this.options.protocols
             ?? (this.options.mode === 'ccp_json' ? [CCP_WEBSOCKET_SUBPROTOCOL] : []);
+        const authOptions = normalizeImWebSocketAuthOptions(this.options.webSocketAuth);
+        const resolvedAuthMode = authOptions.mode === 'automatic'
+            ? resolveAutomaticImWebSocketAuthMode({
+                hasSocket: this.options.socket != null,
+                hasWebSocketFactory: this.options.createSocket != null,
+            })
+            : authOptions.mode;
         const authToken = normalizeAuthToken(this.options.authToken);
+        const resolvedCredential = await resolveWebSocketCredential({
+            authOptions,
+            resolvedAuthMode,
+            resolvedUrl: url,
+            deviceId: this.options.deviceId,
+            authToken,
+        });
         const headers = {
             ...(this.options.headers ?? {}),
         };
-        if (authToken) {
-            headers.Authorization = `Bearer ${authToken}`;
+        let finalUrl = url;
+        if (resolvedAuthMode === 'headerBearer' && resolvedCredential) {
+            headers[authOptions.headerName] = formatAuthHeaderValue(resolvedCredential, authOptions.scheme);
+        }
+        else if (resolvedAuthMode === 'queryBearer' && resolvedCredential) {
+            finalUrl = appendQueryCredential(url, authOptions.queryParameterName, resolvedCredential);
         }
         const request = {
-            url,
+            url: finalUrl,
             protocols,
             headers,
-            authToken,
+            authToken: resolvedCredential,
         };
         if (this.options.createSocket) {
             return this.options.createSocket(request);
@@ -491,13 +510,41 @@ function normalizeAuthToken(token) {
     }
     return token.startsWith('Bearer ') ? token.slice('Bearer '.length) : token;
 }
+async function resolveWebSocketCredential({ authOptions, resolvedAuthMode, resolvedUrl, deviceId, authToken, }) {
+    const credentialProvider = authOptions.credentialProvider;
+    if (!credentialProvider || resolvedAuthMode === 'none') {
+        return authToken;
+    }
+    const providedCredential = await credentialProvider({
+        mode: resolvedAuthMode,
+        url: resolvedUrl,
+        deviceId,
+        authToken,
+        headerName: authOptions.headerName,
+        queryParameterName: authOptions.queryParameterName,
+        scheme: authOptions.scheme,
+    });
+    return normalizeAuthToken(providedCredential) ?? authToken;
+}
+function formatAuthHeaderValue(credential, scheme) {
+    const normalizedScheme = scheme.trim();
+    if (normalizedScheme.length === 0) {
+        return credential;
+    }
+    return `${normalizedScheme} ${credential}`;
+}
+function appendQueryCredential(url, queryParameterName, credential) {
+    const parsedUrl = new URL(url);
+    parsedUrl.searchParams.set(queryParameterName, credential);
+    return parsedUrl.toString();
+}
 function createDefaultSocket(request) {
     const WebSocketConstructor = globalThis.WebSocket;
     if (typeof WebSocketConstructor !== 'function') {
         throw new ImSdkError('websocket_factory_required', 'No global WebSocket implementation is available. Provide webSocketFactory to establish realtime connectivity in this runtime.');
     }
     if (Object.keys(request.headers).length > 0) {
-        throw new ImSdkError('websocket_factory_required', 'The default WebSocket implementation cannot attach Authorization headers. Provide webSocketFactory for authenticated realtime connections.');
+        throw new ImSdkError('websocket_factory_required', 'The default WebSocket implementation cannot attach Authorization headers. Provide webSocketFactory or connect({ url }) with a short-lived realtime credential for authenticated browser connections.');
     }
     return new WebSocketConstructor(request.url, request.protocols);
 }

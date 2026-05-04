@@ -1,126 +1,137 @@
 import { activePortalDataSource } from './runtime/activeDataSource.js';
+import {
+  CRAW_CHAT_PORTAL_USER_CENTER_STORAGE_PLAN,
+  createCrawChatPortalUserCenterSessionStore,
+  createCrawChatPortalUserCenterTokenStore,
+} from './userCenter.js';
+import { resolveCrawChatPortalProtectedToken } from './validation.js';
 
-const PORTAL_SESSION_STORAGE_KEY = 'craw-chat-portal.session.v1';
+export * from './userCenter.js';
+export * from './userCenterRuntime.js';
+export * from './validation.js';
 
-function withBrowserStorage(storageKey, onAvailable, fallback = null) {
-  if (typeof window === 'undefined') {
-    return fallback;
-  }
-
-  try {
-    const storage = window[storageKey];
-    if (!storage) {
-      return fallback;
-    }
-
-    return onAvailable(storage);
-  } catch {
-    return fallback;
-  }
+export function createUserCenterSessionStore(
+  storagePlan = CRAW_CHAT_PORTAL_USER_CENTER_STORAGE_PLAN,
+) {
+  return createCrawChatPortalUserCenterSessionStore(storagePlan);
 }
 
-function withSessionStorage(onAvailable, fallback = null) {
-  return withBrowserStorage('sessionStorage', onAvailable, fallback);
-}
-
-function withLegacyLocalStorage(onAvailable, fallback = null) {
-  return withBrowserStorage('localStorage', onAvailable, fallback);
-}
-
-function isValidPortalSessionToken(token) {
-  return typeof token === 'string' && token.trim().length > 0;
-}
-
-function readSessionStorageToken() {
-  return withSessionStorage(
-    (storage) => storage.getItem(PORTAL_SESSION_STORAGE_KEY),
-    null,
-  );
-}
-
-function readLegacyLocalStorageToken() {
-  return withLegacyLocalStorage(
-    (storage) => storage.getItem(PORTAL_SESSION_STORAGE_KEY),
-    null,
-  );
-}
-
-function removeSessionStorageToken() {
-  withSessionStorage((storage) => {
-    storage.removeItem(PORTAL_SESSION_STORAGE_KEY);
-    return null;
-  });
-}
-
-function removeLegacyLocalStorageToken() {
-  withLegacyLocalStorage((storage) => {
-    storage.removeItem(PORTAL_SESSION_STORAGE_KEY);
-    return null;
-  });
-}
-
-function writeSessionStorageToken(token) {
-  return withSessionStorage(
-    (storage) => {
-      storage.setItem(PORTAL_SESSION_STORAGE_KEY, token);
-      return true;
-    },
-    false,
-  );
+export function createUserCenterTokenStore(
+  storagePlan = CRAW_CHAT_PORTAL_USER_CENTER_STORAGE_PLAN,
+) {
+  return createCrawChatPortalUserCenterTokenStore(storagePlan);
 }
 
 export function readPortalSessionToken() {
-  const sessionToken = readSessionStorageToken();
-
-  if (isValidPortalSessionToken(sessionToken)) {
-    return sessionToken;
-  }
-
-  if (sessionToken !== null) {
-    removeSessionStorageToken();
-  }
-
-  const legacyToken = readLegacyLocalStorageToken();
-  if (isValidPortalSessionToken(legacyToken)) {
-    if (writeSessionStorageToken(legacyToken)) {
-      removeLegacyLocalStorageToken();
-    }
-
-    return legacyToken;
-  }
-
-  if (legacyToken !== null) {
-    removeLegacyLocalStorageToken();
-  }
-
-  return null;
+  return createUserCenterSessionStore().readSessionToken();
 }
 
 export function persistPortalSessionToken(token) {
-  if (!isValidPortalSessionToken(token)) {
-    throw new TypeError('Portal session token must be a non-empty string.');
-  }
-
-  if (writeSessionStorageToken(token)) {
-    removeLegacyLocalStorageToken();
-  }
+  createUserCenterSessionStore().persistSessionToken(token);
 }
 
 export function clearPortalSessionToken() {
-  removeSessionStorageToken();
-  removeLegacyLocalStorageToken();
+  createUserCenterSessionStore().clearSessionToken();
 }
 
-function resolveProtectedPortalToken(token = readPortalSessionToken()) {
-  return token;
+export function readPortalTokenBundle() {
+  return createUserCenterTokenStore().readTokenBundle();
 }
+
+export function persistPortalTokenBundle(bundle) {
+  createUserCenterTokenStore().persistTokenBundle(bundle);
+}
+
+export function clearPortalTokenBundle() {
+  createUserCenterTokenStore().clearTokenBundle();
+}
+
+function normalizePortalTokenValue(value) {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
+function extractPortalTokenBundle(value) {
+  if (!value || typeof value !== 'object') {
+    return {};
+  }
+
+  const tokenType =
+    normalizePortalTokenValue(value.tokenType)
+    ?? normalizePortalTokenValue(value.token_type);
+
+  return {
+    ...(normalizePortalTokenValue(value.accessToken)
+      ?? normalizePortalTokenValue(value.access_token)
+      ? {
+          accessToken:
+            normalizePortalTokenValue(value.accessToken)
+            ?? normalizePortalTokenValue(value.access_token),
+        }
+      : {}),
+    ...(normalizePortalTokenValue(value.authToken)
+      ?? normalizePortalTokenValue(value.auth_token)
+      ? {
+          authToken:
+            normalizePortalTokenValue(value.authToken)
+            ?? normalizePortalTokenValue(value.auth_token),
+        }
+      : {}),
+    ...(normalizePortalTokenValue(value.refreshToken)
+      ?? normalizePortalTokenValue(value.refresh_token)
+      ? {
+          refreshToken:
+            normalizePortalTokenValue(value.refreshToken)
+            ?? normalizePortalTokenValue(value.refresh_token),
+        }
+      : {}),
+    ...(normalizePortalTokenValue(value.sessionToken)
+      ?? normalizePortalTokenValue(value.session_token)
+      ?? normalizePortalTokenValue(value.sessionId)
+      ?? normalizePortalTokenValue(value.session_id)
+      ?? normalizePortalTokenValue(value.token)
+      ? {
+          sessionToken:
+            normalizePortalTokenValue(value.sessionToken)
+            ?? normalizePortalTokenValue(value.session_token)
+            ?? normalizePortalTokenValue(value.sessionId)
+            ?? normalizePortalTokenValue(value.session_id)
+            ?? normalizePortalTokenValue(value.token),
+        }
+      : {}),
+    ...(tokenType ? { tokenType } : {}),
+  };
+}
+
+function persistPortalAuthPayloadTokens(value) {
+  const bundle = extractPortalTokenBundle(value);
+  if (
+    bundle.accessToken
+    || bundle.authToken
+    || bundle.refreshToken
+    || bundle.sessionToken
+    || bundle.tokenType
+  ) {
+    persistPortalTokenBundle(bundle);
+  }
+}
+
+const resolveProtectedPortalToken = (token = readPortalSessionToken()) => (
+  resolveCrawChatPortalProtectedToken({
+    providedToken: token,
+    tokenBundle: readPortalTokenBundle(),
+  })
+);
 
 export async function loginPortalUser(credentials) {
-  return activePortalDataSource.loginPortalUser(credentials);
+  const session = await activePortalDataSource.loginPortalUser(credentials);
+  persistPortalAuthPayloadTokens(session);
+  return session;
 }
 
 export async function bootstrapPortalSession(token = readPortalSessionToken()) {
-  return activePortalDataSource.bootstrapPortalSession(token);
+  const session = await activePortalDataSource.bootstrapPortalSession(token);
+  persistPortalAuthPayloadTokens(session);
+  return session;
 }
 
 export async function getPortalWorkspace(token = resolveProtectedPortalToken()) {

@@ -48,6 +48,10 @@ const typescriptGeneratedBuildSource = readFileSync(
   path.join(workspaceRoot, 'bin', 'build-typescript-generated-package.mjs'),
   'utf8',
 );
+const npmRuntimeSource = readFileSync(
+  path.join(workspaceRoot, 'bin', 'npm-runtime.mjs'),
+  'utf8',
+);
 const typescriptWorkspaceVerifierSource = readFileSync(
   path.join(workspaceRoot, 'bin', 'verify-typescript-workspace.mjs'),
   'utf8',
@@ -134,6 +138,71 @@ const typescriptSdkAssemblePowerShellSource = readFileSync(
 );
 const flutterSdkAssemblePowerShellSource = readFileSync(
   path.join(workspaceRoot, 'sdkwork-control-plane-sdk-flutter', 'bin', 'sdk-assemble.ps1'),
+  'utf8',
+);
+const typescriptGeneratedRunTscSource = readFileSync(
+  path.join(
+    workspaceRoot,
+    'sdkwork-control-plane-sdk-typescript',
+    'generated',
+    'server-openapi',
+    'bin',
+    'run-tsc.mjs',
+  ),
+  'utf8',
+);
+const typescriptComposedRunTscSource = readFileSync(
+  path.join(
+    workspaceRoot,
+    'sdkwork-control-plane-sdk-typescript',
+    'composed',
+    'bin',
+    'run-tsc.mjs',
+  ),
+  'utf8',
+);
+const typescriptGeneratedSdkGenCoreSource = readFileSync(
+  path.join(
+    workspaceRoot,
+    'sdkwork-control-plane-sdk-typescript',
+    'generated',
+    'server-openapi',
+    'bin',
+    'sdk-gen-core.mjs',
+  ),
+  'utf8',
+);
+const typescriptGeneratedSdkGenShellSource = readFileSync(
+  path.join(
+    workspaceRoot,
+    'sdkwork-control-plane-sdk-typescript',
+    'generated',
+    'server-openapi',
+    'bin',
+    'sdk-gen.sh',
+  ),
+  'utf8',
+);
+const typescriptGeneratedSdkGenBatchSource = readFileSync(
+  path.join(
+    workspaceRoot,
+    'sdkwork-control-plane-sdk-typescript',
+    'generated',
+    'server-openapi',
+    'bin',
+    'sdk-gen.bat',
+  ),
+  'utf8',
+);
+const typescriptGeneratedPublishCoreSource = readFileSync(
+  path.join(
+    workspaceRoot,
+    'sdkwork-control-plane-sdk-typescript',
+    'generated',
+    'server-openapi',
+    'bin',
+    'publish-core.mjs',
+  ),
   'utf8',
 );
 
@@ -414,6 +483,94 @@ test('TypeScript generated-package build script imports the shared TypeScript bu
     typescriptGeneratedBuildSource,
     /workspace-typescript-build-shared\.mjs/,
   );
+});
+
+test('TypeScript generated sdk-gen runtime verifier is wired into the workspace verifier', () => {
+  assert.match(
+    typescriptWorkspaceVerifierSource,
+    /verify-typescript-generated-sdk-gen-runtime\.mjs/,
+  );
+  assert.match(
+    typescriptWorkspaceVerifierSource,
+    /typescript:generated-sdk-gen-runtime/,
+  );
+});
+
+test('TypeScript generated sdk-gen core resolves npm through the shared runtime helper', () => {
+  assert.match(
+    npmRuntimeSource,
+    /createNpmCommandArgs/,
+  );
+  assert.match(
+    typescriptGeneratedSdkGenCoreSource,
+    /npm-runtime\.mjs/,
+  );
+  assert.match(
+    typescriptGeneratedSdkGenCoreSource,
+    /createNpmCommandArgs/,
+  );
+});
+
+test('TypeScript generated sdk-gen wrappers delegate to sdk-gen-core without bare npm chaining', () => {
+  assert.match(
+    typescriptGeneratedSdkGenShellSource,
+    /sdk-gen-core\.mjs/,
+  );
+  assert.doesNotMatch(
+    typescriptGeneratedSdkGenShellSource,
+    /npm install && npm run build/,
+  );
+  assert.match(
+    typescriptGeneratedSdkGenBatchSource,
+    /sdk-gen-core\.mjs/i,
+  );
+  assert.doesNotMatch(
+    typescriptGeneratedSdkGenBatchSource,
+    /npm install && npm run build/i,
+  );
+});
+
+test('root verify entrypoint executes the TypeScript publish-core regression test', () => {
+  assert.match(
+    rootVerifySource,
+    /typescript-publish-core\.test\.mjs/,
+  );
+  assert.match(
+    rootVerifySource,
+    /typescript:publish-core/,
+  );
+});
+
+test('TypeScript generated publish-core resolves npm through the shared runtime helper', () => {
+  assert.match(
+    typescriptGeneratedPublishCoreSource,
+    /npm-runtime\.mjs/,
+  );
+  assert.match(
+    typescriptGeneratedPublishCoreSource,
+    /createNpmCommandArgs/,
+  );
+  assert.doesNotMatch(
+    typescriptGeneratedPublishCoreSource,
+    /run\('npm'/,
+  );
+});
+
+test('TypeScript run-tsc entrypoints resolve the generator compiler through the shared runtime helper', () => {
+  for (const source of [typescriptGeneratedRunTscSource, typescriptComposedRunTscSource]) {
+    assert.match(
+      source,
+      /generator-runtime\.mjs/,
+    );
+    assert.match(
+      source,
+      /resolveGeneratorModulePath/,
+    );
+    assert.doesNotMatch(
+      source,
+      /sdkwork-sdk-generator/,
+    );
+  }
 });
 
 test('admin OpenAPI source scripts import the shared OpenAPI source helper', () => {

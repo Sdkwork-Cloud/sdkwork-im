@@ -9,7 +9,7 @@ to the exact App API page when needed.
 | --- | --- | --- | --- |
 | resume or disconnect a user session | [/sdk/modules/session-and-presence](/sdk/modules/session-and-presence) | [/api-reference/app/session-and-realtime](/api-reference/app/session-and-realtime) | `session.resume`, `session.disconnectDevice`, `session().resume` |
 | update or read current presence | [/sdk/modules/session-and-presence](/sdk/modules/session-and-presence) | [/api-reference/app/session-and-realtime](/api-reference/app/session-and-realtime) | `presence.heartbeat`, `presence.current` |
-| replace subscriptions or pull realtime events | [/sdk/modules/realtime](/sdk/modules/realtime) | [/api-reference/app/session-and-realtime](/api-reference/app/session-and-realtime) | `realtime.replaceSubscriptions`, `realtime.pullEvents`, `realtime().list_events` |
+| replace subscriptions or run durable catch-up | [/sdk/modules/realtime](/sdk/modules/realtime) | [/api-reference/app/session-and-realtime](/api-reference/app/session-and-realtime) | `realtime.replaceSubscriptions`, `sync.catchUp`, `realtime().list_events` |
 | register a device or read device sync | [/sdk/modules/devices-and-inbox](/sdk/modules/devices-and-inbox) | [/api-reference/app/device-sync](/api-reference/app/device-sync) | `devices.register`, `devices.getSyncFeed` |
 | read the app inbox | [/sdk/modules/devices-and-inbox](/sdk/modules/devices-and-inbox) | [/api-reference/app/device-sync](/api-reference/app/device-sync) | `inbox.list`, `inbox().list` |
 | create or inspect conversations | [/sdk/modules/conversations](/sdk/modules/conversations) | [/api-reference/app/conversations](/api-reference/app/conversations) | `conversations.create`, `conversations.get`, `conversations().create` |

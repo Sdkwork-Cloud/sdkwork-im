@@ -469,6 +469,8 @@ not expand the full realtime frame protocol.
 
 - Bearer token or trusted headers
 - Device ownership and session binding are validated before upgrade
+- Browser runtimes that cannot send upgrade headers should prefer a gateway-issued short-lived
+  realtime ticket or pre-signed `wss://` URL instead of a long-lived query bearer token
 
 ### Headers
 
@@ -490,6 +492,8 @@ not expand the full realtime frame protocol.
 - Status code is `101 Switching Protocols`.
 - After the handshake, the connection leaves the request-response lifecycle and enters realtime transport mode.
 - For TypeScript consumers, the standard SDK entrypoint for that transport is `sdk.connect(...)`.
+- When browser auth requires a query credential, prefer gateway token exchange plus short-lived
+  credentials and pass the final browser-safe URL through `sdk.connect({ url })`.
 
 ### Error Responses
 

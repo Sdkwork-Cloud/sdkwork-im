@@ -24,14 +24,17 @@ export function verifySdkAutomation(options = {}) {
     'bin/generate-sdk.cmd',
     'bin/generate-sdk.ps1',
     'bin/generate-sdk.sh',
+    'bin/generator-runtime.mjs',
     'bin/materialize-im-admin-authority.mjs',
     'bin/materialize-im-admin-flutter-workspace.mjs',
     'bin/materialize-im-admin-typescript-workspace.mjs',
+    'bin/npm-runtime.mjs',
     'bin/verify-flutter-workspace.mjs',
     'bin/verify-sdk.mjs',
     'bin/verify-sdk-automation.mjs',
     'bin/verify-typescript-generated-package.mjs',
     'bin/verify-typescript-workspace.mjs',
+    'tests/typescript-publish-core.test.mjs',
     'openapi/README.md',
     'openapi/im-admin.openapi.json',
     'openapi/im-admin.sdkgen.json',
@@ -50,6 +53,8 @@ export function verifySdkAutomation(options = {}) {
     'sdkwork-im-admin-sdk-typescript/generated/server-openapi/package.json',
     'sdkwork-im-admin-sdk-typescript/generated/server-openapi/sdkwork-sdk.json',
     'sdkwork-im-admin-sdk-typescript/composed/package.json',
+    'sdkwork-im-admin-sdk-typescript/composed/bin/package-task.mjs',
+    'sdkwork-im-admin-sdk-typescript/composed/bin/run-tsc.mjs',
     'sdkwork-im-admin-sdk-typescript/composed/src/index.ts',
   ];
 
@@ -221,6 +226,132 @@ export function verifySdkAutomation(options = {}) {
     }
     if (!/verifyFlutterWorkspace/.test(verifySdkSource)) {
       failures.push('verify-sdk.mjs must run verifyFlutterWorkspace.');
+    }
+  }
+
+  const npmRuntimePath = path.join(workspaceRoot, 'bin', 'npm-runtime.mjs');
+  if (existsSync(npmRuntimePath)) {
+    const npmRuntimeSource = read(workspaceRoot, 'bin/npm-runtime.mjs');
+    if (!/resolveNpmInvocation/.test(npmRuntimeSource)) {
+      failures.push('bin/npm-runtime.mjs must export resolveNpmInvocation.');
+    }
+    if (!/createNpmCommandArgs/.test(npmRuntimeSource)) {
+      failures.push('bin/npm-runtime.mjs must export createNpmCommandArgs.');
+    }
+  }
+
+  const verifyTypeScriptWorkspacePath = path.join(workspaceRoot, 'bin', 'verify-typescript-workspace.mjs');
+  if (existsSync(verifyTypeScriptWorkspacePath)) {
+    const verifyTypeScriptWorkspaceSource = read(workspaceRoot, 'bin/verify-typescript-workspace.mjs');
+    if (!/typescript-publish-core\.test\.mjs/.test(verifyTypeScriptWorkspaceSource)) {
+      failures.push('verify-typescript-workspace.mjs must execute tests/typescript-publish-core.test.mjs.');
+    }
+    if (!/typescript:publish-core/.test(verifyTypeScriptWorkspaceSource)) {
+      failures.push('verify-typescript-workspace.mjs must label the publish-core regression step as typescript:publish-core.');
+    }
+    if (!/package-task\.mjs/.test(verifyTypeScriptWorkspaceSource)) {
+      failures.push('verify-typescript-workspace.mjs must verify the IM admin composed workspace through composed/bin/package-task.mjs.');
+    }
+  }
+
+  const generatedPublishCorePath = path.join(
+    workspaceRoot,
+    'sdkwork-im-admin-sdk-typescript',
+    'generated',
+    'server-openapi',
+    'bin',
+    'publish-core.mjs',
+  );
+  if (existsSync(generatedPublishCorePath)) {
+    const generatedPublishCoreSource = read(
+      workspaceRoot,
+      'sdkwork-im-admin-sdk-typescript/generated/server-openapi/bin/publish-core.mjs',
+    );
+    if (!/npm-runtime\.mjs/.test(generatedPublishCoreSource)) {
+      failures.push('TypeScript generated publish-core.mjs must import bin/npm-runtime.mjs.');
+    }
+    if (!/createNpmCommandArgs/.test(generatedPublishCoreSource)) {
+      failures.push('TypeScript generated publish-core.mjs must resolve npm through createNpmCommandArgs.');
+    }
+    if (/resolveNpmCommand/.test(generatedPublishCoreSource)) {
+      failures.push('TypeScript generated publish-core.mjs must not keep a local resolveNpmCommand helper.');
+    }
+    if (/npm\.cmd/.test(generatedPublishCoreSource)) {
+      failures.push('TypeScript generated publish-core.mjs must not hardcode npm.cmd fallback handling.');
+    }
+  }
+
+  const generatedPackageVerifierPath = path.join(workspaceRoot, 'bin', 'verify-typescript-generated-package.mjs');
+  if (existsSync(generatedPackageVerifierPath)) {
+    const generatedPackageVerifierSource = read(workspaceRoot, 'bin/verify-typescript-generated-package.mjs');
+    if (!/npm-runtime\.mjs/.test(generatedPackageVerifierSource)) {
+      failures.push('verify-typescript-generated-package.mjs must import bin/npm-runtime.mjs.');
+    }
+    if (!/createNpmCommandArgs/.test(generatedPackageVerifierSource)) {
+      failures.push('verify-typescript-generated-package.mjs must resolve npm through createNpmCommandArgs.');
+    }
+    if (/resolveNpmCommand/.test(generatedPackageVerifierSource)) {
+      failures.push('verify-typescript-generated-package.mjs must not keep a local resolveNpmCommand helper.');
+    }
+  }
+
+  const materializerPath = path.join(workspaceRoot, 'bin', 'materialize-im-admin-typescript-workspace.mjs');
+  if (existsSync(materializerPath)) {
+    const materializerSource = read(workspaceRoot, 'bin/materialize-im-admin-typescript-workspace.mjs');
+    if (/sdkwork-sdk-generator\/node_modules\/typescript\/bin\/tsc/.test(materializerSource)) {
+      failures.push('materialize-im-admin-typescript-workspace.mjs must not materialize sdkwork-sdk-generator-relative TypeScript compiler paths.');
+    }
+    if (!/bin\/package-task\.mjs/.test(materializerSource)) {
+      failures.push('materialize-im-admin-typescript-workspace.mjs must materialize bin/package-task.mjs task scripts for the composed package.');
+    }
+    if (!/run-tsc\.mjs/.test(materializerSource)) {
+      failures.push('materialize-im-admin-typescript-workspace.mjs must materialize bin/run-tsc.mjs for the composed package.');
+    }
+    if (!/generator-runtime\.mjs/.test(materializerSource)) {
+      failures.push('materialize-im-admin-typescript-workspace.mjs must generate composed run-tsc.mjs against the shared generator-runtime helper.');
+    }
+  }
+
+  const composedPackageTaskPath = path.join(
+    workspaceRoot,
+    'sdkwork-im-admin-sdk-typescript',
+    'composed',
+    'bin',
+    'package-task.mjs',
+  );
+  if (existsSync(composedPackageTaskPath)) {
+    const composedPackageTaskSource = read(
+      workspaceRoot,
+      'sdkwork-im-admin-sdk-typescript/composed/bin/package-task.mjs',
+    );
+    if (!/run-tsc\.mjs/.test(composedPackageTaskSource)) {
+      failures.push('IM admin composed package-task.mjs must delegate TypeScript compilation through bin/run-tsc.mjs.');
+    }
+    if (/sdkwork-sdk-generator/.test(composedPackageTaskSource)) {
+      failures.push('IM admin composed package-task.mjs must not hardcode sdkwork-sdk-generator-relative tool paths.');
+    }
+  }
+
+  const composedRunTscPath = path.join(
+    workspaceRoot,
+    'sdkwork-im-admin-sdk-typescript',
+    'composed',
+    'bin',
+    'run-tsc.mjs',
+  );
+  if (existsSync(composedRunTscPath)) {
+    const composedRunTscSource = read(
+      workspaceRoot,
+      'sdkwork-im-admin-sdk-typescript/composed/bin/run-tsc.mjs',
+    );
+    if (!/generator-runtime\.mjs/.test(composedRunTscSource)) {
+      failures.push('IM admin composed run-tsc.mjs must import ../../../bin/generator-runtime.mjs.');
+    }
+    if (!/resolveGeneratorModulePath/.test(composedRunTscSource)) {
+      failures.push('IM admin composed run-tsc.mjs must resolve the TypeScript compiler through resolveGeneratorModulePath.');
+    }
+    if (/sdkwork-sdk-generator/.test(composedRunTscSource)) {
+      failures.push('IM admin composed run-tsc.mjs must not hardcode sdkwork-sdk-generator-relative tool paths.');
     }
   }
 

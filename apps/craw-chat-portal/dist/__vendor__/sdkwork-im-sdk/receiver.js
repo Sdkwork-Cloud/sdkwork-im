@@ -62,8 +62,8 @@ export class ImReceiver {
         }
         return decoded;
     }
-    async pull(params) {
-        const rawWindow = await this.realtime.pullEvents(params);
+    async catchUp(params) {
+        const rawWindow = await this.realtime.catchUpEvents(params);
         const items = rawWindow.items.map((item) => this.dispatchRealtimeEvent(item));
         const highestSeq = items.reduce((currentMax, item) => Math.max(currentMax, item.realtimeSeq), rawWindow.ackedThroughSeq ?? 0);
         return {
@@ -76,8 +76,8 @@ export class ImReceiver {
         const ackedSeq = typeof batchOrSeq === 'number' ? batchOrSeq : batchOrSeq.highestSeq;
         return this.realtime.ackEvents({ ackedSeq });
     }
-    async pullAndAck(params) {
-        const batch = await this.pull(params);
+    async catchUpAndAck(params) {
+        const batch = await this.catchUp(params);
         const ack = batch.highestSeq > 0 ? await this.ack(batch) : undefined;
         return {
             batch,

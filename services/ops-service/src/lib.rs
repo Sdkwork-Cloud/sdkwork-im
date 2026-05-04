@@ -742,10 +742,9 @@ async fn readyz() -> Json<HealthResponse> {
 }
 
 async fn openapi_json() -> Result<Json<serde_json::Value>, OpsError> {
-    Ok(Json(
-        build_ops_service_openapi_document()
-            .map_err(|message| OpsError::internal("openapi_export_failed", message))?,
-    ))
+    Ok(Json(build_ops_service_openapi_document().map_err(
+        |message| OpsError::internal("openapi_export_failed", message),
+    )?))
 }
 
 async fn docs() -> Html<String> {
@@ -796,7 +795,11 @@ fn ops_service_summary(path: &str, method: HttpMethod) -> String {
     match (path, method) {
         ("/healthz", HttpMethod::Get) => "Check ops service health".to_owned(),
         ("/readyz", HttpMethod::Get) => "Check ops service readiness".to_owned(),
-        _ => format!("{} {}", ops_service_method_display(method), path.trim_matches('/').replace('/', " ")),
+        _ => format!(
+            "{} {}",
+            ops_service_method_display(method),
+            path.trim_matches('/').replace('/', " ")
+        ),
     }
 }
 
