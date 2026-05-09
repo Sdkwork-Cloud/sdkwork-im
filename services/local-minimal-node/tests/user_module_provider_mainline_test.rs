@@ -316,9 +316,7 @@ impl SelectivelyDisabledLocalUserModuleProvider {
     }
 
     fn is_disabled(&self, user_id: &str) -> bool {
-        self.disabled_user_ids
-            .iter()
-            .any(|disabled| *disabled == user_id)
+        self.disabled_user_ids.contains(&user_id)
     }
 }
 

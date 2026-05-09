@@ -13,9 +13,7 @@ pub(super) async fn get_workspace(
     headers: HeaderMap,
     State(_state): State<AppState>,
 ) -> Result<Json<Value>, axum::response::Response> {
-    let auth = resolve_auth_context(&headers)
-        .map_err(ApiError::from)
-        .map_err(IntoResponse::into_response)?;
+    let auth = resolve_auth_context(&headers).map_err(IntoResponse::into_response)?;
     access::ensure_portal_access(&auth).map_err(IntoResponse::into_response)?;
     Ok(Json(workspace_snapshot_for_tenant(auth.tenant_id.as_str())))
 }
@@ -24,9 +22,7 @@ pub(super) async fn get_dashboard(
     headers: HeaderMap,
     State(_state): State<AppState>,
 ) -> Result<Json<Value>, axum::response::Response> {
-    let auth = resolve_auth_context(&headers)
-        .map_err(ApiError::from)
-        .map_err(IntoResponse::into_response)?;
+    let auth = resolve_auth_context(&headers).map_err(IntoResponse::into_response)?;
     access::ensure_portal_access(&auth).map_err(IntoResponse::into_response)?;
     Ok(Json(dashboard_snapshot()))
 }
@@ -35,9 +31,7 @@ pub(super) async fn get_conversations(
     headers: HeaderMap,
     State(_state): State<AppState>,
 ) -> Result<Json<Value>, axum::response::Response> {
-    let auth = resolve_auth_context(&headers)
-        .map_err(ApiError::from)
-        .map_err(IntoResponse::into_response)?;
+    let auth = resolve_auth_context(&headers).map_err(IntoResponse::into_response)?;
     access::ensure_portal_access(&auth).map_err(IntoResponse::into_response)?;
     Ok(Json(conversations_snapshot()))
 }
@@ -46,9 +40,7 @@ pub(super) async fn get_realtime(
     headers: HeaderMap,
     State(_state): State<AppState>,
 ) -> Result<Json<Value>, axum::response::Response> {
-    let auth = resolve_auth_context(&headers)
-        .map_err(ApiError::from)
-        .map_err(IntoResponse::into_response)?;
+    let auth = resolve_auth_context(&headers).map_err(IntoResponse::into_response)?;
     access::ensure_portal_access(&auth).map_err(IntoResponse::into_response)?;
     Ok(Json(realtime_snapshot()))
 }
@@ -57,9 +49,7 @@ pub(super) async fn get_media(
     headers: HeaderMap,
     State(_state): State<AppState>,
 ) -> Result<Json<Value>, axum::response::Response> {
-    let auth = resolve_auth_context(&headers)
-        .map_err(ApiError::from)
-        .map_err(IntoResponse::into_response)?;
+    let auth = resolve_auth_context(&headers).map_err(IntoResponse::into_response)?;
     access::ensure_portal_access(&auth).map_err(IntoResponse::into_response)?;
     Ok(Json(media_snapshot()))
 }
@@ -68,9 +58,7 @@ pub(super) async fn get_automation(
     headers: HeaderMap,
     State(_state): State<AppState>,
 ) -> Result<Json<Value>, axum::response::Response> {
-    let auth = resolve_auth_context(&headers)
-        .map_err(ApiError::from)
-        .map_err(IntoResponse::into_response)?;
+    let auth = resolve_auth_context(&headers).map_err(IntoResponse::into_response)?;
     access::ensure_portal_access(&auth).map_err(IntoResponse::into_response)?;
     Ok(Json(automation_snapshot()))
 }
@@ -79,9 +67,7 @@ pub(super) async fn get_governance(
     headers: HeaderMap,
     State(_state): State<AppState>,
 ) -> Result<Json<Value>, axum::response::Response> {
-    let auth = resolve_auth_context(&headers)
-        .map_err(ApiError::from)
-        .map_err(IntoResponse::into_response)?;
+    let auth = resolve_auth_context(&headers).map_err(IntoResponse::into_response)?;
     access::ensure_portal_access(&auth).map_err(IntoResponse::into_response)?;
     Ok(Json(governance_snapshot()))
 }

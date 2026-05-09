@@ -1629,11 +1629,7 @@ mod tests {
             if principal_kind != "user" {
                 return Ok(());
             }
-            if self
-                .known_user_ids
-                .iter()
-                .any(|known| *known == principal_id)
-            {
+            if self.known_user_ids.contains(&principal_id) {
                 return Ok(());
             }
 

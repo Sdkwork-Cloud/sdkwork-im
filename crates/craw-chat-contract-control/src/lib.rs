@@ -258,6 +258,17 @@ impl RealtimeSubscriptionRecord {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct RealtimeMatchingSubscriptionQuery<'a> {
+    pub tenant_id: &'a str,
+    pub principal_kind: &'a str,
+    pub principal_id: &'a str,
+    pub scope_type: &'a str,
+    pub scope_id: &'a str,
+    pub event_type: &'a str,
+    pub candidate_device_ids: &'a [String],
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PresenceStateRecord {
     pub tenant_id: String,
@@ -391,13 +402,7 @@ pub trait RealtimeSubscriptionStore: Send + Sync {
 
     fn load_matching_subscriptions(
         &self,
-        tenant_id: &str,
-        principal_kind: &str,
-        principal_id: &str,
-        scope_type: &str,
-        scope_id: &str,
-        event_type: &str,
-        candidate_device_ids: &[String],
+        query: RealtimeMatchingSubscriptionQuery<'_>,
     ) -> Result<Vec<RealtimeSubscriptionRecord>, ContractError>;
 
     fn save_subscriptions(&self, record: RealtimeSubscriptionRecord) -> Result<(), ContractError>;

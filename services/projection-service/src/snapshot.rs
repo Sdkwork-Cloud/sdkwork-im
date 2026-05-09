@@ -907,9 +907,12 @@ mod tests {
         }
     }
 
+    type TimelineProjectionTestEntries =
+        Arc<Mutex<HashMap<(String, String), BTreeMap<u64, String>>>>;
+
     #[derive(Clone, Default)]
     struct CountingTimelineProjectionStore {
-        entries: Arc<Mutex<HashMap<(String, String), BTreeMap<u64, String>>>>,
+        entries: TimelineProjectionTestEntries,
         single_upsert_calls: Arc<AtomicUsize>,
         batch_upsert_calls: Arc<AtomicUsize>,
     }

@@ -312,16 +312,16 @@ impl RouteDirectory {
         let route_keys = routes.route_keys_for_node(source_node_id);
         let mut migrated_route_keys = Vec::new();
         for route_key in route_keys {
-            if let Some(route) = routes.routes_by_key.get_mut(route_key.as_str()) {
-                if route.owner_node_id == source_node_id {
-                    route.owner_node_id = target_node_id.into();
-                    route.route_epoch += 1;
-                    if !migrated_at.is_empty() {
-                        route.bound_at = migrated_at.into();
-                    }
-                    migrated += 1;
-                    migrated_route_keys.push(route_key);
+            if let Some(route) = routes.routes_by_key.get_mut(route_key.as_str())
+                && route.owner_node_id == source_node_id
+            {
+                route.owner_node_id = target_node_id.into();
+                route.route_epoch += 1;
+                if !migrated_at.is_empty() {
+                    route.bound_at = migrated_at.into();
                 }
+                migrated += 1;
+                migrated_route_keys.push(route_key);
             }
         }
         routes.move_route_keys_between_nodes(source_node_id, target_node_id, migrated_route_keys);

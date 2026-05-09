@@ -169,13 +169,7 @@ impl RealtimeSubscriptionStore for NullSubscriptionStore {
 
     fn load_matching_subscriptions(
         &self,
-        _tenant_id: &str,
-        _principal_kind: &str,
-        _principal_id: &str,
-        _scope_type: &str,
-        _scope_id: &str,
-        _event_type: &str,
-        _candidate_device_ids: &[String],
+        _query: im_platform_contracts::RealtimeMatchingSubscriptionQuery<'_>,
     ) -> Result<Vec<RealtimeSubscriptionRecord>, ContractError> {
         Ok(Vec::new())
     }

@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use audit_service::AuditRuntime;
@@ -56,12 +56,12 @@ impl Drop for ScopedEnvVar {
     }
 }
 
-fn friend_request_cursor_env_guard() -> std::sync::MutexGuard<'static, ()> {
-    static GUARD: OnceLock<Mutex<()>> = OnceLock::new();
+async fn friend_request_cursor_env_guard() -> tokio::sync::MutexGuard<'static, ()> {
+    static GUARD: OnceLock<tokio::sync::Mutex<()>> = OnceLock::new();
     GUARD
-        .get_or_init(|| Mutex::new(()))
+        .get_or_init(|| tokio::sync::Mutex::new(()))
         .lock()
-        .expect("friend request cursor env guard should not be poisoned")
+        .await
 }
 
 fn decode_friend_request_cursor_payload(cursor: &str) -> serde_json::Value {
@@ -1947,7 +1947,7 @@ async fn test_control_plane_social_friend_request_list_applies_limit_after_sorti
 
 #[tokio::test]
 async fn test_control_plane_social_friend_request_list_uses_cursor_for_next_page() {
-    let _guard = friend_request_cursor_env_guard();
+    let _guard = friend_request_cursor_env_guard().await;
     let _secret = ScopedEnvVar::set(
         FRIEND_REQUEST_CURSOR_SECRET_ENV,
         TEST_FRIEND_REQUEST_CURSOR_SECRET,
@@ -2100,7 +2100,7 @@ async fn test_control_plane_social_friend_request_list_rejects_invalid_cursor() 
 
 #[tokio::test]
 async fn test_control_plane_social_friend_request_list_emits_signed_versioned_cursor() {
-    let _guard = friend_request_cursor_env_guard();
+    let _guard = friend_request_cursor_env_guard().await;
     let _cursor_secret = ScopedEnvVar::set(
         FRIEND_REQUEST_CURSOR_SECRET_ENV,
         TEST_FRIEND_REQUEST_CURSOR_SECRET,
@@ -2181,7 +2181,7 @@ async fn test_control_plane_social_friend_request_list_emits_signed_versioned_cu
 
 #[tokio::test]
 async fn test_control_plane_social_friend_request_list_rejects_tampered_cursor_signature() {
-    let _guard = friend_request_cursor_env_guard();
+    let _guard = friend_request_cursor_env_guard().await;
     let _cursor_secret = ScopedEnvVar::set(
         FRIEND_REQUEST_CURSOR_SECRET_ENV,
         TEST_FRIEND_REQUEST_CURSOR_SECRET,
@@ -2288,7 +2288,7 @@ async fn test_control_plane_social_friend_request_list_rejects_tampered_cursor_s
 
 #[tokio::test]
 async fn test_control_plane_social_friend_request_list_rejects_unsupported_cursor_version() {
-    let _guard = friend_request_cursor_env_guard();
+    let _guard = friend_request_cursor_env_guard().await;
     let _cursor_secret = ScopedEnvVar::set(
         FRIEND_REQUEST_CURSOR_SECRET_ENV,
         TEST_FRIEND_REQUEST_CURSOR_SECRET,

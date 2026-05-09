@@ -1015,21 +1015,21 @@ fn test_file_subscription_store_loads_matching_scope_event_candidates_across_reo
 
     let reopened = FileRealtimeSubscriptionStore::new(&file_path);
     let matches = reopened
-        .load_matching_subscriptions(
-            "t_demo",
-            "user",
-            "u_demo",
-            "conversation",
-            "c_demo",
-            "message.posted",
-            &[
+        .load_matching_subscriptions(im_platform_contracts::RealtimeMatchingSubscriptionQuery {
+            tenant_id: "t_demo",
+            principal_kind: "user",
+            principal_id: "u_demo",
+            scope_type: "conversation",
+            scope_id: "c_demo",
+            event_type: "message.posted",
+            candidate_device_ids: &[
                 "d_match".into(),
                 "d_wildcard".into(),
                 "d_other_scope".into(),
                 "d_other_event".into(),
                 "d_missing".into(),
             ],
-        )
+        })
         .expect("matching subscription load should succeed");
     let device_ids = matches
         .into_iter()

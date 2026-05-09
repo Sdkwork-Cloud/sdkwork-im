@@ -11,8 +11,8 @@ use im_adapters_local_memory::{
 };
 use im_domain_core::realtime::{RealtimeEvent, RealtimeSubscription};
 use im_platform_contracts::{
-    ContractError, RealtimeCheckpointRecord, RealtimeCheckpointStore, RealtimeSubscriptionRecord,
-    RealtimeSubscriptionStore,
+    ContractError, RealtimeCheckpointRecord, RealtimeCheckpointStore,
+    RealtimeMatchingSubscriptionQuery, RealtimeSubscriptionRecord, RealtimeSubscriptionStore,
 };
 use session_gateway::{
     RealtimeDeliveryRuntime, RealtimeRuntimeError, RealtimeSubscriptionItemInput,
@@ -664,13 +664,7 @@ impl RealtimeSubscriptionStore for ToggleRealtimeSubscriptionStore {
 
     fn load_matching_subscriptions(
         &self,
-        _tenant_id: &str,
-        _principal_kind: &str,
-        _principal_id: &str,
-        _scope_type: &str,
-        _scope_id: &str,
-        _event_type: &str,
-        _candidate_device_ids: &[String],
+        _query: RealtimeMatchingSubscriptionQuery<'_>,
     ) -> Result<Vec<RealtimeSubscriptionRecord>, ContractError> {
         Ok(Vec::new())
     }

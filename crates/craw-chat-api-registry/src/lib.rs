@@ -96,7 +96,7 @@ impl RouteRegistry {
         let mut best_score = 0usize;
 
         for entry in &self.entries {
-            if !entry.methods.iter().any(|item| *item == method) {
+            if !entry.methods.contains(&method) {
                 continue;
             }
 

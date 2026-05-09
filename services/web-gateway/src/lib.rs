@@ -158,17 +158,17 @@ async fn proxy_get_request(
     let route = state
         .registry
         .resolve(HttpMethod::Get, request.uri().path());
-    if let (Some(route), Ok(websocket_upgrade)) = (route, websocket_upgrade) {
-        if route.protocol == RouteProtocol::Websocket {
-            return proxy_websocket_request(
-                websocket_upgrade,
-                request,
-                &state,
-                route.service_id.as_str(),
-                route.websocket_subprotocols.as_slice(),
-            )
-            .await;
-        }
+    if let (Some(route), Ok(websocket_upgrade)) = (route, websocket_upgrade)
+        && route.protocol == RouteProtocol::Websocket
+    {
+        return proxy_websocket_request(
+            websocket_upgrade,
+            request,
+            &state,
+            route.service_id.as_str(),
+            route.websocket_subprotocols.as_slice(),
+        )
+        .await;
     }
 
     if route.is_some() {
@@ -632,16 +632,16 @@ fn route_descriptor(
     sdk_targets: Vec<SdkTarget>,
     operation_group: &str,
 ) -> RouteDescriptor {
-    route_descriptor_with_protocol(
+    route_descriptor_with_protocol(RouteDescriptorSpec {
         service_id,
         methods,
         path_pattern,
         visibility,
         sdk_targets,
         operation_group,
-        RouteProtocol::Http,
-        &[],
-    )
+        protocol: RouteProtocol::Http,
+        websocket_subprotocols: &[],
+    })
 }
 
 fn websocket_route(
@@ -652,37 +652,40 @@ fn websocket_route(
     operation_group: &str,
     websocket_subprotocols: &[&str],
 ) -> RouteDescriptor {
-    route_descriptor_with_protocol(
+    route_descriptor_with_protocol(RouteDescriptorSpec {
         service_id,
-        vec![HttpMethod::Get],
+        methods: vec![HttpMethod::Get],
         path_pattern,
         visibility,
         sdk_targets,
         operation_group,
-        RouteProtocol::Websocket,
+        protocol: RouteProtocol::Websocket,
         websocket_subprotocols,
-    )
+    })
 }
 
-fn route_descriptor_with_protocol(
-    service_id: &str,
+struct RouteDescriptorSpec<'a> {
+    service_id: &'a str,
     methods: Vec<HttpMethod>,
-    path_pattern: &str,
+    path_pattern: &'a str,
     visibility: RouteVisibility,
     sdk_targets: Vec<SdkTarget>,
-    operation_group: &str,
+    operation_group: &'a str,
     protocol: RouteProtocol,
-    websocket_subprotocols: &[&str],
-) -> RouteDescriptor {
+    websocket_subprotocols: &'a [&'a str],
+}
+
+fn route_descriptor_with_protocol(spec: RouteDescriptorSpec<'_>) -> RouteDescriptor {
     RouteDescriptor {
-        service_id: service_id.to_owned(),
-        methods,
-        path_pattern: path_pattern.to_owned(),
-        visibility,
-        sdk_targets,
-        operation_group: operation_group.to_owned(),
-        protocol,
-        websocket_subprotocols: websocket_subprotocols
+        service_id: spec.service_id.to_owned(),
+        methods: spec.methods,
+        path_pattern: spec.path_pattern.to_owned(),
+        visibility: spec.visibility,
+        sdk_targets: spec.sdk_targets,
+        operation_group: spec.operation_group.to_owned(),
+        protocol: spec.protocol,
+        websocket_subprotocols: spec
+            .websocket_subprotocols
             .iter()
             .map(|value| (*value).to_owned())
             .collect(),

@@ -57,7 +57,7 @@ pub fn extract_routes_from_function(
             .ok_or_else(|| format!("unbalanced route declaration in `{fn_name}`"))?;
         let route_call = &body[route_start + 1..route_end];
         let (path, handler_expr) = split_route_call(route_call)?;
-        if excluded_paths.iter().any(|excluded| *excluded == path) {
+        if excluded_paths.contains(&path) {
             search_from = route_end + 1;
             continue;
         }

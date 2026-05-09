@@ -253,25 +253,24 @@ pub(super) fn resolve_auth_context(headers: &HeaderMap) -> Result<AuthContext, A
                     )
                 })?,
             );
-        } else if config.allow_authorization_fallback_to_access_token {
-            if let Some(access_token) =
+        } else if config.allow_authorization_fallback_to_access_token
+            && let Some(access_token) =
                 read_header_case_insensitive(headers, config.access_token_header_name.as_str())
-            {
-                let authorization = format!(
-                    "{} {}",
-                    config.authorization_scheme.as_str(),
-                    access_token.as_str()
-                );
-                normalized_headers.insert(
-                    AUTHORIZATION,
-                    HeaderValue::from_str(authorization.as_str()).map_err(|_| {
-                        ApiError::unauthorized(
-                            "authorization_invalid",
-                            "configured access-token header is not a valid bearer token value",
-                        )
-                    })?,
-                );
-            }
+        {
+            let authorization = format!(
+                "{} {}",
+                config.authorization_scheme.as_str(),
+                access_token.as_str()
+            );
+            normalized_headers.insert(
+                AUTHORIZATION,
+                HeaderValue::from_str(authorization.as_str()).map_err(|_| {
+                    ApiError::unauthorized(
+                        "authorization_invalid",
+                        "configured access-token header is not a valid bearer token value",
+                    )
+                })?,
+            );
         }
     }
 
@@ -492,13 +491,12 @@ fn copy_governed_header(
     let mut aliases = Vec::with_capacity(fallback_names.len() + 1);
     aliases.push(outbound_name);
     aliases.extend(fallback_names.iter().copied());
-    if let Some(value) = read_first_header_case_insensitive(headers, aliases.as_slice()) {
-        if !outbound
+    if let Some(value) = read_first_header_case_insensitive(headers, aliases.as_slice())
+        && !outbound
             .iter()
             .any(|(name, _)| name.eq_ignore_ascii_case(outbound_name))
-        {
-            outbound.push((outbound_name.to_owned(), value));
-        }
+    {
+        outbound.push((outbound_name.to_owned(), value));
     }
 }
 

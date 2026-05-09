@@ -9,8 +9,8 @@ pub use craw_chat_contract_control::{
     PresenceStateRecord, PresenceStateStore, RealtimeCheckpointRecord, RealtimeCheckpointStore,
     RealtimeDisconnectFenceRecord, RealtimeDisconnectFenceStore,
     RealtimeEventWindowDiagnosticsSnapshot, RealtimeEventWindowHighRiskRecord,
-    RealtimeEventWindowRecord, RealtimeEventWindowStore, RealtimeSubscriptionRecord,
-    RealtimeSubscriptionStore,
+    RealtimeEventWindowRecord, RealtimeEventWindowStore, RealtimeMatchingSubscriptionQuery,
+    RealtimeSubscriptionRecord, RealtimeSubscriptionStore,
 };
 pub use craw_chat_contract_core::{
     ContractError, LeaseGrant, LeaseStore, MetadataSnapshotRecord, MetadataStore, ObjectDescriptor,

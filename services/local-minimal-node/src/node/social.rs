@@ -1438,7 +1438,7 @@ async fn recover_pending_friend_request_accept_repair_after_not_pending(
         FriendRequestStatus::Pending => Ok(false),
         _ => {
             try_clear_pending_friend_request_accept_repair(state, repair.request_id.as_str()).await;
-            return Ok(true);
+            Ok(true)
         }
     }
 }
@@ -1947,193 +1947,6 @@ fn control_plane_existing_friendship_id(value: &serde_json::Value) -> Option<&st
         .and_then(serde_json::Value::as_str)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::path::PathBuf;
-    use std::sync::atomic::{AtomicU64, Ordering};
-    use std::sync::{Mutex, OnceLock};
-    use std::time::{SystemTime, UNIX_EPOCH};
-
-    static NEXT_SOCIAL_TEST_RUNTIME_DIR_SEQUENCE: AtomicU64 = AtomicU64::new(0);
-    const SOCIAL_ACCEPT_REPAIR_STORE_FAIL_AFTER_TEMP_WRITE_ENV: &str =
-        "CRAW_CHAT_TEST_SOCIAL_ACCEPT_REPAIR_STORE_FAIL_AFTER_TEMP_WRITE";
-
-    struct ScopedEnvVar {
-        name: &'static str,
-        previous: Option<String>,
-    }
-
-    impl ScopedEnvVar {
-        fn set(name: &'static str, value: &str) -> Self {
-            let previous = std::env::var(name).ok();
-            unsafe {
-                std::env::set_var(name, value);
-            }
-            Self { name, previous }
-        }
-    }
-
-    impl Drop for ScopedEnvVar {
-        fn drop(&mut self) {
-            if let Some(previous) = &self.previous {
-                unsafe {
-                    std::env::set_var(self.name, previous);
-                }
-                return;
-            }
-
-            unsafe {
-                std::env::remove_var(self.name);
-            }
-        }
-    }
-
-    fn social_accept_repair_store_env_guard() -> std::sync::MutexGuard<'static, ()> {
-        static GUARD: OnceLock<Mutex<()>> = OnceLock::new();
-        GUARD
-            .get_or_init(|| Mutex::new(()))
-            .lock()
-            .expect("social accept repair store env guard should not be poisoned")
-    }
-
-    fn unique_social_test_runtime_dir(prefix: &str) -> PathBuf {
-        let unique = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("system time should be after unix epoch")
-            .as_nanos();
-        let sequence = NEXT_SOCIAL_TEST_RUNTIME_DIR_SEQUENCE.fetch_add(1, Ordering::Relaxed);
-        std::env::temp_dir().join(format!("craw_chat_social_{prefix}_{unique}_{sequence}"))
-    }
-
-    #[test]
-    fn test_pending_friend_request_accept_repair_store_recovers_temp_file_when_primary_missing() {
-        let runtime_dir = unique_social_test_runtime_dir("repair_store_temp_recovery");
-        let primary_path = pending_friend_request_accept_repairs_path(Some(runtime_dir.as_path()))
-            .expect("repair store path should resolve");
-        let temp_path = primary_path.with_extension("json.tmp");
-        fs::create_dir_all(
-            primary_path
-                .parent()
-                .expect("repair store path should include state dir"),
-        )
-        .expect("repair store state dir should be created");
-        fs::write(
-            temp_path.as_path(),
-            serde_json::json!({
-                "fr_temp_only": {
-                    "tenant_id": "t_demo",
-                    "request_id": "fr_temp_only",
-                    "requester_user_id": "u_alice",
-                    "target_user_id": "u_bob",
-                    "accepted_at": "2026-04-16T12:00:00Z"
-                }
-            })
-            .to_string(),
-        )
-        .expect("repair store temp file should be writable");
-
-        let loaded = load_pending_friend_request_accept_repairs(Some(runtime_dir.as_path()));
-        let repair = loaded
-            .get("fr_temp_only")
-            .expect("repair store should recover pending temp file when primary file is missing");
-        assert_eq!(repair.request_id, "fr_temp_only");
-        assert_eq!(repair.requester_user_id, "u_alice");
-        assert_eq!(repair.target_user_id, "u_bob");
-        assert!(
-            primary_path.exists(),
-            "recovered primary repair store file should be materialized"
-        );
-        assert!(
-            !temp_path.exists(),
-            "pending repair temp file should be consumed after recovery"
-        );
-
-        let _ = fs::remove_dir_all(runtime_dir);
-    }
-
-    #[test]
-    fn test_pending_friend_request_accept_repair_store_preserves_primary_file_when_finalize_fails()
-    {
-        let _env_guard = social_accept_repair_store_env_guard();
-        let runtime_dir = unique_social_test_runtime_dir("repair_store_atomic_replace");
-        let primary_path = pending_friend_request_accept_repairs_path(Some(runtime_dir.as_path()))
-            .expect("repair store path should resolve");
-        fs::create_dir_all(
-            primary_path
-                .parent()
-                .expect("repair store path should include state dir"),
-        )
-        .expect("repair store state dir should be created");
-
-        let mut original_store = PendingFriendRequestAcceptanceRepairStore::default();
-        original_store.insert(
-            "fr_existing".into(),
-            PendingFriendRequestAcceptanceRepair {
-                tenant_id: "t_demo".into(),
-                request_id: "fr_existing".into(),
-                requester_user_id: "u_alice".into(),
-                target_user_id: "u_bob".into(),
-                accepted_at: "2026-04-16T12:10:00Z".into(),
-            },
-        );
-        persist_pending_friend_request_accept_repairs(Some(runtime_dir.as_path()), &original_store)
-            .expect("original repair store should persist");
-
-        let mut updated_store = original_store.clone();
-        updated_store.insert(
-            "fr_new".into(),
-            PendingFriendRequestAcceptanceRepair {
-                tenant_id: "t_demo".into(),
-                request_id: "fr_new".into(),
-                requester_user_id: "u_carol".into(),
-                target_user_id: "u_dave".into(),
-                accepted_at: "2026-04-16T12:11:00Z".into(),
-            },
-        );
-
-        let _failpoint =
-            ScopedEnvVar::set(SOCIAL_ACCEPT_REPAIR_STORE_FAIL_AFTER_TEMP_WRITE_ENV, "1");
-        let error = persist_pending_friend_request_accept_repairs(
-            Some(runtime_dir.as_path()),
-            &updated_store,
-        )
-        .expect_err("repair store finalize failure should surface as an error");
-        assert_eq!(error.code, "friend_request_accept_repair_store_unavailable");
-
-        let loaded = load_pending_friend_request_accept_repairs(Some(runtime_dir.as_path()));
-        assert_eq!(
-            loaded.len(),
-            1,
-            "failed atomic replace must preserve the last committed repair store snapshot"
-        );
-        assert!(
-            loaded.contains_key("fr_existing"),
-            "existing repair entry must survive failed finalize"
-        );
-        assert!(
-            !loaded.contains_key("fr_new"),
-            "new repair entry must not appear when finalize fails"
-        );
-
-        let _ = fs::remove_dir_all(runtime_dir);
-    }
-
-    #[test]
-    fn test_blocked_friend_request_accept_repairs_are_terminal() {
-        assert!(is_terminal_friend_request_accept_repair_error(&ApiError {
-            status: axum::http::StatusCode::CONFLICT,
-            code: "friend_request_blocked",
-            message: "friend request is blocked".into(),
-        }));
-        assert!(is_terminal_friend_request_accept_repair_error(&ApiError {
-            status: axum::http::StatusCode::CONFLICT,
-            code: "friendship_blocked",
-            message: "friendship is blocked".into(),
-        }));
-    }
-}
-
 fn control_plane_existing_direct_chat_id(value: &serde_json::Value) -> Option<&str> {
     value
         .get("details")
@@ -2454,4 +2267,191 @@ fn deterministic_social_id(prefix: &str, seed: &str) -> String {
     let digest = Sha256::digest(seed.as_bytes());
     let digest = format!("{digest:x}");
     format!("{prefix}{}", &digest[..24])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::sync::{Mutex, OnceLock};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    static NEXT_SOCIAL_TEST_RUNTIME_DIR_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+    const SOCIAL_ACCEPT_REPAIR_STORE_FAIL_AFTER_TEMP_WRITE_ENV: &str =
+        "CRAW_CHAT_TEST_SOCIAL_ACCEPT_REPAIR_STORE_FAIL_AFTER_TEMP_WRITE";
+
+    struct ScopedEnvVar {
+        name: &'static str,
+        previous: Option<String>,
+    }
+
+    impl ScopedEnvVar {
+        fn set(name: &'static str, value: &str) -> Self {
+            let previous = std::env::var(name).ok();
+            unsafe {
+                std::env::set_var(name, value);
+            }
+            Self { name, previous }
+        }
+    }
+
+    impl Drop for ScopedEnvVar {
+        fn drop(&mut self) {
+            if let Some(previous) = &self.previous {
+                unsafe {
+                    std::env::set_var(self.name, previous);
+                }
+                return;
+            }
+
+            unsafe {
+                std::env::remove_var(self.name);
+            }
+        }
+    }
+
+    fn social_accept_repair_store_env_guard() -> std::sync::MutexGuard<'static, ()> {
+        static GUARD: OnceLock<Mutex<()>> = OnceLock::new();
+        GUARD
+            .get_or_init(|| Mutex::new(()))
+            .lock()
+            .expect("social accept repair store env guard should not be poisoned")
+    }
+
+    fn unique_social_test_runtime_dir(prefix: &str) -> PathBuf {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system time should be after unix epoch")
+            .as_nanos();
+        let sequence = NEXT_SOCIAL_TEST_RUNTIME_DIR_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+        std::env::temp_dir().join(format!("craw_chat_social_{prefix}_{unique}_{sequence}"))
+    }
+
+    #[test]
+    fn test_pending_friend_request_accept_repair_store_recovers_temp_file_when_primary_missing() {
+        let runtime_dir = unique_social_test_runtime_dir("repair_store_temp_recovery");
+        let primary_path = pending_friend_request_accept_repairs_path(Some(runtime_dir.as_path()))
+            .expect("repair store path should resolve");
+        let temp_path = primary_path.with_extension("json.tmp");
+        fs::create_dir_all(
+            primary_path
+                .parent()
+                .expect("repair store path should include state dir"),
+        )
+        .expect("repair store state dir should be created");
+        fs::write(
+            temp_path.as_path(),
+            serde_json::json!({
+                "fr_temp_only": {
+                    "tenant_id": "t_demo",
+                    "request_id": "fr_temp_only",
+                    "requester_user_id": "u_alice",
+                    "target_user_id": "u_bob",
+                    "accepted_at": "2026-04-16T12:00:00Z"
+                }
+            })
+            .to_string(),
+        )
+        .expect("repair store temp file should be writable");
+
+        let loaded = load_pending_friend_request_accept_repairs(Some(runtime_dir.as_path()));
+        let repair = loaded
+            .get("fr_temp_only")
+            .expect("repair store should recover pending temp file when primary file is missing");
+        assert_eq!(repair.request_id, "fr_temp_only");
+        assert_eq!(repair.requester_user_id, "u_alice");
+        assert_eq!(repair.target_user_id, "u_bob");
+        assert!(
+            primary_path.exists(),
+            "recovered primary repair store file should be materialized"
+        );
+        assert!(
+            !temp_path.exists(),
+            "pending repair temp file should be consumed after recovery"
+        );
+
+        let _ = fs::remove_dir_all(runtime_dir);
+    }
+
+    #[test]
+    fn test_pending_friend_request_accept_repair_store_preserves_primary_file_when_finalize_fails()
+    {
+        let _env_guard = social_accept_repair_store_env_guard();
+        let runtime_dir = unique_social_test_runtime_dir("repair_store_atomic_replace");
+        let primary_path = pending_friend_request_accept_repairs_path(Some(runtime_dir.as_path()))
+            .expect("repair store path should resolve");
+        fs::create_dir_all(
+            primary_path
+                .parent()
+                .expect("repair store path should include state dir"),
+        )
+        .expect("repair store state dir should be created");
+
+        let mut original_store = PendingFriendRequestAcceptanceRepairStore::default();
+        original_store.insert(
+            "fr_existing".into(),
+            PendingFriendRequestAcceptanceRepair {
+                tenant_id: "t_demo".into(),
+                request_id: "fr_existing".into(),
+                requester_user_id: "u_alice".into(),
+                target_user_id: "u_bob".into(),
+                accepted_at: "2026-04-16T12:10:00Z".into(),
+            },
+        );
+        persist_pending_friend_request_accept_repairs(Some(runtime_dir.as_path()), &original_store)
+            .expect("original repair store should persist");
+
+        let mut updated_store = original_store.clone();
+        updated_store.insert(
+            "fr_new".into(),
+            PendingFriendRequestAcceptanceRepair {
+                tenant_id: "t_demo".into(),
+                request_id: "fr_new".into(),
+                requester_user_id: "u_carol".into(),
+                target_user_id: "u_dave".into(),
+                accepted_at: "2026-04-16T12:11:00Z".into(),
+            },
+        );
+
+        let _failpoint =
+            ScopedEnvVar::set(SOCIAL_ACCEPT_REPAIR_STORE_FAIL_AFTER_TEMP_WRITE_ENV, "1");
+        let error = persist_pending_friend_request_accept_repairs(
+            Some(runtime_dir.as_path()),
+            &updated_store,
+        )
+        .expect_err("repair store finalize failure should surface as an error");
+        assert_eq!(error.code, "friend_request_accept_repair_store_unavailable");
+
+        let loaded = load_pending_friend_request_accept_repairs(Some(runtime_dir.as_path()));
+        assert_eq!(
+            loaded.len(),
+            1,
+            "failed atomic replace must preserve the last committed repair store snapshot"
+        );
+        assert!(
+            loaded.contains_key("fr_existing"),
+            "existing repair entry must survive failed finalize"
+        );
+        assert!(
+            !loaded.contains_key("fr_new"),
+            "new repair entry must not appear when finalize fails"
+        );
+
+        let _ = fs::remove_dir_all(runtime_dir);
+    }
+
+    #[test]
+    fn test_blocked_friend_request_accept_repairs_are_terminal() {
+        assert!(is_terminal_friend_request_accept_repair_error(&ApiError {
+            status: axum::http::StatusCode::CONFLICT,
+            code: "friend_request_blocked",
+            message: "friend request is blocked".into(),
+        }));
+        assert!(is_terminal_friend_request_accept_repair_error(&ApiError {
+            status: axum::http::StatusCode::CONFLICT,
+            code: "friendship_blocked",
+            message: "friendship is blocked".into(),
+        }));
+    }
 }

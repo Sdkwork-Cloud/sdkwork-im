@@ -429,10 +429,10 @@ fn build_public_browser_cors_layer() -> CorsLayer {
         "x-sdkwork-user-center-signature",
         "x-sdkwork-user-center-signed-at",
     ] {
-        if let Ok(parsed) = header_name.parse::<axum::http::header::HeaderName>() {
-            if !allowed_headers.contains(&parsed) {
-                allowed_headers.push(parsed);
-            }
+        if let Ok(parsed) = header_name.parse::<axum::http::header::HeaderName>()
+            && !allowed_headers.contains(&parsed)
+        {
+            allowed_headers.push(parsed);
         }
     }
     let allowed_origins = resolve_public_browser_origins()

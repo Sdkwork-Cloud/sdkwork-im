@@ -245,14 +245,13 @@ impl AgentToolCallRuntimeStore {
         tool_call.state = AgentToolCallState::Completed;
         tool_call.completed_at = Some(completed_at);
         let completed = tool_call.clone();
-        if was_requested {
-            if let Some(tool_call_keys) =
+        if was_requested
+            && let Some(tool_call_keys) =
                 self.pending_tool_calls_by_execution.get_mut(execution_key)
-            {
-                tool_call_keys.remove(tool_call_key);
-                if tool_call_keys.is_empty() {
-                    self.pending_tool_calls_by_execution.remove(execution_key);
-                }
+        {
+            tool_call_keys.remove(tool_call_key);
+            if tool_call_keys.is_empty() {
+                self.pending_tool_calls_by_execution.remove(execution_key);
             }
         }
         Ok(completed)

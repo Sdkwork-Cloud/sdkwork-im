@@ -8,9 +8,10 @@ use im_platform_contracts::{
     NotificationTaskRecord, NotificationTaskStore, PresenceStateRecord, PresenceStateStore,
     RealtimeCheckpointRecord, RealtimeCheckpointStore, RealtimeDisconnectFenceRecord,
     RealtimeDisconnectFenceStore, RealtimeEventWindowDiagnosticsSnapshot,
-    RealtimeEventWindowRecord, RealtimeEventWindowStore, RealtimeSubscriptionRecord,
-    RealtimeSubscriptionStore, RtcStateRecord, RtcStateStore, StreamStateRecord, StreamStateStore,
-    TimelineProjectionBatch, TimelineProjectionRecord, TimelineProjectionStore,
+    RealtimeEventWindowRecord, RealtimeEventWindowStore, RealtimeMatchingSubscriptionQuery,
+    RealtimeSubscriptionRecord, RealtimeSubscriptionStore, RtcStateRecord, RtcStateStore,
+    StreamStateRecord, StreamStateStore, TimelineProjectionBatch, TimelineProjectionRecord,
+    TimelineProjectionStore,
 };
 use im_storage_contracts::{StorageDomainSnapshot, StorageDomainSnapshotStore};
 
@@ -475,27 +476,33 @@ impl RealtimeSubscriptionStore for MemoryRealtimeSubscriptionStore {
 
     fn load_matching_subscriptions(
         &self,
-        tenant_id: &str,
-        principal_kind: &str,
-        principal_id: &str,
-        scope_type: &str,
-        scope_id: &str,
-        event_type: &str,
-        candidate_device_ids: &[String],
+        query: RealtimeMatchingSubscriptionQuery<'_>,
     ) -> Result<Vec<RealtimeSubscriptionRecord>, ContractError> {
         let subscriptions = self
             .subscriptions
             .lock()
             .expect("realtime subscription store should lock");
-        Ok(candidate_device_ids
+        Ok(query
+            .candidate_device_ids
             .iter()
             .filter_map(|device_id| {
                 subscriptions
                     .get(
-                        device_scope_key(tenant_id, principal_kind, principal_id, device_id)
-                            .as_str(),
+                        device_scope_key(
+                            query.tenant_id,
+                            query.principal_kind,
+                            query.principal_id,
+                            device_id,
+                        )
+                        .as_str(),
                     )
-                    .filter(|record| record.matches_scope_event(scope_type, scope_id, event_type))
+                    .filter(|record| {
+                        record.matches_scope_event(
+                            query.scope_type,
+                            query.scope_id,
+                            query.event_type,
+                        )
+                    })
                     .cloned()
             })
             .collect())

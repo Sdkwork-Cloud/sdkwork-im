@@ -457,16 +457,19 @@ pub async fn serve_realtime_websocket<R: RealtimeRouteOwner>(
     };
 
     if wire_mode == RealtimeWebsocketMode::CcpJson {
+        let handshake_context = CcpHandshakeContext {
+            ccp_runtime: &ccp_runtime,
+            route: &route,
+            checkpoint: &checkpoint,
+            route_owner: &route_owner,
+            auth: &auth,
+            device_id: device_id.as_str(),
+        };
         let Some(negotiated_after_seq) = complete_ccp_handshake(
             &mut socket,
-            &ccp_runtime,
-            &route,
             &mut link_session,
-            &checkpoint,
             &mut route_epoch_receiver,
-            &route_owner,
-            &auth,
-            device_id.as_str(),
+            handshake_context,
         )
         .await
         else {
@@ -753,6 +756,15 @@ pub async fn serve_realtime_websocket<R: RealtimeRouteOwner>(
     link_session.mark_draining();
 }
 
+struct CcpHandshakeContext<'a> {
+    ccp_runtime: &'a CcpWebsocketRuntime,
+    route: &'a CcpRoute,
+    checkpoint: &'a RealtimeWindowCheckpoint,
+    route_owner: &'a dyn RealtimeRouteOwner,
+    auth: &'a AuthContext,
+    device_id: &'a str,
+}
+
 #[allow(clippy::too_many_arguments)]
 async fn handle_route_epoch_change(
     socket: &mut WebSocket,
@@ -803,27 +815,29 @@ async fn handle_route_epoch_change(
 
 async fn complete_ccp_handshake(
     socket: &mut WebSocket,
-    ccp_runtime: &CcpWebsocketRuntime,
-    route: &CcpRoute,
     link_session: &mut LinkSession,
-    checkpoint: &RealtimeWindowCheckpoint,
     route_epoch_receiver: &mut watch::Receiver<u64>,
-    route_owner: &dyn RealtimeRouteOwner,
-    auth: &AuthContext,
-    device_id: &str,
+    context: CcpHandshakeContext<'_>,
 ) -> Option<u64> {
-    if !ensure_current_route_session_or_close(socket, route_owner, auth, device_id).await {
+    if !ensure_current_route_session_or_close(
+        socket,
+        context.route_owner,
+        context.auth,
+        context.device_id,
+    )
+    .await
+    {
         return None;
     }
 
     let hello = match receive_next_control_frame(
         socket,
-        ccp_runtime,
-        route,
+        context.ccp_runtime,
+        context.route,
         route_epoch_receiver,
-        route_owner,
-        auth,
-        device_id,
+        context.route_owner,
+        context.auth,
+        context.device_id,
     )
     .await
     {
@@ -835,8 +849,8 @@ async fn complete_ccp_handshake(
         other => {
             let _ = send_control_error_and_close(
                 socket,
-                ccp_runtime,
-                route,
+                context.ccp_runtime,
+                context.route,
                 "CCP_HELLO_REQUIRED",
                 format!("expected hello frame, got {}", other.frame_type()),
             )
@@ -850,8 +864,8 @@ async fn complete_ccp_handshake(
         Err(error) => {
             let _ = send_control_error_and_close(
                 socket,
-                ccp_runtime,
-                route,
+                context.ccp_runtime,
+                context.route,
                 error.code(),
                 error.message(),
             )
@@ -860,11 +874,19 @@ async fn complete_ccp_handshake(
         }
     };
     let resume_negotiated = hello_ack.capabilities.supports("session.resume");
-    if !ensure_current_route_session_or_close(socket, route_owner, auth, device_id).await {
+    if !ensure_current_route_session_or_close(
+        socket,
+        context.route_owner,
+        context.auth,
+        context.device_id,
+    )
+    .await
+    {
         return None;
     }
-    if ccp_runtime
-        .send_control_frame(socket, route, &ControlFrame::HelloAck(hello_ack))
+    if context
+        .ccp_runtime
+        .send_control_frame(socket, context.route, &ControlFrame::HelloAck(hello_ack))
         .await
         .is_err()
     {
@@ -873,12 +895,12 @@ async fn complete_ccp_handshake(
 
     let auth_bind = match receive_next_control_frame(
         socket,
-        ccp_runtime,
-        route,
+        context.ccp_runtime,
+        context.route,
         route_epoch_receiver,
-        route_owner,
-        auth,
-        device_id,
+        context.route_owner,
+        context.auth,
+        context.device_id,
     )
     .await
     {
@@ -890,8 +912,8 @@ async fn complete_ccp_handshake(
         other => {
             let _ = send_control_error_and_close(
                 socket,
-                ccp_runtime,
-                route,
+                context.ccp_runtime,
+                context.route,
                 "CCP_AUTH_BIND_REQUIRED",
                 format!("expected auth_bind frame, got {}", other.frame_type()),
             )
@@ -900,7 +922,14 @@ async fn complete_ccp_handshake(
         }
     };
 
-    if !ensure_current_route_session_or_close(socket, route_owner, auth, device_id).await {
+    if !ensure_current_route_session_or_close(
+        socket,
+        context.route_owner,
+        context.auth,
+        context.device_id,
+    )
+    .await
+    {
         return None;
     }
     if !link_session.matches_auth_bind(
@@ -911,8 +940,8 @@ async fn complete_ccp_handshake(
     ) {
         let _ = send_control_error(
             socket,
-            ccp_runtime,
-            route,
+            context.ccp_runtime,
+            context.route,
             "CCP_AUTH_FAILED",
             "auth_bind does not match authenticated context",
         )
@@ -933,8 +962,9 @@ async fn complete_ccp_handshake(
         device_id: Some(link_session.device_id.clone()),
         session_id: link_session.session_id.clone(),
     });
-    if ccp_runtime
-        .send_control_frame(socket, route, &auth_ok)
+    if context
+        .ccp_runtime
+        .send_control_frame(socket, context.route, &auth_ok)
         .await
         .is_err()
     {
@@ -943,17 +973,17 @@ async fn complete_ccp_handshake(
     link_session.mark_authenticated();
 
     if !resume_negotiated {
-        return Some(checkpoint.acked_through_seq);
+        return Some(context.checkpoint.acked_through_seq);
     }
 
     let session_resume = match receive_next_control_frame(
         socket,
-        ccp_runtime,
-        route,
+        context.ccp_runtime,
+        context.route,
         route_epoch_receiver,
-        route_owner,
-        auth,
-        device_id,
+        context.route_owner,
+        context.auth,
+        context.device_id,
     )
     .await
     {
@@ -965,8 +995,8 @@ async fn complete_ccp_handshake(
         other => {
             let _ = send_control_error_and_close(
                 socket,
-                ccp_runtime,
-                route,
+                context.ccp_runtime,
+                context.route,
                 "CCP_SESSION_RESUME_REQUIRED",
                 format!("expected session_resume frame, got {}", other.frame_type()),
             )
@@ -977,15 +1007,15 @@ async fn complete_ccp_handshake(
 
     let directive = match link_session.negotiate_session_resume(
         &session_resume,
-        checkpoint.latest_realtime_seq,
-        checkpoint.acked_through_seq,
+        context.checkpoint.latest_realtime_seq,
+        context.checkpoint.acked_through_seq,
     ) {
         Ok(directive) => directive,
         Err(error) => {
             let _ = send_control_error_and_close(
                 socket,
-                ccp_runtime,
-                route,
+                context.ccp_runtime,
+                context.route,
                 error.code(),
                 error.message(),
             )
@@ -995,13 +1025,21 @@ async fn complete_ccp_handshake(
     };
     let catchup_after_seq = directive
         .catchup_after_seq
-        .max(checkpoint.trimmed_through_seq);
+        .max(context.checkpoint.trimmed_through_seq);
     let session_resumed = ControlFrame::SessionResumed(directive.frame);
-    if !ensure_current_route_session_or_close(socket, route_owner, auth, device_id).await {
+    if !ensure_current_route_session_or_close(
+        socket,
+        context.route_owner,
+        context.auth,
+        context.device_id,
+    )
+    .await
+    {
         return None;
     }
-    if ccp_runtime
-        .send_control_frame(socket, route, &session_resumed)
+    if context
+        .ccp_runtime
+        .send_control_frame(socket, context.route, &session_resumed)
         .await
         .is_err()
     {

@@ -1,6 +1,6 @@
 use craw_chat_contract_control::{
-    RealtimeCheckpointRecord, RealtimeCheckpointStore, RealtimeSubscriptionRecord,
-    RealtimeSubscriptionStore,
+    RealtimeCheckpointRecord, RealtimeCheckpointStore, RealtimeMatchingSubscriptionQuery,
+    RealtimeSubscriptionRecord, RealtimeSubscriptionStore,
 };
 use craw_chat_contract_core::ContractError;
 use im_platform_contracts::{
@@ -43,7 +43,8 @@ pub use postgres_sql::{
     realtime_postgres_bind_subscription_upsert, realtime_postgres_bind_trim_device_events,
 };
 use storage::{
-    RuntimeMemoryCheckpointStore, RuntimeMemoryEventWindowStore, RuntimeMemorySubscriptionStore,
+    RealtimeCheckpointRecordParts, RuntimeMemoryCheckpointStore, RuntimeMemoryEventWindowStore,
+    RuntimeMemorySubscriptionStore,
 };
 
 const REALTIME_MAX_SCOPE_TYPE_BYTES: usize = 64;
@@ -746,39 +747,41 @@ impl RealtimeDeliveryRuntime {
                 normalized_restored
         {
             self.persist_checkpoint_records(vec![checkpoint_record_from_sequences(
-                tenant_id,
-                principal_id,
-                principal_kind,
-                device_id,
-                latest_realtime_seq,
-                acked_through_seq,
-                trimmed_through_seq,
-                restored_capacity_trim_metadata
-                    .as_ref()
-                    .map(|item| item.0)
-                    .unwrap_or_else(|| {
-                        restored_window_metadata
-                            .as_ref()
-                            .map(|item| item.0)
-                            .unwrap_or(0)
-                    }),
-                restored_capacity_trim_metadata
-                    .as_ref()
-                    .map(|item| item.1)
-                    .unwrap_or_else(|| {
-                        restored_window_metadata
-                            .as_ref()
-                            .map(|item| item.1)
-                            .unwrap_or(0)
-                    }),
-                restored_capacity_trim_metadata
-                    .as_ref()
-                    .and_then(|item| item.2.clone())
-                    .or_else(|| {
-                        restored_window_metadata
-                            .as_ref()
-                            .and_then(|item| item.2.clone())
-                    }),
+                RealtimeCheckpointRecordParts {
+                    tenant_id,
+                    principal_id,
+                    principal_kind,
+                    device_id,
+                    latest_realtime_seq,
+                    acked_through_seq,
+                    trimmed_through_seq,
+                    capacity_trimmed_event_count: restored_capacity_trim_metadata
+                        .as_ref()
+                        .map(|item| item.0)
+                        .unwrap_or_else(|| {
+                            restored_window_metadata
+                                .as_ref()
+                                .map(|item| item.0)
+                                .unwrap_or(0)
+                        }),
+                    capacity_trimmed_through_seq: restored_capacity_trim_metadata
+                        .as_ref()
+                        .map(|item| item.1)
+                        .unwrap_or_else(|| {
+                            restored_window_metadata
+                                .as_ref()
+                                .map(|item| item.1)
+                                .unwrap_or(0)
+                        }),
+                    last_capacity_trimmed_at: restored_capacity_trim_metadata
+                        .as_ref()
+                        .and_then(|item| item.2.clone())
+                        .or_else(|| {
+                            restored_window_metadata
+                                .as_ref()
+                                .and_then(|item| item.2.clone())
+                        }),
+                },
             )])?;
         }
 
@@ -1450,16 +1453,18 @@ impl RealtimeDeliveryRuntime {
             )
             .map_err(RealtimeRuntimeError::event_window_store)?;
         if let Err(error) = self.persist_checkpoint_records(vec![checkpoint_record_from_sequences(
-            tenant_id,
-            principal_id,
-            principal_kind,
-            device_id,
-            latest_seq,
-            acked_through_seq,
-            trimmed_through_seq,
-            capacity_trimmed_event_count,
-            capacity_trimmed_through_seq,
-            last_capacity_trimmed_at,
+            RealtimeCheckpointRecordParts {
+                tenant_id,
+                principal_id,
+                principal_kind,
+                device_id,
+                latest_realtime_seq: latest_seq,
+                acked_through_seq,
+                trimmed_through_seq,
+                capacity_trimmed_event_count,
+                capacity_trimmed_through_seq,
+                last_capacity_trimmed_at,
+            },
         )]) {
             return self.fail_with_event_window_rollback(
                 vec![rollback_event_window],
@@ -1673,18 +1678,18 @@ impl RealtimeDeliveryRuntime {
                     .map_err(RealtimeRuntimeError::subscription_store)?;
             }
         }
-        let checkpoint = checkpoint_record_from_sequences(
-            snapshot.tenant_id.as_str(),
-            snapshot.principal_id.as_str(),
-            snapshot.principal_kind.as_str(),
-            snapshot.device_id.as_str(),
+        let checkpoint = checkpoint_record_from_sequences(RealtimeCheckpointRecordParts {
+            tenant_id: snapshot.tenant_id.as_str(),
+            principal_id: snapshot.principal_id.as_str(),
+            principal_kind: snapshot.principal_kind.as_str(),
+            device_id: snapshot.device_id.as_str(),
             latest_realtime_seq,
             acked_through_seq,
             trimmed_through_seq,
             capacity_trimmed_event_count,
             capacity_trimmed_through_seq,
-            last_capacity_trimmed_at.clone(),
-        );
+            last_capacity_trimmed_at: last_capacity_trimmed_at.clone(),
+        });
         let previous_event_window = self
             .event_window_store
             .load_window(
@@ -1725,15 +1730,17 @@ impl RealtimeDeliveryRuntime {
         if let Err(error) = self
             .event_window_store
             .save_window(realtime_event_window_record_from_events(
-                snapshot.tenant_id.as_str(),
-                snapshot.principal_id.as_str(),
-                snapshot.principal_kind.as_str(),
-                snapshot.device_id.as_str(),
-                normalized_events_for_store,
-                trimmed_through_seq,
-                capacity_trimmed_event_count,
-                capacity_trimmed_through_seq,
-                last_capacity_trimmed_at.clone(),
+                RealtimeEventWindowRecordParts {
+                    tenant_id: snapshot.tenant_id.as_str(),
+                    principal_id: snapshot.principal_id.as_str(),
+                    principal_kind: snapshot.principal_kind.as_str(),
+                    device_id: snapshot.device_id.as_str(),
+                    events: normalized_events_for_store,
+                    trimmed_through_seq,
+                    capacity_trimmed_event_count,
+                    capacity_trimmed_through_seq,
+                    last_capacity_trimmed_at: last_capacity_trimmed_at.clone(),
+                },
             ))
             .map_err(RealtimeRuntimeError::event_window_store)
         {
@@ -1942,15 +1949,15 @@ impl RealtimeDeliveryRuntime {
         if !unmatched_registered_devices.is_empty() {
             let mut durable_matched_devices = self
                 .subscription_store
-                .load_matching_subscriptions(
+                .load_matching_subscriptions(RealtimeMatchingSubscriptionQuery {
                     tenant_id,
                     principal_kind,
                     principal_id,
                     scope_type,
                     scope_id,
                     event_type,
-                    &unmatched_registered_devices,
-                )
+                    candidate_device_ids: &unmatched_registered_devices,
+                })
                 .map_err(RealtimeRuntimeError::subscription_store)?
                 .into_iter()
                 .map(|record| record.device_id)
@@ -2056,29 +2063,31 @@ impl RealtimeDeliveryRuntime {
                         &mut capacity_trimmed_through_seq,
                         &mut last_capacity_trimmed_at,
                     );
-                    let checkpoint = checkpoint_record_from_sequences(
-                        tenant_id,
-                        principal_id,
-                        principal_kind,
-                        device_id.as_str(),
-                        latest_realtime_seq,
-                        acked_through_seq,
-                        trimmed_through_seq,
-                        capacity_trimmed_event_count,
-                        capacity_trimmed_through_seq,
-                        last_capacity_trimmed_at.clone(),
-                    );
-                    let event_window = realtime_event_window_record_from_events(
-                        tenant_id,
-                        principal_id,
-                        principal_kind,
-                        device_id.as_str(),
-                        next_window.values().cloned().collect(),
-                        trimmed_through_seq,
-                        capacity_trimmed_event_count,
-                        capacity_trimmed_through_seq,
-                        last_capacity_trimmed_at.clone(),
-                    );
+                    let checkpoint =
+                        checkpoint_record_from_sequences(RealtimeCheckpointRecordParts {
+                            tenant_id,
+                            principal_id,
+                            principal_kind,
+                            device_id: device_id.as_str(),
+                            latest_realtime_seq,
+                            acked_through_seq,
+                            trimmed_through_seq,
+                            capacity_trimmed_event_count,
+                            capacity_trimmed_through_seq,
+                            last_capacity_trimmed_at: last_capacity_trimmed_at.clone(),
+                        });
+                    let event_window =
+                        realtime_event_window_record_from_events(RealtimeEventWindowRecordParts {
+                            tenant_id,
+                            principal_id,
+                            principal_kind,
+                            device_id: device_id.as_str(),
+                            events: next_window.values().cloned().collect(),
+                            trimmed_through_seq,
+                            capacity_trimmed_event_count,
+                            capacity_trimmed_through_seq,
+                            last_capacity_trimmed_at: last_capacity_trimmed_at.clone(),
+                        });
                     RealtimePublishDeviceMutation {
                         scope_key,
                         next_seq: latest_realtime_seq,
@@ -2465,27 +2474,31 @@ fn trim_window_to_capacity(
     }
 }
 
-fn realtime_event_window_record_from_events(
-    tenant_id: &str,
-    principal_id: &str,
-    principal_kind: &str,
-    device_id: &str,
+struct RealtimeEventWindowRecordParts<'a> {
+    tenant_id: &'a str,
+    principal_id: &'a str,
+    principal_kind: &'a str,
+    device_id: &'a str,
     events: Vec<RealtimeEvent>,
     trimmed_through_seq: u64,
     capacity_trimmed_event_count: u64,
     capacity_trimmed_through_seq: u64,
     last_capacity_trimmed_at: Option<String>,
+}
+
+fn realtime_event_window_record_from_events(
+    parts: RealtimeEventWindowRecordParts<'_>,
 ) -> RealtimeEventWindowRecord {
     RealtimeEventWindowRecord {
-        tenant_id: tenant_id.into(),
-        principal_kind: principal_kind.into(),
-        principal_id: principal_id.into(),
-        device_id: device_id.into(),
-        events,
-        trimmed_through_seq,
-        capacity_trimmed_event_count,
-        capacity_trimmed_through_seq,
-        last_capacity_trimmed_at,
+        tenant_id: parts.tenant_id.into(),
+        principal_kind: parts.principal_kind.into(),
+        principal_id: parts.principal_id.into(),
+        device_id: parts.device_id.into(),
+        events: parts.events,
+        trimmed_through_seq: parts.trimmed_through_seq,
+        capacity_trimmed_event_count: parts.capacity_trimmed_event_count,
+        capacity_trimmed_through_seq: parts.capacity_trimmed_through_seq,
+        last_capacity_trimmed_at: parts.last_capacity_trimmed_at,
         updated_at: realtime_timestamp(),
     }
     .normalized()
@@ -2501,17 +2514,17 @@ fn event_window_record_or_empty(
     record
         .map(RealtimeEventWindowRecord::normalized)
         .unwrap_or_else(|| {
-            realtime_event_window_record_from_events(
+            realtime_event_window_record_from_events(RealtimeEventWindowRecordParts {
                 tenant_id,
                 principal_id,
                 principal_kind,
                 device_id,
-                Vec::new(),
-                0,
-                0,
-                0,
-                None,
-            )
+                events: Vec::new(),
+                trimmed_through_seq: 0,
+                capacity_trimmed_event_count: 0,
+                capacity_trimmed_through_seq: 0,
+                last_capacity_trimmed_at: None,
+            })
         })
 }
 

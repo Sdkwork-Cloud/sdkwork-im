@@ -4923,13 +4923,13 @@ fn openapi_object_schema(
 }
 
 fn openapi_describe(mut schema: JsonValue, description: &str) -> JsonValue {
-    if !description.is_empty() {
-        if let JsonValue::Object(object) = &mut schema {
-            object.insert(
-                "description".to_owned(),
-                JsonValue::String(description.to_owned()),
-            );
-        }
+    if !description.is_empty()
+        && let JsonValue::Object(object) = &mut schema
+    {
+        object.insert(
+            "description".to_owned(),
+            JsonValue::String(description.to_owned()),
+        );
     }
     schema
 }
@@ -12397,10 +12397,10 @@ fn active_direct_chat_scoped_user_block(
     )
     .ok()?;
     let chat_key = SocialDirectChatBlockIndexKey::new(tenant_id, direct_chat_id);
-    if let Some(block_id) = state.active_direct_chat_block_chat_index.get(&chat_key) {
-        if let Some(user_block) = active_user_block_by_id(state, block_id) {
-            return Some(user_block);
-        }
+    if let Some(block_id) = state.active_direct_chat_block_chat_index.get(&chat_key)
+        && let Some(user_block) = active_user_block_by_id(state, block_id)
+    {
+        return Some(user_block);
     }
 
     let pair_key = SocialPairIndexKey::new(

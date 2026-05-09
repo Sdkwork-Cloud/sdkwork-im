@@ -294,7 +294,7 @@ async fn resolve_site_request_asset(
     }
 
     let candidate = site_dir.join(&relative_path);
-    let top_level_index = relative_path == PathBuf::from("index.html");
+    let top_level_index = relative_path == StdPath::new("index.html");
     match fs::metadata(&candidate).await {
         Ok(metadata) if metadata.is_file() => {
             return Ok(if top_level_index {

@@ -246,12 +246,11 @@ fn load_commit_journal_offset_unlocked(
         let index = fs::read(index_path.as_path())
             .ok()
             .and_then(|payload| serde_json::from_slice::<CommitJournalIndex>(&payload).ok());
-        if let Some(index) = index {
-            if index.file_size_bytes == file_size_bytes
-                && (file_size_bytes > 0 || index.last_offset == 0)
-            {
-                return Ok(index.last_offset);
-            }
+        if let Some(index) = index
+            && index.file_size_bytes == file_size_bytes
+            && (file_size_bytes > 0 || index.last_offset == 0)
+        {
+            return Ok(index.last_offset);
         }
     }
 

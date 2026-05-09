@@ -6,7 +6,7 @@ use im_platform_contracts::{
     ContractError, RealtimeCheckpointRecord, RealtimeCheckpointStore,
     RealtimeDisconnectFenceRecord, RealtimeDisconnectFenceStore,
     RealtimeEventWindowDiagnosticsSnapshot, RealtimeEventWindowRecord, RealtimeEventWindowStore,
-    RealtimeSubscriptionRecord, RealtimeSubscriptionStore,
+    RealtimeMatchingSubscriptionQuery, RealtimeSubscriptionRecord, RealtimeSubscriptionStore,
 };
 
 use crate::shared::{read_json_records_or_default, scope_key, update_json_records};
@@ -400,25 +400,34 @@ impl RealtimeSubscriptionStore for FileRealtimeSubscriptionStore {
 
     fn load_matching_subscriptions(
         &self,
-        tenant_id: &str,
-        principal_kind: &str,
-        principal_id: &str,
-        scope_type: &str,
-        scope_id: &str,
-        event_type: &str,
-        candidate_device_ids: &[String],
+        query: RealtimeMatchingSubscriptionQuery<'_>,
     ) -> Result<Vec<RealtimeSubscriptionRecord>, ContractError> {
         let _guard = self
             .io_lock
             .lock()
             .expect("subscription file store lock should lock");
         let records = self.read_records()?;
-        Ok(candidate_device_ids
+        Ok(query
+            .candidate_device_ids
             .iter()
             .filter_map(|device_id| {
                 records
-                    .get(scope_key(tenant_id, principal_kind, principal_id, device_id).as_str())
-                    .filter(|record| record.matches_scope_event(scope_type, scope_id, event_type))
+                    .get(
+                        scope_key(
+                            query.tenant_id,
+                            query.principal_kind,
+                            query.principal_id,
+                            device_id,
+                        )
+                        .as_str(),
+                    )
+                    .filter(|record| {
+                        record.matches_scope_event(
+                            query.scope_type,
+                            query.scope_id,
+                            query.event_type,
+                        )
+                    })
                     .cloned()
             })
             .collect())

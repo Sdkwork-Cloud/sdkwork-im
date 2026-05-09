@@ -1,6 +1,6 @@
 use craw_chat_contract_control::{
-    RealtimeCheckpointRecord, RealtimeCheckpointStore, RealtimeSubscriptionRecord,
-    RealtimeSubscriptionStore,
+    RealtimeCheckpointRecord, RealtimeCheckpointStore, RealtimeMatchingSubscriptionQuery,
+    RealtimeSubscriptionRecord, RealtimeSubscriptionStore,
 };
 use craw_chat_contract_core::ContractError;
 use im_platform_contracts::{
@@ -83,24 +83,30 @@ impl RealtimeSubscriptionStore for RuntimeMemorySubscriptionStore {
 
     fn load_matching_subscriptions(
         &self,
-        tenant_id: &str,
-        principal_kind: &str,
-        principal_id: &str,
-        scope_type: &str,
-        scope_id: &str,
-        event_type: &str,
-        candidate_device_ids: &[String],
+        query: RealtimeMatchingSubscriptionQuery<'_>,
     ) -> Result<Vec<RealtimeSubscriptionRecord>, ContractError> {
         let subscriptions = lock_realtime_mutex(&self.subscriptions, "runtime subscription store");
-        Ok(candidate_device_ids
+        Ok(query
+            .candidate_device_ids
             .iter()
             .filter_map(|device_id| {
                 subscriptions
                     .get(
-                        device_scope_key(tenant_id, principal_id, principal_kind, device_id)
-                            .as_str(),
+                        device_scope_key(
+                            query.tenant_id,
+                            query.principal_id,
+                            query.principal_kind,
+                            device_id,
+                        )
+                        .as_str(),
                     )
-                    .filter(|record| record.matches_scope_event(scope_type, scope_id, event_type))
+                    .filter(|record| {
+                        record.matches_scope_event(
+                            query.scope_type,
+                            query.scope_id,
+                            query.event_type,
+                        )
+                    })
                     .cloned()
             })
             .collect())
@@ -370,7 +376,7 @@ impl RealtimeDeliveryRuntime {
         )
         .get(scope_key.as_str())
         .cloned();
-        checkpoint_record_from_sequences(
+        checkpoint_record_from_sequences(RealtimeCheckpointRecordParts {
             tenant_id,
             principal_id,
             principal_kind,
@@ -381,7 +387,7 @@ impl RealtimeDeliveryRuntime {
             capacity_trimmed_event_count,
             capacity_trimmed_through_seq,
             last_capacity_trimmed_at,
-        )
+        })
     }
 
     fn subscription_record(
@@ -405,31 +411,38 @@ impl RealtimeDeliveryRuntime {
     }
 }
 
+pub(super) struct RealtimeCheckpointRecordParts<'a> {
+    pub tenant_id: &'a str,
+    pub principal_id: &'a str,
+    pub principal_kind: &'a str,
+    pub device_id: &'a str,
+    pub latest_realtime_seq: u64,
+    pub acked_through_seq: u64,
+    pub trimmed_through_seq: u64,
+    pub capacity_trimmed_event_count: u64,
+    pub capacity_trimmed_through_seq: u64,
+    pub last_capacity_trimmed_at: Option<String>,
+}
+
 pub(super) fn checkpoint_record_from_sequences(
-    tenant_id: &str,
-    principal_id: &str,
-    principal_kind: &str,
-    device_id: &str,
-    latest_realtime_seq: u64,
-    acked_through_seq: u64,
-    trimmed_through_seq: u64,
-    capacity_trimmed_event_count: u64,
-    capacity_trimmed_through_seq: u64,
-    last_capacity_trimmed_at: Option<String>,
+    parts: RealtimeCheckpointRecordParts<'_>,
 ) -> RealtimeCheckpointRecord {
-    let (latest_realtime_seq, acked_through_seq, trimmed_through_seq) =
-        normalize_checkpoint_fields(latest_realtime_seq, acked_through_seq, trimmed_through_seq);
+    let (latest_realtime_seq, acked_through_seq, trimmed_through_seq) = normalize_checkpoint_fields(
+        parts.latest_realtime_seq,
+        parts.acked_through_seq,
+        parts.trimmed_through_seq,
+    );
     RealtimeCheckpointRecord {
-        tenant_id: tenant_id.into(),
-        principal_kind: principal_kind.into(),
-        principal_id: principal_id.into(),
-        device_id: device_id.into(),
+        tenant_id: parts.tenant_id.into(),
+        principal_kind: parts.principal_kind.into(),
+        principal_id: parts.principal_id.into(),
+        device_id: parts.device_id.into(),
         latest_realtime_seq,
         acked_through_seq,
         trimmed_through_seq,
-        capacity_trimmed_event_count,
-        capacity_trimmed_through_seq,
-        last_capacity_trimmed_at,
+        capacity_trimmed_event_count: parts.capacity_trimmed_event_count,
+        capacity_trimmed_through_seq: parts.capacity_trimmed_through_seq,
+        last_capacity_trimmed_at: parts.last_capacity_trimmed_at,
         updated_at: realtime_checkpoint_timestamp(),
     }
     .normalized()

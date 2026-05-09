@@ -8,7 +8,7 @@ use session_gateway::RealtimeClusterBridge;
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::time::{sleep, timeout};
@@ -52,16 +52,13 @@ fn set_scoped_env_var(key: &'static str, value: &str) -> ScopedEnvVar {
     ScopedEnvVar { key }
 }
 
-fn social_accept_delay_env_guard() -> &'static Mutex<()> {
-    static SOCIAL_ACCEPT_DELAY_ENV_GUARD: OnceLock<Mutex<()>> = OnceLock::new();
-    SOCIAL_ACCEPT_DELAY_ENV_GUARD.get_or_init(|| Mutex::new(()))
+fn social_accept_delay_env_guard() -> &'static tokio::sync::Mutex<()> {
+    static SOCIAL_ACCEPT_DELAY_ENV_GUARD: OnceLock<tokio::sync::Mutex<()>> = OnceLock::new();
+    SOCIAL_ACCEPT_DELAY_ENV_GUARD.get_or_init(|| tokio::sync::Mutex::new(()))
 }
 
-fn lock_social_accept_delay_env_guard() -> std::sync::MutexGuard<'static, ()> {
-    match social_accept_delay_env_guard().lock() {
-        Ok(guard) => guard,
-        Err(poisoned) => poisoned.into_inner(),
-    }
+async fn lock_social_accept_delay_env_guard() -> tokio::sync::MutexGuard<'static, ()> {
+    social_accept_delay_env_guard().lock().await
 }
 
 fn friendship_activated_event(
@@ -11785,7 +11782,7 @@ async fn test_local_minimal_profile_accept_converges_to_existing_external_friend
 #[tokio::test]
 async fn test_local_minimal_profile_accept_converges_when_request_was_externally_accepted_after_app_snapshot()
  {
-    let _env_lock = lock_social_accept_delay_env_guard();
+    let _env_lock = lock_social_accept_delay_env_guard().await;
     let _accept_snapshot_delay =
         set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_ACCEPT_PRE_COMMIT_DELAY_MS", "200");
 
@@ -11949,7 +11946,7 @@ async fn test_local_minimal_profile_accept_converges_when_request_was_externally
 #[tokio::test]
 async fn test_local_minimal_profile_decline_converges_when_request_was_externally_declined_after_app_snapshot()
  {
-    let _env_lock = lock_social_accept_delay_env_guard();
+    let _env_lock = lock_social_accept_delay_env_guard().await;
     let _decline_snapshot_delay =
         set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_DECLINE_PRE_COMMIT_DELAY_MS", "200");
 
@@ -12091,7 +12088,7 @@ async fn test_local_minimal_profile_decline_converges_when_request_was_externall
 #[tokio::test]
 async fn test_local_minimal_profile_cancel_converges_when_request_was_externally_canceled_after_app_snapshot()
  {
-    let _env_lock = lock_social_accept_delay_env_guard();
+    let _env_lock = lock_social_accept_delay_env_guard().await;
     let _cancel_snapshot_delay =
         set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_CANCEL_PRE_COMMIT_DELAY_MS", "200");
 
@@ -12233,7 +12230,7 @@ async fn test_local_minimal_profile_cancel_converges_when_request_was_externally
 #[tokio::test]
 async fn test_local_minimal_profile_cancel_after_accept_commit_is_rejected_without_tearing_social_graph()
  {
-    let _env_lock = lock_social_accept_delay_env_guard();
+    let _env_lock = lock_social_accept_delay_env_guard().await;
     let _accept_delay =
         set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "50");
 
@@ -12499,7 +12496,7 @@ async fn test_local_minimal_profile_cancel_after_accept_commit_is_rejected_witho
 
 #[tokio::test]
 async fn test_local_minimal_profile_repairs_pending_friend_request_acceptance_after_restart() {
-    let _env_lock = lock_social_accept_delay_env_guard();
+    let _env_lock = lock_social_accept_delay_env_guard().await;
     let _accept_delay =
         set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "500");
 
@@ -12693,7 +12690,7 @@ async fn test_local_minimal_profile_repairs_pending_friend_request_acceptance_af
 #[tokio::test]
 async fn test_local_minimal_profile_contacts_read_repairs_pending_friend_request_acceptance_immediately_after_restart()
  {
-    let _env_lock = lock_social_accept_delay_env_guard();
+    let _env_lock = lock_social_accept_delay_env_guard().await;
     let _accept_delay =
         set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "500");
 
@@ -12840,7 +12837,7 @@ async fn test_local_minimal_profile_contacts_read_repairs_pending_friend_request
 #[tokio::test]
 async fn test_local_minimal_profile_second_instance_contacts_read_repairs_pending_friend_request_acceptance()
  {
-    let _env_lock = lock_social_accept_delay_env_guard();
+    let _env_lock = lock_social_accept_delay_env_guard().await;
     let _accept_delay =
         set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "500");
 
@@ -13033,7 +13030,7 @@ async fn test_local_minimal_profile_second_instance_contacts_read_repairs_pendin
 #[tokio::test]
 async fn test_local_minimal_profile_same_instance_concurrent_contacts_wait_for_pending_accept_repair()
  {
-    let _env_lock = lock_social_accept_delay_env_guard();
+    let _env_lock = lock_social_accept_delay_env_guard().await;
     let _accept_delay =
         set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "500");
 
@@ -13289,7 +13286,7 @@ async fn test_local_minimal_profile_same_instance_concurrent_contacts_wait_for_p
 
 #[tokio::test]
 async fn test_local_minimal_profile_healthz_stays_responsive_while_repair_store_io_is_delayed() {
-    let _env_lock = lock_social_accept_delay_env_guard();
+    let _env_lock = lock_social_accept_delay_env_guard().await;
     let _accept_delay =
         set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "500");
     let _repair_store_delay = set_scoped_env_var(
@@ -13486,7 +13483,7 @@ async fn test_local_minimal_profile_healthz_stays_responsive_while_repair_store_
 #[tokio::test]
 async fn test_local_minimal_profile_cross_instance_pending_accept_repairs_preserve_multiple_entries()
  {
-    let _env_lock = lock_social_accept_delay_env_guard();
+    let _env_lock = lock_social_accept_delay_env_guard().await;
     let _accept_delay =
         set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "500");
 
@@ -14017,7 +14014,7 @@ async fn test_local_minimal_profile_discards_stale_pending_friend_request_accept
 
 #[tokio::test]
 async fn test_local_minimal_profile_discards_blocked_pending_friend_request_accept_repair() {
-    let _env_lock = lock_social_accept_delay_env_guard();
+    let _env_lock = lock_social_accept_delay_env_guard().await;
     let _accept_delay =
         set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "400");
 
@@ -14181,7 +14178,7 @@ async fn test_local_minimal_profile_discards_blocked_pending_friend_request_acce
 #[tokio::test]
 async fn test_local_minimal_profile_discards_canceled_pending_friend_request_accept_repair_after_stale_pending_snapshot()
  {
-    let _env_lock = lock_social_accept_delay_env_guard();
+    let _env_lock = lock_social_accept_delay_env_guard().await;
     let _repair_snapshot_delay = set_scoped_env_var(
         "CRAW_CHAT_TEST_SOCIAL_ACCEPT_REPAIR_POST_SNAPSHOT_DELAY_MS",
         "200",
@@ -14552,7 +14549,7 @@ async fn test_local_minimal_profile_discards_pre_accept_blocked_pending_friend_r
 
 #[tokio::test]
 async fn test_local_minimal_profile_concurrent_accepts_converge_idempotently_across_instances() {
-    let _env_lock = lock_social_accept_delay_env_guard();
+    let _env_lock = lock_social_accept_delay_env_guard().await;
     let _repair_store_delay = set_scoped_env_var(
         "CRAW_CHAT_TEST_SOCIAL_ACCEPT_REPAIR_STORE_IO_DELAY_MS",
         "250",
@@ -14976,7 +14973,7 @@ async fn test_local_minimal_profile_friendship_scope_block_hides_contacts() {
 #[tokio::test]
 async fn test_local_minimal_profile_friendship_remove_converges_when_friendship_was_externally_removed_after_app_snapshot()
  {
-    let _env_lock = lock_social_accept_delay_env_guard();
+    let _env_lock = lock_social_accept_delay_env_guard().await;
     let _remove_snapshot_delay =
         set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_REMOVE_PRE_COMMIT_DELAY_MS", "200");
 
