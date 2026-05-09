@@ -4,7 +4,7 @@ use std::path::Path as FsPath;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, Request};
 use axum::middleware::{self, Next};
 use axum::response::{Html, IntoResponse, Response};
@@ -95,14 +95,9 @@ struct StaticPrincipalDirectoryCatalog {
 struct StaticPrincipalDirectoryEntry {
     tenant_id: String,
     principal_id: String,
-    #[serde(default = "default_user_principal_kind")]
     principal_kind: String,
     #[serde(default)]
     disabled: bool,
-}
-
-fn default_user_principal_kind() -> String {
-    "user".into()
 }
 
 impl StaticPrincipalDirectory {
@@ -188,7 +183,6 @@ const SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_ALLOWED_MAX_REQUESTS: u32 = 10_000;
 const SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_ALLOWED_WINDOW_SECONDS: u64 = 3_600;
 const SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_ALLOWED_BUCKETS: usize = 200_000;
 const SHARED_CHANNEL_SYNC_RATE_LIMIT_SWEEP_THRESHOLD: usize = 1024;
-
 #[derive(Clone)]
 struct SharedChannelSyncRateLimiter {
     max_requests: u32,
@@ -201,6 +195,13 @@ struct SharedChannelSyncRateLimiter {
 struct SharedChannelSyncRateLimitBucket {
     window_started_at_millis: u128,
     request_count: u32,
+}
+
+#[derive(Debug, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+struct MessageHistoryQuery {
+    after_seq: Option<u64>,
+    limit: Option<usize>,
 }
 
 impl SharedChannelSyncRateLimiter {
@@ -1125,6 +1126,11 @@ fn map_principal_directory_error(error: PrincipalDirectoryError) -> ApiError {
     }
 }
 
+fn validate_message_history_limit(limit: Option<usize>) -> Result<usize, ApiError> {
+    normalize_message_history_limit(limit)
+        .map_err(|message| ApiError::bad_request("limit_invalid", message))
+}
+
 async fn sync_shared_channel_linked_member(
     headers: HeaderMap,
     State(state): State<AppState>,
@@ -1385,13 +1391,17 @@ async fn get_read_cursor(
 
 async fn list_messages(
     Path(conversation_id): Path<String>,
+    Query(query): Query<MessageHistoryQuery>,
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<MessageHistoryResult>, ApiError> {
     let auth = resolve_active_http_auth_context(&state, &headers)?;
-    Ok(Json(state.runtime.list_messages_from_auth_context(
+    let limit = validate_message_history_limit(query.limit)?;
+    Ok(Json(state.runtime.list_messages_window_from_auth_context(
         &auth,
         conversation_id.as_str(),
+        query.after_seq,
+        limit,
     )?))
 }
 
@@ -1887,6 +1897,7 @@ mod tests {
                     .uri("/api/v1/conversations/c_ghost_post_http/messages")
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_missing")
+                    .header("x-actor-kind", "user")
                     .header("content-type", "application/json")
                     .body(Body::from(
                         r#"{
@@ -1928,6 +1939,7 @@ mod tests {
                     .uri("/api/v1/conversations/c_ghost_history_http/messages")
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_missing")
+                    .header("x-actor-kind", "user")
                     .body(Body::empty())
                     .unwrap(),
             )

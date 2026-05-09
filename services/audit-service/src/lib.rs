@@ -1,7 +1,8 @@
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::collections::{BTreeMap, HashMap};
+use std::ops::Bound::{Excluded, Unbounded};
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
-use axum::extract::State;
+use axum::extract::{Query, State};
 use axum::http::{HeaderMap, Request};
 use axum::middleware::{self, Next};
 use axum::response::{Html, IntoResponse, Response};
@@ -25,6 +26,7 @@ const AUDIT_AGGREGATE_TYPE_MAX_BYTES: usize = 128;
 const AUDIT_AGGREGATE_ID_MAX_BYTES: usize = 256;
 const AUDIT_ACTION_MAX_BYTES: usize = 128;
 const AUDIT_PAYLOAD_MAX_BYTES: usize = 128 * 1024;
+const AUDIT_RECORD_LIST_MAX_LIMIT: usize = 1000;
 const AUDIT_RECORD_DELIVERY_PROOF_VERSION: &str = "audit.record.delivery-proof.v1";
 
 #[derive(Clone)]
@@ -37,6 +39,7 @@ struct AppState {
 pub struct AuditRecord {
     pub tenant_id: String,
     pub record_id: String,
+    pub audit_seq: u64,
     pub aggregate_type: String,
     pub aggregate_id: String,
     pub action: String,
@@ -80,6 +83,13 @@ pub struct RecordAuditAnchor {
     pub payload: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListAuditRecordsQuery {
+    pub after_audit_seq: Option<u64>,
+    pub limit: Option<usize>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AuditRecordMutationOutcome {
     pub record: AuditRecord,
@@ -120,7 +130,70 @@ impl AuditRecordMutationResponse {
 
 #[derive(Default)]
 pub struct AuditRuntime {
-    records: Mutex<HashMap<String, Vec<AuditRecord>>>,
+    records: RwLock<HashMap<String, TenantAuditRecords>>,
+}
+
+#[derive(Default)]
+struct TenantAuditRecords {
+    by_record_id: HashMap<String, AuditRecord>,
+    by_audit_seq: BTreeMap<u64, String>,
+    record_order: Vec<String>,
+}
+
+impl TenantAuditRecords {
+    fn get(&self, record_id: &str) -> Option<&AuditRecord> {
+        self.by_record_id.get(record_id)
+    }
+
+    fn last(&self) -> Option<&AuditRecord> {
+        self.record_order
+            .last()
+            .and_then(|record_id| self.by_record_id.get(record_id.as_str()))
+    }
+
+    fn push(&mut self, record: AuditRecord) {
+        self.record_order.push(record.record_id.clone());
+        self.by_audit_seq
+            .insert(record.audit_seq, record.record_id.clone());
+        self.by_record_id.insert(record.record_id.clone(), record);
+    }
+
+    fn ordered_items(&self) -> Vec<AuditRecord> {
+        self.record_order
+            .iter()
+            .filter_map(|record_id| self.by_record_id.get(record_id.as_str()).cloned())
+            .collect()
+    }
+
+    fn next_audit_seq(&self) -> u64 {
+        self.by_audit_seq
+            .last_key_value()
+            .map_or(1, |(seq, _)| seq + 1)
+    }
+
+    fn window(&self, after_audit_seq: u64, limit: usize) -> AuditRecordListResponse {
+        let mut items = Vec::new();
+        let mut has_more = false;
+        for (_, record_id) in self
+            .by_audit_seq
+            .range((Excluded(after_audit_seq), Unbounded))
+        {
+            if items.len() == limit {
+                has_more = true;
+                break;
+            }
+            if let Some(record) = self.by_record_id.get(record_id.as_str()).cloned() {
+                items.push(record);
+            }
+        }
+        let next_after_audit_seq = items.last().map(|record| record.audit_seq);
+
+        AuditRecordListResponse {
+            items,
+            next_after_audit_seq,
+            has_more,
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -132,8 +205,10 @@ struct HealthResponse {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct AuditRecordListResponse {
+pub struct AuditRecordListResponse {
     items: Vec<AuditRecord>,
+    next_after_audit_seq: Option<u64>,
+    has_more: bool,
 }
 
 #[derive(Debug)]
@@ -220,13 +295,9 @@ impl AuditRuntime {
     ) -> Result<AuditRecordMutationOutcome, AuditError> {
         validate_record_audit_anchor_request(&request)?;
         let recorded_at = utc_now_rfc3339_millis();
-        let mut records = self.lock_records("record_anchor");
+        let mut records = self.write_records("record_anchor");
         let tenant_records = records.entry(auth.tenant_id.clone()).or_default();
-        if let Some(existing) = tenant_records
-            .iter()
-            .find(|record| record.record_id == request.record_id)
-            .cloned()
-        {
+        if let Some(existing) = tenant_records.get(request.record_id.as_str()).cloned() {
             if audit_record_matches_request(&existing, auth, &request) {
                 return Ok(AuditRecordMutationOutcome {
                     record: existing,
@@ -238,9 +309,11 @@ impl AuditRuntime {
         let chain_prev_hash = tenant_records
             .last()
             .map(|record| record.chain_hash.clone());
+        let next_audit_seq = tenant_records.next_audit_seq();
         let chain_hash = compute_audit_record_chain_hash(AuditRecordHashInput {
             tenant_id: auth.tenant_id.as_str(),
             record_id: request.record_id.as_str(),
+            audit_seq: next_audit_seq,
             aggregate_type: request.aggregate_type.as_str(),
             aggregate_id: request.aggregate_id.as_str(),
             action: request.action.as_str(),
@@ -254,6 +327,7 @@ impl AuditRuntime {
         let record = AuditRecord {
             tenant_id: auth.tenant_id.clone(),
             record_id: request.record_id,
+            audit_seq: next_audit_seq,
             aggregate_type: request.aggregate_type,
             aggregate_id: request.aggregate_id,
             action: request.action,
@@ -273,10 +347,45 @@ impl AuditRuntime {
     }
 
     pub fn list_records(&self, auth: &AuthContext) -> Vec<AuditRecord> {
-        self.lock_records("list_records")
+        self.read_records("list_records")
             .get(auth.tenant_id.as_str())
-            .cloned()
+            .map(TenantAuditRecords::ordered_items)
             .unwrap_or_default()
+    }
+
+    pub fn list_records_window(
+        &self,
+        auth: &AuthContext,
+        query: ListAuditRecordsQuery,
+    ) -> Result<AuditRecordListResponse, AuditError> {
+        let after_audit_seq = query.after_audit_seq.unwrap_or(0);
+        let limit = query.limit.unwrap_or(100);
+        if limit == 0 {
+            return Err(AuditError {
+                status: axum::http::StatusCode::BAD_REQUEST,
+                code: "invalid_limit",
+                message: "limit must be greater than 0".into(),
+            });
+        }
+        if limit > AUDIT_RECORD_LIST_MAX_LIMIT {
+            return Err(AuditError {
+                status: axum::http::StatusCode::BAD_REQUEST,
+                code: "invalid_limit",
+                message: format!(
+                    "limit must be less than or equal to {AUDIT_RECORD_LIST_MAX_LIMIT}"
+                ),
+            });
+        }
+
+        Ok(self
+            .read_records("list_records_window")
+            .get(auth.tenant_id.as_str())
+            .map(|tenant_records| tenant_records.window(after_audit_seq, limit))
+            .unwrap_or_else(|| AuditRecordListResponse {
+                items: Vec::new(),
+                next_after_audit_seq: None,
+                has_more: false,
+            }))
     }
 
     pub fn export_bundle(&self, auth: &AuthContext) -> AuditExportBundle {
@@ -306,15 +415,30 @@ impl AuditRuntime {
         }
     }
 
-    fn lock_records(
+    fn read_records(
         &self,
         operation: &'static str,
-    ) -> MutexGuard<'_, HashMap<String, Vec<AuditRecord>>> {
-        match self.records.lock() {
+    ) -> RwLockReadGuard<'_, HashMap<String, TenantAuditRecords>> {
+        match self.records.read() {
             Ok(guard) => guard,
             Err(poisoned) => {
                 eprintln!(
-                    "warning: recovering poisoned audit-service records lock during {operation}"
+                    "warning: recovering poisoned audit-service records read lock during {operation}"
+                );
+                poisoned.into_inner()
+            }
+        }
+    }
+
+    fn write_records(
+        &self,
+        operation: &'static str,
+    ) -> RwLockWriteGuard<'_, HashMap<String, TenantAuditRecords>> {
+        match self.records.write() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                eprintln!(
+                    "warning: recovering poisoned audit-service records write lock during {operation}"
                 );
                 poisoned.into_inner()
             }
@@ -393,6 +517,7 @@ fn verify_audit_records_chain(tenant_id: &str, items: &[AuditRecord]) -> bool {
         let expected_hash = compute_audit_record_chain_hash(AuditRecordHashInput {
             tenant_id: item.tenant_id.as_str(),
             record_id: item.record_id.as_str(),
+            audit_seq: item.audit_seq,
             aggregate_type: item.aggregate_type.as_str(),
             aggregate_id: item.aggregate_id.as_str(),
             action: item.action.as_str(),
@@ -416,6 +541,7 @@ fn verify_audit_records_chain(tenant_id: &str, items: &[AuditRecord]) -> bool {
 struct AuditRecordHashInput<'a> {
     tenant_id: &'a str,
     record_id: &'a str,
+    audit_seq: u64,
     aggregate_type: &'a str,
     aggregate_id: &'a str,
     action: &'a str,
@@ -431,6 +557,7 @@ fn compute_audit_record_chain_hash(input: AuditRecordHashInput<'_>) -> String {
     let canonical = serde_json::json!([
         input.tenant_id,
         input.record_id,
+        input.audit_seq,
         input.aggregate_type,
         input.aggregate_id,
         input.action,
@@ -588,14 +715,13 @@ async fn record_anchor(
 }
 
 async fn list_records(
+    Query(query): Query<ListAuditRecordsQuery>,
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<AuditRecordListResponse>, AuditError> {
     let auth = resolve_auth_context(&headers)?;
     ensure_audit_read_access(&auth)?;
-    Ok(Json(AuditRecordListResponse {
-        items: state.runtime.list_records(&auth),
-    }))
+    Ok(Json(state.runtime.list_records_window(&auth, query)?))
 }
 
 async fn export_bundle(

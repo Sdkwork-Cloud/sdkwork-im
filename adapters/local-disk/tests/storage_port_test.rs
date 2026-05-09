@@ -5,13 +5,15 @@ use std::thread;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use im_adapters_local_disk::{
-    FileCommitJournal, FileMetadataStore, FileStorageDomainSnapshotStore,
-    FileTimelineProjectionStore, read_commit_journal_file, validate_metadata_store_file,
-    validate_storage_domain_snapshot_store_file, validate_timeline_projection_store_file,
+    FileCommitJournal, FileMetadataStore, FileRealtimeCheckpointStore,
+    FileStorageDomainSnapshotStore, FileTimelineProjectionStore, read_commit_journal_file,
+    validate_metadata_store_file, validate_storage_domain_snapshot_store_file,
+    validate_timeline_projection_store_file,
 };
 use im_platform_contracts::{
     CommitEnvelope, CommitJournal, ContractError, MetadataSnapshotRecord, MetadataStore,
-    TimelineProjectionBatch, TimelineProjectionRecord, TimelineProjectionStore,
+    RealtimeCheckpointRecord, RealtimeCheckpointStore, TimelineProjectionBatch,
+    TimelineProjectionRecord, TimelineProjectionStore,
 };
 use im_storage_contracts::{
     StorageBindingRecord, StorageCatalog, StorageConfigRecord, StorageCredentialMode,
@@ -69,6 +71,126 @@ fn test_file_metadata_store_persists_latest_snapshot_across_reopen() {
             .snapshot("tenant:t_demo", "conversation:c_demo")
             .as_deref(),
         Some("{\"state\":\"ready\"}")
+    );
+
+    let _ = fs::remove_file(file_path);
+}
+
+#[test]
+fn test_file_metadata_store_does_not_collapse_delimiter_shaped_scope_and_key() {
+    let file_path = unique_store_file("metadata_store_delimiter_scope");
+    let store = FileMetadataStore::new(&file_path);
+
+    store
+        .put_snapshot(
+            "tenant:t_demo",
+            "conversation:c_demo",
+            "{\"state\":\"one\"}",
+        )
+        .expect("first metadata snapshot should succeed");
+    store
+        .put_snapshot(
+            "tenant:t_demo:conversation",
+            "c_demo",
+            "{\"state\":\"two\"}",
+        )
+        .expect("second metadata snapshot should succeed");
+
+    let reopened = FileMetadataStore::new(&file_path);
+    assert_eq!(
+        reopened
+            .snapshot("tenant:t_demo", "conversation:c_demo")
+            .as_deref(),
+        Some("{\"state\":\"one\"}")
+    );
+    assert_eq!(
+        reopened
+            .snapshot("tenant:t_demo:conversation", "c_demo")
+            .as_deref(),
+        Some("{\"state\":\"two\"}")
+    );
+
+    let mut scopes = reopened.scopes_for_key("c_demo");
+    scopes.sort();
+    assert_eq!(scopes, vec!["tenant:t_demo:conversation".to_string()]);
+
+    let _ = fs::remove_file(file_path);
+}
+
+#[test]
+fn test_file_metadata_store_scopes_for_key_handles_encoded_separator_characters() {
+    let file_path = unique_store_file("metadata_store_encoded_separator");
+    let store = FileMetadataStore::new(&file_path);
+
+    store
+        .put_snapshot(
+            "tenant|t_demo",
+            "conversation|c_demo",
+            "{\"state\":\"one\"}",
+        )
+        .expect("metadata snapshot should succeed");
+
+    let reopened = FileMetadataStore::new(&file_path);
+    assert_eq!(
+        reopened.scopes_for_key("conversation|c_demo"),
+        vec!["tenant|t_demo".to_string()]
+    );
+
+    let _ = fs::remove_file(file_path);
+}
+
+#[test]
+fn test_file_realtime_checkpoint_store_does_not_collapse_delimiter_shaped_device_scope() {
+    let file_path = unique_store_file("realtime_checkpoint_store_delimiter_scope");
+    let store = FileRealtimeCheckpointStore::new(&file_path);
+
+    store
+        .save_checkpoint(RealtimeCheckpointRecord {
+            tenant_id: "t_demo".into(),
+            principal_kind: "user".into(),
+            principal_id: "u:demo".into(),
+            device_id: "d_pad".into(),
+            latest_realtime_seq: 3,
+            acked_through_seq: 2,
+            trimmed_through_seq: 2,
+            capacity_trimmed_event_count: 0,
+            capacity_trimmed_through_seq: 0,
+            last_capacity_trimmed_at: None,
+            updated_at: "2026-05-06T00:00:01.000Z".into(),
+        })
+        .expect("first checkpoint save should succeed");
+    store
+        .save_checkpoint(RealtimeCheckpointRecord {
+            tenant_id: "t_demo".into(),
+            principal_kind: "user".into(),
+            principal_id: "u".into(),
+            device_id: "demo:d_pad".into(),
+            latest_realtime_seq: 9,
+            acked_through_seq: 8,
+            trimmed_through_seq: 8,
+            capacity_trimmed_event_count: 0,
+            capacity_trimmed_through_seq: 0,
+            last_capacity_trimmed_at: None,
+            updated_at: "2026-05-06T00:00:02.000Z".into(),
+        })
+        .expect("second checkpoint save should succeed");
+
+    let reopened = FileRealtimeCheckpointStore::new(&file_path);
+    assert_eq!(
+        reopened
+            .load_checkpoint("t_demo", "user", "u:demo", "d_pad")
+            .expect("first checkpoint load should succeed")
+            .expect("first checkpoint should exist")
+            .latest_realtime_seq,
+        3
+    );
+    assert_eq!(
+        reopened
+            .load_checkpoint("t_demo", "user", "u", "demo:d_pad")
+            .expect("second checkpoint load should succeed")
+            .expect("second checkpoint should exist")
+            .latest_realtime_seq,
+        9
     );
 
     let _ = fs::remove_file(file_path);
@@ -160,7 +282,8 @@ fn test_file_metadata_store_preserves_cross_instance_snapshot_updates() {
 #[test]
 fn test_file_timeline_projection_store_preserves_cross_instance_entries() {
     let file_path = unique_store_file("timeline_projection_store_concurrent");
-    let conversation_id = "t_demo:c_concurrent";
+    let tenant_id = "t_demo";
+    let timeline_scope = "c_concurrent";
     let thread_count = 4;
     let writes_per_thread = 32;
     let barrier = Arc::new(Barrier::new(thread_count));
@@ -176,7 +299,7 @@ fn test_file_timeline_projection_store_preserves_cross_instance_entries() {
                 let payload = format!("{{\"thread\":{thread_id},\"seq\":{seq}}}");
                 barrier.wait();
                 store
-                    .upsert_timeline_entry(conversation_id, message_seq, payload.as_str())
+                    .upsert_timeline_entry(tenant_id, timeline_scope, message_seq, payload.as_str())
                     .expect("cross-instance timeline upsert should succeed");
             }
         }));
@@ -187,7 +310,7 @@ fn test_file_timeline_projection_store_preserves_cross_instance_entries() {
     }
 
     let reopened = FileTimelineProjectionStore::new(&file_path);
-    let entries = reopened.entries(conversation_id);
+    let entries = reopened.entries(tenant_id, timeline_scope);
     assert_eq!(
         entries.len(),
         thread_count * writes_per_thread,
@@ -233,22 +356,47 @@ fn test_file_timeline_projection_store_upserts_by_sequence_across_reopen() {
     let store = FileTimelineProjectionStore::new(&file_path);
 
     store
-        .upsert_timeline_entry("t_demo:c_demo", 1, "{\"summary\":\"first\"}")
+        .upsert_timeline_entry("t_demo", "c_demo", 1, "{\"summary\":\"first\"}")
         .expect("first timeline upsert should succeed");
     store
-        .upsert_timeline_entry("t_demo:c_demo", 2, "{\"summary\":\"second\"}")
+        .upsert_timeline_entry("t_demo", "c_demo", 2, "{\"summary\":\"second\"}")
         .expect("second timeline upsert should succeed");
     store
-        .upsert_timeline_entry("t_demo:c_demo", 2, "{\"summary\":\"second-v2\"}")
+        .upsert_timeline_entry("t_demo", "c_demo", 2, "{\"summary\":\"second-v2\"}")
         .expect("idempotent timeline upsert should succeed");
 
     let reopened = FileTimelineProjectionStore::new(&file_path);
     assert_eq!(
-        reopened.entries("t_demo:c_demo"),
+        reopened.entries("t_demo", "c_demo"),
         vec![
             (1, "{\"summary\":\"first\"}".to_string()),
             (2, "{\"summary\":\"second-v2\"}".to_string()),
         ]
+    );
+
+    let _ = fs::remove_file(file_path);
+}
+
+#[test]
+fn test_file_timeline_projection_store_isolates_same_scope_across_tenants() {
+    let file_path = unique_store_file("timeline_projection_store_tenant_scope");
+    let store = FileTimelineProjectionStore::new(&file_path);
+
+    store
+        .upsert_timeline_entry("t_alpha", "c_shared", 1, "{\"summary\":\"alpha\"}")
+        .expect("alpha tenant timeline upsert should succeed");
+    store
+        .upsert_timeline_entry("t_beta", "c_shared", 1, "{\"summary\":\"beta\"}")
+        .expect("beta tenant timeline upsert should succeed");
+
+    let reopened = FileTimelineProjectionStore::new(&file_path);
+    assert_eq!(
+        reopened.entries("t_alpha", "c_shared"),
+        vec![(1, "{\"summary\":\"alpha\"}".to_string())]
+    );
+    assert_eq!(
+        reopened.entries("t_beta", "c_shared"),
+        vec![(1, "{\"summary\":\"beta\"}".to_string())]
     );
 
     let _ = fs::remove_file(file_path);
@@ -304,7 +452,8 @@ fn test_file_timeline_projection_store_batches_multiple_scopes_across_reopen() {
     store
         .upsert_timeline_batches(&[
             TimelineProjectionBatch {
-                conversation_id: "t_demo:c_demo".into(),
+                tenant_id: "t_demo".into(),
+                timeline_scope: "c_demo".into(),
                 records: vec![
                     TimelineProjectionRecord {
                         message_seq: 1,
@@ -317,14 +466,16 @@ fn test_file_timeline_projection_store_batches_multiple_scopes_across_reopen() {
                 ],
             },
             TimelineProjectionBatch {
-                conversation_id: "device-sync:t_demo:u_demo:d_demo".into(),
+                tenant_id: "t_demo".into(),
+                timeline_scope: "device-sync:u_demo:d_demo".into(),
                 records: vec![TimelineProjectionRecord {
                     message_seq: 9,
                     payload: "{\"syncSeq\":9}".into(),
                 }],
             },
             TimelineProjectionBatch {
-                conversation_id: "t_demo:c_demo".into(),
+                tenant_id: "t_demo".into(),
+                timeline_scope: "c_demo".into(),
                 records: vec![TimelineProjectionRecord {
                     message_seq: 2,
                     payload: "{\"summary\":\"second-v2\"}".into(),
@@ -335,14 +486,14 @@ fn test_file_timeline_projection_store_batches_multiple_scopes_across_reopen() {
 
     let reopened = FileTimelineProjectionStore::new(&file_path);
     assert_eq!(
-        reopened.entries("t_demo:c_demo"),
+        reopened.entries("t_demo", "c_demo"),
         vec![
             (1, "{\"summary\":\"first\"}".to_string()),
             (2, "{\"summary\":\"second-v2\"}".to_string()),
         ]
     );
     assert_eq!(
-        reopened.entries("device-sync:t_demo:u_demo:d_demo"),
+        reopened.entries("t_demo", "device-sync:u_demo:d_demo"),
         vec![(9, "{\"syncSeq\":9}".to_string())]
     );
 

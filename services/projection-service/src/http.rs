@@ -13,15 +13,13 @@ use craw_chat_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
 use im_auth_context::{AuthContextError, resolve_auth_context, resolve_public_bearer_auth_context};
-use im_domain_core::conversation::{
-    ConversationInboxEntry, ConversationReadCursorView, DeviceSyncFeedEntry,
-};
+use im_domain_core::conversation::{ConversationInboxEntry, ConversationReadCursorView};
 use serde::{Deserialize, Serialize};
 
 use super::{
     ContactView, ConversationMemberDirectoryEntry, ConversationSummaryView,
     MessageInteractionSummaryView, ProjectionAccessError, RegisteredDeviceView,
-    TimelineProjectionService, TimelineViewEntry,
+    TimelineProjectionService, TimelineWindowView,
 };
 
 #[derive(Debug, Deserialize)]
@@ -34,6 +32,14 @@ struct RegisterDeviceRequest {
 #[serde(rename_all = "camelCase")]
 struct SyncFeedQuery {
     after_seq: Option<u64>,
+    limit: Option<usize>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+struct TimelineQuery {
+    after_seq: Option<u64>,
+    limit: Option<usize>,
 }
 
 #[derive(Debug, Serialize)]
@@ -43,11 +49,7 @@ struct HealthResponse {
     service: &'static str,
 }
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct TimelineResponse {
-    items: Vec<TimelineViewEntry>,
-}
+type TimelineResponse = TimelineWindowView;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -73,11 +75,7 @@ struct PinnedMessagesResponse {
     items: Vec<MessageInteractionSummaryView>,
 }
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct DeviceSyncFeedResponse {
-    items: Vec<DeviceSyncFeedEntry>,
-}
+type DeviceSyncFeedResponse = super::DeviceSyncFeedWindowView;
 
 #[derive(Debug)]
 pub struct ProjectionApiError {
@@ -299,24 +297,27 @@ async fn get_device_sync_feed(
     State(service): State<Arc<TimelineProjectionService>>,
 ) -> Result<Json<DeviceSyncFeedResponse>, ProjectionApiError> {
     let auth = resolve_auth_context(&headers)?;
-    Ok(Json(DeviceSyncFeedResponse {
-        items: service.device_sync_feed_from_auth_context(
-            &auth,
-            device_id.as_str(),
-            query.after_seq,
-        )?,
-    }))
+    Ok(Json(service.device_sync_feed_window_from_auth_context(
+        &auth,
+        device_id.as_str(),
+        query.after_seq,
+        query.limit,
+    )?))
 }
 
 async fn get_timeline(
     Path(conversation_id): Path<String>,
+    Query(query): Query<TimelineQuery>,
     headers: HeaderMap,
     State(service): State<Arc<TimelineProjectionService>>,
 ) -> Result<Json<TimelineResponse>, ProjectionApiError> {
     let auth = resolve_auth_context(&headers)?;
-    Ok(Json(TimelineResponse {
-        items: service.timeline_from_auth_context(&auth, conversation_id.as_str())?,
-    }))
+    Ok(Json(service.timeline_window_from_auth_context(
+        &auth,
+        conversation_id.as_str(),
+        query.after_seq,
+        query.limit,
+    )?))
 }
 
 async fn get_inbox(

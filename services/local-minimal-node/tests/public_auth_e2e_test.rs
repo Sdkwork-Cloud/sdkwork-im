@@ -71,7 +71,8 @@ fn demo_bearer() -> String {
     bearer(json!({
         "tenant_id": "t_demo",
         "sub": "u_demo",
-        "sid": "s_demo"
+        "sid": "s_demo",
+        "actor_kind": "user"
     }))
 }
 
@@ -79,7 +80,8 @@ fn owner_bearer() -> String {
     bearer(json!({
         "tenant_id": "t_demo",
         "sub": "u_owner",
-        "sid": "s_owner"
+        "sid": "s_owner",
+        "actor_kind": "user"
     }))
 }
 
@@ -118,6 +120,7 @@ async fn test_public_app_rejects_trusted_headers_without_bearer() {
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -272,6 +275,7 @@ async fn test_public_app_rejects_cross_recipient_notification_request_without_pe
                         "category":"message.new",
                         "channel":"inapp",
                         "recipientId":"u_target",
+                        "recipientKind":"user",
                         "title":"New message",
                         "body":"hello"
                     }"#,
@@ -312,6 +316,7 @@ async fn test_public_app_accepts_self_notification_request() {
                         "category":"message.new",
                         "channel":"inapp",
                         "recipientId":"u_demo",
+                        "recipientKind":"user",
                         "title":"New message",
                         "body":"hello"
                     }"#,
@@ -478,7 +483,8 @@ async fn test_public_app_rejects_bearer_without_exp_when_exp_requirement_is_enab
     let bearer_without_exp = bearer(json!({
         "tenant_id": "t_demo",
         "sub": "u_demo",
-        "sid": "s_demo"
+        "sid": "s_demo",
+        "actor_kind": "user"
     }));
 
     let response =
@@ -508,6 +514,7 @@ async fn test_public_app_rejects_bearer_exceeding_max_ttl_when_ttl_guard_is_enab
         "tenant_id": "t_demo",
         "sub": "u_demo",
         "sid": "s_demo",
+        "actor_kind": "user",
         "iat": now,
         "exp": now + 3600
     }));
@@ -534,7 +541,8 @@ async fn test_public_app_rejects_bearer_when_required_issuer_or_audience_do_not_
     let missing_contract_claims_bearer = bearer(json!({
         "tenant_id": "t_demo",
         "sub": "u_demo",
-        "sid": "s_demo"
+        "sid": "s_demo",
+        "actor_kind": "user"
     }));
 
     let response = create_group_conversation(
@@ -557,6 +565,7 @@ async fn test_public_app_rejects_bearer_when_required_issuer_or_audience_do_not_
         "tenant_id": "t_demo",
         "sub": "u_demo",
         "sid": "s_demo",
+        "actor_kind": "user",
         "iss": "craw-chat",
         "aud": "another-audience"
     }));
@@ -587,6 +596,7 @@ async fn test_public_app_accepts_bearer_when_required_issuer_and_audience_match(
         "tenant_id": "t_demo",
         "sub": "u_demo",
         "sid": "s_demo",
+        "actor_kind": "user",
         "iss": "craw-chat",
         "aud": ["craw-chat-public", "fallback-audience"]
     }));

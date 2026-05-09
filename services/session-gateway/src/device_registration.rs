@@ -98,11 +98,12 @@ impl SessionDeviceRegistration {
         )?;
         if allow_session_takeover {
             self.realtime_cluster
-                .clear_device_disconnect_fence_for_principal_kind(
+                .clear_device_disconnect_fence_for_current_session(
                     tenant_id,
                     principal_id,
                     principal_kind,
                     device_id,
+                    session_id,
                 )?;
         }
         Ok(())
@@ -120,6 +121,29 @@ impl SessionDeviceRegistration {
         self.ensure_route_session_current(auth, device_id, auth.session_id.as_deref())?;
         self.register_device(auth, device_id, connection_kind, allow_session_takeover)?;
         Ok(())
+    }
+
+    pub(crate) fn current_active_device_route(
+        &self,
+        auth: &AuthContext,
+        device_id: &str,
+    ) -> Option<super::RealtimeDeviceRoute> {
+        self.realtime_cluster
+            .resolve_device_route_for_principal_kind(
+                auth.tenant_id.as_str(),
+                auth.actor_id.as_str(),
+                auth.actor_kind.as_str(),
+                device_id,
+            )
+    }
+
+    pub(crate) fn restore_active_device_route_if_current(
+        &self,
+        expected_current: &super::RealtimeDeviceRoute,
+        restore_to: super::RealtimeDeviceRoute,
+    ) -> Option<super::RealtimeDeviceRoute> {
+        self.realtime_cluster
+            .restore_device_route_if_current(expected_current, restore_to)
     }
 
     pub(crate) fn release_active_device_route_if_current_session(

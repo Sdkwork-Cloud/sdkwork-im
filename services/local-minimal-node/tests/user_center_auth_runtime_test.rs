@@ -200,7 +200,14 @@ async fn mock_upstream_login(
     State(state): State<UpstreamState>,
     Json(payload): Json<Value>,
 ) -> impl IntoResponse {
-    capture_upstream_request(&state.capture, "POST", "/bridge/api/app/v1/user-center/session/login", &headers, Some(payload)).await;
+    capture_upstream_request(
+        &state.capture,
+        "POST",
+        "/bridge/api/app/v1/user-center/session/login",
+        &headers,
+        Some(payload),
+    )
+    .await;
     Json(state.login_payload)
 }
 
@@ -208,7 +215,14 @@ async fn mock_upstream_profile(
     headers: HeaderMap,
     State(state): State<UpstreamState>,
 ) -> impl IntoResponse {
-    capture_upstream_request(&state.capture, "GET", "/bridge/api/app/v1/user-center/profile", &headers, None).await;
+    capture_upstream_request(
+        &state.capture,
+        "GET",
+        "/bridge/api/app/v1/user-center/profile",
+        &headers,
+        None,
+    )
+    .await;
     Json(state.profile_payload)
 }
 
@@ -291,12 +305,8 @@ async fn test_standard_user_center_session_login_alias_returns_dual_tokens_and_p
         .expect("auth token should be present")
         .to_owned();
 
-    let profile = get_json_with_bearer(
-        &app,
-        "/api/app/v1/user-center/profile",
-        auth_token.as_str(),
-    )
-    .await;
+    let profile =
+        get_json_with_bearer(&app, "/api/app/v1/user-center/profile", auth_token.as_str()).await;
     assert_eq!(profile.status(), StatusCode::OK);
     let profile_body = read_json(profile).await;
     assert_eq!(profile_body["user"]["id"], "u_guest");
@@ -408,10 +418,8 @@ async fn test_remote_user_center_mode_proxies_to_upstream_app_api_and_preserves_
     let _provider_key = ScopedEnvVar::set("SDKWORK_USER_CENTER_PROVIDER_KEY", "craw-app-api");
     let _app_id = ScopedEnvVar::set("SDKWORK_USER_CENTER_APP_ID", "craw-chat");
     let _secret_id = ScopedEnvVar::set("SDKWORK_USER_CENTER_SECRET_ID", "secret-501");
-    let _shared_secret = ScopedEnvVar::set(
-        "SDKWORK_USER_CENTER_SHARED_SECRET",
-        "shared-secret-501",
-    );
+    let _shared_secret =
+        ScopedEnvVar::set("SDKWORK_USER_CENTER_SHARED_SECRET", "shared-secret-501");
 
     let app = local_minimal_node::build_public_app_with_runtime_dir(runtime_dir.as_path());
     let login = post_json(
@@ -458,9 +466,15 @@ async fn test_remote_user_center_mode_proxies_to_upstream_app_api_and_preserves_
     let requests = capture.requests.lock().await.clone();
     assert_eq!(requests.len(), 2);
     assert_eq!(requests[0].method, "POST");
-    assert_eq!(requests[0].path, "/bridge/api/app/v1/user-center/session/login");
     assert_eq!(
-        requests[0].body.as_ref().and_then(|body| body.get("tenantId")),
+        requests[0].path,
+        "/bridge/api/app/v1/user-center/session/login"
+    );
+    assert_eq!(
+        requests[0]
+            .body
+            .as_ref()
+            .and_then(|body| body.get("tenantId")),
         Some(&json!("t_demo"))
     );
     assert_eq!(
@@ -501,10 +515,7 @@ async fn test_remote_user_center_mode_proxies_to_upstream_app_api_and_preserves_
     assert_eq!(requests[1].path, "/bridge/api/app/v1/user-center/profile");
     assert!(requests[1].body.is_none());
     assert_eq!(
-        requests[1]
-            .headers
-            .get("authorization")
-            .map(String::as_str),
+        requests[1].headers.get("authorization").map(String::as_str),
         Some(format!("Bearer {remote_auth_token}").as_str())
     );
 

@@ -6,6 +6,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde_json::json;
 
 static NEXT_RUNTIME_DIR_ID: AtomicU64 = AtomicU64::new(0);
+const MANAGED_RUNTIME_STATE_FILE_COUNT: usize = 13;
 
 fn unique_runtime_dir(prefix: &str) -> PathBuf {
     let unique = SystemTime::now()
@@ -23,10 +24,11 @@ fn write_backup_state_file(root: &Path, file_name: &str, content: &str) {
 }
 
 fn write_full_snapshot(root: &Path) {
-    write_backup_state_file(root, "commit-journal.json", "[]");
+    write_backup_state_file(root, "commit-journal.json", "");
     for file_name in [
         "realtime-disconnect-fences.json",
         "realtime-checkpoints.json",
+        "realtime-event-windows.json",
         "realtime-subscriptions.json",
         "presence-state.json",
         "device-twin-state.json",
@@ -57,7 +59,7 @@ fn test_list_runtime_backups_classifies_snapshot_quality_and_previews_report_met
     .expect("repair report should be written");
 
     let partial_backup = backups_dir.join("runtime-dir-restore-200");
-    write_backup_state_file(partial_backup.as_path(), "commit-journal.json", "[]");
+    write_backup_state_file(partial_backup.as_path(), "commit-journal.json", "");
     write_backup_state_file(partial_backup.as_path(), "presence-state.json", "{}");
     fs::write(
         partial_backup.join("restore-report.json"),
@@ -85,7 +87,10 @@ fn test_list_runtime_backups_classifies_snapshot_quality_and_previews_report_met
     assert_eq!(catalog.items[0].operation, "restore");
     assert_eq!(catalog.items[0].lifecycle_stage, "active");
     assert_eq!(catalog.items[0].snapshot_quality, "full_snapshot");
-    assert_eq!(catalog.items[0].managed_file_count, 12);
+    assert_eq!(
+        catalog.items[0].managed_file_count,
+        MANAGED_RUNTIME_STATE_FILE_COUNT
+    );
     assert_eq!(catalog.items[0].missing_file_count, 0);
     assert_eq!(catalog.items[0].report_type.as_deref(), Some("restore"));
     assert_eq!(catalog.items[0].report_status.as_deref(), Some("restored"));
@@ -94,7 +99,10 @@ fn test_list_runtime_backups_classifies_snapshot_quality_and_previews_report_met
     assert_eq!(catalog.items[1].lifecycle_stage, "active");
     assert_eq!(catalog.items[1].snapshot_quality, "partial_snapshot");
     assert_eq!(catalog.items[1].managed_file_count, 2);
-    assert_eq!(catalog.items[1].missing_file_count, 10);
+    assert_eq!(
+        catalog.items[1].missing_file_count,
+        MANAGED_RUNTIME_STATE_FILE_COUNT - 2
+    );
     assert_eq!(catalog.items[1].report_status.as_deref(), Some("partial"));
 
     assert_eq!(catalog.items[2].backup_name, "runtime-dir-repair-100");
@@ -102,7 +110,10 @@ fn test_list_runtime_backups_classifies_snapshot_quality_and_previews_report_met
     assert_eq!(catalog.items[2].lifecycle_stage, "active");
     assert_eq!(catalog.items[2].snapshot_quality, "empty_snapshot");
     assert_eq!(catalog.items[2].managed_file_count, 0);
-    assert_eq!(catalog.items[2].missing_file_count, 12);
+    assert_eq!(
+        catalog.items[2].missing_file_count,
+        MANAGED_RUNTIME_STATE_FILE_COUNT
+    );
     assert_eq!(catalog.items[2].report_type.as_deref(), Some("repair"));
     assert_eq!(catalog.items[2].report_status.as_deref(), Some("repaired"));
 
@@ -135,7 +146,7 @@ fn test_archive_runtime_backup_moves_snapshot_and_preserves_restore_path() {
     assert_eq!(archive.status, "archived");
     assert_eq!(archive.operation, "restore");
     assert_eq!(archive.snapshot_quality, "full_snapshot");
-    assert_eq!(archive.managed_file_count, 12);
+    assert_eq!(archive.managed_file_count, MANAGED_RUNTIME_STATE_FILE_COUNT);
     assert_eq!(archive.missing_file_count, 0);
     assert_eq!(archive.storage_class, "archive");
     assert_eq!(archive.retention_policy, "retain_for_days:30");

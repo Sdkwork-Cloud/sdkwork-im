@@ -30,6 +30,75 @@ fn test_session_gateway_cluster_disconnect_surface_moves_out_of_cluster_impl() {
 }
 
 #[test]
+fn test_session_gateway_realtime_cluster_rejects_implicit_user_identity_surfaces() {
+    let cluster_source = include_str!("../src/cluster.rs").replace("\r\n", "\n");
+    let disconnect_source = include_str!("../src/cluster/disconnect.rs")
+        .replace("\r\n", "\n")
+        .split("#[cfg(test)]")
+        .next()
+        .expect("disconnect source should contain production module")
+        .to_owned();
+
+    for forbidden_symbol in [
+        "pub fn bind_device_route(\n        &self,\n        tenant_id: &str,\n        principal_id: &str,\n        device_id: &str,",
+        "pub fn resolve_device_route(\n        &self,\n        tenant_id: &str,\n        principal_id: &str,\n        device_id: &str,",
+        "pub fn release_device_route(\n        &self,\n        tenant_id: &str,\n        principal_id: &str,\n        device_id: &str,",
+        "pub fn ensure_route_session_current(\n        &self,\n        tenant_id: &str,\n        principal_id: &str,\n        device_id: &str,",
+        "pub fn ensure_device_route_local(\n        &self,\n        tenant_id: &str,\n        principal_id: &str,\n        device_id: &str,",
+        "pub fn publish_device_event(\n        &self,\n        origin_node_id: &str,\n        tenant_id: &str,\n        principal_id: &str,",
+    ] {
+        assert!(
+            !cluster_source.contains(forbidden_symbol),
+            "RealtimeClusterBridge must require explicit principal_kind and reject legacy implicit-user route API: {forbidden_symbol}"
+        );
+    }
+
+    for forbidden_symbol in [
+        "pub fn mark_device_disconnected(\n        &self,\n        tenant_id: &str,\n        principal_id: &str,\n        device_id: &str,",
+        "pub fn clear_device_disconnect_fence(\n        &self,\n        tenant_id: &str,\n        principal_id: &str,\n        device_id: &str,",
+        "pub fn ensure_device_resume_not_required(\n        &self,\n        tenant_id: &str,\n        principal_id: &str,\n        device_id: &str,",
+        "pub fn disconnect_fence_matches_session(\n        &self,\n        tenant_id: &str,\n        principal_id: &str,\n        device_id: &str,",
+    ] {
+        assert!(
+            !disconnect_source.contains(forbidden_symbol),
+            "disconnect fence runtime must require explicit principal_kind and reject implicit user/default identity: {forbidden_symbol}"
+        );
+    }
+}
+
+#[test]
+fn test_session_gateway_disconnect_fence_token_uses_segment_safe_encoding() {
+    let disconnect_source = include_str!("../src/cluster/disconnect.rs")
+        .replace("\r\n", "\n")
+        .split("#[cfg(test)]")
+        .next()
+        .expect("disconnect source should contain production module")
+        .to_owned();
+
+    for forbidden_symbol in [
+        "\"fence:{tenant_id}:",
+        "session_id.unwrap_or(\"sessionless\")",
+        "session_id.unwrap_or(\"\")",
+        "format!(\n        \"fence:",
+    ] {
+        assert!(
+            !disconnect_source.contains(forbidden_symbol),
+            "disconnect fence token must use segment-safe encoding instead of delimiter/default sentinels: {forbidden_symbol}"
+        );
+    }
+
+    assert!(
+        disconnect_source.contains("encode_disconnect_fence_token_segments("),
+        "disconnect fence token should be built with the shared segment-safe token encoder"
+    );
+    assert!(
+        disconnect_source.contains("Some(session_id) => (\"some-session\", session_id)")
+            && disconnect_source.contains("None => (\"no-session\", \"\")"),
+        "disconnect fence token must encode Some/None session state as an explicit segment"
+    );
+}
+
+#[test]
 fn test_session_gateway_realtime_storage_surface_moves_out_of_realtime_impl() {
     let realtime_source = include_str!("../src/realtime.rs");
 
@@ -46,6 +115,286 @@ fn test_session_gateway_realtime_storage_surface_moves_out_of_realtime_impl() {
             "services/session-gateway/src/realtime.rs should not keep realtime storage symbol: {forbidden_symbol}"
         );
     }
+}
+
+#[test]
+fn test_realtime_control_contracts_use_explicit_principal_kind() {
+    let contract_source = std::fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../crates/craw-chat-contract-control/src/lib.rs"),
+    )
+    .expect("craw-chat-contract-control source should exist")
+    .replace("\r\n", "\n");
+
+    for required_symbol in [
+        "pub struct RealtimeCheckpointRecord {\n    pub tenant_id: String,\n    pub principal_kind: String,\n    pub principal_id: String,",
+        "pub struct RealtimeDisconnectFenceRecord {\n    pub tenant_id: String,\n    pub principal_kind: String,\n    pub principal_id: String,",
+        "pub struct RealtimeSubscriptionRecord {\n    pub tenant_id: String,\n    pub principal_kind: String,\n    pub principal_id: String,",
+        "pub struct PresenceStateRecord {\n    pub tenant_id: String,\n    pub principal_kind: String,\n    pub principal_id: String,",
+        "fn load_checkpoint(\n        &self,\n        tenant_id: &str,\n        principal_kind: &str,\n        principal_id: &str,",
+        "fn save_checkpoints(&self, records: Vec<RealtimeCheckpointRecord>)",
+        "fn load_fence(\n        &self,\n        tenant_id: &str,\n        principal_kind: &str,\n        principal_id: &str,",
+        "fn load_subscriptions(\n        &self,\n        tenant_id: &str,\n        principal_kind: &str,\n        principal_id: &str,",
+        "fn load_state(\n        &self,\n        tenant_id: &str,\n        principal_kind: &str,\n        principal_id: &str,",
+        "fn list_states_for_principal(\n        &self,\n        tenant_id: &str,\n        principal_kind: &str,\n        principal_id: &str,",
+    ] {
+        assert!(
+            contract_source.contains(required_symbol),
+            "realtime/presence control contract must expose explicit principal_kind: {required_symbol}"
+        );
+    }
+}
+
+#[test]
+fn test_realtime_subscription_store_requires_durable_fanout_query_implementation() {
+    let contract_source = std::fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../crates/craw-chat-contract-control/src/lib.rs"),
+    )
+    .expect("craw-chat-contract-control source should exist")
+    .replace("\r\n", "\n");
+    let trait_source = contract_source
+        .split("pub trait RealtimeSubscriptionStore")
+        .nth(1)
+        .expect("RealtimeSubscriptionStore trait should exist")
+        .split("pub trait PresenceStateStore")
+        .next()
+        .expect("RealtimeSubscriptionStore trait should precede PresenceStateStore");
+
+    assert!(
+        trait_source.contains("fn load_matching_subscriptions("),
+        "RealtimeSubscriptionStore must expose a durable scope/event fanout query"
+    );
+    assert!(
+        !trait_source.contains("for device_id in candidate_device_ids"),
+        "RealtimeSubscriptionStore must not provide an N-device default implementation for fanout queries"
+    );
+}
+
+#[test]
+fn test_session_gateway_realtime_runtime_requires_explicit_principal_kind() {
+    let realtime_source = include_str!("../src/realtime.rs").replace("\r\n", "\n");
+    let realtime_storage_source = include_str!("../src/realtime/storage.rs").replace("\r\n", "\n");
+
+    for forbidden_symbol in [
+        "actor_device_scope_key",
+        "principal_kind: Option<&str>",
+        "principal_kind.unwrap_or(\"user\")",
+        "fn device_scope_key(\n    tenant_id: &str,\n    principal_id: &str,\n    principal_kind: Option<&str>,",
+        "pub fn ensure_device_state(",
+        "pub fn subscribe_device(",
+        "pub fn subscribe_disconnect_signal(",
+        "pub fn disconnect_generation(",
+        "pub fn signal_device_disconnect(",
+        "pub fn window_checkpoint(",
+        "pub fn sync_subscriptions(",
+        "pub fn clear_device_subscriptions(",
+        "pub fn list_events(",
+        "pub fn ack_events(",
+        "pub fn take_device_state(",
+        "pub fn publish_scope_event(",
+        "restore_device_state_for_principal_kind(",
+    ] {
+        assert!(
+            !realtime_source.contains(forbidden_symbol),
+            "services/session-gateway/src/realtime.rs must require explicit principal_kind and avoid legacy realtime identity surface: {forbidden_symbol}"
+        );
+    }
+
+    for forbidden_symbol in [
+        "principal_kind: Option<&str>",
+        "principal_kind.unwrap_or(\"user\")",
+        "Some(principal_kind)",
+        "Some(record.principal_kind.as_str())",
+    ] {
+        assert!(
+            !realtime_storage_source.contains(forbidden_symbol),
+            "services/session-gateway/src/realtime/storage.rs must persist realtime state with required principal_kind: {forbidden_symbol}"
+        );
+    }
+
+    assert!(
+        realtime_source.contains(
+            "pub struct RealtimeDeviceStateSnapshot {\n    pub tenant_id: String,\n    pub principal_kind: String,\n    pub principal_id: String,"
+        ),
+        "RealtimeDeviceStateSnapshot must carry principal_kind so route migration cannot restore into an implicit default identity"
+    );
+    assert!(
+        realtime_source.contains("pub disconnect_generation: u64,"),
+        "RealtimeDeviceStateSnapshot must carry disconnect_generation so runtime migration preserves websocket disconnect signal epochs"
+    );
+}
+
+#[test]
+fn test_session_gateway_realtime_window_store_uses_sequence_index() {
+    let realtime_source = include_str!("../src/realtime.rs").replace("\r\n", "\n");
+
+    assert!(
+        !realtime_source.contains("windows: Arc<Mutex<HashMap<String, Vec<RealtimeEvent>>>>"),
+        "realtime delivery windows must not store device events in a Vec; cursor reads need a sequence index"
+    );
+    assert!(
+        realtime_source
+            .contains("windows: Arc<Mutex<HashMap<String, BTreeMap<u64, RealtimeEvent>>>>"),
+        "realtime delivery windows should use BTreeMap<u64, RealtimeEvent> per device scope"
+    );
+    assert!(
+        realtime_source.contains("let effective_after_seq = after_seq.max(trimmed_through_seq);"),
+        "realtime list_events should clamp the read cursor to the trimmed boundary"
+    );
+    assert!(
+        realtime_source.contains(".range((Excluded(effective_after_seq), Unbounded))"),
+        "realtime list_events should range-seek from the effective cursor"
+    );
+}
+
+#[test]
+fn test_session_gateway_realtime_subscription_store_uses_scope_index() {
+    let realtime_source = include_str!("../src/realtime.rs").replace("\r\n", "\n");
+
+    assert!(
+        realtime_source.contains("fn realtime_subscription_scope_key("),
+        "realtime subscription duplicate detection should use a centralized segment-safe scope key"
+    );
+    assert!(
+        realtime_source.contains("encode_realtime_key_segments([scope_type, scope_id])"),
+        "realtime subscription scope keys should encode type/id boundaries explicitly"
+    );
+    assert!(
+        !realtime_source.contains("format!(\"{}:{}\", item.scope_type, item.scope_id)"),
+        "realtime subscription duplicate detection must not collapse delimiter-shaped scope segments"
+    );
+    assert!(
+        !realtime_source
+            .contains("subscriptions: Arc<Mutex<HashMap<String, Vec<RealtimeSubscription>>>>"),
+        "realtime subscriptions must not store each device's subscriptions as a Vec; fanout needs scope lookup"
+    );
+    assert!(
+        realtime_source
+            .contains("subscriptions: Arc<Mutex<HashMap<String, RealtimeDeviceSubscriptions>>>"),
+        "realtime subscriptions should use an indexed per-device subscription store"
+    );
+    assert!(
+        realtime_source
+            .contains("by_scope: HashMap<RealtimeSubscriptionScopeKey, RealtimeSubscription>"),
+        "per-device realtime subscriptions should index by scope type/id"
+    );
+    assert!(
+        realtime_source.contains("fn subscription_matches_event("),
+        "realtime fanout should evaluate event type filters from indexed subscription records"
+    );
+    assert!(
+        realtime_source.contains("candidate_subscriptions\n        .into_iter()"),
+        "realtime fanout should iterate scope-index candidates instead of scanning per-device subscriptions"
+    );
+}
+
+#[test]
+fn test_session_gateway_realtime_fanout_uses_scope_device_index() {
+    let realtime_source = include_str!("../src/realtime.rs").replace("\r\n", "\n");
+
+    assert!(
+        realtime_source.contains(
+            "subscription_scope_index:\n        Arc<Mutex<HashMap<RealtimePrincipalScopeKey, BTreeMap<String, RealtimeSubscription>>>>,"
+        ),
+        "realtime runtime should keep a scope -> device index so publish fanout avoids probing every registered device"
+    );
+    assert!(
+        realtime_source.contains("fn index_device_subscriptions("),
+        "realtime runtime should centralize subscription scope index maintenance"
+    );
+    assert!(
+        realtime_source.contains("fn remove_device_subscription_index("),
+        "realtime runtime should remove stale scope-index entries when subscriptions clear, move, or restore"
+    );
+    assert!(
+        realtime_source
+            .contains("subscription_scope_index\n        .get(&RealtimePrincipalScopeKey::new("),
+        "realtime publish should read candidate devices from the scope index"
+    );
+    let publish_source = realtime_source
+        .split("fn publish_scope_event_internal(")
+        .nth(1)
+        .expect("realtime runtime should keep publish_scope_event_internal")
+        .split("fn index_device_subscriptions(")
+        .next()
+        .expect("publish implementation should precede subscription index helpers");
+    assert!(
+        publish_source.contains(".load_matching_subscriptions("),
+        "realtime publish should use the durable subscription store's scope/event fanout query before restoring cold devices"
+    );
+    assert!(
+        publish_source
+            .matches("collect_matched_delivery_targets(")
+            .count()
+            >= 2,
+        "realtime publish should re-read the scope fanout index after restoring durable matching devices"
+    );
+    assert!(
+        publish_source.contains("unmatched_registered_devices"),
+        "realtime publish should only ask durable storage for devices missing from the hot fanout index"
+    );
+    assert!(
+        !publish_source.contains(
+            "for device_id in &registered_devices {\n            self.ensure_device_state_internal("
+        ),
+        "realtime publish must not restore every registered device before checking durable scope/event matches"
+    );
+    assert!(
+        !realtime_source.contains("subscriptions: &HashMap<String, RealtimeDeviceSubscriptions>,\n    tenant_id: &str,\n    principal_id: &str,\n    principal_kind: &str,"),
+        "collect_matched_delivery_targets must not require the full subscription map once a scope fanout index exists"
+    );
+    assert!(
+        !realtime_source.contains("registered_devices\n        .into_iter()\n        .collect::<BTreeSet<_>>()\n        .into_iter()\n        .filter_map(|device_id|"),
+        "realtime publish must not iterate every registered device to discover subscriptions"
+    );
+}
+
+#[test]
+fn test_cluster_delivery_result_separates_route_state_from_runtime_error() {
+    let cluster_source = include_str!("../src/cluster.rs").replace("\r\n", "\n");
+    assert!(
+        cluster_source.contains("pub delivery_error_code: Option<String>,"),
+        "RealtimeRouteDeliveryResult should expose runtime delivery errors separately from route_state"
+    );
+    assert!(
+        cluster_source.contains("pub delivery_error_message: Option<String>,"),
+        "RealtimeRouteDeliveryResult should preserve runtime delivery error details for diagnostics"
+    );
+    assert!(
+        cluster_source.contains("route_state: route_state.to_string(),"),
+        "publish results should keep route resolution state even when runtime delivery fails"
+    );
+    assert!(
+        !cluster_source.contains("Err(error) => (error.code.to_string(), 0)"),
+        "runtime delivery errors must not overwrite route_state or collapse into delivered=0"
+    );
+}
+
+#[test]
+fn test_session_gateway_presence_memory_store_uses_principal_index() {
+    let presence_source = include_str!("../src/presence.rs").replace("\r\n", "\n");
+
+    assert!(
+        presence_source.contains("by_principal: HashMap<String, BTreeSet<String>>"),
+        "presence memory state store should maintain a tenant/principal -> device-key index"
+    );
+    assert!(
+        presence_source.contains("by_device: HashMap<String, PresenceStateRecord>"),
+        "presence memory state store should keep device records in the same indexed state object"
+    );
+    assert!(
+        presence_source.contains("online_by_seen_at: BTreeSet<PresenceOnlineSeenAtKey>"),
+        "presence memory state store should maintain an online last-seen index for lease expiration"
+    );
+    assert!(
+        presence_source.contains("fn list_online_states_seen_at_or_before("),
+        "presence state store should expose indexed stale-online listing for expiration jobs"
+    );
+    assert!(
+        !presence_source.contains(".values()\n            .filter(|record| record.tenant_id == tenant_id && record.principal_id == principal_id)"),
+        "presence memory state store must not full-scan all device records for principal snapshots"
+    );
 }
 
 #[test]

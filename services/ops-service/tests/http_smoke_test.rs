@@ -68,6 +68,7 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
                 .uri("/api/v1/ops/health")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "ops.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -83,6 +84,7 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
         .to_bytes();
     let health_json: serde_json::Value =
         serde_json::from_slice(&health_body).expect("health body should be valid json");
+    assert_eq!(health_json["status"], "ok");
     assert_eq!(health_json["projectionPlane"]["status"], "idle");
     assert_eq!(
         health_json["projectionPlane"]["metrics"]["conversationSnapshotPersist"]["successCount"],
@@ -100,6 +102,18 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
         0
     );
     assert_eq!(health_json["projectionPlane"]["updateDelay"]["inboxMs"], 0);
+    assert_eq!(health_json["realtimeInbox"]["status"], "ok");
+    assert_eq!(health_json["realtimeInbox"]["pendingEventCount"], 0);
+    assert_eq!(
+        health_json["realtimeInbox"]["maxDeviceWindowUsagePermille"],
+        0
+    );
+    assert_eq!(health_json["realtimeInbox"]["capacityTrimmedEventCount"], 0);
+    assert_eq!(
+        health_json["realtimeInbox"]["maxCapacityTrimmedThroughSeq"],
+        0
+    );
+    assert!(health_json["realtimeInbox"]["lastCapacityTrimmedAt"].is_null());
 
     let cluster_response = app
         .clone()
@@ -108,6 +122,7 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
                 .uri("/api/v1/ops/cluster")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "ops.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -133,6 +148,7 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
                 .uri("/api/v1/ops/lag")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "ops.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -164,6 +180,7 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
                 .uri("/api/v1/ops/replay-status")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "ops.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -200,6 +217,7 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
                 .uri("/api/v1/ops/runtime-dir")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "ops.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -225,6 +243,7 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
                 .uri("/api/v1/ops/provider-bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "ops.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -249,6 +268,7 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
                 .uri("/api/v1/ops/provider-bindings/drift")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "ops.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -279,6 +299,7 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
                 .uri("/api/v1/ops/diagnostics")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "ops.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -337,6 +358,13 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
     );
     assert_eq!(
         diagnostics_json["providerBindingDrift"]["items"]
+            .as_array()
+            .unwrap()
+            .len(),
+        0
+    );
+    assert_eq!(
+        diagnostics_json["sideEffectOutboxes"]
             .as_array()
             .unwrap()
             .len(),

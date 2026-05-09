@@ -40,6 +40,7 @@ async fn test_default_local_minimal_profile_rebuild_restores_conversation_domain
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .header("content-type", "application/json")
@@ -63,6 +64,7 @@ async fn test_default_local_minimal_profile_rebuild_restores_conversation_domain
                 .uri("/api/v1/conversations/c_domain_restart/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .header("content-type", "application/json")
@@ -88,6 +90,7 @@ async fn test_default_local_minimal_profile_rebuild_restores_conversation_domain
                 .uri("/api/v1/conversations/c_domain_restart")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone_new")
                 .body(Body::empty())
@@ -118,6 +121,7 @@ async fn test_default_local_minimal_profile_rebuild_restores_conversation_domain
                 .uri("/api/v1/conversations/c_domain_restart/members")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone_new")
                 .body(Body::empty())
@@ -135,6 +139,7 @@ async fn test_default_local_minimal_profile_rebuild_restores_conversation_domain
                 .uri("/api/v1/conversations/c_domain_restart/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone_new")
                 .header("content-type", "application/json")
@@ -157,6 +162,7 @@ async fn test_default_local_minimal_profile_rebuild_restores_conversation_domain
                 .uri("/api/v1/conversations/c_domain_restart/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone_new")
                 .body(Body::empty())
@@ -198,6 +204,7 @@ async fn test_default_local_minimal_profile_bootstrap_survives_corrupted_commit_
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .header("content-type", "application/json")
@@ -240,6 +247,7 @@ async fn test_default_local_minimal_profile_bootstrap_survives_corrupted_commit_
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone_recovered")
                 .header("content-type", "application/json")
@@ -274,6 +282,7 @@ async fn test_default_local_minimal_profile_restores_projection_queries_from_run
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .header("content-type", "application/json")
@@ -297,6 +306,7 @@ async fn test_default_local_minimal_profile_restores_projection_queries_from_run
                 .uri("/api/v1/conversations/c_projection_snapshot_restart/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .header("content-type", "application/json")
@@ -321,6 +331,7 @@ async fn test_default_local_minimal_profile_restores_projection_queries_from_run
                 .uri("/api/v1/conversations/c_projection_snapshot_restart/read-cursor")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .header("content-type", "application/json")
@@ -345,11 +356,8 @@ async fn test_default_local_minimal_profile_restores_projection_queries_from_run
         "managed runtime dir should persist projection timeline snapshots"
     );
 
-    fs::write(
-        state_file(runtime_dir.as_path(), "commit-journal.json"),
-        "[]\n",
-    )
-    .expect("commit journal should be replaced with empty snapshot");
+    fs::remove_file(state_file(runtime_dir.as_path(), "commit-journal.json"))
+        .expect("commit journal should be removed to force snapshot restore");
 
     let app_after = local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
 
@@ -360,6 +368,7 @@ async fn test_default_local_minimal_profile_restores_projection_queries_from_run
                 .uri("/api/v1/inbox")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone_after")
                 .body(Body::empty())
@@ -395,6 +404,7 @@ async fn test_default_local_minimal_profile_restores_projection_queries_from_run
                 .uri("/api/v1/conversations/c_projection_snapshot_restart")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone_after")
                 .body(Body::empty())
@@ -424,6 +434,7 @@ async fn test_default_local_minimal_profile_restores_projection_queries_from_run
                 .uri("/api/v1/conversations/c_projection_snapshot_restart/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone_after")
                 .body(Body::empty())
@@ -456,6 +467,7 @@ async fn test_default_local_minimal_profile_restores_projection_queries_from_run
                 .uri("/api/v1/conversations/c_projection_snapshot_restart/read-cursor")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone_after")
                 .body(Body::empty())
@@ -498,6 +510,7 @@ async fn test_default_local_minimal_profile_restores_device_sync_resume_and_feed
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .header("content-type", "application/json")
@@ -522,6 +535,7 @@ async fn test_default_local_minimal_profile_restores_device_sync_resume_and_feed
                     .uri("/api/v1/devices/register")
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_demo")
+                    .header("x-actor-kind", "user")
                     .header("x-device-id", device_id)
                     .header("x-session-id", session_id)
                     .header("content-type", "application/json")
@@ -541,6 +555,7 @@ async fn test_default_local_minimal_profile_restores_device_sync_resume_and_feed
                 .uri("/api/v1/conversations/c_device_sync_snapshot_restart/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .header("content-type", "application/json")
@@ -565,6 +580,7 @@ async fn test_default_local_minimal_profile_restores_device_sync_resume_and_feed
                 .uri("/api/v1/conversations/c_device_sync_snapshot_restart/read-cursor")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .header("content-type", "application/json")
@@ -589,11 +605,8 @@ async fn test_default_local_minimal_profile_restores_device_sync_resume_and_feed
         "managed runtime dir should persist projection timeline snapshots"
     );
 
-    fs::write(
-        state_file(runtime_dir.as_path(), "commit-journal.json"),
-        "[]\n",
-    )
-    .expect("commit journal should be replaced with empty snapshot");
+    fs::remove_file(state_file(runtime_dir.as_path(), "commit-journal.json"))
+        .expect("commit journal should be removed to force snapshot restore");
 
     let app_after = local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
 
@@ -605,6 +618,7 @@ async fn test_default_local_minimal_profile_restores_device_sync_resume_and_feed
                 .uri("/api/v1/sessions/resume")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_pad_after")
                 .header("content-type", "application/json")
@@ -638,6 +652,7 @@ async fn test_default_local_minimal_profile_restores_device_sync_resume_and_feed
                 .uri("/api/v1/devices/d_pad/sync-feed?afterSeq=0")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_pad_after")
                 .body(Body::empty())
@@ -689,6 +704,7 @@ async fn test_default_local_minimal_profile_surfaces_projection_plane_observabil
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .header("content-type", "application/json")
@@ -712,6 +728,7 @@ async fn test_default_local_minimal_profile_surfaces_projection_plane_observabil
                 .uri("/api/v1/devices/register")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_pad")
                 .header("content-type", "application/json")
@@ -730,6 +747,7 @@ async fn test_default_local_minimal_profile_surfaces_projection_plane_observabil
                 .uri("/api/v1/conversations/c_projection_observability/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .header("content-type", "application/json")
@@ -753,6 +771,7 @@ async fn test_default_local_minimal_profile_surfaces_projection_plane_observabil
                 .uri("/api/v1/ops/health")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_ops")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "ops.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -800,7 +819,7 @@ async fn test_default_local_minimal_profile_surfaces_projection_plane_observabil
     );
     assert_eq!(
         ops_health_json["projectionPlane"]["updateDelay"]["scopeId"],
-        "t_demo:c_projection_observability"
+        "6#t_demo26#c_projection_observability"
     );
 
     let lag_before_restart = app_before
@@ -810,6 +829,7 @@ async fn test_default_local_minimal_profile_surfaces_projection_plane_observabil
                 .uri("/api/v1/ops/lag")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_ops")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "ops.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -833,18 +853,15 @@ async fn test_default_local_minimal_profile_surfaces_projection_plane_observabil
             .iter()
             .any(|item| {
                 item["component"] == "projection_live"
-                    && item["scopeId"] == "t_demo:c_projection_observability"
+                    && item["scopeId"] == "6#t_demo26#c_projection_observability"
                     && item["currentOffset"] == item["committedOffset"]
                     && item["lag"] == 0
             }),
         "ops lag should expose the live projection lag item after the real projection apply path runs"
     );
 
-    fs::write(
-        state_file(runtime_dir.as_path(), "commit-journal.json"),
-        "[]\n",
-    )
-    .expect("commit journal should be replaced with empty snapshot");
+    fs::remove_file(state_file(runtime_dir.as_path(), "commit-journal.json"))
+        .expect("commit journal should be removed to force snapshot restore");
 
     let app_after = local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
 
@@ -855,6 +872,7 @@ async fn test_default_local_minimal_profile_surfaces_projection_plane_observabil
                 .uri("/api/v1/ops/diagnostics")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_ops")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "ops.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -938,6 +956,7 @@ async fn test_default_local_minimal_profile_surfaces_projection_plane_observabil
                 .uri("/api/v1/ops/lag")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_ops")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "ops.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -969,6 +988,7 @@ async fn test_default_local_minimal_profile_surfaces_projection_plane_observabil
                 .uri("/api/v1/ops/replay-status")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_ops")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "ops.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -1009,6 +1029,7 @@ async fn test_default_local_minimal_profile_reports_projection_replay_backlog_an
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .header("content-type", "application/json")
@@ -1032,6 +1053,7 @@ async fn test_default_local_minimal_profile_reports_projection_replay_backlog_an
                 .uri("/api/v1/conversations/c_projection_replay_lag/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .header("content-type", "application/json")
@@ -1067,6 +1089,7 @@ async fn test_default_local_minimal_profile_reports_projection_replay_backlog_an
                 .uri("/api/v1/conversations/c_projection_replay_lag/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .header("content-type", "application/json")
@@ -1103,6 +1126,7 @@ async fn test_default_local_minimal_profile_reports_projection_replay_backlog_an
                 .uri("/api/v1/ops/diagnostics")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_ops")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "ops.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -1146,6 +1170,7 @@ async fn test_default_local_minimal_profile_reports_projection_replay_backlog_an
                 .uri("/api/v1/ops/lag")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_ops")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "ops.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -1164,7 +1189,7 @@ async fn test_default_local_minimal_profile_reports_projection_replay_backlog_an
     assert!(
         lag_json["items"].as_array().unwrap().iter().any(|item| {
             item["component"] == "projection_replay"
-                && item["scopeId"] == "t_demo:c_projection_replay_lag"
+                && item["scopeId"] == "6#t_demo23#c_projection_replay_lag"
                 && item["lag"].as_u64().unwrap() >= 1
                 && item["currentOffset"].as_u64().unwrap()
                     > item["committedOffset"].as_u64().unwrap()
@@ -1179,6 +1204,7 @@ async fn test_default_local_minimal_profile_reports_projection_replay_backlog_an
                 .uri("/api/v1/ops/replay-status")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_ops")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "ops.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -1227,6 +1253,7 @@ async fn test_default_local_minimal_profile_reports_projection_replay_backlog_an
                 .uri("/api/v1/conversations/c_projection_replay_lag/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone_restart")
                 .body(Body::empty())

@@ -1,11 +1,15 @@
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
+use im_platform_contracts::{CommitJournal, CommitPosition, ContractError};
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tower::ServiceExt;
 
-const DEMO_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X2RlbW8iLCJzaWQiOiJzX2RlbW8ifQ.";
-const AUTOMATION_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X2RlbW8iLCJzaWQiOiJzX2RlbW8iLCJwZXJtaXNzaW9ucyI6WyJhdXRvbWF0aW9uLmV4ZWN1dGUiLCJhdXRvbWF0aW9uLnJlYWQiXX0.";
-const PRIVILEGED_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X29wc19hdWRpdF9kZW1vIiwic2lkIjoic19vcHNfYXVkaXRfZGVtbyIsInBlcm1pc3Npb25zIjpbImF1ZGl0LnJlYWQiLCJvcHMucmVhZCJdfQ.";
+const DEMO_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X2RlbW8iLCJzaWQiOiJzX2RlbW8iLCJhY3Rvcl9raW5kIjoidXNlciJ9.";
+const AUTOMATION_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X2RlbW8iLCJzaWQiOiJzX2RlbW8iLCJhY3Rvcl9raW5kIjoidXNlciIsInBlcm1pc3Npb25zIjpbImF1dG9tYXRpb24uZXhlY3V0ZSIsImF1dG9tYXRpb24ucmVhZCJdfQ.";
+const PRIVILEGED_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X29wc19hdWRpdF9kZW1vIiwic2lkIjoic19vcHNfYXVkaXRfZGVtbyIsImFjdG9yX2tpbmQiOiJ1c2VyIiwicGVybWlzc2lvbnMiOlsiYXVkaXQucmVhZCIsIm9wcy5yZWFkIl19.";
 
 async fn json_body(response: axum::response::Response) -> serde_json::Value {
     let body = response
@@ -15,6 +19,306 @@ async fn json_body(response: axum::response::Response) -> serde_json::Value {
         .expect("response body should collect")
         .to_bytes();
     serde_json::from_slice(&body).expect("response body should be valid json")
+}
+
+#[derive(Clone)]
+struct ToggleNotificationJournal {
+    fail_appends: Arc<AtomicBool>,
+    committed: Arc<Mutex<Vec<im_domain_events::CommitEnvelope>>>,
+}
+
+impl ToggleNotificationJournal {
+    fn new(fail_appends: bool) -> Self {
+        Self {
+            fail_appends: Arc::new(AtomicBool::new(fail_appends)),
+            committed: Arc::new(Mutex::new(Vec::new())),
+        }
+    }
+
+    fn fail_appends(&self) {
+        self.fail_appends.store(true, Ordering::SeqCst);
+    }
+
+    fn allow_appends(&self) {
+        self.fail_appends.store(false, Ordering::SeqCst);
+    }
+
+    fn committed_event_types(&self) -> Vec<String> {
+        self.committed
+            .lock()
+            .expect("notification journal commit log should lock")
+            .iter()
+            .map(|event| event.event_type.clone())
+            .collect()
+    }
+}
+
+impl CommitJournal for ToggleNotificationJournal {
+    fn append(
+        &self,
+        envelope: im_domain_events::CommitEnvelope,
+    ) -> Result<CommitPosition, ContractError> {
+        if self.fail_appends.load(Ordering::SeqCst) {
+            return Err(ContractError::Unavailable(
+                "notification journal is temporarily unavailable".into(),
+            ));
+        }
+        let mut committed = self
+            .committed
+            .lock()
+            .expect("notification journal commit log should lock");
+        committed.push(envelope);
+        Ok(CommitPosition::new(
+            "notification-test",
+            committed.len() as u64,
+        ))
+    }
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_retries_pending_message_notification_outbox_after_notification_runtime_recovers()
+ {
+    let projection_service = Arc::new(projection_service::TimelineProjectionService::default());
+    let realtime_cluster = Arc::new(session_gateway::RealtimeClusterBridge::default());
+    let notification_journal = Arc::new(ToggleNotificationJournal::new(false));
+    let notification_runtime = Arc::new(
+        notification_service::NotificationRuntime::with_journal_and_projection(
+            notification_journal.clone(),
+            projection_service.clone(),
+        ),
+    );
+    let app = local_minimal_node::build_app_with_dependencies_realtime_and_notification_runtime(
+        "node_a",
+        "127.0.0.1:18210",
+        projection_service,
+        realtime_cluster,
+        Arc::new(session_gateway::RealtimeDeliveryRuntime::default()),
+        notification_runtime,
+    );
+
+    let create_conversation = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
+                .header("x-device-id", "d_owner")
+                .header("x-session-id", "s_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_notification_outbox_retry",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation should return response");
+    assert_eq!(create_conversation.status(), StatusCode::OK);
+
+    let register_owner = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/devices/register")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
+                .header("x-device-id", "d_owner")
+                .header("x-session-id", "s_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{}"#))
+                .unwrap(),
+        )
+        .await
+        .expect("owner register should return response");
+    assert_eq!(register_owner.status(), StatusCode::OK);
+
+    let add_member = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_notification_outbox_retry/members/add")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
+                .header("x-device-id", "d_owner")
+                .header("x-session-id", "s_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "principalId":"u_member",
+                        "principalKind":"user",
+                        "role":"member"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("add member should return response");
+    assert_eq!(add_member.status(), StatusCode::OK);
+
+    notification_journal.fail_appends();
+    let first_post = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_notification_outbox_retry/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
+                .header("x-device-id", "d_owner")
+                .header("x-session-id", "s_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_notification_outbox_retry_1",
+                        "summary":"notification outbox first",
+                        "text":"notification outbox first"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("first post should return response");
+    assert_eq!(first_post.status(), StatusCode::OK);
+    assert!(
+        notification_journal.committed_event_types().is_empty(),
+        "failed notification runtime should not commit notification events immediately"
+    );
+
+    let diagnostics_after_failure = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/ops/diagnostics")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
+                .header("x-device-id", "d_owner")
+                .header("x-session-id", "s_owner")
+                .header("x-permissions", "ops.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("diagnostics after notification failure should return response");
+    assert_eq!(diagnostics_after_failure.status(), StatusCode::OK);
+    let diagnostics_after_failure_json = json_body(diagnostics_after_failure).await;
+    let notification_outbox_after_failure = diagnostics_after_failure_json["sideEffectOutboxes"]
+        .as_array()
+        .expect("side-effect outboxes should be array")
+        .iter()
+        .find(|item| item["name"] == "message_notification_delivery")
+        .expect("message notification outbox diagnostics should be present");
+    assert_eq!(notification_outbox_after_failure["status"], "degraded");
+    assert_eq!(notification_outbox_after_failure["pendingCount"], 1);
+    assert_eq!(notification_outbox_after_failure["failedAttemptCount"], 1);
+
+    notification_journal.allow_appends();
+    let second_post = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_notification_outbox_retry/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
+                .header("x-device-id", "d_owner")
+                .header("x-session-id", "s_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_notification_outbox_retry_2",
+                        "summary":"notification outbox trigger",
+                        "text":"notification outbox trigger"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("second post should return response");
+    assert_eq!(second_post.status(), StatusCode::OK);
+
+    let committed_event_types = notification_journal.committed_event_types();
+    assert_eq!(
+        committed_event_types,
+        vec![
+            "notification.requested",
+            "notification.dispatched",
+            "notification.requested",
+            "notification.dispatched",
+        ],
+        "recovered notification runtime should receive retried and current message notifications"
+    );
+
+    let member_notifications = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/notifications")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_member")
+                .header("x-actor-kind", "user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("member notifications should return response");
+    assert_eq!(member_notifications.status(), StatusCode::OK);
+    let member_notifications_json = json_body(member_notifications).await;
+    let items = member_notifications_json["items"]
+        .as_array()
+        .expect("notification items should be array");
+    assert_eq!(items.len(), 2);
+    let titles = items
+        .iter()
+        .map(|item| item["title"].as_str().expect("title should be string"))
+        .collect::<Vec<_>>();
+    assert!(
+        titles.contains(&"notification outbox first"),
+        "retried message notification should be visible to member"
+    );
+    assert!(
+        titles.contains(&"notification outbox trigger"),
+        "current message notification should be visible to member"
+    );
+
+    let diagnostics_after_recovery = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/ops/diagnostics")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
+                .header("x-device-id", "d_owner")
+                .header("x-session-id", "s_owner")
+                .header("x-permissions", "ops.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("diagnostics after notification recovery should return response");
+    assert_eq!(diagnostics_after_recovery.status(), StatusCode::OK);
+    let diagnostics_after_recovery_json = json_body(diagnostics_after_recovery).await;
+    let notification_outbox_after_recovery = diagnostics_after_recovery_json["sideEffectOutboxes"]
+        .as_array()
+        .expect("side-effect outboxes should be array")
+        .iter()
+        .find(|item| item["name"] == "message_notification_delivery")
+        .expect("message notification outbox diagnostics should be present");
+    assert_eq!(notification_outbox_after_recovery["status"], "ok");
+    assert_eq!(notification_outbox_after_recovery["pendingCount"], 0);
+    assert_eq!(notification_outbox_after_recovery["deliveredCount"], 2);
+    assert_eq!(notification_outbox_after_recovery["failedAttemptCount"], 1);
 }
 
 #[tokio::test]
@@ -236,6 +540,7 @@ async fn test_local_minimal_profile_treats_duplicate_automation_request_as_idemp
                 )
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -273,6 +578,7 @@ async fn test_local_minimal_profile_treats_duplicate_automation_request_as_idemp
                 )
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -306,6 +612,7 @@ async fn test_local_minimal_profile_treats_duplicate_automation_request_as_idemp
                 .uri("/api/v1/notifications")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -340,6 +647,7 @@ async fn test_local_minimal_profile_treats_duplicate_automation_request_as_idemp
                 .header("x-permissions", "audit.read")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -368,6 +676,7 @@ async fn test_local_minimal_profile_treats_duplicate_automation_request_as_idemp
                 )
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1768,6 +2077,7 @@ async fn test_local_minimal_profile_exposes_automation_governance_and_override_a
                 .uri("/api/v1/automation/governance")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -1787,6 +2097,7 @@ async fn test_local_minimal_profile_exposes_automation_governance_and_override_a
                 .uri("/api/v1/automation/executions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1812,6 +2123,7 @@ async fn test_local_minimal_profile_exposes_automation_governance_and_override_a
                 .uri("/api/v1/automation/agent-responses")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1846,6 +2158,7 @@ async fn test_local_minimal_profile_exposes_automation_governance_and_override_a
                 .uri("/api/v1/automation/agent-tool-calls")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1872,6 +2185,7 @@ async fn test_local_minimal_profile_exposes_automation_governance_and_override_a
                 .uri("/api/v1/automation/agent-tool-calls")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header(
                     "x-permissions",
                     "automation.execute automation.read automation.operator_override",
@@ -1938,6 +2252,7 @@ async fn test_local_minimal_profile_treats_duplicate_notification_request_as_ide
                 .header("x-permissions", "audit.read")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1947,6 +2262,7 @@ async fn test_local_minimal_profile_treats_duplicate_notification_request_as_ide
                         "category":"message.new",
                         "channel":"inapp",
                         "recipientId":"u_demo",
+                        "recipientKind":"user",
                         "title":"New message",
                         "body":"hello",
                         "payload":"{\"conversationId\":\"c_demo\"}"
@@ -1986,6 +2302,7 @@ async fn test_local_minimal_profile_treats_duplicate_notification_request_as_ide
                 .header("x-permissions", "audit.read")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1995,6 +2312,7 @@ async fn test_local_minimal_profile_treats_duplicate_notification_request_as_ide
                         "category":"message.new",
                         "channel":"inapp",
                         "recipientId":"u_demo",
+                        "recipientKind":"user",
                         "title":"New message",
                         "body":"hello",
                         "payload":"{\"conversationId\":\"c_demo\"}"
@@ -2024,6 +2342,7 @@ async fn test_local_minimal_profile_treats_duplicate_notification_request_as_ide
                 .uri("/api/v1/notifications")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2058,6 +2377,7 @@ async fn test_local_minimal_profile_treats_duplicate_notification_request_as_ide
                 .header("x-permissions", "audit.read")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2086,6 +2406,7 @@ async fn test_local_minimal_profile_treats_duplicate_notification_request_as_ide
                 .header("x-permissions", "audit.read")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2095,6 +2416,7 @@ async fn test_local_minimal_profile_treats_duplicate_notification_request_as_ide
                         "category":"message.new",
                         "channel":"inapp",
                         "recipientId":"u_other",
+                        "recipientKind":"user",
                         "title":"Changed message",
                         "body":"different",
                         "payload":"{\"conversationId\":\"c_other\"}"

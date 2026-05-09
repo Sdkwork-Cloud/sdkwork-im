@@ -11,7 +11,7 @@ use im_domain_core::conversation::{
 use im_domain_core::message::{
     CRAW_CHAT_MESSAGE_SCHEMA_CARD, CRAW_CHAT_MESSAGE_SCHEMA_LOCATION, ContentPart,
     ConversationMessageLog, DataPart, Message, MessageBody, MessageEdited, MessageLocatorIndex,
-    MessageRecalled, MessageType, Sender,
+    MessageReactionAdded, MessageReactionRemoved, MessageRecalled, MessageType, Sender,
 };
 
 #[test]
@@ -19,7 +19,7 @@ fn test_conversation_member_builder_defaults_to_joined_state() {
     let member = build_conversation_member(
         "t_demo",
         "c_demo",
-        member_id("c_demo", "u_demo"),
+        member_id("c_demo", "user", "u_demo"),
         "u_demo",
         "user",
         MembershipRole::Owner,
@@ -29,7 +29,7 @@ fn test_conversation_member_builder_defaults_to_joined_state() {
 
     assert_eq!(member.tenant_id, "t_demo");
     assert_eq!(member.conversation_id, "c_demo");
-    assert_eq!(member.member_id, "cm_c_demo_u_demo");
+    assert_eq!(member.member_id, "cm_c_demo_user_u_demo");
     assert_eq!(member.principal_id, "u_demo");
     assert_eq!(member.principal_kind, "user");
     assert_eq!(member.role, MembershipRole::Owner);
@@ -45,7 +45,7 @@ fn test_conversation_member_builder_keeps_custom_attributes() {
     let member = build_conversation_member_with_attributes(
         "t_demo",
         "c_agent",
-        member_episode_id("c_agent", "agent_demo", 2),
+        member_episode_id("c_agent", "agent", "agent_demo", 2),
         "agent_demo",
         "agent",
         MembershipRole::Member,
@@ -57,7 +57,7 @@ fn test_conversation_member_builder_keeps_custom_attributes() {
         ]),
     );
 
-    assert_eq!(member.member_id, "cm_c_agent_agent_demo_e2");
+    assert_eq!(member.member_id, "cm_c_agent_agent_agent_demo_e2");
     assert_eq!(
         member.attributes.get("dialogRole").map(String::as_str),
         Some("assistant")
@@ -73,7 +73,7 @@ fn test_default_read_cursor_reuses_member_identity() {
     let member = build_conversation_member(
         "t_demo",
         "c_demo",
-        member_id("c_demo", "u_demo"),
+        member_id("c_demo", "user", "u_demo"),
         "u_demo",
         "user",
         MembershipRole::Member,
@@ -94,11 +94,17 @@ fn test_default_read_cursor_reuses_member_identity() {
 
 #[test]
 fn test_member_episode_id_adds_suffix_only_after_first_episode() {
-    assert_eq!(member_id("c_demo", "u_demo"), "cm_c_demo_u_demo");
-    assert_eq!(member_episode_id("c_demo", "u_demo", 1), "cm_c_demo_u_demo");
     assert_eq!(
-        member_episode_id("c_demo", "u_demo", 3),
-        "cm_c_demo_u_demo_e3"
+        member_id("c_demo", "user", "u_demo"),
+        "cm_c_demo_user_u_demo"
+    );
+    assert_eq!(
+        member_episode_id("c_demo", "user", "u_demo", 1),
+        "cm_c_demo_user_u_demo"
+    );
+    assert_eq!(
+        member_episode_id("c_demo", "user", "u_demo", 3),
+        "cm_c_demo_user_u_demo_e3"
     );
 }
 
@@ -108,7 +114,7 @@ fn test_conversation_roster_tracks_active_member_and_default_cursor() {
     let member = build_conversation_member(
         "t_demo",
         "c_demo",
-        member_id("c_demo", "u_demo"),
+        member_id("c_demo", "user", "u_demo"),
         "u_demo",
         "user",
         MembershipRole::Member,
@@ -150,7 +156,7 @@ fn test_conversation_roster_next_member_episode_counts_existing_memberships() {
     let first_member = build_conversation_member(
         "t_demo",
         "c_demo",
-        member_id("c_demo", "u_demo"),
+        member_id("c_demo", "user", "u_demo"),
         "u_demo",
         "user",
         MembershipRole::Member,
@@ -164,7 +170,51 @@ fn test_conversation_roster_next_member_episode_counts_existing_memberships() {
         ..first_member
     });
 
-    assert_eq!(roster.next_member_episode("u_demo"), 2);
+    assert_eq!(roster.next_member_episode("u_demo", "user"), 2);
+}
+
+#[test]
+fn test_conversation_roster_member_episode_isolated_by_principal_kind() {
+    let mut roster = ConversationRoster::default();
+    let user_member = build_conversation_member(
+        "t_demo",
+        "c_typed_episode",
+        member_id("c_typed_episode", "user", "shared_id"),
+        "shared_id",
+        "user",
+        MembershipRole::Member,
+        None,
+        "2026-04-07T12:05:00.000Z".into(),
+    );
+    let agent_member = build_conversation_member(
+        "t_demo",
+        "c_typed_episode",
+        member_id("c_typed_episode", "agent", "shared_id"),
+        "shared_id",
+        "agent",
+        MembershipRole::Member,
+        None,
+        "2026-04-07T12:05:01.000Z".into(),
+    );
+
+    roster.upsert_member(user_member);
+    roster.upsert_member(agent_member);
+
+    assert_eq!(
+        roster.next_member_episode("shared_id", "user"),
+        2,
+        "user episode should only count existing user memberships"
+    );
+    assert_eq!(
+        roster.next_member_episode("shared_id", "agent"),
+        2,
+        "agent episode should only count existing agent memberships"
+    );
+    assert_eq!(
+        roster.next_member_episode("shared_id", "system"),
+        1,
+        "unseen principal kind should start at the first episode"
+    );
 }
 
 #[test]
@@ -173,7 +223,7 @@ fn test_conversation_roster_keeps_invited_member_history_visible_but_not_active(
     let mut invited_member = build_conversation_member(
         "t_demo",
         "c_demo",
-        member_id("c_demo", "u_invited"),
+        member_id("c_demo", "user", "u_invited"),
         "u_invited",
         "user",
         MembershipRole::Member,
@@ -221,6 +271,60 @@ fn test_conversation_message_log_owns_high_watermark_and_posted_messages() {
     assert_eq!(stored.message, message);
     assert!(!stored.recalled);
     assert_eq!(log.unread_count_since(0), 1);
+}
+
+#[test]
+fn test_conversation_message_log_returns_bounded_sequence_windows_without_full_history_shape() {
+    let mut log = ConversationMessageLog::default();
+    log.store_posted(demo_message(2));
+    log.store_posted(demo_message(1));
+    log.store_posted(demo_message(3));
+
+    let first = log.message_window_after(0, 1);
+    assert_eq!(
+        first
+            .items
+            .iter()
+            .map(|stored| stored.message.message_seq)
+            .collect::<Vec<_>>(),
+        vec![1]
+    );
+    assert_eq!(first.next_after_seq, Some(1));
+    assert!(first.has_more);
+    assert_eq!(first.high_watermark, 3);
+
+    let second = log.message_window_after(1, 2);
+    assert_eq!(
+        second
+            .items
+            .iter()
+            .map(|stored| stored.message.message_seq)
+            .collect::<Vec<_>>(),
+        vec![2, 3]
+    );
+    assert_eq!(second.next_after_seq, Some(3));
+    assert!(!second.has_more);
+    assert_eq!(second.high_watermark, 3);
+}
+
+#[test]
+fn test_conversation_message_log_replaces_stale_sequence_index_when_message_id_is_overwritten() {
+    let mut log = ConversationMessageLog::default();
+    let mut replacement = demo_message(2);
+    replacement.message_id = "msg_c_demo_1".into();
+
+    log.store_posted(demo_message(1));
+    log.store_posted(replacement);
+
+    assert_eq!(
+        log.messages_in_order()
+            .iter()
+            .map(|stored| stored.message.message_seq)
+            .collect::<Vec<_>>(),
+        vec![2],
+        "overwriting a message id must remove the stale sequence index"
+    );
+    assert!(log.message_window_after(0, 10).items[0].message.message_id == "msg_c_demo_1");
 }
 
 #[test]
@@ -280,6 +384,71 @@ fn test_conversation_message_log_applies_edit_and_recall_mutations() {
     );
     assert_eq!(log.high_watermark(), 7);
     assert_eq!(log.unread_count_since(3), 4);
+}
+
+#[test]
+fn test_conversation_message_log_reactions_are_isolated_by_actor_kind() {
+    let mut log = ConversationMessageLog::default();
+    let message = demo_message(1);
+    log.store_posted(message.clone());
+
+    let user_added = MessageReactionAdded {
+        tenant_id: message.tenant_id.clone(),
+        conversation_id: message.conversation_id.clone(),
+        message_id: message.message_id.clone(),
+        message_seq: message.message_seq,
+        reaction_key: "thumbs_up".into(),
+        reacted_by: Sender {
+            id: "shared_actor".into(),
+            kind: "user".into(),
+            member_id: Some("cm_c_demo_user_shared_actor".into()),
+            device_id: None,
+            session_id: None,
+            metadata: BTreeMap::new(),
+        },
+        reacted_at: "2026-04-07T12:09:01.000Z".into(),
+    };
+    let agent_added = MessageReactionAdded {
+        reacted_by: Sender {
+            kind: "agent".into(),
+            member_id: Some("cm_c_demo_agent_shared_actor".into()),
+            ..user_added.reacted_by.clone()
+        },
+        reacted_at: "2026-04-07T12:09:02.000Z".into(),
+        ..user_added.clone()
+    };
+
+    assert_eq!(log.apply_reaction_added(&user_added), Some(true));
+    assert_eq!(
+        log.apply_reaction_added(&agent_added),
+        Some(true),
+        "same actor id with a different actor kind must be a distinct reaction identity"
+    );
+
+    let stored = log
+        .message(message.message_id.as_str())
+        .expect("stored message should exist");
+    assert_eq!(stored.reactions["thumbs_up"].len(), 2);
+
+    let user_removed = MessageReactionRemoved {
+        tenant_id: message.tenant_id.clone(),
+        conversation_id: message.conversation_id.clone(),
+        message_id: message.message_id.clone(),
+        message_seq: message.message_seq,
+        reaction_key: "thumbs_up".into(),
+        removed_by: user_added.reacted_by,
+        removed_at: "2026-04-07T12:09:03.000Z".into(),
+    };
+    assert_eq!(log.apply_reaction_removed(&user_removed), Some(true));
+
+    let stored = log
+        .message(message.message_id.as_str())
+        .expect("stored message should exist");
+    assert_eq!(
+        stored.reactions["thumbs_up"].len(),
+        1,
+        "removing the user reaction must not remove the same-id agent reaction"
+    );
 }
 
 #[test]
@@ -384,7 +553,7 @@ fn demo_sender() -> Sender {
     Sender {
         id: "u_demo".into(),
         kind: "user".into(),
-        member_id: Some("cm_c_demo_u_demo".into()),
+        member_id: Some("cm_c_demo_user_u_demo".into()),
         device_id: Some("device_demo".into()),
         session_id: Some("session_demo".into()),
         metadata: BTreeMap::new(),

@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use axum::extract::{Path, State};
@@ -170,11 +170,144 @@ struct HealthResponse {
 
 pub struct AutomationRuntime {
     executions: Mutex<HashMap<String, AutomationExecution>>,
-    agent_responses: Mutex<HashMap<String, AgentResponseRuntimeState>>,
-    tool_calls: Mutex<HashMap<String, AgentToolCall>>,
+    agent_responses: Mutex<AgentResponseRuntimeStore>,
+    tool_calls: Mutex<AgentToolCallRuntimeStore>,
     event_orders: Mutex<HashMap<String, u64>>,
     journal: Arc<dyn CommitJournal + Send + Sync>,
     execution_store: Arc<dyn AutomationExecutionStore>,
+}
+
+#[derive(Default)]
+struct AgentToolCallRuntimeStore {
+    by_call: HashMap<String, AgentToolCall>,
+    pending_tool_calls_by_execution: HashMap<String, BTreeSet<String>>,
+}
+
+impl AgentToolCallRuntimeStore {
+    fn get(&self, tool_call_key: &str) -> Option<&AgentToolCall> {
+        self.by_call.get(tool_call_key)
+    }
+
+    fn get_mut(&mut self, tool_call_key: &str) -> Option<&mut AgentToolCall> {
+        self.by_call.get_mut(tool_call_key)
+    }
+
+    fn pending_tool_call_for_execution(&self, execution_key: &str) -> Option<String> {
+        self.pending_tool_calls_by_execution
+            .get(execution_key)
+            .and_then(|tool_call_keys| tool_call_keys.iter().next())
+            .and_then(|tool_call_key| self.by_call.get(tool_call_key))
+            .map(|tool_call| tool_call.tool_call_id.clone())
+    }
+
+    fn insert(&mut self, execution_key: String, tool_call_key: String, tool_call: AgentToolCall) {
+        if let Some(previous) = self.by_call.get(tool_call_key.as_str()).cloned() {
+            self.remove_pending_index(execution_key.as_str(), tool_call_key.as_str(), &previous);
+        }
+        if tool_call.state == AgentToolCallState::Requested {
+            self.pending_tool_calls_by_execution
+                .entry(execution_key)
+                .or_default()
+                .insert(tool_call_key.clone());
+        }
+        self.by_call.insert(tool_call_key, tool_call);
+    }
+
+    fn mark_completed(
+        &mut self,
+        execution_key: &str,
+        tool_call_key: &str,
+        result_payload: String,
+        completed_at: String,
+    ) -> Result<AgentToolCall, AutomationError> {
+        let Some(tool_call) = self.get_mut(tool_call_key) else {
+            return Err(AutomationError {
+                status: axum::http::StatusCode::NOT_FOUND,
+                code: "agent_tool_call_not_found",
+                message: format!("agent tool call not found: {tool_call_key}"),
+            });
+        };
+        if tool_call.state == AgentToolCallState::Completed {
+            if tool_call.result_payload.as_deref() == Some(result_payload.as_str()) {
+                return Ok(tool_call.clone());
+            }
+            return Err(AutomationError {
+                status: axum::http::StatusCode::CONFLICT,
+                code: "agent_tool_call_conflict",
+                message: format!(
+                    "agent tool call already completed: {}",
+                    tool_call.tool_call_id
+                ),
+            });
+        }
+        let was_requested = tool_call.state == AgentToolCallState::Requested;
+        tool_call.result_payload = Some(result_payload);
+        tool_call.state = AgentToolCallState::Completed;
+        tool_call.completed_at = Some(completed_at);
+        let completed = tool_call.clone();
+        if was_requested {
+            if let Some(tool_call_keys) =
+                self.pending_tool_calls_by_execution.get_mut(execution_key)
+            {
+                tool_call_keys.remove(tool_call_key);
+                if tool_call_keys.is_empty() {
+                    self.pending_tool_calls_by_execution.remove(execution_key);
+                }
+            }
+        }
+        Ok(completed)
+    }
+
+    fn remove_pending_index(
+        &mut self,
+        execution_key: &str,
+        tool_call_key: &str,
+        tool_call: &AgentToolCall,
+    ) {
+        if tool_call.state != AgentToolCallState::Requested {
+            return;
+        }
+        if let Some(tool_call_keys) = self.pending_tool_calls_by_execution.get_mut(execution_key) {
+            tool_call_keys.remove(tool_call_key);
+            if tool_call_keys.is_empty() {
+                self.pending_tool_calls_by_execution.remove(execution_key);
+            }
+        }
+    }
+}
+
+#[derive(Default)]
+struct AgentResponseRuntimeStore {
+    by_stream: HashMap<String, AgentResponseRuntimeState>,
+    agent_responses_by_execution: HashMap<String, String>,
+}
+
+impl AgentResponseRuntimeStore {
+    fn agent_response_key_for_execution(&self, execution_key: &str) -> Option<&str> {
+        self.agent_responses_by_execution
+            .get(execution_key)
+            .map(String::as_str)
+    }
+
+    fn response_for_execution(&self, execution_key: &str) -> Option<&AgentResponseRuntimeState> {
+        self.agent_response_key_for_execution(execution_key)
+            .and_then(|stream_key| self.by_stream.get(stream_key))
+    }
+
+    fn response_mut(&mut self, stream_key: &str) -> Option<&mut AgentResponseRuntimeState> {
+        self.by_stream.get_mut(stream_key)
+    }
+
+    fn insert(
+        &mut self,
+        stream_key: String,
+        execution_key: String,
+        response: AgentResponseRuntimeState,
+    ) {
+        self.agent_responses_by_execution
+            .insert(execution_key, stream_key.clone());
+        self.by_stream.insert(stream_key, response);
+    }
 }
 
 #[derive(Default)]
@@ -334,8 +467,8 @@ impl AutomationRuntime {
     {
         Self {
             executions: Mutex::new(HashMap::new()),
-            agent_responses: Mutex::new(HashMap::new()),
-            tool_calls: Mutex::new(HashMap::new()),
+            agent_responses: Mutex::new(AgentResponseRuntimeStore::default()),
+            tool_calls: Mutex::new(AgentToolCallRuntimeStore::default()),
             event_orders: Mutex::new(HashMap::new()),
             journal,
             execution_store,
@@ -517,7 +650,7 @@ impl AutomationRuntime {
             request.stream_id.as_str(),
         );
         let mut responses = self.agent_responses.lock_automation();
-        if let Some(existing) = responses.get(scope_key.as_str()) {
+        if let Some(existing) = responses.by_stream.get(scope_key.as_str()) {
             if existing.execution_id == request.execution_id
                 && existing.agent == request.agent
                 && existing.member_id == request.member_id
@@ -536,12 +669,16 @@ impl AutomationRuntime {
                 ),
             });
         }
-        if responses.values().any(|state| {
-            state.session.tenant_id == auth.tenant_id
-                && state.principal_id == auth.actor_id
-                && state.principal_kind == auth.actor_kind
-                && state.execution_id == request.execution_id
-        }) {
+        let execution_response_key = agent_response_execution_scope_key(
+            auth.tenant_id.as_str(),
+            auth.actor_kind.as_str(),
+            auth.actor_id.as_str(),
+            request.execution_id.as_str(),
+        );
+        if responses
+            .agent_response_key_for_execution(execution_response_key.as_str())
+            .is_some()
+        {
             return Err(AutomationError {
                 status: axum::http::StatusCode::CONFLICT,
                 code: "agent_response_conflict",
@@ -555,8 +692,8 @@ impl AutomationRuntime {
         let session = StreamSession {
             tenant_id: auth.tenant_id.clone(),
             stream_id: request.stream_id.clone(),
-            owner_principal_id: Some(auth.actor_id.clone()),
-            owner_principal_kind: Some(auth.actor_kind.clone()),
+            owner_principal_id: auth.actor_id.clone(),
+            owner_principal_kind: auth.actor_kind.clone(),
             stream_type: request.stream_type.clone(),
             scope_kind: "conversation".into(),
             scope_id: request.conversation_id.clone(),
@@ -585,6 +722,7 @@ impl AutomationRuntime {
         });
         responses.insert(
             scope_key,
+            execution_response_key,
             AgentResponseRuntimeState {
                 principal_id: auth.actor_id.clone(),
                 principal_kind: auth.actor_kind.clone(),
@@ -636,7 +774,7 @@ impl AutomationRuntime {
             stream_id,
         );
         let state = responses
-            .get_mut(scope_key.as_str())
+            .response_mut(scope_key.as_str())
             .ok_or_else(|| AutomationError {
                 status: axum::http::StatusCode::NOT_FOUND,
                 code: "agent_response_not_found",
@@ -742,7 +880,7 @@ impl AutomationRuntime {
             stream_id,
         );
         let state = responses
-            .get_mut(scope_key.as_str())
+            .response_mut(scope_key.as_str())
             .ok_or_else(|| AutomationError {
                 status: axum::http::StatusCode::NOT_FOUND,
                 code: "agent_response_not_found",
@@ -757,19 +895,16 @@ impl AutomationRuntime {
         }
 
         let execution_id = state.execution_id.clone();
-        let tool_call_scope_prefix = format!(
-            "{}:{}:{}:{}:",
-            auth.tenant_id, auth.actor_kind, auth.actor_id, execution_id
+        let tool_call_execution_key = agent_tool_call_execution_scope_key(
+            auth.tenant_id.as_str(),
+            auth.actor_kind.as_str(),
+            auth.actor_id.as_str(),
+            execution_id.as_str(),
         );
-        let pending_tool_call =
-            self.tool_calls
-                .lock_automation()
-                .iter()
-                .find_map(|(scope_key, tool_call)| {
-                    (scope_key.starts_with(tool_call_scope_prefix.as_str())
-                        && tool_call.state == AgentToolCallState::Requested)
-                        .then(|| tool_call.tool_call_id.clone())
-                });
+        let pending_tool_call = self
+            .tool_calls
+            .lock_automation()
+            .pending_tool_call_for_execution(tool_call_execution_key.as_str());
         if let Some(tool_call_id) = pending_tool_call {
             return Err(AutomationError {
                 status: axum::http::StatusCode::BAD_REQUEST,
@@ -809,17 +944,15 @@ impl AutomationRuntime {
         ensure_automation_execute_access(auth)?;
         validate_agent_tool_call_request_payload_size(&request)?;
         let execution = self.execution_for_actor(auth, request.execution_id.as_str())?;
-        let response_state = self
-            .agent_responses
-            .lock_automation()
-            .values()
-            .find(|state| {
-                state.principal_id == auth.actor_id
-                    && state.principal_kind == auth.actor_kind
-                    && state.session.tenant_id == auth.tenant_id
-                    && state.execution_id == request.execution_id
-            })
-            .map(|state| (state.agent.agent_id.clone(), state.session.clone()))
+        let execution_response_key = agent_response_execution_scope_key(
+            auth.tenant_id.as_str(),
+            auth.actor_kind.as_str(),
+            auth.actor_id.as_str(),
+            request.execution_id.as_str(),
+        );
+        let response_state = self.agent_responses.lock_automation();
+        let response_state = response_state
+            .response_for_execution(execution_response_key.as_str())
             .ok_or_else(|| AutomationError {
                 status: axum::http::StatusCode::BAD_REQUEST,
                 code: "agent_response_not_started",
@@ -827,7 +960,8 @@ impl AutomationRuntime {
                     "agent response stream must start before tool calls: {}",
                     request.execution_id
                 ),
-            })?;
+            })
+            .map(|state| (state.agent.agent_id.clone(), state.session.clone()))?;
         if matches!(
             response_state.1.state,
             StreamSessionState::Completed | StreamSessionState::Aborted
@@ -871,6 +1005,12 @@ impl AutomationRuntime {
             request.execution_id.as_str(),
             request.tool_call_id.as_str(),
         );
+        let tool_call_execution_key = agent_tool_call_execution_scope_key(
+            auth.tenant_id.as_str(),
+            auth.actor_kind.as_str(),
+            auth.actor_id.as_str(),
+            request.execution_id.as_str(),
+        );
         let tool_calls = self.tool_calls.lock_automation();
         if let Some(existing) = tool_calls.get(scope_key.as_str()).cloned() {
             if existing.tool_name == request.tool_name
@@ -910,7 +1050,7 @@ impl AutomationRuntime {
             requested_at: utc_now_rfc3339_millis(),
             completed_at: None,
         };
-        tool_calls.insert(scope_key, tool_call.clone());
+        tool_calls.insert(tool_call_execution_key, scope_key, tool_call.clone());
         drop(tool_calls);
         self.append_json_event(
             auth,
@@ -950,30 +1090,19 @@ impl AutomationRuntime {
             execution_id,
             tool_call_id,
         );
+        let tool_call_execution_key = agent_tool_call_execution_scope_key(
+            auth.tenant_id.as_str(),
+            auth.actor_kind.as_str(),
+            auth.actor_id.as_str(),
+            execution_id,
+        );
         let mut tool_calls = self.tool_calls.lock_automation();
-        let tool_call = tool_calls
-            .get_mut(scope_key.as_str())
-            .ok_or_else(|| AutomationError {
-                status: axum::http::StatusCode::NOT_FOUND,
-                code: "agent_tool_call_not_found",
-                message: format!("agent tool call not found: {tool_call_id}"),
-            })?;
-
-        if tool_call.state == AgentToolCallState::Completed {
-            if tool_call.result_payload.as_deref() == Some(request.result_payload.as_str()) {
-                return Ok(tool_call.clone());
-            }
-            return Err(AutomationError {
-                status: axum::http::StatusCode::CONFLICT,
-                code: "agent_tool_call_conflict",
-                message: format!("agent tool call already completed: {tool_call_id}"),
-            });
-        }
-
-        tool_call.result_payload = Some(request.result_payload);
-        tool_call.state = AgentToolCallState::Completed;
-        tool_call.completed_at = Some(utc_now_rfc3339_millis());
-        let tool_call = tool_call.clone();
+        let tool_call = tool_calls.mark_completed(
+            tool_call_execution_key.as_str(),
+            scope_key.as_str(),
+            request.result_payload,
+            utc_now_rfc3339_millis(),
+        )?;
         drop(tool_calls);
         self.append_json_event(
             auth,
@@ -1043,34 +1172,29 @@ impl AutomationRuntime {
         event_type: &str,
         ordering_seq: u64,
     ) -> Result<(), AutomationError> {
+        let execution_identity = execution_event_identity(execution);
+        let event_identity = automation_event_key(execution, &[event_type]);
         let committed_at = execution
             .completed_at
             .clone()
             .unwrap_or_else(|| execution.requested_at.clone());
         let envelope = CommitEnvelope {
-            event_id: format!(
-                "evt_{}_{}",
-                execution_event_identity(execution).replace(':', "_"),
-                event_type.replace('.', "_")
-            ),
+            event_id: format!("evt_{event_identity}"),
             tenant_id: auth.tenant_id.clone(),
             event_type: event_type.into(),
             event_version: 1,
             aggregate_type: AggregateType::AutomationExecution,
-            aggregate_id: execution_event_identity(execution),
+            aggregate_id: execution_identity.clone(),
             scope_type: "automation_execution".into(),
-            scope_id: execution_event_identity(execution),
+            scope_id: execution_identity.clone(),
             ordering_key: CommitEnvelope::ordering_key(
                 auth.tenant_id.as_str(),
-                execution_event_identity(execution).as_str(),
+                &execution_identity,
             ),
             ordering_seq,
             causation_id: None,
-            correlation_id: Some(execution_event_identity(execution)),
-            idempotency_key: Some(format!(
-                "{}:{event_type}",
-                execution_event_identity(execution)
-            )),
+            correlation_id: Some(execution_identity),
+            idempotency_key: Some(event_identity),
             actor: EventActor {
                 actor_id: auth.actor_id.clone(),
                 actor_kind: auth.actor_kind.clone(),
@@ -1100,35 +1224,27 @@ impl AutomationRuntime {
         let ordering_seq = {
             let mut orders = self.event_orders.lock_automation();
             let next = orders.get(event_scope_key.as_str()).copied().unwrap_or(2) + 1;
-            orders.insert(event_scope_key, next);
+            orders.insert(event_scope_key.clone(), next);
             next
         };
         let occurred_at = utc_now_rfc3339_millis();
+        let ordering_seq_segment = ordering_seq.to_string();
+        let event_identity =
+            automation_event_key(execution, &[event_type, ordering_seq_segment.as_str()]);
         let envelope = CommitEnvelope {
-            event_id: format!(
-                "evt_{}_{}_{}",
-                execution_event_identity(execution).replace(':', "_"),
-                ordering_seq,
-                event_type.replace('.', "_")
-            ),
+            event_id: format!("evt_{event_identity}"),
             tenant_id: auth.tenant_id.clone(),
             event_type: event_type.into(),
             event_version: 1,
             aggregate_type: AggregateType::AutomationExecution,
-            aggregate_id: execution_event_identity(execution),
+            aggregate_id: event_scope_key.clone(),
             scope_type: "automation_execution".into(),
-            scope_id: execution_event_identity(execution),
-            ordering_key: CommitEnvelope::ordering_key(
-                auth.tenant_id.as_str(),
-                execution_event_identity(execution).as_str(),
-            ),
+            scope_id: event_scope_key.clone(),
+            ordering_key: CommitEnvelope::ordering_key(auth.tenant_id.as_str(), &event_scope_key),
             ordering_seq,
             causation_id: None,
-            correlation_id: Some(execution_event_identity(execution)),
-            idempotency_key: Some(format!(
-                "{}:{event_type}:{ordering_seq}",
-                execution_event_identity(execution)
-            )),
+            correlation_id: Some(event_scope_key),
+            idempotency_key: Some(event_identity),
             actor: EventActor {
                 actor_id: auth.actor_id.clone(),
                 actor_kind: auth.actor_kind.clone(),
@@ -1223,15 +1339,18 @@ impl AutomationExecutionStore for RuntimeMemoryAutomationExecutionStore {
     }
 
     fn save_execution(&self, record: AutomationExecutionRecord) -> Result<(), ContractError> {
-        self.executions.lock_automation().insert(
-            execution_scope_key(
-                record.tenant_id.as_str(),
-                record.execution.principal_kind.as_str(),
-                record.principal_id.as_str(),
-                record.execution_id.as_str(),
-            ),
-            record,
+        let key = execution_scope_key(
+            record.tenant_id.as_str(),
+            record.execution.principal_kind.as_str(),
+            record.principal_id.as_str(),
+            record.execution_id.as_str(),
         );
+        let mut executions = self.executions.lock_automation();
+        let next = executions
+            .remove(key.as_str())
+            .map(|previous| previous.merge_monotonic(record.clone()))
+            .unwrap_or(record);
+        executions.insert(key, next);
         Ok(())
     }
 }
@@ -1492,7 +1611,7 @@ fn execution_scope_key(
     principal_id: &str,
     execution_id: &str,
 ) -> String {
-    format!("{tenant_id}:{principal_kind}:{principal_id}:{execution_id}")
+    encode_automation_key_segments([tenant_id, principal_kind, principal_id, execution_id])
 }
 
 fn automation_execution_request_key(
@@ -1528,7 +1647,16 @@ fn agent_response_scope_key(
     principal_id: &str,
     stream_id: &str,
 ) -> String {
-    format!("{tenant_id}:{principal_kind}:{principal_id}:{stream_id}")
+    encode_automation_key_segments([tenant_id, principal_kind, principal_id, stream_id])
+}
+
+fn agent_response_execution_scope_key(
+    tenant_id: &str,
+    principal_kind: &str,
+    principal_id: &str,
+    execution_id: &str,
+) -> String {
+    encode_automation_key_segments([tenant_id, principal_kind, principal_id, execution_id])
 }
 
 fn agent_tool_call_scope_key(
@@ -1538,7 +1666,43 @@ fn agent_tool_call_scope_key(
     execution_id: &str,
     tool_call_id: &str,
 ) -> String {
-    format!("{tenant_id}:{principal_kind}:{principal_id}:{execution_id}:{tool_call_id}")
+    encode_automation_key_segments([
+        tenant_id,
+        principal_kind,
+        principal_id,
+        execution_id,
+        tool_call_id,
+    ])
+}
+
+fn agent_tool_call_execution_scope_key(
+    tenant_id: &str,
+    principal_kind: &str,
+    principal_id: &str,
+    execution_id: &str,
+) -> String {
+    encode_automation_key_segments([tenant_id, principal_kind, principal_id, execution_id])
+}
+
+fn automation_event_key(execution: &AutomationExecution, segments: &[&str]) -> String {
+    let mut encoded_segments = vec![
+        execution.tenant_id.as_str(),
+        execution.principal_kind.as_str(),
+        execution.principal_id.as_str(),
+        execution.execution_id.as_str(),
+    ];
+    encoded_segments.extend_from_slice(segments);
+    encode_automation_key_segments(encoded_segments)
+}
+
+fn encode_automation_key_segments<'a>(segments: impl IntoIterator<Item = &'a str>) -> String {
+    let mut encoded = String::new();
+    for segment in segments {
+        encoded.push_str(segment.len().to_string().as_str());
+        encoded.push('#');
+        encoded.push_str(segment);
+    }
+    encoded
 }
 
 fn execution_matches_request(
@@ -1827,6 +1991,38 @@ mod tests {
     use std::collections::BTreeSet;
     use std::panic::{self, AssertUnwindSafe};
 
+    fn automation_execution_record(
+        state: AutomationExecutionState,
+        retry_count: u32,
+        output_payload: Option<&str>,
+        completed_at: Option<&str>,
+        failure_reason: Option<&str>,
+        updated_at: &str,
+    ) -> AutomationExecutionRecord {
+        AutomationExecutionRecord {
+            tenant_id: "t_demo".into(),
+            principal_id: "u_demo".into(),
+            execution_id: "ae_demo".into(),
+            execution: AutomationExecution {
+                tenant_id: "t_demo".into(),
+                principal_id: "u_demo".into(),
+                principal_kind: "user".into(),
+                execution_id: "ae_demo".into(),
+                trigger_type: "webhook.manual".into(),
+                target_kind: "workflow".into(),
+                target_ref: "wf_demo".into(),
+                input_payload: Some("{\"conversationId\":\"c_demo\"}".into()),
+                output_payload: output_payload.map(str::to_owned),
+                state,
+                retry_count,
+                requested_at: "2026-05-06T00:00:00.000Z".into(),
+                completed_at: completed_at.map(str::to_owned),
+                failure_reason: failure_reason.map(str::to_owned),
+            },
+            updated_at: updated_at.into(),
+        }
+    }
+
     fn demo_auth_context() -> AuthContext {
         AuthContext {
             tenant_id: "t_demo".into(),
@@ -1843,6 +2039,47 @@ mod tests {
             let _guard = mutex.lock().expect("test poison lock should succeed");
             panic!("intentional poison for regression coverage");
         }));
+    }
+
+    #[test]
+    fn test_automation_runtime_uses_execution_index_for_agent_response_lookup() {
+        let source = include_str!("lib.rs").replace("\r\n", "\n");
+        let implementation = source
+            .split("#[cfg(test)]")
+            .next()
+            .expect("automation service implementation should be before tests");
+
+        assert!(
+            implementation.contains("agent_responses_by_execution: HashMap<String, String>"),
+            "automation runtime should maintain a principal/execution -> agent-response stream index"
+        );
+        assert!(
+            implementation.contains("agent_response_key_for_execution("),
+            "automation runtime should resolve agent response streams by execution through an index"
+        );
+        assert!(
+            !implementation.contains("responses.values().any(|state|"),
+            "start_agent_response must not full-scan all agent response streams to detect existing execution streams"
+        );
+        assert!(
+            !implementation.contains(
+                ".agent_responses\n            .lock_automation()\n            .values()"
+            ),
+            "request_agent_tool_call must not full-scan all agent response streams to find the execution stream"
+        );
+        assert!(
+            implementation
+                .contains("pending_tool_calls_by_execution: HashMap<String, BTreeSet<String>>"),
+            "automation runtime should maintain a principal/execution -> pending tool-call index"
+        );
+        assert!(
+            implementation.contains("pending_tool_call_for_execution("),
+            "complete_agent_response should resolve pending tool calls by execution through an index"
+        );
+        assert!(
+            !implementation.contains("starts_with(tool_call_scope_prefix.as_str())"),
+            "complete_agent_response must not full-scan tool calls by key prefix"
+        );
     }
 
     #[test]
@@ -1890,5 +2127,49 @@ mod tests {
             load_result.is_ok(),
             "automation execution store load should recover from poisoned lock"
         );
+    }
+
+    #[test]
+    fn test_runtime_memory_execution_store_rejects_stale_status_regression_writes() {
+        let store = RuntimeMemoryAutomationExecutionStore::default();
+        store
+            .save_execution(automation_execution_record(
+                AutomationExecutionState::Succeeded,
+                2,
+                Some("{\"accepted\":true}"),
+                Some("2026-05-06T00:00:02.000Z"),
+                None,
+                "2026-05-06T00:00:02.000Z",
+            ))
+            .expect("current automation execution save should succeed");
+        store
+            .save_execution(automation_execution_record(
+                AutomationExecutionState::Running,
+                1,
+                None,
+                None,
+                None,
+                "2026-05-06T00:00:01.000Z",
+            ))
+            .expect("stale automation execution save should not fail the caller");
+
+        let restored = store
+            .load_execution("t_demo", "user", "u_demo", "ae_demo")
+            .expect("automation execution load should succeed")
+            .expect("automation execution should be present");
+        assert_eq!(
+            restored.execution.state,
+            AutomationExecutionState::Succeeded
+        );
+        assert_eq!(restored.execution.retry_count, 2);
+        assert_eq!(
+            restored.execution.output_payload.as_deref(),
+            Some("{\"accepted\":true}")
+        );
+        assert_eq!(
+            restored.execution.completed_at.as_deref(),
+            Some("2026-05-06T00:00:02.000Z")
+        );
+        assert_eq!(restored.updated_at, "2026-05-06T00:00:02.000Z");
     }
 }

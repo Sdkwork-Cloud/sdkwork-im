@@ -33,20 +33,20 @@ use conversation_runtime::{
 use im_adapters_local_disk::{
     FileAutomationExecutionStore, FileCommitJournal, FileMetadataStore, FileNotificationTaskStore,
     FilePresenceStateStore, FileRealtimeCheckpointStore, FileRealtimeDisconnectFenceStore,
-    FileRealtimeSubscriptionStore, FileRtcStateStore, FileStreamStateStore,
-    FileTimelineProjectionStore, read_commit_journal_file,
+    FileRealtimeEventWindowStore, FileRealtimeSubscriptionStore, FileRtcStateStore,
+    FileStreamStateStore, FileTimelineProjectionStore, read_commit_journal_file,
     validate_automation_execution_store_file, validate_commit_journal_file,
     validate_device_twin_store_file, validate_notification_task_store_file,
     validate_presence_state_store_file, validate_realtime_checkpoint_store_file,
-    validate_realtime_disconnect_fence_store_file, validate_realtime_subscription_store_file,
-    validate_rtc_state_store_file, validate_stream_state_store_file,
+    validate_realtime_disconnect_fence_store_file, validate_realtime_event_window_store_file,
+    validate_realtime_subscription_store_file, validate_rtc_state_store_file,
+    validate_stream_state_store_file,
 };
 use im_adapters_local_memory::{MemoryCommitJournal, MemoryRealtimeCheckpointStore};
 use im_auth_context::AuthContext;
 use im_auth_context::{AuthContextError, resolve_public_bearer_auth_context};
 use im_domain_core::conversation::{
-    ConversationInboxEntry, ConversationMember, ConversationReadCursorView, DeviceSyncFeedEntry,
-    MembershipRole,
+    ConversationInboxEntry, ConversationMember, ConversationReadCursorView, MembershipRole,
 };
 use im_domain_core::media::MediaProcessingState;
 use im_domain_core::message::{ContentPart, MediaPart, MessageBody, MessageType, SignalPart};
@@ -59,8 +59,8 @@ use im_platform_contracts::{
     EffectiveProviderBinding, IotProtocolAdapter, MetadataStore,
     PROVIDER_REGISTRY_INTERFACE_VERSION, ProviderDomain, ProviderPluginDescriptor,
     ProviderRegistry, RealtimeCheckpointRecord, RealtimeDisconnectFenceRecord,
-    RealtimeSubscriptionRecord, RtcStateRecord, StaticProviderRegistry, StreamStateRecord,
-    UserModuleProvider,
+    RealtimeEventWindowRecord, RealtimeSubscriptionRecord, RtcStateRecord, StaticProviderRegistry,
+    StreamStateRecord, UserModuleProvider,
 };
 use media_service::{
     CompleteUploadRequest, CreateUploadRequest, MediaRuntime, MediaUploadMutationResponse,
@@ -118,6 +118,7 @@ mod realtime_policy;
 mod rtc;
 mod runtime_dir;
 mod session;
+mod side_effect_outbox;
 mod social;
 mod stream;
 mod twin;
@@ -127,7 +128,9 @@ mod user_module;
 use self::device_registration::{DisconnectActiveDeviceRouteOutcome, LocalNodeDeviceRegistration};
 
 pub use build::{
-    build_app_with_dependencies, build_app_with_dependencies_and_runtime, build_default_app,
+    build_app_with_dependencies, build_app_with_dependencies_and_runtime,
+    build_app_with_dependencies_and_runtime_dir,
+    build_app_with_dependencies_realtime_and_notification_runtime, build_default_app,
     build_default_app_with_device_access_provider, build_default_app_with_iot_protocol_adapter,
     build_default_app_with_runtime_dir,
     build_default_app_with_runtime_dir_and_device_access_provider,
@@ -148,8 +151,10 @@ pub use runtime_dir::{
     list_runtime_backups, preview_restore_runtime_dir, prune_archived_runtime_backups,
     repair_runtime_dir, restore_runtime_dir, restore_runtime_dir_with_expected_preview_fingerprint,
 };
-pub use user_center::{UserCenterProviderKind, UserCenterRuntimeConfig, UserCenterRuntimeMode,
-    resolve_user_center_runtime_config};
+pub use user_center::{
+    UserCenterProviderKind, UserCenterRuntimeConfig, UserCenterRuntimeMode,
+    resolve_user_center_runtime_config,
+};
 
 #[derive(Clone)]
 struct AppState {
@@ -174,6 +179,7 @@ struct AppState {
     automation_runtime: Arc<AutomationRuntime>,
     audit_runtime: Arc<AuditRuntime>,
     ops_runtime: Arc<OpsRuntime>,
+    message_side_effect_outbox: Arc<dyn side_effect_outbox::MessageSideEffectOutboxStore>,
     projection_replay_state: Arc<std::sync::Mutex<ProjectionReplayAuthorityState>>,
     pending_friend_request_accept_repairs:
         Arc<std::sync::Mutex<PendingFriendRequestAcceptanceRepairStore>>,
@@ -531,6 +537,23 @@ impl ProjectionJournal {
             applied.insert(envelope.event_id.clone());
         }
     }
+
+    fn apply_committed_projection_envelope(
+        &self,
+        envelope: &CommitEnvelope,
+    ) -> Result<(), ContractError> {
+        self.projection_service.apply(envelope).map_err(|error| {
+            ContractError::Unavailable(format!(
+                "projection apply failed for committed event {} ({}): {error:?}",
+                envelope.event_id, envelope.event_type
+            ))
+        })?;
+        if let Some(snapshot_stores) = self.snapshot_stores.as_ref() {
+            snapshot_stores.persist_for_envelope(self.projection_service.as_ref(), envelope);
+        }
+        self.mark_social_projection_events(std::iter::once(envelope));
+        Ok(())
+    }
 }
 
 impl CommitJournal for ProjectionJournal {
@@ -544,12 +567,7 @@ impl CommitJournal for ProjectionJournal {
             ProjectionJournalInner::File(inner) => inner.append(envelope.clone())?,
         };
 
-        if self.projection_service.apply(&envelope).is_ok() {
-            if let Some(snapshot_stores) = self.snapshot_stores.as_ref() {
-                snapshot_stores.persist_for_envelope(self.projection_service.as_ref(), &envelope);
-            }
-            self.mark_social_projection_events(std::iter::once(&envelope));
-        }
+        self.apply_committed_projection_envelope(&envelope)?;
         replay_state.applied_event_count = replay_state.applied_event_count.saturating_add(1);
 
         Ok(position)
@@ -559,7 +577,6 @@ impl CommitJournal for ProjectionJournal {
         &self,
         envelopes: Vec<CommitEnvelope>,
     ) -> Result<Vec<CommitPosition>, ContractError> {
-        let batch_len = envelopes.len();
         let mut replay_state = self
             .replay_state
             .lock()
@@ -570,16 +587,9 @@ impl CommitJournal for ProjectionJournal {
         };
 
         for envelope in &envelopes {
-            if self.projection_service.apply(envelope).is_ok() {
-                if let Some(snapshot_stores) = self.snapshot_stores.as_ref() {
-                    snapshot_stores
-                        .persist_for_envelope(self.projection_service.as_ref(), envelope);
-                }
-                self.mark_social_projection_events(std::iter::once(envelope));
-            }
+            self.apply_committed_projection_envelope(envelope)?;
+            replay_state.applied_event_count = replay_state.applied_event_count.saturating_add(1);
         }
-        replay_state.applied_event_count =
-            replay_state.applied_event_count.saturating_add(batch_len);
 
         Ok(positions)
     }
@@ -737,7 +747,35 @@ fn projection_snapshot_scope(tenant_id: &str, conversation_id: &str) -> String {
 }
 
 fn parse_projection_snapshot_scope(scope: &str) -> Option<(&str, &str)> {
-    scope.split_once(':')
+    let mut parts = Vec::new();
+    let bytes = scope.as_bytes();
+    let mut offset = 0;
+
+    while offset < scope.len() {
+        let len_start = offset;
+        while offset < scope.len() && bytes[offset] != b'#' {
+            if !bytes[offset].is_ascii_digit() {
+                return None;
+            }
+            offset += 1;
+        }
+        if offset == len_start || offset >= scope.len() {
+            return None;
+        }
+        let segment_len = scope[len_start..offset].parse::<usize>().ok()?;
+        offset += 1;
+        let segment_end = offset.checked_add(segment_len)?;
+        if segment_end > scope.len() || !scope.is_char_boundary(segment_end) {
+            return None;
+        }
+        parts.push(&scope[offset..segment_end]);
+        offset = segment_end;
+    }
+
+    match parts.as_slice() {
+        [tenant_id, conversation_id] => Some((*tenant_id, *conversation_id)),
+        _ => None,
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -945,11 +983,7 @@ struct PinnedMessagesResponse {
     items: Vec<MessageInteractionSummaryView>,
 }
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct DeviceSyncFeedResponse {
-    items: Vec<DeviceSyncFeedEntry>,
-}
+type DeviceSyncFeedResponse = projection_service::DeviceSyncFeedWindowView;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -961,6 +995,7 @@ struct RegisterDeviceRequest {
 #[serde(rename_all = "camelCase")]
 struct SyncFeedQuery {
     after_seq: Option<u64>,
+    limit: Option<usize>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1435,4 +1470,133 @@ async fn export_app_openapi_schema() -> impl IntoResponse {
 
 fn resolve_auth_context(headers: &HeaderMap) -> Result<AuthContext, ApiError> {
     user_center::resolve_auth_context(headers)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn invalid_message_posted_envelope(event_id: &str) -> CommitEnvelope {
+        CommitEnvelope::minimal(
+            event_id,
+            "t_demo",
+            "message.posted",
+            "conversation",
+            "c_projection_failure",
+            1,
+        )
+        .with_payload("message.posted.v1", "{ invalid json")
+    }
+
+    fn valid_conversation_created_envelope(event_id: &str) -> CommitEnvelope {
+        CommitEnvelope::minimal(
+            event_id,
+            "t_demo",
+            "conversation.created",
+            "conversation",
+            "c_projection_failure",
+            1,
+        )
+        .with_payload(
+            "conversation.created.v1",
+            r#"{
+                "conversationId":"c_projection_failure",
+                "conversationType":"group",
+                "creatorId":"u_demo",
+                "source":null,
+                "target":null,
+                "handoff":null
+            }"#,
+        )
+    }
+
+    #[test]
+    fn test_projection_journal_append_returns_error_and_keeps_replay_cursor_when_projection_fails()
+    {
+        let projection_service = Arc::new(TimelineProjectionService::default());
+        let journal = ProjectionJournal::new_memory(projection_service);
+
+        let result = journal.append(invalid_message_posted_envelope("evt_projection_append_bad"));
+
+        assert!(
+            matches!(result, Err(ContractError::Unavailable(ref message)) if message.contains("projection apply failed")),
+            "projection apply failure should be surfaced as journal unavailable: {result:?}"
+        );
+        assert_eq!(
+            journal
+                .replay_state()
+                .lock()
+                .expect("projection replay state should lock")
+                .applied_event_count,
+            0,
+            "failed projection must not advance the applied projection cursor"
+        );
+    }
+
+    #[test]
+    fn test_projection_journal_append_batch_returns_error_and_keeps_replay_cursor_when_projection_fails()
+     {
+        let projection_service = Arc::new(TimelineProjectionService::default());
+        let journal = ProjectionJournal::new_memory(projection_service);
+
+        let result = journal.append_batch(vec![invalid_message_posted_envelope(
+            "evt_projection_batch_bad",
+        )]);
+
+        assert!(
+            matches!(result, Err(ContractError::Unavailable(ref message)) if message.contains("projection apply failed")),
+            "batch projection apply failure should be surfaced as journal unavailable: {result:?}"
+        );
+        assert_eq!(
+            journal
+                .replay_state()
+                .lock()
+                .expect("projection replay state should lock")
+                .applied_event_count,
+            0,
+            "failed batch projection must not advance the applied projection cursor"
+        );
+    }
+
+    #[test]
+    fn test_projection_journal_append_batch_advances_replay_cursor_for_successful_prefix_only() {
+        let projection_service = Arc::new(TimelineProjectionService::default());
+        let journal = ProjectionJournal::new_memory(projection_service);
+
+        let result = journal.append_batch(vec![
+            valid_conversation_created_envelope("evt_projection_batch_good_prefix"),
+            invalid_message_posted_envelope("evt_projection_batch_bad_suffix"),
+        ]);
+
+        assert!(
+            matches!(result, Err(ContractError::Unavailable(ref message)) if message.contains("projection apply failed")),
+            "batch projection suffix failure should be surfaced as journal unavailable: {result:?}"
+        );
+        assert_eq!(
+            journal
+                .replay_state()
+                .lock()
+                .expect("projection replay state should lock")
+                .applied_event_count,
+            1,
+            "batch projection cursor should record the committed prefix that was already projected"
+        );
+    }
+
+    #[test]
+    fn test_parse_projection_snapshot_scope_accepts_segment_safe_ordering_key() {
+        assert_eq!(
+            parse_projection_snapshot_scope(CommitEnvelope::ordering_key("tenant:a", "b").as_str()),
+            Some(("tenant:a", "b"))
+        );
+        assert_eq!(
+            parse_projection_snapshot_scope(CommitEnvelope::ordering_key("tenant", "a:b").as_str()),
+            Some(("tenant", "a:b"))
+        );
+    }
+
+    #[test]
+    fn test_parse_projection_snapshot_scope_rejects_ambiguous_legacy_scope_key() {
+        assert_eq!(parse_projection_snapshot_scope("tenant:a:b"), None);
+    }
 }

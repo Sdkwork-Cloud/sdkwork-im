@@ -8,6 +8,7 @@
 /.worktrees/
 
 # Local helper output
+/.codex-submit-probe/
 /$jsonFile
 /$outputFile
 *.log

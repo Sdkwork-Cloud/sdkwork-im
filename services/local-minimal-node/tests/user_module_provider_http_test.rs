@@ -50,6 +50,7 @@ async fn test_local_minimal_profile_gets_user_module_provider_health_over_http()
                 .uri("/api/v1/user-module/provider-health")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -101,6 +102,7 @@ async fn test_local_minimal_profile_gets_unavailable_external_user_module_provid
                 .uri("/api/v1/user-module/provider-health")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )

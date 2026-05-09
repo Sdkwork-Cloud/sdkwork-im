@@ -8,6 +8,7 @@ fn test_is_active_member_recovers_from_poisoned_member_store_lock() {
         panic!("poison member store lock");
     });
 
-    let is_active = projection.is_active_member("t_demo", "c_demo", "u_demo");
+    let is_active =
+        projection.is_active_member_for_principal_kind("t_demo", "c_demo", "u_demo", "user");
     assert!(!is_active);
 }

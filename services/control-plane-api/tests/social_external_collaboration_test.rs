@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+﻿use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -291,6 +291,7 @@ async fn test_control_plane_social_external_connection_write_persists_snapshot_c
                 .uri("/api/v1/control/social/external-connections")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -358,6 +359,7 @@ async fn test_control_plane_social_external_connection_write_persists_snapshot_c
                 .uri("/api/v1/control/social/external-connections/ec_001")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -420,6 +422,7 @@ async fn test_control_plane_social_external_connection_rejects_same_tenant_targe
                 .uri("/api/v1/control/social/external-connections")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -474,6 +477,7 @@ async fn test_control_plane_social_external_member_link_write_persists_snapshot_
                 .uri("/api/v1/control/social/external-connections")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -498,6 +502,7 @@ async fn test_control_plane_social_external_member_link_write_persists_snapshot_
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -566,6 +571,7 @@ async fn test_control_plane_social_external_member_link_write_persists_snapshot_
                 .uri("/api/v1/control/social/external-member-links/eml_001")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -629,6 +635,7 @@ async fn test_control_plane_social_external_member_link_requires_active_external
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -686,6 +693,7 @@ async fn test_control_plane_social_shared_channel_policy_write_persists_snapshot
                 .uri("/api/v1/control/social/external-connections")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -710,6 +718,7 @@ async fn test_control_plane_social_shared_channel_policy_write_persists_snapshot
                 .uri("/api/v1/control/social/shared-channel-policies")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -778,6 +787,7 @@ async fn test_control_plane_social_shared_channel_policy_write_persists_snapshot
                 .uri("/api/v1/control/social/shared-channel-policies/scp_001")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -838,6 +848,7 @@ async fn test_control_plane_social_shared_channel_policy_rejects_non_shared_hist
                 .uri("/api/v1/control/social/external-connections")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -861,6 +872,7 @@ async fn test_control_plane_social_shared_channel_policy_rejects_non_shared_hist
                 .uri("/api/v1/control/social/shared-channel-policies")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -920,6 +932,7 @@ async fn test_control_plane_social_external_member_link_auto_triggers_shared_cha
                 .uri("/api/v1/control/social/external-connections")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -944,6 +957,7 @@ async fn test_control_plane_social_external_member_link_auto_triggers_shared_cha
                 .uri("/api/v1/control/social/shared-channel-policies")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -971,6 +985,7 @@ async fn test_control_plane_social_external_member_link_auto_triggers_shared_cha
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1033,6 +1048,7 @@ async fn test_control_plane_social_shared_channel_policy_auto_triggers_shared_ch
                 .uri("/api/v1/control/social/external-connections")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1061,6 +1077,7 @@ async fn test_control_plane_social_shared_channel_policy_auto_triggers_shared_ch
                     .uri("/api/v1/control/social/external-member-links")
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_admin")
+                    .header("x-actor-kind", "admin")
                     .header("x-permissions", "control.write")
                     .header("content-type", "application/json")
                     .body(Body::from(format!(
@@ -1094,6 +1111,7 @@ async fn test_control_plane_social_shared_channel_policy_auto_triggers_shared_ch
                 .uri("/api/v1/control/social/shared-channel-policies")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1172,6 +1190,7 @@ async fn test_control_plane_social_shared_channel_auto_trigger_preserves_audit_w
                 .uri("/api/v1/control/social/external-connections")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1197,6 +1216,7 @@ async fn test_control_plane_social_shared_channel_auto_trigger_preserves_audit_w
                 .uri("/api/v1/control/social/shared-channel-policies")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(format!(
@@ -1225,6 +1245,7 @@ async fn test_control_plane_social_shared_channel_auto_trigger_preserves_audit_w
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(format!(
@@ -1304,6 +1325,7 @@ async fn test_control_plane_social_external_member_link_idempotent_replay_does_n
                 .uri("/api/v1/control/social/external-connections")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1328,6 +1350,7 @@ async fn test_control_plane_social_external_member_link_idempotent_replay_does_n
                 .uri("/api/v1/control/social/shared-channel-policies")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1365,6 +1388,7 @@ async fn test_control_plane_social_external_member_link_idempotent_replay_does_n
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
@@ -1382,6 +1406,7 @@ async fn test_control_plane_social_external_member_link_idempotent_replay_does_n
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
@@ -1439,6 +1464,7 @@ async fn test_control_plane_social_shared_channel_delivered_ledger_skips_replaye
                 .uri("/api/v1/control/social/external-connections")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1463,6 +1489,7 @@ async fn test_control_plane_social_shared_channel_delivered_ledger_skips_replaye
                 .uri("/api/v1/control/social/shared-channel-policies")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1490,6 +1517,7 @@ async fn test_control_plane_social_shared_channel_delivered_ledger_skips_replaye
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1554,6 +1582,7 @@ async fn test_control_plane_social_shared_channel_delivered_ledger_skips_replaye
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1793,6 +1822,7 @@ async fn test_control_plane_social_shared_channel_next_write_reclaims_stale_clai
                 .uri("/api/v1/control/social/external-connections")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1818,6 +1848,7 @@ async fn test_control_plane_social_shared_channel_next_write_reclaims_stale_clai
                 .uri("/api/v1/control/social/shared-channel-policies")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1846,6 +1877,7 @@ async fn test_control_plane_social_shared_channel_next_write_reclaims_stale_clai
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1884,6 +1916,7 @@ async fn test_control_plane_social_shared_channel_next_write_reclaims_stale_clai
                 .uri("/api/v1/control/social/runtime/claim-pending-shared-channel-sync-targeted")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_a")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1918,6 +1951,7 @@ async fn test_control_plane_social_shared_channel_next_write_reclaims_stale_clai
                 .uri("/api/v1/control/social/runtime/pending-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -1949,6 +1983,7 @@ async fn test_control_plane_social_shared_channel_next_write_reclaims_stale_clai
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1992,6 +2027,7 @@ async fn test_control_plane_social_shared_channel_next_write_reclaims_stale_clai
                 .uri("/api/v1/control/social/runtime/pending-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -2088,6 +2124,7 @@ async fn test_control_plane_social_shared_channel_repeated_failure_moves_request
                 .uri("/api/v1/control/social/external-connections")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2113,6 +2150,7 @@ async fn test_control_plane_social_shared_channel_repeated_failure_moves_request
                 .uri("/api/v1/control/social/shared-channel-policies")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2141,6 +2179,7 @@ async fn test_control_plane_social_shared_channel_repeated_failure_moves_request
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2172,6 +2211,7 @@ async fn test_control_plane_social_shared_channel_repeated_failure_moves_request
                     .uri("/api/v1/control/social/runtime/repair-shared-channel-sync")
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_admin")
+                    .header("x-actor-kind", "admin")
                     .header("x-permissions", "control.write")
                     .body(Body::empty())
                     .unwrap(),
@@ -2222,6 +2262,7 @@ async fn test_control_plane_social_shared_channel_repeated_failure_moves_request
                 .uri("/api/v1/control/social/runtime/repair-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -2250,6 +2291,7 @@ async fn test_control_plane_social_shared_channel_repeated_failure_moves_request
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2381,6 +2423,7 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_restores_p
                 .uri("/api/v1/control/social/external-connections")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2406,6 +2449,7 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_restores_p
                 .uri("/api/v1/control/social/shared-channel-policies")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2434,6 +2478,7 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_restores_p
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2465,6 +2510,7 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_restores_p
                     .uri("/api/v1/control/social/runtime/repair-shared-channel-sync")
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_admin")
+                    .header("x-actor-kind", "admin")
                     .header("x-permissions", "control.write")
                     .body(Body::empty())
                     .unwrap(),
@@ -2504,6 +2550,7 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_restores_p
                 .uri("/api/v1/control/social/runtime/requeue-dead-letter-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -2533,6 +2580,7 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_restores_p
                 .uri("/api/v1/control/social/runtime/repair-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -2661,6 +2709,7 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_rearms_fai
                 .uri("/api/v1/control/social/external-connections")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2686,6 +2735,7 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_rearms_fai
                 .uri("/api/v1/control/social/shared-channel-policies")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2714,6 +2764,7 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_rearms_fai
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2745,6 +2796,7 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_rearms_fai
                     .uri("/api/v1/control/social/runtime/repair-shared-channel-sync")
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_admin")
+                    .header("x-actor-kind", "admin")
                     .header("x-permissions", "control.write")
                     .body(Body::empty())
                     .unwrap(),
@@ -2771,6 +2823,7 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_rearms_fai
                 .uri("/api/v1/control/social/runtime/requeue-dead-letter-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -2807,6 +2860,7 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_rearms_fai
                 .uri("/api/v1/control/social/runtime/repair-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -2922,6 +2976,7 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_reclaims_s
                 .uri("/api/v1/control/social/external-connections")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2947,6 +3002,7 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_reclaims_s
                 .uri("/api/v1/control/social/shared-channel-policies")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2975,6 +3031,7 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_reclaims_s
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3006,6 +3063,7 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_reclaims_s
                     .uri("/api/v1/control/social/runtime/repair-shared-channel-sync")
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_admin")
+                    .header("x-actor-kind", "admin")
                     .header("x-permissions", "control.write")
                     .body(Body::empty())
                     .unwrap(),
@@ -3051,6 +3109,7 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_reclaims_s
                 .uri("/api/v1/control/social/runtime/requeue-dead-letter-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -3084,6 +3143,7 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_reclaims_s
                 .uri("/api/v1/control/social/runtime/pending-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -3186,6 +3246,7 @@ async fn test_control_plane_social_shared_channel_dead_letter_inventory_and_targ
                 .uri("/api/v1/control/social/external-connections")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3211,6 +3272,7 @@ async fn test_control_plane_social_shared_channel_dead_letter_inventory_and_targ
                 .uri("/api/v1/control/social/shared-channel-policies")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3239,6 +3301,7 @@ async fn test_control_plane_social_shared_channel_dead_letter_inventory_and_targ
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3269,6 +3332,7 @@ async fn test_control_plane_social_shared_channel_dead_letter_inventory_and_targ
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3297,6 +3361,7 @@ async fn test_control_plane_social_shared_channel_dead_letter_inventory_and_targ
                     .uri("/api/v1/control/social/runtime/repair-shared-channel-sync")
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_admin")
+                    .header("x-actor-kind", "admin")
                     .header("x-permissions", "control.write")
                     .body(Body::empty())
                     .unwrap(),
@@ -3323,6 +3388,7 @@ async fn test_control_plane_social_shared_channel_dead_letter_inventory_and_targ
                 .uri("/api/v1/control/social/runtime/dead-letter-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_reader")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -3384,6 +3450,7 @@ async fn test_control_plane_social_shared_channel_dead_letter_inventory_and_targ
                 .uri("/api/v1/control/social/runtime/requeue-dead-letter-shared-channel-sync-targeted")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3456,6 +3523,7 @@ async fn test_control_plane_social_shared_channel_dead_letter_inventory_and_targ
                 .uri("/api/v1/control/social/runtime/repair-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -3596,6 +3664,7 @@ async fn test_control_plane_social_shared_channel_pending_inventory_and_targeted
                 .uri("/api/v1/control/social/external-connections")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3621,6 +3690,7 @@ async fn test_control_plane_social_shared_channel_pending_inventory_and_targeted
                 .uri("/api/v1/control/social/shared-channel-policies")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3649,6 +3719,7 @@ async fn test_control_plane_social_shared_channel_pending_inventory_and_targeted
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3676,6 +3747,7 @@ async fn test_control_plane_social_shared_channel_pending_inventory_and_targeted
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3715,6 +3787,7 @@ async fn test_control_plane_social_shared_channel_pending_inventory_and_targeted
                 .uri("/api/v1/control/social/runtime/pending-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_reader")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -3771,6 +3844,7 @@ async fn test_control_plane_social_shared_channel_pending_inventory_and_targeted
                 .uri("/api/v1/control/social/runtime/claim-pending-shared-channel-sync-targeted")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3795,6 +3869,7 @@ async fn test_control_plane_social_shared_channel_pending_inventory_and_targeted
                 )
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3943,6 +4018,7 @@ async fn test_control_plane_social_shared_channel_pending_claim_enforces_targete
                 .uri("/api/v1/control/social/external-connections")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3968,6 +4044,7 @@ async fn test_control_plane_social_shared_channel_pending_claim_enforces_targete
                 .uri("/api/v1/control/social/shared-channel-policies")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3996,6 +4073,7 @@ async fn test_control_plane_social_shared_channel_pending_claim_enforces_targete
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4023,6 +4101,7 @@ async fn test_control_plane_social_shared_channel_pending_claim_enforces_targete
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4050,6 +4129,7 @@ async fn test_control_plane_social_shared_channel_pending_claim_enforces_targete
                 .uri("/api/v1/control/social/runtime/pending-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_reader")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -4102,6 +4182,7 @@ async fn test_control_plane_social_shared_channel_pending_claim_enforces_targete
                 .uri("/api/v1/control/social/runtime/claim-pending-shared-channel-sync-targeted")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_a")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4138,6 +4219,7 @@ async fn test_control_plane_social_shared_channel_pending_claim_enforces_targete
                 .uri("/api/v1/control/social/runtime/pending-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_reader")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -4184,6 +4266,7 @@ async fn test_control_plane_social_shared_channel_pending_claim_enforces_targete
                 .uri("/api/v1/control/social/runtime/claim-pending-shared-channel-sync-targeted")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_b")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4253,6 +4336,7 @@ async fn test_control_plane_social_shared_channel_pending_claim_enforces_targete
                 )
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_b")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4311,6 +4395,7 @@ async fn test_control_plane_social_shared_channel_pending_claim_enforces_targete
                 )
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_a")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4457,6 +4542,7 @@ async fn test_control_plane_social_shared_channel_targeted_republish_dead_letter
                 .uri("/api/v1/control/social/external-connections")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4482,6 +4568,7 @@ async fn test_control_plane_social_shared_channel_targeted_republish_dead_letter
                 .uri("/api/v1/control/social/shared-channel-policies")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4510,6 +4597,7 @@ async fn test_control_plane_social_shared_channel_targeted_republish_dead_letter
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4540,6 +4628,7 @@ async fn test_control_plane_social_shared_channel_targeted_republish_dead_letter
                 .uri("/api/v1/control/social/runtime/pending-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_reader")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -4575,6 +4664,7 @@ async fn test_control_plane_social_shared_channel_targeted_republish_dead_letter
                 .uri("/api/v1/control/social/runtime/claim-pending-shared-channel-sync-targeted")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_a")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4599,6 +4689,7 @@ async fn test_control_plane_social_shared_channel_targeted_republish_dead_letter
                 )
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_a")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4638,6 +4729,7 @@ async fn test_control_plane_social_shared_channel_targeted_republish_dead_letter
                 )
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_a")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4698,6 +4790,7 @@ async fn test_control_plane_social_shared_channel_targeted_republish_dead_letter
                 .uri("/api/v1/control/social/runtime/dead-letter-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_reader")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -4801,6 +4894,7 @@ async fn test_control_plane_social_shared_channel_pending_release_returns_claim_
                 .uri("/api/v1/control/social/external-connections")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4826,6 +4920,7 @@ async fn test_control_plane_social_shared_channel_pending_release_returns_claim_
                 .uri("/api/v1/control/social/shared-channel-policies")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4854,6 +4949,7 @@ async fn test_control_plane_social_shared_channel_pending_release_returns_claim_
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4881,6 +4977,7 @@ async fn test_control_plane_social_shared_channel_pending_release_returns_claim_
                 .uri("/api/v1/control/social/runtime/pending-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_reader")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -4918,6 +5015,7 @@ async fn test_control_plane_social_shared_channel_pending_release_returns_claim_
                 .uri("/api/v1/control/social/runtime/claim-pending-shared-channel-sync-targeted")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_a")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4940,6 +5038,7 @@ async fn test_control_plane_social_shared_channel_pending_release_returns_claim_
                 .uri("/api/v1/control/social/runtime/pending-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_reader")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -4983,6 +5082,7 @@ async fn test_control_plane_social_shared_channel_pending_release_returns_claim_
                 .uri("/api/v1/control/social/runtime/release-pending-shared-channel-sync-targeted")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_b")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -5039,6 +5139,7 @@ async fn test_control_plane_social_shared_channel_pending_release_returns_claim_
                 .uri("/api/v1/control/social/runtime/release-pending-shared-channel-sync-targeted")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_a")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -5075,6 +5176,7 @@ async fn test_control_plane_social_shared_channel_pending_release_returns_claim_
                 .uri("/api/v1/control/social/runtime/pending-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_reader")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -5111,6 +5213,7 @@ async fn test_control_plane_social_shared_channel_pending_release_returns_claim_
                 .uri("/api/v1/control/social/runtime/claim-pending-shared-channel-sync-targeted")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_b")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -5148,6 +5251,7 @@ async fn test_control_plane_social_shared_channel_pending_release_returns_claim_
                 )
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_b")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -5251,6 +5355,7 @@ async fn test_control_plane_social_shared_channel_pending_takeover_transfers_cla
                 .uri("/api/v1/control/social/external-connections")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -5276,6 +5381,7 @@ async fn test_control_plane_social_shared_channel_pending_takeover_transfers_cla
                 .uri("/api/v1/control/social/shared-channel-policies")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -5304,6 +5410,7 @@ async fn test_control_plane_social_shared_channel_pending_takeover_transfers_cla
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -5331,6 +5438,7 @@ async fn test_control_plane_social_shared_channel_pending_takeover_transfers_cla
                 .uri("/api/v1/control/social/runtime/pending-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_reader")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -5368,6 +5476,7 @@ async fn test_control_plane_social_shared_channel_pending_takeover_transfers_cla
                 .uri("/api/v1/control/social/runtime/claim-pending-shared-channel-sync-targeted")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_a")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -5390,6 +5499,7 @@ async fn test_control_plane_social_shared_channel_pending_takeover_transfers_cla
                 .uri("/api/v1/control/social/runtime/pending-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_b")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -5433,6 +5543,7 @@ async fn test_control_plane_social_shared_channel_pending_takeover_transfers_cla
                 .uri("/api/v1/control/social/runtime/takeover-pending-shared-channel-sync-targeted")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_b")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -5494,6 +5605,7 @@ async fn test_control_plane_social_shared_channel_pending_takeover_transfers_cla
                 .uri("/api/v1/control/social/runtime/pending-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_b")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -5526,6 +5638,7 @@ async fn test_control_plane_social_shared_channel_pending_takeover_transfers_cla
                 .uri("/api/v1/control/social/runtime/takeover-pending-shared-channel-sync-targeted")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_b")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -5589,6 +5702,7 @@ async fn test_control_plane_social_shared_channel_pending_takeover_transfers_cla
                 .uri("/api/v1/control/social/runtime/pending-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_b")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -5621,6 +5735,7 @@ async fn test_control_plane_social_shared_channel_pending_takeover_transfers_cla
                 .uri("/api/v1/control/social/runtime/claim-pending-shared-channel-sync-targeted")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_b")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -5667,6 +5782,7 @@ async fn test_control_plane_social_shared_channel_pending_takeover_transfers_cla
                 .uri("/api/v1/control/social/runtime/takeover-pending-shared-channel-sync-targeted")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_b")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -5702,6 +5818,7 @@ async fn test_control_plane_social_shared_channel_pending_takeover_transfers_cla
                 .uri("/api/v1/control/social/runtime/pending-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_b")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -5763,6 +5880,7 @@ async fn test_control_plane_social_shared_channel_pending_takeover_transfers_cla
                 )
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_a")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -5790,6 +5908,7 @@ async fn test_control_plane_social_shared_channel_pending_takeover_transfers_cla
                 )
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_b")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -5892,6 +6011,7 @@ async fn test_control_plane_social_shared_channel_pending_takeover_legacy_untrac
                 .uri("/api/v1/control/social/external-connections")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -5917,6 +6037,7 @@ async fn test_control_plane_social_shared_channel_pending_takeover_legacy_untrac
                 .uri("/api/v1/control/social/shared-channel-policies")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -5945,6 +6066,7 @@ async fn test_control_plane_social_shared_channel_pending_takeover_legacy_untrac
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -5972,6 +6094,7 @@ async fn test_control_plane_social_shared_channel_pending_takeover_legacy_untrac
                 .uri("/api/v1/control/social/runtime/pending-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_reader")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -6005,6 +6128,7 @@ async fn test_control_plane_social_shared_channel_pending_takeover_legacy_untrac
                 .uri("/api/v1/control/social/runtime/claim-pending-shared-channel-sync-targeted")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_a")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -6039,6 +6163,7 @@ async fn test_control_plane_social_shared_channel_pending_takeover_legacy_untrac
                 .uri("/api/v1/control/social/runtime/pending-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_b")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -6071,6 +6196,7 @@ async fn test_control_plane_social_shared_channel_pending_takeover_legacy_untrac
                 .uri("/api/v1/control/social/runtime/takeover-pending-shared-channel-sync-targeted")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_b")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -6104,6 +6230,7 @@ async fn test_control_plane_social_shared_channel_pending_takeover_legacy_untrac
                 .uri("/api/v1/control/social/runtime/pending-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_b")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -6202,6 +6329,7 @@ async fn test_control_plane_social_shared_channel_sync_failure_persists_pending_
                 .uri("/api/v1/control/social/external-connections")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -6227,6 +6355,7 @@ async fn test_control_plane_social_shared_channel_sync_failure_persists_pending_
                 .uri("/api/v1/control/social/shared-channel-policies")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -6255,6 +6384,7 @@ async fn test_control_plane_social_shared_channel_sync_failure_persists_pending_
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -6299,6 +6429,7 @@ async fn test_control_plane_social_shared_channel_sync_failure_persists_pending_
                 .uri("/api/v1/control/social/runtime/repair-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -6420,6 +6551,7 @@ async fn test_control_plane_social_shared_channel_repair_reclaims_stale_claim_be
                 .uri("/api/v1/control/social/external-connections")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -6445,6 +6577,7 @@ async fn test_control_plane_social_shared_channel_repair_reclaims_stale_claim_be
                 .uri("/api/v1/control/social/shared-channel-policies")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -6473,6 +6606,7 @@ async fn test_control_plane_social_shared_channel_repair_reclaims_stale_claim_be
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -6511,6 +6645,7 @@ async fn test_control_plane_social_shared_channel_repair_reclaims_stale_claim_be
                 .uri("/api/v1/control/social/runtime/claim-pending-shared-channel-sync-targeted")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_a")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -6553,6 +6688,7 @@ async fn test_control_plane_social_shared_channel_repair_reclaims_stale_claim_be
                 .uri("/api/v1/control/social/runtime/pending-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -6584,6 +6720,7 @@ async fn test_control_plane_social_shared_channel_repair_reclaims_stale_claim_be
                 .uri("/api/v1/control/social/runtime/repair-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -6704,6 +6841,7 @@ async fn test_control_plane_social_shared_channel_repair_reclaims_stale_claim_wh
                 .uri("/api/v1/control/social/external-connections")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -6729,6 +6867,7 @@ async fn test_control_plane_social_shared_channel_repair_reclaims_stale_claim_wh
                 .uri("/api/v1/control/social/shared-channel-policies")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -6757,6 +6896,7 @@ async fn test_control_plane_social_shared_channel_repair_reclaims_stale_claim_wh
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -6795,6 +6935,7 @@ async fn test_control_plane_social_shared_channel_repair_reclaims_stale_claim_wh
                 .uri("/api/v1/control/social/runtime/claim-pending-shared-channel-sync-targeted")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_a")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -6829,6 +6970,7 @@ async fn test_control_plane_social_shared_channel_repair_reclaims_stale_claim_wh
                 .uri("/api/v1/control/social/runtime/pending-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -6860,6 +7002,7 @@ async fn test_control_plane_social_shared_channel_repair_reclaims_stale_claim_wh
                 .uri("/api/v1/control/social/runtime/repair-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -6906,6 +7049,7 @@ async fn test_control_plane_social_shared_channel_repair_reclaims_stale_claim_wh
                 .uri("/api/v1/control/social/runtime/pending-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -7005,6 +7149,7 @@ async fn test_control_plane_social_shared_channel_stale_claim_scheduler_reclaims
                 .uri("/api/v1/control/social/external-connections")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -7030,6 +7175,7 @@ async fn test_control_plane_social_shared_channel_stale_claim_scheduler_reclaims
                 .uri("/api/v1/control/social/shared-channel-policies")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -7058,6 +7204,7 @@ async fn test_control_plane_social_shared_channel_stale_claim_scheduler_reclaims
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -7096,6 +7243,7 @@ async fn test_control_plane_social_shared_channel_stale_claim_scheduler_reclaims
                 .uri("/api/v1/control/social/runtime/claim-pending-shared-channel-sync-targeted")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_a")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -7152,6 +7300,7 @@ async fn test_control_plane_social_shared_channel_stale_claim_scheduler_reclaims
                 .uri("/api/v1/control/social/runtime/pending-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -7248,6 +7397,7 @@ async fn test_control_plane_social_shared_channel_pending_claim_renews_stale_lea
                 .uri("/api/v1/control/social/external-connections")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -7273,6 +7423,7 @@ async fn test_control_plane_social_shared_channel_pending_claim_renews_stale_lea
                 .uri("/api/v1/control/social/shared-channel-policies")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -7301,6 +7452,7 @@ async fn test_control_plane_social_shared_channel_pending_claim_renews_stale_lea
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -7339,6 +7491,7 @@ async fn test_control_plane_social_shared_channel_pending_claim_renews_stale_lea
                 .uri("/api/v1/control/social/runtime/claim-pending-shared-channel-sync-targeted")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_a")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -7403,6 +7556,7 @@ async fn test_control_plane_social_shared_channel_pending_claim_renews_stale_lea
                 .uri("/api/v1/control/social/runtime/pending-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_a")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -7434,6 +7588,7 @@ async fn test_control_plane_social_shared_channel_pending_claim_renews_stale_lea
                 .uri("/api/v1/control/social/runtime/claim-pending-shared-channel-sync-targeted")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_a")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -7495,6 +7650,7 @@ async fn test_control_plane_social_shared_channel_pending_claim_renews_stale_lea
                 .uri("/api/v1/control/social/runtime/pending-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_a")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -7599,6 +7755,7 @@ async fn test_control_plane_social_shared_channel_pending_republish_renews_stale
                 .uri("/api/v1/control/social/external-connections")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -7624,6 +7781,7 @@ async fn test_control_plane_social_shared_channel_pending_republish_renews_stale
                 .uri("/api/v1/control/social/shared-channel-policies")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -7652,6 +7810,7 @@ async fn test_control_plane_social_shared_channel_pending_republish_renews_stale
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -7690,6 +7849,7 @@ async fn test_control_plane_social_shared_channel_pending_republish_renews_stale
                 .uri("/api/v1/control/social/runtime/claim-pending-shared-channel-sync-targeted")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_a")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -7744,6 +7904,7 @@ async fn test_control_plane_social_shared_channel_pending_republish_renews_stale
                 .uri("/api/v1/control/social/runtime/pending-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_a")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -7777,6 +7938,7 @@ async fn test_control_plane_social_shared_channel_pending_republish_renews_stale
                 )
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_a")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -7844,6 +8006,7 @@ async fn test_control_plane_social_shared_channel_pending_republish_renews_stale
                 .uri("/api/v1/control/social/runtime/pending-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_a")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -7945,6 +8108,7 @@ async fn test_control_plane_social_shared_channel_pending_republish_renews_stale
                 .uri("/api/v1/control/social/external-connections")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -7970,6 +8134,7 @@ async fn test_control_plane_social_shared_channel_pending_republish_renews_stale
                 .uri("/api/v1/control/social/shared-channel-policies")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -7998,6 +8163,7 @@ async fn test_control_plane_social_shared_channel_pending_republish_renews_stale
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -8036,6 +8202,7 @@ async fn test_control_plane_social_shared_channel_pending_republish_renews_stale
                 .uri("/api/v1/control/social/runtime/claim-pending-shared-channel-sync-targeted")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_a")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -8091,6 +8258,7 @@ async fn test_control_plane_social_shared_channel_pending_republish_renews_stale
                 .uri("/api/v1/control/social/runtime/pending-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_a")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -8126,6 +8294,7 @@ async fn test_control_plane_social_shared_channel_pending_republish_renews_stale
                 )
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_a")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -8194,6 +8363,7 @@ async fn test_control_plane_social_shared_channel_pending_republish_renews_stale
                 .uri("/api/v1/control/social/runtime/pending-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_a")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -8300,6 +8470,7 @@ async fn test_control_plane_social_shared_channel_stale_claim_reclaim_surface_cl
                 .uri("/api/v1/control/social/external-connections")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -8325,6 +8496,7 @@ async fn test_control_plane_social_shared_channel_stale_claim_reclaim_surface_cl
                 .uri("/api/v1/control/social/shared-channel-policies")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -8353,6 +8525,7 @@ async fn test_control_plane_social_shared_channel_stale_claim_reclaim_surface_cl
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -8394,6 +8567,7 @@ async fn test_control_plane_social_shared_channel_stale_claim_reclaim_surface_cl
                 .uri("/api/v1/control/social/runtime/claim-pending-shared-channel-sync-targeted")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_a")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -8429,6 +8603,7 @@ async fn test_control_plane_social_shared_channel_stale_claim_reclaim_surface_cl
                 .uri("/api/v1/control/social/runtime/reclaim-stale-pending-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -8457,6 +8632,7 @@ async fn test_control_plane_social_shared_channel_stale_claim_reclaim_surface_cl
                 .uri("/api/v1/control/social/runtime/pending-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -8567,6 +8743,7 @@ async fn test_control_plane_social_shared_channel_pending_backlog_retries_on_nex
                 .uri("/api/v1/control/social/external-connections")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -8592,6 +8769,7 @@ async fn test_control_plane_social_shared_channel_pending_backlog_retries_on_nex
                 .uri("/api/v1/control/social/shared-channel-policies")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -8620,6 +8798,7 @@ async fn test_control_plane_social_shared_channel_pending_backlog_retries_on_nex
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -8663,6 +8842,7 @@ async fn test_control_plane_social_shared_channel_pending_backlog_retries_on_nex
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -8797,6 +8977,7 @@ async fn test_control_plane_social_shared_channel_next_healthy_ready_pair_write_
                 .uri("/api/v1/control/social/external-connections")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -8822,6 +9003,7 @@ async fn test_control_plane_social_shared_channel_next_healthy_ready_pair_write_
                 .uri("/api/v1/control/social/shared-channel-policies")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -8850,6 +9032,7 @@ async fn test_control_plane_social_shared_channel_next_healthy_ready_pair_write_
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -8891,6 +9074,7 @@ async fn test_control_plane_social_shared_channel_next_healthy_ready_pair_write_
                 .uri("/api/v1/control/social/runtime/claim-pending-shared-channel-sync-targeted")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_a")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -8920,6 +9104,7 @@ async fn test_control_plane_social_shared_channel_next_healthy_ready_pair_write_
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -9054,6 +9239,7 @@ async fn test_control_plane_social_shared_channel_next_ready_pair_retry_failure_
                 .uri("/api/v1/control/social/external-connections")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -9079,6 +9265,7 @@ async fn test_control_plane_social_shared_channel_next_ready_pair_retry_failure_
                 .uri("/api/v1/control/social/shared-channel-policies")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -9107,6 +9294,7 @@ async fn test_control_plane_social_shared_channel_next_ready_pair_retry_failure_
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -9148,6 +9336,7 @@ async fn test_control_plane_social_shared_channel_next_ready_pair_retry_failure_
                 .uri("/api/v1/control/social/runtime/claim-pending-shared-channel-sync-targeted")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_operator_a")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -9183,6 +9372,7 @@ async fn test_control_plane_social_shared_channel_next_ready_pair_retry_failure_
                 .uri("/api/v1/control/social/runtime/pending-shared-channel-sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -9214,6 +9404,7 @@ async fn test_control_plane_social_shared_channel_next_ready_pair_retry_failure_
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(

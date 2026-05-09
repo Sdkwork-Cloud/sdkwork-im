@@ -48,10 +48,10 @@ const USER_CENTER_SECRET_ID_ENV: &str = "SDKWORK_USER_CENTER_SECRET_ID";
 const USER_CENTER_SECRET_ID_ALIAS_ENV: &str = "CRAW_CHAT_USER_CENTER_SECRET_ID";
 const USER_CENTER_SHARED_SECRET_ENV: &str = "SDKWORK_USER_CENTER_SHARED_SECRET";
 const USER_CENTER_SHARED_SECRET_ALIAS_ENV: &str = "CRAW_CHAT_USER_CENTER_SHARED_SECRET";
-const USER_CENTER_HANDSHAKE_FRESHNESS_WINDOW_MS_ENV: &
-    str = "SDKWORK_USER_CENTER_HANDSHAKE_FRESHNESS_WINDOW_MS";
-const USER_CENTER_HANDSHAKE_FRESHNESS_WINDOW_MS_ALIAS_ENV: &
-    str = "CRAW_CHAT_USER_CENTER_HANDSHAKE_FRESHNESS_WINDOW_MS";
+const USER_CENTER_HANDSHAKE_FRESHNESS_WINDOW_MS_ENV: &str =
+    "SDKWORK_USER_CENTER_HANDSHAKE_FRESHNESS_WINDOW_MS";
+const USER_CENTER_HANDSHAKE_FRESHNESS_WINDOW_MS_ALIAS_ENV: &str =
+    "CRAW_CHAT_USER_CENTER_HANDSHAKE_FRESHNESS_WINDOW_MS";
 
 const USER_CENTER_DEFAULT_LOCAL_API_BASE_PATH: &str = "/api/app/v1/user-center";
 const USER_CENTER_DEFAULT_PROVIDER_KEY: &str = "craw-chat-local";
@@ -64,8 +64,7 @@ const USER_CENTER_DEFAULT_APP_ID: &str = "craw-chat";
 const USER_CENTER_DEFAULT_HANDSHAKE_FRESHNESS_WINDOW_MS: u64 = 30_000;
 
 const USER_CENTER_STANDARD_APP_ID_HEADER_NAME: &str = "x-sdkwork-app-id";
-const USER_CENTER_STANDARD_PROVIDER_KEY_HEADER_NAME: &str =
-    "x-sdkwork-user-center-provider-key";
+const USER_CENTER_STANDARD_PROVIDER_KEY_HEADER_NAME: &str = "x-sdkwork-user-center-provider-key";
 const USER_CENTER_STANDARD_HANDSHAKE_MODE_HEADER_NAME: &str =
     "x-sdkwork-user-center-handshake-mode";
 const USER_CENTER_STANDARD_SECRET_ID_HEADER_NAME: &str = "x-sdkwork-user-center-secret-id";
@@ -242,10 +241,9 @@ pub(super) fn resolve_auth_context(headers: &HeaderMap) -> Result<AuthContext, A
     let mut normalized_headers = headers.clone();
 
     if normalized_headers.get(AUTHORIZATION).is_none() {
-        if let Some(value) = read_header_case_insensitive(
-            headers,
-            config.authorization_header_name.as_str(),
-        ) {
+        if let Some(value) =
+            read_header_case_insensitive(headers, config.authorization_header_name.as_str())
+        {
             normalized_headers.insert(
                 AUTHORIZATION,
                 HeaderValue::from_str(value.as_str()).map_err(|_| {
@@ -256,10 +254,9 @@ pub(super) fn resolve_auth_context(headers: &HeaderMap) -> Result<AuthContext, A
                 })?,
             );
         } else if config.allow_authorization_fallback_to_access_token {
-            if let Some(access_token) = read_header_case_insensitive(
-                headers,
-                config.access_token_header_name.as_str(),
-            ) {
+            if let Some(access_token) =
+                read_header_case_insensitive(headers, config.access_token_header_name.as_str())
+            {
                 let authorization = format!(
                     "{} {}",
                     config.authorization_scheme.as_str(),
@@ -373,7 +370,10 @@ pub(super) fn signed_handshake_headers(
     let signature = hmac_sha256_hex(shared_secret.as_str(), signing_message.as_str());
 
     Some(vec![
-        (USER_CENTER_STANDARD_APP_ID_HEADER_NAME.into(), config.app_id.clone()),
+        (
+            USER_CENTER_STANDARD_APP_ID_HEADER_NAME.into(),
+            config.app_id.clone(),
+        ),
         (
             USER_CENTER_STANDARD_PROVIDER_KEY_HEADER_NAME.into(),
             config.provider_key.clone(),
@@ -591,9 +591,7 @@ fn resolve_user_center_mode() -> Result<UserCenterRuntimeMode, String> {
         .unwrap_or_else(|| "builtin-local".into());
     match configured.trim().to_ascii_lowercase().as_str() {
         "" | "builtin-local" => Ok(UserCenterRuntimeMode::BuiltinLocal),
-        "sdkwork-cloud-app-api" => {
-            Ok(UserCenterRuntimeMode::SdkworkCloudAppApi)
-        }
+        "sdkwork-cloud-app-api" => Ok(UserCenterRuntimeMode::SdkworkCloudAppApi),
         "external-user-center" => Ok(UserCenterRuntimeMode::ExternalUserCenter),
         other => Err(format!(
             "{USER_CENTER_MODE_ENV} must be one of: builtin-local, sdkwork-cloud-app-api, external-user-center; received {other}"
@@ -650,7 +648,10 @@ fn read_header_case_insensitive(headers: &HeaderMap, expected_name: &str) -> Opt
     })
 }
 
-fn read_first_header_case_insensitive(headers: &HeaderMap, expected_names: &[&str]) -> Option<String> {
+fn read_first_header_case_insensitive(
+    headers: &HeaderMap,
+    expected_names: &[&str],
+) -> Option<String> {
     expected_names
         .iter()
         .find_map(|name| read_header_case_insensitive(headers, name))

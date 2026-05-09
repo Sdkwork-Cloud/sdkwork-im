@@ -35,6 +35,7 @@ fn demo_bearer() -> String {
     bearer(json!({
         "tenant_id": "t_demo",
         "sub": "u_demo",
+        "actor_kind": "user",
         "sid": "s_demo"
     }))
 }
@@ -43,6 +44,7 @@ fn executor_bearer() -> String {
     bearer(json!({
         "tenant_id": "t_demo",
         "sub": "u_demo",
+        "actor_kind": "user",
         "sid": "s_demo",
         "permissions": ["automation.execute", "automation.read"]
     }))
@@ -52,6 +54,7 @@ fn execute_only_bearer() -> String {
     bearer(json!({
         "tenant_id": "t_demo",
         "sub": "u_demo",
+        "actor_kind": "user",
         "sid": "s_demo",
         "permissions": ["automation.execute"]
     }))
@@ -61,6 +64,7 @@ fn owner_automation_bearer() -> String {
     bearer(json!({
         "tenant_id": "t_demo",
         "sub": "u_owner",
+        "actor_kind": "user",
         "sid": "s_owner",
         "permissions": ["automation.execute", "automation.read"]
     }))
@@ -70,6 +74,7 @@ fn other_automation_bearer() -> String {
     bearer(json!({
         "tenant_id": "t_demo",
         "sub": "u_other",
+        "actor_kind": "user",
         "sid": "s_other",
         "permissions": ["automation.read"]
     }))

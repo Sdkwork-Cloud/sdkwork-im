@@ -33,14 +33,19 @@ impl MetadataStore for NullMetadata {
 impl TimelineProjectionStore for NullProjection {
     fn upsert_timeline_entry(
         &self,
-        _conversation_id: &str,
+        _tenant_id: &str,
+        _timeline_scope: &str,
         _message_seq: u64,
         _payload: &str,
     ) -> Result<(), ContractError> {
         Ok(())
     }
 
-    fn load_timeline(&self, _conversation_id: &str) -> Result<Vec<(u64, String)>, ContractError> {
+    fn load_timeline(
+        &self,
+        _tenant_id: &str,
+        _timeline_scope: &str,
+    ) -> Result<Vec<(u64, String)>, ContractError> {
         Ok(Vec::new())
     }
 }
@@ -49,6 +54,7 @@ impl RealtimeDisconnectFenceStore for NullDisconnectFenceStore {
     fn load_fence(
         &self,
         _tenant_id: &str,
+        _principal_kind: &str,
         _principal_id: &str,
         _device_id: &str,
     ) -> Result<Option<RealtimeDisconnectFenceRecord>, ContractError> {
@@ -62,8 +68,27 @@ impl RealtimeDisconnectFenceStore for NullDisconnectFenceStore {
     fn clear_fence(
         &self,
         _tenant_id: &str,
+        _principal_kind: &str,
         _principal_id: &str,
         _device_id: &str,
+    ) -> Result<bool, ContractError> {
+        Ok(false)
+    }
+
+    fn clear_fence_disconnected_at_or_before(
+        &self,
+        _tenant_id: &str,
+        _principal_kind: &str,
+        _principal_id: &str,
+        _device_id: &str,
+        _cutoff_disconnected_at: &str,
+    ) -> Result<bool, ContractError> {
+        Ok(false)
+    }
+
+    fn clear_fence_if_matches(
+        &self,
+        _expected: &RealtimeDisconnectFenceRecord,
     ) -> Result<bool, ContractError> {
         Ok(false)
     }
@@ -117,19 +142,21 @@ fn test_contract_types_are_usable_without_binding_to_a_vendor() {
         .load_snapshot("tenant", "demo")
         .expect("metadata load should succeed");
     projection
-        .upsert_timeline_entry("c_demo", 1, "{}")
+        .upsert_timeline_entry("t_demo", "c_demo", 1, "{}")
         .expect("projection upsert should succeed");
     projection
-        .load_timeline("c_demo")
+        .load_timeline("t_demo", "c_demo")
         .expect("projection load should succeed");
     disconnect_fence_store
         .save_fence(RealtimeDisconnectFenceRecord {
             tenant_id: "t_demo".into(),
+            principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_demo".into(),
             session_id: Some("s_demo".into()),
             owner_node_id: "node_a".into(),
             disconnected_at: "2026-04-06T00:00:00Z".into(),
+            fence_token: "fence:t_demo:u_demo:d_demo:s_demo:node_a:2026-04-06T00:00:00Z".into(),
         })
         .expect("disconnect fence save should succeed");
     lease_store

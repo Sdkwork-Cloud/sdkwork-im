@@ -2,18 +2,14 @@ use std::collections::BTreeSet;
 use std::sync::{Mutex, MutexGuard};
 
 use im_domain_core::conversation::DeviceSyncFeedEntry;
-use im_domain_core::conversation::{
-    ConversationMember, ConversationReadCursor, principal_member_key,
-};
+use im_domain_core::conversation::{ConversationMember, ConversationReadCursor};
 use im_platform_contracts::{
     MetadataSnapshotRecord, MetadataStore, TimelineProjectionBatch, TimelineProjectionRecord,
     TimelineProjectionStore,
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
-use crate::contacts::{
-    contact_map_from_items, contact_runtime_scope, contact_snapshot_items, parse_contact_scope,
-};
+use crate::contacts::{contact_map_from_items, contact_runtime_scope, contact_snapshot_items};
 use crate::interactions::{
     StoredMessageInteractionSummary, interaction_map_from_items, interaction_snapshot_items,
 };
@@ -21,6 +17,7 @@ use crate::observability::ProjectionSnapshotOperation;
 use crate::projection::ProjectionError;
 use crate::scope::{
     DeviceFeedScopeKey, DevicePrincipalScopeKey, device_feed_scope_key, device_principal_scope_key,
+    encode_projection_key_segments,
 };
 use crate::{
     ContactView, ConversationSummaryView, TimelineProjectionService, TimelineViewEntry,
@@ -67,7 +64,8 @@ impl ProjectionSnapshotWritePlan {
 
     fn push_timeline_batch<T>(
         &mut self,
-        scope: &str,
+        tenant_id: &str,
+        timeline_scope: &str,
         entries: impl IntoIterator<Item = T>,
     ) -> Result<(), ProjectionError>
     where
@@ -85,7 +83,8 @@ impl ProjectionSnapshotWritePlan {
             .collect::<Result<Vec<_>, ProjectionError>>()?;
         if !records.is_empty() {
             self.timeline_batches.push(TimelineProjectionBatch {
-                conversation_id: scope.to_owned(),
+                tenant_id: tenant_id.to_owned(),
+                timeline_scope: timeline_scope.to_owned(),
                 records,
             });
         }
@@ -144,8 +143,7 @@ impl TimelineSequenceValue for DeviceSyncFeedEntry {
 struct PrincipalSnapshotCatalogEntry {
     tenant_id: String,
     principal_id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    principal_kind: Option<String>,
+    principal_kind: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord)]
@@ -153,8 +151,7 @@ struct PrincipalSnapshotCatalogEntry {
 struct DeviceSyncScopeCatalogEntry {
     tenant_id: String,
     principal_id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    principal_kind: Option<String>,
+    principal_kind: String,
     device_id: String,
 }
 
@@ -267,16 +264,16 @@ impl TimelineProjectionService {
             else {
                 return Ok(false);
             };
-            let mut timeline = timeline_store
-                .load_timeline(scope.as_str())
+            let timeline = timeline_store
+                .load_timeline(tenant_id, conversation_id)
                 .map_err(ProjectionError::StoreFailure)?
                 .into_iter()
                 .map(|(_, payload)| {
                     serde_json::from_str::<TimelineViewEntry>(&payload)
                         .map_err(ProjectionError::InvalidSnapshot)
                 })
-                .collect::<Result<Vec<_>, _>>()?;
-            timeline.sort_by_key(|entry| entry.message_seq);
+                .map(|entry| entry.map(|entry| (entry.message_seq, entry)))
+                .collect::<Result<std::collections::BTreeMap<_, _>, _>>()?;
             let conversation = load_metadata_snapshot::<ConversationCatalogEntry>(
                 metadata_store,
                 scope.as_str(),
@@ -287,18 +284,7 @@ impl TimelineProjectionService {
                 scope.as_str(),
                 CONVERSATION_MEMBERS_KEY,
             )?
-            .unwrap_or_default()
-            .into_iter()
-            .map(|member| {
-                (
-                    principal_member_key(
-                        member.principal_id.as_str(),
-                        member.principal_kind.as_str(),
-                    ),
-                    member,
-                )
-            })
-            .collect();
+            .unwrap_or_default();
             let read_cursors = load_metadata_snapshot::<Vec<ConversationReadCursor>>(
                 metadata_store,
                 scope.as_str(),
@@ -334,9 +320,13 @@ impl TimelineProjectionService {
                         .remove(scope.as_str());
                 }
             }
-            self.members
-                .lock_projection("member store")
-                .insert(scope.clone(), members);
+            {
+                let mut member_store = self.members.lock_projection("member store");
+                member_store.remove_conversation(scope.as_str());
+                for member in members {
+                    member_store.insert_member(scope.clone(), member);
+                }
+            }
             self.read_cursors
                 .lock_projection("cursor store")
                 .insert(scope.clone(), read_cursors);
@@ -462,8 +452,11 @@ impl TimelineProjectionService {
         write_plan.push_metadata(scope.as_str(), CONVERSATION_MEMBERS_KEY, &members)?;
         write_plan.push_metadata(scope.as_str(), CONVERSATION_READ_CURSORS_KEY, &read_cursors)?;
         write_plan.push_metadata(scope.as_str(), MESSAGE_INTERACTIONS_KEY, &interaction_items)?;
-        write_plan
-            .push_timeline_batch(scope.as_str(), self.timeline(tenant_id, conversation_id))?;
+        write_plan.push_timeline_batch(
+            tenant_id,
+            conversation_id,
+            self.timeline(tenant_id, conversation_id),
+        )?;
         Ok(true)
     }
 
@@ -511,7 +504,7 @@ impl TimelineProjectionService {
                 persisted_device_scopes.insert(device_feed_scope_key(
                     runtime_scope.tenant_id.as_str(),
                     runtime_scope.principal_id.as_str(),
-                    runtime_scope.principal_kind.as_deref(),
+                    runtime_scope.principal_kind.as_str(),
                     device.device_id.as_str(),
                 ));
             }
@@ -548,7 +541,7 @@ impl TimelineProjectionService {
             let snapshot_scope = device_sync_snapshot_scope(&runtime_scope);
             let feed_entries = device_sync_feeds
                 .get(&runtime_scope)
-                .cloned()
+                .map(|entries| entries.values().cloned().collect::<Vec<_>>())
                 .unwrap_or_default();
             let latest_sync_seq = device_sync_sequences
                 .get(&runtime_scope)
@@ -565,7 +558,11 @@ impl TimelineProjectionService {
                 DEVICE_SYNC_SEQUENCE_KEY,
                 &latest_sync_seq,
             )?;
-            write_plan.push_timeline_batch(snapshot_scope.as_str(), feed_entries)?;
+            write_plan.push_timeline_batch(
+                runtime_scope.tenant_id.as_str(),
+                snapshot_scope.as_str(),
+                feed_entries,
+            )?;
         }
 
         Ok(true)
@@ -589,15 +586,14 @@ impl TimelineProjectionService {
 
         let mut owner_catalog = BTreeSet::new();
         for (runtime_scope, scope_contacts) in &contacts {
-            let Some((tenant_id, owner_user_id)) = parse_contact_scope(runtime_scope.as_str())
-            else {
-                continue;
-            };
             owner_catalog.insert(ContactOwnerCatalogEntry {
-                tenant_id: tenant_id.to_owned(),
-                owner_user_id: owner_user_id.to_owned(),
+                tenant_id: runtime_scope.tenant_id.clone(),
+                owner_user_id: runtime_scope.owner_user_id.clone(),
             });
-            let snapshot_scope = principal_snapshot_scope(tenant_id, owner_user_id);
+            let snapshot_scope = principal_snapshot_scope(
+                runtime_scope.tenant_id.as_str(),
+                runtime_scope.owner_user_id.as_str(),
+            );
             let items = contact_snapshot_items(scope_contacts);
             write_plan.push_metadata(snapshot_scope.as_str(), CONTACTS_KEY, &items)?;
         }
@@ -658,11 +654,7 @@ impl TimelineProjectionService {
 
             self.direct_chat_bindings
                 .lock_projection("contact direct chat binding store")
-                .extend(
-                    direct_chat_bindings
-                        .into_iter()
-                        .map(|binding| (binding.direct_chat_id.clone(), binding)),
-                );
+                .extend(direct_chat_bindings);
 
             Ok(true)
         })()
@@ -695,7 +687,7 @@ impl TimelineProjectionService {
                 let runtime_scope = device_principal_scope_key(
                     principal.tenant_id.as_str(),
                     principal.principal_id.as_str(),
-                    principal.principal_kind.as_deref(),
+                    principal.principal_kind.as_str(),
                 );
                 let snapshot_scope = device_principal_snapshot_scope(&runtime_scope);
                 let devices = load_metadata_snapshot::<Vec<crate::RegisteredDeviceView>>(
@@ -710,7 +702,7 @@ impl TimelineProjectionService {
                         restored_device_scopes.insert(device_feed_scope_key(
                             principal.tenant_id.as_str(),
                             principal.principal_id.as_str(),
-                            principal.principal_kind.as_deref(),
+                            principal.principal_kind.as_str(),
                             device.device_id.as_str(),
                         ));
                         (device.device_id.clone(), device)
@@ -725,7 +717,7 @@ impl TimelineProjectionService {
                 restored_device_scopes.insert(device_feed_scope_key(
                     device_scope.tenant_id.as_str(),
                     device_scope.principal_id.as_str(),
-                    device_scope.principal_kind.as_deref(),
+                    device_scope.principal_kind.as_str(),
                     device_scope.device_id.as_str(),
                 ));
             }
@@ -733,7 +725,7 @@ impl TimelineProjectionService {
             for runtime_scope in restored_device_scopes {
                 let snapshot_scope = device_sync_snapshot_scope(&runtime_scope);
                 let mut feed_entries = timeline_store
-                    .load_timeline(snapshot_scope.as_str())
+                    .load_timeline(runtime_scope.tenant_id.as_str(), snapshot_scope.as_str())
                     .map_err(ProjectionError::StoreFailure)?
                     .into_iter()
                     .map(|(_, payload)| {
@@ -760,7 +752,13 @@ impl TimelineProjectionService {
                     .insert(runtime_scope.clone(), restored_latest_sync_seq);
                 self.device_sync_feeds
                     .lock_projection("device sync feed store")
-                    .insert(runtime_scope, feed_entries);
+                    .insert(
+                        runtime_scope,
+                        feed_entries
+                            .into_iter()
+                            .map(|entry| (entry.sync_seq, entry))
+                            .collect(),
+                    );
             }
 
             Ok(true)
@@ -791,33 +789,28 @@ fn conversation_snapshot_scope(tenant_id: &str, conversation_id: &str) -> String
 }
 
 fn principal_snapshot_scope(tenant_id: &str, principal_id: &str) -> String {
-    format!("{PRINCIPAL_SNAPSHOT_SCOPE_PREFIX}:{tenant_id}:{principal_id}")
+    encode_projection_key_segments([PRINCIPAL_SNAPSHOT_SCOPE_PREFIX, tenant_id, principal_id])
 }
 
 fn device_principal_snapshot_scope(scope: &DevicePrincipalScopeKey) -> String {
-    match scope.principal_kind.as_deref() {
-        Some(principal_kind) => format!(
-            "{PRINCIPAL_SNAPSHOT_SCOPE_PREFIX}:typed:{}:{principal_kind}:{}",
-            scope.tenant_id, scope.principal_id
-        ),
-        None => format!(
-            "{PRINCIPAL_SNAPSHOT_SCOPE_PREFIX}:{}:{}",
-            scope.tenant_id, scope.principal_id
-        ),
-    }
+    encode_projection_key_segments([
+        PRINCIPAL_SNAPSHOT_SCOPE_PREFIX,
+        "typed",
+        scope.tenant_id.as_str(),
+        scope.principal_kind.as_str(),
+        scope.principal_id.as_str(),
+    ])
 }
 
 fn device_sync_snapshot_scope(scope: &DeviceFeedScopeKey) -> String {
-    match scope.principal_kind.as_deref() {
-        Some(principal_kind) => format!(
-            "{DEVICE_SYNC_SNAPSHOT_SCOPE_PREFIX}:typed:{}:{principal_kind}:{}:{}",
-            scope.tenant_id, scope.principal_id, scope.device_id
-        ),
-        None => format!(
-            "{DEVICE_SYNC_SNAPSHOT_SCOPE_PREFIX}:{}:{}:{}",
-            scope.tenant_id, scope.principal_id, scope.device_id
-        ),
-    }
+    encode_projection_key_segments([
+        DEVICE_SYNC_SNAPSHOT_SCOPE_PREFIX,
+        "typed",
+        scope.tenant_id.as_str(),
+        scope.principal_kind.as_str(),
+        scope.principal_id.as_str(),
+        scope.device_id.as_str(),
+    ])
 }
 
 #[cfg(test)]
@@ -863,7 +856,7 @@ mod tests {
 
     #[derive(Clone, Default)]
     struct CountingMetadataStore {
-        snapshots: Arc<Mutex<HashMap<String, String>>>,
+        snapshots: Arc<Mutex<HashMap<(String, String), String>>>,
         single_put_calls: Arc<AtomicUsize>,
         batch_put_calls: Arc<AtomicUsize>,
     }
@@ -881,7 +874,7 @@ mod tests {
             let mut stored = self.snapshots.lock().expect("metadata store should lock");
             for snapshot in snapshots {
                 stored.insert(
-                    format!("{}:{}", snapshot.scope, snapshot.key),
+                    (snapshot.scope.clone(), snapshot.key.clone()),
                     snapshot.value.clone(),
                 );
             }
@@ -894,7 +887,7 @@ mod tests {
             self.snapshots
                 .lock()
                 .expect("metadata store should lock")
-                .insert(format!("{scope}:{key}"), value.to_owned());
+                .insert((scope.to_owned(), key.to_owned()), value.to_owned());
             Ok(())
         }
 
@@ -903,7 +896,7 @@ mod tests {
                 .snapshots
                 .lock()
                 .expect("metadata store should lock")
-                .get(format!("{scope}:{key}").as_str())
+                .get(&(scope.to_owned(), key.to_owned()))
                 .cloned())
         }
 
@@ -916,7 +909,7 @@ mod tests {
 
     #[derive(Clone, Default)]
     struct CountingTimelineProjectionStore {
-        entries: Arc<Mutex<HashMap<String, BTreeMap<u64, String>>>>,
+        entries: Arc<Mutex<HashMap<(String, String), BTreeMap<u64, String>>>>,
         single_upsert_calls: Arc<AtomicUsize>,
         batch_upsert_calls: Arc<AtomicUsize>,
     }
@@ -930,9 +923,16 @@ mod tests {
             self.batch_upsert_calls.load(Ordering::Relaxed)
         }
 
-        fn upsert_records(&self, scope: &str, records: &[TimelineProjectionRecord]) {
+        fn upsert_records(
+            &self,
+            tenant_id: &str,
+            timeline_scope: &str,
+            records: &[TimelineProjectionRecord],
+        ) {
             let mut stored = self.entries.lock().expect("timeline store should lock");
-            let scope_entries = stored.entry(scope.to_owned()).or_default();
+            let scope_entries = stored
+                .entry((tenant_id.to_owned(), timeline_scope.to_owned()))
+                .or_default();
             for record in records {
                 scope_entries.insert(record.message_seq, record.payload.clone());
             }
@@ -942,7 +942,8 @@ mod tests {
     impl TimelineProjectionStore for CountingTimelineProjectionStore {
         fn upsert_timeline_entry(
             &self,
-            conversation_id: &str,
+            tenant_id: &str,
+            timeline_scope: &str,
             message_seq: u64,
             payload: &str,
         ) -> Result<(), ContractError> {
@@ -950,7 +951,7 @@ mod tests {
             self.entries
                 .lock()
                 .expect("timeline store should lock")
-                .entry(conversation_id.to_owned())
+                .entry((tenant_id.to_owned(), timeline_scope.to_owned()))
                 .or_default()
                 .insert(message_seq, payload.to_owned());
             Ok(())
@@ -958,13 +959,14 @@ mod tests {
 
         fn load_timeline(
             &self,
-            conversation_id: &str,
+            tenant_id: &str,
+            timeline_scope: &str,
         ) -> Result<Vec<(u64, String)>, ContractError> {
             Ok(self
                 .entries
                 .lock()
                 .expect("timeline store should lock")
-                .get(conversation_id)
+                .get(&(tenant_id.to_owned(), timeline_scope.to_owned()))
                 .map(|items| {
                     items
                         .iter()
@@ -980,7 +982,11 @@ mod tests {
         ) -> Result<(), ContractError> {
             self.batch_upsert_calls.fetch_add(1, Ordering::Relaxed);
             for batch in batches {
-                self.upsert_records(batch.conversation_id.as_str(), &batch.records);
+                self.upsert_records(
+                    batch.tenant_id.as_str(),
+                    batch.timeline_scope.as_str(),
+                    &batch.records,
+                );
             }
             Ok(())
         }
@@ -1178,7 +1184,7 @@ mod tests {
         );
         assert_eq!(
             timeline_store
-                .load_timeline(conversation_snapshot_scope("t_demo", "c_batch").as_str())
+                .load_timeline("t_demo", "c_batch")
                 .expect("conversation timeline should load")
                 .len(),
             1,
@@ -1187,8 +1193,9 @@ mod tests {
         assert_eq!(
             timeline_store
                 .load_timeline(
+                    "t_demo",
                     device_sync_snapshot_scope(&device_feed_scope_key(
-                        "t_demo", "u_member", None, "d_phone"
+                        "t_demo", "u_member", "user", "d_phone"
                     ))
                     .as_str(),
                 )
@@ -1324,7 +1331,7 @@ mod tests {
         let device_scope = DeviceSyncScopeCatalogEntry {
             tenant_id: "t_demo".into(),
             principal_id: "u_demo".into(),
-            principal_kind: None,
+            principal_kind: "user".into(),
             device_id: "d_demo".into(),
         };
         persist_metadata_snapshot(
@@ -1346,7 +1353,7 @@ mod tests {
             device_sync_snapshot_scope(&device_feed_scope_key(
                 device_scope.tenant_id.as_str(),
                 device_scope.principal_id.as_str(),
-                device_scope.principal_kind.as_deref(),
+                device_scope.principal_kind.as_str(),
                 device_scope.device_id.as_str(),
             ))
             .as_str(),

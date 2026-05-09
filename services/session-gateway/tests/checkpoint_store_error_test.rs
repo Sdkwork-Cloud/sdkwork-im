@@ -16,6 +16,7 @@ impl RealtimeCheckpointStore for FailingCheckpointStore {
     fn load_checkpoint(
         &self,
         _tenant_id: &str,
+        _principal_kind: &str,
         _principal_id: &str,
         _device_id: &str,
     ) -> Result<Option<RealtimeCheckpointRecord>, ContractError> {
@@ -27,7 +28,10 @@ impl RealtimeCheckpointStore for FailingCheckpointStore {
         Ok(None)
     }
 
-    fn save_checkpoint(&self, _record: RealtimeCheckpointRecord) -> Result<(), ContractError> {
+    fn save_checkpoints(
+        &self,
+        _records: Vec<RealtimeCheckpointRecord>,
+    ) -> Result<(), ContractError> {
         if self.fail_on_save {
             return Err(ContractError::Unavailable(
                 "synthetic checkpoint save failure".into(),
@@ -39,8 +43,9 @@ impl RealtimeCheckpointStore for FailingCheckpointStore {
 
 #[tokio::test]
 async fn test_realtime_events_returns_503_when_checkpoint_store_load_fails() {
+    let cluster = Arc::new(session_gateway::RealtimeClusterBridge::default());
     let app = session_gateway::build_app_with_cluster_and_runtime(
-        Arc::new(session_gateway::RealtimeClusterBridge::default()),
+        cluster.clone(),
         Arc::new(
             session_gateway::RealtimeDeliveryRuntime::with_checkpoint_store(Arc::new(
                 FailingCheckpointStore {
@@ -57,6 +62,7 @@ async fn test_realtime_events_returns_503_when_checkpoint_store_load_fails() {
                 .uri("/api/v1/realtime/events?afterSeq=0&limit=10")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_demo")
                 .body(Body::empty())
@@ -75,12 +81,19 @@ async fn test_realtime_events_returns_503_when_checkpoint_store_load_fails() {
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("body should be valid json");
     assert_eq!(value["code"], "checkpoint_store_unavailable");
+    assert!(
+        cluster
+            .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+            .is_none(),
+        "failed realtime events request must not leave a new device route"
+    );
 }
 
 #[tokio::test]
 async fn test_realtime_ack_returns_503_when_checkpoint_store_save_fails() {
+    let cluster = Arc::new(session_gateway::RealtimeClusterBridge::default());
     let app = session_gateway::build_app_with_cluster_and_runtime(
-        Arc::new(session_gateway::RealtimeClusterBridge::default()),
+        cluster.clone(),
         Arc::new(
             session_gateway::RealtimeDeliveryRuntime::with_checkpoint_store(Arc::new(
                 FailingCheckpointStore {
@@ -98,6 +111,7 @@ async fn test_realtime_ack_returns_503_when_checkpoint_store_save_fails() {
                 .uri("/api/v1/realtime/events/ack")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_demo")
                 .header("content-type", "application/json")
@@ -117,4 +131,71 @@ async fn test_realtime_ack_returns_503_when_checkpoint_store_save_fails() {
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("body should be valid json");
     assert_eq!(value["code"], "checkpoint_store_unavailable");
+    assert!(
+        cluster
+            .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+            .is_none(),
+        "failed realtime ack request must not leave a new device route"
+    );
+}
+
+#[tokio::test]
+async fn test_realtime_ack_preserves_existing_route_when_checkpoint_store_save_fails() {
+    let cluster = Arc::new(session_gateway::RealtimeClusterBridge::default());
+    let runtime = Arc::new(
+        session_gateway::RealtimeDeliveryRuntime::with_checkpoint_store(Arc::new(
+            FailingCheckpointStore {
+                fail_on_load: false,
+                fail_on_save: true,
+            },
+        )),
+    );
+    let app = session_gateway::build_app_with_cluster_and_runtime(cluster.clone(), runtime);
+
+    cluster
+        .bind_device_route_for_principal_kind(
+            "t_demo",
+            "u_demo",
+            "user",
+            "d_pad",
+            "session_gateway_local_1",
+            Some("s_demo"),
+            "websocket",
+        )
+        .expect("test setup should bind an existing websocket route");
+    let existing_route = cluster
+        .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+        .expect("test setup should expose the existing route");
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/realtime/events/ack")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .header("x-device-id", "d_pad")
+                .header("x-session-id", "s_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"ackedSeq":0}"#))
+                .unwrap(),
+        )
+        .await
+        .expect("request should return a response");
+
+    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    let current_route = cluster
+        .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+        .expect("failed ack must preserve the route that existed before the request");
+    assert_eq!(current_route.owner_node_id, existing_route.owner_node_id);
+    assert_eq!(current_route.session_id, existing_route.session_id);
+    assert_eq!(
+        current_route.connection_kind,
+        existing_route.connection_kind
+    );
+    assert!(
+        current_route.route_epoch > existing_route.route_epoch,
+        "restoring a previous route after a failed ack must still advance the route epoch"
+    );
 }

@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use im_domain_core::message::{
     MessagePinned, MessageReactionAdded, MessageReactionRemoved, MessageUnpinned,
+    ReactionActorIdentity,
 };
 use im_domain_events::CommitEnvelope;
 use serde::{Deserialize, Serialize};
@@ -30,7 +31,7 @@ pub(super) struct StoredMessageInteractionSummary {
     pub(super) conversation_id: String,
     pub(super) message_id: String,
     pub(super) message_seq: u64,
-    pub(super) reactions: BTreeMap<String, BTreeSet<String>>,
+    pub(super) reactions: BTreeMap<String, BTreeSet<ReactionActorIdentity>>,
     pub(super) pin: Option<StoredMessagePinSummary>,
 }
 
@@ -118,7 +119,7 @@ impl TimelineProjectionService {
                     .reactions
                     .entry(reaction.reaction_key.clone())
                     .or_default()
-                    .insert(reaction.reacted_by.id.clone())
+                    .insert(ReactionActorIdentity::from_sender(&reaction.reacted_by))
             },
         );
         if !changed {
@@ -134,7 +135,7 @@ impl TimelineProjectionService {
                 message_seq: reaction.message_seq,
                 actor: RealtimeFanoutTarget {
                     principal_id: reaction.reacted_by.id.clone(),
-                    principal_kind: Some(reaction.reacted_by.kind.clone()),
+                    principal_kind: reaction.reacted_by.kind.clone(),
                     device_id: reaction.reacted_by.device_id.clone().unwrap_or_default(),
                 },
                 summary: Some(format!("reacted with {}", reaction.reaction_key)),
@@ -168,7 +169,8 @@ impl TimelineProjectionService {
                 else {
                     return false;
                 };
-                let changed = actor_ids.remove(reaction.removed_by.id.as_str());
+                let changed =
+                    actor_ids.remove(&ReactionActorIdentity::from_sender(&reaction.removed_by));
                 if actor_ids.is_empty() {
                     stored.reactions.remove(reaction.reaction_key.as_str());
                 }
@@ -188,7 +190,7 @@ impl TimelineProjectionService {
                 message_seq: reaction.message_seq,
                 actor: RealtimeFanoutTarget {
                     principal_id: reaction.removed_by.id.clone(),
-                    principal_kind: Some(reaction.removed_by.kind.clone()),
+                    principal_kind: reaction.removed_by.kind.clone(),
                     device_id: reaction.removed_by.device_id.clone().unwrap_or_default(),
                 },
                 summary: Some(format!("removed reaction {}", reaction.reaction_key)),
@@ -245,7 +247,7 @@ impl TimelineProjectionService {
                 message_seq: pin.message_seq,
                 actor: RealtimeFanoutTarget {
                     principal_id: pin.pinned_by.id.clone(),
-                    principal_kind: Some(pin.pinned_by.kind.clone()),
+                    principal_kind: pin.pinned_by.kind.clone(),
                     device_id: pin.pinned_by.device_id.clone().unwrap_or_default(),
                 },
                 summary: Some("pinned message".into()),
@@ -285,7 +287,7 @@ impl TimelineProjectionService {
                 message_seq: pin.message_seq,
                 actor: RealtimeFanoutTarget {
                     principal_id: pin.unpinned_by.id.clone(),
-                    principal_kind: Some(pin.unpinned_by.kind.clone()),
+                    principal_kind: pin.unpinned_by.kind.clone(),
                     device_id: pin.unpinned_by.device_id.clone().unwrap_or_default(),
                 },
                 summary: Some("unpinned message".into()),
@@ -310,7 +312,7 @@ impl TimelineProjectionService {
             .get(scope_key(tenant_id, conversation_id).as_str())
             .and_then(|entries| {
                 entries
-                    .iter()
+                    .values()
                     .find(|entry| entry.message_id == message_id)
                     .map(|entry| entry.message_seq)
             })
@@ -405,6 +407,7 @@ impl TimelineProjectionService {
             summary,
             occurred_at,
         } = context;
+        let actor_kind = actor.principal_kind.clone();
         let draft = DeviceSyncEntryDraft {
             tenant_id: tenant_id.clone(),
             origin_event_id: event.event_id.clone(),
@@ -416,7 +419,7 @@ impl TimelineProjectionService {
             read_seq: None,
             last_read_message_id: None,
             actor_id: Some(actor.principal_id.clone()),
-            actor_kind: Some(event.actor.actor_kind.clone()),
+            actor_kind: Some(actor_kind.clone()),
             actor_device_id: if actor.device_id.is_empty() {
                 None
             } else {
@@ -433,7 +436,7 @@ impl TimelineProjectionService {
             conversation_id.as_str(),
             vec![crate::NotificationRecipientView {
                 principal_id: actor.principal_id,
-                principal_kind: event.actor.actor_kind.clone(),
+                principal_kind: actor_kind,
             }],
         ) {
             self.append_device_sync_draft(&target, &draft);

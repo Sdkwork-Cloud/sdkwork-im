@@ -30,6 +30,7 @@ fn demo_bearer() -> String {
             &json!({
                 "tenant_id": "t_demo",
                 "sub": "u_demo",
+                "actor_kind": "user",
                 "sid": "s_demo"
             }),
             TEST_PUBLIC_SECRET,
@@ -50,6 +51,7 @@ async fn test_public_app_rejects_trusted_headers_without_bearer() {
                 .uri("/api/v1/rtc/sessions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{

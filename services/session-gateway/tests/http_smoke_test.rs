@@ -105,6 +105,7 @@ async fn test_session_resume_returns_presence_snapshot_for_current_device() {
                 .uri("/api/v1/sessions/resume")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_demo")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
@@ -141,6 +142,7 @@ async fn test_session_resume_returns_presence_snapshot_for_current_device() {
                 .uri("/api/v1/presence/me")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_demo")
                 .header("x-device-id", "d_demo")
                 .body(Body::empty())
@@ -174,6 +176,7 @@ async fn test_session_resume_rejects_mismatched_bound_device_id() {
                 .uri("/api/v1/sessions/resume")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_demo")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
@@ -427,6 +430,7 @@ async fn test_presence_heartbeat_and_disconnect_drive_device_offline_transition(
                 .uri("/api/v1/sessions/resume")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_demo")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
@@ -445,6 +449,7 @@ async fn test_presence_heartbeat_and_disconnect_drive_device_offline_transition(
                 .uri("/api/v1/presence/heartbeat")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_demo")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
@@ -463,6 +468,7 @@ async fn test_presence_heartbeat_and_disconnect_drive_device_offline_transition(
                 .uri("/api/v1/sessions/disconnect")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_demo")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
@@ -488,6 +494,7 @@ async fn test_presence_heartbeat_and_disconnect_drive_device_offline_transition(
                 .uri("/api/v1/presence/me")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_demo")
                 .header("x-device-id", "d_demo")
                 .body(Body::empty())
@@ -519,6 +526,7 @@ async fn test_session_gateway_requires_fresh_resume_after_disconnect() {
                 .uri("/api/v1/sessions/resume")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_old")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
@@ -537,6 +545,7 @@ async fn test_session_gateway_requires_fresh_resume_after_disconnect() {
                 .uri("/api/v1/sessions/disconnect")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_old")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
@@ -555,6 +564,7 @@ async fn test_session_gateway_requires_fresh_resume_after_disconnect() {
                 .uri("/api/v1/presence/heartbeat")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_old")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
@@ -582,6 +592,7 @@ async fn test_session_gateway_requires_fresh_resume_after_disconnect() {
                 .uri("/api/v1/sessions/resume")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_new")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
@@ -599,6 +610,7 @@ async fn test_session_gateway_requires_fresh_resume_after_disconnect() {
                 .uri("/api/v1/presence/heartbeat")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_new")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
@@ -622,6 +634,7 @@ async fn test_session_gateway_treats_duplicate_disconnect_as_idempotent_for_same
                 .uri("/api/v1/sessions/resume")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_demo")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
@@ -640,6 +653,7 @@ async fn test_session_gateway_treats_duplicate_disconnect_as_idempotent_for_same
                 .uri("/api/v1/sessions/disconnect")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_demo")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
@@ -657,6 +671,7 @@ async fn test_session_gateway_treats_duplicate_disconnect_as_idempotent_for_same
                 .uri("/api/v1/sessions/disconnect")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_demo")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
@@ -693,6 +708,7 @@ async fn test_session_gateway_rebuild_preserves_reconnect_required_fence_until_f
                 .uri("/api/v1/sessions/resume")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_old")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
@@ -710,6 +726,7 @@ async fn test_session_gateway_rebuild_preserves_reconnect_required_fence_until_f
                 .uri("/api/v1/sessions/disconnect")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_old")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
@@ -732,6 +749,7 @@ async fn test_session_gateway_rebuild_preserves_reconnect_required_fence_until_f
                 .uri("/api/v1/presence/heartbeat")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_old")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
@@ -759,6 +777,7 @@ async fn test_session_gateway_rebuild_preserves_reconnect_required_fence_until_f
                 .uri("/api/v1/sessions/resume")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_new")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
@@ -776,6 +795,7 @@ async fn test_session_gateway_rebuild_preserves_reconnect_required_fence_until_f
                 .uri("/api/v1/presence/heartbeat")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_new")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
@@ -799,6 +819,7 @@ async fn test_session_gateway_rejects_sessionless_device_rebind_after_session_re
                 .uri("/api/v1/sessions/resume")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_demo")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
@@ -816,6 +837,7 @@ async fn test_session_gateway_rejects_sessionless_device_rebind_after_session_re
                 .uri("/api/v1/presence/heartbeat")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
@@ -847,6 +869,7 @@ async fn test_presence_runtime_timestamps_advance_between_resume_heartbeat_and_d
                 .uri("/api/v1/sessions/resume")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_demo")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
@@ -879,6 +902,7 @@ async fn test_presence_runtime_timestamps_advance_between_resume_heartbeat_and_d
                 .uri("/api/v1/presence/heartbeat")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_demo")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
@@ -910,6 +934,7 @@ async fn test_presence_runtime_timestamps_advance_between_resume_heartbeat_and_d
                 .uri("/api/v1/sessions/disconnect")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_demo")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
@@ -948,6 +973,7 @@ async fn test_realtime_subscription_sync_and_empty_event_window_over_http() {
                 .uri("/api/v1/realtime/subscriptions/sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_pad")
                 .header("x-device-id", "d_pad")
                 .header("content-type", "application/json")
@@ -986,6 +1012,7 @@ async fn test_realtime_subscription_sync_and_empty_event_window_over_http() {
                 .uri("/api/v1/realtime/events?afterSeq=0&limit=10")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_pad")
                 .header("x-device-id", "d_pad")
                 .body(Body::empty())
@@ -993,13 +1020,19 @@ async fn test_realtime_subscription_sync_and_empty_event_window_over_http() {
         )
         .await
         .expect("realtime event window request should succeed");
-    assert_eq!(event_window.status(), StatusCode::OK);
+    let event_window_status = event_window.status();
     let event_window_body = event_window
         .into_body()
         .collect()
         .await
         .expect("realtime event window body should collect")
         .to_bytes();
+    assert_eq!(
+        event_window_status,
+        StatusCode::OK,
+        "unexpected event window response: {}",
+        String::from_utf8_lossy(&event_window_body)
+    );
     let event_window_json: serde_json::Value =
         serde_json::from_slice(&event_window_body).expect("event window should be valid json");
     assert_eq!(event_window_json["deviceId"], "d_pad");
@@ -1007,6 +1040,58 @@ async fn test_realtime_subscription_sync_and_empty_event_window_over_http() {
     assert_eq!(event_window_json["ackedThroughSeq"], 0);
     assert_eq!(event_window_json["trimmedThroughSeq"], 0);
     assert_eq!(event_window_json["hasMore"], false);
+}
+
+#[tokio::test]
+async fn test_realtime_subscription_sync_returns_403_when_scope_policy_denies_over_http() {
+    let cluster = Arc::new(session_gateway::RealtimeClusterBridge::default());
+    let app = session_gateway::build_app_with_cluster_and_runtime(
+        cluster.clone(),
+        Arc::new(session_gateway::RealtimeDeliveryRuntime::default()),
+    );
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/realtime/subscriptions/sync")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .header("x-session-id", "s_demo")
+                .header("x-device-id", "d_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "items":[
+                            {
+                                "scopeType":"conversation",
+                                "scopeId":"c_denied",
+                                "eventTypes":["message.posted"]
+                            }
+                        ]
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("subscription sync should return response");
+
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let json: serde_json::Value = serde_json::from_slice(&body).expect("body should be valid json");
+    assert_eq!(json["code"], "realtime_scope_access_denied");
+    assert!(
+        cluster
+            .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_demo")
+            .is_none(),
+        "denied realtime subscription sync must not bind a device route"
+    );
 }
 
 #[tokio::test]
@@ -1021,6 +1106,7 @@ async fn test_realtime_ack_endpoint_accepts_empty_window_over_http() {
                 .uri("/api/v1/realtime/subscriptions/sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_pad")
                 .header("x-device-id", "d_pad")
                 .header("content-type", "application/json")
@@ -1048,6 +1134,7 @@ async fn test_realtime_ack_endpoint_accepts_empty_window_over_http() {
                 .uri("/api/v1/realtime/events/ack")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_pad")
                 .header("x-device-id", "d_pad")
                 .header("content-type", "application/json")
@@ -1088,6 +1175,7 @@ async fn test_session_resume_rejects_oversized_device_id_over_http() {
                 .uri("/api/v1/sessions/resume")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
@@ -1115,7 +1203,8 @@ async fn test_session_resume_rejects_oversized_device_id_over_http() {
 
 #[tokio::test]
 async fn test_realtime_subscription_sync_rejects_oversized_scope_id_over_http() {
-    let app = session_gateway::build_app();
+    let cluster = Arc::new(session_gateway::RealtimeClusterBridge::default());
+    let app = session_gateway::build_app_with_cluster(cluster.clone());
     let oversized_scope_id = "c".repeat(2048);
     let request_body = serde_json::json!({
         "items": [
@@ -1135,6 +1224,7 @@ async fn test_realtime_subscription_sync_rejects_oversized_scope_id_over_http() 
                 .uri("/api/v1/realtime/subscriptions/sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_demo")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
@@ -1159,6 +1249,12 @@ async fn test_realtime_subscription_sync_rejects_oversized_scope_id_over_http() 
             .expect("message should be present")
             .contains("scopeId")
     );
+    assert!(
+        cluster
+            .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_demo")
+            .is_none(),
+        "invalid realtime subscription sync must not bind a device route"
+    );
 }
 
 #[tokio::test]
@@ -1171,6 +1267,7 @@ async fn test_realtime_event_window_rejects_limit_above_guardrail_over_http() {
                 .uri("/api/v1/realtime/events?afterSeq=0&limit=5000")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_demo")
                 .header("x-device-id", "d_demo")
                 .body(Body::empty())
@@ -1188,6 +1285,43 @@ async fn test_realtime_event_window_rejects_limit_above_guardrail_over_http() {
         .to_bytes();
     let json: serde_json::Value = serde_json::from_slice(&body).expect("body should be valid json");
     assert_eq!(json["code"], "limit_invalid");
+}
+
+#[tokio::test]
+async fn test_realtime_event_window_rejects_zero_limit_without_binding_route_over_http() {
+    let cluster = Arc::new(session_gateway::RealtimeClusterBridge::default());
+    let app = session_gateway::build_app_with_cluster(cluster.clone());
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/realtime/events?afterSeq=0&limit=0")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .header("x-session-id", "s_demo")
+                .header("x-device-id", "d_demo")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("event window request should return response");
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let json: serde_json::Value = serde_json::from_slice(&body).expect("body should be valid json");
+    assert_eq!(json["code"], "limit_invalid");
+    assert!(
+        cluster
+            .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_demo")
+            .is_none(),
+        "invalid realtime event window request must not bind a device route"
+    );
 }
 
 #[tokio::test]
@@ -1214,6 +1348,7 @@ async fn test_realtime_subscription_sync_rejects_oversized_event_types_payload_o
                 .uri("/api/v1/realtime/subscriptions/sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_demo")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
@@ -1264,6 +1399,7 @@ async fn test_realtime_subscription_sync_rejects_too_many_items_over_http() {
                 .uri("/api/v1/realtime/subscriptions/sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_demo")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
@@ -1316,6 +1452,7 @@ async fn test_realtime_subscription_sync_rejects_oversized_total_payload_over_ht
                 .uri("/api/v1/realtime/subscriptions/sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_demo")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")

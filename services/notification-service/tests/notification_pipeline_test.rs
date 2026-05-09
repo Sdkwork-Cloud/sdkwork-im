@@ -48,7 +48,7 @@ fn test_request_notification_appends_requested_and_dispatched_events() {
                 category: "message.new".into(),
                 channel: "inapp".into(),
                 recipient_id: "u_target".into(),
-                recipient_kind: None,
+                recipient_kind: "user".into(),
                 title: Some("New message".into()),
                 body: Some("hello".into()),
                 payload: Some(r#"{"conversationId":"c_demo"}"#.into()),
@@ -106,7 +106,7 @@ fn test_duplicate_request_notification_is_idempotent_when_payload_matches() {
                 category: "message.new".into(),
                 channel: "inapp".into(),
                 recipient_id: "u_target".into(),
-                recipient_kind: None,
+                recipient_kind: "user".into(),
                 title: Some("New message".into()),
                 body: Some("hello".into()),
                 payload: Some(r#"{"conversationId":"c_demo"}"#.into()),
@@ -123,7 +123,7 @@ fn test_duplicate_request_notification_is_idempotent_when_payload_matches() {
                 category: "message.new".into(),
                 channel: "inapp".into(),
                 recipient_id: "u_target".into(),
-                recipient_kind: None,
+                recipient_kind: "user".into(),
                 title: Some("New message".into()),
                 body: Some("hello".into()),
                 payload: Some(r#"{"conversationId":"c_demo"}"#.into()),
@@ -174,7 +174,7 @@ fn test_duplicate_request_notification_across_principals_keeps_stable_request_ke
                 category: "message.new".into(),
                 channel: "inapp".into(),
                 recipient_id: "u_target".into(),
-                recipient_kind: None,
+                recipient_kind: "user".into(),
                 title: Some("New message".into()),
                 body: Some("hello".into()),
                 payload: Some(r#"{"conversationId":"c_demo"}"#.into()),
@@ -191,7 +191,7 @@ fn test_duplicate_request_notification_across_principals_keeps_stable_request_ke
                 category: "message.new".into(),
                 channel: "inapp".into(),
                 recipient_id: "u_target".into(),
-                recipient_kind: None,
+                recipient_kind: "user".into(),
                 title: Some("New message".into()),
                 body: Some("hello".into()),
                 payload: Some(r#"{"conversationId":"c_demo"}"#.into()),
@@ -229,7 +229,7 @@ fn test_duplicate_request_notification_rejects_conflicting_payload() {
                 category: "message.new".into(),
                 channel: "inapp".into(),
                 recipient_id: "u_target".into(),
-                recipient_kind: None,
+                recipient_kind: "user".into(),
                 title: Some("New message".into()),
                 body: Some("hello".into()),
                 payload: Some(r#"{"conversationId":"c_demo"}"#.into()),
@@ -247,7 +247,7 @@ fn test_duplicate_request_notification_rejects_conflicting_payload() {
                 category: "message.new".into(),
                 channel: "inapp".into(),
                 recipient_id: "u_other".into(),
-                recipient_kind: None,
+                recipient_kind: "user".into(),
                 title: Some("Changed message".into()),
                 body: Some("different".into()),
                 payload: Some(r#"{"conversationId":"c_other"}"#.into()),
@@ -285,7 +285,7 @@ fn test_request_notification_rejects_oversized_payload() {
                 category: "message.new".into(),
                 channel: "inapp".into(),
                 recipient_id: "u_target".into(),
-                recipient_kind: None,
+                recipient_kind: "user".into(),
                 title: Some("New message".into()),
                 body: Some("hello".into()),
                 payload: Some(oversized_payload),
@@ -320,7 +320,7 @@ fn test_request_notification_rejects_oversized_notification_id() {
                 category: "message.new".into(),
                 channel: "inapp".into(),
                 recipient_id: "u_target".into(),
-                recipient_kind: None,
+                recipient_kind: "user".into(),
                 title: Some("New message".into()),
                 body: Some("hello".into()),
                 payload: Some(r#"{"conversationId":"c_demo"}"#.into()),
@@ -558,7 +558,7 @@ fn test_request_message_posted_notifications_resolves_current_active_recipients_
     assert_eq!(task.category, "message.new");
     assert_eq!(task.channel, "inapp");
     assert_eq!(task.recipient_id, "u_member");
-    assert_eq!(task.recipient_kind.as_deref(), Some("user"));
+    assert_eq!(task.recipient_kind, "user");
     assert_eq!(task.title.as_deref(), Some("hello member"));
     assert_eq!(task.body.as_deref(), Some("hello member"));
     assert_eq!(
@@ -807,7 +807,7 @@ fn test_request_automation_result_notification_isolated_by_actor_kind_for_same_e
         user_task.source_event_id,
         "evt_user_ae_shared_automation_execution_completed"
     );
-    assert_eq!(user_task.recipient_kind.as_deref(), Some("user"));
+    assert_eq!(user_task.recipient_kind, "user");
     assert_eq!(
         system_task.notification_id,
         "ntf_automation_system_ae_shared"
@@ -816,7 +816,7 @@ fn test_request_automation_result_notification_isolated_by_actor_kind_for_same_e
         system_task.source_event_id,
         "evt_system_ae_shared_automation_execution_completed"
     );
-    assert_eq!(system_task.recipient_kind.as_deref(), Some("system"));
+    assert_eq!(system_task.recipient_kind, "system");
 
     let user_notifications = runtime
         .list_notifications(&user_auth)
@@ -873,7 +873,7 @@ fn test_notification_queries_are_isolated_by_actor_kind() {
                 category: "message.new".into(),
                 channel: "inapp".into(),
                 recipient_id: "u_demo".into(),
-                recipient_kind: None,
+                recipient_kind: "user".into(),
                 title: Some("New message".into()),
                 body: Some("hello".into()),
                 payload: Some(r#"{"conversationId":"c_demo"}"#.into()),

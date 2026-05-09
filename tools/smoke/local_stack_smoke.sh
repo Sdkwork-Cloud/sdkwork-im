@@ -114,7 +114,7 @@ generate_hs256_bearer() {
   fi
 
   header_segment="$(printf '%s' '{"alg":"HS256","typ":"JWT"}' | base64url_encode)"
-  payload_segment="$(printf '%s' '{"tenant_id":"t_demo","sub":"u_demo","sid":"s_demo"}' | base64url_encode)"
+  payload_segment="$(printf '%s' '{"tenant_id":"t_demo","sub":"u_demo","actor_kind":"user","sid":"s_demo"}' | base64url_encode)"
   signing_input="${header_segment}.${payload_segment}"
   signature_segment="$(
     printf '%s' "$signing_input" \

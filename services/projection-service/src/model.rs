@@ -16,6 +16,14 @@ pub struct TimelineViewEntry {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct TimelineWindowView {
+    pub items: Vec<TimelineViewEntry>,
+    pub next_after_seq: Option<u64>,
+    pub has_more: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SummarySenderView {
     pub id: String,
     pub kind: String,
@@ -109,16 +117,24 @@ pub struct ConversationSummaryView {
 pub struct RegisteredDeviceView {
     pub tenant_id: String,
     pub principal_id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub principal_kind: Option<String>,
+    pub principal_kind: String,
     pub device_id: String,
     pub registered_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeviceSyncFeedWindowView {
+    pub items: Vec<im_domain_core::conversation::DeviceSyncFeedEntry>,
+    pub next_after_seq: Option<u64>,
+    pub has_more: bool,
+    pub trimmed_through_seq: u64,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RealtimeFanoutTarget {
     pub principal_id: String,
-    pub principal_kind: Option<String>,
+    pub principal_kind: String,
     pub device_id: String,
 }
 

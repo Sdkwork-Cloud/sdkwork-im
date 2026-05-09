@@ -4,6 +4,7 @@ use craw_chat_contract_control::{
     PresenceStateStore, RealtimeCheckpointStore, RealtimeDisconnectFenceStore,
     RealtimeSubscriptionStore,
 };
+use im_platform_contracts::RealtimeEventWindowStore;
 
 use crate::{RealtimeClusterBridge, RealtimeDeliveryRuntime, SessionPresenceRuntime};
 
@@ -18,7 +19,7 @@ impl Default for RealtimePlaneAssembly {
     fn default() -> Self {
         Self::new(
             Arc::new(RealtimeClusterBridge::default()),
-            Arc::new(RealtimeDeliveryRuntime::default()),
+            Arc::new(RealtimeDeliveryRuntime::standalone_gateway()),
             Arc::new(SessionPresenceRuntime::default()),
         )
     }
@@ -40,7 +41,7 @@ impl RealtimePlaneAssembly {
     pub fn with_cluster(realtime_cluster: Arc<RealtimeClusterBridge>) -> Self {
         Self::new(
             realtime_cluster,
-            Arc::new(RealtimeDeliveryRuntime::default()),
+            Arc::new(RealtimeDeliveryRuntime::standalone_gateway()),
             Arc::new(SessionPresenceRuntime::default()),
         )
     }
@@ -56,26 +57,31 @@ impl RealtimePlaneAssembly {
         )
     }
 
-    pub fn with_stores<D, C, S, P>(
+    pub fn with_stores<D, C, S, E, P>(
         disconnect_fence_store: Arc<D>,
         checkpoint_store: Arc<C>,
         subscription_store: Arc<S>,
+        event_window_store: Arc<E>,
         presence_state_store: Arc<P>,
     ) -> Self
     where
         D: RealtimeDisconnectFenceStore + 'static,
         C: RealtimeCheckpointStore + 'static,
         S: RealtimeSubscriptionStore + 'static,
+        E: RealtimeEventWindowStore + 'static,
         P: PresenceStateStore + 'static,
     {
         Self::new(
             Arc::new(RealtimeClusterBridge::with_disconnect_fence_store(
                 disconnect_fence_store,
             )),
-            Arc::new(RealtimeDeliveryRuntime::with_stores(
-                checkpoint_store,
-                subscription_store,
-            )),
+            Arc::new(
+                RealtimeDeliveryRuntime::with_durable_stores_for_standalone_gateway(
+                    checkpoint_store,
+                    subscription_store,
+                    event_window_store,
+                ),
+            ),
             Arc::new(SessionPresenceRuntime::with_store(presence_state_store)),
         )
     }

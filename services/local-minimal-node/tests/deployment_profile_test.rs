@@ -1986,6 +1986,10 @@ fn test_local_stack_smoke_scripts_require_signed_public_bearer_contract() {
             script.contains("CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET"),
             "local stack smoke scripts must depend on CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET for signed public bearer generation"
         );
+        assert!(
+            script.contains("actor_kind"),
+            "local stack smoke scripts must include the required actor_kind claim in generated public bearer tokens"
+        );
     }
 }
 
@@ -3901,7 +3905,7 @@ fn test_repair_runtime_local_sh_invokes_social_repair_after_generic_repair_when_
             .unwrap_or_else(|_| panic!("failed to copy {file_name} into temp bin dir"));
     }
 
-    fs::write(social_state_dir.join("social-commit-journal.json"), "[]\n")
+    fs::write(social_state_dir.join("social-commit-journal.json"), "")
         .expect("social commit journal should be written");
 
     fs::write(
@@ -4197,11 +4201,8 @@ fn test_repair_runtime_local_ps1_propagates_social_repair_failure_when_social_jo
     )
     .expect("repair-runtime-local.ps1 should be copied into temp workspace");
 
-    fs::write(
-        social_state_dir.join("social-commit-journal.json"),
-        "[]\r\n",
-    )
-    .expect("social commit journal should be written");
+    fs::write(social_state_dir.join("social-commit-journal.json"), "")
+        .expect("social commit journal should be written");
 
     fs::write(
         fake_tools_dir.join("cargo.cmd"),

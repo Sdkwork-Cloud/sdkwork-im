@@ -3,11 +3,11 @@ use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
 use tower::ServiceExt;
 
-const OWNER_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X293bmVyIiwic2lkIjoic19vd25lciIsImRpZCI6ImRfb3duZXIifQ.";
+const OWNER_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X293bmVyIiwic2lkIjoic19vd25lciIsImRpZCI6ImRfb3duZXIiLCJhY3Rvcl9raW5kIjoidXNlciJ9.";
 const OWNER_AS_AGENT_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X293bmVyIiwic2lkIjoic19vd25lciIsImRpZCI6ImRfb3duZXIiLCJhY3Rvcl9raW5kIjoiYWdlbnQifQ.";
-const ADMIN_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X2FkbWluIiwic2lkIjoic19hZG1pbiIsImRpZCI6ImRfYWRtaW4ifQ.";
-const MEMBER_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X21lbWJlciIsInNpZCI6InNfbWVtYmVyIiwiZGlkIjoiZF9tZW1iZXIifQ.";
-const INTRUDER_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X2ludHJ1ZGVyIiwic2lkIjoic19pbnRydWRlciIsImRpZCI6ImRfaW50cnVkZXIifQ.";
+const ADMIN_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X2FkbWluIiwic2lkIjoic19hZG1pbiIsImRpZCI6ImRfYWRtaW4iLCJhY3Rvcl9raW5kIjoidXNlciJ9.";
+const MEMBER_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X21lbWJlciIsInNpZCI6InNfbWVtYmVyIiwiZGlkIjoiZF9tZW1iZXIiLCJhY3Rvcl9raW5kIjoidXNlciJ9.";
+const INTRUDER_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X2ludHJ1ZGVyIiwic2lkIjoic19pbnRydWRlciIsImRpZCI6ImRfaW50cnVkZXIiLCJhY3Rvcl9raW5kIjoidXNlciJ9.";
 const AGENT_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJhZ19zb3VyY2UiLCJzaWQiOiJzX2FnZW50IiwiZGlkIjoiZF9hZ2VudCIsImFjdG9yX2tpbmQiOiJhZ2VudCJ9.";
 const SYSTEM_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJzdmNfb3BzIiwic2lkIjoic19zeXN0ZW0iLCJkaWQiOiJkX3N5c3RlbSIsImFjdG9yX2tpbmQiOiJzeXN0ZW0ifQ.";
 
@@ -1424,7 +1424,7 @@ async fn test_group_role_change_requires_owner_and_updates_target_role() {
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
-                        "memberId":"cm_c_group_role_change_http_u_member",
+                        "memberId":"cm_c_group_role_change_http_user_u_member",
                         "role":"guest"
                     }"#,
                 ))
@@ -1453,7 +1453,7 @@ async fn test_group_role_change_requires_owner_and_updates_target_role() {
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
-                        "memberId":"cm_c_group_role_change_http_u_member",
+                        "memberId":"cm_c_group_role_change_http_user_u_member",
                         "role":"guest"
                     }"#,
                 ))
@@ -1556,7 +1556,7 @@ async fn test_group_owner_transfer_allows_safe_handoff_and_leave() {
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
-                        "memberId":"cm_c_group_transfer_http_u_member"
+                        "memberId":"cm_c_group_transfer_http_user_u_member"
                     }"#,
                 ))
                 .unwrap(),

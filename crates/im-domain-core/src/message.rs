@@ -145,19 +145,44 @@ pub struct StoredMessagePin {
     pub pinned_at: String,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReactionActorIdentity {
+    pub kind: String,
+    pub id: String,
+}
+
+impl ReactionActorIdentity {
+    pub fn from_sender(sender: &Sender) -> Self {
+        Self {
+            kind: sender.kind.clone(),
+            id: sender.id.clone(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StoredMessage {
     pub message: Message,
     pub recalled: bool,
-    pub reactions: BTreeMap<String, BTreeSet<String>>,
+    pub reactions: BTreeMap<String, BTreeSet<ReactionActorIdentity>>,
     pub pin: Option<StoredMessagePin>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MessageHistoryWindow {
+    pub items: Vec<StoredMessage>,
+    pub high_watermark: u64,
+    pub next_after_seq: Option<u64>,
+    pub has_more: bool,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ConversationMessageLog {
     high_watermark: u64,
     messages: HashMap<String, StoredMessage>,
+    message_ids_by_seq: BTreeMap<u64, String>,
 }
 
 impl ConversationMessageLog {
@@ -179,15 +204,46 @@ impl ConversationMessageLog {
     }
 
     pub fn messages_in_order(&self) -> Vec<StoredMessage> {
-        let mut items: Vec<_> = self.messages.values().cloned().collect();
-        items.sort_by_key(|stored| stored.message.message_seq);
-        items
+        self.message_window_after(0, usize::MAX).items
+    }
+
+    pub fn message_window_after(&self, after_seq: u64, limit: usize) -> MessageHistoryWindow {
+        let mut items = Vec::with_capacity(limit.min(self.messages.len()));
+        let mut has_more = false;
+        for (_message_seq, message_id) in self.message_ids_by_seq.range((
+            std::ops::Bound::Excluded(after_seq),
+            std::ops::Bound::Unbounded,
+        )) {
+            if items.len() == limit {
+                has_more = true;
+                break;
+            }
+            if let Some(stored) = self.messages.get(message_id.as_str()) {
+                items.push(stored.clone());
+            }
+        }
+        let next_after_seq = items.last().map(|stored| stored.message.message_seq);
+
+        MessageHistoryWindow {
+            items,
+            high_watermark: self.high_watermark,
+            next_after_seq,
+            has_more,
+        }
     }
 
     pub fn store_posted(&mut self, message: Message) {
         let mut message = message;
         message.body = message.body.with_derived_summary();
         self.high_watermark = self.high_watermark.max(message.message_seq);
+        if let Some(existing) = self.messages.get(message.message_id.as_str())
+            && existing.message.message_seq != message.message_seq
+        {
+            self.message_ids_by_seq
+                .remove(&existing.message.message_seq);
+        }
+        self.message_ids_by_seq
+            .insert(message.message_seq, message.message_id.clone());
         self.messages.insert(
             message.message_id.clone(),
             StoredMessage {
@@ -220,7 +276,7 @@ impl ConversationMessageLog {
             .reactions
             .entry(added.reaction_key.clone())
             .or_insert_with(BTreeSet::new);
-        Some(actor_ids.insert(added.reacted_by.id.clone()))
+        Some(actor_ids.insert(ReactionActorIdentity::from_sender(&added.reacted_by)))
     }
 
     pub fn apply_reaction_removed(&mut self, removed: &MessageReactionRemoved) -> Option<bool> {
@@ -228,7 +284,7 @@ impl ConversationMessageLog {
         let Some(actor_ids) = stored.reactions.get_mut(removed.reaction_key.as_str()) else {
             return Some(false);
         };
-        let changed = actor_ids.remove(removed.removed_by.id.as_str());
+        let changed = actor_ids.remove(&ReactionActorIdentity::from_sender(&removed.removed_by));
         if actor_ids.is_empty() {
             stored.reactions.remove(removed.reaction_key.as_str());
         }
@@ -282,7 +338,17 @@ impl MessageLocatorIndex {
 }
 
 fn message_locator_key(tenant_id: &str, message_id: &str) -> String {
-    format!("{tenant_id}:{message_id}")
+    encode_message_key_segments([tenant_id, message_id])
+}
+
+fn encode_message_key_segments<'a>(segments: impl IntoIterator<Item = &'a str>) -> String {
+    let mut encoded = String::new();
+    for segment in segments {
+        encoded.push_str(segment.len().to_string().as_str());
+        encoded.push('#');
+        encoded.push_str(segment);
+    }
+    encoded
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

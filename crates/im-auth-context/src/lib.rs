@@ -180,8 +180,7 @@ pub fn encode_hs256_bearer_token(claims: &Value, secret: &str) -> Result<String,
 pub fn resolve_trusted_headers(headers: &HeaderMap) -> Result<AuthContext, AuthContextError> {
     let tenant_id = resolve_header(headers, &["x-tenant-id"])?;
     let actor_id = resolve_header(headers, &["x-actor-id", "x-user-id"])?;
-    let actor_kind =
-        resolve_optional_header(headers, &["x-actor-kind"]).unwrap_or_else(|| "user".into());
+    let actor_kind = resolve_header(headers, &["x-actor-kind"])?;
     let session_id = resolve_optional_header(headers, &["x-session-id"]);
     let device_id = resolve_optional_header(headers, &["x-device-id"]);
     let permissions = resolve_permissions_from_headers(headers);
@@ -263,11 +262,11 @@ fn resolve_bearer_token(token: &str) -> Result<AuthContext, AuthContextError> {
         &["sub", "actor_id", "actorId", "user_id", "userId"],
         "jwt actor claim is missing",
     )?;
-    let actor_kind = find_claim(
+    let actor_kind = resolve_claim(
         &claims,
         &["actor_kind", "actorKind", "principal_type", "principalType"],
-    )
-    .unwrap_or_else(|| "user".into());
+        "jwt actor kind claim is missing",
+    )?;
     let session_id = find_claim(&claims, &["sid", "session_id", "sessionId"]);
     let device_id = find_claim(&claims, &["did", "device_id", "deviceId"]);
     let permissions = resolve_permissions_from_claims(&claims);

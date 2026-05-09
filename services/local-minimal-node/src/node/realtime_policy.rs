@@ -67,7 +67,7 @@ impl RealtimeScopeAccessPolicy for DirectChatRealtimePolicy {
         &self,
         tenant_id: &str,
         _principal_id: &str,
-        _principal_kind: Option<&str>,
+        _principal_kind: &str,
         scope_type: &str,
         scope_id: &str,
     ) -> Result<(), RealtimeRuntimeError> {
@@ -84,7 +84,7 @@ impl RealtimeScopeAccessPolicy for DirectChatRealtimePolicy {
         &self,
         tenant_id: &str,
         _principal_id: &str,
-        _principal_kind: Option<&str>,
+        _principal_kind: &str,
         event: &im_domain_core::realtime::RealtimeEvent,
     ) -> bool {
         event.scope_type != "conversation"

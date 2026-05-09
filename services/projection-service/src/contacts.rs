@@ -11,14 +11,97 @@ use crate::model::ContactDirectChatBindingView;
 use crate::{ContactView, TimelineProjectionService};
 
 use super::projection::ProjectionError;
-use super::scope::principal_scope_key;
+use super::scope::{ContactOwnerScopeKey, contact_owner_scope_key, encode_projection_key_segments};
+
+#[derive(Default)]
+pub(crate) struct ContactDirectChatBindingRuntimeStore {
+    by_direct_chat_id: HashMap<String, ContactDirectChatBindingView>,
+    direct_chat_id_by_conversation: HashMap<ContactConversationIndexKey, String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+struct ContactConversationIndexKey {
+    tenant_id: Option<String>,
+    conversation_id: String,
+}
+
+impl ContactDirectChatBindingRuntimeStore {
+    pub(crate) fn insert(&mut self, binding: ContactDirectChatBindingView) {
+        if let Some(previous) = self
+            .by_direct_chat_id
+            .insert(binding.direct_chat_id.clone(), binding.clone())
+        {
+            self.direct_chat_id_by_conversation
+                .remove(&direct_chat_conversation_index_key(
+                    previous.tenant_id.as_deref(),
+                    previous.conversation_id.as_str(),
+                ));
+        }
+        self.direct_chat_id_by_conversation.insert(
+            direct_chat_conversation_index_key(
+                binding.tenant_id.as_deref(),
+                binding.conversation_id.as_str(),
+            ),
+            binding.direct_chat_id,
+        );
+    }
+
+    pub(crate) fn extend(
+        &mut self,
+        bindings: impl IntoIterator<Item = ContactDirectChatBindingView>,
+    ) {
+        for binding in bindings {
+            self.insert(binding);
+        }
+    }
+
+    pub(crate) fn get_by_direct_chat_id(
+        &self,
+        direct_chat_id: &str,
+    ) -> Option<&ContactDirectChatBindingView> {
+        self.by_direct_chat_id.get(direct_chat_id)
+    }
+
+    pub(crate) fn get_by_conversation(
+        &self,
+        tenant_id: &str,
+        conversation_id: &str,
+    ) -> Option<&ContactDirectChatBindingView> {
+        self.direct_chat_id_by_conversation
+            .get(&direct_chat_conversation_index_key(
+                Some(tenant_id),
+                conversation_id,
+            ))
+            .or_else(|| {
+                self.direct_chat_id_by_conversation
+                    .get(&direct_chat_conversation_index_key(None, conversation_id))
+            })
+            .and_then(|direct_chat_id| self.by_direct_chat_id.get(direct_chat_id))
+    }
+
+    pub(crate) fn archive_by_direct_chat_id(&mut self, direct_chat_id: &str, archived_at: &str) {
+        if let Some(binding) = self.by_direct_chat_id.get_mut(direct_chat_id) {
+            binding.status = DirectChatStatus::Archived;
+            binding.updated_at = Some(archived_at.to_owned());
+        }
+    }
+
+    pub(crate) fn values(&self) -> impl Iterator<Item = &ContactDirectChatBindingView> {
+        self.by_direct_chat_id.values()
+    }
+
+    pub(crate) fn clear(&mut self) {
+        self.by_direct_chat_id.clear();
+        self.direct_chat_id_by_conversation.clear();
+    }
+}
 
 impl TimelineProjectionService {
     pub fn contacts(&self, tenant_id: &str, owner_user_id: &str) -> Vec<ContactView> {
         let scope = contact_runtime_scope(tenant_id, owner_user_id);
         let items = self
             .lock_contact_store("contacts")
-            .get(scope.as_str())
+            .get(&scope)
             .map(|scope_contacts| scope_contacts.values().cloned().collect::<Vec<_>>())
             .unwrap_or_default();
         ordered_contact_views(items)
@@ -96,14 +179,11 @@ impl TimelineProjectionService {
             updated_at: Some(payload.bound_at.clone()),
         };
         self.lock_direct_chat_bindings("apply_direct_chat_bound")
-            .insert(binding.direct_chat_id.clone(), binding.clone());
+            .insert(binding.clone());
 
         let mut contacts = self.lock_contact_store("apply_direct_chat_bound");
         for (scope, scope_contacts) in contacts.iter_mut() {
-            let Some((tenant_id, _)) = parse_contact_scope(scope.as_str()) else {
-                continue;
-            };
-            if tenant_id != event.tenant_id {
+            if scope.tenant_id != event.tenant_id {
                 continue;
             }
             for contact in scope_contacts.values_mut() {
@@ -186,7 +266,7 @@ impl TimelineProjectionService {
         let key = contact_entry_key("friendship", target_user_id);
         let mut contacts = self.lock_contact_store("remove_friendship_contact");
         let mut remove_scope = false;
-        if let Some(scope_contacts) = contacts.get_mut(scope.as_str()) {
+        if let Some(scope_contacts) = contacts.get_mut(&scope) {
             if scope_contacts
                 .get(key.as_str())
                 .is_some_and(|contact| contact.friendship_id == friendship_id)
@@ -196,7 +276,7 @@ impl TimelineProjectionService {
             remove_scope = scope_contacts.is_empty();
         }
         if remove_scope {
-            contacts.remove(scope.as_str());
+            contacts.remove(&scope);
         }
     }
 
@@ -211,10 +291,7 @@ impl TimelineProjectionService {
             contacts
                 .iter()
                 .filter_map(|(scope, scope_contacts)| {
-                    let Some((scope_tenant_id, _)) = parse_contact_scope(scope.as_str()) else {
-                        return None;
-                    };
-                    if scope_tenant_id != tenant_id {
+                    if scope.tenant_id != tenant_id {
                         return None;
                     }
 
@@ -232,30 +309,27 @@ impl TimelineProjectionService {
 
         let mut bindings = self.lock_direct_chat_bindings("archive_friendship_direct_chat");
         for direct_chat_id in direct_chat_ids {
-            if let Some(binding) = bindings.get_mut(direct_chat_id.as_str()) {
-                binding.status = DirectChatStatus::Archived;
-                binding.updated_at = Some(archived_at.to_owned());
-            }
+            bindings.archive_by_direct_chat_id(direct_chat_id.as_str(), archived_at);
         }
     }
 
     fn direct_chat_binding(&self, direct_chat_id: &str) -> Option<ContactDirectChatBindingView> {
         self.lock_direct_chat_bindings("direct_chat_binding")
-            .get(direct_chat_id)
+            .get_by_direct_chat_id(direct_chat_id)
             .cloned()
     }
 
     fn lock_contact_store(
         &self,
         operation: &'static str,
-    ) -> MutexGuard<'_, HashMap<String, HashMap<String, ContactView>>> {
+    ) -> MutexGuard<'_, HashMap<ContactOwnerScopeKey, HashMap<String, ContactView>>> {
         lock_contacts_mutex(&self.contacts, "contact store", operation)
     }
 
     fn lock_direct_chat_bindings(
         &self,
         operation: &'static str,
-    ) -> MutexGuard<'_, HashMap<String, ContactDirectChatBindingView>> {
+    ) -> MutexGuard<'_, ContactDirectChatBindingRuntimeStore> {
         lock_contacts_mutex(
             &self.direct_chat_bindings,
             "contact direct chat binding store",
@@ -264,12 +338,12 @@ impl TimelineProjectionService {
     }
 }
 
-pub(super) fn contact_runtime_scope(tenant_id: &str, owner_user_id: &str) -> String {
-    principal_scope_key(tenant_id, owner_user_id)
+pub(super) fn contact_runtime_scope(tenant_id: &str, owner_user_id: &str) -> ContactOwnerScopeKey {
+    contact_owner_scope_key(tenant_id, owner_user_id)
 }
 
 pub(super) fn contact_entry_key(contact_type: &str, target_user_id: &str) -> String {
-    format!("{contact_type}:{target_user_id}")
+    encode_projection_key_segments([contact_type, target_user_id])
 }
 
 pub(super) fn contact_snapshot_items(
@@ -300,8 +374,14 @@ pub(super) fn ordered_contact_views(mut items: Vec<ContactView>) -> Vec<ContactV
     items
 }
 
-pub(super) fn parse_contact_scope(scope: &str) -> Option<(&str, &str)> {
-    scope.split_once(':')
+fn direct_chat_conversation_index_key(
+    tenant_id: Option<&str>,
+    conversation_id: &str,
+) -> ContactConversationIndexKey {
+    ContactConversationIndexKey {
+        tenant_id: tenant_id.map(ToOwned::to_owned),
+        conversation_id: conversation_id.to_owned(),
+    }
 }
 
 fn max_rfc3339<'a>(left: &'a str, right: &'a str) -> &'a str {

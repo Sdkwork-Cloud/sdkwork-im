@@ -30,6 +30,7 @@ async fn test_default_local_minimal_profile_restores_task_runtime_projections_af
                 .uri("/api/v1/notifications/requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -39,6 +40,7 @@ async fn test_default_local_minimal_profile_restores_task_runtime_projections_af
                         "category":"message.new",
                         "channel":"inapp",
                         "recipientId":"u_demo",
+                        "recipientKind":"user",
                         "title":"hello",
                         "body":"world",
                         "payload":"{\"conversationId\":\"c_demo\"}"
@@ -58,6 +60,7 @@ async fn test_default_local_minimal_profile_restores_task_runtime_projections_af
                 .uri("/api/v1/automation/executions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -99,6 +102,7 @@ async fn test_default_local_minimal_profile_restores_task_runtime_projections_af
                 .uri("/api/v1/notifications")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -133,6 +137,7 @@ async fn test_default_local_minimal_profile_restores_task_runtime_projections_af
                 .uri("/api/v1/automation/executions/ae_restart_demo")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.read")
                 .body(Body::empty())
                 .unwrap(),

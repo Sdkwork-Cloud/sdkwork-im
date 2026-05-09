@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::ops::Bound::{Excluded, Unbounded};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use std::collections::BTreeMap;
@@ -54,7 +55,7 @@ struct AppState {
 
 pub struct StreamingRuntime {
     sessions: Mutex<HashMap<String, StreamSession>>,
-    frames: Mutex<HashMap<String, Vec<StreamFrame>>>,
+    frames: Mutex<HashMap<String, BTreeMap<u64, StreamFrame>>>,
     state_store: Arc<dyn StreamStateStore>,
 }
 
@@ -309,7 +310,8 @@ impl StreamingRuntime {
         if let Some(record) = restored {
             lock_stream_mutex(&self.sessions, "stream runtime")
                 .insert(scope_key.clone(), record.session);
-            lock_stream_mutex(&self.frames, "stream runtime").insert(scope_key, record.frames);
+            lock_stream_mutex(&self.frames, "stream runtime")
+                .insert(scope_key, stream_frame_index(record.frames));
         }
 
         Ok(())
@@ -382,8 +384,8 @@ impl StreamingRuntime {
         let session = StreamSession {
             tenant_id: auth.tenant_id.clone(),
             stream_id: request.stream_id.clone(),
-            owner_principal_id: Some(auth.actor_id.clone()),
-            owner_principal_kind: Some(auth.actor_kind.clone()),
+            owner_principal_id: auth.actor_id.clone(),
+            owner_principal_kind: auth.actor_kind.clone(),
             stream_type: request.stream_type,
             scope_kind: request.scope_kind,
             scope_id: request.scope_id,
@@ -469,10 +471,7 @@ impl StreamingRuntime {
         let mut frames = lock_stream_mutex(&self.frames, "stream runtime");
         let stream_frames = frames.entry(scope_key).or_default();
 
-        if let Some(existing) = stream_frames
-            .iter()
-            .find(|frame| frame.frame_seq == request.frame_seq)
-        {
+        if let Some(existing) = stream_frames.get(&request.frame_seq) {
             let is_same_retry = existing.frame_type == request.frame_type
                 && existing.schema_ref == request.schema_ref
                 && existing.encoding == request.encoding
@@ -521,7 +520,7 @@ impl StreamingRuntime {
             occurred_at,
         };
 
-        stream_frames.push(frame.clone());
+        stream_frames.insert(frame.frame_seq, frame.clone());
         session.last_frame_seq = frame.frame_seq;
         session.state = StreamSessionState::Active;
         drop(frames);
@@ -768,25 +767,17 @@ impl StreamingRuntime {
         drop(sessions);
 
         let frames = lock_stream_mutex(&self.frames, "stream runtime");
-        let items: Vec<StreamFrame> = frames
-            .get(scope_key.as_str())
-            .into_iter()
-            .flat_map(|stream_frames| stream_frames.iter())
-            .filter(|frame| frame.frame_seq > after_frame_seq)
-            .take(limit)
-            .cloned()
-            .collect();
-
-        let total_after = frames
-            .get(scope_key.as_str())
-            .map(|stream_frames| {
-                stream_frames
-                    .iter()
-                    .filter(|frame| frame.frame_seq > after_frame_seq)
-                    .count()
-            })
-            .unwrap_or(0);
-        let has_more = total_after > items.len();
+        let mut has_more = false;
+        let mut items = Vec::new();
+        if let Some(stream_frames) = frames.get(scope_key.as_str()) {
+            for (_, frame) in stream_frames.range((Excluded(after_frame_seq), Unbounded)) {
+                if items.len() == limit {
+                    has_more = true;
+                    break;
+                }
+                items.push(frame.clone());
+            }
+        }
         let next_after_frame_seq = items.last().map(|frame| frame.frame_seq);
 
         Ok(StreamFrameWindow {
@@ -821,7 +812,9 @@ impl StreamingRuntime {
         let frames = lock_stream_mutex(&self.frames, "stream runtime")
             .get(scope_key.as_str())
             .cloned()
-            .unwrap_or_default();
+            .unwrap_or_default()
+            .into_values()
+            .collect();
 
         Ok(StreamStateRecord {
             tenant_id: tenant_id.into(),
@@ -850,10 +843,13 @@ impl StreamStateStore for RuntimeMemoryStreamStateStore {
     }
 
     fn save_state(&self, record: StreamStateRecord) -> Result<(), ContractError> {
-        lock_stream_mutex(&self.states, "stream state store").insert(
-            stream_scope_key(record.tenant_id.as_str(), record.stream_id.as_str()),
-            record,
-        );
+        let key = stream_scope_key(record.tenant_id.as_str(), record.stream_id.as_str());
+        let mut states = lock_stream_mutex(&self.states, "stream state store");
+        let next = states
+            .remove(key.as_str())
+            .map(|previous| previous.merge_monotonic(record.clone()))
+            .unwrap_or(record);
+        states.insert(key, next);
         Ok(())
     }
 
@@ -1223,21 +1219,47 @@ fn lock_stream_mutex<'a, T>(mutex: &'a Mutex<T>, lock_name: &'static str) -> Mut
 }
 
 fn stream_scope_key(tenant_id: &str, stream_id: &str) -> String {
-    format!("{tenant_id}:{stream_id}")
+    encode_stream_key_segments([tenant_id, stream_id])
+}
+
+fn encode_stream_key_segments<'a>(segments: impl IntoIterator<Item = &'a str>) -> String {
+    let mut encoded = String::new();
+    for segment in segments {
+        encoded.push_str(segment.len().to_string().as_str());
+        encoded.push('#');
+        encoded.push_str(segment);
+    }
+    encoded
+}
+
+fn stream_frame_index(frames: Vec<StreamFrame>) -> BTreeMap<u64, StreamFrame> {
+    frames.into_iter().filter(|frame| frame.frame_seq > 0).fold(
+        BTreeMap::new(),
+        |mut index, frame| {
+            index.insert(frame.frame_seq, frame);
+            index
+        },
+    )
 }
 
 pub fn stream_open_request_key(auth: &AuthContext, stream_id: &str) -> String {
-    format!(
-        "{}:{}:{}:open:{}",
-        auth.tenant_id, auth.actor_kind, auth.actor_id, stream_id
-    )
+    encode_stream_key_segments([
+        auth.tenant_id.as_str(),
+        auth.actor_kind.as_str(),
+        auth.actor_id.as_str(),
+        "open",
+        stream_id,
+    ])
 }
 
 pub fn stream_complete_request_key(auth: &AuthContext, stream_id: &str) -> String {
-    format!(
-        "{}:{}:{}:complete:{}",
-        auth.tenant_id, auth.actor_kind, auth.actor_id, stream_id
-    )
+    encode_stream_key_segments([
+        auth.tenant_id.as_str(),
+        auth.actor_kind.as_str(),
+        auth.actor_id.as_str(),
+        "complete",
+        stream_id,
+    ])
 }
 
 pub fn stream_checkpoint_request_key(
@@ -1245,24 +1267,37 @@ pub fn stream_checkpoint_request_key(
     stream_id: &str,
     frame_seq: u64,
 ) -> String {
-    format!(
-        "{}:{}:{}:checkpoint:{}:{}",
-        auth.tenant_id, auth.actor_kind, auth.actor_id, stream_id, frame_seq
-    )
+    let frame_seq = frame_seq.to_string();
+    encode_stream_key_segments([
+        auth.tenant_id.as_str(),
+        auth.actor_kind.as_str(),
+        auth.actor_id.as_str(),
+        "checkpoint",
+        stream_id,
+        frame_seq.as_str(),
+    ])
 }
 
 pub fn stream_abort_request_key(auth: &AuthContext, stream_id: &str) -> String {
-    format!(
-        "{}:{}:{}:abort:{}",
-        auth.tenant_id, auth.actor_kind, auth.actor_id, stream_id
-    )
+    encode_stream_key_segments([
+        auth.tenant_id.as_str(),
+        auth.actor_kind.as_str(),
+        auth.actor_id.as_str(),
+        "abort",
+        stream_id,
+    ])
 }
 
 pub fn stream_append_request_key(auth: &AuthContext, stream_id: &str, frame_seq: u64) -> String {
-    format!(
-        "{}:{}:{}:append:{}:{}",
-        auth.tenant_id, auth.actor_kind, auth.actor_id, stream_id, frame_seq
-    )
+    let frame_seq = frame_seq.to_string();
+    encode_stream_key_segments([
+        auth.tenant_id.as_str(),
+        auth.actor_kind.as_str(),
+        auth.actor_id.as_str(),
+        "append",
+        stream_id,
+        frame_seq.as_str(),
+    ])
 }
 
 fn ensure_standalone_stream_open_allowed(
@@ -1353,14 +1388,7 @@ fn stream_abort_matches_request(
 }
 
 fn stream_session_matches_owner_principal(session: &StreamSession, auth: &AuthContext) -> bool {
-    session
-        .owner_principal_id
-        .as_deref()
-        .is_none_or(|owner_principal_id| owner_principal_id == auth.actor_id.as_str())
-        && session
-            .owner_principal_kind
-            .as_deref()
-            .is_none_or(|owner_principal_kind| owner_principal_kind == auth.actor_kind.as_str())
+    session.owner_principal_id == auth.actor_id && session.owner_principal_kind == auth.actor_kind
 }
 
 fn ensure_stream_session_actor_access(
@@ -1439,5 +1467,200 @@ mod tests {
             .load_state("t_demo", "st_poison")
             .expect("poisoned state store lock should be recovered");
         assert!(restored.is_none());
+    }
+
+    #[test]
+    fn test_runtime_memory_state_store_rejects_stale_cursor_and_frame_regression() {
+        let store = RuntimeMemoryStreamStateStore::default();
+        store
+            .save_state(test_stream_state_record(
+                StreamSessionState::Completed,
+                3,
+                Some(2),
+                Some(3),
+                vec![1, 2, 3],
+                "2026-05-06T00:00:03.000Z",
+            ))
+            .expect("current stream state save should succeed");
+        store
+            .save_state(test_stream_state_record(
+                StreamSessionState::Active,
+                1,
+                None,
+                None,
+                vec![1],
+                "2026-05-06T00:00:01.000Z",
+            ))
+            .expect("stale stream state save should not fail the caller");
+
+        let state = store
+            .load_state("t_demo", "st_demo")
+            .expect("stream state load should succeed")
+            .expect("stream state should be present");
+        assert_eq!(state.session.state, StreamSessionState::Completed);
+        assert_eq!(state.session.last_frame_seq, 3);
+        assert_eq!(state.session.last_checkpoint_seq, Some(2));
+        assert_eq!(state.session.complete_frame_seq, Some(3));
+        assert_eq!(
+            state
+                .frames
+                .iter()
+                .map(|frame| frame.frame_seq)
+                .collect::<Vec<_>>(),
+            vec![1, 2, 3]
+        );
+        assert_eq!(state.updated_at, "2026-05-06T00:00:03.000Z");
+    }
+
+    #[test]
+    fn test_stream_state_store_scope_key_is_segment_safe() {
+        let store = RuntimeMemoryStreamStateStore::default();
+        store
+            .save_state(test_stream_state_record_with_identity(
+                "tenant:a",
+                "b",
+                "2026-05-06T00:00:01.000Z",
+            ))
+            .expect("first stream state should save");
+        store
+            .save_state(test_stream_state_record_with_identity(
+                "tenant",
+                "a:b",
+                "2026-05-06T00:00:02.000Z",
+            ))
+            .expect("second stream state should save");
+
+        assert_eq!(
+            store
+                .load_state("tenant:a", "b")
+                .expect("first stream load should succeed")
+                .expect("first stream should not be overwritten")
+                .stream_id,
+            "b"
+        );
+        assert_eq!(
+            store
+                .load_state("tenant", "a:b")
+                .expect("second stream load should succeed")
+                .expect("second stream should be retrievable")
+                .stream_id,
+            "a:b"
+        );
+    }
+
+    #[test]
+    fn test_stream_request_keys_are_segment_safe() {
+        let first = AuthContext {
+            tenant_id: "tenant:a".into(),
+            actor_id: "b".into(),
+            actor_kind: "user".into(),
+            session_id: None,
+            device_id: None,
+            permissions: Default::default(),
+        };
+        let second = AuthContext {
+            tenant_id: "tenant".into(),
+            actor_id: "b".into(),
+            actor_kind: "a:user".into(),
+            session_id: None,
+            device_id: None,
+            permissions: Default::default(),
+        };
+
+        assert_ne!(
+            stream_open_request_key(&first, "stream"),
+            stream_open_request_key(&second, "stream")
+        );
+        assert_ne!(
+            stream_append_request_key(&first, "stream", 7),
+            stream_append_request_key(&second, "stream", 7)
+        );
+    }
+
+    fn test_stream_state_record(
+        state: StreamSessionState,
+        last_frame_seq: u64,
+        last_checkpoint_seq: Option<u64>,
+        complete_frame_seq: Option<u64>,
+        frame_seqs: Vec<u64>,
+        updated_at: &str,
+    ) -> StreamStateRecord {
+        StreamStateRecord {
+            tenant_id: "t_demo".into(),
+            stream_id: "st_demo".into(),
+            session: StreamSession {
+                tenant_id: "t_demo".into(),
+                stream_id: "st_demo".into(),
+                owner_principal_id: "u_demo".into(),
+                owner_principal_kind: "user".into(),
+                stream_type: "custom.delta.text".into(),
+                scope_kind: "request".into(),
+                scope_id: "req_demo".into(),
+                durability_class: StreamDurabilityClass::DurableSession,
+                ordering_scope: "stream".into(),
+                schema_ref: Some("custom.delta.text.v1".into()),
+                state,
+                last_frame_seq,
+                last_checkpoint_seq,
+                result_message_id: complete_frame_seq.map(|_| "msg_done".into()),
+                complete_frame_seq,
+                abort_frame_seq: None,
+                abort_reason: None,
+                opened_at: "2026-05-06T00:00:00.000Z".into(),
+                closed_at: complete_frame_seq.map(|_| "2026-05-06T00:00:03.000Z".into()),
+                expires_at: None,
+            },
+            frames: frame_seqs.into_iter().map(test_stream_frame).collect(),
+            updated_at: updated_at.into(),
+        }
+    }
+
+    fn test_stream_state_record_with_identity(
+        tenant_id: &str,
+        stream_id: &str,
+        updated_at: &str,
+    ) -> StreamStateRecord {
+        let mut record = test_stream_state_record(
+            StreamSessionState::Active,
+            1,
+            None,
+            None,
+            vec![1],
+            updated_at,
+        );
+        record.tenant_id = tenant_id.into();
+        record.stream_id = stream_id.into();
+        record.session.tenant_id = tenant_id.into();
+        record.session.stream_id = stream_id.into();
+        for frame in &mut record.frames {
+            frame.tenant_id = tenant_id.into();
+            frame.stream_id = stream_id.into();
+        }
+        record
+    }
+
+    fn test_stream_frame(frame_seq: u64) -> StreamFrame {
+        StreamFrame {
+            tenant_id: "t_demo".into(),
+            stream_id: "st_demo".into(),
+            stream_type: "custom.delta.text".into(),
+            scope_kind: "request".into(),
+            scope_id: "req_demo".into(),
+            frame_seq,
+            frame_type: "delta".into(),
+            schema_ref: Some("custom.delta.text.v1".into()),
+            encoding: "json".into(),
+            payload: format!("{{\"seq\":{frame_seq}}}"),
+            sender: Sender {
+                id: "u_demo".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_demo".into()),
+                session_id: Some("s_demo".into()),
+                metadata: BTreeMap::new(),
+            },
+            attributes: BTreeMap::new(),
+            occurred_at: format!("2026-05-06T00:00:0{frame_seq}.000Z"),
+        }
     }
 }

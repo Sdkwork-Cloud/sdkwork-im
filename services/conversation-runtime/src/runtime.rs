@@ -2,7 +2,7 @@ use craw_chat_contract_core::ContractError;
 use craw_chat_contract_message::{CommitJournal, CommitPosition};
 use im_auth_context::AuthContext;
 use std::collections::{BTreeMap, HashMap};
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 pub use im_domain_core::conversation::{
     AgentHandoffStateView, ChangeAgentHandoffStatusView, ConversationBusinessBinding,
@@ -16,7 +16,7 @@ use im_domain_core::conversation::{
 use im_domain_core::message::{
     ConversationMessageLog, Message, MessageBody, MessageEdited, MessageLocatorIndex,
     MessagePinned, MessageReactionAdded, MessageReactionRemoved, MessageRecalled, MessageType,
-    MessageUnpinned, Sender,
+    MessageUnpinned, ReactionActorIdentity, Sender,
 };
 use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
 use im_time::utc_now_rfc3339_millis;
@@ -43,9 +43,10 @@ use self::support::{
     build_message_reaction_removed_envelope, build_message_recalled_envelope,
     build_message_unpinned_envelope, build_owner_transfer_envelope, build_read_cursor_envelope,
     conversation_business_scope_key, conversation_retention_class, conversation_scope_key,
-    conversation_timestamp, event_id_component, next_member_episode, resolve_active_member,
-    resolve_active_member_id, resolve_active_member_id_with_kind, resolve_active_member_with_kind,
-    upsert_member, upsert_read_cursor,
+    conversation_timestamp, encode_conversation_key_segments, event_id_component,
+    next_member_episode, resolve_active_member, resolve_active_member_id,
+    resolve_active_member_id_with_kind, resolve_active_member_with_kind, upsert_member,
+    upsert_read_cursor,
 };
 pub use http::{
     PrincipalDirectory, PrincipalDirectoryError, StaticPrincipalDirectory, build_default_app,
@@ -68,8 +69,20 @@ const CONVERSATION_MAX_REQUEST_KEY_BYTES: usize = 2048;
 const MESSAGE_CLIENT_MSG_ID_MAX_BYTES: usize = 256;
 const MESSAGE_REACTION_KEY_MAX_BYTES: usize = 128;
 const MESSAGE_BODY_MAX_BYTES: usize = 512 * 1024;
+const MESSAGE_HISTORY_DEFAULT_LIMIT: usize = 100;
+const MESSAGE_HISTORY_MAX_LIMIT: usize = 1000;
 const CONVERSATION_CREATE_DELIVERY_PROOF_VERSION: &str = "conversation.create.delivery-proof.v1";
 const CONVERSATION_MESSAGE_DELIVERY_PROOF_VERSION: &str = "conversation.message.delivery-proof.v1";
+
+fn normalize_message_history_limit(limit: Option<usize>) -> Result<usize, String> {
+    let limit = limit.unwrap_or(MESSAGE_HISTORY_DEFAULT_LIMIT);
+    if limit == 0 || limit > MESSAGE_HISTORY_MAX_LIMIT {
+        return Err(format!(
+            "message history limit must be between 1 and {MESSAGE_HISTORY_MAX_LIMIT}: {limit}"
+        ));
+    }
+    Ok(limit)
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -976,6 +989,8 @@ pub struct MessageMutationResult {
 pub struct MessageHistoryResult {
     pub items: Vec<im_domain_core::message::StoredMessage>,
     pub high_watermark: u64,
+    pub next_after_seq: Option<u64>,
+    pub has_more: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -1057,6 +1072,36 @@ fn lock_runtime_mutex<'a, T>(mutex: &'a Mutex<T>, label: &'static str) -> MutexG
         Ok(guard) => guard,
         Err(poisoned) => {
             eprintln!("warning: recovering poisoned mutex in conversation-runtime: {label}");
+            poisoned.into_inner()
+        }
+    }
+}
+
+fn read_runtime_state<'a>(
+    state: &'a RwLock<RuntimeState>,
+    label: &'static str,
+) -> RwLockReadGuard<'a, RuntimeState> {
+    match state.read() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            eprintln!(
+                "warning: recovering poisoned runtime read lock in conversation-runtime: {label}"
+            );
+            poisoned.into_inner()
+        }
+    }
+}
+
+fn write_runtime_state<'a>(
+    state: &'a RwLock<RuntimeState>,
+    label: &'static str,
+) -> RwLockWriteGuard<'a, RuntimeState> {
+    match state.write() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            eprintln!(
+                "warning: recovering poisoned runtime write lock in conversation-runtime: {label}"
+            );
             poisoned.into_inner()
         }
     }
@@ -1204,7 +1249,13 @@ fn generic_conversation_create_request_key(
     creator_id: &str,
     conversation_id: &str,
 ) -> String {
-    format!("{tenant_id}:{creator_kind}:{creator_id}:create-conversation:{conversation_id}")
+    encode_conversation_key_segments([
+        tenant_id,
+        creator_kind,
+        creator_id,
+        "create-conversation",
+        conversation_id,
+    ])
 }
 
 fn generic_conversation_create_replay_matches(
@@ -1223,7 +1274,13 @@ fn agent_dialog_create_request_key(
     requester_id: &str,
     conversation_id: &str,
 ) -> String {
-    format!("{tenant_id}:{requester_kind}:{requester_id}:create-agent-dialog:{conversation_id}")
+    encode_conversation_key_segments([
+        tenant_id,
+        requester_kind,
+        requester_id,
+        "create-agent-dialog",
+        conversation_id,
+    ])
 }
 
 fn agent_dialog_create_replay_matches(
@@ -1242,7 +1299,13 @@ fn system_channel_create_request_key(
     requester_id: &str,
     conversation_id: &str,
 ) -> String {
-    format!("{tenant_id}:{requester_kind}:{requester_id}:create-system-channel:{conversation_id}")
+    encode_conversation_key_segments([
+        tenant_id,
+        requester_kind,
+        requester_id,
+        "create-system-channel",
+        conversation_id,
+    ])
 }
 
 fn system_channel_create_replay_matches(
@@ -1261,7 +1324,13 @@ fn agent_handoff_create_request_key(
     source_id: &str,
     conversation_id: &str,
 ) -> String {
-    format!("{tenant_id}:{source_kind}:{source_id}:create-agent-handoff:{conversation_id}")
+    encode_conversation_key_segments([
+        tenant_id,
+        source_kind,
+        source_id,
+        "create-agent-handoff",
+        conversation_id,
+    ])
 }
 
 fn agent_handoff_create_replay_matches(
@@ -1283,7 +1352,13 @@ fn thread_conversation_create_request_key(
     creator_id: &str,
     conversation_id: &str,
 ) -> String {
-    format!("{tenant_id}:{creator_kind}:{creator_id}:create-thread:{conversation_id}")
+    encode_conversation_key_segments([
+        tenant_id,
+        creator_kind,
+        creator_id,
+        "create-thread",
+        conversation_id,
+    ])
 }
 
 fn thread_conversation_create_replay_matches(
@@ -1303,7 +1378,13 @@ fn direct_chat_binding_request_key(
     bound_by: &str,
     conversation_id: &str,
 ) -> String {
-    format!("{tenant_id}:{binder_kind}:{bound_by}:bind-direct-chat:{conversation_id}")
+    encode_conversation_key_segments([
+        tenant_id,
+        binder_kind,
+        bound_by,
+        "bind-direct-chat",
+        conversation_id,
+    ])
 }
 
 fn direct_chat_binding_replay_matches(
@@ -1323,27 +1404,27 @@ fn direct_chat_binding_replay_matches(
 
 fn post_message_request_key(command: &PostMessageCommand) -> Option<String> {
     command.client_msg_id.as_ref().map(|client_msg_id| {
-        format!(
-            "{}:{}:{}:message:{}:{}",
-            command.tenant_id,
-            command.sender.kind,
-            command.sender.id,
-            command.conversation_id,
-            client_msg_id
-        )
+        encode_conversation_key_segments([
+            command.tenant_id.as_str(),
+            command.sender.kind.as_str(),
+            command.sender.id.as_str(),
+            "message",
+            command.conversation_id.as_str(),
+            client_msg_id.as_str(),
+        ])
     })
 }
 
 fn post_message_request_key_from_message(message: &Message) -> Option<String> {
     message.client_msg_id.as_ref().map(|client_msg_id| {
-        format!(
-            "{}:{}:{}:message:{}:{}",
-            message.tenant_id,
-            message.sender.kind,
-            message.sender.id,
-            message.conversation_id,
-            client_msg_id
-        )
+        encode_conversation_key_segments([
+            message.tenant_id.as_str(),
+            message.sender.kind.as_str(),
+            message.sender.id.as_str(),
+            "message",
+            message.conversation_id.as_str(),
+            client_msg_id.as_str(),
+        ])
     })
 }
 
@@ -1419,7 +1500,7 @@ impl CommitJournal for InMemoryJournal {
 
 pub struct ConversationRuntime<J> {
     journal: J,
-    state: Mutex<RuntimeState>,
+    state: RwLock<RuntimeState>,
 }
 
 impl<J> ConversationRuntime<J>
@@ -1429,12 +1510,12 @@ where
     pub fn new(journal: J) -> Self {
         Self {
             journal,
-            state: Mutex::new(RuntimeState::default()),
+            state: RwLock::new(RuntimeState::default()),
         }
     }
 
     pub fn reset_for_recovery(&self) {
-        *lock_runtime_mutex(&self.state, "runtime state") = RuntimeState::default();
+        *write_runtime_state(&self.state, "runtime state") = RuntimeState::default();
     }
 
     pub fn post_message(
@@ -1483,7 +1564,7 @@ where
             conversation_scope_key(command.tenant_id.as_str(), command.conversation_id.as_str());
         let mutation = {
             let mut state =
-                lock_runtime_mutex(&self.state, "conversation-runtime.state.post_message");
+                write_runtime_state(&self.state, "conversation-runtime.state.post_message");
             let mutation = {
                 let conversation =
                     state
@@ -1646,7 +1727,7 @@ where
         validate_message_body_size(&command.body)?;
         let edited = {
             let mut state =
-                lock_runtime_mutex(&self.state, "conversation-runtime.state.edit_message");
+                write_runtime_state(&self.state, "conversation-runtime.state.edit_message");
             let conversation_id = state
                 .message_locator
                 .conversation_id(command.tenant_id.as_str(), command.message_id.as_str())
@@ -1734,7 +1815,7 @@ where
         validate_sender_payload_size("recalledBy", &command.recalled_by)?;
         let recalled = {
             let mut state =
-                lock_runtime_mutex(&self.state, "conversation-runtime.state.recall_message");
+                write_runtime_state(&self.state, "conversation-runtime.state.recall_message");
             let conversation_id = state
                 .message_locator
                 .conversation_id(command.tenant_id.as_str(), command.message_id.as_str())
@@ -1828,7 +1909,7 @@ where
         )?;
         validate_sender_payload_size("reactedBy", &command.reacted_by)?;
         let (reaction, changed) = {
-            let mut state = lock_runtime_mutex(
+            let mut state = write_runtime_state(
                 &self.state,
                 "conversation-runtime.state.add_message_reaction",
             );
@@ -1881,7 +1962,9 @@ where
             let changed = !stored
                 .reactions
                 .get(reaction.reaction_key.as_str())
-                .is_some_and(|actors| actors.contains(reaction.reacted_by.id.as_str()));
+                .is_some_and(|actors| {
+                    actors.contains(&ReactionActorIdentity::from_sender(&reaction.reacted_by))
+                });
             if changed {
                 let retention_class = conversation_retention_class(conversation);
                 self.journal.append(build_message_reaction_added_envelope(
@@ -1942,7 +2025,7 @@ where
         )?;
         validate_sender_payload_size("removedBy", &command.removed_by)?;
         let (reaction, changed) = {
-            let mut state = lock_runtime_mutex(
+            let mut state = write_runtime_state(
                 &self.state,
                 "conversation-runtime.state.remove_message_reaction",
             );
@@ -1995,7 +2078,9 @@ where
             let changed = stored
                 .reactions
                 .get(reaction.reaction_key.as_str())
-                .is_some_and(|actors| actors.contains(reaction.removed_by.id.as_str()));
+                .is_some_and(|actors| {
+                    actors.contains(&ReactionActorIdentity::from_sender(&reaction.removed_by))
+                });
             if changed {
                 let retention_class = conversation_retention_class(conversation);
                 self.journal
@@ -2053,7 +2138,7 @@ where
         validate_sender_payload_size("pinnedBy", &command.pinned_by)?;
         let (pin, changed) = {
             let mut state =
-                lock_runtime_mutex(&self.state, "conversation-runtime.state.pin_message");
+                write_runtime_state(&self.state, "conversation-runtime.state.pin_message");
             let conversation_id = state
                 .message_locator
                 .conversation_id(command.tenant_id.as_str(), command.message_id.as_str())
@@ -2153,7 +2238,7 @@ where
         validate_sender_payload_size("unpinnedBy", &command.unpinned_by)?;
         let (pin, changed) = {
             let mut state =
-                lock_runtime_mutex(&self.state, "conversation-runtime.state.unpin_message");
+                write_runtime_state(&self.state, "conversation-runtime.state.unpin_message");
             let conversation_id = state
                 .message_locator
                 .conversation_id(command.tenant_id.as_str(), command.message_id.as_str())
@@ -2302,7 +2387,7 @@ where
         capability: &str,
     ) -> Result<(), RuntimeError> {
         let scope_key = conversation_scope_key(tenant_id, conversation_id);
-        let state = lock_runtime_mutex(
+        let state = read_runtime_state(
             &self.state,
             "conversation-runtime.state.ensure_conversation_bound_write_allowed",
         );
@@ -2328,7 +2413,7 @@ where
         tenant_id: &str,
         message_id: &str,
     ) -> Result<String, RuntimeError> {
-        let state = lock_runtime_mutex(
+        let state = read_runtime_state(
             &self.state,
             "conversation-runtime.state.conversation_id_for_message",
         );
@@ -2347,7 +2432,7 @@ where
         principal_kind: &str,
     ) -> Result<ConversationMember, RuntimeError> {
         let scope_key = conversation_scope_key(tenant_id, conversation_id);
-        let state = lock_runtime_mutex(
+        let state = read_runtime_state(
             &self.state,
             "conversation-runtime.state.require_active_member_with_kind",
         );
@@ -2365,7 +2450,7 @@ where
         principal_id: &str,
     ) -> Result<ConversationMember, RuntimeError> {
         let scope_key = conversation_scope_key(tenant_id, conversation_id);
-        let state = lock_runtime_mutex(
+        let state = read_runtime_state(
             &self.state,
             "conversation-runtime.state.require_active_member",
         );
@@ -2398,6 +2483,13 @@ mod tests {
         }));
     }
 
+    fn poison_rwlock_write<T>(lock: &RwLock<T>) {
+        let _ = panic::catch_unwind(AssertUnwindSafe(|| {
+            let _guard = lock.write().expect("test poison lock should succeed");
+            panic!("intentional poison for regression coverage");
+        }));
+    }
+
     #[test]
     fn test_in_memory_journal_recorded_recovers_from_poisoned_lock() {
         let journal = InMemoryJournal::default();
@@ -2413,7 +2505,7 @@ mod tests {
     #[test]
     fn test_require_active_member_recovers_from_poisoned_runtime_state_lock() {
         let runtime = ConversationRuntime::new(InMemoryJournal::default());
-        poison_mutex(&runtime.state);
+        poison_rwlock_write(&runtime.state);
 
         let result = panic::catch_unwind(AssertUnwindSafe(|| {
             runtime.require_active_member("t_demo", "c_demo", "u_demo")
@@ -2429,7 +2521,7 @@ mod tests {
     #[test]
     fn test_post_message_recovers_from_poisoned_runtime_state_lock() {
         let runtime = ConversationRuntime::new(InMemoryJournal::default());
-        poison_mutex(&runtime.state);
+        poison_rwlock_write(&runtime.state);
 
         let result = panic::catch_unwind(AssertUnwindSafe(|| {
             runtime.post_message(PostMessageCommand {

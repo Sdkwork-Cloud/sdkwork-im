@@ -1,7 +1,8 @@
 use std::collections::{BTreeMap, HashMap};
+use std::ops::Bound::{Excluded, Unbounded};
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::http::HeaderMap;
 use axum::http::Request;
 use axum::middleware::{self, Next};
@@ -38,6 +39,10 @@ use im_platform_contracts::{
 use im_time::utc_now_rfc3339_millis;
 use serde::{Deserialize, Serialize};
 
+mod session_store;
+
+use session_store::RtcSessionRuntimeStore;
+
 const DEFAULT_RTC_RECORDING_PLAYBACK_URL_TTL_SECONDS: u32 = 3600;
 const RTC_MAX_SESSION_ID_BYTES: usize = 256;
 const RTC_MAX_CONVERSATION_ID_BYTES: usize = 512;
@@ -48,6 +53,7 @@ const RTC_MAX_SIGNAL_TYPE_BYTES: usize = 128;
 const RTC_MAX_SIGNAL_SCHEMA_REF_BYTES: usize = 256;
 const RTC_MAX_SIGNAL_PAYLOAD_BYTES: usize = 256 * 1024;
 const RTC_MAX_PARTICIPANT_ID_BYTES: usize = 256;
+const RTC_SIGNAL_LIST_MAX_LIMIT: usize = 1000;
 const RTC_SESSION_DELIVERY_PROOF_VERSION: &str = "rtc.session.delivery-proof.v1";
 
 fn lock_rtc_mutex<'a, T>(mutex: &'a Mutex<T>, label: &'static str) -> MutexGuard<'a, T> {
@@ -66,8 +72,8 @@ struct AppState {
 }
 
 pub struct RtcRuntime {
-    sessions: Mutex<HashMap<String, RtcSession>>,
-    signals: Mutex<HashMap<String, Vec<RtcSignalEvent>>>,
+    sessions: Mutex<RtcSessionRuntimeStore>,
+    signals: Mutex<HashMap<String, BTreeMap<u64, RtcSignalEvent>>>,
     state_store: Arc<dyn RtcStateStore>,
     provider_registry: Arc<dyn ProviderRegistry>,
     rtc_providers: HashMap<String, Arc<dyn RtcProviderPort>>,
@@ -114,6 +120,21 @@ pub struct PostRtcSignalRequest {
     pub schema_ref: Option<String>,
     pub payload: String,
     pub signaling_stream_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListRtcSignalsQuery {
+    pub after_signal_seq: Option<u64>,
+    pub limit: Option<usize>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RtcSignalWindow {
+    pub items: Vec<RtcSignalEvent>,
+    pub next_after_signal_seq: Option<u64>,
+    pub has_more: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -204,7 +225,7 @@ impl RtcRuntime {
         J: IntoIterator<Item = (String, Arc<dyn ObjectStorageProvider>)>,
     {
         Self {
-            sessions: Mutex::new(HashMap::new()),
+            sessions: Mutex::new(RtcSessionRuntimeStore::default()),
             signals: Mutex::new(HashMap::new()),
             state_store,
             provider_registry,
@@ -216,7 +237,7 @@ impl RtcRuntime {
     fn ensure_session_state(&self, tenant_id: &str, rtc_session_id: &str) -> Result<(), RtcError> {
         let scope_key = rtc_scope_key(tenant_id, rtc_session_id);
         let needs_restore =
-            !lock_rtc_mutex(&self.sessions, "sessions").contains_key(scope_key.as_str());
+            !lock_rtc_mutex(&self.sessions, "sessions").has_session(tenant_id, rtc_session_id);
         if !needs_restore {
             lock_rtc_mutex(&self.signals, "signals")
                 .entry(scope_key)
@@ -229,8 +250,9 @@ impl RtcRuntime {
             .load_state(tenant_id, rtc_session_id)
             .map_err(RtcError::rtc_store)?;
         if let Some(record) = restored {
-            lock_rtc_mutex(&self.sessions, "sessions").insert(scope_key.clone(), record.session);
-            lock_rtc_mutex(&self.signals, "signals").insert(scope_key, record.signals);
+            lock_rtc_mutex(&self.sessions, "sessions").insert_session(record.session);
+            lock_rtc_mutex(&self.signals, "signals")
+                .insert(scope_key, rtc_signal_index(record.signals));
         }
 
         Ok(())
@@ -243,8 +265,7 @@ impl RtcRuntime {
     ) -> Result<RtcSession, RtcError> {
         self.ensure_session_state(auth.tenant_id.as_str(), rtc_session_id)?;
         lock_rtc_mutex(&self.sessions, "sessions")
-            .get(rtc_scope_key(auth.tenant_id.as_str(), rtc_session_id).as_str())
-            .cloned()
+            .session(auth.tenant_id.as_str(), rtc_session_id)
             .ok_or_else(|| RtcError {
                 status: axum::http::StatusCode::NOT_FOUND,
                 code: "rtc_session_not_found",
@@ -266,10 +287,11 @@ impl RtcRuntime {
         request: CreateRtcSessionRequest,
     ) -> Result<RtcSessionMutationOutcome, RtcError> {
         validate_create_rtc_session_request_payload_size(&request)?;
-        let scope_key = rtc_scope_key(auth.tenant_id.as_str(), request.rtc_session_id.as_str());
         self.ensure_session_state(auth.tenant_id.as_str(), request.rtc_session_id.as_str())?;
         let mut sessions = lock_rtc_mutex(&self.sessions, "sessions");
-        if let Some(existing) = sessions.get(scope_key.as_str()).cloned() {
+        if let Some(existing) =
+            sessions.session(auth.tenant_id.as_str(), request.rtc_session_id.as_str())
+        {
             if rtc_session_matches_create_request(&existing, auth, &request) {
                 return Ok(RtcSessionMutationOutcome {
                     session: existing,
@@ -298,7 +320,7 @@ impl RtcRuntime {
             conversation_id: request.conversation_id,
             rtc_mode: request.rtc_mode,
             initiator_id: auth.actor_id.clone(),
-            initiator_kind: Some(auth.actor_kind.clone()),
+            initiator_kind: auth.actor_kind.clone(),
             provider_plugin_id: Some(provider_plugin_id),
             provider_session_id: Some(provider_session.provider_session_id),
             access_endpoint: provider_session.access_endpoint,
@@ -310,7 +332,7 @@ impl RtcRuntime {
             ended_at: None,
         };
 
-        sessions.insert(scope_key, session.clone());
+        sessions.insert_session(session.clone());
         drop(sessions);
         lock_rtc_mutex(&self.signals, "signals")
             .entry(rtc_scope_key(
@@ -408,6 +430,19 @@ impl RtcRuntime {
             })
     }
 
+    pub fn sessions_for_conversation(
+        &self,
+        tenant_id: &str,
+        conversation_id: &str,
+    ) -> Vec<RtcSession> {
+        lock_rtc_mutex(&self.sessions, "sessions")
+            .sessions_for_conversation(tenant_id, conversation_id)
+    }
+
+    pub fn sessions_for_state(&self, tenant_id: &str, state: RtcSessionState) -> Vec<RtcSession> {
+        lock_rtc_mutex(&self.sessions, "sessions").sessions_for_state(tenant_id, &state)
+    }
+
     pub fn invite_session(
         &self,
         auth: &AuthContext,
@@ -428,56 +463,58 @@ impl RtcRuntime {
         validate_invite_rtc_session_request_payload_size(&request)?;
         self.ensure_session_state(auth.tenant_id.as_str(), rtc_session_id)?;
         let mut sessions = lock_rtc_mutex(&self.sessions, "sessions");
-        let session = sessions
-            .get_mut(rtc_scope_key(auth.tenant_id.as_str(), rtc_session_id).as_str())
+        let outcome = sessions
+            .update_session(auth.tenant_id.as_str(), rtc_session_id, |session| {
+                if matches!(
+                    session.state,
+                    RtcSessionState::Rejected | RtcSessionState::Ended
+                ) {
+                    return Err(RtcError::state_conflict(
+                        rtc_session_id,
+                        "invite",
+                        &session.state,
+                    ));
+                }
+
+                if rtc_session_matches_invite_request(session, &request) {
+                    return Ok(RtcSessionMutationOutcome {
+                        session: session.clone(),
+                        applied: false,
+                    });
+                }
+
+                if matches!(session.state, RtcSessionState::Accepted) {
+                    return Err(RtcError::state_conflict(
+                        rtc_session_id,
+                        "invite",
+                        &session.state,
+                    ));
+                }
+
+                if let Some(signaling_stream_id) = request.signaling_stream_id {
+                    session.signaling_stream_id = Some(signaling_stream_id);
+                    return Ok(RtcSessionMutationOutcome {
+                        session: session.clone(),
+                        applied: true,
+                    });
+                }
+
+                Err(RtcError::state_conflict(
+                    rtc_session_id,
+                    "invite",
+                    &session.state,
+                ))
+            })
             .ok_or_else(|| RtcError {
                 status: axum::http::StatusCode::NOT_FOUND,
                 code: "rtc_session_not_found",
                 message: format!("rtc session not found: {rtc_session_id}"),
-            })?;
-
-        if matches!(
-            session.state,
-            RtcSessionState::Rejected | RtcSessionState::Ended
-        ) {
-            return Err(RtcError::state_conflict(
-                rtc_session_id,
-                "invite",
-                &session.state,
-            ));
-        }
-
-        if rtc_session_matches_invite_request(session, &request) {
-            return Ok(RtcSessionMutationOutcome {
-                session: session.clone(),
-                applied: false,
-            });
-        }
-
-        if matches!(session.state, RtcSessionState::Accepted) {
-            return Err(RtcError::state_conflict(
-                rtc_session_id,
-                "invite",
-                &session.state,
-            ));
-        }
-
-        if let Some(signaling_stream_id) = request.signaling_stream_id {
-            session.signaling_stream_id = Some(signaling_stream_id);
-            let outcome = RtcSessionMutationOutcome {
-                session: session.clone(),
-                applied: true,
-            };
-            drop(sessions);
+            })??;
+        drop(sessions);
+        if outcome.applied {
             self.persist_state(auth.tenant_id.as_str(), rtc_session_id)?;
-            return Ok(outcome);
         }
-
-        Err(RtcError::state_conflict(
-            rtc_session_id,
-            "invite",
-            &session.state,
-        ))
+        Ok(outcome)
     }
 
     pub fn accept_session(
@@ -500,38 +537,44 @@ impl RtcRuntime {
         validate_update_rtc_session_request_payload_size(&request)?;
         self.ensure_session_state(auth.tenant_id.as_str(), rtc_session_id)?;
         let mut sessions = lock_rtc_mutex(&self.sessions, "sessions");
-        let session = sessions
-            .get_mut(rtc_scope_key(auth.tenant_id.as_str(), rtc_session_id).as_str())
+        let outcome = sessions
+            .update_session(
+                auth.tenant_id.as_str(),
+                rtc_session_id,
+                |session| match session.state {
+                    RtcSessionState::Started => {
+                        session.state = RtcSessionState::Accepted;
+                        session.artifact_message_id = request.artifact_message_id;
+                        Ok(RtcSessionMutationOutcome {
+                            session: session.clone(),
+                            applied: true,
+                        })
+                    }
+                    RtcSessionState::Accepted
+                        if rtc_session_matches_update_request(session, &request) =>
+                    {
+                        Ok(RtcSessionMutationOutcome {
+                            session: session.clone(),
+                            applied: false,
+                        })
+                    }
+                    _ => Err(RtcError::state_conflict(
+                        rtc_session_id,
+                        "accept",
+                        &session.state,
+                    )),
+                },
+            )
             .ok_or_else(|| RtcError {
                 status: axum::http::StatusCode::NOT_FOUND,
                 code: "rtc_session_not_found",
                 message: format!("rtc session not found: {rtc_session_id}"),
-            })?;
-
-        match session.state {
-            RtcSessionState::Started => {
-                session.state = RtcSessionState::Accepted;
-                session.artifact_message_id = request.artifact_message_id;
-                let outcome = RtcSessionMutationOutcome {
-                    session: session.clone(),
-                    applied: true,
-                };
-                drop(sessions);
-                self.persist_state(auth.tenant_id.as_str(), rtc_session_id)?;
-                Ok(outcome)
-            }
-            RtcSessionState::Accepted if rtc_session_matches_update_request(session, &request) => {
-                Ok(RtcSessionMutationOutcome {
-                    session: session.clone(),
-                    applied: false,
-                })
-            }
-            _ => Err(RtcError::state_conflict(
-                rtc_session_id,
-                "accept",
-                &session.state,
-            )),
+            })??;
+        drop(sessions);
+        if outcome.applied {
+            self.persist_state(auth.tenant_id.as_str(), rtc_session_id)?;
         }
+        Ok(outcome)
     }
 
     pub fn reject_session(
@@ -553,47 +596,60 @@ impl RtcRuntime {
     ) -> Result<RtcSessionMutationOutcome, RtcError> {
         validate_update_rtc_session_request_payload_size(&request)?;
         self.ensure_session_state(auth.tenant_id.as_str(), rtc_session_id)?;
+        let provider_plugin_id = {
+            let sessions = lock_rtc_mutex(&self.sessions, "sessions");
+            let session = sessions
+                .session(auth.tenant_id.as_str(), rtc_session_id)
+                .ok_or_else(|| RtcError {
+                    status: axum::http::StatusCode::NOT_FOUND,
+                    code: "rtc_session_not_found",
+                    message: format!("rtc session not found: {rtc_session_id}"),
+                })?;
+            match session.state {
+                RtcSessionState::Started => self.selected_provider_plugin_id(
+                    auth.tenant_id.as_str(),
+                    session.provider_plugin_id.as_deref(),
+                )?,
+                RtcSessionState::Rejected
+                    if rtc_session_matches_update_request(&session, &request) =>
+                {
+                    return Ok(RtcSessionMutationOutcome {
+                        session,
+                        applied: false,
+                    });
+                }
+                _ => {
+                    return Err(RtcError::state_conflict(
+                        rtc_session_id,
+                        "reject",
+                        &session.state,
+                    ));
+                }
+            }
+        };
+        self.rtc_provider(provider_plugin_id.as_str())?
+            .close_session(auth.tenant_id.as_str(), rtc_session_id)
+            .map_err(RtcError::rtc_provider)?;
+
         let mut sessions = lock_rtc_mutex(&self.sessions, "sessions");
-        let session = sessions
-            .get_mut(rtc_scope_key(auth.tenant_id.as_str(), rtc_session_id).as_str())
+        let outcome = sessions
+            .update_session(auth.tenant_id.as_str(), rtc_session_id, |session| {
+                session.state = RtcSessionState::Rejected;
+                session.artifact_message_id = request.artifact_message_id;
+                session.ended_at = Some(utc_now_rfc3339_millis());
+                RtcSessionMutationOutcome {
+                    session: session.clone(),
+                    applied: true,
+                }
+            })
             .ok_or_else(|| RtcError {
                 status: axum::http::StatusCode::NOT_FOUND,
                 code: "rtc_session_not_found",
                 message: format!("rtc session not found: {rtc_session_id}"),
             })?;
-
-        match session.state {
-            RtcSessionState::Started => {
-                let provider_plugin_id = self.selected_provider_plugin_id(
-                    auth.tenant_id.as_str(),
-                    session.provider_plugin_id.as_deref(),
-                )?;
-                self.rtc_provider(provider_plugin_id.as_str())?
-                    .close_session(auth.tenant_id.as_str(), rtc_session_id)
-                    .map_err(RtcError::rtc_provider)?;
-                session.state = RtcSessionState::Rejected;
-                session.artifact_message_id = request.artifact_message_id;
-                session.ended_at = Some(utc_now_rfc3339_millis());
-                let outcome = RtcSessionMutationOutcome {
-                    session: session.clone(),
-                    applied: true,
-                };
-                drop(sessions);
-                self.persist_state(auth.tenant_id.as_str(), rtc_session_id)?;
-                Ok(outcome)
-            }
-            RtcSessionState::Rejected if rtc_session_matches_update_request(session, &request) => {
-                Ok(RtcSessionMutationOutcome {
-                    session: session.clone(),
-                    applied: false,
-                })
-            }
-            _ => Err(RtcError::state_conflict(
-                rtc_session_id,
-                "reject",
-                &session.state,
-            )),
-        }
+        drop(sessions);
+        self.persist_state(auth.tenant_id.as_str(), rtc_session_id)?;
+        Ok(outcome)
     }
 
     pub fn end_session(
@@ -615,47 +671,61 @@ impl RtcRuntime {
     ) -> Result<RtcSessionMutationOutcome, RtcError> {
         validate_update_rtc_session_request_payload_size(&request)?;
         self.ensure_session_state(auth.tenant_id.as_str(), rtc_session_id)?;
+        let provider_plugin_id = {
+            let sessions = lock_rtc_mutex(&self.sessions, "sessions");
+            let session = sessions
+                .session(auth.tenant_id.as_str(), rtc_session_id)
+                .ok_or_else(|| RtcError {
+                    status: axum::http::StatusCode::NOT_FOUND,
+                    code: "rtc_session_not_found",
+                    message: format!("rtc session not found: {rtc_session_id}"),
+                })?;
+            match session.state {
+                RtcSessionState::Started | RtcSessionState::Accepted => self
+                    .selected_provider_plugin_id(
+                        auth.tenant_id.as_str(),
+                        session.provider_plugin_id.as_deref(),
+                    )?,
+                RtcSessionState::Ended
+                    if rtc_session_matches_update_request(&session, &request) =>
+                {
+                    return Ok(RtcSessionMutationOutcome {
+                        session,
+                        applied: false,
+                    });
+                }
+                _ => {
+                    return Err(RtcError::state_conflict(
+                        rtc_session_id,
+                        "end",
+                        &session.state,
+                    ));
+                }
+            }
+        };
+        self.rtc_provider(provider_plugin_id.as_str())?
+            .close_session(auth.tenant_id.as_str(), rtc_session_id)
+            .map_err(RtcError::rtc_provider)?;
+
         let mut sessions = lock_rtc_mutex(&self.sessions, "sessions");
-        let session = sessions
-            .get_mut(rtc_scope_key(auth.tenant_id.as_str(), rtc_session_id).as_str())
+        let outcome = sessions
+            .update_session(auth.tenant_id.as_str(), rtc_session_id, |session| {
+                session.state = RtcSessionState::Ended;
+                session.artifact_message_id = request.artifact_message_id;
+                session.ended_at = Some(utc_now_rfc3339_millis());
+                RtcSessionMutationOutcome {
+                    session: session.clone(),
+                    applied: true,
+                }
+            })
             .ok_or_else(|| RtcError {
                 status: axum::http::StatusCode::NOT_FOUND,
                 code: "rtc_session_not_found",
                 message: format!("rtc session not found: {rtc_session_id}"),
             })?;
-
-        match session.state {
-            RtcSessionState::Started | RtcSessionState::Accepted => {
-                let provider_plugin_id = self.selected_provider_plugin_id(
-                    auth.tenant_id.as_str(),
-                    session.provider_plugin_id.as_deref(),
-                )?;
-                self.rtc_provider(provider_plugin_id.as_str())?
-                    .close_session(auth.tenant_id.as_str(), rtc_session_id)
-                    .map_err(RtcError::rtc_provider)?;
-                session.state = RtcSessionState::Ended;
-                session.artifact_message_id = request.artifact_message_id;
-                session.ended_at = Some(utc_now_rfc3339_millis());
-                let outcome = RtcSessionMutationOutcome {
-                    session: session.clone(),
-                    applied: true,
-                };
-                drop(sessions);
-                self.persist_state(auth.tenant_id.as_str(), rtc_session_id)?;
-                Ok(outcome)
-            }
-            RtcSessionState::Ended if rtc_session_matches_update_request(session, &request) => {
-                Ok(RtcSessionMutationOutcome {
-                    session: session.clone(),
-                    applied: false,
-                })
-            }
-            _ => Err(RtcError::state_conflict(
-                rtc_session_id,
-                "end",
-                &session.state,
-            )),
-        }
+        drop(sessions);
+        self.persist_state(auth.tenant_id.as_str(), rtc_session_id)?;
+        Ok(outcome)
     }
 
     pub fn post_signal(
@@ -667,35 +737,46 @@ impl RtcRuntime {
         validate_post_rtc_signal_request_payload_size(&request)?;
         self.ensure_session_state(auth.tenant_id.as_str(), rtc_session_id)?;
         let mut sessions = lock_rtc_mutex(&self.sessions, "sessions");
-        let session = sessions
-            .get_mut(rtc_scope_key(auth.tenant_id.as_str(), rtc_session_id).as_str())
+        let signal_session = sessions
+            .update_session(auth.tenant_id.as_str(), rtc_session_id, |session| {
+                if matches!(
+                    session.state,
+                    RtcSessionState::Rejected | RtcSessionState::Ended
+                ) {
+                    return Err(RtcError {
+                        status: axum::http::StatusCode::BAD_REQUEST,
+                        code: "rtc_session_closed",
+                        message: format!("rtc session is closed: {rtc_session_id}"),
+                    });
+                }
+
+                if let Some(signaling_stream_id) = request.signaling_stream_id {
+                    session.signaling_stream_id = Some(signaling_stream_id);
+                }
+
+                Ok(session.clone())
+            })
             .ok_or_else(|| RtcError {
                 status: axum::http::StatusCode::NOT_FOUND,
                 code: "rtc_session_not_found",
                 message: format!("rtc session not found: {rtc_session_id}"),
-            })?;
+            })??;
+        drop(sessions);
 
-        if matches!(
-            session.state,
-            RtcSessionState::Rejected | RtcSessionState::Ended
-        ) {
-            return Err(RtcError {
-                status: axum::http::StatusCode::BAD_REQUEST,
-                code: "rtc_session_closed",
-                message: format!("rtc session is closed: {rtc_session_id}"),
-            });
-        }
-
-        if let Some(signaling_stream_id) = request.signaling_stream_id {
-            session.signaling_stream_id = Some(signaling_stream_id);
-        }
-
+        let mut signals = lock_rtc_mutex(&self.signals, "signals");
+        let session_signals = signals
+            .entry(rtc_scope_key(auth.tenant_id.as_str(), rtc_session_id))
+            .or_default();
+        let next_signal_seq = session_signals
+            .last_key_value()
+            .map_or(1, |(seq, _)| seq + 1);
         let occurred_at = utc_now_rfc3339_millis();
         let signal = RtcSignalEvent {
             tenant_id: auth.tenant_id.clone(),
-            rtc_session_id: session.rtc_session_id.clone(),
-            conversation_id: session.conversation_id.clone(),
-            rtc_mode: session.rtc_mode.clone(),
+            rtc_session_id: signal_session.rtc_session_id,
+            signal_seq: next_signal_seq,
+            conversation_id: signal_session.conversation_id,
+            rtc_mode: signal_session.rtc_mode,
             signal_type: request.signal_type,
             schema_ref: request.schema_ref,
             payload: request.payload,
@@ -707,19 +788,71 @@ impl RtcRuntime {
                 session_id: auth.session_id.clone(),
                 metadata: BTreeMap::new(),
             },
-            signaling_stream_id: session.signaling_stream_id.clone(),
+            signaling_stream_id: signal_session.signaling_stream_id,
             occurred_at,
         };
 
-        drop(sessions);
-
-        lock_rtc_mutex(&self.signals, "signals")
-            .entry(rtc_scope_key(auth.tenant_id.as_str(), rtc_session_id))
-            .or_default()
-            .push(signal.clone());
+        session_signals.insert(next_signal_seq, signal.clone());
+        drop(signals);
         self.persist_state(auth.tenant_id.as_str(), rtc_session_id)?;
 
         Ok(signal)
+    }
+
+    pub fn list_signals(
+        &self,
+        auth: &AuthContext,
+        rtc_session_id: &str,
+        query: ListRtcSignalsQuery,
+    ) -> Result<RtcSignalWindow, RtcError> {
+        self.ensure_session_state(auth.tenant_id.as_str(), rtc_session_id)?;
+        let after_signal_seq = query.after_signal_seq.unwrap_or(0);
+        let limit = query.limit.unwrap_or(100);
+        if limit == 0 {
+            return Err(RtcError {
+                status: axum::http::StatusCode::BAD_REQUEST,
+                code: "invalid_limit",
+                message: "limit must be greater than 0".into(),
+            });
+        }
+        if limit > RTC_SIGNAL_LIST_MAX_LIMIT {
+            return Err(RtcError {
+                status: axum::http::StatusCode::BAD_REQUEST,
+                code: "invalid_limit",
+                message: format!("limit must be less than or equal to {RTC_SIGNAL_LIST_MAX_LIMIT}"),
+            });
+        }
+
+        let scope_key = rtc_scope_key(auth.tenant_id.as_str(), rtc_session_id);
+        let sessions = lock_rtc_mutex(&self.sessions, "sessions");
+        sessions
+            .session(auth.tenant_id.as_str(), rtc_session_id)
+            .ok_or_else(|| RtcError {
+                status: axum::http::StatusCode::NOT_FOUND,
+                code: "rtc_session_not_found",
+                message: format!("rtc session not found: {rtc_session_id}"),
+            })?;
+        drop(sessions);
+
+        let signals = lock_rtc_mutex(&self.signals, "signals");
+        let mut has_more = false;
+        let mut items = Vec::new();
+        if let Some(session_signals) = signals.get(scope_key.as_str()) {
+            for (_, signal) in session_signals.range((Excluded(after_signal_seq), Unbounded)) {
+                if items.len() == limit {
+                    has_more = true;
+                    break;
+                }
+                items.push(signal.clone());
+            }
+        }
+        let next_after_signal_seq = items.last().map(|signal| signal.signal_seq);
+
+        Ok(RtcSignalWindow {
+            items,
+            next_after_signal_seq,
+            has_more,
+        })
     }
 
     fn persist_state(&self, tenant_id: &str, rtc_session_id: &str) -> Result<(), RtcError> {
@@ -736,8 +869,7 @@ impl RtcRuntime {
     ) -> Result<RtcStateRecord, RtcError> {
         let scope_key = rtc_scope_key(tenant_id, rtc_session_id);
         let session = lock_rtc_mutex(&self.sessions, "sessions")
-            .get(scope_key.as_str())
-            .cloned()
+            .session(tenant_id, rtc_session_id)
             .ok_or_else(|| RtcError {
                 status: axum::http::StatusCode::NOT_FOUND,
                 code: "rtc_session_not_found",
@@ -746,7 +878,9 @@ impl RtcRuntime {
         let signals = lock_rtc_mutex(&self.signals, "signals")
             .get(scope_key.as_str())
             .cloned()
-            .unwrap_or_default();
+            .unwrap_or_default()
+            .into_values()
+            .collect();
 
         Ok(RtcStateRecord {
             tenant_id: tenant_id.into(),
@@ -800,10 +934,8 @@ impl RtcRuntime {
         rtc_session_id: &str,
     ) -> Result<Arc<dyn RtcProviderPort>, RtcError> {
         self.ensure_session_state(tenant_id, rtc_session_id)?;
-        let scope_key = rtc_scope_key(tenant_id, rtc_session_id);
-        if let Some(session) = lock_rtc_mutex(&self.sessions, "sessions")
-            .get(scope_key.as_str())
-            .cloned()
+        if let Some(session) =
+            lock_rtc_mutex(&self.sessions, "sessions").session(tenant_id, rtc_session_id)
         {
             return self.rtc_provider_for_session(tenant_id, &session);
         }
@@ -1027,10 +1159,13 @@ impl RtcStateStore for RuntimeMemoryRtcStateStore {
     }
 
     fn save_state(&self, record: RtcStateRecord) -> Result<(), ContractError> {
-        lock_rtc_mutex(&self.states, "state_store").insert(
-            rtc_scope_key(record.tenant_id.as_str(), record.rtc_session_id.as_str()),
-            record,
-        );
+        let key = rtc_scope_key(record.tenant_id.as_str(), record.rtc_session_id.as_str());
+        let mut states = lock_rtc_mutex(&self.states, "state_store");
+        let next = states
+            .remove(key.as_str())
+            .map(|previous| previous.merge_monotonic(record.clone()))
+            .unwrap_or(record);
+        states.insert(key, next);
         Ok(())
     }
 
@@ -1103,7 +1238,7 @@ pub fn build_app(runtime: Arc<RtcRuntime>) -> Router {
         )
         .route(
             "/api/v1/rtc/sessions/{rtc_session_id}/signals",
-            post(post_signal),
+            post(post_signal).get(list_signals),
         )
         .route(
             "/api/v1/rtc/sessions/{rtc_session_id}/credentials",
@@ -1331,6 +1466,21 @@ async fn post_signal(
     )?))
 }
 
+async fn list_signals(
+    Path(rtc_session_id): Path<String>,
+    Query(query): Query<ListRtcSignalsQuery>,
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> Result<Json<RtcSignalWindow>, RtcError> {
+    let auth = resolve_auth_context(&headers)?;
+    ensure_standalone_rtc_session_allowed(&state.runtime, &auth, rtc_session_id.as_str())?;
+    Ok(Json(state.runtime.list_signals(
+        &auth,
+        rtc_session_id.as_str(),
+        query,
+    )?))
+}
+
 async fn issue_participant_credential(
     Path(rtc_session_id): Path<String>,
     headers: HeaderMap,
@@ -1515,14 +1665,34 @@ fn built_in_object_storage_providers() -> Vec<(String, Arc<dyn ObjectStorageProv
 }
 
 fn rtc_scope_key(tenant_id: &str, rtc_session_id: &str) -> String {
-    format!("{tenant_id}:{rtc_session_id}")
+    encode_rtc_key_segments([tenant_id, rtc_session_id])
+}
+
+fn encode_rtc_key_segments<'a>(segments: impl IntoIterator<Item = &'a str>) -> String {
+    let mut encoded = String::new();
+    for segment in segments {
+        encoded.push_str(segment.len().to_string().as_str());
+        encoded.push('#');
+        encoded.push_str(segment);
+    }
+    encoded
+}
+
+fn rtc_signal_index(signals: Vec<RtcSignalEvent>) -> BTreeMap<u64, RtcSignalEvent> {
+    signals
+        .into_iter()
+        .map(|signal| (signal.signal_seq, signal))
+        .collect()
 }
 
 pub fn rtc_create_request_key(auth: &AuthContext, request: &CreateRtcSessionRequest) -> String {
-    format!(
-        "{}:{}:{}:create:{}",
-        auth.tenant_id, auth.actor_kind, auth.actor_id, request.rtc_session_id
-    )
+    encode_rtc_key_segments([
+        auth.tenant_id.as_str(),
+        auth.actor_kind.as_str(),
+        auth.actor_id.as_str(),
+        "create",
+        request.rtc_session_id.as_str(),
+    ])
 }
 
 pub fn rtc_session_action_request_key(
@@ -1530,7 +1700,7 @@ pub fn rtc_session_action_request_key(
     rtc_session_id: &str,
     action: &str,
 ) -> String {
-    format!("{tenant_id}:{action}:{rtc_session_id}")
+    encode_rtc_key_segments([tenant_id, action, rtc_session_id])
 }
 
 fn ensure_standalone_rtc_create_allowed(request: &CreateRtcSessionRequest) -> Result<(), RtcError> {
@@ -1573,10 +1743,7 @@ fn rtc_session_matches_create_request(
 ) -> bool {
     session.rtc_session_id == request.rtc_session_id.as_str()
         && session.initiator_id == auth.actor_id.as_str()
-        && session
-            .initiator_kind
-            .as_deref()
-            .is_none_or(|initiator_kind| initiator_kind == auth.actor_kind.as_str())
+        && session.initiator_kind == auth.actor_kind
         && session.conversation_id.as_ref() == request.conversation_id.as_ref()
         && session.rtc_mode == request.rtc_mode.as_str()
 }
@@ -1598,7 +1765,9 @@ fn rtc_session_matches_update_request(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use im_platform_contracts::{ProviderPluginDescriptor, RtcSessionHandle};
     use std::panic::{self, AssertUnwindSafe};
+    use std::sync::atomic::{AtomicBool, Ordering};
 
     fn demo_auth_context() -> AuthContext {
         AuthContext {
@@ -1617,6 +1786,172 @@ mod tests {
             panic!("intentional poison for regression coverage");
         }));
     }
+
+    fn test_rtc_state_record(
+        state: RtcSessionState,
+        updated_at: &str,
+        signals: Vec<RtcSignalEvent>,
+    ) -> RtcStateRecord {
+        RtcStateRecord {
+            tenant_id: "t_demo".into(),
+            rtc_session_id: "rtc_demo".into(),
+            session: RtcSession {
+                tenant_id: "t_demo".into(),
+                rtc_session_id: "rtc_demo".into(),
+                conversation_id: Some("c_demo".into()),
+                rtc_mode: "voice".into(),
+                initiator_id: "u_demo".into(),
+                initiator_kind: "user".into(),
+                provider_plugin_id: Some("webrtc".into()),
+                provider_session_id: Some("ps_demo".into()),
+                access_endpoint: Some("wss://rtc.example.test/session/ps_demo".into()),
+                provider_region: Some("cn-shanghai".into()),
+                state,
+                signaling_stream_id: Some("st_demo".into()),
+                artifact_message_id: None,
+                started_at: "2026-05-06T00:00:00.000Z".into(),
+                ended_at: None,
+            },
+            signals,
+            updated_at: updated_at.into(),
+        }
+    }
+
+    fn test_rtc_signal_event(signal_seq: u64) -> RtcSignalEvent {
+        RtcSignalEvent {
+            tenant_id: "t_demo".into(),
+            rtc_session_id: "rtc_demo".into(),
+            signal_seq,
+            conversation_id: Some("c_demo".into()),
+            rtc_mode: "voice".into(),
+            signal_type: format!("rtc.signal.{signal_seq}"),
+            schema_ref: Some("webrtc.signal.v1".into()),
+            payload: format!("{{\"seq\":{signal_seq}}}"),
+            sender: Sender {
+                id: "u_demo".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_demo".into()),
+                session_id: Some("s_demo".into()),
+                metadata: BTreeMap::new(),
+            },
+            signaling_stream_id: Some("st_demo".into()),
+            occurred_at: format!("2026-05-06T00:00:0{signal_seq}.000Z"),
+        }
+    }
+
+    #[derive(Clone)]
+    struct SessionLockProbeRtcProvider {
+        lock_was_free_during_close: Arc<AtomicBool>,
+    }
+
+    impl RtcProviderPort for SessionLockProbeRtcProvider {
+        fn descriptor(&self) -> ProviderPluginDescriptor {
+            ProviderPluginDescriptor::new(
+                "rtc-lock-probe",
+                ProviderDomain::Rtc,
+                "test",
+                "RTC Lock Probe",
+            )
+            .with_default_selected(true)
+        }
+
+        fn create_session(
+            &self,
+            request: ProviderRtcCreateSessionRequest,
+        ) -> Result<RtcSessionHandle, ContractError> {
+            Ok(RtcSessionHandle {
+                tenant_id: request.tenant_id,
+                rtc_session_id: request.rtc_session_id.clone(),
+                provider_session_id: format!("probe:{}", request.rtc_session_id),
+                access_endpoint: None,
+                region: None,
+            })
+        }
+
+        fn close_session(
+            &self,
+            tenant_id: &str,
+            rtc_session_id: &str,
+        ) -> Result<bool, ContractError> {
+            let key = rtc_scope_key(tenant_id, rtc_session_id);
+            let runtime = ACTIVE_LOCK_PROBE_RUNTIME
+                .lock()
+                .expect("lock probe runtime pointer should lock")
+                .clone()
+                .expect("lock probe runtime should be installed before close");
+            let sessions_available = runtime
+                .sessions
+                .try_lock()
+                .map(|sessions| sessions.has_session(tenant_id, rtc_session_id))
+                .unwrap_or(false);
+            let signals_available = runtime
+                .signals
+                .try_lock()
+                .map(|signals| signals.contains_key(key.as_str()))
+                .unwrap_or(false);
+            self.lock_was_free_during_close
+                .store(sessions_available && signals_available, Ordering::SeqCst);
+            Ok(true)
+        }
+
+        fn issue_participant_credential(
+            &self,
+            tenant_id: &str,
+            rtc_session_id: &str,
+            participant_id: &str,
+        ) -> Result<RtcParticipantCredential, ContractError> {
+            Ok(RtcParticipantCredential {
+                tenant_id: tenant_id.into(),
+                rtc_session_id: rtc_session_id.into(),
+                participant_id: participant_id.into(),
+                credential: "probe-credential".into(),
+                expires_at: "2026-05-06T00:10:00.000Z".into(),
+            })
+        }
+
+        fn refresh_participant_credential(
+            &self,
+            tenant_id: &str,
+            rtc_session_id: &str,
+            participant_id: &str,
+        ) -> Result<RtcParticipantCredential, ContractError> {
+            self.issue_participant_credential(tenant_id, rtc_session_id, participant_id)
+        }
+
+        fn map_provider_callback(
+            &self,
+            request: RtcCallbackRequest,
+        ) -> Result<RtcCallbackEvent, ContractError> {
+            Ok(RtcCallbackEvent {
+                rtc_session_id: request.rtc_session_id,
+                event_type: request.callback_type,
+                participant_id: None,
+                payload_json: request.payload_json,
+            })
+        }
+
+        fn export_recording_artifact(
+            &self,
+            tenant_id: &str,
+            rtc_session_id: &str,
+        ) -> Result<Option<RtcRecordingArtifact>, ContractError> {
+            Ok(Some(RtcRecordingArtifact {
+                tenant_id: tenant_id.into(),
+                rtc_session_id: rtc_session_id.into(),
+                bucket: "rtc-artifacts".into(),
+                object_key: "probe.mp4".into(),
+                storage_provider: None,
+                playback_url: None,
+            }))
+        }
+
+        fn provider_health_snapshot(&self) -> ProviderHealthSnapshot {
+            ProviderHealthSnapshot::healthy("rtc-lock-probe", "2026-05-06T00:00:00.000Z")
+        }
+    }
+
+    static ACTIVE_LOCK_PROBE_RUNTIME: Mutex<Option<Arc<RtcRuntime>>> = Mutex::new(None);
 
     #[test]
     fn test_session_lookup_recovers_from_poisoned_sessions_lock() {
@@ -1646,6 +1981,56 @@ mod tests {
         assert!(
             session_result.is_ok(),
             "session lookup should still succeed after lock poison recovery"
+        );
+    }
+
+    #[test]
+    fn test_end_session_calls_provider_without_holding_runtime_locks() {
+        let lock_was_free_during_close = Arc::new(AtomicBool::new(false));
+        let provider = Arc::new(SessionLockProbeRtcProvider {
+            lock_was_free_during_close: lock_was_free_during_close.clone(),
+        });
+        let descriptor = provider.descriptor();
+        let runtime = Arc::new(RtcRuntime::with_store_and_provider_registry(
+            Arc::new(RuntimeMemoryRtcStateStore::default()),
+            Arc::new(StaticProviderRegistry::new([descriptor.clone()])),
+            [(
+                descriptor.plugin_id.clone(),
+                provider as Arc<dyn RtcProviderPort>,
+            )],
+        ));
+        *ACTIVE_LOCK_PROBE_RUNTIME
+            .lock()
+            .expect("lock probe runtime pointer should lock") = Some(runtime.clone());
+
+        let auth = demo_auth_context();
+        runtime
+            .create_session(
+                &auth,
+                CreateRtcSessionRequest {
+                    rtc_session_id: "rtc_lock_probe".into(),
+                    conversation_id: None,
+                    rtc_mode: "voice".into(),
+                },
+            )
+            .expect("session should be created before end");
+        runtime
+            .end_session(
+                &auth,
+                "rtc_lock_probe",
+                UpdateRtcSessionRequest {
+                    artifact_message_id: Some("msg_lock_probe_end".into()),
+                },
+            )
+            .expect("end should succeed");
+
+        *ACTIVE_LOCK_PROBE_RUNTIME
+            .lock()
+            .expect("lock probe runtime pointer should lock") = None;
+
+        assert!(
+            lock_was_free_during_close.load(Ordering::SeqCst),
+            "provider close_session must not run while rtc runtime session/signal locks are held"
         );
     }
 
@@ -1722,5 +2107,39 @@ mod tests {
         let persist_result = result.expect("panic status should be captured");
         let error = persist_result.expect_err("missing session should return structured error");
         assert_eq!(error.code(), "rtc_session_not_found");
+    }
+
+    #[test]
+    fn test_runtime_rtc_state_store_merges_signals_and_rejects_stale_session_regression() {
+        let store = RuntimeMemoryRtcStateStore::default();
+        store
+            .save_state(test_rtc_state_record(
+                RtcSessionState::Accepted,
+                "2026-05-06T00:00:02.000Z",
+                vec![test_rtc_signal_event(1), test_rtc_signal_event(2)],
+            ))
+            .expect("new rtc state save should succeed");
+        store
+            .save_state(test_rtc_state_record(
+                RtcSessionState::Started,
+                "2026-05-06T00:00:01.000Z",
+                vec![test_rtc_signal_event(1)],
+            ))
+            .expect("stale rtc state save should not fail the caller");
+
+        let state = store
+            .load_state("t_demo", "rtc_demo")
+            .expect("rtc state load should succeed")
+            .expect("rtc state should be present");
+        assert_eq!(state.session.state, RtcSessionState::Accepted);
+        assert_eq!(state.updated_at, "2026-05-06T00:00:02.000Z");
+        assert_eq!(
+            state
+                .signals
+                .iter()
+                .map(|signal| signal.signal_seq)
+                .collect::<Vec<_>>(),
+            vec![1, 2]
+        );
     }
 }

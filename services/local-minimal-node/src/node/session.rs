@@ -214,23 +214,90 @@ pub(super) async fn get_device_sync_feed(
     State(state): State<AppState>,
 ) -> Result<Json<DeviceSyncFeedResponse>, ApiError> {
     let auth = access::resolve_active_auth_context(&state, &headers)?;
-    let items = state
-        .projection_service
-        .device_sync_feed_from_auth_context(&auth, device_id.as_str(), query.after_seq)?
-        .into_iter()
-        .filter(|item| {
-            item.conversation_id
-                .as_deref()
-                .is_none_or(|conversation_id| {
-                    access::direct_chat_access_block_for_conversation(
-                        &state,
-                        auth.tenant_id.as_str(),
-                        conversation_id,
-                    )
-                    .is_none()
-                })
-        })
-        .collect();
+    Ok(Json(device_sync_feed_window_visible_to_local_policy(
+        &state,
+        &auth,
+        device_id.as_str(),
+        query.after_seq,
+        query.limit,
+    )?))
+}
 
-    Ok(Json(DeviceSyncFeedResponse { items }))
+fn device_sync_feed_window_visible_to_local_policy(
+    state: &AppState,
+    auth: &AuthContext,
+    device_id: &str,
+    after_seq: Option<u64>,
+    limit: Option<usize>,
+) -> Result<DeviceSyncFeedResponse, ApiError> {
+    let requested_limit =
+        limit.unwrap_or(projection_service::PROJECTION_DEVICE_SYNC_FEED_DEFAULT_LIMIT);
+    let mut scan_after_seq = after_seq;
+    let mut last_scanned_seq = None;
+    let mut visible_items = Vec::with_capacity(
+        requested_limit
+            .saturating_add(1)
+            .min(projection_service::PROJECTION_DEVICE_SYNC_FEED_MAX_LIMIT + 1),
+    );
+    let mut has_more_visible = false;
+    let mut trimmed_through_seq = 0;
+
+    loop {
+        let window = state
+            .projection_service
+            .device_sync_feed_window_from_auth_context(auth, device_id, scan_after_seq, limit)?;
+        trimmed_through_seq = trimmed_through_seq.max(window.trimmed_through_seq);
+
+        let mut scanned_any = false;
+        for item in window.items {
+            scanned_any = true;
+            scan_after_seq = Some(item.sync_seq);
+            last_scanned_seq = Some(item.sync_seq);
+            if is_device_sync_feed_item_visible_to_local_policy(state, auth, &item) {
+                visible_items.push(item);
+                if visible_items.len() > requested_limit {
+                    has_more_visible = true;
+                    break;
+                }
+            }
+        }
+
+        if has_more_visible || !window.has_more || !scanned_any {
+            break;
+        }
+    }
+
+    if has_more_visible {
+        visible_items.truncate(requested_limit);
+    }
+
+    let next_after_seq = if has_more_visible {
+        visible_items.last().map(|item| item.sync_seq)
+    } else {
+        last_scanned_seq
+    };
+
+    Ok(DeviceSyncFeedResponse {
+        items: visible_items,
+        next_after_seq,
+        has_more: has_more_visible,
+        trimmed_through_seq,
+    })
+}
+
+fn is_device_sync_feed_item_visible_to_local_policy(
+    state: &AppState,
+    auth: &AuthContext,
+    item: &im_domain_core::conversation::DeviceSyncFeedEntry,
+) -> bool {
+    item.conversation_id
+        .as_deref()
+        .is_none_or(|conversation_id| {
+            access::direct_chat_access_block_for_conversation(
+                state,
+                auth.tenant_id.as_str(),
+                conversation_id,
+            )
+            .is_none()
+        })
 }

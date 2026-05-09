@@ -74,7 +74,7 @@ pub struct CommitEnvelope {
 
 impl CommitEnvelope {
     pub fn ordering_key(tenant_id: &str, scope_id: &str) -> String {
-        format!("{tenant_id}:{scope_id}")
+        encode_event_key_segments([tenant_id, scope_id])
     }
 
     pub fn minimal(
@@ -118,4 +118,14 @@ impl CommitEnvelope {
         self.payload = payload.into();
         self
     }
+}
+
+fn encode_event_key_segments<'a>(segments: impl IntoIterator<Item = &'a str>) -> String {
+    let mut encoded = String::new();
+    for segment in segments {
+        encoded.push_str(segment.len().to_string().as_str());
+        encoded.push('#');
+        encoded.push_str(segment);
+    }
+    encoded
 }

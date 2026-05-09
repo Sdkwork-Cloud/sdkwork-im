@@ -1,6 +1,7 @@
 use std::cmp::Ordering as CmpOrdering;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
+use std::io::Write;
 use std::path::{Path as StdPath, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock, RwLock};
@@ -272,6 +273,10 @@ const SOCIAL_FRIEND_REQUEST_LIST_DEFAULT_LIMIT: usize = 100;
 const SOCIAL_FRIEND_REQUEST_LIST_MAX_LIMIT: usize = 200;
 const SOCIAL_FRIEND_REQUEST_LIST_MAX_CURSOR_BYTES: usize = 1024;
 const SOCIAL_FRIEND_REQUEST_CURSOR_VERSION: u64 = 1;
+const SHARED_CHANNEL_SYNC_INVENTORY_DEFAULT_LIMIT: usize = 100;
+const SHARED_CHANNEL_SYNC_INVENTORY_MAX_LIMIT: usize = 200;
+const SHARED_CHANNEL_SYNC_INVENTORY_MAX_CURSOR_BYTES: usize = 1024;
+const SHARED_CHANNEL_SYNC_INVENTORY_CURSOR_VERSION: u64 = 1;
 const FRIEND_REQUEST_CURSOR_HS256_SECRET_ENV: &str = "CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET";
 static CONTROL_PLANE_AUDIT_RECORD_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
@@ -913,12 +918,307 @@ struct SocialControlState {
     delivered_shared_channel_sync_delivery_proofs:
         BTreeMap<String, StoredSharedChannelSyncDeliveryProof>,
     recent_shared_channel_sync_deliveries: BTreeMap<String, String>,
+    #[serde(skip)]
+    pending_friend_request_pair_index: BTreeMap<SocialPairIndexKey, BTreeSet<String>>,
+    #[serde(skip)]
+    accepted_friend_request_pair_index: BTreeMap<SocialPairIndexKey, BTreeSet<String>>,
+    #[serde(skip)]
+    friend_request_user_index: BTreeMap<SocialUserIndexKey, BTreeSet<String>>,
+    #[serde(skip)]
+    active_friendship_pair_index: BTreeMap<SocialPairIndexKey, String>,
+    #[serde(skip)]
+    active_friendship_user_index: BTreeMap<SocialUserIndexKey, BTreeSet<String>>,
+    #[serde(skip)]
+    friendship_pair_index: BTreeMap<SocialPairIndexKey, BTreeSet<String>>,
+    #[serde(skip)]
+    active_direct_chat_pair_index: BTreeMap<SocialPairIndexKey, String>,
+    #[serde(skip)]
+    direct_chat_pair_index: BTreeMap<SocialPairIndexKey, BTreeSet<String>>,
+    #[serde(skip)]
+    active_user_block_scope_index: BTreeMap<SocialUserBlockScopeIndexKey, String>,
+    #[serde(skip)]
+    active_friendship_block_pair_index: BTreeMap<SocialPairIndexKey, String>,
+    #[serde(skip)]
+    active_direct_chat_block_pair_index: BTreeMap<SocialPairIndexKey, String>,
+    #[serde(skip)]
+    active_direct_chat_block_chat_index: BTreeMap<SocialDirectChatBlockIndexKey, String>,
+    #[serde(skip)]
+    committed_event_index: BTreeMap<SocialCommittedEventIndexKey, SocialCommittedEventPointer>,
+    #[serde(skip)]
+    active_external_connection_target_index:
+        BTreeMap<SocialExternalConnectionTargetIndexKey, String>,
+    #[serde(skip)]
+    active_external_member_mapping_index: BTreeMap<SocialExternalMemberMappingIndexKey, String>,
+    #[serde(skip)]
+    active_external_member_connection_index: BTreeMap<SocialConnectionIndexKey, BTreeSet<String>>,
+    #[serde(skip)]
+    active_shared_channel_policy_target_index:
+        BTreeMap<SocialSharedChannelPolicyTargetIndexKey, String>,
+    #[serde(skip)]
+    active_shared_channel_policy_connection_index:
+        BTreeMap<SocialConnectionIndexKey, BTreeSet<String>>,
+    #[serde(skip)]
+    pending_shared_channel_retry_index: BTreeMap<SharedChannelRetryIndexKey, BTreeSet<String>>,
+    #[serde(skip)]
+    pending_shared_channel_lease_index: BTreeMap<SharedChannelLeaseIndexKey, BTreeSet<String>>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct SocialPairIndexKey {
+    tenant_id: String,
+    left_id: String,
+    right_id: String,
+}
+
+impl SocialPairIndexKey {
+    fn new(tenant_id: &str, left_id: &str, right_id: &str) -> Self {
+        Self {
+            tenant_id: tenant_id.to_owned(),
+            left_id: left_id.to_owned(),
+            right_id: right_id.to_owned(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct SocialUserIndexKey {
+    tenant_id: String,
+    user_id: String,
+}
+
+impl SocialUserIndexKey {
+    fn new(tenant_id: &str, user_id: &str) -> Self {
+        Self {
+            tenant_id: tenant_id.to_owned(),
+            user_id: user_id.to_owned(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct SocialUserBlockScopeIndexKey {
+    tenant_id: String,
+    blocker_user_id: String,
+    blocked_user_id: String,
+    scope: String,
+    direct_chat_id: Option<String>,
+}
+
+impl SocialUserBlockScopeIndexKey {
+    fn new(user_block: &UserBlock) -> Self {
+        let direct_chat_id = if matches!(user_block.scope, BlockScope::DirectChat) {
+            user_block.direct_chat_id.clone()
+        } else {
+            None
+        };
+        Self {
+            tenant_id: user_block.tenant_id.clone(),
+            blocker_user_id: user_block.blocker_user_id.clone(),
+            blocked_user_id: user_block.blocked_user_id.clone(),
+            scope: block_scope_index_label(&user_block.scope).to_owned(),
+            direct_chat_id,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct SocialDirectChatBlockIndexKey {
+    tenant_id: String,
+    direct_chat_id: String,
+}
+
+impl SocialDirectChatBlockIndexKey {
+    fn new(tenant_id: &str, direct_chat_id: &str) -> Self {
+        Self {
+            tenant_id: tenant_id.to_owned(),
+            direct_chat_id: direct_chat_id.to_owned(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct SocialExternalConnectionTargetIndexKey {
+    tenant_id: String,
+    external_tenant_id: String,
+    connection_kind: String,
+}
+
+impl SocialExternalConnectionTargetIndexKey {
+    fn new(
+        tenant_id: &str,
+        external_tenant_id: &str,
+        connection_kind: &ExternalConnectionKind,
+    ) -> Self {
+        Self {
+            tenant_id: tenant_id.to_owned(),
+            external_tenant_id: external_tenant_id.to_owned(),
+            connection_kind: external_connection_kind_index_label(connection_kind).to_owned(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct SocialExternalMemberMappingIndexKey {
+    tenant_id: String,
+    connection_id: String,
+    external_member_id: String,
+}
+
+impl SocialExternalMemberMappingIndexKey {
+    fn new(tenant_id: &str, connection_id: &str, external_member_id: &str) -> Self {
+        Self {
+            tenant_id: tenant_id.to_owned(),
+            connection_id: connection_id.to_owned(),
+            external_member_id: external_member_id.to_owned(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct SocialConnectionIndexKey {
+    tenant_id: String,
+    connection_id: String,
+}
+
+impl SocialConnectionIndexKey {
+    fn new(tenant_id: &str, connection_id: &str) -> Self {
+        Self {
+            tenant_id: tenant_id.to_owned(),
+            connection_id: connection_id.to_owned(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct SharedChannelRetryIndexKey {
+    last_failed_at: String,
+}
+
+impl SharedChannelRetryIndexKey {
+    fn new(last_failed_at: &str) -> Self {
+        Self {
+            last_failed_at: last_failed_at.to_owned(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct SharedChannelLeaseIndexKey {
+    lease_expires_at: String,
+}
+
+impl SharedChannelLeaseIndexKey {
+    fn new(lease_expires_at: &str) -> Self {
+        Self {
+            lease_expires_at: lease_expires_at.to_owned(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct SocialSharedChannelPolicyTargetIndexKey {
+    tenant_id: String,
+    connection_id: String,
+    channel_id: String,
+}
+
+impl SocialSharedChannelPolicyTargetIndexKey {
+    fn new(tenant_id: &str, connection_id: &str, channel_id: &str) -> Self {
+        Self {
+            tenant_id: tenant_id.to_owned(),
+            connection_id: connection_id.to_owned(),
+            channel_id: channel_id.to_owned(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct SocialCommittedEventIndexKey {
+    tenant_id: String,
+    event_id: String,
+}
+
+impl SocialCommittedEventIndexKey {
+    fn new(tenant_id: &str, event_id: &str) -> Self {
+        Self {
+            tenant_id: tenant_id.to_owned(),
+            event_id: event_id.to_owned(),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+enum SocialCommittedEventPointer {
+    FriendRequest {
+        request_id: String,
+        commit_index: usize,
+    },
+    Friendship {
+        friendship_id: String,
+        commit_index: usize,
+    },
+    UserBlock {
+        block_id: String,
+        commit_index: usize,
+    },
+    DirectChat {
+        direct_chat_id: String,
+        commit_index: usize,
+    },
+    ExternalConnection {
+        connection_id: String,
+        commit_index: usize,
+    },
+    ExternalMemberLink {
+        link_id: String,
+        commit_index: usize,
+    },
+    SharedChannelPolicy {
+        policy_id: String,
+        commit_index: usize,
+    },
+}
+
+impl SocialCommittedEventPointer {
+    fn with_commit_index(&self, commit_index: usize) -> Self {
+        match self {
+            Self::FriendRequest { request_id, .. } => Self::FriendRequest {
+                request_id: request_id.clone(),
+                commit_index,
+            },
+            Self::Friendship { friendship_id, .. } => Self::Friendship {
+                friendship_id: friendship_id.clone(),
+                commit_index,
+            },
+            Self::UserBlock { block_id, .. } => Self::UserBlock {
+                block_id: block_id.clone(),
+                commit_index,
+            },
+            Self::DirectChat { direct_chat_id, .. } => Self::DirectChat {
+                direct_chat_id: direct_chat_id.clone(),
+                commit_index,
+            },
+            Self::ExternalConnection { connection_id, .. } => Self::ExternalConnection {
+                connection_id: connection_id.clone(),
+                commit_index,
+            },
+            Self::ExternalMemberLink { link_id, .. } => Self::ExternalMemberLink {
+                link_id: link_id.clone(),
+                commit_index,
+            },
+            Self::SharedChannelPolicy { policy_id, .. } => Self::SharedChannelPolicy {
+                policy_id: policy_id.clone(),
+                commit_index,
+            },
+        }
+    }
 }
 
 struct SocialControlRuntime {
     state_store: SocialStateStore,
     commit_journal: Arc<dyn CommitJournal + Send + Sync>,
     state: RwLock<SocialControlState>,
+    authority_replay_error: RwLock<Option<String>>,
     journal_path: Option<Arc<PathBuf>>,
     tx_marker_path: Option<Arc<PathBuf>>,
     write_lock_path: Option<Arc<PathBuf>>,
@@ -928,6 +1228,11 @@ struct SocialControlRuntime {
 
 struct SocialWriteLockGuard {
     file: fs::File,
+}
+
+struct SocialAuthorityLoad {
+    state: SocialControlState,
+    replay_error: Option<String>,
 }
 
 impl Drop for SocialWriteLockGuard {
@@ -1282,15 +1587,6 @@ fn timestamp_before_or_noncanonical_for_retention(value: &str, window_start: &st
     }
 }
 
-fn compare_optional_timestamps_desc(left: Option<&str>, right: Option<&str>) -> CmpOrdering {
-    match (left, right) {
-        (Some(left), Some(right)) => timestamp_recency_cmp(right, left),
-        (Some(_), None) => CmpOrdering::Less,
-        (None, Some(_)) => CmpOrdering::Greater,
-        (None, None) => CmpOrdering::Equal,
-    }
-}
-
 fn timestamp_after(left: &str, right: &str) -> bool {
     compare_canonical_rfc3339_millis_utc(left, right)
         .is_some_and(|ordering| matches!(ordering, CmpOrdering::Greater))
@@ -1389,6 +1685,425 @@ impl SocialCommittedEvent {
 }
 
 impl SocialControlState {
+    fn rebuild_social_friend_request_indexes(&mut self) {
+        self.pending_friend_request_pair_index.clear();
+        self.accepted_friend_request_pair_index.clear();
+        self.friend_request_user_index.clear();
+
+        for record in self.friend_requests.values() {
+            index_friend_request_record(
+                &mut self.pending_friend_request_pair_index,
+                &mut self.accepted_friend_request_pair_index,
+                &mut self.friend_request_user_index,
+                record,
+            );
+        }
+    }
+
+    fn rebuild_social_pair_indexes(&mut self) {
+        self.active_friendship_pair_index.clear();
+        self.active_friendship_user_index.clear();
+        self.friendship_pair_index.clear();
+        self.active_direct_chat_pair_index.clear();
+        self.direct_chat_pair_index.clear();
+
+        for record in self.friendships.values() {
+            index_friendship_record(
+                &mut self.active_friendship_pair_index,
+                &mut self.active_friendship_user_index,
+                &mut self.friendship_pair_index,
+                record,
+            );
+        }
+        for record in self.direct_chats.values() {
+            index_direct_chat_record(
+                &mut self.active_direct_chat_pair_index,
+                &mut self.direct_chat_pair_index,
+                record,
+            );
+        }
+    }
+
+    fn rebuild_social_user_block_indexes(&mut self) {
+        self.active_user_block_scope_index.clear();
+        self.active_friendship_block_pair_index.clear();
+        self.active_direct_chat_block_pair_index.clear();
+        self.active_direct_chat_block_chat_index.clear();
+
+        for record in self.user_blocks.values() {
+            index_user_block_record(
+                &mut self.active_user_block_scope_index,
+                &mut self.active_friendship_block_pair_index,
+                &mut self.active_direct_chat_block_pair_index,
+                &mut self.active_direct_chat_block_chat_index,
+                record,
+            );
+        }
+    }
+
+    fn rebuild_social_external_collaboration_indexes(&mut self) {
+        self.active_external_connection_target_index.clear();
+        self.active_external_member_mapping_index.clear();
+        self.active_external_member_connection_index.clear();
+        self.active_shared_channel_policy_target_index.clear();
+        self.active_shared_channel_policy_connection_index.clear();
+
+        for record in self.external_connections.values() {
+            index_external_connection_record(
+                &mut self.active_external_connection_target_index,
+                record,
+            );
+        }
+        for record in self.external_member_links.values() {
+            index_external_member_link_record(
+                &mut self.active_external_member_mapping_index,
+                &mut self.active_external_member_connection_index,
+                record,
+            );
+        }
+        for record in self.shared_channel_policies.values() {
+            index_shared_channel_policy_record(
+                &mut self.active_shared_channel_policy_target_index,
+                &mut self.active_shared_channel_policy_connection_index,
+                record,
+            );
+        }
+    }
+
+    fn rebuild_social_indexes(&mut self) {
+        self.rebuild_social_friend_request_indexes();
+        self.rebuild_social_pair_indexes();
+        self.rebuild_social_user_block_indexes();
+        self.rebuild_social_external_collaboration_indexes();
+        self.rebuild_shared_channel_pending_indexes();
+        self.rebuild_social_committed_event_index();
+    }
+
+    fn rebuild_shared_channel_pending_indexes(&mut self) {
+        self.pending_shared_channel_retry_index.clear();
+        self.pending_shared_channel_lease_index.clear();
+        for (request_key, pending) in &self.pending_shared_channel_sync_requests {
+            index_pending_shared_channel_sync_request(
+                &mut self.pending_shared_channel_retry_index,
+                &mut self.pending_shared_channel_lease_index,
+                request_key.as_str(),
+                pending,
+            );
+        }
+    }
+
+    fn rebuild_social_committed_event_index(&mut self) {
+        self.committed_event_index.clear();
+        for record in self.friend_requests.values() {
+            index_social_commits(
+                &mut self.committed_event_index,
+                record.commits.as_slice(),
+                SocialCommittedEventPointer::FriendRequest {
+                    request_id: record.friend_request.request_id.clone(),
+                    commit_index: 0,
+                },
+            );
+        }
+        for record in self.friendships.values() {
+            index_social_commits(
+                &mut self.committed_event_index,
+                record.commits.as_slice(),
+                SocialCommittedEventPointer::Friendship {
+                    friendship_id: record.friendship.friendship_id.clone(),
+                    commit_index: 0,
+                },
+            );
+        }
+        for record in self.user_blocks.values() {
+            index_social_commits(
+                &mut self.committed_event_index,
+                record.commits.as_slice(),
+                SocialCommittedEventPointer::UserBlock {
+                    block_id: record.user_block.block_id.clone(),
+                    commit_index: 0,
+                },
+            );
+        }
+        for record in self.direct_chats.values() {
+            index_social_commits(
+                &mut self.committed_event_index,
+                record.commits.as_slice(),
+                SocialCommittedEventPointer::DirectChat {
+                    direct_chat_id: record.direct_chat.direct_chat_id.clone(),
+                    commit_index: 0,
+                },
+            );
+        }
+        for record in self.external_connections.values() {
+            index_social_commits(
+                &mut self.committed_event_index,
+                record.commits.as_slice(),
+                SocialCommittedEventPointer::ExternalConnection {
+                    connection_id: record.external_connection.connection_id.clone(),
+                    commit_index: 0,
+                },
+            );
+        }
+        for record in self.external_member_links.values() {
+            index_social_commits(
+                &mut self.committed_event_index,
+                record.commits.as_slice(),
+                SocialCommittedEventPointer::ExternalMemberLink {
+                    link_id: record.external_member_link.link_id.clone(),
+                    commit_index: 0,
+                },
+            );
+        }
+        for record in self.shared_channel_policies.values() {
+            index_social_commits(
+                &mut self.committed_event_index,
+                record.commits.as_slice(),
+                SocialCommittedEventPointer::SharedChannelPolicy {
+                    policy_id: record.shared_channel_policy.policy_id.clone(),
+                    commit_index: 0,
+                },
+            );
+        }
+    }
+
+    fn index_friend_request_commits(&mut self, request_id: &str, commits: &[CommitEnvelope]) {
+        index_social_commits(
+            &mut self.committed_event_index,
+            commits,
+            SocialCommittedEventPointer::FriendRequest {
+                request_id: request_id.to_owned(),
+                commit_index: 0,
+            },
+        );
+    }
+
+    fn index_friendship_commits(&mut self, friendship_id: &str, commits: &[CommitEnvelope]) {
+        index_social_commits(
+            &mut self.committed_event_index,
+            commits,
+            SocialCommittedEventPointer::Friendship {
+                friendship_id: friendship_id.to_owned(),
+                commit_index: 0,
+            },
+        );
+    }
+
+    fn index_user_block_commits(&mut self, block_id: &str, commits: &[CommitEnvelope]) {
+        index_social_commits(
+            &mut self.committed_event_index,
+            commits,
+            SocialCommittedEventPointer::UserBlock {
+                block_id: block_id.to_owned(),
+                commit_index: 0,
+            },
+        );
+    }
+
+    fn index_direct_chat_commits(&mut self, direct_chat_id: &str, commits: &[CommitEnvelope]) {
+        index_social_commits(
+            &mut self.committed_event_index,
+            commits,
+            SocialCommittedEventPointer::DirectChat {
+                direct_chat_id: direct_chat_id.to_owned(),
+                commit_index: 0,
+            },
+        );
+    }
+
+    fn index_external_connection_commits(
+        &mut self,
+        connection_id: &str,
+        commits: &[CommitEnvelope],
+    ) {
+        index_social_commits(
+            &mut self.committed_event_index,
+            commits,
+            SocialCommittedEventPointer::ExternalConnection {
+                connection_id: connection_id.to_owned(),
+                commit_index: 0,
+            },
+        );
+    }
+
+    fn index_external_member_link_commits(&mut self, link_id: &str, commits: &[CommitEnvelope]) {
+        index_social_commits(
+            &mut self.committed_event_index,
+            commits,
+            SocialCommittedEventPointer::ExternalMemberLink {
+                link_id: link_id.to_owned(),
+                commit_index: 0,
+            },
+        );
+    }
+
+    fn index_shared_channel_policy_commits(&mut self, policy_id: &str, commits: &[CommitEnvelope]) {
+        index_social_commits(
+            &mut self.committed_event_index,
+            commits,
+            SocialCommittedEventPointer::SharedChannelPolicy {
+                policy_id: policy_id.to_owned(),
+                commit_index: 0,
+            },
+        );
+    }
+
+    fn insert_friend_request_record(&mut self, request_id: String, record: StoredFriendRequest) {
+        if let Some(previous) = self.friend_requests.insert(request_id, record.clone()) {
+            unindex_friend_request_record(
+                &mut self.pending_friend_request_pair_index,
+                &mut self.accepted_friend_request_pair_index,
+                &mut self.friend_request_user_index,
+                &previous,
+            );
+        }
+        index_friend_request_record(
+            &mut self.pending_friend_request_pair_index,
+            &mut self.accepted_friend_request_pair_index,
+            &mut self.friend_request_user_index,
+            &record,
+        );
+        self.index_friend_request_commits(
+            record.friend_request.request_id.as_str(),
+            record.commits.as_slice(),
+        );
+    }
+
+    fn insert_friendship_record(&mut self, friendship_id: String, record: StoredFriendship) {
+        if let Some(previous) = self.friendships.insert(friendship_id, record.clone()) {
+            unindex_friendship_record(
+                &mut self.active_friendship_pair_index,
+                &mut self.active_friendship_user_index,
+                &mut self.friendship_pair_index,
+                &previous,
+            );
+        }
+        index_friendship_record(
+            &mut self.active_friendship_pair_index,
+            &mut self.active_friendship_user_index,
+            &mut self.friendship_pair_index,
+            &record,
+        );
+        self.index_friendship_commits(
+            record.friendship.friendship_id.as_str(),
+            record.commits.as_slice(),
+        );
+    }
+
+    fn insert_user_block_record(&mut self, block_id: String, record: StoredUserBlock) {
+        if let Some(previous) = self.user_blocks.insert(block_id, record.clone()) {
+            unindex_user_block_record(
+                &mut self.active_user_block_scope_index,
+                &mut self.active_friendship_block_pair_index,
+                &mut self.active_direct_chat_block_pair_index,
+                &mut self.active_direct_chat_block_chat_index,
+                &previous,
+            );
+        }
+        index_user_block_record(
+            &mut self.active_user_block_scope_index,
+            &mut self.active_friendship_block_pair_index,
+            &mut self.active_direct_chat_block_pair_index,
+            &mut self.active_direct_chat_block_chat_index,
+            &record,
+        );
+        self.index_user_block_commits(
+            record.user_block.block_id.as_str(),
+            record.commits.as_slice(),
+        );
+    }
+
+    fn insert_direct_chat_record(&mut self, direct_chat_id: String, record: StoredDirectChat) {
+        if let Some(previous) = self.direct_chats.insert(direct_chat_id, record.clone()) {
+            unindex_direct_chat_record(
+                &mut self.active_direct_chat_pair_index,
+                &mut self.direct_chat_pair_index,
+                &previous,
+            );
+        }
+        index_direct_chat_record(
+            &mut self.active_direct_chat_pair_index,
+            &mut self.direct_chat_pair_index,
+            &record,
+        );
+        self.index_direct_chat_commits(
+            record.direct_chat.direct_chat_id.as_str(),
+            record.commits.as_slice(),
+        );
+    }
+
+    fn insert_external_connection_record(
+        &mut self,
+        connection_id: String,
+        record: StoredExternalConnection,
+    ) {
+        if let Some(previous) = self
+            .external_connections
+            .insert(connection_id, record.clone())
+        {
+            unindex_external_connection_record(
+                &mut self.active_external_connection_target_index,
+                &previous,
+            );
+        }
+        index_external_connection_record(
+            &mut self.active_external_connection_target_index,
+            &record,
+        );
+        self.index_external_connection_commits(
+            record.external_connection.connection_id.as_str(),
+            record.commits.as_slice(),
+        );
+    }
+
+    fn insert_external_member_link_record(
+        &mut self,
+        link_id: String,
+        record: StoredExternalMemberLink,
+    ) {
+        if let Some(previous) = self.external_member_links.insert(link_id, record.clone()) {
+            unindex_external_member_link_record(
+                &mut self.active_external_member_mapping_index,
+                &mut self.active_external_member_connection_index,
+                &previous,
+            );
+        }
+        index_external_member_link_record(
+            &mut self.active_external_member_mapping_index,
+            &mut self.active_external_member_connection_index,
+            &record,
+        );
+        self.index_external_member_link_commits(
+            record.external_member_link.link_id.as_str(),
+            record.commits.as_slice(),
+        );
+    }
+
+    fn insert_shared_channel_policy_record(
+        &mut self,
+        policy_id: String,
+        record: StoredSharedChannelPolicy,
+    ) {
+        if let Some(previous) = self
+            .shared_channel_policies
+            .insert(policy_id, record.clone())
+        {
+            unindex_shared_channel_policy_record(
+                &mut self.active_shared_channel_policy_target_index,
+                &mut self.active_shared_channel_policy_connection_index,
+                &previous,
+            );
+        }
+        index_shared_channel_policy_record(
+            &mut self.active_shared_channel_policy_target_index,
+            &mut self.active_shared_channel_policy_connection_index,
+            &record,
+        );
+        self.index_shared_channel_policy_commits(
+            record.shared_channel_policy.policy_id.as_str(),
+            record.commits.as_slice(),
+        );
+    }
+
     fn committed_event_keys(&self) -> BTreeSet<(String, String)> {
         let mut event_keys = BTreeSet::new();
         for record in self.friend_requests.values() {
@@ -1451,76 +2166,88 @@ impl SocialControlState {
     }
 
     fn committed_event(&self, tenant_id: &str, event_id: &str) -> Option<SocialCommittedEvent> {
-        self.friend_requests
-            .values()
-            .find_map(|record| {
-                find_committed_social_event(record.commits.as_slice(), tenant_id, event_id).map(
-                    |commit| SocialCommittedEvent::FriendRequest {
-                        record: record.clone(),
-                        commit,
-                    },
-                )
-            })
-            .or_else(|| {
-                self.friendships.values().find_map(|record| {
-                    find_committed_social_event(record.commits.as_slice(), tenant_id, event_id).map(
-                        |commit| SocialCommittedEvent::Friendship {
-                            record: record.clone(),
-                            commit,
-                        },
-                    )
-                })
-            })
-            .or_else(|| {
-                self.user_blocks.values().find_map(|record| {
-                    find_committed_social_event(record.commits.as_slice(), tenant_id, event_id).map(
-                        |commit| SocialCommittedEvent::UserBlock {
-                            record: record.clone(),
-                            commit,
-                        },
-                    )
-                })
-            })
-            .or_else(|| {
-                self.direct_chats.values().find_map(|record| {
-                    find_committed_social_event(record.commits.as_slice(), tenant_id, event_id).map(
-                        |commit| SocialCommittedEvent::DirectChat {
-                            record: record.clone(),
-                            commit,
-                        },
-                    )
-                })
-            })
-            .or_else(|| {
-                self.external_connections.values().find_map(|record| {
-                    find_committed_social_event(record.commits.as_slice(), tenant_id, event_id).map(
-                        |commit| SocialCommittedEvent::ExternalConnection {
-                            record: record.clone(),
-                            commit,
-                        },
-                    )
-                })
-            })
-            .or_else(|| {
-                self.external_member_links.values().find_map(|record| {
-                    find_committed_social_event(record.commits.as_slice(), tenant_id, event_id).map(
-                        |commit| SocialCommittedEvent::ExternalMemberLink {
-                            record: record.clone(),
-                            commit,
-                        },
-                    )
-                })
-            })
-            .or_else(|| {
-                self.shared_channel_policies.values().find_map(|record| {
-                    find_committed_social_event(record.commits.as_slice(), tenant_id, event_id).map(
-                        |commit| SocialCommittedEvent::SharedChannelPolicy {
-                            record: record.clone(),
-                            commit,
-                        },
-                    )
-                })
-            })
+        let pointer = self
+            .committed_event_index
+            .get(&SocialCommittedEventIndexKey::new(tenant_id, event_id))?;
+        match pointer {
+            SocialCommittedEventPointer::FriendRequest {
+                request_id,
+                commit_index,
+            } => {
+                let record = self.friend_requests.get(request_id)?.clone();
+                let commit = record.commits.get(*commit_index)?.clone();
+                if commit.tenant_id != tenant_id || commit.event_id != event_id {
+                    return None;
+                }
+                Some(SocialCommittedEvent::FriendRequest { record, commit })
+            }
+            SocialCommittedEventPointer::Friendship {
+                friendship_id,
+                commit_index,
+            } => {
+                let record = self.friendships.get(friendship_id)?.clone();
+                let commit = record.commits.get(*commit_index)?.clone();
+                if commit.tenant_id != tenant_id || commit.event_id != event_id {
+                    return None;
+                }
+                Some(SocialCommittedEvent::Friendship { record, commit })
+            }
+            SocialCommittedEventPointer::UserBlock {
+                block_id,
+                commit_index,
+            } => {
+                let record = self.user_blocks.get(block_id)?.clone();
+                let commit = record.commits.get(*commit_index)?.clone();
+                if commit.tenant_id != tenant_id || commit.event_id != event_id {
+                    return None;
+                }
+                Some(SocialCommittedEvent::UserBlock { record, commit })
+            }
+            SocialCommittedEventPointer::DirectChat {
+                direct_chat_id,
+                commit_index,
+            } => {
+                let record = self.direct_chats.get(direct_chat_id)?.clone();
+                let commit = record.commits.get(*commit_index)?.clone();
+                if commit.tenant_id != tenant_id || commit.event_id != event_id {
+                    return None;
+                }
+                Some(SocialCommittedEvent::DirectChat { record, commit })
+            }
+            SocialCommittedEventPointer::ExternalConnection {
+                connection_id,
+                commit_index,
+            } => {
+                let record = self.external_connections.get(connection_id)?.clone();
+                let commit = record.commits.get(*commit_index)?.clone();
+                if commit.tenant_id != tenant_id || commit.event_id != event_id {
+                    return None;
+                }
+                Some(SocialCommittedEvent::ExternalConnection { record, commit })
+            }
+            SocialCommittedEventPointer::ExternalMemberLink {
+                link_id,
+                commit_index,
+            } => {
+                let record = self.external_member_links.get(link_id)?.clone();
+                let commit = record.commits.get(*commit_index)?.clone();
+                if commit.tenant_id != tenant_id || commit.event_id != event_id {
+                    return None;
+                }
+                Some(SocialCommittedEvent::ExternalMemberLink { record, commit })
+            }
+            SocialCommittedEventPointer::SharedChannelPolicy {
+                policy_id,
+                commit_index,
+            } => {
+                let record = self.shared_channel_policies.get(policy_id)?.clone();
+                let commit = record.commits.get(*commit_index)?.clone();
+                if commit.tenant_id != tenant_id || commit.event_id != event_id {
+                    return None;
+                }
+                Some(SocialCommittedEvent::SharedChannelPolicy { record, commit })
+            }
+        }
     }
 
     fn aggregate_counts(&self) -> SocialAggregateCountsResponse {
@@ -1545,9 +2272,9 @@ impl SocialControlState {
 
     fn merge_pending_shared_channel_sync_requests_from(&mut self, other: &Self) {
         for (key, pending) in &other.pending_shared_channel_sync_requests {
-            self.pending_shared_channel_sync_requests
-                .entry(key.clone())
-                .or_insert_with(|| pending.clone());
+            if !self.pending_shared_channel_sync_requests.contains_key(key) {
+                self.upsert_pending_shared_channel_sync_request(key.clone(), pending.clone());
+            }
         }
     }
 
@@ -1636,8 +2363,7 @@ impl SocialControlState {
             .cloned()
             .collect::<Vec<_>>();
         for key in &pending_keys {
-            self.pending_shared_channel_sync_requests
-                .remove(key.as_str());
+            self.remove_pending_shared_channel_sync_request_by_key(key.as_str());
         }
         for key in &dead_letter_keys {
             self.dead_letter_shared_channel_sync_requests
@@ -1729,21 +2455,39 @@ impl SocialControlState {
             .collect()
     }
 
-    fn pending_shared_channel_sync_requests_with_keys(
+    fn selected_pending_shared_channel_sync_requests(
         &self,
+        request_keys: &BTreeSet<String>,
     ) -> Vec<(String, PendingSharedChannelSyncRequest)> {
-        self.pending_shared_channel_sync_requests
+        request_keys
             .iter()
-            .map(|(key, request)| (key.clone(), request.clone()))
+            .filter_map(|request_key| {
+                self.pending_shared_channel_sync_requests
+                    .get(request_key.as_str())
+                    .map(|pending| (request_key.clone(), pending.clone()))
+            })
             .collect()
     }
 
-    fn dead_letter_shared_channel_sync_requests(
+    fn selected_undelivered_pending_shared_channel_sync_requests(
         &self,
+        request_keys: &BTreeSet<String>,
     ) -> Vec<(String, PendingSharedChannelSyncRequest)> {
-        self.dead_letter_shared_channel_sync_requests
+        request_keys
             .iter()
-            .map(|(key, request)| (key.clone(), request.clone()))
+            .filter_map(|request_key| {
+                let pending = self
+                    .pending_shared_channel_sync_requests
+                    .get(request_key.as_str())?;
+                if self
+                    .delivered_shared_channel_sync_requests
+                    .contains_key(request_key.as_str())
+                {
+                    None
+                } else {
+                    Some((request_key.clone(), pending.clone()))
+                }
+            })
             .collect()
     }
 
@@ -1760,10 +2504,8 @@ impl SocialControlState {
                 .delivered_shared_channel_sync_requests
                 .contains_key(key.as_str())
             {
-                let removed_pending = self
-                    .pending_shared_channel_sync_requests
-                    .remove(key.as_str())
-                    .is_some();
+                let removed_pending =
+                    self.remove_pending_shared_channel_sync_request_by_key(key.as_str());
                 let removed_dead_letter = self
                     .dead_letter_shared_channel_sync_requests
                     .remove(key.as_str())
@@ -1781,36 +2523,39 @@ impl SocialControlState {
                 continue;
             }
 
-            let failed_request =
-                if let Some(pending) = self.pending_shared_channel_sync_requests.get_mut(&key) {
-                    if pending.lease_status(now) == SocialSharedChannelSyncLeaseStatus::Stale {
-                        pending.clear_owner();
-                    }
-                    pending.request = request.clone();
-                    pending.failure_count = pending.failure_count.saturating_add(1);
-                    pending.last_error = error.to_owned();
-                    pending.last_failed_at = Some(now.to_owned());
-                    pending.clone()
-                } else {
-                    let pending = PendingSharedChannelSyncRequest {
-                        request: request.clone(),
-                        failure_count: 1,
-                        last_error: error.to_owned(),
-                        last_failed_at: Some(now.to_owned()),
-                        owner_actor_id: None,
-                        owner_actor_kind: None,
-                        claimed_at: None,
-                        lease_expires_at: None,
-                    };
-                    self.pending_shared_channel_sync_requests
-                        .insert(key.clone(), pending.clone());
-                    pending
+            let failed_request = if let Some(existing) = self
+                .pending_shared_channel_sync_requests
+                .get(key.as_str())
+                .cloned()
+            {
+                let mut pending = existing;
+                if pending.lease_status(now) == SocialSharedChannelSyncLeaseStatus::Stale {
+                    pending.clear_owner();
+                }
+                pending.request = request.clone();
+                pending.failure_count = pending.failure_count.saturating_add(1);
+                pending.last_error = error.to_owned();
+                pending.last_failed_at = Some(now.to_owned());
+                self.upsert_pending_shared_channel_sync_request(key.clone(), pending.clone());
+                pending
+            } else {
+                let pending = PendingSharedChannelSyncRequest {
+                    request: request.clone(),
+                    failure_count: 1,
+                    last_error: error.to_owned(),
+                    last_failed_at: Some(now.to_owned()),
+                    owner_actor_id: None,
+                    owner_actor_kind: None,
+                    claimed_at: None,
+                    lease_expires_at: None,
                 };
+                self.upsert_pending_shared_channel_sync_request(key.clone(), pending.clone());
+                pending
+            };
             if failed_request.failure_count >= SHARED_CHANNEL_SYNC_DEAD_LETTER_FAILURE_THRESHOLD {
                 let mut dead_letter_request = failed_request;
                 dead_letter_request.clear_owner();
-                self.pending_shared_channel_sync_requests
-                    .remove(key.as_str());
+                self.remove_pending_shared_channel_sync_request_by_key(key.as_str());
                 self.dead_letter_shared_channel_sync_requests
                     .insert(key, dead_letter_request);
             }
@@ -1870,9 +2615,96 @@ impl SocialControlState {
         &mut self,
         request: &SharedChannelLinkedMemberSyncRequest,
     ) -> bool {
+        self.remove_pending_shared_channel_sync_request_by_key(
+            shared_channel_sync_request_key(request).as_str(),
+        )
+    }
+
+    fn upsert_pending_shared_channel_sync_request(
+        &mut self,
+        request_key: String,
+        pending: PendingSharedChannelSyncRequest,
+    ) {
+        if let Some(previous) = self
+            .pending_shared_channel_sync_requests
+            .insert(request_key.clone(), pending.clone())
+        {
+            unindex_pending_shared_channel_sync_request(
+                &mut self.pending_shared_channel_retry_index,
+                &mut self.pending_shared_channel_lease_index,
+                request_key.as_str(),
+                &previous,
+            );
+        }
+        index_pending_shared_channel_sync_request(
+            &mut self.pending_shared_channel_retry_index,
+            &mut self.pending_shared_channel_lease_index,
+            request_key.as_str(),
+            &pending,
+        );
+    }
+
+    fn remove_pending_shared_channel_sync_request_by_key(&mut self, request_key: &str) -> bool {
+        if let Some(previous) = self
+            .pending_shared_channel_sync_requests
+            .remove(request_key)
+        {
+            unindex_pending_shared_channel_sync_request(
+                &mut self.pending_shared_channel_retry_index,
+                &mut self.pending_shared_channel_lease_index,
+                request_key,
+                &previous,
+            );
+            true
+        } else {
+            false
+        }
+    }
+
+    fn retryable_pending_shared_channel_sync_requests(
+        &self,
+        retry_window_start: &str,
+    ) -> Vec<PendingSharedChannelSyncRequest> {
+        self.pending_shared_channel_retry_index
+            .range(..=SharedChannelRetryIndexKey::new(retry_window_start))
+            .flat_map(|(_, request_keys)| request_keys.iter())
+            .filter_map(|request_key| {
+                self.pending_shared_channel_sync_requests
+                    .get(request_key.as_str())
+                    .cloned()
+            })
+            .collect()
+    }
+
+    fn pending_shared_channel_sync_request_blocks_dispatch(
+        &self,
+        request: &SharedChannelLinkedMemberSyncRequest,
+        now: &str,
+        retry_window_start: &str,
+    ) -> bool {
+        let request_key = shared_channel_sync_request_key(request);
         self.pending_shared_channel_sync_requests
-            .remove(shared_channel_sync_request_key(request).as_str())
-            .is_some()
+            .get(request_key.as_str())
+            .is_some_and(|pending| !pending.auto_dispatch_eligible(now, retry_window_start))
+    }
+
+    fn stale_pending_shared_channel_sync_requests(
+        &self,
+        now: &str,
+    ) -> Vec<(String, PendingSharedChannelSyncRequest)> {
+        self.pending_shared_channel_lease_index
+            .range(..=SharedChannelLeaseIndexKey::new(now))
+            .flat_map(|(_, request_keys)| request_keys.iter())
+            .filter_map(|request_key| {
+                self.pending_shared_channel_sync_requests
+                    .get(request_key.as_str())
+                    .filter(|pending| {
+                        pending.lease_status(now) == SocialSharedChannelSyncLeaseStatus::Stale
+                    })
+                    .cloned()
+                    .map(|pending| (request_key.clone(), pending))
+            })
+            .collect()
     }
 
     fn recently_dispatched_shared_channel_sync_request(
@@ -1985,12 +2817,12 @@ impl SocialControlState {
                 .delivered_shared_channel_sync_requests
                 .contains_key(key.as_str())
             {
+                self.remove_pending_shared_channel_sync_request_by_key(key.as_str());
                 continue;
             }
             dead_letter.failure_count = 0;
             dead_letter.clear_owner();
-            self.pending_shared_channel_sync_requests
-                .insert(key, dead_letter);
+            self.upsert_pending_shared_channel_sync_request(key, dead_letter);
             requeued += 1;
         }
         requeued
@@ -2014,11 +2846,14 @@ impl SocialControlState {
                 .delivered_shared_channel_sync_requests
                 .contains_key(key.as_str())
             {
-                self.pending_shared_channel_sync_requests
-                    .remove(key.as_str());
+                self.remove_pending_shared_channel_sync_request_by_key(key.as_str());
                 continue;
             }
-            let Some(pending) = self.pending_shared_channel_sync_requests.get_mut(&key) else {
+            let Some(mut pending) = self
+                .pending_shared_channel_sync_requests
+                .get(key.as_str())
+                .cloned()
+            else {
                 continue;
             };
             if pending.is_claimed_by_other(actor_id, actor_kind) {
@@ -2027,7 +2862,7 @@ impl SocialControlState {
                     .conflict_items
                     .push(social_shared_channel_sync_conflict_details(
                         key.as_str(),
-                        pending,
+                        &pending,
                         actor_id,
                         actor_kind,
                         now,
@@ -2035,6 +2870,7 @@ impl SocialControlState {
                 continue;
             }
             pending.assign_owner(actor_id, actor_kind);
+            self.upsert_pending_shared_channel_sync_request(key, pending);
             result.claimed += 1;
         }
         result
@@ -2042,11 +2878,10 @@ impl SocialControlState {
 
     fn reclaim_stale_pending_shared_channel_sync_claims(&mut self, now: &str) -> usize {
         let mut reclaimed = 0usize;
-        for pending in self.pending_shared_channel_sync_requests.values_mut() {
-            if pending.lease_status(now) == SocialSharedChannelSyncLeaseStatus::Stale {
-                pending.clear_owner();
-                reclaimed += 1;
-            }
+        for (request_key, mut pending) in self.stale_pending_shared_channel_sync_requests(now) {
+            pending.clear_owner();
+            self.upsert_pending_shared_channel_sync_request(request_key, pending);
+            reclaimed += 1;
         }
         reclaimed
     }
@@ -2068,17 +2903,21 @@ impl SocialControlState {
                 .delivered_shared_channel_sync_requests
                 .contains_key(key.as_str())
             {
-                self.pending_shared_channel_sync_requests
-                    .remove(key.as_str());
+                self.remove_pending_shared_channel_sync_request_by_key(key.as_str());
                 continue;
             }
-            let Some(pending) = self.pending_shared_channel_sync_requests.get_mut(&key) else {
+            let Some(mut pending) = self
+                .pending_shared_channel_sync_requests
+                .get(key.as_str())
+                .cloned()
+            else {
                 continue;
             };
             if !pending.is_owned_by(actor_id, actor_kind) {
                 continue;
             }
             pending.clear_owner();
+            self.upsert_pending_shared_channel_sync_request(key, pending);
             released += 1;
         }
         released
@@ -2101,17 +2940,21 @@ impl SocialControlState {
                 .delivered_shared_channel_sync_requests
                 .contains_key(key.as_str())
             {
-                self.pending_shared_channel_sync_requests
-                    .remove(key.as_str());
+                self.remove_pending_shared_channel_sync_request_by_key(key.as_str());
                 continue;
             }
-            let Some(pending) = self.pending_shared_channel_sync_requests.get_mut(&key) else {
+            let Some(mut pending) = self
+                .pending_shared_channel_sync_requests
+                .get(key.as_str())
+                .cloned()
+            else {
                 continue;
             };
             if !pending.is_claimed_by_other(actor_id, actor_kind) {
                 continue;
             }
             pending.assign_owner(actor_id, actor_kind);
+            self.upsert_pending_shared_channel_sync_request(key, pending);
             taken_over += 1;
         }
         taken_over
@@ -2193,15 +3036,18 @@ impl SocialControlState {
             created_at: payload.requested_at.clone(),
             updated_at: payload.requested_at,
         };
-        let record = self
+        let request_id = friend_request.request_id.clone();
+        let mut record = self
             .friend_requests
-            .entry(friend_request.request_id.clone())
-            .or_insert_with(|| StoredFriendRequest {
+            .get(request_id.as_str())
+            .cloned()
+            .unwrap_or_else(|| StoredFriendRequest {
                 friend_request: friend_request.clone(),
                 commits: Vec::new(),
             });
         record.friend_request = friend_request;
         record.commits.push(commit);
+        self.insert_friend_request_record(request_id, record);
         Ok(())
     }
 
@@ -2221,9 +3067,10 @@ impl SocialControlState {
             AggregateType::FriendRequest,
             payload.request_id.as_str(),
         )?;
-        let record = self
+        let mut record = self
             .friend_requests
-            .get_mut(payload.request_id.as_str())
+            .get(payload.request_id.as_str())
+            .cloned()
             .ok_or_else(|| {
                 format!(
                     "friend request accept replay payload for {} references missing request {}",
@@ -2243,9 +3090,11 @@ impl SocialControlState {
             ));
         }
 
+        let request_id = record.friend_request.request_id.clone();
         record.friend_request.status = FriendRequestStatus::Accepted;
         record.friend_request.updated_at = payload.accepted_at;
         record.commits.push(commit);
+        self.insert_friend_request_record(request_id, record);
         Ok(())
     }
 
@@ -2265,9 +3114,10 @@ impl SocialControlState {
             AggregateType::FriendRequest,
             payload.request_id.as_str(),
         )?;
-        let record = self
+        let mut record = self
             .friend_requests
-            .get_mut(payload.request_id.as_str())
+            .get(payload.request_id.as_str())
+            .cloned()
             .ok_or_else(|| {
                 format!(
                     "friend request decline replay payload for {} references missing request {}",
@@ -2290,9 +3140,11 @@ impl SocialControlState {
             ));
         }
 
+        let request_id = record.friend_request.request_id.clone();
         record.friend_request.status = FriendRequestStatus::Declined;
         record.friend_request.updated_at = payload.declined_at;
         record.commits.push(commit);
+        self.insert_friend_request_record(request_id, record);
         Ok(())
     }
 
@@ -2312,9 +3164,10 @@ impl SocialControlState {
             AggregateType::FriendRequest,
             payload.request_id.as_str(),
         )?;
-        let record = self
+        let mut record = self
             .friend_requests
-            .get_mut(payload.request_id.as_str())
+            .get(payload.request_id.as_str())
+            .cloned()
             .ok_or_else(|| {
                 format!(
                     "friend request cancel replay payload for {} references missing request {}",
@@ -2337,9 +3190,11 @@ impl SocialControlState {
             ));
         }
 
+        let request_id = record.friend_request.request_id.clone();
         record.friend_request.status = FriendRequestStatus::Canceled;
         record.friend_request.updated_at = payload.canceled_at;
         record.commits.push(commit);
+        self.insert_friend_request_record(request_id, record);
         Ok(())
     }
 
@@ -2374,15 +3229,18 @@ impl SocialControlState {
             established_at: Some(payload.established_at.clone()),
             updated_at: payload.established_at,
         };
-        let record = self
+        let friendship_id = friendship.friendship_id.clone();
+        let mut record = self
             .friendships
-            .entry(friendship.friendship_id.clone())
-            .or_insert_with(|| StoredFriendship {
+            .get(friendship_id.as_str())
+            .cloned()
+            .unwrap_or_else(|| StoredFriendship {
                 friendship: friendship.clone(),
                 commits: Vec::new(),
             });
         record.friendship = friendship;
         record.commits.push(commit);
+        self.insert_friendship_record(friendship_id, record);
         Ok(())
     }
 
@@ -2428,10 +3286,11 @@ impl SocialControlState {
         let archived_at;
         let tenant_id = commit.tenant_id.clone();
         {
-            let record = self
+            let mut record = self
                 .friendships
-                .entry(friendship.friendship_id.clone())
-                .or_insert_with(|| StoredFriendship {
+                .get(friendship.friendship_id.as_str())
+                .cloned()
+                .unwrap_or_else(|| StoredFriendship {
                     friendship: friendship.clone(),
                     commits: Vec::new(),
                 });
@@ -2453,6 +3312,7 @@ impl SocialControlState {
             }
             archived_at = record.friendship.updated_at.clone();
             record.commits.push(commit);
+            self.insert_friendship_record(friendship.friendship_id.clone(), record);
         }
         archive_active_direct_chats_for_pair(
             self,
@@ -2507,15 +3367,18 @@ impl SocialControlState {
             created_at: payload.effective_at.clone(),
             updated_at: payload.effective_at,
         };
-        let record = self
+        let block_id = user_block.block_id.clone();
+        let mut record = self
             .user_blocks
-            .entry(user_block.block_id.clone())
-            .or_insert_with(|| StoredUserBlock {
+            .get(block_id.as_str())
+            .cloned()
+            .unwrap_or_else(|| StoredUserBlock {
                 user_block: user_block.clone(),
                 commits: Vec::new(),
             });
         record.user_block = user_block;
         record.commits.push(commit);
+        self.insert_user_block_record(block_id, record);
         Ok(())
     }
 
@@ -2560,15 +3423,18 @@ impl SocialControlState {
             created_at: payload.bound_at.clone(),
             updated_at: payload.bound_at,
         };
-        let record = self
+        let direct_chat_id = direct_chat.direct_chat_id.clone();
+        let mut record = self
             .direct_chats
-            .entry(direct_chat.direct_chat_id.clone())
-            .or_insert_with(|| StoredDirectChat {
+            .get(direct_chat_id.as_str())
+            .cloned()
+            .unwrap_or_else(|| StoredDirectChat {
                 direct_chat: direct_chat.clone(),
                 commits: Vec::new(),
             });
         record.direct_chat = direct_chat;
         record.commits.push(commit);
+        self.insert_direct_chat_record(direct_chat_id, record);
         Ok(())
     }
 
@@ -2608,15 +3474,18 @@ impl SocialControlState {
             established_at: payload.established_at.clone(),
             updated_at: payload.established_at,
         };
-        let record = self
+        let connection_id = external_connection.connection_id.clone();
+        let mut record = self
             .external_connections
-            .entry(external_connection.connection_id.clone())
-            .or_insert_with(|| StoredExternalConnection {
+            .get(connection_id.as_str())
+            .cloned()
+            .unwrap_or_else(|| StoredExternalConnection {
                 external_connection: external_connection.clone(),
                 commits: Vec::new(),
             });
         record.external_connection = external_connection;
         record.commits.push(commit);
+        self.insert_external_connection_record(connection_id, record);
         Ok(())
     }
 
@@ -2661,15 +3530,18 @@ impl SocialControlState {
             linked_at: payload.linked_at.clone(),
             updated_at: payload.linked_at,
         };
-        let record = self
+        let link_id = external_member_link.link_id.clone();
+        let mut record = self
             .external_member_links
-            .entry(external_member_link.link_id.clone())
-            .or_insert_with(|| StoredExternalMemberLink {
+            .get(link_id.as_str())
+            .cloned()
+            .unwrap_or_else(|| StoredExternalMemberLink {
                 external_member_link: external_member_link.clone(),
                 commits: Vec::new(),
             });
         record.external_member_link = external_member_link;
         record.commits.push(commit);
+        self.insert_external_member_link_record(link_id, record);
         Ok(())
     }
 
@@ -2720,15 +3592,18 @@ impl SocialControlState {
             applied_at: payload.applied_at.clone(),
             updated_at: payload.applied_at,
         };
-        let record = self
+        let policy_id = shared_channel_policy.policy_id.clone();
+        let mut record = self
             .shared_channel_policies
-            .entry(shared_channel_policy.policy_id.clone())
-            .or_insert_with(|| StoredSharedChannelPolicy {
+            .get(policy_id.as_str())
+            .cloned()
+            .unwrap_or_else(|| StoredSharedChannelPolicy {
                 shared_channel_policy: shared_channel_policy.clone(),
                 commits: Vec::new(),
             });
         record.shared_channel_policy = shared_channel_policy;
         record.commits.push(commit);
+        self.insert_shared_channel_policy_record(policy_id, record);
         Ok(())
     }
 }
@@ -2766,17 +3641,6 @@ where
     serde_json::from_value(serde_json::Value::String(value.to_string())).map_err(|error| {
         format!("failed to parse social replay enum {field_name}={value}: {error}")
     })
-}
-
-fn find_committed_social_event(
-    commits: &[CommitEnvelope],
-    tenant_id: &str,
-    event_id: &str,
-) -> Option<CommitEnvelope> {
-    commits
-        .iter()
-        .find(|commit| commit.tenant_id == tenant_id && commit.event_id == event_id)
-        .cloned()
 }
 
 #[derive(Debug, Serialize)]
@@ -2874,6 +3738,13 @@ struct FriendRequestInventoryQuery {
     direction: FriendRequestInventoryDirectionQuery,
     #[serde(default)]
     status: FriendRequestInventoryStatusQuery,
+    limit: Option<usize>,
+    cursor: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SharedChannelSyncInventoryQuery {
     limit: Option<usize>,
     cursor: Option<String>,
 }
@@ -3244,6 +4115,19 @@ struct FriendRequestInventoryCursor {
     request_id: String,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SharedChannelSyncInventoryCursor {
+    v: u64,
+    request_key: String,
+}
+
+#[derive(Clone, Debug)]
+struct SharedChannelSyncInventoryPageSpec {
+    limit: usize,
+    cursor: Option<SharedChannelSyncInventoryCursor>,
+}
+
 #[derive(Debug)]
 struct FriendRequestInventoryPage {
     items: Vec<FriendRequest>,
@@ -3560,6 +4444,7 @@ pub struct SocialSharedChannelSyncInventoryItemResponse {
 pub struct SocialSharedChannelSyncDeadLetterInventoryResponse {
     pub status: SocialSharedChannelSyncDeadLetterInventoryStatus,
     pub dead_letter_count: usize,
+    pub next_cursor: Option<String>,
     pub items: Vec<SocialSharedChannelSyncInventoryItemResponse>,
 }
 
@@ -3568,6 +4453,7 @@ pub struct SocialSharedChannelSyncDeadLetterInventoryResponse {
 pub struct SocialSharedChannelSyncPendingInventoryResponse {
     pub status: SocialSharedChannelSyncPendingInventoryStatus,
     pub pending_count: usize,
+    pub next_cursor: Option<String>,
     pub items: Vec<SocialSharedChannelSyncInventoryItemResponse>,
 }
 
@@ -3586,10 +4472,11 @@ pub struct SocialSharedChannelSyncDeliveredInventoryItemResponse {
 pub struct SocialSharedChannelSyncDeliveredInventoryResponse {
     pub status: SocialSharedChannelSyncDeliveredInventoryStatus,
     pub delivered_count: usize,
+    pub next_cursor: Option<String>,
     pub items: Vec<SocialSharedChannelSyncDeliveredInventoryItemResponse>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SocialSharedChannelSyncDeliveryStateInventoryItemResponse {
     pub request_key: String,
@@ -3611,6 +4498,7 @@ pub struct SocialSharedChannelSyncDeliveryStateInventoryResponse {
     pub pending_count: usize,
     pub dead_letter_count: usize,
     pub total_count: usize,
+    pub next_cursor: Option<String>,
     pub items: Vec<SocialSharedChannelSyncDeliveryStateInventoryItemResponse>,
 }
 
@@ -3709,6 +4597,97 @@ fn social_shared_channel_sync_delivery_state_item_from_pending(
         pending: !dead_letter,
         dead_letter,
     }
+}
+
+#[derive(Debug)]
+struct SharedChannelSyncInventoryMapPage<T> {
+    items: Vec<(String, T)>,
+    next_key: Option<String>,
+}
+
+fn shared_channel_sync_inventory_map_page<T: Clone>(
+    items_by_key: &BTreeMap<String, T>,
+    limit: usize,
+    after_request_key: Option<&str>,
+) -> SharedChannelSyncInventoryMapPage<T> {
+    let mut items: Vec<(String, T)> = Vec::with_capacity(limit.min(items_by_key.len()));
+    let mut next_key = None;
+    for (request_key, item) in items_by_key {
+        if after_request_key.is_some_and(|cursor_key| request_key.as_str() <= cursor_key) {
+            continue;
+        }
+        if items.len() == limit {
+            next_key = items.last().map(|(request_key, _)| request_key.clone());
+            break;
+        }
+        items.push((request_key.clone(), item.clone()));
+    }
+    SharedChannelSyncInventoryMapPage { items, next_key }
+}
+
+fn shared_channel_sync_inventory_cursor_for(request_key: &str) -> String {
+    let cursor = SharedChannelSyncInventoryCursor {
+        v: SHARED_CHANNEL_SYNC_INVENTORY_CURSOR_VERSION,
+        request_key: request_key.to_owned(),
+    };
+    let payload = serde_json::to_value(&cursor)
+        .expect("shared-channel sync inventory cursor should serialize into json");
+    let secret = resolve_friend_request_cursor_signing_secret();
+    encode_hs256_bearer_token(&payload, secret.as_str())
+        .expect("shared-channel sync inventory cursor should encode into signed compact token")
+}
+
+fn parse_shared_channel_sync_inventory_cursor(
+    cursor: &str,
+) -> Result<SharedChannelSyncInventoryCursor, ControlPlaneError> {
+    let payload = decode_signed_friend_request_cursor_payload(cursor)?;
+    let cursor: SharedChannelSyncInventoryCursor =
+        serde_json::from_value(payload).map_err(|_| {
+            ControlPlaneError::invalid(
+                "cursor_invalid",
+                "shared-channel sync inventory cursor payload is not valid",
+            )
+        })?;
+    if cursor.v != SHARED_CHANNEL_SYNC_INVENTORY_CURSOR_VERSION {
+        return Err(ControlPlaneError::invalid(
+            "cursor_invalid",
+            format!(
+                "shared-channel sync inventory cursor version {} is not supported",
+                cursor.v
+            ),
+        ));
+    }
+    validate_payload_size(
+        "cursor.requestKey",
+        cursor.request_key.as_str(),
+        CONTROL_PLANE_MAX_REQUEST_KEY_BYTES,
+    )?;
+    Ok(cursor)
+}
+
+fn parse_shared_channel_sync_inventory_page_spec(
+    query: &SharedChannelSyncInventoryQuery,
+) -> Result<SharedChannelSyncInventoryPageSpec, ControlPlaneError> {
+    let limit = query
+        .limit
+        .unwrap_or(SHARED_CHANNEL_SYNC_INVENTORY_DEFAULT_LIMIT);
+    if limit == 0 || limit > SHARED_CHANNEL_SYNC_INVENTORY_MAX_LIMIT {
+        return Err(ControlPlaneError::invalid(
+            "limit_invalid",
+            format!("limit must be between 1 and {SHARED_CHANNEL_SYNC_INVENTORY_MAX_LIMIT}"),
+        ));
+    }
+    let cursor = if let Some(cursor) = query.cursor.as_deref() {
+        validate_payload_size(
+            "cursor",
+            cursor,
+            SHARED_CHANNEL_SYNC_INVENTORY_MAX_CURSOR_BYTES,
+        )?;
+        Some(parse_shared_channel_sync_inventory_cursor(cursor)?)
+    } else {
+        None
+    };
+    Ok(SharedChannelSyncInventoryPageSpec { limit, cursor })
 }
 
 fn social_shared_channel_sync_conflict_details(
@@ -5367,7 +6346,10 @@ impl SocialStateStore {
     fn load(&self) -> Result<SocialControlState, String> {
         match self {
             Self::Memory(state) => {
-                Ok(lock_social_state_mutex(state, "social-state-store.memory").clone())
+                let mut loaded =
+                    lock_social_state_mutex(state, "social-state-store.memory").clone();
+                loaded.rebuild_social_indexes();
+                Ok(loaded)
             }
             Self::File { file_path, io_lock } => {
                 let _guard = lock_social_state_mutex(io_lock, "social-state-store.file-io");
@@ -5381,14 +6363,20 @@ impl SocialStateStore {
                     )
                 })?;
                 if content.trim().is_empty() {
-                    return Ok(SocialControlState::default());
-                }
-                serde_json::from_str(&content).map_err(|error| {
-                    format!(
-                        "failed to parse social state file {}: {error}",
+                    return Err(format!(
+                        "social state file {} is empty",
                         file_path.display()
-                    )
-                })
+                    ));
+                }
+                let mut loaded: SocialControlState =
+                    serde_json::from_str(&content).map_err(|error| {
+                        format!(
+                            "failed to parse social state file {}: {error}",
+                            file_path.display()
+                        )
+                    })?;
+                loaded.rebuild_social_indexes();
+                Ok(loaded)
             }
         }
     }
@@ -5411,15 +6399,147 @@ impl SocialStateStore {
                 }
                 let payload = serde_json::to_string_pretty(state)
                     .map_err(|error| format!("failed to serialize social state: {error}"))?;
-                fs::write(file_path.as_path(), payload).map_err(|error| {
-                    format!(
-                        "failed to write social state file {}: {error}",
-                        file_path.display()
-                    )
-                })
+                write_file_atomically(file_path.as_path(), payload.as_bytes(), "social state file")
             }
         }
     }
+}
+
+fn write_file_atomically(
+    file_path: &StdPath,
+    payload: &[u8],
+    store_name: &str,
+) -> Result<(), String> {
+    let parent = file_path
+        .parent()
+        .ok_or_else(|| format!("{store_name} path has no parent: {}", file_path.display()))?;
+    fs::create_dir_all(parent).map_err(|error| {
+        format!(
+            "failed to create {store_name} parent directory {}: {error}",
+            parent.display()
+        )
+    })?;
+
+    let temp_path = atomic_temp_path(file_path)?;
+    let write_result = (|| {
+        let mut temp_file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(temp_path.as_path())
+            .map_err(|error| {
+                format!(
+                    "failed to create {store_name} temp file {}: {error}",
+                    temp_path.display()
+                )
+            })?;
+        temp_file.write_all(payload).map_err(|error| {
+            format!(
+                "failed to write {store_name} temp file {}: {error}",
+                temp_path.display()
+            )
+        })?;
+        temp_file.sync_all().map_err(|error| {
+            format!(
+                "failed to sync {store_name} temp file {}: {error}",
+                temp_path.display()
+            )
+        })?;
+        drop(temp_file);
+        replace_file_atomically(temp_path.as_path(), file_path).map_err(|error| {
+            format!(
+                "failed to atomically replace {store_name} {} from temp file {}: {error}",
+                file_path.display(),
+                temp_path.display()
+            )
+        })?;
+        sync_parent_directory(parent, store_name)?;
+        Ok(())
+    })();
+
+    if write_result.is_err() {
+        let _ = fs::remove_file(temp_path.as_path());
+    }
+    write_result
+}
+
+fn atomic_temp_path(file_path: &StdPath) -> Result<PathBuf, String> {
+    let file_name = file_path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| format!("file path has no valid file name: {}", file_path.display()))?;
+    let mut random = [0_u8; 8];
+    fill_random(&mut random).map_err(|error| {
+        format!(
+            "failed to generate temporary file suffix for {}: {error}",
+            file_path.display()
+        )
+    })?;
+    let suffix = u64::from_le_bytes(random);
+    Ok(file_path.with_file_name(format!(
+        ".{file_name}.{}.{}.tmp",
+        std::process::id(),
+        suffix
+    )))
+}
+
+#[cfg(windows)]
+fn replace_file_atomically(temp_path: &StdPath, file_path: &StdPath) -> Result<(), String> {
+    use std::os::windows::ffi::OsStrExt;
+
+    const MOVEFILE_REPLACE_EXISTING: u32 = 0x0000_0001;
+    const MOVEFILE_WRITE_THROUGH: u32 = 0x0000_0008;
+
+    #[link(name = "Kernel32")]
+    unsafe extern "system" {
+        fn MoveFileExW(
+            lp_existing_file_name: *const u16,
+            lp_new_file_name: *const u16,
+            dw_flags: u32,
+        ) -> i32;
+    }
+
+    let existing = temp_path
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect::<Vec<_>>();
+    let new = file_path
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect::<Vec<_>>();
+    let replaced = unsafe {
+        MoveFileExW(
+            existing.as_ptr(),
+            new.as_ptr(),
+            MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH,
+        )
+    };
+    if replaced == 0 {
+        return Err(std::io::Error::last_os_error().to_string());
+    }
+    Ok(())
+}
+
+#[cfg(not(windows))]
+fn replace_file_atomically(temp_path: &StdPath, file_path: &StdPath) -> Result<(), String> {
+    fs::rename(temp_path, file_path).map_err(|error| error.to_string())
+}
+
+fn sync_parent_directory(parent: &StdPath, store_name: &str) -> Result<(), String> {
+    #[cfg(unix)]
+    {
+        fs::File::open(parent)
+            .and_then(|file| file.sync_all())
+            .map_err(|error| {
+                format!(
+                    "failed to sync {store_name} parent directory {}: {error}",
+                    parent.display()
+                )
+            })?;
+    }
+    let _ = (parent, store_name);
+    Ok(())
 }
 
 fn lock_social_state_mutex<'a, T>(
@@ -5449,34 +6569,30 @@ fn shared_channel_sync_requests_for_external_member_link(
     state: &SocialControlState,
     link: &ExternalMemberLink,
 ) -> Vec<SharedChannelLinkedMemberSyncRequest> {
-    let Some(local_actor_kind) = non_empty_string(link.local_actor_kind.as_deref()) else {
-        return Vec::new();
-    };
-    state
-        .shared_channel_policies
-        .values()
-        .filter_map(|record| {
-            let policy = &record.shared_channel_policy;
-            let conversation_id = non_empty_string(policy.conversation_id.as_deref())?;
-            if policy.tenant_id != link.tenant_id
-                || !policy.status.is_active()
-                || policy.connection_id != link.connection_id
-                || policy.history_visibility != "shared"
-            {
-                return None;
-            }
+    active_shared_channel_policy_records_for_connection(
+        state,
+        link.tenant_id.as_str(),
+        link.connection_id.as_str(),
+    )
+    .into_iter()
+    .filter_map(|record| {
+        let policy = &record.shared_channel_policy;
+        let conversation_id = non_empty_string(policy.conversation_id.as_deref())?;
+        if policy.history_visibility != "shared" {
+            return None;
+        }
 
-            Some(SharedChannelLinkedMemberSyncRequest {
-                tenant_id: link.tenant_id.clone(),
-                conversation_id,
-                shared_channel_policy_id: policy.policy_id.clone(),
-                external_connection_id: link.connection_id.clone(),
-                local_actor_id: link.local_actor_id.clone(),
-                local_actor_kind: local_actor_kind.clone(),
-                external_member_id: link.external_member_id.clone(),
-            })
+        Some(SharedChannelLinkedMemberSyncRequest {
+            tenant_id: link.tenant_id.clone(),
+            conversation_id,
+            shared_channel_policy_id: policy.policy_id.clone(),
+            external_connection_id: link.connection_id.clone(),
+            local_actor_id: link.local_actor_id.clone(),
+            local_actor_kind: link.local_actor_kind.clone(),
+            external_member_id: link.external_member_id.clone(),
         })
-        .collect()
+    })
+    .collect()
 }
 
 fn shared_channel_sync_requests_for_shared_channel_policy(
@@ -5490,30 +6606,25 @@ fn shared_channel_sync_requests_for_shared_channel_policy(
         return Vec::new();
     }
 
-    state
-        .external_member_links
-        .values()
-        .filter_map(|record| {
-            let link = &record.external_member_link;
-            let local_actor_kind = non_empty_string(link.local_actor_kind.as_deref())?;
-            if link.tenant_id != policy.tenant_id
-                || !link.status.is_active()
-                || link.connection_id != policy.connection_id
-            {
-                return None;
-            }
-
-            Some(SharedChannelLinkedMemberSyncRequest {
-                tenant_id: policy.tenant_id.clone(),
-                conversation_id: conversation_id.clone(),
-                shared_channel_policy_id: policy.policy_id.clone(),
-                external_connection_id: policy.connection_id.clone(),
-                local_actor_id: link.local_actor_id.clone(),
-                local_actor_kind,
-                external_member_id: link.external_member_id.clone(),
-            })
-        })
-        .collect()
+    active_external_member_link_records_for_connection(
+        state,
+        policy.tenant_id.as_str(),
+        policy.connection_id.as_str(),
+    )
+    .into_iter()
+    .map(|record| {
+        let link = &record.external_member_link;
+        SharedChannelLinkedMemberSyncRequest {
+            tenant_id: policy.tenant_id.clone(),
+            conversation_id: conversation_id.clone(),
+            shared_channel_policy_id: policy.policy_id.clone(),
+            external_connection_id: policy.connection_id.clone(),
+            local_actor_id: link.local_actor_id.clone(),
+            local_actor_kind: link.local_actor_kind.clone(),
+            external_member_id: link.external_member_id.clone(),
+        }
+    })
+    .collect()
 }
 
 fn shared_channel_sync_request_key(request: &SharedChannelLinkedMemberSyncRequest) -> String {
@@ -5594,14 +6705,15 @@ impl SocialControlRuntime {
         commit_journal: Arc<dyn CommitJournal + Send + Sync>,
         snapshot_failpoint_path: Option<PathBuf>,
     ) -> Self {
-        let state = Self::load_social_state_or_default(
+        let authority_load = Self::load_social_state_for_authority(
             &state_store,
             "failed to load control-plane social state during runtime bootstrap",
         );
         Self {
             state_store,
             commit_journal,
-            state: RwLock::new(state),
+            state: RwLock::new(authority_load.state),
+            authority_replay_error: RwLock::new(authority_load.replay_error),
             journal_path: None,
             tx_marker_path: None,
             write_lock_path: None,
@@ -5627,7 +6739,7 @@ impl SocialControlRuntime {
             SOCIAL_COMMIT_PARTITION,
             journal_path.clone(),
         ));
-        let state = Self::load_state_with_journal_replay(
+        let authority_load = Self::load_state_with_journal_replay(
             &state_store,
             journal_path.as_path(),
             Some(tx_marker_path.as_path()),
@@ -5635,7 +6747,8 @@ impl SocialControlRuntime {
         Self {
             state_store,
             commit_journal,
-            state: RwLock::new(state),
+            state: RwLock::new(authority_load.state),
+            authority_replay_error: RwLock::new(authority_load.replay_error),
             journal_path: Some(Arc::new(journal_path)),
             tx_marker_path: Some(Arc::new(tx_marker_path)),
             write_lock_path: Some(Arc::new(write_lock_path)),
@@ -5649,37 +6762,57 @@ impl SocialControlRuntime {
     ) -> Result<SocialControlState, String> {
         let mut replayed_state = SocialControlState::default();
         replayed_state.replay_commit_journal_file(journal_path)?;
+        replayed_state.rebuild_social_indexes();
         Ok(replayed_state)
     }
 
-    fn load_social_state_or_default(
+    fn load_social_state_for_authority(
         state_store: &SocialStateStore,
         context: &str,
-    ) -> SocialControlState {
-        state_store.load().unwrap_or_else(|error| {
-            eprintln!("{context}: {error}. starting with empty social state");
-            SocialControlState::default()
-        })
+    ) -> SocialAuthorityLoad {
+        match state_store.load() {
+            Ok(state) => SocialAuthorityLoad {
+                state,
+                replay_error: None,
+            },
+            Err(error) => {
+                let replay_error = format!("{context}: {error}");
+                eprintln!(
+                    "{replay_error}. control-plane social authority is unavailable until the snapshot is repaired"
+                );
+                SocialAuthorityLoad {
+                    state: SocialControlState::default(),
+                    replay_error: Some(replay_error),
+                }
+            }
+        }
     }
 
     fn load_state_with_journal_replay(
         state_store: &SocialStateStore,
         journal_path: &StdPath,
         tx_marker_path: Option<&StdPath>,
-    ) -> SocialControlState {
+    ) -> SocialAuthorityLoad {
         if journal_path.exists() {
-            let snapshot_state = Self::load_social_state_or_default(
+            let snapshot_load = Self::load_social_state_for_authority(
                 state_store,
                 "failed to load control-plane social snapshot during journal replay bootstrap",
             );
+            let snapshot_state = snapshot_load.state;
             let mut replayed_state = match Self::replay_state_from_commit_journal(journal_path) {
                 Ok(state) => state,
                 Err(error) => {
-                    eprintln!(
-                        "failed to replay control-plane social commit journal {}: {error}. falling back to snapshot/default state",
+                    let replay_error = format!(
+                        "failed to replay control-plane social commit journal {}: {error}",
                         journal_path.display()
                     );
-                    return snapshot_state;
+                    eprintln!(
+                        "{replay_error}. control-plane social authority is unavailable until the journal is repaired"
+                    );
+                    return SocialAuthorityLoad {
+                        state: snapshot_state,
+                        replay_error: Some(replay_error),
+                    };
                 }
             };
             replayed_state.merge_pending_shared_channel_sync_requests_from(&snapshot_state);
@@ -5702,10 +6835,13 @@ impl SocialControlRuntime {
                     marker_path.display()
                 );
             }
-            return replayed_state;
+            return SocialAuthorityLoad {
+                state: replayed_state,
+                replay_error: None,
+            };
         }
 
-        Self::load_social_state_or_default(
+        Self::load_social_state_for_authority(
             state_store,
             "failed to load control-plane social state without commit journal",
         )
@@ -6071,26 +7207,70 @@ impl SocialControlRuntime {
 
     fn refresh_state_from_authority_for_write(&self) -> Result<(), ControlPlaneError> {
         let Some(journal_path) = self.journal_path.as_deref() else {
+            self.ensure_social_authority_available()?;
             return Ok(());
         };
 
-        let snapshot_state = Self::load_social_state_or_default(
-            &self.state_store,
-            "failed to load control-plane social snapshot during cross-instance write refresh",
-        );
         let mut authoritative_state = if journal_path.exists() {
             match Self::replay_state_from_commit_journal(journal_path) {
                 Ok(replayed) => replayed,
                 Err(error) => {
-                    eprintln!(
-                        "failed to replay control-plane social commit journal {} during cross-instance refresh: {error}. falling back to snapshot/default state",
+                    let replay_error = format!(
+                        "failed to replay control-plane social commit journal {} during cross-instance refresh: {error}",
                         journal_path.display()
                     );
-                    snapshot_state.clone()
+                    *self
+                        .authority_replay_error
+                        .write()
+                        .unwrap_or_else(Self::recover_poisoned_social_runtime_lock) =
+                        Some(replay_error.clone());
+                    return Err(ControlPlaneError::service_unavailable(
+                        "social_commit_journal_unavailable",
+                        replay_error,
+                    ));
                 }
             }
         } else {
-            snapshot_state.clone()
+            match self.state_store.load() {
+                Ok(snapshot_state) => snapshot_state,
+                Err(error) => {
+                    let replay_error = format!(
+                        "failed to load control-plane social snapshot during cross-instance write refresh without commit journal: {error}"
+                    );
+                    *self
+                        .authority_replay_error
+                        .write()
+                        .unwrap_or_else(Self::recover_poisoned_social_runtime_lock) =
+                        Some(replay_error.clone());
+                    return Err(ControlPlaneError::service_unavailable(
+                        "social_state_unavailable",
+                        replay_error,
+                    ));
+                }
+            }
+        };
+        let snapshot_state = match self.state_store.load() {
+            Ok(snapshot_state) => snapshot_state,
+            Err(error) if journal_path.exists() => {
+                eprintln!(
+                    "failed to load control-plane social snapshot during cross-instance write refresh: {error}. continuing from commit journal authority"
+                );
+                SocialControlState::default()
+            }
+            Err(error) => {
+                let replay_error = format!(
+                    "failed to load control-plane social snapshot during cross-instance write refresh without commit journal: {error}"
+                );
+                *self
+                    .authority_replay_error
+                    .write()
+                    .unwrap_or_else(Self::recover_poisoned_social_runtime_lock) =
+                    Some(replay_error.clone());
+                return Err(ControlPlaneError::service_unavailable(
+                    "social_state_unavailable",
+                    replay_error,
+                ));
+            }
         };
         authoritative_state.merge_pending_shared_channel_sync_requests_from(&snapshot_state);
         authoritative_state.merge_dead_letter_shared_channel_sync_requests_from(&snapshot_state);
@@ -6102,6 +7282,25 @@ impl SocialControlRuntime {
             .state
             .write()
             .unwrap_or_else(Self::recover_poisoned_social_runtime_lock) = authoritative_state;
+        *self
+            .authority_replay_error
+            .write()
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock) = None;
+        Ok(())
+    }
+
+    fn ensure_social_authority_available(&self) -> Result<(), ControlPlaneError> {
+        let replay_error = self
+            .authority_replay_error
+            .read()
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
+            .clone();
+        if let Some(error) = replay_error {
+            return Err(ControlPlaneError::service_unavailable(
+                "social_state_unavailable",
+                error,
+            ));
+        }
         Ok(())
     }
 
@@ -6154,13 +7353,15 @@ impl SocialControlRuntime {
                 .saturating_sub(resolve_shared_channel_sync_pending_retry_cooldown_millis()),
         );
         let mut queue = Vec::with_capacity(
-            state.pending_shared_channel_sync_requests.len()
+            state.pending_shared_channel_retry_index.len()
                 + state.dead_letter_shared_channel_sync_requests.len()
                 + requests.len(),
         );
         let mut blocked = BTreeSet::new();
         let mut seen = BTreeSet::new();
-        for pending in state.pending_shared_channel_sync_requests.values() {
+        for pending in
+            state.retryable_pending_shared_channel_sync_requests(retry_window_start.as_str())
+        {
             if state.is_delivered_shared_channel_sync_request(&pending.request) {
                 continue;
             }
@@ -6186,6 +7387,13 @@ impl SocialControlRuntime {
             if state.recently_dispatched_shared_channel_sync_request(
                 request,
                 dedup_window_start.as_str(),
+            ) {
+                continue;
+            }
+            if state.pending_shared_channel_sync_request_blocks_dispatch(
+                request,
+                now.as_str(),
+                retry_window_start.as_str(),
             ) {
                 continue;
             }
@@ -6452,15 +7660,26 @@ impl SocialControlRuntime {
         actor_id: &str,
         actor_kind: &str,
         can_takeover: bool,
+        page: &SharedChannelSyncInventoryPageSpec,
     ) -> SocialSharedChannelSyncDeadLetterInventoryResponse {
-        let current_state = self
+        let state = self
             .state
             .read()
-            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
-            .clone();
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock);
         let now = format_unix_timestamp_millis(current_unix_epoch_millis());
-        let items = current_state
-            .dead_letter_shared_channel_sync_requests()
+        let page_entries = shared_channel_sync_inventory_map_page(
+            &state.dead_letter_shared_channel_sync_requests,
+            page.limit,
+            page.cursor
+                .as_ref()
+                .map(|cursor| cursor.request_key.as_str()),
+        );
+        let next_cursor = page_entries
+            .next_key
+            .as_deref()
+            .map(shared_channel_sync_inventory_cursor_for);
+        let items = page_entries
+            .items
             .into_iter()
             .map(|(request_key, request)| {
                 social_shared_channel_sync_inventory_item_response(
@@ -6476,7 +7695,8 @@ impl SocialControlRuntime {
 
         SocialSharedChannelSyncDeadLetterInventoryResponse {
             status: SocialSharedChannelSyncDeadLetterInventoryStatus::Snapshot,
-            dead_letter_count: items.len(),
+            dead_letter_count: state.dead_letter_shared_channel_sync_requests.len(),
+            next_cursor,
             items,
         }
     }
@@ -6486,15 +7706,26 @@ impl SocialControlRuntime {
         actor_id: &str,
         actor_kind: &str,
         can_takeover: bool,
+        page: &SharedChannelSyncInventoryPageSpec,
     ) -> SocialSharedChannelSyncPendingInventoryResponse {
-        let current_state = self
+        let state = self
             .state
             .read()
-            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
-            .clone();
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock);
         let now = format_unix_timestamp_millis(current_unix_epoch_millis());
-        let items = current_state
-            .pending_shared_channel_sync_requests_with_keys()
+        let page_entries = shared_channel_sync_inventory_map_page(
+            &state.pending_shared_channel_sync_requests,
+            page.limit,
+            page.cursor
+                .as_ref()
+                .map(|cursor| cursor.request_key.as_str()),
+        );
+        let next_cursor = page_entries
+            .next_key
+            .as_deref()
+            .map(shared_channel_sync_inventory_cursor_for);
+        let items = page_entries
+            .items
             .into_iter()
             .map(|(request_key, request)| {
                 social_shared_channel_sync_inventory_item_response(
@@ -6510,105 +7741,123 @@ impl SocialControlRuntime {
 
         SocialSharedChannelSyncPendingInventoryResponse {
             status: SocialSharedChannelSyncPendingInventoryStatus::Snapshot,
-            pending_count: items.len(),
+            pending_count: state.pending_shared_channel_sync_requests.len(),
+            next_cursor,
             items,
         }
     }
 
     fn delivered_shared_channel_sync_inventory(
         &self,
+        page: &SharedChannelSyncInventoryPageSpec,
     ) -> SocialSharedChannelSyncDeliveredInventoryResponse {
-        let current_state = self
+        let state = self
             .state
             .read()
-            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
-            .clone();
-        let mut items = current_state
-            .delivered_shared_channel_sync_requests
-            .iter()
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock);
+        let page_entries = shared_channel_sync_inventory_map_page(
+            &state.delivered_shared_channel_sync_requests,
+            page.limit,
+            page.cursor
+                .as_ref()
+                .map(|cursor| cursor.request_key.as_str()),
+        );
+        let next_cursor = page_entries
+            .next_key
+            .as_deref()
+            .map(shared_channel_sync_inventory_cursor_for);
+        let items = page_entries
+            .items
+            .into_iter()
             .map(|(request_key, delivered_at)| {
+                let proof = state
+                    .delivered_shared_channel_sync_delivery_proofs
+                    .get(request_key.as_str())
+                    .cloned();
                 social_shared_channel_sync_delivered_inventory_item_response(
-                    request_key.clone(),
-                    delivered_at.clone(),
-                    current_state
-                        .delivered_shared_channel_sync_delivery_proofs
-                        .get(request_key.as_str())
-                        .cloned(),
+                    request_key,
+                    delivered_at,
+                    proof,
                 )
             })
             .collect::<Vec<_>>();
-        items.sort_by(|left, right| {
-            timestamp_recency_cmp(right.delivered_at.as_str(), left.delivered_at.as_str())
-                .then_with(|| left.request_key.as_str().cmp(right.request_key.as_str()))
-        });
         SocialSharedChannelSyncDeliveredInventoryResponse {
             status: SocialSharedChannelSyncDeliveredInventoryStatus::Snapshot,
-            delivered_count: items.len(),
+            delivered_count: state.delivered_shared_channel_sync_requests.len(),
+            next_cursor,
             items,
         }
     }
 
     fn shared_channel_sync_delivery_state_inventory(
         &self,
+        page: &SharedChannelSyncInventoryPageSpec,
     ) -> SocialSharedChannelSyncDeliveryStateInventoryResponse {
-        let current_state = self
+        let state = self
             .state
             .read()
-            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
-            .clone();
-        let delivered_count = current_state.delivered_shared_channel_sync_requests.len();
-        let pending_count = current_state.pending_shared_channel_sync_requests.len();
-        let dead_letter_count = current_state.dead_letter_shared_channel_sync_requests.len();
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock);
+        let delivered_count = state.delivered_shared_channel_sync_requests.len();
+        let pending_count = state.pending_shared_channel_sync_requests.len();
+        let dead_letter_count = state.dead_letter_shared_channel_sync_requests.len();
         let mut items_by_key =
             BTreeMap::<String, SocialSharedChannelSyncDeliveryStateInventoryItemResponse>::new();
-        for (request_key, delivered_at) in &current_state.delivered_shared_channel_sync_requests {
+        for (request_key, delivered_at) in &state.delivered_shared_channel_sync_requests {
             items_by_key.insert(
                 request_key.clone(),
                 social_shared_channel_sync_delivery_state_item_from_proof(
                     request_key.clone(),
                     delivered_at.clone(),
-                    current_state
+                    state
                         .delivered_shared_channel_sync_delivery_proofs
                         .get(request_key.as_str())
                         .cloned(),
                 ),
             );
         }
-        for (request_key, request) in current_state.pending_shared_channel_sync_requests_with_keys()
-        {
+        for (request_key, request) in &state.pending_shared_channel_sync_requests {
             items_by_key.insert(
                 request_key.clone(),
                 social_shared_channel_sync_delivery_state_item_from_pending(
-                    request_key,
-                    request,
+                    request_key.clone(),
+                    request.clone(),
                     false,
                 ),
             );
         }
-        for (request_key, request) in current_state.dead_letter_shared_channel_sync_requests() {
+        for (request_key, request) in &state.dead_letter_shared_channel_sync_requests {
             items_by_key.insert(
                 request_key.clone(),
                 social_shared_channel_sync_delivery_state_item_from_pending(
-                    request_key,
-                    request,
+                    request_key.clone(),
+                    request.clone(),
                     true,
                 ),
             );
         }
-        let mut items = items_by_key.into_values().collect::<Vec<_>>();
-        items.sort_by(|left, right| {
-            compare_optional_timestamps_desc(
-                left.updated_at.as_deref(),
-                right.updated_at.as_deref(),
-            )
-            .then_with(|| left.request_key.as_str().cmp(right.request_key.as_str()))
-        });
+        let page_entries = shared_channel_sync_inventory_map_page(
+            &items_by_key,
+            page.limit,
+            page.cursor
+                .as_ref()
+                .map(|cursor| cursor.request_key.as_str()),
+        );
+        let next_cursor = page_entries
+            .next_key
+            .as_deref()
+            .map(shared_channel_sync_inventory_cursor_for);
+        let items = page_entries
+            .items
+            .into_iter()
+            .map(|(_, item)| item)
+            .collect::<Vec<_>>();
         SocialSharedChannelSyncDeliveryStateInventoryResponse {
             status: SocialSharedChannelSyncDeliveryStateInventoryStatus::Snapshot,
             delivered_count,
             pending_count,
             dead_letter_count,
-            total_count: items.len(),
+            total_count: items_by_key.len(),
+            next_cursor,
             items,
         }
     }
@@ -6824,11 +8073,8 @@ impl SocialControlRuntime {
             });
         }
 
-        let selected_pending_items = current_state
-            .pending_shared_channel_sync_requests_with_keys()
-            .into_iter()
-            .filter(|(request_key, _)| request_keys.contains(request_key))
-            .collect::<Vec<_>>();
+        let selected_pending_items =
+            current_state.selected_pending_shared_channel_sync_requests(&request_keys);
 
         if let Some((request_key, pending)) = selected_pending_items
             .iter()
@@ -6926,11 +8172,8 @@ impl SocialControlRuntime {
         }
 
         let now = format_unix_timestamp_millis(current_unix_epoch_millis());
-        let selected_pending_items = current_state
-            .pending_shared_channel_sync_requests_with_keys()
-            .into_iter()
-            .filter(|(request_key, _)| request_keys.contains(request_key))
-            .collect::<Vec<_>>();
+        let selected_pending_items =
+            current_state.selected_pending_shared_channel_sync_requests(&request_keys);
 
         if let Some((request_key, pending)) = selected_pending_items
             .iter()
@@ -7115,14 +8358,8 @@ impl SocialControlRuntime {
         let pending_before = current_state.pending_shared_channel_sync_count();
         let dead_letter_before = current_state.dead_letter_shared_channel_sync_count();
         let requested = request_keys.len();
-        let selected_pending_items = current_state
-            .pending_shared_channel_sync_requests_with_keys()
-            .into_iter()
-            .filter(|(request_key, pending)| {
-                request_keys.contains(request_key)
-                    && !current_state.is_delivered_shared_channel_sync_request(&pending.request)
-            })
-            .collect::<Vec<_>>();
+        let selected_pending_items =
+            current_state.selected_undelivered_pending_shared_channel_sync_requests(&request_keys);
         let attempted = selected_pending_items.len();
         if attempted == 0 {
             return Ok(SocialSharedChannelSyncTargetedRepublishResponse {
@@ -7182,11 +8419,16 @@ impl SocialControlRuntime {
             if pending.is_owned_by(actor_id, actor_kind)
                 && pending.lease_status(republish_started_at.as_str())
                     == SocialSharedChannelSyncLeaseStatus::Stale
-                && let Some(selected_pending) = next_state
+                && let Some(mut selected_pending) = next_state
                     .pending_shared_channel_sync_requests
-                    .get_mut(request_key.as_str())
+                    .get(request_key.as_str())
+                    .cloned()
             {
                 selected_pending.assign_owner(actor_id, actor_kind);
+                next_state.upsert_pending_shared_channel_sync_request(
+                    request_key.clone(),
+                    selected_pending,
+                );
                 renewed_stale_same_owner_lease = true;
             }
         }
@@ -7447,15 +8689,6 @@ impl From<SocialInvariantError> for ControlPlaneError {
 }
 
 impl ControlPlaneError {
-    fn internal(code: &'static str, message: impl Into<String>) -> Self {
-        Self {
-            status: StatusCode::INTERNAL_SERVER_ERROR,
-            code,
-            message: message.into(),
-            details: None,
-        }
-    }
-
     fn forbidden(required_permission: &'static str) -> Self {
         Self {
             status: StatusCode::FORBIDDEN,
@@ -7724,13 +8957,14 @@ impl SocialControlRuntime {
                 ),
             ));
         }
-        if next_state.external_connections.values().any(|record| {
-            record.external_connection.tenant_id == tenant_id
-                && record.external_connection.status.is_active()
-                && record.external_connection.external_tenant_id
-                    == external_connection.external_tenant_id
-                && record.external_connection.connection_kind == external_connection.connection_kind
-        }) {
+        if active_external_connection_record_for_target(
+            &next_state,
+            tenant_id,
+            external_connection.external_tenant_id.as_str(),
+            &external_connection.connection_kind,
+        )
+        .is_some()
+        {
             return Err(ControlPlaneError::conflict(
                 "external_connection_target_conflict",
                 format!(
@@ -7740,7 +8974,7 @@ impl SocialControlRuntime {
             ));
         }
 
-        next_state.external_connections.insert(
+        next_state.insert_external_connection_record(
             external_connection.connection_id.clone(),
             StoredExternalConnection {
                 external_connection: external_connection.clone(),
@@ -7880,7 +9114,7 @@ impl SocialControlRuntime {
             link_id: request.link_id.clone(),
             connection_id: request.connection_id.clone(),
             local_actor_id: request.local_actor_id.clone(),
-            local_actor_kind: Some(request.local_actor_kind.clone()),
+            local_actor_kind: request.local_actor_kind.clone(),
             external_member_id: request.external_member_id.clone(),
             external_display_name: request.external_display_name.clone(),
             linked_at: request.linked_at.clone(),
@@ -7908,7 +9142,7 @@ impl SocialControlRuntime {
             link_id: request.link_id.clone(),
             connection_id: request.connection_id.clone(),
             local_actor_id: request.local_actor_id,
-            local_actor_kind: Some(request.local_actor_kind),
+            local_actor_kind: request.local_actor_kind,
             external_member_id: request.external_member_id,
             external_display_name: request.external_display_name,
             status: ExternalMemberLinkStatus::Active,
@@ -7954,13 +9188,14 @@ impl SocialControlRuntime {
                 ),
             ));
         }
-        if next_state.external_member_links.values().any(|record| {
-            record.external_member_link.tenant_id == tenant_id
-                && record.external_member_link.status.is_active()
-                && record.external_member_link.connection_id == external_member_link.connection_id
-                && record.external_member_link.external_member_id
-                    == external_member_link.external_member_id
-        }) {
+        if active_external_member_link_record_for_mapping(
+            &next_state,
+            tenant_id,
+            external_member_link.connection_id.as_str(),
+            external_member_link.external_member_id.as_str(),
+        )
+        .is_some()
+        {
             return Err(ControlPlaneError::conflict(
                 "external_member_mapping_conflict",
                 format!(
@@ -7970,7 +9205,7 @@ impl SocialControlRuntime {
             ));
         }
 
-        next_state.external_member_links.insert(
+        next_state.insert_external_member_link_record(
             external_member_link.link_id.clone(),
             StoredExternalMemberLink {
                 external_member_link: external_member_link.clone(),
@@ -8194,12 +9429,14 @@ impl SocialControlRuntime {
                 ),
             ));
         }
-        if next_state.shared_channel_policies.values().any(|record| {
-            record.shared_channel_policy.tenant_id == tenant_id
-                && record.shared_channel_policy.status.is_active()
-                && record.shared_channel_policy.connection_id == shared_channel_policy.connection_id
-                && record.shared_channel_policy.channel_id == shared_channel_policy.channel_id
-        }) {
+        if active_shared_channel_policy_record_for_target(
+            &next_state,
+            tenant_id,
+            shared_channel_policy.connection_id.as_str(),
+            shared_channel_policy.channel_id.as_str(),
+        )
+        .is_some()
+        {
             return Err(ControlPlaneError::conflict(
                 "shared_channel_policy_target_conflict",
                 format!(
@@ -8209,7 +9446,7 @@ impl SocialControlRuntime {
             ));
         }
 
-        next_state.shared_channel_policies.insert(
+        next_state.insert_shared_channel_policy_record(
             shared_channel_policy.policy_id.clone(),
             StoredSharedChannelPolicy {
                 shared_channel_policy: shared_channel_policy.clone(),
@@ -8382,15 +9619,12 @@ impl SocialControlRuntime {
                 social_pair_block_conflict_details(&user_block),
             ));
         }
-        if let Some(existing_friendship) = next_state.friendships.values().find(|record| {
-            record.friendship.tenant_id == tenant_id
-                && record.friendship.status.is_active()
-                && record
-                    .friendship
-                    .pair()
-                    .ok()
-                    .is_some_and(|pair| pair == requested_pair)
-        }) {
+        if let Some(existing_friendship) = active_friendship_record_for_pair(
+            &next_state,
+            tenant_id,
+            requested_pair.user_low_id.as_str(),
+            requested_pair.user_high_id.as_str(),
+        ) {
             return Err(ControlPlaneError::conflict_with_details(
                 "friendship_pair_conflict",
                 format!(
@@ -8405,22 +9639,19 @@ impl SocialControlRuntime {
                 }),
             ));
         }
-        let pair_has_materialized_friendship = next_state.friendships.values().any(|record| {
-            record.friendship.tenant_id == tenant_id
-                && record.friendship.user_low_id == requested_pair.user_low_id
-                && record.friendship.user_high_id == requested_pair.user_high_id
-        });
-        if let Some(existing) = next_state.friend_requests.values().find(|record| {
-            record.friend_request.tenant_id == tenant_id
-                && (record.friend_request.status == FriendRequestStatus::Pending
-                    || (record.friend_request.status == FriendRequestStatus::Accepted
-                        && !pair_has_materialized_friendship))
-                && record
-                    .friend_request
-                    .user_pair()
-                    .ok()
-                    .is_some_and(|pair| pair == requested_pair)
-        }) {
+        let pair_has_materialized_friendship = friendship_pair_has_materialized_record(
+            &next_state,
+            tenant_id,
+            requested_pair.user_low_id.as_str(),
+            requested_pair.user_high_id.as_str(),
+        );
+        if let Some(existing) = open_friend_request_record_for_pair(
+            &next_state,
+            tenant_id,
+            requested_pair.user_low_id.as_str(),
+            requested_pair.user_high_id.as_str(),
+            pair_has_materialized_friendship,
+        ) {
             return Err(ControlPlaneError::conflict_with_details(
                 "friend_request_pair_conflict",
                 format!(
@@ -8436,7 +9667,7 @@ impl SocialControlRuntime {
             ));
         }
 
-        next_state.friend_requests.insert(
+        next_state.insert_friend_request_record(
             friend_request.request_id.clone(),
             StoredFriendRequest {
                 friend_request: friend_request.clone(),
@@ -8476,13 +9707,12 @@ impl SocialControlRuntime {
         limit: usize,
         cursor: Option<&FriendRequestInventoryCursor>,
     ) -> FriendRequestInventoryPage {
-        let mut items = self
+        let state = self
             .state
             .read()
-            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
-            .friend_requests
-            .values()
-            .filter(|record| record.friend_request.tenant_id == tenant_id)
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock);
+        let mut items = friend_request_records_for_user(&state, tenant_id, user_id)
+            .into_iter()
             .filter(|record| {
                 friend_request_matches_inventory_direction(
                     &record.friend_request,
@@ -8666,15 +9896,18 @@ impl SocialControlRuntime {
                 .friend_request
                 .clone()
         } else {
-            let record = next_state
+            let mut record = next_state
                 .friend_requests
-                .get_mut(request_id)
+                .get(request_id)
+                .cloned()
                 .expect("friend request should exist after validation");
             record.friend_request.status = FriendRequestStatus::Accepted;
             record.friend_request.updated_at = accepted_at.clone();
             record.commits.push(accept_commit.clone());
             commits_to_persist.push(accept_commit.clone());
-            record.friend_request.clone()
+            let friend_request = record.friend_request.clone();
+            next_state.insert_friend_request_record(request_id.to_owned(), record);
+            friend_request
         };
 
         let existing_friendship = active_friendship_record_for_pair(
@@ -8686,7 +9919,8 @@ impl SocialControlRuntime {
         let existing_direct_chat = active_direct_chat_record_for_pair(
             &next_state,
             tenant_id,
-            actor_pair.pair_hash.as_str(),
+            actor_pair.left_actor_id.as_str(),
+            actor_pair.right_actor_id.as_str(),
         );
 
         let planned_direct_chat_id = existing_direct_chat
@@ -8764,7 +9998,7 @@ impl SocialControlRuntime {
                     established_at: Some(accepted_at.clone()),
                     updated_at: accepted_at.clone(),
                 };
-                next_state.friendships.insert(
+                next_state.insert_friendship_record(
                     friendship.friendship_id.clone(),
                     StoredFriendship {
                         friendship: friendship.clone(),
@@ -8850,7 +10084,7 @@ impl SocialControlRuntime {
                         created_at: accepted_at.clone(),
                         updated_at: accepted_at.clone(),
                     };
-                    next_state.direct_chats.insert(
+                    next_state.insert_direct_chat_record(
                         direct_chat.direct_chat_id.clone(),
                         StoredDirectChat {
                             direct_chat: direct_chat.clone(),
@@ -8996,14 +10230,16 @@ impl SocialControlRuntime {
         }
 
         let mut next_state = state.clone();
-        let record = next_state
+        let mut record = next_state
             .friend_requests
-            .get_mut(request_id)
+            .get(request_id)
+            .cloned()
             .expect("friend request should exist after validation");
         record.friend_request.status = FriendRequestStatus::Declined;
         record.friend_request.updated_at = request.declined_at;
         let friend_request = record.friend_request.clone();
         record.commits.push(commit.clone());
+        next_state.insert_friend_request_record(request_id.to_owned(), record);
 
         let persistence = self.persist_state_transition(&next_state, &commit)?;
         *state = next_state;
@@ -9131,14 +10367,16 @@ impl SocialControlRuntime {
         }
 
         let mut next_state = state.clone();
-        let record = next_state
+        let mut record = next_state
             .friend_requests
-            .get_mut(request_id)
+            .get(request_id)
+            .cloned()
             .expect("friend request should exist after validation");
         record.friend_request.status = FriendRequestStatus::Canceled;
         record.friend_request.updated_at = request.canceled_at;
         let friend_request = record.friend_request.clone();
         record.commits.push(commit.clone());
+        next_state.insert_friend_request_record(request_id.to_owned(), record);
 
         let persistence = self.persist_state_transition(&next_state, &commit)?;
         *state = next_state;
@@ -9297,12 +10535,12 @@ impl SocialControlRuntime {
                 social_pair_block_conflict_details(&user_block),
             ));
         }
-        if let Some(existing_friendship) = next_state.friendships.values().find(|record| {
-            record.friendship.tenant_id == tenant_id
-                && record.friendship.status.is_active()
-                && record.friendship.user_low_id == pair.user_low_id
-                && record.friendship.user_high_id == pair.user_high_id
-        }) {
+        if let Some(existing_friendship) = active_friendship_record_for_pair(
+            &next_state,
+            tenant_id,
+            pair.user_low_id.as_str(),
+            pair.user_high_id.as_str(),
+        ) {
             return Err(ControlPlaneError::conflict_with_details(
                 "friendship_pair_conflict",
                 format!(
@@ -9318,7 +10556,7 @@ impl SocialControlRuntime {
             ));
         }
 
-        next_state.friendships.insert(
+        next_state.insert_friendship_record(
             friendship.friendship_id.clone(),
             StoredFriendship {
                 friendship: friendship.clone(),
@@ -9461,16 +10699,16 @@ impl SocialControlRuntime {
         }
 
         let mut next_state = state.clone();
-        let friendship = {
-            let record = next_state
-                .friendships
-                .get_mut(friendship_id)
-                .expect("friendship should exist after validation");
-            record.friendship.status = FriendshipStatus::Removed;
-            record.friendship.updated_at = request.removed_at;
-            record.commits.push(commit.clone());
-            record.friendship.clone()
-        };
+        let mut record = next_state
+            .friendships
+            .get(friendship_id)
+            .cloned()
+            .expect("friendship should exist after validation");
+        record.friendship.status = FriendshipStatus::Removed;
+        record.friendship.updated_at = request.removed_at;
+        record.commits.push(commit.clone());
+        let friendship = record.friendship.clone();
+        next_state.insert_friendship_record(friendship_id.to_owned(), record);
         archive_active_direct_chats_for_pair(
             &mut next_state,
             tenant_id,
@@ -9635,13 +10873,51 @@ impl SocialControlRuntime {
                 format!("user block {} already exists", user_block.block_id),
             ));
         }
-        if next_state.user_blocks.values().any(|record| {
-            record.user_block.tenant_id == tenant_id
-                && record.user_block.status.is_active()
-                && record.user_block.blocker_user_id == user_block.blocker_user_id
-                && record.user_block.blocked_user_id == user_block.blocked_user_id
-                && record.user_block.scope == user_block.scope
-        }) {
+        if let Some(direct_chat_id) = user_block.direct_chat_id.as_deref() {
+            let direct_chat = next_state
+                .direct_chats
+                .get(direct_chat_id)
+                .filter(|record| record.direct_chat.tenant_id == tenant_id)
+                .filter(|record| record.direct_chat.status.is_active())
+                .ok_or_else(|| {
+                    ControlPlaneError::invalid(
+                        "invalid_user_block",
+                        format!("direct chat {direct_chat_id} does not exist or is not active"),
+                    )
+                })?;
+            let direct_chat_pair = normalize_user_pair(
+                direct_chat.direct_chat.left_actor_id.as_str(),
+                direct_chat.direct_chat.right_actor_id.as_str(),
+            )
+            .map_err(|error| {
+                ControlPlaneError::invalid(
+                    "invalid_user_block",
+                    format!("direct chat {direct_chat_id} cannot be used for user block: {error}"),
+                )
+            })?;
+            let block_pair = user_block.user_pair().map_err(|error| {
+                ControlPlaneError::invalid("invalid_user_block", error.to_string())
+            })?;
+            if direct_chat_pair != block_pair {
+                return Err(ControlPlaneError::invalid(
+                    "invalid_user_block",
+                    format!(
+                        "direct chat {direct_chat_id} does not match block pair {}",
+                        block_pair.pair_key()
+                    ),
+                ));
+            }
+        }
+        if active_user_block_for_scope(
+            &next_state,
+            tenant_id,
+            user_block.blocker_user_id.as_str(),
+            user_block.blocked_user_id.as_str(),
+            &user_block.scope,
+            user_block.direct_chat_id.as_deref(),
+        )
+        .is_some()
+        {
             return Err(ControlPlaneError::conflict(
                 "user_block_scope_conflict",
                 format!(
@@ -9651,7 +10927,7 @@ impl SocialControlRuntime {
             ));
         }
 
-        next_state.user_blocks.insert(
+        next_state.insert_user_block_record(
             user_block.block_id.clone(),
             StoredUserBlock {
                 user_block: user_block.clone(),
@@ -9835,11 +11111,12 @@ impl SocialControlRuntime {
                 format!("direct chat {} already exists", direct_chat.direct_chat_id),
             ));
         }
-        if let Some(existing_direct_chat) = next_state.direct_chats.values().find(|record| {
-            record.direct_chat.tenant_id == tenant_id
-                && record.direct_chat.status.is_active()
-                && record.direct_chat.pair_hash == pair.pair_hash
-        }) {
+        if let Some(existing_direct_chat) = active_direct_chat_record_for_pair(
+            &next_state,
+            tenant_id,
+            pair.left_actor_id.as_str(),
+            pair.right_actor_id.as_str(),
+        ) {
             return Err(ControlPlaneError::conflict_with_details(
                 "direct_chat_pair_conflict",
                 format!(
@@ -9856,7 +11133,7 @@ impl SocialControlRuntime {
             ));
         }
 
-        next_state.direct_chats.insert(
+        next_state.insert_direct_chat_record(
             direct_chat.direct_chat_id.clone(),
             StoredDirectChat {
                 direct_chat: direct_chat.clone(),
@@ -9889,11 +11166,17 @@ impl SocialControlRuntime {
 
     fn authoritative_state_for_query(&self) -> Result<SocialControlState, String> {
         match self.journal_path.as_deref() {
-            Some(journal_path) => Ok(Self::load_state_with_journal_replay(
-                &self.state_store,
-                journal_path,
-                self.tx_marker_path.as_deref().map(|path| path.as_path()),
-            )),
+            Some(journal_path) => {
+                let authority_load = Self::load_state_with_journal_replay(
+                    &self.state_store,
+                    journal_path,
+                    self.tx_marker_path.as_deref().map(|path| path.as_path()),
+                );
+                if let Some(error) = authority_load.replay_error {
+                    return Err(error);
+                }
+                Ok(authority_load.state)
+            }
             None => self.state_store.load(),
         }
     }
@@ -9904,19 +11187,9 @@ impl SocialControlRuntime {
         user_id: &str,
     ) -> Result<Vec<Friendship>, String> {
         let state = self.authoritative_state_for_query()?;
-        let mut friendships = state
-            .friendships
-            .values()
-            .filter_map(|record| {
-                let friendship = &record.friendship;
-                if friendship.tenant_id != tenant_id || !friendship.status.is_active() {
-                    return None;
-                }
-                if friendship.user_low_id != user_id && friendship.user_high_id != user_id {
-                    return None;
-                }
-                Some(friendship.clone())
-            })
+        let mut friendships = active_friendship_records_for_user(&state, tenant_id, user_id)
+            .into_iter()
+            .map(|record| record.friendship)
             .collect::<Vec<_>>();
         friendships.sort_by(|left, right| {
             right
@@ -9934,26 +11207,10 @@ impl SocialControlRuntime {
         user_high_id: &str,
     ) -> Result<Option<DirectChat>, String> {
         let state = self.authoritative_state_for_query()?;
-        let pair_hash = format!("{user_low_id}:{user_high_id}");
-        let direct_chat = state
-            .direct_chats
-            .values()
-            .filter_map(|record| {
-                let direct_chat = &record.direct_chat;
-                if direct_chat.tenant_id != tenant_id
-                    || !direct_chat.status.is_active()
-                    || direct_chat.pair_hash != pair_hash
-                {
-                    return None;
-                }
-                Some(direct_chat.clone())
-            })
-            .max_by(|left, right| {
-                left.updated_at
-                    .cmp(&right.updated_at)
-                    .then_with(|| left.direct_chat_id.cmp(&right.direct_chat_id))
-            });
-        Ok(direct_chat)
+        Ok(
+            active_direct_chat_record_for_pair(&state, tenant_id, user_low_id, user_high_id)
+                .map(|record| record.direct_chat),
+        )
     }
 }
 
@@ -10015,7 +11272,15 @@ pub fn repair_social_runtime_dir(
         ));
     }
 
-    let snapshot_state = state_store.load().unwrap_or_default();
+    let snapshot_state = match state_store.load() {
+        Ok(state) => state,
+        Err(error) => {
+            eprintln!(
+                "failed to load control-plane social snapshot during operator repair: {error}. continuing from commit journal authority"
+            );
+            SocialControlState::default()
+        }
+    };
     let mut replayed_state =
         SocialControlRuntime::replay_state_from_commit_journal(journal_path.as_path())?;
     replayed_state.merge_pending_shared_channel_sync_requests_from(&snapshot_state);
@@ -11105,23 +12370,15 @@ fn active_friendship_scoped_user_block(
     user_b: &str,
 ) -> Option<UserBlock> {
     let pair = normalize_user_pair(user_a, user_b).ok()?;
-    state.user_blocks.values().find_map(|record| {
-        if record.user_block.tenant_id != tenant_id
-            || !record.user_block.status.is_active()
-            || !matches!(
-                record.user_block.scope.clone(),
-                BlockScope::All | BlockScope::Friendship
-            )
-        {
-            return None;
-        }
-        record
-            .user_block
-            .user_pair()
-            .ok()
-            .filter(|block_pair| *block_pair == pair)
-            .map(|_| record.user_block.clone())
-    })
+    let pair_key = SocialPairIndexKey::new(
+        tenant_id,
+        pair.user_low_id.as_str(),
+        pair.user_high_id.as_str(),
+    );
+    active_user_block_by_id(
+        state,
+        state.active_friendship_block_pair_index.get(&pair_key)?,
+    )
 }
 
 fn active_direct_chat_scoped_user_block(
@@ -11139,25 +12396,22 @@ fn active_direct_chat_scoped_user_block(
         direct_chat.right_actor_id.as_str(),
     )
     .ok()?;
-
-    state.user_blocks.values().find_map(|record| {
-        if record.user_block.tenant_id != tenant_id || !record.user_block.status.is_active() {
-            return None;
+    let chat_key = SocialDirectChatBlockIndexKey::new(tenant_id, direct_chat_id);
+    if let Some(block_id) = state.active_direct_chat_block_chat_index.get(&chat_key) {
+        if let Some(user_block) = active_user_block_by_id(state, block_id) {
+            return Some(user_block);
         }
-        match record.user_block.scope {
-            BlockScope::All => {}
-            BlockScope::DirectChat
-                if record.user_block.direct_chat_id.as_deref() == Some(direct_chat_id) => {}
-            _ => return None,
-        }
+    }
 
-        record
-            .user_block
-            .user_pair()
-            .ok()
-            .filter(|candidate| candidate == &pair)
-            .map(|_| record.user_block.clone())
-    })
+    let pair_key = SocialPairIndexKey::new(
+        tenant_id,
+        pair.user_low_id.as_str(),
+        pair.user_high_id.as_str(),
+    );
+    active_user_block_by_id(
+        state,
+        state.active_direct_chat_block_pair_index.get(&pair_key)?,
+    )
 }
 
 fn social_pair_block_conflict_details(user_block: &UserBlock) -> serde_json::Value {
@@ -11170,10 +12424,749 @@ fn social_pair_block_conflict_details(user_block: &UserBlock) -> serde_json::Val
     })
 }
 
+fn block_scope_index_label(scope: &BlockScope) -> &'static str {
+    match scope {
+        BlockScope::All => "all",
+        BlockScope::Friendship => "friendship",
+        BlockScope::DirectChat => "direct_chat",
+    }
+}
+
+fn external_connection_kind_index_label(kind: &ExternalConnectionKind) -> &'static str {
+    match kind {
+        ExternalConnectionKind::SharedChannel => "shared_channel",
+    }
+}
+
 fn deterministic_social_id(prefix: &str, seed: &str) -> String {
     let digest = Sha256::digest(seed.as_bytes());
     let digest = format!("{digest:x}");
     format!("{prefix}{}", &digest[..24])
+}
+
+fn friendship_pair_index_key(friendship: &Friendship) -> SocialPairIndexKey {
+    SocialPairIndexKey::new(
+        friendship.tenant_id.as_str(),
+        friendship.user_low_id.as_str(),
+        friendship.user_high_id.as_str(),
+    )
+}
+
+fn direct_chat_pair_index_key(direct_chat: &DirectChat) -> SocialPairIndexKey {
+    SocialPairIndexKey::new(
+        direct_chat.tenant_id.as_str(),
+        direct_chat.left_actor_id.as_str(),
+        direct_chat.right_actor_id.as_str(),
+    )
+}
+
+fn user_block_pair_index_key(user_block: &UserBlock) -> Option<SocialPairIndexKey> {
+    let pair = user_block.user_pair().ok()?;
+    Some(SocialPairIndexKey::new(
+        user_block.tenant_id.as_str(),
+        pair.user_low_id.as_str(),
+        pair.user_high_id.as_str(),
+    ))
+}
+
+fn friend_request_pair_index_key(friend_request: &FriendRequest) -> Option<SocialPairIndexKey> {
+    let pair = friend_request.user_pair().ok()?;
+    Some(SocialPairIndexKey::new(
+        friend_request.tenant_id.as_str(),
+        pair.user_low_id.as_str(),
+        pair.user_high_id.as_str(),
+    ))
+}
+
+fn external_connection_target_index_key(
+    external_connection: &ExternalConnection,
+) -> SocialExternalConnectionTargetIndexKey {
+    SocialExternalConnectionTargetIndexKey::new(
+        external_connection.tenant_id.as_str(),
+        external_connection.external_tenant_id.as_str(),
+        &external_connection.connection_kind,
+    )
+}
+
+fn external_member_mapping_index_key(
+    external_member_link: &ExternalMemberLink,
+) -> SocialExternalMemberMappingIndexKey {
+    SocialExternalMemberMappingIndexKey::new(
+        external_member_link.tenant_id.as_str(),
+        external_member_link.connection_id.as_str(),
+        external_member_link.external_member_id.as_str(),
+    )
+}
+
+fn external_member_connection_index_key(
+    external_member_link: &ExternalMemberLink,
+) -> SocialConnectionIndexKey {
+    SocialConnectionIndexKey::new(
+        external_member_link.tenant_id.as_str(),
+        external_member_link.connection_id.as_str(),
+    )
+}
+
+fn shared_channel_policy_target_index_key(
+    shared_channel_policy: &SharedChannelPolicy,
+) -> SocialSharedChannelPolicyTargetIndexKey {
+    SocialSharedChannelPolicyTargetIndexKey::new(
+        shared_channel_policy.tenant_id.as_str(),
+        shared_channel_policy.connection_id.as_str(),
+        shared_channel_policy.channel_id.as_str(),
+    )
+}
+
+fn shared_channel_policy_connection_index_key(
+    shared_channel_policy: &SharedChannelPolicy,
+) -> SocialConnectionIndexKey {
+    SocialConnectionIndexKey::new(
+        shared_channel_policy.tenant_id.as_str(),
+        shared_channel_policy.connection_id.as_str(),
+    )
+}
+
+fn remove_id_from_pair_index_bucket(
+    index: &mut BTreeMap<SocialPairIndexKey, BTreeSet<String>>,
+    key: &SocialPairIndexKey,
+    record_id: &str,
+) {
+    if let Some(ids) = index.get_mut(key) {
+        ids.remove(record_id);
+        if ids.is_empty() {
+            index.remove(key);
+        }
+    }
+}
+
+fn remove_id_from_user_index_bucket(
+    index: &mut BTreeMap<SocialUserIndexKey, BTreeSet<String>>,
+    key: &SocialUserIndexKey,
+    record_id: &str,
+) {
+    if let Some(ids) = index.get_mut(key) {
+        ids.remove(record_id);
+        if ids.is_empty() {
+            index.remove(key);
+        }
+    }
+}
+
+fn remove_id_from_connection_index_bucket(
+    index: &mut BTreeMap<SocialConnectionIndexKey, BTreeSet<String>>,
+    key: &SocialConnectionIndexKey,
+    record_id: &str,
+) {
+    if let Some(ids) = index.get_mut(key) {
+        ids.remove(record_id);
+        if ids.is_empty() {
+            index.remove(key);
+        }
+    }
+}
+
+fn pending_shared_channel_retry_index_key(
+    pending: &PendingSharedChannelSyncRequest,
+) -> SharedChannelRetryIndexKey {
+    let retry_at = pending
+        .last_failed_at
+        .as_deref()
+        .filter(|last_failed_at| is_canonical_rfc3339_millis_utc(last_failed_at))
+        .unwrap_or("");
+    SharedChannelRetryIndexKey::new(retry_at)
+}
+
+fn pending_shared_channel_lease_index_key(
+    pending: &PendingSharedChannelSyncRequest,
+) -> Option<SharedChannelLeaseIndexKey> {
+    let lease_expires_at = pending.lease_expires_at.as_deref()?;
+    if is_canonical_rfc3339_millis_utc(lease_expires_at) {
+        Some(SharedChannelLeaseIndexKey::new(lease_expires_at))
+    } else {
+        Some(SharedChannelLeaseIndexKey::new(""))
+    }
+}
+
+fn remove_id_from_shared_channel_retry_index_bucket(
+    index: &mut BTreeMap<SharedChannelRetryIndexKey, BTreeSet<String>>,
+    key: &SharedChannelRetryIndexKey,
+    request_key: &str,
+) {
+    if let Some(ids) = index.get_mut(key) {
+        ids.remove(request_key);
+        if ids.is_empty() {
+            index.remove(key);
+        }
+    }
+}
+
+fn remove_id_from_shared_channel_lease_index_bucket(
+    index: &mut BTreeMap<SharedChannelLeaseIndexKey, BTreeSet<String>>,
+    key: &SharedChannelLeaseIndexKey,
+    request_key: &str,
+) {
+    if let Some(ids) = index.get_mut(key) {
+        ids.remove(request_key);
+        if ids.is_empty() {
+            index.remove(key);
+        }
+    }
+}
+
+fn index_pending_shared_channel_sync_request(
+    retry_index: &mut BTreeMap<SharedChannelRetryIndexKey, BTreeSet<String>>,
+    lease_index: &mut BTreeMap<SharedChannelLeaseIndexKey, BTreeSet<String>>,
+    request_key: &str,
+    pending: &PendingSharedChannelSyncRequest,
+) {
+    retry_index
+        .entry(pending_shared_channel_retry_index_key(pending))
+        .or_default()
+        .insert(request_key.to_owned());
+    if let Some(lease_key) = pending_shared_channel_lease_index_key(pending) {
+        lease_index
+            .entry(lease_key)
+            .or_default()
+            .insert(request_key.to_owned());
+    }
+}
+
+fn unindex_pending_shared_channel_sync_request(
+    retry_index: &mut BTreeMap<SharedChannelRetryIndexKey, BTreeSet<String>>,
+    lease_index: &mut BTreeMap<SharedChannelLeaseIndexKey, BTreeSet<String>>,
+    request_key: &str,
+    pending: &PendingSharedChannelSyncRequest,
+) {
+    remove_id_from_shared_channel_retry_index_bucket(
+        retry_index,
+        &pending_shared_channel_retry_index_key(pending),
+        request_key,
+    );
+    if let Some(lease_key) = pending_shared_channel_lease_index_key(pending) {
+        remove_id_from_shared_channel_lease_index_bucket(lease_index, &lease_key, request_key);
+    }
+}
+
+fn index_friend_request_record(
+    pending_index: &mut BTreeMap<SocialPairIndexKey, BTreeSet<String>>,
+    accepted_index: &mut BTreeMap<SocialPairIndexKey, BTreeSet<String>>,
+    user_index: &mut BTreeMap<SocialUserIndexKey, BTreeSet<String>>,
+    record: &StoredFriendRequest,
+) {
+    for user_id in [
+        record.friend_request.requester_user_id.as_str(),
+        record.friend_request.target_user_id.as_str(),
+    ] {
+        user_index
+            .entry(SocialUserIndexKey::new(
+                record.friend_request.tenant_id.as_str(),
+                user_id,
+            ))
+            .or_default()
+            .insert(record.friend_request.request_id.clone());
+    }
+
+    let Some(key) = friend_request_pair_index_key(&record.friend_request) else {
+        return;
+    };
+    match record.friend_request.status {
+        FriendRequestStatus::Pending => {
+            pending_index
+                .entry(key)
+                .or_default()
+                .insert(record.friend_request.request_id.clone());
+        }
+        FriendRequestStatus::Accepted => {
+            accepted_index
+                .entry(key)
+                .or_default()
+                .insert(record.friend_request.request_id.clone());
+        }
+        FriendRequestStatus::Declined
+        | FriendRequestStatus::Canceled
+        | FriendRequestStatus::Expired => {}
+    }
+}
+
+fn unindex_friend_request_record(
+    pending_index: &mut BTreeMap<SocialPairIndexKey, BTreeSet<String>>,
+    accepted_index: &mut BTreeMap<SocialPairIndexKey, BTreeSet<String>>,
+    user_index: &mut BTreeMap<SocialUserIndexKey, BTreeSet<String>>,
+    record: &StoredFriendRequest,
+) {
+    for user_id in [
+        record.friend_request.requester_user_id.as_str(),
+        record.friend_request.target_user_id.as_str(),
+    ] {
+        remove_id_from_user_index_bucket(
+            user_index,
+            &SocialUserIndexKey::new(record.friend_request.tenant_id.as_str(), user_id),
+            record.friend_request.request_id.as_str(),
+        );
+    }
+
+    let Some(key) = friend_request_pair_index_key(&record.friend_request) else {
+        return;
+    };
+    remove_id_from_pair_index_bucket(
+        pending_index,
+        &key,
+        record.friend_request.request_id.as_str(),
+    );
+    remove_id_from_pair_index_bucket(
+        accepted_index,
+        &key,
+        record.friend_request.request_id.as_str(),
+    );
+}
+
+fn index_friendship_record(
+    active_index: &mut BTreeMap<SocialPairIndexKey, String>,
+    active_user_index: &mut BTreeMap<SocialUserIndexKey, BTreeSet<String>>,
+    all_index: &mut BTreeMap<SocialPairIndexKey, BTreeSet<String>>,
+    record: &StoredFriendship,
+) {
+    let key = friendship_pair_index_key(&record.friendship);
+    all_index
+        .entry(key.clone())
+        .or_default()
+        .insert(record.friendship.friendship_id.clone());
+    if record.friendship.status.is_active() {
+        active_index.insert(key, record.friendship.friendship_id.clone());
+        for user_id in [
+            record.friendship.user_low_id.as_str(),
+            record.friendship.user_high_id.as_str(),
+        ] {
+            active_user_index
+                .entry(SocialUserIndexKey::new(
+                    record.friendship.tenant_id.as_str(),
+                    user_id,
+                ))
+                .or_default()
+                .insert(record.friendship.friendship_id.clone());
+        }
+    }
+}
+
+fn unindex_friendship_record(
+    active_index: &mut BTreeMap<SocialPairIndexKey, String>,
+    active_user_index: &mut BTreeMap<SocialUserIndexKey, BTreeSet<String>>,
+    all_index: &mut BTreeMap<SocialPairIndexKey, BTreeSet<String>>,
+    record: &StoredFriendship,
+) {
+    let key = friendship_pair_index_key(&record.friendship);
+    if active_index
+        .get(&key)
+        .is_some_and(|friendship_id| friendship_id == &record.friendship.friendship_id)
+    {
+        active_index.remove(&key);
+    }
+    for user_id in [
+        record.friendship.user_low_id.as_str(),
+        record.friendship.user_high_id.as_str(),
+    ] {
+        remove_id_from_user_index_bucket(
+            active_user_index,
+            &SocialUserIndexKey::new(record.friendship.tenant_id.as_str(), user_id),
+            record.friendship.friendship_id.as_str(),
+        );
+    }
+    remove_id_from_pair_index_bucket(all_index, &key, record.friendship.friendship_id.as_str());
+}
+
+fn index_direct_chat_record(
+    active_index: &mut BTreeMap<SocialPairIndexKey, String>,
+    all_index: &mut BTreeMap<SocialPairIndexKey, BTreeSet<String>>,
+    record: &StoredDirectChat,
+) {
+    let key = direct_chat_pair_index_key(&record.direct_chat);
+    all_index
+        .entry(key.clone())
+        .or_default()
+        .insert(record.direct_chat.direct_chat_id.clone());
+    if record.direct_chat.status.is_active() {
+        active_index.insert(key, record.direct_chat.direct_chat_id.clone());
+    }
+}
+
+fn unindex_direct_chat_record(
+    active_index: &mut BTreeMap<SocialPairIndexKey, String>,
+    all_index: &mut BTreeMap<SocialPairIndexKey, BTreeSet<String>>,
+    record: &StoredDirectChat,
+) {
+    let key = direct_chat_pair_index_key(&record.direct_chat);
+    if active_index
+        .get(&key)
+        .is_some_and(|direct_chat_id| direct_chat_id == &record.direct_chat.direct_chat_id)
+    {
+        active_index.remove(&key);
+    }
+    remove_id_from_pair_index_bucket(all_index, &key, record.direct_chat.direct_chat_id.as_str());
+}
+
+fn index_social_commits(
+    index: &mut BTreeMap<SocialCommittedEventIndexKey, SocialCommittedEventPointer>,
+    commits: &[CommitEnvelope],
+    pointer: SocialCommittedEventPointer,
+) {
+    for (commit_index, commit) in commits.iter().enumerate() {
+        index.insert(
+            SocialCommittedEventIndexKey::new(commit.tenant_id.as_str(), commit.event_id.as_str()),
+            pointer.with_commit_index(commit_index),
+        );
+    }
+}
+
+fn index_user_block_record(
+    active_scope_index: &mut BTreeMap<SocialUserBlockScopeIndexKey, String>,
+    friendship_pair_index: &mut BTreeMap<SocialPairIndexKey, String>,
+    direct_chat_pair_index: &mut BTreeMap<SocialPairIndexKey, String>,
+    direct_chat_chat_index: &mut BTreeMap<SocialDirectChatBlockIndexKey, String>,
+    record: &StoredUserBlock,
+) {
+    if !record.user_block.status.is_active() {
+        return;
+    }
+
+    active_scope_index.insert(
+        SocialUserBlockScopeIndexKey::new(&record.user_block),
+        record.user_block.block_id.clone(),
+    );
+
+    let Some(pair_key) = user_block_pair_index_key(&record.user_block) else {
+        return;
+    };
+    match record.user_block.scope {
+        BlockScope::All => {
+            friendship_pair_index.insert(pair_key.clone(), record.user_block.block_id.clone());
+            direct_chat_pair_index.insert(pair_key, record.user_block.block_id.clone());
+        }
+        BlockScope::Friendship => {
+            friendship_pair_index.insert(pair_key, record.user_block.block_id.clone());
+        }
+        BlockScope::DirectChat => {
+            if let Some(direct_chat_id) = record.user_block.direct_chat_id.as_deref() {
+                direct_chat_chat_index.insert(
+                    SocialDirectChatBlockIndexKey::new(
+                        record.user_block.tenant_id.as_str(),
+                        direct_chat_id,
+                    ),
+                    record.user_block.block_id.clone(),
+                );
+            }
+        }
+    }
+}
+
+fn unindex_user_block_record(
+    active_scope_index: &mut BTreeMap<SocialUserBlockScopeIndexKey, String>,
+    friendship_pair_index: &mut BTreeMap<SocialPairIndexKey, String>,
+    direct_chat_pair_index: &mut BTreeMap<SocialPairIndexKey, String>,
+    direct_chat_chat_index: &mut BTreeMap<SocialDirectChatBlockIndexKey, String>,
+    record: &StoredUserBlock,
+) {
+    if !record.user_block.status.is_active() {
+        return;
+    }
+
+    let scope_key = SocialUserBlockScopeIndexKey::new(&record.user_block);
+    if active_scope_index
+        .get(&scope_key)
+        .is_some_and(|block_id| block_id == &record.user_block.block_id)
+    {
+        active_scope_index.remove(&scope_key);
+    }
+
+    let Some(pair_key) = user_block_pair_index_key(&record.user_block) else {
+        return;
+    };
+    if friendship_pair_index
+        .get(&pair_key)
+        .is_some_and(|block_id| block_id == &record.user_block.block_id)
+    {
+        friendship_pair_index.remove(&pair_key);
+    }
+    if direct_chat_pair_index
+        .get(&pair_key)
+        .is_some_and(|block_id| block_id == &record.user_block.block_id)
+    {
+        direct_chat_pair_index.remove(&pair_key);
+    }
+    if let Some(direct_chat_id) = record.user_block.direct_chat_id.as_deref() {
+        let chat_key = SocialDirectChatBlockIndexKey::new(
+            record.user_block.tenant_id.as_str(),
+            direct_chat_id,
+        );
+        if direct_chat_chat_index
+            .get(&chat_key)
+            .is_some_and(|block_id| block_id == &record.user_block.block_id)
+        {
+            direct_chat_chat_index.remove(&chat_key);
+        }
+    }
+}
+
+fn index_external_connection_record(
+    active_target_index: &mut BTreeMap<SocialExternalConnectionTargetIndexKey, String>,
+    record: &StoredExternalConnection,
+) {
+    if !record.external_connection.status.is_active() {
+        return;
+    }
+    active_target_index.insert(
+        external_connection_target_index_key(&record.external_connection),
+        record.external_connection.connection_id.clone(),
+    );
+}
+
+fn unindex_external_connection_record(
+    active_target_index: &mut BTreeMap<SocialExternalConnectionTargetIndexKey, String>,
+    record: &StoredExternalConnection,
+) {
+    if !record.external_connection.status.is_active() {
+        return;
+    }
+    let key = external_connection_target_index_key(&record.external_connection);
+    if active_target_index
+        .get(&key)
+        .is_some_and(|connection_id| connection_id == &record.external_connection.connection_id)
+    {
+        active_target_index.remove(&key);
+    }
+}
+
+fn index_external_member_link_record(
+    active_mapping_index: &mut BTreeMap<SocialExternalMemberMappingIndexKey, String>,
+    active_connection_index: &mut BTreeMap<SocialConnectionIndexKey, BTreeSet<String>>,
+    record: &StoredExternalMemberLink,
+) {
+    if !record.external_member_link.status.is_active() {
+        return;
+    }
+    active_mapping_index.insert(
+        external_member_mapping_index_key(&record.external_member_link),
+        record.external_member_link.link_id.clone(),
+    );
+    active_connection_index
+        .entry(external_member_connection_index_key(
+            &record.external_member_link,
+        ))
+        .or_default()
+        .insert(record.external_member_link.link_id.clone());
+}
+
+fn unindex_external_member_link_record(
+    active_mapping_index: &mut BTreeMap<SocialExternalMemberMappingIndexKey, String>,
+    active_connection_index: &mut BTreeMap<SocialConnectionIndexKey, BTreeSet<String>>,
+    record: &StoredExternalMemberLink,
+) {
+    if !record.external_member_link.status.is_active() {
+        return;
+    }
+    let key = external_member_mapping_index_key(&record.external_member_link);
+    if active_mapping_index
+        .get(&key)
+        .is_some_and(|link_id| link_id == &record.external_member_link.link_id)
+    {
+        active_mapping_index.remove(&key);
+    }
+    remove_id_from_connection_index_bucket(
+        active_connection_index,
+        &external_member_connection_index_key(&record.external_member_link),
+        record.external_member_link.link_id.as_str(),
+    );
+}
+
+fn index_shared_channel_policy_record(
+    active_target_index: &mut BTreeMap<SocialSharedChannelPolicyTargetIndexKey, String>,
+    active_connection_index: &mut BTreeMap<SocialConnectionIndexKey, BTreeSet<String>>,
+    record: &StoredSharedChannelPolicy,
+) {
+    if !record.shared_channel_policy.status.is_active() {
+        return;
+    }
+    active_target_index.insert(
+        shared_channel_policy_target_index_key(&record.shared_channel_policy),
+        record.shared_channel_policy.policy_id.clone(),
+    );
+    active_connection_index
+        .entry(shared_channel_policy_connection_index_key(
+            &record.shared_channel_policy,
+        ))
+        .or_default()
+        .insert(record.shared_channel_policy.policy_id.clone());
+}
+
+fn unindex_shared_channel_policy_record(
+    active_target_index: &mut BTreeMap<SocialSharedChannelPolicyTargetIndexKey, String>,
+    active_connection_index: &mut BTreeMap<SocialConnectionIndexKey, BTreeSet<String>>,
+    record: &StoredSharedChannelPolicy,
+) {
+    if !record.shared_channel_policy.status.is_active() {
+        return;
+    }
+    let key = shared_channel_policy_target_index_key(&record.shared_channel_policy);
+    if active_target_index
+        .get(&key)
+        .is_some_and(|policy_id| policy_id == &record.shared_channel_policy.policy_id)
+    {
+        active_target_index.remove(&key);
+    }
+    remove_id_from_connection_index_bucket(
+        active_connection_index,
+        &shared_channel_policy_connection_index_key(&record.shared_channel_policy),
+        record.shared_channel_policy.policy_id.as_str(),
+    );
+}
+
+fn first_indexed_friend_request_record_for_pair(
+    state: &SocialControlState,
+    index: &BTreeMap<SocialPairIndexKey, BTreeSet<String>>,
+    key: &SocialPairIndexKey,
+    expected_status: FriendRequestStatus,
+) -> Option<StoredFriendRequest> {
+    index.get(key)?.iter().find_map(|request_id| {
+        state
+            .friend_requests
+            .get(request_id)
+            .filter(|record| record.friend_request.status == expected_status)
+            .cloned()
+    })
+}
+
+fn open_friend_request_record_for_pair(
+    state: &SocialControlState,
+    tenant_id: &str,
+    user_low_id: &str,
+    user_high_id: &str,
+    pair_has_materialized_friendship: bool,
+) -> Option<StoredFriendRequest> {
+    let key = SocialPairIndexKey::new(tenant_id, user_low_id, user_high_id);
+    first_indexed_friend_request_record_for_pair(
+        state,
+        &state.pending_friend_request_pair_index,
+        &key,
+        FriendRequestStatus::Pending,
+    )
+    .or_else(|| {
+        if pair_has_materialized_friendship {
+            None
+        } else {
+            first_indexed_friend_request_record_for_pair(
+                state,
+                &state.accepted_friend_request_pair_index,
+                &key,
+                FriendRequestStatus::Accepted,
+            )
+        }
+    })
+}
+
+fn friend_request_records_for_user(
+    state: &SocialControlState,
+    tenant_id: &str,
+    user_id: &str,
+) -> Vec<StoredFriendRequest> {
+    let key = SocialUserIndexKey::new(tenant_id, user_id);
+    state
+        .friend_request_user_index
+        .get(&key)
+        .into_iter()
+        .flat_map(|request_ids| request_ids.iter())
+        .filter_map(|request_id| {
+            state
+                .friend_requests
+                .get(request_id)
+                .filter(|record| record.friend_request.tenant_id == tenant_id)
+                .cloned()
+        })
+        .collect()
+}
+
+fn active_external_connection_record_for_target(
+    state: &SocialControlState,
+    tenant_id: &str,
+    external_tenant_id: &str,
+    connection_kind: &ExternalConnectionKind,
+) -> Option<StoredExternalConnection> {
+    let key =
+        SocialExternalConnectionTargetIndexKey::new(tenant_id, external_tenant_id, connection_kind);
+    state
+        .external_connections
+        .get(state.active_external_connection_target_index.get(&key)?)
+        .filter(|record| record.external_connection.status.is_active())
+        .cloned()
+}
+
+fn active_external_member_link_record_for_mapping(
+    state: &SocialControlState,
+    tenant_id: &str,
+    connection_id: &str,
+    external_member_id: &str,
+) -> Option<StoredExternalMemberLink> {
+    let key =
+        SocialExternalMemberMappingIndexKey::new(tenant_id, connection_id, external_member_id);
+    state
+        .external_member_links
+        .get(state.active_external_member_mapping_index.get(&key)?)
+        .filter(|record| record.external_member_link.status.is_active())
+        .cloned()
+}
+
+fn active_shared_channel_policy_record_for_target(
+    state: &SocialControlState,
+    tenant_id: &str,
+    connection_id: &str,
+    channel_id: &str,
+) -> Option<StoredSharedChannelPolicy> {
+    let key = SocialSharedChannelPolicyTargetIndexKey::new(tenant_id, connection_id, channel_id);
+    state
+        .shared_channel_policies
+        .get(state.active_shared_channel_policy_target_index.get(&key)?)
+        .filter(|record| record.shared_channel_policy.status.is_active())
+        .cloned()
+}
+
+fn active_external_member_link_records_for_connection(
+    state: &SocialControlState,
+    tenant_id: &str,
+    connection_id: &str,
+) -> Vec<StoredExternalMemberLink> {
+    let key = SocialConnectionIndexKey::new(tenant_id, connection_id);
+    state
+        .active_external_member_connection_index
+        .get(&key)
+        .into_iter()
+        .flat_map(|link_ids| link_ids.iter())
+        .filter_map(|link_id| {
+            state
+                .external_member_links
+                .get(link_id)
+                .filter(|record| record.external_member_link.status.is_active())
+                .cloned()
+        })
+        .collect()
+}
+
+fn active_shared_channel_policy_records_for_connection(
+    state: &SocialControlState,
+    tenant_id: &str,
+    connection_id: &str,
+) -> Vec<StoredSharedChannelPolicy> {
+    let key = SocialConnectionIndexKey::new(tenant_id, connection_id);
+    state
+        .active_shared_channel_policy_connection_index
+        .get(&key)
+        .into_iter()
+        .flat_map(|policy_ids| policy_ids.iter())
+        .filter_map(|policy_id| {
+            state
+                .shared_channel_policies
+                .get(policy_id)
+                .filter(|record| record.shared_channel_policy.status.is_active())
+                .cloned()
+        })
+        .collect()
 }
 
 fn active_friendship_record_for_pair(
@@ -11182,60 +13175,106 @@ fn active_friendship_record_for_pair(
     user_low_id: &str,
     user_high_id: &str,
 ) -> Option<StoredFriendship> {
+    let key = SocialPairIndexKey::new(tenant_id, user_low_id, user_high_id);
     state
         .friendships
-        .values()
-        .filter_map(|record| {
-            let friendship = &record.friendship;
-            if friendship.tenant_id != tenant_id
-                || !friendship.status.is_active()
-                || friendship.user_low_id != user_low_id
-                || friendship.user_high_id != user_high_id
-            {
-                return None;
-            }
-            Some(record.clone())
+        .get(state.active_friendship_pair_index.get(&key)?.as_str())
+        .filter(|record| record.friendship.status.is_active())
+        .cloned()
+}
+
+fn active_friendship_records_for_user(
+    state: &SocialControlState,
+    tenant_id: &str,
+    user_id: &str,
+) -> Vec<StoredFriendship> {
+    let key = SocialUserIndexKey::new(tenant_id, user_id);
+    state
+        .active_friendship_user_index
+        .get(&key)
+        .into_iter()
+        .flat_map(|friendship_ids| friendship_ids.iter())
+        .filter_map(|friendship_id| {
+            state
+                .friendships
+                .get(friendship_id)
+                .filter(|record| record.friendship.status.is_active())
+                .cloned()
         })
-        .max_by(|left, right| {
-            left.friendship
-                .updated_at
-                .cmp(&right.friendship.updated_at)
-                .then_with(|| {
-                    left.friendship
-                        .friendship_id
-                        .cmp(&right.friendship.friendship_id)
-                })
-        })
+        .collect()
+}
+
+fn friendship_pair_has_materialized_record(
+    state: &SocialControlState,
+    tenant_id: &str,
+    user_low_id: &str,
+    user_high_id: &str,
+) -> bool {
+    state
+        .friendship_pair_index
+        .contains_key(&SocialPairIndexKey::new(
+            tenant_id,
+            user_low_id,
+            user_high_id,
+        ))
 }
 
 fn active_direct_chat_record_for_pair(
     state: &SocialControlState,
     tenant_id: &str,
-    pair_hash: &str,
+    left_actor_id: &str,
+    right_actor_id: &str,
 ) -> Option<StoredDirectChat> {
+    let actor_pair = SocialPairIndexKey::new(tenant_id, left_actor_id, right_actor_id);
     state
         .direct_chats
-        .values()
-        .filter_map(|record| {
-            let direct_chat = &record.direct_chat;
-            if direct_chat.tenant_id != tenant_id
-                || !direct_chat.status.is_active()
-                || direct_chat.pair_hash != pair_hash
-            {
-                return None;
-            }
-            Some(record.clone())
-        })
-        .max_by(|left, right| {
-            left.direct_chat
-                .updated_at
-                .cmp(&right.direct_chat.updated_at)
-                .then_with(|| {
-                    left.direct_chat
-                        .direct_chat_id
-                        .cmp(&right.direct_chat.direct_chat_id)
-                })
-        })
+        .get(
+            state
+                .active_direct_chat_pair_index
+                .get(&actor_pair)?
+                .as_str(),
+        )
+        .filter(|record| record.direct_chat.status.is_active())
+        .cloned()
+}
+
+fn active_user_block_for_scope(
+    state: &SocialControlState,
+    tenant_id: &str,
+    blocker_user_id: &str,
+    blocked_user_id: &str,
+    scope: &BlockScope,
+    direct_chat_id: Option<&str>,
+) -> Option<StoredUserBlock> {
+    let probe = UserBlock {
+        tenant_id: tenant_id.to_owned(),
+        block_id: String::new(),
+        blocker_user_id: blocker_user_id.to_owned(),
+        blocked_user_id: blocked_user_id.to_owned(),
+        scope: scope.clone(),
+        status: UserBlockStatus::Active,
+        direct_chat_id: direct_chat_id.map(ToOwned::to_owned),
+        expires_at: None,
+        created_at: String::new(),
+        updated_at: String::new(),
+    };
+    state
+        .user_blocks
+        .get(
+            state
+                .active_user_block_scope_index
+                .get(&SocialUserBlockScopeIndexKey::new(&probe))?,
+        )
+        .filter(|record| record.user_block.status.is_active())
+        .cloned()
+}
+
+fn active_user_block_by_id(state: &SocialControlState, block_id: &str) -> Option<UserBlock> {
+    state
+        .user_blocks
+        .get(block_id)
+        .filter(|record| record.user_block.status.is_active())
+        .map(|record| record.user_block.clone())
 }
 
 fn archive_active_direct_chats_for_pair(
@@ -11248,15 +13287,28 @@ fn archive_active_direct_chats_for_pair(
     let pair_hash = normalize_actor_pair(user_low_id, user_high_id)
         .expect("validated friendship pair should normalize into direct chat pair")
         .pair_hash;
-    for record in state.direct_chats.values_mut() {
-        if record.direct_chat.tenant_id != tenant_id
-            || record.direct_chat.pair_hash != pair_hash
-            || !record.direct_chat.status.is_active()
-        {
+    let actor_pair = normalize_actor_pair(user_low_id, user_high_id)
+        .expect("validated friendship pair should normalize into direct chat pair");
+    let index_key = SocialPairIndexKey::new(
+        tenant_id,
+        actor_pair.left_actor_id.as_str(),
+        actor_pair.right_actor_id.as_str(),
+    );
+    let direct_chat_ids = state
+        .direct_chat_pair_index
+        .get(&index_key)
+        .cloned()
+        .unwrap_or_default();
+    for direct_chat_id in direct_chat_ids {
+        let Some(mut record) = state.direct_chats.get(direct_chat_id.as_str()).cloned() else {
+            continue;
+        };
+        if record.direct_chat.pair_hash != pair_hash || !record.direct_chat.status.is_active() {
             continue;
         }
         record.direct_chat.status = DirectChatStatus::Archived;
         record.direct_chat.updated_at = archived_at.to_owned();
+        state.insert_direct_chat_record(direct_chat_id, record);
     }
 }
 
@@ -11993,12 +14045,14 @@ async fn repair_social_runtime_snapshot(
 }
 
 async fn dead_letter_social_runtime_shared_channel_sync(
+    Query(query): Query<SharedChannelSyncInventoryQuery>,
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<SocialSharedChannelSyncDeadLetterInventoryResponse>, ControlPlaneError> {
     let auth = resolve_auth_context(&headers)?;
     ensure_control_read_access(&auth)?;
     let can_takeover = auth.has_permission("control.write");
+    let page = parse_shared_channel_sync_inventory_page_spec(&query)?;
 
     Ok(Json(
         state
@@ -12007,52 +14061,60 @@ async fn dead_letter_social_runtime_shared_channel_sync(
                 auth.actor_id.as_str(),
                 auth.actor_kind.as_str(),
                 can_takeover,
+                &page,
             ),
     ))
 }
 
 async fn pending_social_runtime_shared_channel_sync(
+    Query(query): Query<SharedChannelSyncInventoryQuery>,
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<SocialSharedChannelSyncPendingInventoryResponse>, ControlPlaneError> {
     let auth = resolve_auth_context(&headers)?;
     ensure_control_read_access(&auth)?;
     let can_takeover = auth.has_permission("control.write");
+    let page = parse_shared_channel_sync_inventory_page_spec(&query)?;
 
     Ok(Json(
         state.social_runtime.pending_shared_channel_sync_inventory(
             auth.actor_id.as_str(),
             auth.actor_kind.as_str(),
             can_takeover,
+            &page,
         ),
     ))
 }
 
 async fn delivered_social_runtime_shared_channel_sync(
+    Query(query): Query<SharedChannelSyncInventoryQuery>,
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<SocialSharedChannelSyncDeliveredInventoryResponse>, ControlPlaneError> {
     let auth = resolve_auth_context(&headers)?;
     ensure_control_read_access(&auth)?;
+    let page = parse_shared_channel_sync_inventory_page_spec(&query)?;
 
     Ok(Json(
         state
             .social_runtime
-            .delivered_shared_channel_sync_inventory(),
+            .delivered_shared_channel_sync_inventory(&page),
     ))
 }
 
 async fn delivery_state_social_runtime_shared_channel_sync(
+    Query(query): Query<SharedChannelSyncInventoryQuery>,
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<SocialSharedChannelSyncDeliveryStateInventoryResponse>, ControlPlaneError> {
     let auth = resolve_auth_context(&headers)?;
     ensure_control_read_access(&auth)?;
+    let page = parse_shared_channel_sync_inventory_page_spec(&query)?;
 
     Ok(Json(
         state
             .social_runtime
-            .shared_channel_sync_delivery_state_inventory(),
+            .shared_channel_sync_delivery_state_inventory(&page),
     ))
 }
 
@@ -13249,7 +15311,7 @@ mod tests {
                 .state
                 .write()
                 .unwrap_or_else(SocialControlRuntime::recover_poisoned_social_runtime_lock);
-            state.pending_shared_channel_sync_requests.insert(
+            state.upsert_pending_shared_channel_sync_request(
                 request_key.clone(),
                 PendingSharedChannelSyncRequest {
                     request: request.clone(),
@@ -13275,11 +15337,13 @@ mod tests {
                 .state
                 .write()
                 .unwrap_or_else(SocialControlRuntime::recover_poisoned_social_runtime_lock);
-            let pending = state
+            let mut pending = state
                 .pending_shared_channel_sync_requests
-                .get_mut(request_key.as_str())
+                .get(request_key.as_str())
+                .cloned()
                 .expect("pending request should still exist");
             pending.last_failed_at = Some("1970-01-01T00:00:00.000Z".to_owned());
+            state.upsert_pending_shared_channel_sync_request(request_key.clone(), pending);
         }
         let queue_after_cooldown = runtime.pending_shared_channel_sync_dispatch_queue(&[]);
         assert_eq!(
@@ -13287,6 +15351,76 @@ mod tests {
             vec![request],
             "request should re-enter dispatch queue after cooldown window"
         );
+    }
+
+    #[test]
+    fn test_pending_shared_channel_sync_inventory_is_limited_and_emits_cursor() {
+        let runtime = SocialControlRuntime::default();
+        {
+            let mut state = runtime
+                .state
+                .write()
+                .unwrap_or_else(SocialControlRuntime::recover_poisoned_social_runtime_lock);
+            for index in 1..=3 {
+                let request = SharedChannelLinkedMemberSyncRequest {
+                    tenant_id: "t_demo".to_owned(),
+                    conversation_id: format!("c_inventory_page_{index:03}"),
+                    shared_channel_policy_id: format!("scp_inventory_page_{index:03}"),
+                    external_connection_id: format!("ec_inventory_page_{index:03}"),
+                    local_actor_id: "u_inventory_page".to_owned(),
+                    local_actor_kind: "user".to_owned(),
+                    external_member_id: format!("partner::inventory-page-{index:03}"),
+                };
+                state.upsert_pending_shared_channel_sync_request(
+                    shared_channel_sync_request_key(&request),
+                    PendingSharedChannelSyncRequest {
+                        request,
+                        failure_count: 1,
+                        last_error: "dispatch timeout".to_owned(),
+                        last_failed_at: Some("2026-04-12T01:02:03.000Z".to_owned()),
+                        owner_actor_id: None,
+                        owner_actor_kind: None,
+                        claimed_at: None,
+                        lease_expires_at: None,
+                    },
+                );
+            }
+        }
+
+        let page = SharedChannelSyncInventoryPageSpec {
+            limit: 2,
+            cursor: None,
+        };
+        let first_page =
+            runtime.pending_shared_channel_sync_inventory("u_admin", "admin", true, &page);
+
+        assert_eq!(first_page.pending_count, 3);
+        assert_eq!(first_page.items.len(), 2);
+        assert!(
+            first_page.next_cursor.is_some(),
+            "limited inventory page should include a cursor for the next page"
+        );
+
+        let cursor = parse_shared_channel_sync_inventory_cursor(
+            first_page
+                .next_cursor
+                .as_deref()
+                .expect("first page should expose next cursor"),
+        )
+        .expect("next cursor should parse");
+        let second_page = runtime.pending_shared_channel_sync_inventory(
+            "u_admin",
+            "admin",
+            true,
+            &SharedChannelSyncInventoryPageSpec {
+                limit: 2,
+                cursor: Some(cursor),
+            },
+        );
+
+        assert_eq!(second_page.pending_count, 3);
+        assert_eq!(second_page.items.len(), 1);
+        assert!(second_page.next_cursor.is_none());
     }
 
     #[test]
@@ -13396,7 +15530,7 @@ mod tests {
         };
         let key = shared_channel_sync_request_key(&request);
         let mut state = SocialControlState::default();
-        state.pending_shared_channel_sync_requests.insert(
+        state.upsert_pending_shared_channel_sync_request(
             key.clone(),
             PendingSharedChannelSyncRequest {
                 request: request.clone(),
@@ -13513,7 +15647,7 @@ mod tests {
         let mut state = SocialControlState::default();
         let protected_request = request("actor_protected");
         let protected_key = shared_channel_sync_request_key(&protected_request);
-        state.pending_shared_channel_sync_requests.insert(
+        state.upsert_pending_shared_channel_sync_request(
             protected_key.clone(),
             PendingSharedChannelSyncRequest {
                 request: protected_request.clone(),

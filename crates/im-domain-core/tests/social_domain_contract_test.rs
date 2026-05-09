@@ -135,7 +135,7 @@ fn test_external_collaboration_contracts_serialize_expected_shape() {
         link_id: "eml_demo".into(),
         connection_id: "ec_demo".into(),
         local_actor_id: "actor_alice".into(),
-        local_actor_kind: Some("user".into()),
+        local_actor_kind: "user".into(),
         external_member_id: "partner::bob".into(),
         external_display_name: Some("Bob Partner".into()),
         status: ExternalMemberLinkStatus::Active,

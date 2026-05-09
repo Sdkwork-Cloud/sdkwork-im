@@ -64,6 +64,7 @@ async fn test_local_minimal_profile_pushes_business_realtime_events_over_websock
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -87,6 +88,7 @@ async fn test_local_minimal_profile_pushes_business_realtime_events_over_websock
                 .uri("/api/v1/conversations/c_ws_realtime/members/add")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -113,6 +115,10 @@ async fn test_local_minimal_profile_pushes_business_realtime_events_over_websock
     request.headers_mut().insert(
         "x-user-id",
         "u_other_demo".parse().expect("user header should parse"),
+    );
+    request.headers_mut().insert(
+        "x-actor-kind",
+        "user".parse().expect("actor kind header should parse"),
     );
     request.headers_mut().insert(
         "x-session-id",
@@ -161,6 +167,7 @@ async fn test_local_minimal_profile_pushes_business_realtime_events_over_websock
                 .uri("/api/v1/conversations/c_ws_realtime/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -228,6 +235,7 @@ async fn test_local_minimal_profile_pushes_business_realtime_events_over_websock
                 .uri("/api/v1/realtime/events?afterSeq=0&limit=10")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_other_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_other")
                 .header("x-session-id", "s_other")
                 .body(Body::empty())
@@ -270,6 +278,10 @@ async fn test_local_minimal_profile_closes_realtime_websocket_when_session_disco
         "u_demo".parse().expect("user header should parse"),
     );
     request.headers_mut().insert(
+        "x-actor-kind",
+        "user".parse().expect("actor kind header should parse"),
+    );
+    request.headers_mut().insert(
         "x-session-id",
         "s_pad".parse().expect("session header should parse"),
     );
@@ -292,6 +304,7 @@ async fn test_local_minimal_profile_closes_realtime_websocket_when_session_disco
                 .uri("/api/v1/sessions/disconnect")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_pad")
                 .header("x-device-id", "d_pad")
                 .header("content-type", "application/json")
@@ -367,6 +380,10 @@ async fn test_local_minimal_profile_pushes_agent_handoff_lifecycle_events_over_w
         "u_demo".parse().expect("user header should parse"),
     );
     request.headers_mut().insert(
+        "x-actor-kind",
+        "user".parse().expect("actor kind header should parse"),
+    );
+    request.headers_mut().insert(
         "x-session-id",
         "s_pad".parse().expect("session header should parse"),
     );
@@ -413,6 +430,7 @@ async fn test_local_minimal_profile_pushes_agent_handoff_lifecycle_events_over_w
                 .uri("/api/v1/conversations/c_ws_handoff/agent-handoff/accept")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .header("content-type", "application/json")
@@ -469,6 +487,7 @@ async fn test_local_minimal_profile_pushes_member_joined_events_over_websocket()
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -494,6 +513,10 @@ async fn test_local_minimal_profile_pushes_member_joined_events_over_websocket()
     request.headers_mut().insert(
         "x-user-id",
         "u_demo".parse().expect("user header should parse"),
+    );
+    request.headers_mut().insert(
+        "x-actor-kind",
+        "user".parse().expect("actor kind header should parse"),
     );
     request.headers_mut().insert(
         "x-session-id",
@@ -542,6 +565,7 @@ async fn test_local_minimal_profile_pushes_member_joined_events_over_websocket()
                 .uri("/api/v1/conversations/c_ws_member_events/members/add")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")

@@ -71,6 +71,7 @@ async fn test_create_rtc_session_over_http() {
                 .uri("/api/v1/rtc/sessions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -108,6 +109,7 @@ async fn test_standalone_rtc_service_rejects_conversation_binding_over_http() {
                 .uri("/api/v1/rtc/sessions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -146,6 +148,7 @@ async fn test_duplicate_rtc_session_create_is_idempotent_and_conflicting_retry_i
                 .uri("/api/v1/rtc/sessions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -186,6 +189,7 @@ async fn test_duplicate_rtc_session_create_is_idempotent_and_conflicting_retry_i
                 .uri("/api/v1/rtc/sessions/rtc_idempotent/accept")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_peer")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -206,6 +210,7 @@ async fn test_duplicate_rtc_session_create_is_idempotent_and_conflicting_retry_i
                 .uri("/api/v1/rtc/sessions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -248,6 +253,7 @@ async fn test_duplicate_rtc_session_create_is_idempotent_and_conflicting_retry_i
                 .uri("/api/v1/rtc/sessions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -306,11 +312,9 @@ async fn test_duplicate_rtc_session_create_with_same_actor_id_but_different_acto
     let first_create_json: serde_json::Value =
         serde_json::from_slice(&first_create_body).expect("first create should be valid json");
     assert_eq!(first_create_json["deliveryStatus"], "applied");
-    assert!(
-        first_create_json["requestKey"]
-            .as_str()
-            .expect("first create requestKey should be present")
-            .contains(":user:shared_actor:create:rtc_kind_scope")
+    assert_eq!(
+        first_create_json["requestKey"],
+        "6#t_demo4#user12#shared_actor6#create14#rtc_kind_scope"
     );
 
     let conflicting_create = app
@@ -356,6 +360,7 @@ async fn test_rtc_session_updates_are_idempotent_and_conflicting_state_transitio
                 .uri("/api/v1/rtc/sessions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -377,6 +382,7 @@ async fn test_rtc_session_updates_are_idempotent_and_conflicting_state_transitio
                 .uri("/api/v1/rtc/sessions/rtc_state_machine/accept")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -397,6 +403,7 @@ async fn test_rtc_session_updates_are_idempotent_and_conflicting_state_transitio
                 .uri("/api/v1/rtc/sessions/rtc_state_machine/accept")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -441,6 +448,7 @@ async fn test_rtc_session_updates_are_idempotent_and_conflicting_state_transitio
                 .uri("/api/v1/rtc/sessions/rtc_state_machine/reject")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -474,6 +482,7 @@ async fn test_rtc_session_updates_are_idempotent_and_conflicting_state_transitio
                 .uri("/api/v1/rtc/sessions/rtc_state_machine/accept")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -507,6 +516,7 @@ async fn test_rtc_session_updates_are_idempotent_and_conflicting_state_transitio
                 .uri("/api/v1/rtc/sessions/rtc_state_machine/end")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -527,6 +537,7 @@ async fn test_rtc_session_updates_are_idempotent_and_conflicting_state_transitio
                 .uri("/api/v1/rtc/sessions/rtc_state_machine/end")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -556,6 +567,7 @@ async fn test_rtc_session_updates_are_idempotent_and_conflicting_state_transitio
                 .uri("/api/v1/rtc/sessions/rtc_state_machine/accept")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -590,6 +602,7 @@ async fn test_invite_after_accept_with_different_signaling_stream_conflicts() {
                 .uri("/api/v1/rtc/sessions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -611,6 +624,7 @@ async fn test_invite_after_accept_with_different_signaling_stream_conflicts() {
                 .uri("/api/v1/rtc/sessions/rtc_invite_after_accept/invite")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -631,6 +645,7 @@ async fn test_invite_after_accept_with_different_signaling_stream_conflicts() {
                 .uri("/api/v1/rtc/sessions/rtc_invite_after_accept/accept")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_peer")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -650,6 +665,7 @@ async fn test_invite_after_accept_with_different_signaling_stream_conflicts() {
                 .uri("/api/v1/rtc/sessions/rtc_invite_after_accept/invite")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -688,6 +704,7 @@ async fn test_issue_rtc_participant_credential_over_http() {
                 .uri("/api/v1/rtc/sessions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -708,6 +725,7 @@ async fn test_issue_rtc_participant_credential_over_http() {
                 .uri("/api/v1/rtc/sessions/rtc_external_http/credentials")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -749,6 +767,7 @@ async fn test_get_rtc_provider_health_over_http() {
                 .uri("/api/v1/rtc/provider-health")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -787,6 +806,7 @@ async fn test_map_rtc_provider_callback_over_http() {
                 .uri("/api/v1/rtc/sessions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -807,6 +827,7 @@ async fn test_map_rtc_provider_callback_over_http() {
                 .uri("/api/v1/rtc/provider-callbacks")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -848,6 +869,7 @@ async fn test_map_rtc_provider_callback_rejects_oversized_payload_json_over_http
                 .uri("/api/v1/rtc/sessions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -874,6 +896,7 @@ async fn test_map_rtc_provider_callback_rejects_oversized_payload_json_over_http
                 .uri("/api/v1/rtc/provider-callbacks")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(callback_body))
                 .unwrap(),
@@ -912,6 +935,7 @@ async fn test_get_rtc_recording_artifact_over_http() {
                 .uri("/api/v1/rtc/sessions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -931,6 +955,7 @@ async fn test_get_rtc_recording_artifact_over_http() {
                 .uri("/api/v1/rtc/sessions/rtc_recording_http/artifacts/recording")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -981,6 +1006,7 @@ async fn test_create_rtc_session_rejects_oversized_session_id_over_http() {
                 .uri("/api/v1/rtc/sessions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),

@@ -51,7 +51,7 @@ fn test_volcengine_s3_adapter_exposes_expected_contract_shape() {
         .signed_upload_url(ObjectStorageUploadUrlRequest {
             bucket: "media-demo".into(),
             object_key: "tenant/t_demo/demo.mp4".into(),
-            content_length: 2048,
+            content_length: Some(2048),
             content_type: Some("video/mp4".into()),
             expires_in_seconds: 900,
         })

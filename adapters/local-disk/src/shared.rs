@@ -19,24 +19,90 @@ where
     })
 }
 
-pub(super) fn scope_key(tenant_id: &str, principal_id: &str, device_id: &str) -> String {
-    format!("{tenant_id}:{principal_id}:{device_id}")
+pub(super) fn scope_key(
+    tenant_id: &str,
+    principal_kind: &str,
+    principal_id: &str,
+    device_id: &str,
+) -> String {
+    scope_key_parts(&[tenant_id, principal_kind, principal_id, device_id])
+}
+
+pub(super) fn scope_key_parts(parts: &[&str]) -> String {
+    parts
+        .iter()
+        .map(|part| format!("{}:{part}", part.len()))
+        .collect::<Vec<_>>()
+        .join("|")
+}
+
+pub(super) fn parse_scope_key_parts(key: &str) -> Option<Vec<String>> {
+    let mut parts = Vec::new();
+    let bytes = key.as_bytes();
+    let mut offset = 0;
+    while offset < key.len() {
+        let len_start = offset;
+        while offset < key.len() && bytes[offset] != b':' {
+            if !bytes[offset].is_ascii_digit() {
+                return None;
+            }
+            offset += 1;
+        }
+        if offset == len_start || offset >= key.len() {
+            return None;
+        }
+        let len = key[len_start..offset].parse::<usize>().ok()?;
+        offset += 1;
+        let value_end = offset.checked_add(len)?;
+        if value_end > key.len() {
+            return None;
+        }
+        parts.push(key[offset..value_end].to_owned());
+        offset = value_end;
+        if offset == key.len() {
+            break;
+        }
+        if bytes[offset] != b'|' {
+            return None;
+        }
+        offset += 1;
+        if offset == key.len() {
+            return None;
+        }
+    }
+    Some(parts)
 }
 
 pub(super) fn device_twin_scope_key(tenant_id: &str, device_id: &str) -> String {
-    format!("{tenant_id}:{device_id}")
+    scope_key_parts(&[tenant_id, device_id])
 }
 
 pub(super) fn stream_scope_key(tenant_id: &str, stream_id: &str) -> String {
-    format!("{tenant_id}:{stream_id}")
+    scope_key_parts(&[tenant_id, stream_id])
 }
 
 pub(super) fn rtc_scope_key(tenant_id: &str, rtc_session_id: &str) -> String {
-    format!("{tenant_id}:{rtc_session_id}")
+    scope_key_parts(&[tenant_id, rtc_session_id])
 }
 
 pub(super) fn notification_scope_key(tenant_id: &str, notification_id: &str) -> String {
-    format!("{tenant_id}:{notification_id}")
+    scope_key_parts(&[tenant_id, notification_id])
+}
+
+pub(super) fn notification_recipient_scope_key(
+    tenant_id: &str,
+    recipient_kind: &str,
+    recipient_id: &str,
+) -> String {
+    scope_key_parts(&[tenant_id, recipient_kind, recipient_id])
+}
+
+pub(super) fn principal_scope_key(
+    tenant_id: &str,
+    principal_kind: &str,
+    principal_id: &str,
+) -> String {
+    scope_key_parts(&[tenant_id, principal_kind, principal_id])
 }
 
 pub(super) fn execution_scope_key(
@@ -45,15 +111,7 @@ pub(super) fn execution_scope_key(
     principal_id: &str,
     execution_id: &str,
 ) -> String {
-    format!("{tenant_id}:{principal_kind}:{principal_id}:{execution_id}")
-}
-
-pub(super) fn legacy_execution_scope_key(
-    tenant_id: &str,
-    principal_id: &str,
-    execution_id: &str,
-) -> String {
-    format!("{tenant_id}:{principal_id}:{execution_id}")
+    scope_key_parts(&[tenant_id, principal_kind, principal_id, execution_id])
 }
 
 fn recover_pending_json_temp_file(file_path: &Path, store_name: &str) -> Result<(), ContractError> {

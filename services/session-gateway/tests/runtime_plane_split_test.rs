@@ -37,6 +37,7 @@ fn test_step04_runtime_plane_skeleton_supports_link_lifecycle_and_route_epoch_mi
         .bind(RouteBindingRequest::new(
             "tenant_demo",
             "principal_demo",
+            "user",
             "device_demo",
             "node_a",
         ))
@@ -61,7 +62,7 @@ fn test_step04_runtime_plane_skeleton_supports_link_lifecycle_and_route_epoch_mi
     assert_eq!(migration.target_rebalance_state, "stable");
 
     let rebound = routes
-        .lookup("tenant_demo", "principal_demo", "device_demo")
+        .lookup("tenant_demo", "principal_demo", "user", "device_demo")
         .expect("route should remain present after migration");
     assert_eq!(rebound.owner_node_id, "node_b");
     assert_eq!(rebound.route_epoch, 2);

@@ -32,16 +32,17 @@ fn state_file(runtime_dir: &Path, file_name: &str) -> PathBuf {
     runtime_dir.join("state").join(file_name)
 }
 
-fn journal_json(runtime_dir: &Path) -> serde_json::Value {
+fn journal_events(runtime_dir: &Path) -> Vec<serde_json::Value> {
     let journal_content = fs::read_to_string(state_file(runtime_dir, "commit-journal.json"))
         .expect("commit journal should be readable");
-    serde_json::from_str(&journal_content).expect("commit journal should be valid json")
+    journal_content
+        .lines()
+        .map(|line| serde_json::from_str(line).expect("commit journal line should be valid json"))
+        .collect()
 }
 
-fn event_payload(journal_json: &serde_json::Value, event_type: &str) -> serde_json::Value {
-    let event = journal_json
-        .as_array()
-        .expect("journal should be an array")
+fn event_payload(journal_events: &[serde_json::Value], event_type: &str) -> serde_json::Value {
+    let event = journal_events
         .iter()
         .find(|item| item["event_type"] == event_type)
         .unwrap_or_else(|| panic!("{event_type} event should exist"));
@@ -57,21 +58,19 @@ async fn list_members_json(
     app: axum::Router,
     tenant_id: &str,
     actor_id: &str,
-    actor_kind: Option<&str>,
+    actor_kind: &str,
     device_id: &str,
     session_id: &str,
     conversation_id: &str,
 ) -> serde_json::Value {
-    let mut request = Request::builder()
+    let request = Request::builder()
         .method("GET")
         .uri(format!("/api/v1/conversations/{conversation_id}/members"))
         .header("x-tenant-id", tenant_id)
         .header("x-user-id", actor_id)
+        .header("x-actor-kind", actor_kind)
         .header("x-device-id", device_id)
         .header("x-session-id", session_id);
-    if let Some(actor_kind) = actor_kind {
-        request = request.header("x-actor-kind", actor_kind);
-    }
     let response = app
         .oneshot(request.body(Body::empty()).unwrap())
         .await
@@ -767,6 +766,7 @@ async fn test_local_user_module_provider_enriches_user_message_sender_and_member
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -790,6 +790,7 @@ async fn test_local_user_module_provider_enriches_user_message_sender_and_member
                 .uri("/api/v1/conversations/c_user_module_local/members/add")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -832,6 +833,7 @@ async fn test_local_user_module_provider_enriches_user_message_sender_and_member
                 .uri("/api/v1/conversations/c_user_module_local/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -848,14 +850,8 @@ async fn test_local_user_module_provider_enriches_user_message_sender_and_member
         .expect("post message should succeed");
     assert_eq!(post_message.status(), StatusCode::OK);
 
-    let journal_content =
-        fs::read_to_string(state_file(runtime_dir.as_path(), "commit-journal.json"))
-            .expect("commit journal should be readable");
-    let journal_json: serde_json::Value =
-        serde_json::from_str(&journal_content).expect("commit journal should be valid json");
-    let message_posted = journal_json
-        .as_array()
-        .expect("journal should be an array")
+    let journal_events = journal_events(runtime_dir.as_path());
+    let message_posted = journal_events
         .iter()
         .find(|item| item["event_type"] == "message.posted")
         .expect("message.posted event should exist");
@@ -893,6 +889,7 @@ async fn test_social_friend_request_submit_rejects_unknown_target_user() {
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -935,6 +932,7 @@ async fn test_social_friend_request_accept_rejects_unknown_requester_user() {
                 .uri("/api/v1/control/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -961,6 +959,7 @@ async fn test_social_friend_request_accept_rejects_unknown_requester_user() {
                 .uri("/api/v1/social/friend-requests/fr_unknown_requester/accept")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_bob")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1044,6 +1043,7 @@ async fn test_timeline_query_rejects_unknown_user_member_after_restart_with_stri
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1065,6 +1065,7 @@ async fn test_timeline_query_rejects_unknown_user_member_after_restart_with_stri
                 .uri("/api/v1/conversations/c_strict_restart_timeline/members/add")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1087,6 +1088,7 @@ async fn test_timeline_query_rejects_unknown_user_member_after_restart_with_stri
                 .uri("/api/v1/conversations/c_strict_restart_timeline/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -1118,6 +1120,7 @@ async fn test_timeline_query_rejects_unknown_user_member_after_restart_with_stri
                 .uri("/api/v1/conversations/c_strict_restart_timeline/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_missing")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1154,6 +1157,7 @@ async fn test_list_members_rejects_unknown_user_member_after_restart_with_strict
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1175,6 +1179,7 @@ async fn test_list_members_rejects_unknown_user_member_after_restart_with_strict
                 .uri("/api/v1/conversations/c_strict_restart_members/members/add")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1204,6 +1209,7 @@ async fn test_list_members_rejects_unknown_user_member_after_restart_with_strict
                 .uri("/api/v1/conversations/c_strict_restart_members/members")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_missing")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1240,6 +1246,7 @@ async fn test_thread_create_rejects_unknown_user_member_after_restart_with_stric
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1261,6 +1268,7 @@ async fn test_thread_create_rejects_unknown_user_member_after_restart_with_stric
                 .uri("/api/v1/conversations/c_strict_restart_thread_parent/members/add")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1283,6 +1291,7 @@ async fn test_thread_create_rejects_unknown_user_member_after_restart_with_stric
                 .uri("/api/v1/conversations/c_strict_restart_thread_parent/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -1326,6 +1335,7 @@ async fn test_thread_create_rejects_unknown_user_member_after_restart_with_stric
                 .uri("/api/v1/conversations/threads")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_missing")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(format!(
                     r#"{{
@@ -1369,6 +1379,7 @@ async fn test_friend_request_list_rejects_unknown_user_after_restart_with_strict
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_missing")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1397,6 +1408,7 @@ async fn test_friend_request_list_rejects_unknown_user_after_restart_with_strict
                 .uri("/api/v1/social/friend-requests?direction=outgoing")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_missing")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1434,6 +1446,7 @@ async fn test_local_user_module_provider_rejects_oversized_creator_attributes_on
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -1485,6 +1498,7 @@ async fn test_local_user_module_provider_rejects_oversized_sender_metadata_on_po
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -1508,6 +1522,7 @@ async fn test_local_user_module_provider_rejects_oversized_sender_metadata_on_po
                 .uri("/api/v1/conversations/c_user_module_local_oversized_sender_metadata/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -1560,6 +1575,7 @@ async fn test_local_user_module_provider_merges_add_member_request_attributes() 
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -1583,6 +1599,7 @@ async fn test_local_user_module_provider_merges_add_member_request_attributes() 
                 .uri("/api/v1/conversations/c_user_module_local_member_request_attributes/members/add")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -1636,6 +1653,7 @@ async fn test_external_user_module_provider_enriches_user_message_sender_and_mem
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_ext_owner")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_ext_owner")
                 .header("x-session-id", "s_ext_owner")
                 .header("content-type", "application/json")
@@ -1659,6 +1677,7 @@ async fn test_external_user_module_provider_enriches_user_message_sender_and_mem
                 .uri("/api/v1/conversations/c_user_module_external/members/add")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_ext_owner")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_ext_owner")
                 .header("x-session-id", "s_ext_owner")
                 .header("content-type", "application/json")
@@ -1704,6 +1723,7 @@ async fn test_external_user_module_provider_enriches_user_message_sender_and_mem
                 .uri("/api/v1/conversations/c_user_module_external/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_ext_owner")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_ext_owner")
                 .header("x-session-id", "s_ext_owner")
                 .header("content-type", "application/json")
@@ -1720,14 +1740,8 @@ async fn test_external_user_module_provider_enriches_user_message_sender_and_mem
         .expect("post message should succeed");
     assert_eq!(post_message.status(), StatusCode::OK);
 
-    let journal_content =
-        fs::read_to_string(state_file(runtime_dir.as_path(), "commit-journal.json"))
-            .expect("commit journal should be readable");
-    let journal_json: serde_json::Value =
-        serde_json::from_str(&journal_content).expect("commit journal should be valid json");
-    let message_posted = journal_json
-        .as_array()
-        .expect("journal should be an array")
+    let journal_events = journal_events(runtime_dir.as_path());
+    let message_posted = journal_events
         .iter()
         .find(|item| item["event_type"] == "message.posted")
         .expect("message.posted event should exist");
@@ -1771,6 +1785,7 @@ async fn test_local_user_module_provider_enriches_bootstrap_user_members_across_
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_group_owner")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_group_owner")
                 .header("x-session-id", "s_group_owner")
                 .header("content-type", "application/json")
@@ -1790,7 +1805,7 @@ async fn test_local_user_module_provider_enriches_bootstrap_user_members_across_
         app.clone(),
         "t_demo",
         "u_group_owner",
-        None,
+        "user",
         "d_group_owner",
         "s_group_owner",
         "c_bootstrap_group_local",
@@ -1820,6 +1835,7 @@ async fn test_local_user_module_provider_enriches_bootstrap_user_members_across_
                 .uri("/api/v1/conversations/agent-dialogs")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_dialog_owner")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_dialog_owner")
                 .header("x-session-id", "s_dialog_owner")
                 .header("content-type", "application/json")
@@ -1839,7 +1855,7 @@ async fn test_local_user_module_provider_enriches_bootstrap_user_members_across_
         app.clone(),
         "t_demo",
         "u_dialog_owner",
-        None,
+        "user",
         "d_dialog_owner",
         "s_dialog_owner",
         "c_bootstrap_agent_dialog_local",
@@ -1889,7 +1905,7 @@ async fn test_local_user_module_provider_enriches_bootstrap_user_members_across_
         app.clone(),
         "t_demo",
         "svc_system",
-        Some("system"),
+        "system",
         "d_system",
         "s_system",
         "c_bootstrap_system_channel_local",
@@ -1943,7 +1959,7 @@ async fn test_local_user_module_provider_enriches_bootstrap_user_members_across_
         app.clone(),
         "t_demo",
         "ag_handoff_source",
-        Some("agent"),
+        "agent",
         "d_handoff_source",
         "s_handoff_source",
         "c_bootstrap_handoff_local",
@@ -1987,6 +2003,7 @@ async fn test_local_user_module_provider_rejects_disabled_user_group_create() {
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_disabled_creator")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_disabled_creator")
                 .header("x-session-id", "s_disabled_creator")
                 .header("content-type", "application/json")
@@ -2032,6 +2049,7 @@ async fn test_local_user_module_provider_rejects_disabled_user_agent_dialog_crea
                 .uri("/api/v1/conversations/agent-dialogs")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_disabled_dialog_owner")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_disabled_dialog_owner")
                 .header("x-session-id", "s_disabled_dialog_owner")
                 .header("content-type", "application/json")
@@ -2081,6 +2099,7 @@ async fn test_external_user_module_provider_enriches_bootstrap_user_members_acro
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_group_owner_external")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_group_owner_external")
                 .header("x-session-id", "s_group_owner_external")
                 .header("content-type", "application/json")
@@ -2100,7 +2119,7 @@ async fn test_external_user_module_provider_enriches_bootstrap_user_members_acro
         app.clone(),
         "t_demo",
         "u_group_owner_external",
-        None,
+        "user",
         "d_group_owner_external",
         "s_group_owner_external",
         "c_bootstrap_group_external",
@@ -2154,7 +2173,7 @@ async fn test_external_user_module_provider_enriches_bootstrap_user_members_acro
         app.clone(),
         "t_demo",
         "svc_system_external",
-        Some("system"),
+        "system",
         "d_system_external",
         "s_system_external",
         "c_bootstrap_system_channel_external",
@@ -2211,7 +2230,7 @@ async fn test_external_user_module_provider_enriches_bootstrap_user_members_acro
         app.clone(),
         "t_demo",
         "ag_handoff_source_external",
-        Some("agent"),
+        "agent",
         "d_handoff_source_external",
         "s_handoff_source_external",
         "c_bootstrap_handoff_external",
@@ -2257,6 +2276,7 @@ async fn test_local_user_module_provider_enriches_message_edit_and_recall_actor_
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_editor_local")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_editor_local")
                 .header("x-session-id", "s_editor_local")
                 .header("content-type", "application/json")
@@ -2280,6 +2300,7 @@ async fn test_local_user_module_provider_enriches_message_edit_and_recall_actor_
                 .uri("/api/v1/conversations/c_user_module_edit_recall_local/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_editor_local")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_editor_local")
                 .header("x-session-id", "s_editor_local")
                 .header("content-type", "application/json")
@@ -2315,6 +2336,7 @@ async fn test_local_user_module_provider_enriches_message_edit_and_recall_actor_
                 .uri(format!("/api/v1/messages/{message_id}/edit"))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_editor_local")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_editor_local")
                 .header("x-session-id", "s_editor_local")
                 .header("content-type", "application/json")
@@ -2338,6 +2360,7 @@ async fn test_local_user_module_provider_enriches_message_edit_and_recall_actor_
                 .uri(format!("/api/v1/messages/{message_id}/recall"))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_editor_local")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_editor_local")
                 .header("x-session-id", "s_editor_local")
                 .body(Body::empty())
@@ -2347,7 +2370,7 @@ async fn test_local_user_module_provider_enriches_message_edit_and_recall_actor_
         .expect("recall message should succeed");
     assert_eq!(recall_message.status(), StatusCode::OK);
 
-    let journal = journal_json(runtime_dir.as_path());
+    let journal = journal_events(runtime_dir.as_path());
     let edited_payload = event_payload(&journal, "message.edited");
     assert_eq!(edited_payload["editor"]["id"], "u_editor_local");
     assert_eq!(
@@ -2398,6 +2421,7 @@ async fn test_external_user_module_provider_enriches_message_edit_and_recall_act
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_editor_external")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_editor_external")
                 .header("x-session-id", "s_editor_external")
                 .header("content-type", "application/json")
@@ -2421,6 +2445,7 @@ async fn test_external_user_module_provider_enriches_message_edit_and_recall_act
                 .uri("/api/v1/conversations/c_user_module_edit_recall_external/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_editor_external")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_editor_external")
                 .header("x-session-id", "s_editor_external")
                 .header("content-type", "application/json")
@@ -2456,6 +2481,7 @@ async fn test_external_user_module_provider_enriches_message_edit_and_recall_act
                 .uri(format!("/api/v1/messages/{message_id}/edit"))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_editor_external")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_editor_external")
                 .header("x-session-id", "s_editor_external")
                 .header("content-type", "application/json")
@@ -2479,6 +2505,7 @@ async fn test_external_user_module_provider_enriches_message_edit_and_recall_act
                 .uri(format!("/api/v1/messages/{message_id}/recall"))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_editor_external")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_editor_external")
                 .header("x-session-id", "s_editor_external")
                 .body(Body::empty())
@@ -2488,7 +2515,7 @@ async fn test_external_user_module_provider_enriches_message_edit_and_recall_act
         .expect("recall message should succeed");
     assert_eq!(recall_message.status(), StatusCode::OK);
 
-    let journal = journal_json(runtime_dir.as_path());
+    let journal = journal_events(runtime_dir.as_path());
     let edited_payload = event_payload(&journal, "message.edited");
     assert_eq!(
         edited_payload["editor"]["metadata"]["displayName"],

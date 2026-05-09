@@ -114,11 +114,11 @@ fn test_request_execution_appends_requested_and_completed_events() {
     assert_eq!(events[0].actor.actor_id, "u_demo");
     assert_eq!(
         events[0].idempotency_key.as_deref(),
-        Some("t_demo:user:u_demo:ae_demo:automation.execution_requested")
+        Some("6#t_demo4#user6#u_demo7#ae_demo30#automation.execution_requested")
     );
     assert_eq!(
         events[1].idempotency_key.as_deref(),
-        Some("t_demo:user:u_demo:ae_demo:automation.execution_completed")
+        Some("6#t_demo4#user6#u_demo7#ae_demo30#automation.execution_completed")
     );
 
     let payload: serde_json::Value =
@@ -345,7 +345,7 @@ fn test_request_execution_with_outcome_exposes_applied_then_replayed_delivery_st
     assert_eq!(first.execution.state.as_str(), "succeeded");
     assert_eq!(
         first.request_key,
-        "t_demo:user:u_demo:ae_outcome_state_machine"
+        "6#t_demo4#user6#u_demo24#ae_outcome_state_machine"
     );
 
     let replay = runtime
@@ -554,11 +554,11 @@ fn test_execution_requests_are_isolated_by_principal_kind_for_same_actor_id() {
 
     assert_eq!(
         user_request.request_key,
-        "t_demo:user:u_demo:ae_kind_isolation"
+        "6#t_demo4#user6#u_demo17#ae_kind_isolation"
     );
     assert_eq!(
         system_request.request_key,
-        "t_demo:system:u_demo:ae_kind_isolation"
+        "6#t_demo6#system6#u_demo17#ae_kind_isolation"
     );
     assert_eq!(user_request.execution.principal_kind, "user");
     assert_eq!(system_request.execution.principal_kind, "system");
@@ -573,6 +573,69 @@ fn test_execution_requests_are_isolated_by_principal_kind_for_same_actor_id() {
     assert_eq!(system_execution.principal_kind, "system");
     assert_eq!(user_execution.execution_id, "ae_kind_isolation");
     assert_eq!(system_execution.execution_id, "ae_kind_isolation");
+}
+
+#[test]
+fn test_execution_scope_key_is_segment_safe_for_delimiter_bearing_ids() {
+    let runtime = automation_service::AutomationRuntime::default();
+    let first_auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u:demo".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_first".into()),
+        device_id: None,
+        permissions: BTreeSet::from([
+            "automation.execute".to_string(),
+            "automation.read".to_string(),
+        ]),
+    };
+    let second_auth = AuthContext {
+        actor_id: "u".into(),
+        session_id: Some("s_second".into()),
+        ..first_auth.clone()
+    };
+
+    let first = runtime
+        .request_execution_with_outcome(
+            &first_auth,
+            automation_service::RequestAutomationExecution {
+                execution_id: "demo".into(),
+                trigger_type: "webhook.manual".into(),
+                target_kind: "workflow".into(),
+                target_ref: "wf_first".into(),
+                input_payload: Some(r#"{"case":"first"}"#.into()),
+            },
+        )
+        .expect("first delimiter-bearing execution should succeed");
+    let second = runtime
+        .request_execution_with_outcome(
+            &second_auth,
+            automation_service::RequestAutomationExecution {
+                execution_id: "demo:demo".into(),
+                trigger_type: "webhook.manual".into(),
+                target_kind: "workflow".into(),
+                target_ref: "wf_second".into(),
+                input_payload: Some(r#"{"case":"second"}"#.into()),
+            },
+        )
+        .expect("second delimiter-bearing execution should not collide with first");
+
+    assert_eq!(first.execution.principal_id, "u:demo");
+    assert_eq!(first.execution.execution_id, "demo");
+    assert_eq!(second.execution.principal_id, "u");
+    assert_eq!(second.execution.execution_id, "demo:demo");
+    assert_eq!(first.request_key, "6#t_demo4#user6#u:demo4#demo");
+    assert_eq!(second.request_key, "6#t_demo4#user1#u9#demo:demo");
+    assert_ne!(first.request_key, second.request_key);
+
+    let first_read = runtime
+        .get_execution(&first_auth, "demo")
+        .expect("first execution should remain readable by first actor");
+    let second_read = runtime
+        .get_execution(&second_auth, "demo:demo")
+        .expect("second execution should remain readable by second actor");
+    assert_eq!(first_read.principal_id, "u:demo");
+    assert_eq!(second_read.principal_id, "u");
 }
 
 #[test]

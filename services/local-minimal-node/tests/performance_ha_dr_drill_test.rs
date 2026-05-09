@@ -167,15 +167,13 @@ fn write_state_file(root: &Path, file_name: &str, content: &str) {
 }
 
 fn write_valid_backup_snapshot(root: &Path, owner_node_id: &str) {
-    write_state_file(root, "commit-journal.json", "[]");
+    write_state_file(root, "commit-journal.json", "");
     for file_name in [
         "realtime-checkpoints.json",
         "realtime-subscriptions.json",
-        "presence-state.json",
         "device-twin-state.json",
         "stream-state.json",
         "rtc-state.json",
-        "notification-tasks.json",
         "automation-executions.json",
         "projection-metadata.json",
         "projection-timeline.json",
@@ -184,15 +182,27 @@ fn write_valid_backup_snapshot(root: &Path, owner_node_id: &str) {
     }
     write_state_file(
         root,
+        "presence-state.json",
+        "{\"by_device\":{},\"presence_by_principal\":{},\"online_by_seen_at\":{}}",
+    );
+    write_state_file(
+        root,
+        "notification-tasks.json",
+        "{\"by_notification\":{},\"tasks_by_recipient\":{}}",
+    );
+    write_state_file(
+        root,
         "realtime-disconnect-fences.json",
         serde_json::to_string_pretty(&json!({
             "t_demo:u_demo:d_demo": {
                 "tenant_id": "t_demo",
+                "principal_kind": "user",
                 "principal_id": "u_demo",
                 "device_id": "d_demo",
                 "session_id": "s_demo",
                 "owner_node_id": owner_node_id,
-                "disconnected_at": "2026-04-06T00:00:00.000Z"
+                "disconnected_at": "2026-04-06T00:00:00.000Z",
+                "fence_token": format!("fence:t_demo:user:u_demo:d_demo:s_demo:{owner_node_id}:2026-04-06T00:00:00.000Z")
             }
         }))
         .expect("disconnect fence snapshot should serialize")
@@ -272,6 +282,7 @@ async fn test_step11_local_drain_rebalance_drill_emits_metrics() {
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -295,6 +306,7 @@ async fn test_step11_local_drain_rebalance_drill_emits_metrics() {
                 .uri("/api/v1/conversations/c_step11_drain_demo/members/add")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -319,6 +331,7 @@ async fn test_step11_local_drain_rebalance_drill_emits_metrics() {
                 .uri("/api/v1/devices/register")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_remote")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_remote")
                 .header("x-session-id", "s_remote")
                 .header("content-type", "application/json")
@@ -337,6 +350,7 @@ async fn test_step11_local_drain_rebalance_drill_emits_metrics() {
                 .uri("/api/v1/realtime/subscriptions/sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_remote")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_remote")
                 .header("x-session-id", "s_remote")
                 .header("content-type", "application/json")
@@ -366,6 +380,7 @@ async fn test_step11_local_drain_rebalance_drill_emits_metrics() {
                 .uri("/api/v1/control/nodes/node_a/drain")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -382,6 +397,7 @@ async fn test_step11_local_drain_rebalance_drill_emits_metrics() {
                 .uri("/api/v1/control/nodes/node_a/routes/migrate")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"targetNodeId":"node_b"}"#))
@@ -406,6 +422,7 @@ async fn test_step11_local_drain_rebalance_drill_emits_metrics() {
                 .uri("/api/v1/realtime/events?afterSeq=0&limit=10")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_remote")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_remote")
                 .header("x-session-id", "s_remote")
                 .body(Body::empty())
@@ -423,6 +440,7 @@ async fn test_step11_local_drain_rebalance_drill_emits_metrics() {
                 .uri("/api/v1/conversations/c_step11_drain_demo/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -446,6 +464,7 @@ async fn test_step11_local_drain_rebalance_drill_emits_metrics() {
                 .uri("/api/v1/realtime/events?afterSeq=0&limit=10")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_remote")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_remote")
                 .header("x-session-id", "s_remote")
                 .body(Body::empty())
@@ -497,11 +516,13 @@ fn test_step11_local_restore_recovery_drill_emits_metrics() {
         serde_json::to_string_pretty(&json!({
             "t_demo:u_demo:d_demo": {
                 "tenant_id": "t_demo",
+                "principal_kind": "user",
                 "principal_id": "u_demo",
                 "device_id": "d_demo",
                 "session_id": "s_demo",
                 "owner_node_id": "node_current",
-                "disconnected_at": "2026-04-06T00:00:00.000Z"
+                "disconnected_at": "2026-04-06T00:00:00.000Z",
+                "fence_token": "fence:t_demo:user:u_demo:d_demo:s_demo:node_current:2026-04-06T00:00:00.000Z"
             }
         }))
         .expect("current fence snapshot should serialize")
@@ -596,6 +617,7 @@ async fn test_step11_local_failover_drill_emits_metrics() {
                 .uri("/api/v1/sessions/resume")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_resume")
                 .header("x-session-id", "s_old")
                 .header("content-type", "application/json")
@@ -615,6 +637,7 @@ async fn test_step11_local_failover_drill_emits_metrics() {
                 .uri("/api/v1/sessions/resume")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_resume")
                 .header("x-session-id", "s_new")
                 .header("content-type", "application/json")
@@ -632,6 +655,7 @@ async fn test_step11_local_failover_drill_emits_metrics() {
                 .uri("/api/v1/ops/diagnostics")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_resume")
                 .header("x-session-id", "s_new")
                 .header("x-permissions", "ops.read")
@@ -658,6 +682,7 @@ async fn test_step11_local_failover_drill_emits_metrics() {
                 .uri("/api/v1/sessions/disconnect")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_resume")
                 .header("x-session-id", "s_old")
                 .header("content-type", "application/json")

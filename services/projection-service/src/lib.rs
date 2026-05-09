@@ -1,9 +1,9 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
+use std::ops::Bound::{Excluded, Unbounded};
 use std::sync::{Mutex, MutexGuard};
 
 use im_domain_core::conversation::{
-    ConversationInboxEntry, ConversationMember, ConversationReadCursor, ConversationReadCursorView,
-    DeviceSyncFeedEntry, principal_member_key,
+    ConversationMember, ConversationReadCursor, ConversationReadCursorView, DeviceSyncFeedEntry,
 };
 use im_domain_core::message::{Message, MessageEdited, MessageRecalled};
 use im_domain_events::CommitEnvelope;
@@ -12,8 +12,10 @@ mod access;
 mod contacts;
 mod device_sync;
 mod http;
+mod inbox;
 mod interactions;
 mod member_directory;
+mod member_store;
 mod model;
 mod observability;
 mod projection;
@@ -23,24 +25,26 @@ mod summary_updates;
 mod update_delay;
 
 use device_sync::DeviceSyncEntryDraft;
+use member_store::ProjectionMemberRuntimeStore;
 use model::ConversationCatalogEntry;
 use observability::ProjectionObservabilityState;
 use projection::{
     AgentHandoffStatusChangedProjectionPayload, ConversationCreatedPayload,
     ConversationMemberRoleChangedPayload, handoff_view_from_created_payload,
-    handoff_view_from_state_payload, latest_summary_activity_at,
+    handoff_view_from_state_payload,
 };
 use scope::{
-    DeviceFeedScopeKey, DevicePrincipalScopeKey, scope_key, tracked_live_projection_lag_scope_id,
+    ContactOwnerScopeKey, DeviceFeedScopeKey, DevicePrincipalScopeKey, scope_key,
+    tracked_live_projection_lag_scope_id,
 };
 
 pub use access::{DeviceSyncSessionState, ProjectionAccessError};
 pub use http::{build_app, build_default_app, build_public_app, build_public_app_with_service};
 pub use model::{
-    ContactView, ConversationMemberDirectoryEntry, ConversationSummaryView, InteractionActorView,
-    MessageInteractionSummaryView, MessagePinView, MessageReactionCountView,
-    NotificationRecipientView, RealtimeFanoutTarget, RegisteredDeviceView, SummarySenderView,
-    TimelineViewEntry,
+    ContactView, ConversationMemberDirectoryEntry, ConversationSummaryView,
+    DeviceSyncFeedWindowView, InteractionActorView, MessageInteractionSummaryView, MessagePinView,
+    MessageReactionCountView, NotificationRecipientView, RealtimeFanoutTarget,
+    RegisteredDeviceView, SummarySenderView, TimelineViewEntry, TimelineWindowView,
 };
 pub use observability::{
     ProjectionLagItemView, ProjectionLogView, ProjectionOperationMetricView,
@@ -49,20 +53,27 @@ pub use observability::{
 };
 pub use projection::ProjectionError;
 
+pub const PROJECTION_TIMELINE_DEFAULT_LIMIT: usize = 100;
+pub const PROJECTION_TIMELINE_MAX_LIMIT: usize = 1000;
+pub const PROJECTION_DEVICE_SYNC_FEED_DEFAULT_LIMIT: usize = 100;
+pub const PROJECTION_DEVICE_SYNC_FEED_MAX_LIMIT: usize = 1000;
+pub const PROJECTION_DEVICE_SYNC_FEED_MAX_RETAINED_EVENTS: usize =
+    PROJECTION_DEVICE_SYNC_FEED_MAX_LIMIT;
+
 #[derive(Default)]
 pub struct TimelineProjectionService {
-    entries: Mutex<HashMap<String, Vec<TimelineViewEntry>>>,
+    entries: Mutex<HashMap<String, BTreeMap<u64, TimelineViewEntry>>>,
     summaries: Mutex<HashMap<String, ConversationSummaryView>>,
-    members: Mutex<HashMap<String, HashMap<String, ConversationMember>>>,
+    members: Mutex<ProjectionMemberRuntimeStore>,
     read_cursors: Mutex<HashMap<String, HashMap<String, ConversationReadCursor>>>,
     conversations: Mutex<HashMap<String, ConversationCatalogEntry>>,
-    contacts: Mutex<HashMap<String, HashMap<String, ContactView>>>,
-    direct_chat_bindings: Mutex<HashMap<String, model::ContactDirectChatBindingView>>,
+    contacts: Mutex<HashMap<ContactOwnerScopeKey, HashMap<String, ContactView>>>,
+    direct_chat_bindings: Mutex<contacts::ContactDirectChatBindingRuntimeStore>,
     message_interactions:
         Mutex<HashMap<String, HashMap<String, interactions::StoredMessageInteractionSummary>>>,
     registered_devices:
         Mutex<HashMap<DevicePrincipalScopeKey, HashMap<String, RegisteredDeviceView>>>,
-    device_sync_feeds: Mutex<HashMap<DeviceFeedScopeKey, Vec<DeviceSyncFeedEntry>>>,
+    device_sync_feeds: Mutex<HashMap<DeviceFeedScopeKey, BTreeMap<u64, DeviceSyncFeedEntry>>>,
     device_sync_sequences: Mutex<HashMap<DeviceFeedScopeKey, u64>>,
     observability: Mutex<ProjectionObservabilityState>,
 }
@@ -88,18 +99,21 @@ impl TimelineProjectionService {
             ProjectionObservabilityState::default();
     }
 
-    pub fn is_active_member(
+    pub fn is_active_member_for_principal_kind(
         &self,
         tenant_id: &str,
         conversation_id: &str,
         principal_id: &str,
+        principal_kind: &str,
     ) -> bool {
         lock_projection_mutex(&self.members, "member store")
             .get(scope_key(tenant_id, conversation_id).as_str())
             .is_some_and(|scope_members| {
-                scope_members
-                    .values()
-                    .any(|member| member.principal_id == principal_id && member.is_active())
+                scope_members.values().any(|member| {
+                    member.principal_id == principal_id
+                        && member.principal_kind == principal_kind
+                        && member.is_active()
+                })
             })
     }
 
@@ -138,32 +152,6 @@ impl TimelineProjectionService {
         }
 
         result
-    }
-
-    pub fn realtime_fanout_targets_for_principals(
-        &self,
-        tenant_id: &str,
-        principal_ids: impl IntoIterator<Item = String>,
-    ) -> Vec<RealtimeFanoutTarget> {
-        let mut targets = principal_ids
-            .into_iter()
-            .flat_map(|principal_id| {
-                self.registered_devices(tenant_id, principal_id.as_str())
-                    .into_iter()
-                    .map(move |device| RealtimeFanoutTarget {
-                        principal_id: principal_id.clone(),
-                        principal_kind: device.principal_kind,
-                        device_id: device.device_id,
-                    })
-            })
-            .collect::<Vec<_>>();
-        targets.sort_by(|left, right| {
-            left.principal_id
-                .cmp(&right.principal_id)
-                .then_with(|| left.principal_kind.cmp(&right.principal_kind))
-                .then_with(|| left.device_id.cmp(&right.device_id))
-        });
-        targets
     }
 
     pub fn device_sync_fanout_targets_for_conversation(
@@ -273,7 +261,7 @@ impl TimelineProjectionService {
         };
 
         let mut entries = lock_projection_mutex(&self.entries, "projection store");
-        entries.entry(key).or_default().push(entry);
+        entries.entry(key).or_default().insert(message_seq, entry);
         drop(entries);
 
         let mut summaries = lock_projection_mutex(&self.summaries, "summary store");
@@ -336,6 +324,7 @@ impl TimelineProjectionService {
             message.message_id.as_str(),
             message.message_seq,
             message.editor.id.as_str(),
+            message.editor.kind.as_str(),
             message.editor.device_id.clone(),
             message.body.summary,
         );
@@ -371,6 +360,7 @@ impl TimelineProjectionService {
             message.message_id.as_str(),
             message.message_seq,
             message.recalled_by.id.as_str(),
+            message.recalled_by.kind.as_str(),
             message.recalled_by.device_id.clone(),
             recalled_summary,
         );
@@ -386,12 +376,8 @@ impl TimelineProjectionService {
         let member: ConversationMember =
             serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
         let key = scope_key(member.tenant_id.as_str(), member.conversation_id.as_str());
-        let mut members = lock_projection_mutex(&self.members, "member store");
-        members.entry(key.clone()).or_default().insert(
-            principal_member_key(member.principal_id.as_str(), member.principal_kind.as_str()),
-            member.clone(),
-        );
-        drop(members);
+        lock_projection_mutex(&self.members, "member store")
+            .insert_member(key.clone(), member.clone());
 
         let mut cursors = lock_projection_mutex(&self.read_cursors, "cursor store");
         cursors
@@ -403,6 +389,7 @@ impl TimelineProjectionService {
                 conversation_id: member.conversation_id.clone(),
                 member_id: member.member_id.clone(),
                 principal_id: member.principal_id.clone(),
+                principal_kind: member.principal_kind.clone(),
                 read_seq: 0,
                 last_read_message_id: None,
                 updated_at: member.joined_at.clone(),
@@ -427,12 +414,7 @@ impl TimelineProjectionService {
             serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
         let member = payload.updated_member;
         let key = scope_key(member.tenant_id.as_str(), member.conversation_id.as_str());
-        let mut members = lock_projection_mutex(&self.members, "member store");
-        members.entry(key).or_default().insert(
-            principal_member_key(member.principal_id.as_str(), member.principal_kind.as_str()),
-            member.clone(),
-        );
-        drop(members);
+        lock_projection_mutex(&self.members, "member store").insert_member(key, member.clone());
 
         self.fan_out_member_governance_to_device_sync_feeds(
             event,
@@ -451,14 +433,11 @@ impl TimelineProjectionService {
         let member: ConversationMember =
             serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
         let key = scope_key(member.tenant_id.as_str(), member.conversation_id.as_str());
-        let mut members = lock_projection_mutex(&self.members, "member store");
-        if let Some(scope_members) = members.get_mut(key.as_str()) {
-            scope_members.remove(
-                principal_member_key(member.principal_id.as_str(), member.principal_kind.as_str())
-                    .as_str(),
-            );
-        }
-        drop(members);
+        lock_projection_mutex(&self.members, "member store").remove_member(
+            key.as_str(),
+            member.principal_id.as_str(),
+            member.principal_kind.as_str(),
+        );
 
         self.fan_out_member_governance_to_device_sync_feeds(
             event,
@@ -480,14 +459,11 @@ impl TimelineProjectionService {
         let member: ConversationMember =
             serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
         let key = scope_key(member.tenant_id.as_str(), member.conversation_id.as_str());
-        let mut members = lock_projection_mutex(&self.members, "member store");
-        if let Some(scope_members) = members.get_mut(key.as_str()) {
-            scope_members.remove(
-                principal_member_key(member.principal_id.as_str(), member.principal_kind.as_str())
-                    .as_str(),
-            );
-        }
-        drop(members);
+        lock_projection_mutex(&self.members, "member store").remove_member(
+            key.as_str(),
+            member.principal_id.as_str(),
+            member.principal_kind.as_str(),
+        );
 
         self.fan_out_member_governance_to_device_sync_feeds(
             event,
@@ -523,8 +499,43 @@ impl TimelineProjectionService {
     pub fn timeline(&self, tenant_id: &str, conversation_id: &str) -> Vec<TimelineViewEntry> {
         lock_projection_mutex(&self.entries, "projection store")
             .get(scope_key(tenant_id, conversation_id).as_str())
-            .cloned()
+            .map(|entries| entries.values().cloned().collect())
             .unwrap_or_default()
+    }
+
+    pub fn timeline_window(
+        &self,
+        tenant_id: &str,
+        conversation_id: &str,
+        after_seq: Option<u64>,
+        limit: usize,
+    ) -> TimelineWindowView {
+        let after_seq = after_seq.unwrap_or_default();
+        let entries = lock_projection_mutex(&self.entries, "projection store");
+        let Some(timeline) = entries.get(scope_key(tenant_id, conversation_id).as_str()) else {
+            return TimelineWindowView {
+                items: Vec::new(),
+                next_after_seq: None,
+                has_more: false,
+            };
+        };
+        let mut window = timeline
+            .range((Excluded(after_seq), Unbounded))
+            .map(|(_, entry)| entry)
+            .take(limit.saturating_add(1))
+            .cloned()
+            .collect::<Vec<_>>();
+        let has_more = window.len() > limit;
+        if has_more {
+            window.truncate(limit);
+        }
+        let next_after_seq = window.last().map(|entry| entry.message_seq);
+
+        TimelineWindowView {
+            items: window,
+            next_after_seq,
+            has_more,
+        }
     }
 
     pub fn conversation_summary(
@@ -537,34 +548,7 @@ impl TimelineProjectionService {
             .cloned()
     }
 
-    pub fn read_cursor(
-        &self,
-        tenant_id: &str,
-        conversation_id: &str,
-        principal_id: &str,
-    ) -> Option<ConversationReadCursorView> {
-        let key = scope_key(tenant_id, conversation_id);
-        let member_id = self
-            .member_snapshot(tenant_id, conversation_id, principal_id)?
-            .member_id;
-
-        let cursor = lock_projection_mutex(&self.read_cursors, "cursor store")
-            .get(key.as_str())
-            .and_then(|scope_cursors| scope_cursors.get(member_id.as_str()))
-            .cloned()?;
-
-        let unread_count = self
-            .conversation_summary(tenant_id, conversation_id)
-            .map(|summary| summary.last_message_seq.saturating_sub(cursor.read_seq))
-            .unwrap_or_default();
-
-        Some(ConversationReadCursorView::from_cursor(
-            &cursor,
-            unread_count,
-        ))
-    }
-
-    pub(crate) fn read_cursor_for_principal_kind(
+    pub fn read_cursor_for_principal_kind(
         &self,
         tenant_id: &str,
         conversation_id: &str,
@@ -594,32 +578,7 @@ impl TimelineProjectionService {
         ))
     }
 
-    pub fn member_snapshot(
-        &self,
-        tenant_id: &str,
-        conversation_id: &str,
-        principal_id: &str,
-    ) -> Option<ConversationMember> {
-        let mut matches = lock_projection_mutex(&self.members, "member store")
-            .get(scope_key(tenant_id, conversation_id).as_str())
-            .map(|scope_members| {
-                scope_members
-                    .values()
-                    .filter(|member| member.principal_id == principal_id)
-                    .cloned()
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default()
-            .into_iter();
-        let member = matches.next()?;
-        if matches.next().is_some() {
-            return None;
-        }
-
-        Some(member)
-    }
-
-    pub(crate) fn member_snapshot_for_principal_kind(
+    pub fn member_snapshot_for_principal_kind(
         &self,
         tenant_id: &str,
         conversation_id: &str,
@@ -627,65 +586,12 @@ impl TimelineProjectionService {
         principal_kind: &str,
     ) -> Option<ConversationMember> {
         lock_projection_mutex(&self.members, "member store")
-            .get(scope_key(tenant_id, conversation_id).as_str())
-            .and_then(|scope_members| {
-                scope_members.get(principal_member_key(principal_id, principal_kind).as_str())
-            })
+            .member_for_principal_kind(
+                scope_key(tenant_id, conversation_id).as_str(),
+                principal_id,
+                principal_kind,
+            )
             .cloned()
-    }
-
-    pub fn inbox(&self, tenant_id: &str, principal_id: &str) -> Vec<ConversationInboxEntry> {
-        let members = lock_projection_mutex(&self.members, "member store");
-        let summaries = lock_projection_mutex(&self.summaries, "summary store");
-        let cursors = lock_projection_mutex(&self.read_cursors, "cursor store");
-        let conversations = lock_projection_mutex(&self.conversations, "conversation store");
-
-        let mut items = Vec::new();
-
-        for (scope, scope_members) in members.iter() {
-            for member in scope_members.values().filter(|member| {
-                member.principal_id == principal_id
-                    && member.is_active()
-                    && member.tenant_id == tenant_id
-            }) {
-                let summary = summaries.get(scope);
-                let cursor = cursors
-                    .get(scope)
-                    .and_then(|scope_cursors| scope_cursors.get(member.member_id.as_str()));
-                let conversation = conversations.get(scope);
-                let unread_count = summary
-                    .map(|view| view.last_message_seq)
-                    .unwrap_or_default()
-                    .saturating_sub(cursor.map(|view| view.read_seq).unwrap_or_default());
-
-                items.push(ConversationInboxEntry {
-                    tenant_id: member.tenant_id.clone(),
-                    principal_id: member.principal_id.clone(),
-                    member_id: member.member_id.clone(),
-                    conversation_id: member.conversation_id.clone(),
-                    conversation_type: conversation
-                        .map(|entry| entry.conversation_type.clone())
-                        .unwrap_or_else(|| "unknown".into()),
-                    message_count: summary.map(|view| view.message_count).unwrap_or_default(),
-                    last_message_id: summary.and_then(|view| view.last_message_id.clone()),
-                    last_message_seq: summary
-                        .map(|view| view.last_message_seq)
-                        .unwrap_or_default(),
-                    last_sender_id: summary.and_then(|view| view.last_sender_id.clone()),
-                    last_sender_kind: summary.and_then(|view| view.last_sender_kind.clone()),
-                    last_summary: summary.and_then(|view| view.last_summary.clone()),
-                    unread_count,
-                    last_activity_at: summary
-                        .and_then(latest_summary_activity_at)
-                        .or_else(|| conversation.map(|entry| entry.created_at.clone()))
-                        .unwrap_or_else(|| member.joined_at.clone()),
-                    agent_handoff: summary.and_then(|view| view.agent_handoff.clone()),
-                });
-            }
-        }
-
-        items.sort_by(|left, right| right.last_activity_at.cmp(&left.last_activity_at));
-        items
     }
 
     fn fan_out_message_to_device_sync_feeds(&self, event: &CommitEnvelope, message: &Message) {
@@ -734,6 +640,7 @@ impl TimelineProjectionService {
         message_id: &str,
         message_seq: u64,
         actor_id: &str,
+        actor_kind: &str,
         actor_device_id: Option<String>,
         summary: Option<String>,
     ) {
@@ -748,7 +655,7 @@ impl TimelineProjectionService {
             read_seq: None,
             last_read_message_id: None,
             actor_id: Some(actor_id.into()),
-            actor_kind: Some(event.actor.actor_kind.clone()),
+            actor_kind: Some(actor_kind.into()),
             actor_device_id,
             summary,
             payload_schema: None,
@@ -761,7 +668,7 @@ impl TimelineProjectionService {
             conversation_id,
             vec![NotificationRecipientView {
                 principal_id: actor_id.into(),
-                principal_kind: event.actor.actor_kind.clone(),
+                principal_kind: actor_kind.into(),
             }],
         ) {
             self.append_device_sync_draft(&target, &draft);
@@ -773,15 +680,6 @@ impl TimelineProjectionService {
         event: &CommitEnvelope,
         cursor: &ConversationReadCursor,
     ) {
-        let principal_kind = self
-            .member_snapshot_for_principal_kind(
-                cursor.tenant_id.as_str(),
-                cursor.conversation_id.as_str(),
-                cursor.principal_id.as_str(),
-                event.actor.actor_kind.as_str(),
-            )
-            .map(|member| member.principal_kind)
-            .unwrap_or_else(|| event.actor.actor_kind.clone());
         let draft = DeviceSyncEntryDraft {
             tenant_id: cursor.tenant_id.clone(),
             origin_event_id: event.event_id.clone(),
@@ -793,7 +691,7 @@ impl TimelineProjectionService {
             read_seq: Some(cursor.read_seq),
             last_read_message_id: cursor.last_read_message_id.clone(),
             actor_id: Some(cursor.principal_id.clone()),
-            actor_kind: Some(event.actor.actor_kind.clone()),
+            actor_kind: Some(cursor.principal_kind.clone()),
             actor_device_id: None,
             summary: None,
             payload_schema: None,
@@ -806,7 +704,7 @@ impl TimelineProjectionService {
             cursor.tenant_id.as_str(),
             vec![NotificationRecipientView {
                 principal_id: cursor.principal_id.clone(),
-                principal_kind,
+                principal_kind: cursor.principal_kind.clone(),
             }],
         ) {
             self.append_device_sync_draft(&target, &draft);
@@ -862,9 +760,12 @@ impl TimelineProjectionService {
         occurred_at: &str,
     ) {
         let include_fallback = include_affected_principal_fallback
-            || self
-                .active_conversation_principal_ids(tenant_id, conversation_id)
-                .is_empty();
+            || device_sync::active_conversation_principal_recipients(
+                self,
+                tenant_id,
+                conversation_id,
+            )
+            .is_empty();
         let fallback_recipients = if include_fallback {
             vec![NotificationRecipientView {
                 principal_id: affected_principal_id.into(),
@@ -899,27 +800,6 @@ impl TimelineProjectionService {
         ) {
             self.append_device_sync_draft(&target, &draft);
         }
-    }
-
-    pub(crate) fn active_conversation_principal_ids(
-        &self,
-        tenant_id: &str,
-        conversation_id: &str,
-    ) -> Vec<String> {
-        let scope = scope_key(tenant_id, conversation_id);
-        let mut principal_ids = lock_projection_mutex(&self.members, "member store")
-            .get(scope.as_str())
-            .map(|scope_members| {
-                scope_members
-                    .values()
-                    .filter(|member| member.is_active())
-                    .map(|member| member.principal_id.clone())
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
-        principal_ids.sort();
-        principal_ids.dedup();
-        principal_ids
     }
 }
 

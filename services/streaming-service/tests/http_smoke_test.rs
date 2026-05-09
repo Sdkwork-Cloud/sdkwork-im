@@ -68,6 +68,7 @@ async fn test_open_stream_over_http() {
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -109,6 +110,7 @@ async fn test_standalone_streaming_service_rejects_conversation_scope_over_http(
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -159,6 +161,7 @@ async fn test_open_stream_rejects_oversized_stream_id_over_http() {
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -190,6 +193,7 @@ async fn test_open_stream_rejects_oversized_durability_class_over_http() {
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),

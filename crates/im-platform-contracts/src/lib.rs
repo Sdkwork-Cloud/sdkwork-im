@@ -7,7 +7,9 @@ pub use craw_chat_contract_agent::{
 };
 pub use craw_chat_contract_control::{
     PresenceStateRecord, PresenceStateStore, RealtimeCheckpointRecord, RealtimeCheckpointStore,
-    RealtimeDisconnectFenceRecord, RealtimeDisconnectFenceStore, RealtimeSubscriptionRecord,
+    RealtimeDisconnectFenceRecord, RealtimeDisconnectFenceStore,
+    RealtimeEventWindowDiagnosticsSnapshot, RealtimeEventWindowHighRiskRecord,
+    RealtimeEventWindowRecord, RealtimeEventWindowStore, RealtimeSubscriptionRecord,
     RealtimeSubscriptionStore,
 };
 pub use craw_chat_contract_core::{

@@ -176,6 +176,14 @@ impl LocalNodeDeviceRegistration {
         self.ensure_device_access_registered(tenant_id, principal_id, device_id, session_id)?;
         let device = projection_service
             .register_device_from_auth_context(auth, Some(device_id.to_owned()))?;
+        if principal_kind == "device" {
+            projection_service.register_device_for_principal_kind(
+                tenant_id,
+                principal_id,
+                "user",
+                device_id,
+            );
+        }
         self.session_presence_runtime
             .register_device(auth, device_id)?;
         self.realtime_runtime

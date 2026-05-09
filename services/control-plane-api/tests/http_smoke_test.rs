@@ -170,6 +170,37 @@ async fn test_delivery_state_shared_channel_sync_inventory_route_returns_snapsho
 }
 
 #[tokio::test]
+async fn test_shared_channel_sync_inventory_rejects_invalid_limit() {
+    let app = control_plane_api::build_app();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/control/social/runtime/pending-shared-channel-sync?limit=0")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_control_reader")
+                .header("x-actor-kind", "user")
+                .header("x-permissions", "control.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("request should succeed");
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("body should be valid json");
+    assert_eq!(value["code"], "limit_invalid");
+}
+
+#[tokio::test]
 async fn test_control_plane_social_friend_request_rejects_oversized_request_id_over_http() {
     let app = control_plane_api::build_app();
     let request_body = serde_json::json!({
@@ -188,6 +219,7 @@ async fn test_control_plane_social_friend_request_rejects_oversized_request_id_o
                 .uri("/api/v1/control/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
@@ -235,6 +267,7 @@ async fn test_control_plane_external_member_link_rejects_oversized_display_name_
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
@@ -275,6 +308,7 @@ async fn test_control_plane_targeted_pending_claim_rejects_oversized_request_key
                 .uri("/api/v1/control/social/runtime/claim-pending-shared-channel-sync-targeted")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))

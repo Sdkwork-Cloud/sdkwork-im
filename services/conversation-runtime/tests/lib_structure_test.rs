@@ -27,6 +27,57 @@ fn test_conversation_runtime_http_surface_moves_out_of_runtime_impl() {
 }
 
 #[test]
+fn test_static_principal_directory_requires_explicit_principal_kind() {
+    let http_source = include_str!("../src/runtime/http.rs").replace("\r\n", "\n");
+
+    assert!(
+        http_source.contains("principal_kind: String"),
+        "static principal directory entries must carry explicit principal_kind"
+    );
+    assert!(
+        !http_source.contains("default_user_principal_kind"),
+        "static principal directory catalog must not default missing principalKind to user"
+    );
+    assert!(
+        !http_source.contains("#[serde(default = \"default_user_principal_kind\")]"),
+        "static principal directory catalog must fail closed when principalKind is absent"
+    );
+}
+
+#[test]
+fn test_conversation_runtime_keys_use_segment_safe_encoding() {
+    let runtime_source = include_str!("../src/runtime.rs").replace("\r\n", "\n");
+    let support_source = include_str!("../src/runtime/support.rs").replace("\r\n", "\n");
+
+    assert!(
+        support_source.contains("fn encode_conversation_key_segments"),
+        "conversation-runtime should keep a segment-safe key encoder"
+    );
+    assert!(
+        !support_source.contains("format!(\"{tenant_id}:{conversation_id}\")"),
+        "conversation scope keys must not use delimiter-only concatenation"
+    );
+    assert!(
+        !support_source.contains("format!(\"{tenant_id}:{business_type}:{business_id}\")"),
+        "conversation business scope keys must not use delimiter-only concatenation"
+    );
+    for forbidden in [
+        "format!(\"{tenant_id}:{creator_kind}:{creator_id}:create-conversation:{conversation_id}\")",
+        "format!(\"{tenant_id}:{requester_kind}:{requester_id}:create-agent-dialog:{conversation_id}\")",
+        "format!(\"{tenant_id}:{requester_kind}:{requester_id}:create-system-channel:{conversation_id}\")",
+        "format!(\"{tenant_id}:{source_kind}:{source_id}:create-agent-handoff:{conversation_id}\")",
+        "format!(\"{tenant_id}:{creator_kind}:{creator_id}:create-thread:{conversation_id}\")",
+        "format!(\"{tenant_id}:{binder_kind}:{bound_by}:bind-direct-chat:{conversation_id}\")",
+        "{}:{}:{}:message:{}:{}",
+    ] {
+        assert!(
+            !runtime_source.contains(forbidden),
+            "conversation request/idempotency keys must not use delimiter-only concatenation: {forbidden}"
+        );
+    }
+}
+
+#[test]
 fn test_conversation_runtime_policy_surface_moves_out_of_runtime_impl() {
     let runtime_source = include_str!("../src/runtime.rs");
 

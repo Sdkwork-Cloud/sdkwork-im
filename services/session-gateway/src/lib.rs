@@ -47,8 +47,23 @@ use device_registration::{DisconnectActiveDeviceRouteOutcome, SessionDeviceRegis
 pub use presence::{PresenceRuntimeError, SessionPresenceRuntime};
 pub use realtime::{
     AckRealtimeEventsRequest, ListRealtimeEventsQuery, RealtimeDeliveryRuntime,
-    RealtimeDeviceStateSnapshot, RealtimeRuntimeError, RealtimeScopeAccessPolicy,
-    RealtimeSubscriptionItemInput, SyncRealtimeSubscriptionsRequest,
+    RealtimeDeviceStateSnapshot, RealtimeInboxDiagnosticsSnapshot, RealtimePostgresAdapterPlan,
+    RealtimePostgresBindingError, RealtimePostgresBindingValue, RealtimePostgresBoundParameter,
+    RealtimePostgresBoundStatement, RealtimePostgresBoundTransaction,
+    RealtimePostgresCheckpointMutation, RealtimePostgresDeviceEventMutation,
+    RealtimePostgresMethodAtomicity, RealtimePostgresMethodPlan, RealtimePostgresMethodStep,
+    RealtimePostgresParameterBinding, RealtimePostgresRowColumn, RealtimePostgresRowMapping,
+    RealtimePostgresSqlContract, RealtimeRuntimeError, RealtimeScopeAccessPolicy,
+    RealtimeSubscriptionItemInput, StandaloneRealtimeScopeAccessPolicy,
+    SyncRealtimeSubscriptionsRequest, realtime_postgres_adapter_plan,
+    realtime_postgres_bind_ack_transaction, realtime_postgres_bind_checkpoint_upsert,
+    realtime_postgres_bind_device_event_upsert, realtime_postgres_bind_publish_transaction,
+    realtime_postgres_bind_save_subscription_transaction,
+    realtime_postgres_bind_subscription_scope_clear,
+    realtime_postgres_bind_subscription_scope_replacements,
+    realtime_postgres_bind_subscription_upsert, realtime_postgres_bind_trim_device_events,
+    realtime_postgres_sql_contract_specs, realtime_postgres_sql_contracts,
+    realtime_postgres_transaction_plans,
 };
 use session_state::SessionSyncState;
 pub use websocket::{
@@ -162,7 +177,9 @@ impl From<RealtimeRuntimeError> for ApiError {
         let status = match value.code {
             "payload_too_large" => axum::http::StatusCode::PAYLOAD_TOO_LARGE,
             "limit_invalid" => axum::http::StatusCode::BAD_REQUEST,
-            "conversation_archived" | "conversation_blocked" => axum::http::StatusCode::FORBIDDEN,
+            "conversation_archived" | "conversation_blocked" | "realtime_scope_access_denied" => {
+                axum::http::StatusCode::FORBIDDEN
+            }
             "checkpoint_store_unavailable" | "subscription_store_unavailable" => {
                 axum::http::StatusCode::SERVICE_UNAVAILABLE
             }
@@ -351,6 +368,14 @@ async fn sync_realtime_subscriptions(
 ) -> Result<Json<RealtimeSubscriptionSnapshot>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
     let device_id = resolve_requested_device_id(&auth, request.device_id)?;
+    state
+        .realtime_runtime
+        .validate_subscriptions_for_principal_kind(
+            auth.tenant_id.as_str(),
+            auth.actor_id.as_str(),
+            auth.actor_kind.as_str(),
+            &request.items,
+        )?;
     state.prepare_active_device_route(&auth, device_id.as_str(), "http", false)?;
     Ok(Json(
         state
@@ -372,15 +397,9 @@ async fn list_realtime_events(
 ) -> Result<Json<RealtimeEventWindow>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
     let device_id = resolve_requested_device_id(&auth, None)?;
-    state.prepare_active_device_route(&auth, device_id.as_str(), "http_poll", false)?;
     let limit = query.limit.unwrap_or(100);
-    if limit == 0 {
-        return Err(ApiError::bad_request(
-            "limit_invalid",
-            "limit must be greater than 0",
-        ));
-    }
     realtime::validate_realtime_event_limit(limit)?;
+    state.prepare_active_device_route(&auth, device_id.as_str(), "http_poll", false)?;
     Ok(Json(
         state.realtime_runtime.list_events_for_principal_kind(
             auth.tenant_id.as_str(),
@@ -400,14 +419,31 @@ async fn ack_realtime_events(
 ) -> Result<Json<RealtimeAckState>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
     let device_id = resolve_requested_device_id(&auth, request.device_id)?;
+    let previous_route = state.current_active_device_route(&auth, device_id.as_str());
     state.prepare_active_device_route(&auth, device_id.as_str(), "http", false)?;
-    Ok(Json(state.realtime_runtime.ack_events_for_principal_kind(
+    let bound_route = state.current_active_device_route(&auth, device_id.as_str());
+    let ack = state.realtime_runtime.ack_events_for_principal_kind(
         auth.tenant_id.as_str(),
         auth.actor_id.as_str(),
         auth.actor_kind.as_str(),
         device_id.as_str(),
         request.acked_seq,
-    )?))
+    );
+    match ack {
+        Ok(ack) => Ok(Json(ack)),
+        Err(error) => {
+            match (previous_route, bound_route) {
+                (Some(previous_route), Some(bound_route)) => {
+                    state.restore_active_device_route_if_current(&bound_route, previous_route);
+                }
+                (None, _) => {
+                    state.release_active_device_route_if_current_session(&auth, device_id.as_str());
+                }
+                _ => {}
+            }
+            Err(error.into())
+        }
+    }
 }
 
 impl Default for AppState {
@@ -437,7 +473,7 @@ impl AppState {
     ) -> Self {
         Self::with_cluster_and_runtime_and_device_access_provider(
             realtime_cluster,
-            Arc::new(RealtimeDeliveryRuntime::default()),
+            Arc::new(RealtimeDeliveryRuntime::standalone_gateway()),
             device_access_provider,
         )
     }
@@ -531,6 +567,29 @@ impl AppState {
             connection_kind,
             allow_session_takeover,
         )
+    }
+
+    fn current_active_device_route(
+        &self,
+        auth: &AuthContext,
+        device_id: &str,
+    ) -> Option<RealtimeDeviceRoute> {
+        self.device_registration
+            .current_active_device_route(auth, device_id)
+    }
+
+    fn restore_active_device_route_if_current(
+        &self,
+        expected_current: &RealtimeDeviceRoute,
+        restore_to: RealtimeDeviceRoute,
+    ) -> Option<RealtimeDeviceRoute> {
+        self.device_registration
+            .restore_active_device_route_if_current(expected_current, restore_to)
+    }
+
+    fn release_active_device_route_if_current_session(&self, auth: &AuthContext, device_id: &str) {
+        self.device_registration
+            .release_active_device_route_if_current_session(auth, device_id);
     }
 
     #[rustfmt::skip]

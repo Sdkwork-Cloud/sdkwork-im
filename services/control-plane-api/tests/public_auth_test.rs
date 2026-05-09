@@ -29,6 +29,7 @@ fn demo_bearer() -> String {
         encode_hs256_bearer_token(
             &json!({
                 "tenant_id": "t_demo",
+                "actor_kind": "user",
                 "sub": "u_demo",
                 "sid": "s_demo"
             }),

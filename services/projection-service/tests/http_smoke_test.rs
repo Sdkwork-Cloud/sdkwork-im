@@ -5,6 +5,57 @@ use std::thread::sleep;
 use std::time::Duration;
 use tower::ServiceExt;
 
+fn timeline_message_posted_event(
+    tenant_id: &str,
+    conversation_id: &str,
+    message_id: &str,
+    message_seq: u64,
+    sender_id: &str,
+    member_id: &str,
+    summary: &str,
+) -> im_domain_events::CommitEnvelope {
+    im_domain_events::CommitEnvelope::minimal(
+        &format!("evt_{message_id}"),
+        tenant_id,
+        "message.posted",
+        "conversation",
+        conversation_id,
+        message_seq,
+    )
+    .with_payload(
+        "message.posted.v1",
+        &serde_json::json!({
+            "tenantId": tenant_id,
+            "conversationId": conversation_id,
+            "messageId": message_id,
+            "messageSeq": message_seq,
+            "sender": {
+                "id": sender_id,
+                "kind": "user",
+                "memberId": member_id,
+                "deviceId": "d_demo",
+                "sessionId": "s_demo",
+                "metadata": {}
+            },
+            "messageType": "standard",
+            "deliveryMode": "discrete",
+            "clientMsgId": format!("client_{message_id}"),
+            "streamSessionId": null,
+            "rtcSessionId": null,
+            "body": {
+                "summary": summary,
+                "parts": [{"kind": "text", "text": summary}],
+                "renderHints": {}
+            },
+            "attributes": {},
+            "metadata": {},
+            "occurredAt": format!("2026-04-05T10:00:0{message_seq}Z"),
+            "committedAt": format!("2026-04-05T10:00:0{message_seq}Z")
+        })
+        .to_string(),
+    )
+}
+
 #[tokio::test]
 async fn test_public_app_exports_live_openapi_json() {
     let app = projection_service::build_public_app();
@@ -266,6 +317,7 @@ async fn test_timeline_query_returns_projected_messages() {
                 .uri("/api/v1/conversations/c_demo/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -292,6 +344,7 @@ async fn test_timeline_query_returns_projected_messages() {
                 .uri("/api/v1/conversations/c_demo")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -318,12 +371,140 @@ async fn test_timeline_query_returns_projected_messages() {
                 .uri("/api/v1/conversations/c_demo/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_intruder")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
         .await
         .expect("forbidden timeline request should succeed");
     assert_eq!(forbidden_timeline_response.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn test_timeline_http_returns_bounded_cursor_window() {
+    let service = projection_service::TimelineProjectionService::default();
+
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_member",
+                "t_demo",
+                "conversation.member_joined",
+                "conversation",
+                "c_timeline_page",
+                1,
+            )
+            .with_payload(
+                "conversation.member.v1",
+                r#"{
+                    "tenantId":"t_demo",
+                    "conversationId":"c_timeline_page",
+                    "memberId":"cm_demo",
+                    "principalId":"u_demo",
+                    "principalKind":"user",
+                    "role":"owner",
+                    "state":"joined",
+                    "invitedBy":null,
+                    "joinedAt":"2026-04-05T10:00:00Z",
+                    "removedAt":null,
+                    "attributes":{}
+                }"#,
+            ),
+        )
+        .expect("member projection should succeed");
+    for seq in 1..=3 {
+        service
+            .apply(&timeline_message_posted_event(
+                "t_demo",
+                "c_timeline_page",
+                &format!("m_page_{seq}"),
+                seq,
+                "u_demo",
+                "cm_demo",
+                &format!("message {seq}"),
+            ))
+            .expect("message projection should succeed");
+    }
+
+    let app = projection_service::build_app(std::sync::Arc::new(service));
+
+    let first_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/conversations/c_timeline_page/messages?afterSeq=0&limit=2")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("first timeline request should succeed");
+    assert_eq!(first_response.status(), StatusCode::OK);
+    let first_body = first_response
+        .into_body()
+        .collect()
+        .await
+        .expect("first body should collect")
+        .to_bytes();
+    let first_value: serde_json::Value =
+        serde_json::from_slice(&first_body).expect("first page should be valid json");
+    assert_eq!(first_value["items"].as_array().unwrap().len(), 2);
+    assert_eq!(first_value["items"][0]["messageSeq"], 1);
+    assert_eq!(first_value["items"][1]["messageSeq"], 2);
+    assert_eq!(first_value["nextAfterSeq"], 2);
+    assert_eq!(first_value["hasMore"], true);
+
+    let second_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/conversations/c_timeline_page/messages?afterSeq=2&limit=2")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("second timeline request should succeed");
+    assert_eq!(second_response.status(), StatusCode::OK);
+    let second_body = second_response
+        .into_body()
+        .collect()
+        .await
+        .expect("second body should collect")
+        .to_bytes();
+    let second_value: serde_json::Value =
+        serde_json::from_slice(&second_body).expect("second page should be valid json");
+    assert_eq!(second_value["items"].as_array().unwrap().len(), 1);
+    assert_eq!(second_value["items"][0]["messageSeq"], 3);
+    assert_eq!(second_value["nextAfterSeq"], 3);
+    assert_eq!(second_value["hasMore"], false);
+
+    let invalid_limit_response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/conversations/c_timeline_page/messages?afterSeq=0&limit=0")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("invalid limit request should complete");
+    assert_eq!(invalid_limit_response.status(), StatusCode::BAD_REQUEST);
+    let invalid_body = invalid_limit_response
+        .into_body()
+        .collect()
+        .await
+        .expect("invalid body should collect")
+        .to_bytes();
+    let invalid_value: serde_json::Value =
+        serde_json::from_slice(&invalid_body).expect("invalid response should be valid json");
+    assert_eq!(invalid_value["code"], "limit_invalid");
 }
 
 #[tokio::test]
@@ -496,6 +677,7 @@ async fn test_read_cursor_query_returns_projected_cursor_view() {
                     "conversationId":"c_cursor",
                     "memberId":"cm_demo",
                     "principalId":"u_demo",
+                    "principalKind":"user",
                     "readSeq":1,
                     "lastReadMessageId":"m_demo_1",
                     "updatedAt":"2026-04-05T10:00:10Z"
@@ -511,6 +693,7 @@ async fn test_read_cursor_query_returns_projected_cursor_view() {
                 .uri("/api/v1/conversations/c_cursor/read-cursor")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -622,6 +805,7 @@ async fn test_inbox_query_returns_projected_entries() {
                 .uri("/api/v1/inbox")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -656,6 +840,7 @@ async fn test_device_sync_feed_query_returns_registered_device_entries() {
                 .uri("/api/v1/devices/register")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"deviceId":"d_phone"}"#))
@@ -702,6 +887,7 @@ async fn test_device_sync_feed_query_returns_registered_device_entries() {
                 .uri("/api/v1/devices/register")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"deviceId":"d_pad"}"#))
@@ -750,6 +936,7 @@ async fn test_device_sync_feed_query_returns_registered_device_entries() {
                 .uri("/api/v1/devices/d_pad/sync-feed?afterSeq=0")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .body(Body::empty())
                 .unwrap(),
@@ -773,6 +960,186 @@ async fn test_device_sync_feed_query_returns_registered_device_entries() {
 }
 
 #[tokio::test]
+async fn test_device_sync_feed_http_returns_bounded_cursor_window() {
+    let service = std::sync::Arc::new(projection_service::TimelineProjectionService::default());
+    let app = projection_service::build_app(service.clone());
+
+    for device_id in ["d_phone", "d_pad"] {
+        let register = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/devices/register")
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "u_demo")
+                    .header("x-actor-kind", "user")
+                    .header("x-device-id", device_id)
+                    .header("content-type", "application/json")
+                    .body(Body::from(format!(r#"{{"deviceId":"{device_id}"}}"#)))
+                    .unwrap(),
+            )
+            .await
+            .expect("device registration should succeed");
+        assert_eq!(register.status(), StatusCode::OK);
+    }
+
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_sync_page_member",
+                "t_demo",
+                "conversation.member_joined",
+                "conversation",
+                "c_sync_page_http",
+                1,
+            )
+            .with_payload(
+                "conversation.member.v1",
+                r#"{
+                    "tenantId":"t_demo",
+                    "conversationId":"c_sync_page_http",
+                    "memberId":"cm_demo",
+                    "principalId":"u_demo",
+                    "principalKind":"user",
+                    "role":"owner",
+                    "state":"joined",
+                    "invitedBy":null,
+                    "joinedAt":"2026-04-05T10:00:00Z",
+                    "removedAt":null,
+                    "attributes":{}
+                }"#,
+            ),
+        )
+        .expect("member projection should succeed");
+
+    for seq in 1..=2 {
+        service
+            .apply(&timeline_message_posted_event(
+                "t_demo",
+                "c_sync_page_http",
+                &format!("msg_sync_page_{seq}"),
+                seq,
+                "u_demo",
+                "cm_demo",
+                &format!("sync page {seq}"),
+            ))
+            .expect("message projection should succeed");
+    }
+
+    let first = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/devices/d_pad/sync-feed?afterSeq=0&limit=1")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .header("x-device-id", "d_pad")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("first sync-feed page should return response");
+    assert_eq!(first.status(), StatusCode::OK);
+    let first_body = first
+        .into_body()
+        .collect()
+        .await
+        .expect("first sync-feed page body should collect")
+        .to_bytes();
+    let first_json: serde_json::Value =
+        serde_json::from_slice(&first_body).expect("first sync-feed page should be json");
+    assert_eq!(first_json["items"].as_array().unwrap().len(), 1);
+    assert_eq!(first_json["items"][0]["syncSeq"], 1);
+    assert_eq!(first_json["nextAfterSeq"], 1);
+    assert_eq!(first_json["hasMore"], true);
+    assert_eq!(first_json["trimmedThroughSeq"], 0);
+
+    let second = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/devices/d_pad/sync-feed?afterSeq=1&limit=1")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .header("x-device-id", "d_pad")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("second sync-feed page should return response");
+    assert_eq!(second.status(), StatusCode::OK);
+    let second_body = second
+        .into_body()
+        .collect()
+        .await
+        .expect("second sync-feed page body should collect")
+        .to_bytes();
+    let second_json: serde_json::Value =
+        serde_json::from_slice(&second_body).expect("second sync-feed page should be json");
+    assert_eq!(second_json["items"].as_array().unwrap().len(), 1);
+    assert_eq!(second_json["items"][0]["syncSeq"], 2);
+    assert_eq!(second_json["nextAfterSeq"], 2);
+    assert_eq!(second_json["hasMore"], true);
+    assert_eq!(second_json["trimmedThroughSeq"], 0);
+
+    let third = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/devices/d_pad/sync-feed?afterSeq=2&limit=1")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .header("x-device-id", "d_pad")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("third sync-feed page should return response");
+    assert_eq!(third.status(), StatusCode::OK);
+    let third_body = third
+        .into_body()
+        .collect()
+        .await
+        .expect("third sync-feed page body should collect")
+        .to_bytes();
+    let third_json: serde_json::Value =
+        serde_json::from_slice(&third_body).expect("third sync-feed page should be json");
+    assert_eq!(third_json["items"].as_array().unwrap().len(), 1);
+    assert_eq!(third_json["items"][0]["syncSeq"], 3);
+    assert_eq!(third_json["nextAfterSeq"], 3);
+    assert_eq!(third_json["hasMore"], false);
+    assert_eq!(third_json["trimmedThroughSeq"], 0);
+
+    let invalid = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/devices/d_pad/sync-feed?afterSeq=0&limit=0")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .header("x-device-id", "d_pad")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("invalid sync-feed limit should return response");
+    assert_eq!(invalid.status(), StatusCode::BAD_REQUEST);
+    let invalid_body = invalid
+        .into_body()
+        .collect()
+        .await
+        .expect("invalid sync-feed body should collect")
+        .to_bytes();
+    let invalid_json: serde_json::Value =
+        serde_json::from_slice(&invalid_body).expect("invalid sync-feed body should be json");
+    assert_eq!(invalid_json["code"], "limit_invalid");
+}
+
+#[tokio::test]
 async fn test_device_registration_returns_advancing_registered_at() {
     let service = std::sync::Arc::new(projection_service::TimelineProjectionService::default());
     let app = projection_service::build_app(service);
@@ -785,6 +1152,7 @@ async fn test_device_registration_returns_advancing_registered_at() {
                 .uri("/api/v1/devices/register")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"deviceId":"d_phone"}"#))
@@ -815,6 +1183,7 @@ async fn test_device_registration_returns_advancing_registered_at() {
                 .uri("/api/v1/devices/register")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"deviceId":"d_pad"}"#))
@@ -855,6 +1224,7 @@ async fn test_device_registration_rejects_same_device_id_with_different_actor_ki
                 .uri("/api/v1/devices/register")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body.clone()))
@@ -908,6 +1278,7 @@ async fn test_device_registration_rejects_same_device_id_with_different_principa
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner_a")
                 .header("x-actor-kind", "user")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body.clone()))
                 .unwrap(),
@@ -923,6 +1294,7 @@ async fn test_device_registration_rejects_same_device_id_with_different_principa
                 .uri("/api/v1/devices/register")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner_b")
+                .header("x-actor-kind", "user")
                 .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
@@ -985,6 +1357,7 @@ async fn test_device_sync_feed_isolated_by_actor_kind_over_http() {
                 .uri("/api/v1/devices/register")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"deviceId":"d_user_kind_guard"}"#))
@@ -1052,6 +1425,7 @@ async fn test_device_sync_feed_isolated_by_actor_kind_over_http() {
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
                 .header("x-actor-kind", "user")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1111,6 +1485,7 @@ async fn test_register_device_rejects_oversized_device_id_over_http() {
                 .uri("/api/v1/devices/register")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -1150,6 +1525,7 @@ async fn test_device_sync_feed_rejects_oversized_device_id_over_http() {
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1187,6 +1563,7 @@ async fn test_timeline_query_rejects_oversized_conversation_id_over_http() {
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1253,6 +1630,7 @@ async fn test_interaction_summary_rejects_oversized_message_id_over_http() {
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1344,6 +1722,7 @@ async fn test_member_directory_query_returns_projected_members() {
                 .uri("/api/v1/conversations/c_directory/member-directory")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1406,6 +1785,7 @@ async fn test_contacts_query_returns_friendship_projection_with_direct_chat_enri
                 .uri("/api/v1/contacts")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1618,6 +1998,7 @@ async fn test_interaction_summary_and_pins_query_return_projected_reaction_and_p
                 .uri("/api/v1/conversations/c_interaction_http/messages/msg_c_interaction_http_1/interaction-summary")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                    .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1651,6 +2032,7 @@ async fn test_interaction_summary_and_pins_query_return_projected_reaction_and_p
                 .uri("/api/v1/conversations/c_interaction_http/pins")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_member")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )

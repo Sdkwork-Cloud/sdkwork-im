@@ -101,6 +101,24 @@ pub fn format_runtime_dir_restore_preview(view: &RuntimeDirRestorePreviewView) -
                         format_change_keys(domain_summary.other_modified_keys.as_slice()),
                         domain_summary.unchanged_key_count
                     ));
+                } else if domain_summary.summary_kind == "realtime_event_windows" {
+                    lines.push(format!(
+                        "  event-window-diff: +{} -{} trimmed_advanced={} trimmed_rewound={} capacity_trimmed_advanced={} capacity_trimmed_rewound={} capacity_trimmed_timestamp_only={} updated_at_only={} other_modified={} unchanged={}",
+                        format_change_keys(domain_summary.added_keys.as_slice()),
+                        format_change_keys(domain_summary.removed_keys.as_slice()),
+                        format_optional_change_keys(domain_summary.trimmed_advanced_keys.as_ref()),
+                        format_optional_change_keys(domain_summary.trimmed_rewound_keys.as_ref()),
+                        format_optional_change_keys(domain_summary.capacity_trimmed_advanced_keys.as_ref()),
+                        format_optional_change_keys(domain_summary.capacity_trimmed_rewound_keys.as_ref()),
+                        format_optional_change_keys(
+                            domain_summary
+                                .capacity_trimmed_timestamp_changed_keys
+                                .as_ref()
+                        ),
+                        format_optional_change_keys(domain_summary.timestamp_only_changed_keys.as_ref()),
+                        format_change_keys(domain_summary.other_modified_keys.as_slice()),
+                        domain_summary.unchanged_key_count
+                    ));
                 } else if domain_summary.summary_kind == "realtime_subscriptions" {
                     lines.push(format!(
                         "  subscription-diff: +{} -{} scope_added={} scope_removed={} event_types_added={} event_types_removed={} subscribed_at_only={} synced_timestamp_only={} other_modified={} unchanged={} unchanged_scopes={}",

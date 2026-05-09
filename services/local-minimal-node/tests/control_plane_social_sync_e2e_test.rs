@@ -113,6 +113,7 @@ async fn test_local_minimal_profile_control_plane_shared_channel_auto_sync_mater
                 .uri("/api/v1/control/social/external-connections")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -138,6 +139,7 @@ async fn test_local_minimal_profile_control_plane_shared_channel_auto_sync_mater
                 .uri("/api/v1/control/social/shared-channel-policies")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -166,6 +168,7 @@ async fn test_local_minimal_profile_control_plane_shared_channel_auto_sync_mater
                 .uri("/api/v1/control/social/external-member-links")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -192,6 +195,7 @@ async fn test_local_minimal_profile_control_plane_shared_channel_auto_sync_mater
                 .uri("/api/v1/conversations/c_history_shared_local/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_partner_local")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )

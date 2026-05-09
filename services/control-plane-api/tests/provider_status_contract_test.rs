@@ -29,6 +29,7 @@ async fn request_status(app: Router, expectation: &StatusExpectation<'_>) -> (St
     }
     if let Some(user_id) = expectation.user_id {
         request = request.header("x-user-id", user_id);
+        request = request.header("x-actor-kind", "user");
     }
     if let Some(permission) = expectation.permission {
         request = request.header("x-permissions", permission);

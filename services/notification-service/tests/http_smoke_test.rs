@@ -70,6 +70,7 @@ async fn test_request_and_query_notifications_over_http() {
                 .uri("/api/v1/notifications/requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -79,6 +80,7 @@ async fn test_request_and_query_notifications_over_http() {
                         "category":"message.new",
                         "channel":"inapp",
                         "recipientId":"u_target",
+        "recipientKind":"user",
                         "title":"New message",
                         "body":"hello",
                         "payload":"{\"conversationId\":\"c_demo\"}"
@@ -107,6 +109,7 @@ async fn test_request_and_query_notifications_over_http() {
                 .uri("/api/v1/notifications")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_target")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -130,6 +133,7 @@ async fn test_request_and_query_notifications_over_http() {
                 .uri("/api/v1/notifications/ntf_http_demo")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_target")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -154,6 +158,7 @@ async fn test_request_and_query_notifications_over_http() {
                 .uri("/api/v1/notifications")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -183,6 +188,7 @@ async fn test_request_and_query_notifications_over_http() {
                 .uri("/api/v1/notifications/ntf_http_demo")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -213,6 +219,7 @@ async fn test_notification_queries_reject_same_actor_id_with_different_actor_kin
                         "category":"message.new",
                         "channel":"inapp",
                         "recipientId":"u_demo",
+        "recipientKind":"user",
                         "title":"New message",
                         "body":"hello",
                         "payload":"{\"conversationId\":\"c_demo\"}"
@@ -310,6 +317,7 @@ async fn test_duplicate_notification_id_is_idempotent_and_conflicting_retry_is_r
                 .uri("/api/v1/notifications/requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -319,6 +327,7 @@ async fn test_duplicate_notification_id_is_idempotent_and_conflicting_retry_is_r
                         "category":"message.new",
                         "channel":"inapp",
                         "recipientId":"u_demo",
+        "recipientKind":"user",
                         "title":"New message",
                         "body":"hello",
                         "payload":"{\"conversationId\":\"c_demo\"}"
@@ -357,6 +366,7 @@ async fn test_duplicate_notification_id_is_idempotent_and_conflicting_retry_is_r
                 .uri("/api/v1/notifications/requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -366,6 +376,7 @@ async fn test_duplicate_notification_id_is_idempotent_and_conflicting_retry_is_r
                         "category":"message.new",
                         "channel":"inapp",
                         "recipientId":"u_demo",
+        "recipientKind":"user",
                         "title":"New message",
                         "body":"hello",
                         "payload":"{\"conversationId\":\"c_demo\"}"
@@ -397,6 +408,7 @@ async fn test_duplicate_notification_id_is_idempotent_and_conflicting_retry_is_r
                 .uri("/api/v1/notifications/requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -406,6 +418,7 @@ async fn test_duplicate_notification_id_is_idempotent_and_conflicting_retry_is_r
                         "category":"message.new",
                         "channel":"inapp",
                         "recipientId":"u_other",
+        "recipientKind":"user",
                         "title":"Changed message",
                         "body":"different",
                         "payload":"{\"conversationId\":\"c_other\"}"
@@ -440,6 +453,7 @@ async fn test_duplicate_notification_request_from_different_principal_keeps_stab
                 .uri("/api/v1/notifications/requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_first")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -449,6 +463,7 @@ async fn test_duplicate_notification_request_from_different_principal_keeps_stab
                         "category":"message.new",
                         "channel":"inapp",
                         "recipientId":"u_target",
+        "recipientKind":"user",
                         "title":"New message",
                         "body":"hello",
                         "payload":"{\"conversationId\":\"c_demo\"}"
@@ -476,6 +491,7 @@ async fn test_duplicate_notification_request_from_different_principal_keeps_stab
                 .uri("/api/v1/notifications/requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_second")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -485,6 +501,7 @@ async fn test_duplicate_notification_request_from_different_principal_keeps_stab
                         "category":"message.new",
                         "channel":"inapp",
                         "recipientId":"u_target",
+        "recipientKind":"user",
                         "title":"New message",
                         "body":"hello",
                         "payload":"{\"conversationId\":\"c_demo\"}"
@@ -519,6 +536,7 @@ async fn test_request_notification_rejects_oversized_payload_over_http() {
         "category":"message.new",
         "channel":"inapp",
         "recipientId":"u_demo",
+        "recipientKind":"user",
         "title":"New message",
         "body":"hello",
         "payload": oversized_payload
@@ -531,6 +549,7 @@ async fn test_request_notification_rejects_oversized_payload_over_http() {
                 .uri("/api/v1/notifications/requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -552,6 +571,7 @@ async fn test_request_notification_rejects_oversized_notification_id_over_http()
         "category":"message.new",
         "channel":"inapp",
         "recipientId":"u_demo",
+        "recipientKind":"user",
         "title":"New message",
         "body":"hello",
         "payload":"{\"conversationId\":\"c_demo\"}"
@@ -564,6 +584,7 @@ async fn test_request_notification_rejects_oversized_notification_id_over_http()
                 .uri("/api/v1/notifications/requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -585,6 +606,7 @@ async fn test_list_notifications_returns_newest_first_with_distinct_timestamps()
                 .uri("/api/v1/notifications/requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -594,6 +616,7 @@ async fn test_list_notifications_returns_newest_first_with_distinct_timestamps()
                         "category":"message.new",
                         "channel":"inapp",
                         "recipientId":"u_demo",
+        "recipientKind":"user",
                         "title":"First message",
                         "body":"first",
                         "payload":"{\"conversationId\":\"c_first\"}"
@@ -623,6 +646,7 @@ async fn test_list_notifications_returns_newest_first_with_distinct_timestamps()
                 .uri("/api/v1/notifications/requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -632,6 +656,7 @@ async fn test_list_notifications_returns_newest_first_with_distinct_timestamps()
                         "category":"message.new",
                         "channel":"inapp",
                         "recipientId":"u_demo",
+        "recipientKind":"user",
                         "title":"Second message",
                         "body":"second",
                         "payload":"{\"conversationId\":\"c_second\"}"
@@ -666,6 +691,7 @@ async fn test_list_notifications_returns_newest_first_with_distinct_timestamps()
                 .uri("/api/v1/notifications")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )

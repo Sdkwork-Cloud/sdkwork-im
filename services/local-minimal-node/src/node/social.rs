@@ -246,7 +246,7 @@ pub(super) async fn accept_friend_request(
                 parse_json_field(&response_value, "friendRequest")?
             }
             Err(error) => {
-                if error.code == "friend_request_not_pending"
+                if is_converged_friend_request_mutation_conflict(error.code)
                     && let Some(latest_friend_request) =
                         reconcile_accept_friend_request_after_not_pending(
                             &state,
@@ -1348,7 +1348,7 @@ async fn repair_pending_friend_request_acceptance(
             {
                 Ok(response) => response,
                 Err(error) => {
-                    if error.code == "friend_request_not_pending"
+                    if is_converged_friend_request_mutation_conflict(error.code)
                         && recover_pending_friend_request_accept_repair_after_not_pending(
                             state, &auth, repair,
                         )
@@ -1776,6 +1776,13 @@ fn is_terminal_friend_request_accept_repair_error(error: &ApiError) -> bool {
                 | "friendship_not_active"
                 | "direct_chat_not_active"
         )
+}
+
+fn is_converged_friend_request_mutation_conflict(code: &str) -> bool {
+    matches!(
+        code,
+        "friend_request_not_pending" | "social_event_id_conflict"
+    )
 }
 
 async fn maybe_clear_terminal_friend_request_accept_repair_error(

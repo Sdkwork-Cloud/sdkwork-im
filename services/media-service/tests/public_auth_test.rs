@@ -35,6 +35,7 @@ fn demo_bearer() -> String {
     bearer(json!({
         "tenant_id": "t_demo",
         "sub": "u_demo",
+        "actor_kind": "user",
         "sid": "s_demo"
     }))
 }
@@ -43,6 +44,7 @@ fn owner_bearer() -> String {
     bearer(json!({
         "tenant_id": "t_demo",
         "sub": "u_owner",
+        "actor_kind": "user",
         "sid": "s_owner"
     }))
 }
@@ -59,6 +61,7 @@ async fn test_public_app_rejects_trusted_headers_for_media_upload() {
                 .uri("/api/v1/media/uploads")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{

@@ -5,48 +5,60 @@ use im_time::utc_now_rfc3339_millis;
 pub(super) struct DevicePrincipalScopeKey {
     pub(super) tenant_id: String,
     pub(super) principal_id: String,
-    pub(super) principal_kind: Option<String>,
+    pub(super) principal_kind: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub(super) struct DeviceFeedScopeKey {
     pub(super) tenant_id: String,
     pub(super) principal_id: String,
-    pub(super) principal_kind: Option<String>,
+    pub(super) principal_kind: String,
     pub(super) device_id: String,
 }
 
-pub(super) fn scope_key(tenant_id: &str, conversation_id: &str) -> String {
-    format!("{tenant_id}:{conversation_id}")
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub(super) struct ContactOwnerScopeKey {
+    pub(super) tenant_id: String,
+    pub(super) owner_user_id: String,
 }
 
-pub(super) fn principal_scope_key(tenant_id: &str, principal_id: &str) -> String {
-    format!("{tenant_id}:{principal_id}")
+pub(super) fn scope_key(tenant_id: &str, conversation_id: &str) -> String {
+    encode_projection_key_segments([tenant_id, conversation_id])
 }
 
 pub(super) fn device_principal_scope_key(
     tenant_id: &str,
     principal_id: &str,
-    principal_kind: Option<&str>,
+    principal_kind: &str,
 ) -> DevicePrincipalScopeKey {
     DevicePrincipalScopeKey {
         tenant_id: tenant_id.into(),
         principal_id: principal_id.into(),
-        principal_kind: principal_kind.map(str::to_owned),
+        principal_kind: principal_kind.into(),
     }
 }
 
 pub(super) fn device_feed_scope_key(
     tenant_id: &str,
     principal_id: &str,
-    principal_kind: Option<&str>,
+    principal_kind: &str,
     device_id: &str,
 ) -> DeviceFeedScopeKey {
     DeviceFeedScopeKey {
         tenant_id: tenant_id.into(),
         principal_id: principal_id.into(),
-        principal_kind: principal_kind.map(str::to_owned),
+        principal_kind: principal_kind.into(),
         device_id: device_id.into(),
+    }
+}
+
+pub(super) fn contact_owner_scope_key(
+    tenant_id: &str,
+    owner_user_id: &str,
+) -> ContactOwnerScopeKey {
+    ContactOwnerScopeKey {
+        tenant_id: tenant_id.into(),
+        owner_user_id: owner_user_id.into(),
     }
 }
 
@@ -80,4 +92,16 @@ pub(super) fn tracked_live_projection_lag_scope_id(event: &CommitEnvelope) -> Op
     } else {
         None
     }
+}
+
+pub(super) fn encode_projection_key_segments<'a>(
+    segments: impl IntoIterator<Item = &'a str>,
+) -> String {
+    let mut encoded = String::new();
+    for segment in segments {
+        encoded.push_str(segment.len().to_string().as_str());
+        encoded.push('#');
+        encoded.push_str(segment);
+    }
+    encoded
 }

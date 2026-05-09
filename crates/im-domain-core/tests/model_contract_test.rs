@@ -12,7 +12,8 @@ use im_domain_core::message::{
     CRAW_CHAT_MESSAGE_SCHEMA_CARD, CRAW_CHAT_MESSAGE_SCHEMA_CONTACT, CRAW_CHAT_MESSAGE_SCHEMA_LINK,
     CRAW_CHAT_MESSAGE_SCHEMA_LOCATION, CRAW_CHAT_MESSAGE_SCHEMA_MUSIC,
     CRAW_CHAT_MESSAGE_SCHEMA_STICKER, CRAW_CHAT_MESSAGE_SCHEMA_VOICE, ContentPart, DataPart,
-    MediaPart, Message, MessageBody, MessageEdited, MessageRecalled, MessageType, Sender,
+    MediaPart, Message, MessageBody, MessageEdited, MessageLocatorIndex, MessageRecalled,
+    MessageType, Sender,
 };
 use im_domain_core::realtime::{
     RealtimeAckState, RealtimeEvent, RealtimeEventWindow, RealtimeSubscription,
@@ -112,12 +113,23 @@ fn test_message_body_serializes_content_parts_with_expected_shape() {
 }
 
 #[test]
+fn test_message_locator_index_is_segment_safe_for_delimiter_bearing_ids() {
+    let mut index = MessageLocatorIndex::default();
+
+    index.register("tenant:a", "b", "c_left");
+    index.register("tenant", "a:b", "c_right");
+
+    assert_eq!(index.conversation_id("tenant:a", "b"), Some("c_left"));
+    assert_eq!(index.conversation_id("tenant", "a:b"), Some("c_right"));
+}
+
+#[test]
 fn test_stream_session_serializes_lifecycle_fields() {
     let session = StreamSession {
         tenant_id: "t_demo".into(),
         stream_id: "st_demo".into(),
-        owner_principal_id: Some("u_demo".into()),
-        owner_principal_kind: Some("user".into()),
+        owner_principal_id: "u_demo".into(),
+        owner_principal_kind: "user".into(),
         stream_type: "custom.delta.text".into(),
         scope_kind: "conversation".into(),
         scope_id: "c_demo".into(),
@@ -190,7 +202,7 @@ fn test_rtc_session_serializes_signal_binding_fields() {
         conversation_id: Some("c_demo".into()),
         rtc_mode: "voice".into(),
         initiator_id: "u_demo".into(),
-        initiator_kind: Some("user".into()),
+        initiator_kind: "user".into(),
         provider_plugin_id: Some("rtc-volcengine".into()),
         provider_session_id: Some("volcengine:rtc_demo".into()),
         access_endpoint: Some("wss://rtc.volcengine.local/session".into()),
@@ -210,10 +222,38 @@ fn test_rtc_session_serializes_signal_binding_fields() {
 }
 
 #[test]
+fn test_stream_and_rtc_session_identity_kind_fields_are_required() {
+    let stream_source = include_str!("../src/stream.rs");
+    let rtc_source = include_str!("../src/rtc.rs");
+
+    assert!(
+        stream_source.contains("pub owner_principal_id: String,")
+            && stream_source.contains("pub owner_principal_kind: String,"),
+        "stream sessions must persist an explicit owner principal id and kind"
+    );
+    assert!(
+        rtc_source.contains("pub initiator_kind: String,"),
+        "rtc sessions must persist an explicit initiator kind"
+    );
+
+    for forbidden_symbol in [
+        "pub owner_principal_id: Option<String>",
+        "pub owner_principal_kind: Option<String>",
+        "pub initiator_kind: Option<String>",
+    ] {
+        assert!(
+            !stream_source.contains(forbidden_symbol) && !rtc_source.contains(forbidden_symbol),
+            "session identity kind fields must not be optional: {forbidden_symbol}"
+        );
+    }
+}
+
+#[test]
 fn test_rtc_signal_event_serializes_signal_transport_shape() {
     let signal = RtcSignalEvent {
         tenant_id: "t_demo".into(),
         rtc_session_id: "rtc_demo".into(),
+        signal_seq: 1,
         conversation_id: Some("c_demo".into()),
         rtc_mode: "voice".into(),
         signal_type: "rtc.offer".into(),
@@ -234,6 +274,7 @@ fn test_rtc_signal_event_serializes_signal_transport_shape() {
     let value = serde_json::to_value(signal).expect("rtc signal event should serialize");
 
     assert_eq!(value["rtcSessionId"], Value::String("rtc_demo".into()));
+    assert_eq!(value["signalSeq"], Value::Number(1.into()));
     assert_eq!(value["signalType"], Value::String("rtc.offer".into()));
     assert_eq!(value["schemaRef"], Value::String("webrtc.offer.v1".into()));
     assert_eq!(value["sender"]["id"], Value::String("u_demo".into()));
@@ -360,6 +401,7 @@ fn test_conversation_read_cursor_serializes_cursor_shape() {
         conversation_id: "c_demo".into(),
         member_id: "cm_demo".into(),
         principal_id: "u_demo".into(),
+        principal_kind: "user".into(),
         read_seq: 12,
         last_read_message_id: Some("msg_c_demo_12".into()),
         updated_at: "2026-04-05T10:00:10Z".into(),
@@ -369,6 +411,7 @@ fn test_conversation_read_cursor_serializes_cursor_shape() {
 
     assert_eq!(value["memberId"], Value::String("cm_demo".into()));
     assert_eq!(value["principalId"], Value::String("u_demo".into()));
+    assert_eq!(value["principalKind"], Value::String("user".into()));
     assert_eq!(value["readSeq"], Value::Number(12.into()));
     assert_eq!(
         value["lastReadMessageId"],

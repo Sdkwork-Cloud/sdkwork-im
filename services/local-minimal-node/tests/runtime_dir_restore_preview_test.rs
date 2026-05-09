@@ -18,6 +18,19 @@ type DisconnectFenceSnapshotWithOptionsEntry<'a> = (
 );
 type RealtimeCheckpointSnapshotEntry<'a> =
     (&'a str, &'a str, &'a str, &'a str, u64, u64, u64, &'a str);
+type RealtimeEventWindowEventSnapshotEntry<'a> = (u64, &'a str, &'a str, &'a str, &'a str, &'a str);
+type RealtimeEventWindowSnapshotEntry<'a> = (
+    &'a str,
+    &'a str,
+    &'a str,
+    &'a str,
+    u64,
+    u64,
+    u64,
+    Option<&'a str>,
+    &'a str,
+    &'a [RealtimeEventWindowEventSnapshotEntry<'a>],
+);
 type RealtimeSubscriptionItemSnapshotEntry<'a> = (&'a str, &'a str, &'a [&'a str], &'a str);
 type RealtimeSubscriptionSnapshotEntry<'a> = (
     &'a str,
@@ -48,15 +61,14 @@ fn write_state_file(root: &Path, file_name: &str, content: &str) {
 }
 
 fn write_full_backup_snapshot(root: &Path, owner_node_id: &str) {
-    write_state_file(root, "commit-journal.json", "[]\n");
+    write_state_file(root, "commit-journal.json", "");
     for file_name in [
         "realtime-checkpoints.json",
+        "realtime-event-windows.json",
         "realtime-subscriptions.json",
-        "presence-state.json",
         "device-twin-state.json",
         "stream-state.json",
         "rtc-state.json",
-        "notification-tasks.json",
         "automation-executions.json",
         "projection-metadata.json",
         "projection-timeline.json",
@@ -65,15 +77,27 @@ fn write_full_backup_snapshot(root: &Path, owner_node_id: &str) {
     }
     write_state_file(
         root,
+        "presence-state.json",
+        "{\"by_device\":{},\"presence_by_principal\":{},\"online_by_seen_at\":{}}\n",
+    );
+    write_state_file(
+        root,
+        "notification-tasks.json",
+        "{\"by_notification\":{},\"tasks_by_recipient\":{}}\n",
+    );
+    write_state_file(
+        root,
         "realtime-disconnect-fences.json",
         serde_json::to_string_pretty(&json!({
             "t_demo:u_demo:d_demo": {
                 "tenant_id": "t_demo",
+                "principal_kind": "user",
                 "principal_id": "u_demo",
                 "device_id": "d_demo",
                 "session_id": "s_demo",
                 "owner_node_id": owner_node_id,
-                "disconnected_at": "2026-04-06T00:00:00.000Z"
+                "disconnected_at": "2026-04-06T00:00:00.000Z",
+                "fence_token": format!("fence:t_demo:user:u_demo:d_demo:s_demo:{owner_node_id}:2026-04-06T00:00:00.000Z")
             }
         }))
         .expect("disconnect fence snapshot should serialize")
@@ -88,11 +112,13 @@ fn disconnect_fence_snapshot(entries: &[(&str, &str, &str, &str, &str, &str)]) -
             (*key).into(),
             json!({
                 "tenant_id": tenant_id,
+                "principal_kind": "user",
                 "principal_id": principal_id,
                 "device_id": device_id,
                 "session_id": session_id,
                 "owner_node_id": owner_node_id,
-                "disconnected_at": "2026-04-06T00:00:00.000Z"
+                "disconnected_at": "2026-04-06T00:00:00.000Z",
+                "fence_token": format!("fence:{tenant_id}:user:{principal_id}:{device_id}:{session_id}:{owner_node_id}:2026-04-06T00:00:00.000Z")
             }),
         );
     }
@@ -111,11 +137,21 @@ fn disconnect_fence_snapshot_with_options(
             (*key).into(),
             json!({
                 "tenant_id": tenant_id,
+                "principal_kind": "user",
                 "principal_id": principal_id,
                 "device_id": device_id,
                 "session_id": session_id,
                 "owner_node_id": owner_node_id,
-                "disconnected_at": disconnected_at
+                "disconnected_at": disconnected_at,
+                "fence_token": format!(
+                    "fence:{}:user:{}:{}:{}:{}:{}",
+                    tenant_id,
+                    principal_id,
+                    device_id,
+                    session_id.unwrap_or("none"),
+                    owner_node_id,
+                    disconnected_at
+                )
             }),
         );
     }
@@ -142,6 +178,7 @@ fn realtime_checkpoint_snapshot_with_options(
             (*key).into(),
             json!({
                 "tenant_id": tenant_id,
+                "principal_kind": "user",
                 "principal_id": principal_id,
                 "device_id": device_id,
                 "latest_realtime_seq": latest_realtime_seq,
@@ -153,6 +190,62 @@ fn realtime_checkpoint_snapshot_with_options(
     }
     serde_json::to_string_pretty(&serde_json::Value::Object(snapshot))
         .expect("checkpoint snapshot should serialize")
+}
+
+fn realtime_event_window_snapshot_with_options(
+    entries: &[RealtimeEventWindowSnapshotEntry<'_>],
+) -> String {
+    let mut snapshot = serde_json::Map::new();
+    for (
+        key,
+        tenant_id,
+        principal_id,
+        device_id,
+        trimmed_through_seq,
+        capacity_trimmed_event_count,
+        capacity_trimmed_through_seq,
+        last_capacity_trimmed_at,
+        updated_at,
+        events,
+    ) in entries
+    {
+        let serialized_events = events
+            .iter()
+            .map(
+                |(realtime_seq, scope_type, scope_id, event_type, payload, occurred_at)| {
+                    json!({
+                        "tenantId": tenant_id,
+                        "principalId": principal_id,
+                        "deviceId": device_id,
+                        "realtimeSeq": realtime_seq,
+                        "scopeType": scope_type,
+                        "scopeId": scope_id,
+                        "eventType": event_type,
+                        "deliveryClass": "realtime",
+                        "payload": payload,
+                        "occurredAt": occurred_at
+                    })
+                },
+            )
+            .collect::<Vec<_>>();
+        snapshot.insert(
+            (*key).into(),
+            json!({
+                "tenant_id": tenant_id,
+                "principal_kind": "user",
+                "principal_id": principal_id,
+                "device_id": device_id,
+                "events": serialized_events,
+                "trimmed_through_seq": trimmed_through_seq,
+                "capacity_trimmed_event_count": capacity_trimmed_event_count,
+                "capacity_trimmed_through_seq": capacity_trimmed_through_seq,
+                "last_capacity_trimmed_at": last_capacity_trimmed_at,
+                "updated_at": updated_at
+            }),
+        );
+    }
+    serde_json::to_string_pretty(&serde_json::Value::Object(snapshot))
+        .expect("event window snapshot should serialize")
 }
 
 fn realtime_subscription_snapshot_with_options(
@@ -175,6 +268,7 @@ fn realtime_subscription_snapshot_with_options(
             (*key).into(),
             json!({
                 "tenant_id": tenant_id,
+                "principal_kind": "user",
                 "principal_id": principal_id,
                 "device_id": device_id,
                 "items": serialized_items,
@@ -332,10 +426,12 @@ fn rtc_state_snapshot_with_options(entries: &[RtcStateSnapshotEntry<'_>]) -> Str
     for (key, tenant_id, rtc_session_id, session, signals, updated_at) in entries {
         let serialized_signals = signals
             .iter()
-            .map(|signal| {
+            .enumerate()
+            .map(|(index, signal)| {
                 json!({
                     "tenantId": tenant_id,
                     "rtcSessionId": rtc_session_id,
+                    "signalSeq": index + 1,
                     "conversationId": session.conversation_id,
                     "rtcMode": session.rtc_mode,
                     "signalType": signal.signal_type,
@@ -395,11 +491,13 @@ fn test_preview_restore_runtime_dir_reports_ready_without_mutation_for_full_snap
         serde_json::to_string_pretty(&json!({
             "t_demo:u_demo:d_demo": {
                 "tenant_id": "t_demo",
+                "principal_kind": "user",
                 "principal_id": "u_demo",
                 "device_id": "d_demo",
                 "session_id": "s_demo",
                 "owner_node_id": "node_current",
-                "disconnected_at": "2026-04-06T00:00:00.000Z"
+                "disconnected_at": "2026-04-06T00:00:00.000Z",
+                "fence_token": "fence:t_demo:user:u_demo:d_demo:s_demo:node_current:2026-04-06T00:00:00.000Z"
             }
         }))
         .expect("current fence snapshot should serialize")
@@ -417,10 +515,10 @@ fn test_preview_restore_runtime_dir_reports_ready_without_mutation_for_full_snap
 
     assert_eq!(preview.status, "ready");
     assert_eq!(preview.source_snapshot_quality, "full_snapshot");
-    assert_eq!(preview.source_managed_file_count, 12);
+    assert_eq!(preview.source_managed_file_count, 13);
     assert_eq!(preview.source_missing_file_count, 0);
     assert_eq!(preview.would_restore_file_count, 1);
-    assert_eq!(preview.unchanged_file_count, 11);
+    assert_eq!(preview.unchanged_file_count, 12);
     assert_eq!(preview.skipped_file_count, 0);
     assert_eq!(preview.before.status, "ok");
     assert_eq!(preview.source_report_type, None);
@@ -479,8 +577,12 @@ fn test_preview_restore_runtime_dir_reports_partial_for_sparse_snapshot() {
         .expect("notification task file should be removed");
 
     let backup_dir = unique_path("runtime_dir_preview_restore_partial_backup");
-    write_state_file(backup_dir.as_path(), "commit-journal.json", "[]\n");
-    write_state_file(backup_dir.as_path(), "notification-tasks.json", "{}\n");
+    write_state_file(backup_dir.as_path(), "commit-journal.json", "");
+    write_state_file(
+        backup_dir.as_path(),
+        "notification-tasks.json",
+        "{\"by_notification\":{},\"tasks_by_recipient\":{}}\n",
+    );
     fs::write(
         backup_dir.join("restore-report.json"),
         serde_json::to_string_pretty(&json!({
@@ -500,10 +602,10 @@ fn test_preview_restore_runtime_dir_reports_partial_for_sparse_snapshot() {
     assert_eq!(preview.status, "partial");
     assert_eq!(preview.source_snapshot_quality, "partial_snapshot");
     assert_eq!(preview.source_managed_file_count, 2);
-    assert_eq!(preview.source_missing_file_count, 10);
+    assert_eq!(preview.source_missing_file_count, 11);
     assert_eq!(preview.would_restore_file_count, 1);
     assert_eq!(preview.unchanged_file_count, 1);
-    assert_eq!(preview.skipped_file_count, 10);
+    assert_eq!(preview.skipped_file_count, 11);
     assert_eq!(preview.before.status, "degraded");
     assert_eq!(preview.source_report_type.as_deref(), Some("restore"));
     assert_eq!(preview.source_report_status.as_deref(), Some("partial"));
@@ -546,11 +648,13 @@ fn test_preview_restore_runtime_dir_tracks_projection_snapshot_files() {
         serde_json::to_string_pretty(&json!({
             "t_demo:u_demo:d_demo": {
                 "tenant_id": "t_demo",
+                "principal_kind": "user",
                 "principal_id": "u_demo",
                 "device_id": "d_demo",
                 "session_id": "s_demo",
                 "owner_node_id": "node_backup",
-                "disconnected_at": "2026-04-06T00:00:00.000Z"
+                "disconnected_at": "2026-04-06T00:00:00.000Z",
+                "fence_token": "fence:t_demo:user:u_demo:d_demo:s_demo:node_backup:2026-04-06T00:00:00.000Z"
             }
         }))
         .expect("current fence snapshot should serialize")
@@ -587,10 +691,10 @@ fn test_preview_restore_runtime_dir_tracks_projection_snapshot_files() {
     .expect("restore preview should succeed");
 
     assert_eq!(preview.status, "ready");
-    assert_eq!(preview.source_managed_file_count, 12);
+    assert_eq!(preview.source_managed_file_count, 13);
     assert_eq!(preview.source_missing_file_count, 0);
     assert_eq!(preview.would_restore_file_count, 2);
-    assert_eq!(preview.unchanged_file_count, 10);
+    assert_eq!(preview.unchanged_file_count, 11);
     assert_eq!(preview.skipped_file_count, 0);
 
     let metadata_action = preview
@@ -1214,6 +1318,442 @@ fn test_preview_restore_runtime_dir_reports_checkpoint_typed_summary() {
 }
 
 #[test]
+fn test_preview_restore_runtime_dir_reports_event_window_capacity_trim_typed_summary() {
+    let runtime_dir = unique_path("runtime_dir_preview_restore_event_window_typed");
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+    let _ = local_minimal_node::repair_runtime_dir(runtime_dir.as_path())
+        .expect("repair should succeed");
+
+    const SAME_EVENTS: &[RealtimeEventWindowEventSnapshotEntry<'_>] = &[
+        (
+            7,
+            "conversation",
+            "c_same",
+            "message.posted",
+            r#"{"messageId":"msg_same"}"#,
+            "2026-04-06T00:00:07.000Z",
+        ),
+        (
+            8,
+            "conversation",
+            "c_same",
+            "message.read",
+            r#"{"messageId":"msg_same"}"#,
+            "2026-04-06T00:00:08.000Z",
+        ),
+    ];
+    const PAYLOAD_TARGET_EVENTS: &[RealtimeEventWindowEventSnapshotEntry<'_>] = &[(
+        7,
+        "conversation",
+        "c_payload",
+        "message.posted",
+        r#"{"messageId":"msg_target"}"#,
+        "2026-04-06T00:00:07.000Z",
+    )];
+    const PAYLOAD_SOURCE_EVENTS: &[RealtimeEventWindowEventSnapshotEntry<'_>] = &[(
+        7,
+        "conversation",
+        "c_payload",
+        "message.posted",
+        r#"{"messageId":"msg_source"}"#,
+        "2026-04-06T00:00:07.000Z",
+    )];
+
+    write_state_file(
+        runtime_dir.as_path(),
+        "realtime-event-windows.json",
+        realtime_event_window_snapshot_with_options(&[
+            (
+                "t_demo:u_demo:d_same",
+                "t_demo",
+                "u_demo",
+                "d_same",
+                6,
+                0,
+                0,
+                None,
+                "2026-04-06T00:00:00.000Z",
+                SAME_EVENTS,
+            ),
+            (
+                "t_demo:u_demo:d_trimmed_advanced",
+                "t_demo",
+                "u_demo",
+                "d_trimmed_advanced",
+                6,
+                0,
+                0,
+                None,
+                "2026-04-06T00:00:00.000Z",
+                SAME_EVENTS,
+            ),
+            (
+                "t_demo:u_demo:d_trimmed_rewound",
+                "t_demo",
+                "u_demo",
+                "d_trimmed_rewound",
+                6,
+                0,
+                0,
+                None,
+                "2026-04-06T00:00:00.000Z",
+                SAME_EVENTS,
+            ),
+            (
+                "t_demo:u_demo:d_capacity_count_advanced",
+                "t_demo",
+                "u_demo",
+                "d_capacity_count_advanced",
+                6,
+                2,
+                6,
+                Some("2026-04-06T00:00:06.000Z"),
+                "2026-04-06T00:00:00.000Z",
+                SAME_EVENTS,
+            ),
+            (
+                "t_demo:u_demo:d_capacity_count_rewound",
+                "t_demo",
+                "u_demo",
+                "d_capacity_count_rewound",
+                6,
+                2,
+                6,
+                Some("2026-04-06T00:00:06.000Z"),
+                "2026-04-06T00:00:00.000Z",
+                SAME_EVENTS,
+            ),
+            (
+                "t_demo:u_demo:d_capacity_seq_advanced",
+                "t_demo",
+                "u_demo",
+                "d_capacity_seq_advanced",
+                6,
+                2,
+                6,
+                Some("2026-04-06T00:00:06.000Z"),
+                "2026-04-06T00:00:00.000Z",
+                SAME_EVENTS,
+            ),
+            (
+                "t_demo:u_demo:d_capacity_seq_rewound",
+                "t_demo",
+                "u_demo",
+                "d_capacity_seq_rewound",
+                6,
+                2,
+                6,
+                Some("2026-04-06T00:00:06.000Z"),
+                "2026-04-06T00:00:00.000Z",
+                SAME_EVENTS,
+            ),
+            (
+                "t_demo:u_demo:d_capacity_timestamp",
+                "t_demo",
+                "u_demo",
+                "d_capacity_timestamp",
+                6,
+                2,
+                6,
+                Some("2026-04-06T00:00:06.000Z"),
+                "2026-04-06T00:00:00.000Z",
+                SAME_EVENTS,
+            ),
+            (
+                "t_demo:u_demo:d_updated_only",
+                "t_demo",
+                "u_demo",
+                "d_updated_only",
+                6,
+                2,
+                6,
+                Some("2026-04-06T00:00:06.000Z"),
+                "2026-04-06T00:00:00.000Z",
+                SAME_EVENTS,
+            ),
+            (
+                "t_demo:u_demo:d_payload_modified",
+                "t_demo",
+                "u_demo",
+                "d_payload_modified",
+                6,
+                0,
+                0,
+                None,
+                "2026-04-06T00:00:00.000Z",
+                PAYLOAD_TARGET_EVENTS,
+            ),
+            (
+                "t_demo:u_demo:d_identity_modified",
+                "t_demo",
+                "u_demo",
+                "d_identity_modified",
+                6,
+                0,
+                0,
+                None,
+                "2026-04-06T00:00:00.000Z",
+                SAME_EVENTS,
+            ),
+            (
+                "t_demo:u_demo:d_removed",
+                "t_demo",
+                "u_demo",
+                "d_removed",
+                6,
+                0,
+                0,
+                None,
+                "2026-04-06T00:00:00.000Z",
+                SAME_EVENTS,
+            ),
+        ])
+        .as_str(),
+    );
+
+    let backup_dir = unique_path("runtime_dir_preview_restore_event_window_typed_backup");
+    write_full_backup_snapshot(backup_dir.as_path(), "node_backup");
+    write_state_file(
+        backup_dir.as_path(),
+        "realtime-event-windows.json",
+        realtime_event_window_snapshot_with_options(&[
+            (
+                "t_demo:u_demo:d_same",
+                "t_demo",
+                "u_demo",
+                "d_same",
+                6,
+                0,
+                0,
+                None,
+                "2026-04-06T00:00:00.000Z",
+                SAME_EVENTS,
+            ),
+            (
+                "t_demo:u_demo:d_trimmed_advanced",
+                "t_demo",
+                "u_demo",
+                "d_trimmed_advanced",
+                7,
+                0,
+                0,
+                None,
+                "2026-04-06T00:00:00.000Z",
+                SAME_EVENTS,
+            ),
+            (
+                "t_demo:u_demo:d_trimmed_rewound",
+                "t_demo",
+                "u_demo",
+                "d_trimmed_rewound",
+                5,
+                0,
+                0,
+                None,
+                "2026-04-06T00:00:00.000Z",
+                SAME_EVENTS,
+            ),
+            (
+                "t_demo:u_demo:d_capacity_count_advanced",
+                "t_demo",
+                "u_demo",
+                "d_capacity_count_advanced",
+                6,
+                3,
+                6,
+                Some("2026-04-06T00:00:06.000Z"),
+                "2026-04-06T00:00:00.000Z",
+                SAME_EVENTS,
+            ),
+            (
+                "t_demo:u_demo:d_capacity_count_rewound",
+                "t_demo",
+                "u_demo",
+                "d_capacity_count_rewound",
+                6,
+                1,
+                6,
+                Some("2026-04-06T00:00:06.000Z"),
+                "2026-04-06T00:00:00.000Z",
+                SAME_EVENTS,
+            ),
+            (
+                "t_demo:u_demo:d_capacity_seq_advanced",
+                "t_demo",
+                "u_demo",
+                "d_capacity_seq_advanced",
+                7,
+                2,
+                7,
+                Some("2026-04-06T00:00:07.000Z"),
+                "2026-04-06T00:00:00.000Z",
+                SAME_EVENTS,
+            ),
+            (
+                "t_demo:u_demo:d_capacity_seq_rewound",
+                "t_demo",
+                "u_demo",
+                "d_capacity_seq_rewound",
+                5,
+                2,
+                5,
+                Some("2026-04-06T00:00:05.000Z"),
+                "2026-04-06T00:00:00.000Z",
+                SAME_EVENTS,
+            ),
+            (
+                "t_demo:u_demo:d_capacity_timestamp",
+                "t_demo",
+                "u_demo",
+                "d_capacity_timestamp",
+                6,
+                2,
+                6,
+                Some("2026-04-06T00:01:06.000Z"),
+                "2026-04-06T00:00:00.000Z",
+                SAME_EVENTS,
+            ),
+            (
+                "t_demo:u_demo:d_updated_only",
+                "t_demo",
+                "u_demo",
+                "d_updated_only",
+                6,
+                2,
+                6,
+                Some("2026-04-06T00:00:06.000Z"),
+                "2026-04-06T00:01:00.000Z",
+                SAME_EVENTS,
+            ),
+            (
+                "t_demo:u_demo:d_payload_modified",
+                "t_demo",
+                "u_demo",
+                "d_payload_modified",
+                6,
+                0,
+                0,
+                None,
+                "2026-04-06T00:00:00.000Z",
+                PAYLOAD_SOURCE_EVENTS,
+            ),
+            (
+                "t_demo:u_demo:d_identity_modified",
+                "t_demo",
+                "u_other",
+                "d_identity_modified",
+                6,
+                0,
+                0,
+                None,
+                "2026-04-06T00:00:00.000Z",
+                SAME_EVENTS,
+            ),
+            (
+                "t_demo:u_demo:d_added",
+                "t_demo",
+                "u_demo",
+                "d_added",
+                6,
+                0,
+                0,
+                None,
+                "2026-04-06T00:00:00.000Z",
+                SAME_EVENTS,
+            ),
+        ])
+        .as_str(),
+    );
+
+    let preview = local_minimal_node::preview_restore_runtime_dir(
+        runtime_dir.as_path(),
+        backup_dir.as_path(),
+    )
+    .expect("restore preview should succeed");
+
+    let event_window_action = preview
+        .actions
+        .iter()
+        .find(|action| action.file_name == "realtime-event-windows.json")
+        .expect("event window action should exist");
+    let domain_summary = event_window_action
+        .domain_summary
+        .as_ref()
+        .expect("event window typed summary should exist");
+    assert_eq!(domain_summary.summary_kind, "realtime_event_windows");
+    assert_eq!(
+        domain_summary.added_keys,
+        vec!["t_demo:u_demo:d_added".to_string()]
+    );
+    assert_eq!(
+        domain_summary.removed_keys,
+        vec!["t_demo:u_demo:d_removed".to_string()]
+    );
+    assert_eq!(
+        domain_summary.trimmed_advanced_keys.clone(),
+        Some(vec![
+            "t_demo:u_demo:d_capacity_seq_advanced".to_string(),
+            "t_demo:u_demo:d_trimmed_advanced".to_string(),
+        ])
+    );
+    assert_eq!(
+        domain_summary.trimmed_rewound_keys.clone(),
+        Some(vec![
+            "t_demo:u_demo:d_capacity_seq_rewound".to_string(),
+            "t_demo:u_demo:d_trimmed_rewound".to_string(),
+        ])
+    );
+    assert_eq!(
+        domain_summary.timestamp_only_changed_keys.clone(),
+        Some(vec!["t_demo:u_demo:d_updated_only".to_string()])
+    );
+    assert_eq!(
+        domain_summary.other_modified_keys,
+        vec![
+            "t_demo:u_demo:d_identity_modified".to_string(),
+            "t_demo:u_demo:d_payload_modified".to_string(),
+        ]
+    );
+    assert_eq!(domain_summary.unchanged_key_count, 1);
+
+    let domain_summary_json =
+        serde_json::to_value(domain_summary).expect("domain summary should serialize");
+    assert_eq!(
+        domain_summary_json["capacityTrimmedAdvancedKeys"],
+        json!([
+            "t_demo:u_demo:d_capacity_count_advanced",
+            "t_demo:u_demo:d_capacity_seq_advanced"
+        ])
+    );
+    assert_eq!(
+        domain_summary_json["capacityTrimmedRewoundKeys"],
+        json!([
+            "t_demo:u_demo:d_capacity_count_rewound",
+            "t_demo:u_demo:d_capacity_seq_rewound"
+        ])
+    );
+    assert_eq!(
+        domain_summary_json["capacityTrimmedTimestampChangedKeys"],
+        json!(["t_demo:u_demo:d_capacity_timestamp"])
+    );
+
+    let rendered = local_minimal_node::format_runtime_dir_restore_preview(&preview);
+    assert!(rendered.contains("event-window-diff"));
+    assert!(rendered.contains("capacity_trimmed_advanced"));
+    assert!(rendered.contains("capacity_trimmed_rewound"));
+    assert!(rendered.contains("capacity_trimmed_timestamp_only"));
+    assert!(rendered.contains("d_capacity_count_advanced"));
+    assert!(rendered.contains("d_capacity_count_rewound"));
+    assert!(rendered.contains("d_capacity_seq_advanced"));
+    assert!(rendered.contains("d_capacity_seq_rewound"));
+    assert!(rendered.contains("d_capacity_timestamp"));
+    assert!(rendered.contains("d_payload_modified"));
+
+    let _ = fs::remove_dir_all(runtime_dir);
+    let _ = fs::remove_dir_all(backup_dir);
+}
+
+#[test]
 fn test_preview_restore_runtime_dir_reports_subscription_typed_summary() {
     let runtime_dir = unique_path("runtime_dir_preview_restore_subscription_typed");
     fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
@@ -1457,23 +1997,23 @@ fn test_preview_restore_runtime_dir_reports_subscription_typed_summary() {
         serde_json::to_value(domain_summary).expect("domain summary should serialize");
     assert_eq!(
         domain_summary_json["addedScopeKeys"],
-        json!(["t_demo:u_demo:d_scope_changed#conversation:c_added"])
+        json!(["29#t_demo:u_demo:d_scope_changed24#12#conversation7#c_added"])
     );
     assert_eq!(
         domain_summary_json["removedScopeKeys"],
-        json!(["t_demo:u_demo:d_scope_changed#conversation:c_removed"])
+        json!(["29#t_demo:u_demo:d_scope_changed26#12#conversation9#c_removed"])
     );
     assert_eq!(
         domain_summary_json["eventTypesAddedScopeKeys"],
-        json!(["t_demo:u_demo:d_scope_changed#stream:s_event_added"])
+        json!(["29#t_demo:u_demo:d_scope_changed24#6#stream13#s_event_added"])
     );
     assert_eq!(
         domain_summary_json["eventTypesRemovedScopeKeys"],
-        json!(["t_demo:u_demo:d_scope_changed#stream:s_event_removed"])
+        json!(["29#t_demo:u_demo:d_scope_changed26#6#stream15#s_event_removed"])
     );
     assert_eq!(
         domain_summary_json["subscribedAtOnlyChangedScopeKeys"],
-        json!(["t_demo:u_demo:d_scope_changed#bot:b_time"])
+        json!(["29#t_demo:u_demo:d_scope_changed13#3#bot6#b_time"])
     );
     assert_eq!(domain_summary_json["unchangedScopeCount"], json!(2));
     assert_eq!(domain_summary.unchanged_key_count, 1);
@@ -1900,15 +2440,15 @@ fn test_preview_restore_runtime_dir_reports_stream_typed_summary() {
     );
     assert_eq!(
         domain_summary_json["addedFrameKeys"],
-        json!(["t_demo:st_frame_added#frame:2"])
+        json!(["21#t_demo:st_frame_added5#frame1#2"])
     );
     assert_eq!(
         domain_summary_json["removedFrameKeys"],
-        json!(["t_demo:st_frame_removed#frame:2"])
+        json!(["23#t_demo:st_frame_removed5#frame1#2"])
     );
     assert_eq!(
         domain_summary_json["modifiedFrameKeys"],
-        json!(["t_demo:st_frame_modified#frame:2"])
+        json!(["24#t_demo:st_frame_modified5#frame1#2"])
     );
     assert_eq!(domain_summary_json["unchangedFrameCount"], json!(12));
     assert_eq!(domain_summary.unchanged_key_count, 1);
@@ -2214,17 +2754,17 @@ fn test_preview_restore_runtime_dir_reports_rtc_typed_summary() {
     );
     assert_eq!(
         domain_summary_json["addedSignalKeys"],
-        json!(["t_demo:rtc_signal_added#signal:1"])
+        json!(["23#t_demo:rtc_signal_added6#signal1#1"])
     );
     assert_eq!(
         domain_summary_json["removedSignalKeys"],
-        json!(["t_demo:rtc_signal_removed#signal:1"])
+        json!(["25#t_demo:rtc_signal_removed6#signal1#1"])
     );
     assert_eq!(
         domain_summary_json["modifiedSignalKeys"],
         json!([
-            "t_demo:rtc_other_modified#signal:0",
-            "t_demo:rtc_signal_modified#signal:1"
+            "25#t_demo:rtc_other_modified6#signal1#0",
+            "26#t_demo:rtc_signal_modified6#signal1#1"
         ])
     );
     assert_eq!(domain_summary_json["unchangedSignalCount"], json!(7));

@@ -26,14 +26,14 @@ impl FileTimelineProjectionStore {
         self.file_path.as_path()
     }
 
-    pub fn entries(&self, conversation_id: &str) -> Vec<(u64, String)> {
+    pub fn entries(&self, tenant_id: &str, timeline_scope: &str) -> Vec<(u64, String)> {
         let _guard = self
             .io_lock
             .lock()
             .expect("timeline projection file store lock should lock");
         self.read_records()
             .expect("timeline projection store should parse")
-            .get(conversation_id)
+            .get(timeline_projection_scope_key(tenant_id, timeline_scope).as_str())
             .map(|items| {
                 items
                     .iter()
@@ -51,7 +51,8 @@ impl FileTimelineProjectionStore {
 impl TimelineProjectionStore for FileTimelineProjectionStore {
     fn upsert_timeline_entry(
         &self,
-        conversation_id: &str,
+        tenant_id: &str,
+        timeline_scope: &str,
         message_seq: u64,
         payload: &str,
     ) -> Result<(), ContractError> {
@@ -64,20 +65,25 @@ impl TimelineProjectionStore for FileTimelineProjectionStore {
             "timeline projection store",
             |records: &mut BTreeMap<String, BTreeMap<u64, String>>| {
                 records
-                    .entry(conversation_id.to_string())
+                    .entry(timeline_projection_scope_key(tenant_id, timeline_scope))
                     .or_default()
                     .insert(message_seq, payload.to_string());
             },
         )
     }
 
-    fn load_timeline(&self, conversation_id: &str) -> Result<Vec<(u64, String)>, ContractError> {
-        Ok(self.entries(conversation_id))
+    fn load_timeline(
+        &self,
+        tenant_id: &str,
+        timeline_scope: &str,
+    ) -> Result<Vec<(u64, String)>, ContractError> {
+        Ok(self.entries(tenant_id, timeline_scope))
     }
 
     fn upsert_timeline_entries(
         &self,
-        conversation_id: &str,
+        tenant_id: &str,
+        timeline_scope: &str,
         records: &[TimelineProjectionRecord],
     ) -> Result<(), ContractError> {
         let _guard = self
@@ -88,7 +94,9 @@ impl TimelineProjectionStore for FileTimelineProjectionStore {
             self.file_path.as_path(),
             "timeline projection store",
             |stored: &mut BTreeMap<String, BTreeMap<u64, String>>| {
-                let scope_entries = stored.entry(conversation_id.to_string()).or_default();
+                let scope_entries = stored
+                    .entry(timeline_projection_scope_key(tenant_id, timeline_scope))
+                    .or_default();
                 for record in records {
                     scope_entries.insert(record.message_seq, record.payload.clone());
                 }
@@ -109,7 +117,12 @@ impl TimelineProjectionStore for FileTimelineProjectionStore {
             "timeline projection store",
             |stored: &mut BTreeMap<String, BTreeMap<u64, String>>| {
                 for batch in batches {
-                    let scope_entries = stored.entry(batch.conversation_id.clone()).or_default();
+                    let scope_entries = stored
+                        .entry(timeline_projection_scope_key(
+                            batch.tenant_id.as_str(),
+                            batch.timeline_scope.as_str(),
+                        ))
+                        .or_default();
                     for record in &batch.records {
                         scope_entries.insert(record.message_seq, record.payload.clone());
                     }
@@ -125,4 +138,14 @@ pub fn validate_timeline_projection_store_file(
     let _: BTreeMap<String, BTreeMap<u64, String>> =
         read_json_records_or_default(file_path.as_ref(), "timeline projection store")?;
     Ok(())
+}
+
+fn timeline_projection_scope_key(tenant_id: &str, timeline_scope: &str) -> String {
+    let mut encoded = String::new();
+    for segment in [tenant_id, timeline_scope] {
+        encoded.push_str(segment.len().to_string().as_str());
+        encoded.push('#');
+        encoded.push_str(segment);
+    }
+    encoded
 }

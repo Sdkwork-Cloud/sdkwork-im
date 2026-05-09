@@ -1,7 +1,7 @@
 use super::*;
 
 pub(super) fn conversation_scope_key(tenant_id: &str, conversation_id: &str) -> String {
-    format!("{tenant_id}:{conversation_id}")
+    encode_conversation_key_segments([tenant_id, conversation_id])
 }
 
 pub(super) fn conversation_business_scope_key(
@@ -9,7 +9,19 @@ pub(super) fn conversation_business_scope_key(
     business_type: &str,
     business_id: &str,
 ) -> String {
-    format!("{tenant_id}:{business_type}:{business_id}")
+    encode_conversation_key_segments([tenant_id, business_type, business_id])
+}
+
+pub(super) fn encode_conversation_key_segments<'a>(
+    segments: impl IntoIterator<Item = &'a str>,
+) -> String {
+    let mut encoded = String::new();
+    for segment in segments {
+        encoded.push_str(segment.len().to_string().as_str());
+        encoded.push('#');
+        encoded.push_str(segment);
+    }
+    encoded
 }
 
 pub(super) fn retention_class_from_policy_ref(retention_policy_ref: &str) -> String {
@@ -37,8 +49,14 @@ pub(super) fn upsert_member(conversation: &mut ConversationState, member: Conver
     conversation.roster.upsert_member(member);
 }
 
-pub(super) fn next_member_episode(conversation: &ConversationState, principal_id: &str) -> u64 {
-    conversation.roster.next_member_episode(principal_id)
+pub(super) fn next_member_episode(
+    conversation: &ConversationState,
+    principal_id: &str,
+    principal_kind: &str,
+) -> u64 {
+    conversation
+        .roster
+        .next_member_episode(principal_id, principal_kind)
 }
 
 pub(super) fn resolve_active_member_id(

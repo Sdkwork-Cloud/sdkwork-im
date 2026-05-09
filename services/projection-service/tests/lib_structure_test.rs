@@ -72,20 +72,18 @@ fn test_projection_service_access_module_exposes_auth_context_entrypoints() {
         "pub struct ProjectionAccessError {",
         "pub struct DeviceSyncSessionState {",
         "pub fn ensure_active_member_from_auth_context(",
-        "pub fn active_conversation_principal_ids_from_auth_context(",
         "pub fn active_conversation_principal_recipients_from_auth_context(",
         "pub fn message_posted_notification_recipients_from_auth_context(",
         "pub fn register_device_from_auth_context(",
         "pub fn ensure_device_registration_allowed_from_auth_context(",
         "pub fn registered_devices_from_auth_context(",
         "pub fn device_sync_session_state_from_auth_context(",
-        "pub fn realtime_fanout_targets_from_auth_context(",
         "pub fn realtime_fanout_targets_for_recipients_from_auth_context(",
         "pub fn latest_device_sync_seq_from_auth_context(",
-        "pub fn device_sync_feed_from_auth_context(",
+        "pub fn device_sync_feed_window_from_auth_context(",
         "pub fn inbox_from_auth_context(",
         "pub fn contacts_from_auth_context(",
-        "pub fn timeline_from_auth_context(",
+        "pub fn timeline_window_from_auth_context(",
         "pub fn conversation_summary_from_auth_context(",
         "pub fn message_interaction_summary_from_auth_context(",
         "pub fn pinned_messages_from_auth_context(",
@@ -96,6 +94,16 @@ fn test_projection_service_access_module_exposes_auth_context_entrypoints() {
             "projection-service access module should own auth-context authority wrapper: {required_symbol}"
         );
     }
+
+    for forbidden_symbol in [
+        "pub fn device_sync_feed_from_auth_context(",
+        "pub fn timeline_from_auth_context(",
+    ] {
+        assert!(
+            !access_source.contains(forbidden_symbol),
+            "projection-service access module must not expose unbounded auth-context read entrypoint: {forbidden_symbol}"
+        );
+    }
 }
 
 #[test]
@@ -103,9 +111,58 @@ fn test_projection_service_exposes_realtime_fanout_target_owner_seam() {
     let lib_source = include_str!("../src/lib.rs");
 
     assert!(
-        lib_source.contains("pub fn realtime_fanout_targets_for_principals("),
-        "services/projection-service/src/lib.rs should expose a projection-owned realtime fanout target seam for principal-to-device resolution"
+        lib_source.contains("pub fn device_sync_fanout_targets_for_conversation("),
+        "services/projection-service/src/lib.rs should expose a projection-owned realtime fanout target seam for typed recipient-to-device resolution"
     );
+}
+
+#[test]
+fn test_projection_service_principal_identity_queries_are_strictly_typed() {
+    let lib_source = include_str!("../src/lib.rs");
+    let inbox_source =
+        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/inbox.rs"))
+            .expect("services/projection-service/src/inbox.rs should exist");
+    let member_store_source =
+        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/member_store.rs"))
+            .expect("services/projection-service/src/member_store.rs should exist");
+    let access_source =
+        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/access.rs"))
+            .expect("services/projection-service/src/access.rs should exist");
+
+    for forbidden_symbol in [
+        "pub fn inbox(&self, tenant_id: &str, principal_id: &str)",
+        "principal_kind: Option<&str>",
+        "active_member_scopes_for_principal(",
+        "conversation_members_by_principal",
+        "fn member_principal_index_key(",
+        "pub fn read_cursor(\n        &self,\n        tenant_id: &str,\n        conversation_id: &str,\n        principal_id: &str,",
+        "pub fn member_snapshot(\n        &self,\n        tenant_id: &str,\n        conversation_id: &str,\n        principal_id: &str,",
+        "pub fn is_active_member(\n        &self,\n        tenant_id: &str,\n        conversation_id: &str,\n        principal_id: &str,",
+        "pub fn realtime_fanout_targets_for_principals(",
+        "pub fn active_conversation_principal_ids_from_auth_context(",
+        "pub fn realtime_fanout_targets_from_auth_context(",
+        "pub(crate) fn active_conversation_principal_ids(",
+    ] {
+        assert!(
+            !lib_source.contains(forbidden_symbol)
+                && !inbox_source.contains(forbidden_symbol)
+                && !member_store_source.contains(forbidden_symbol)
+                && !access_source.contains(forbidden_symbol),
+            "projection-service principal identity query path must include required principal_kind: {forbidden_symbol}"
+        );
+    }
+
+    for required_symbol in [
+        "pub fn inbox_for_principal_kind(",
+        "pub fn read_cursor_for_principal_kind(",
+        "pub fn member_snapshot_for_principal_kind(",
+        "pub fn is_active_member_for_principal_kind(",
+    ] {
+        assert!(
+            lib_source.contains(required_symbol) || inbox_source.contains(required_symbol),
+            "projection-service should expose typed principal query API: {required_symbol}"
+        );
+    }
 }
 
 #[test]
@@ -138,10 +195,10 @@ fn test_projection_service_http_surface_uses_auth_context_entrypoints() {
 
     for required_symbol in [
         ".register_device_from_auth_context(",
-        ".device_sync_feed_from_auth_context(",
+        ".device_sync_feed_window_from_auth_context(",
         ".inbox_from_auth_context(",
         ".contacts_from_auth_context(",
-        ".timeline_from_auth_context(",
+        ".timeline_window_from_auth_context(",
         ".conversation_summary_from_auth_context(",
         ".message_interaction_summary_from_auth_context(",
         ".pinned_messages_from_auth_context(",
@@ -197,5 +254,266 @@ fn test_projection_service_device_sync_entry_assembly_moves_out_of_lib_impl() {
     assert!(
         lib_source.matches(".append_device_sync_draft(").count() >= 5,
         "services/projection-service/src/lib.rs should route message, mutation, read-cursor, handoff, and member-governance sync fanout through the shared device-sync draft owner seam"
+    );
+}
+
+#[test]
+fn test_projection_service_device_sync_feed_store_uses_sequence_index() {
+    let lib_source = include_str!("../src/lib.rs");
+    let model_source =
+        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/model.rs"))
+            .expect("services/projection-service/src/model.rs should exist");
+    let device_sync_source =
+        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/device_sync.rs"))
+            .expect("services/projection-service/src/device_sync.rs should exist");
+
+    assert!(
+        lib_source.contains("HashMap<DeviceFeedScopeKey, BTreeMap<u64, DeviceSyncFeedEntry>>"),
+        "projection-service device-sync feed store must be keyed by sync_seq so cursor reads can seek instead of scanning an unindexed Vec"
+    );
+    assert!(
+        !lib_source.contains("HashMap<DeviceFeedScopeKey, Vec<DeviceSyncFeedEntry>>"),
+        "projection-service device-sync feed store must not keep per-device Vec feeds"
+    );
+    assert!(
+        device_sync_source.contains(".range((Excluded(min_seq), Unbounded))"),
+        "projection-service device-sync feed windows should seek by sync_seq range"
+    );
+    for forbidden_symbol in [
+        "pub fn device_sync_feed(",
+        "pub fn device_sync_feed_for_principal_kind(",
+        "fn device_sync_feed_for_principal_kind(",
+    ] {
+        assert!(
+            !device_sync_source.contains(forbidden_symbol),
+            "projection-service must not expose unbounded device-sync feed helper: {forbidden_symbol}"
+        );
+    }
+    assert!(
+        !device_sync_source.contains(".iter().filter(|entry| entry.sync_seq > min_seq)"),
+        "projection-service device-sync feed windows should not scan every entry after min_seq with a Vec iterator"
+    );
+    assert!(
+        lib_source.contains("PROJECTION_DEVICE_SYNC_FEED_MAX_RETAINED_EVENTS"),
+        "projection-service device-sync feed cache must define a bounded retention contract"
+    );
+    assert!(
+        model_source.contains("pub trimmed_through_seq: u64,"),
+        "projection-service device-sync feed windows must expose trimmed_through_seq so clients can detect expired cursors"
+    );
+    assert!(
+        device_sync_source.contains(".pop_first()"),
+        "projection-service device-sync feed append path must trim the oldest indexed entries when retention is exceeded"
+    );
+}
+
+#[test]
+fn test_projection_service_device_sync_identity_is_strictly_typed() {
+    let model_source =
+        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/model.rs"))
+            .expect("services/projection-service/src/model.rs should exist");
+    let scope_source =
+        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/scope.rs"))
+            .expect("services/projection-service/src/scope.rs should exist");
+    let snapshot_source =
+        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/snapshot.rs"))
+            .expect("services/projection-service/src/snapshot.rs should exist");
+    let device_sync_source =
+        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/device_sync.rs"))
+            .expect("services/projection-service/src/device_sync.rs should exist");
+
+    for forbidden_symbol in [
+        "pub principal_kind: Option<String>,",
+        "principal_kind: Option<&str>,",
+        "principal_kind: principal_kind.map(str::to_owned)",
+        "principal_kind.as_deref()",
+        "device_principal_scope_key(tenant_id, principal_id, None)",
+        "device_feed_scope_key(tenant_id, principal_id, None",
+    ] {
+        assert!(
+            !model_source.contains(forbidden_symbol)
+                && !scope_source.contains(forbidden_symbol)
+                && !snapshot_source.contains(forbidden_symbol)
+                && !device_sync_source.contains(forbidden_symbol),
+            "projection-service device sync identity must not keep optional principalKind path: {forbidden_symbol}"
+        );
+    }
+
+    assert!(
+        model_source.contains("pub principal_kind: String,"),
+        "RegisteredDeviceView and RealtimeFanoutTarget must carry a required principal_kind"
+    );
+    assert!(
+        scope_source.contains("pub(super) principal_kind: String,"),
+        "device principal/feed cache keys must include a required principal_kind"
+    );
+}
+
+#[test]
+fn test_projection_service_timeline_store_uses_sequence_index() {
+    let lib_source = include_str!("../src/lib.rs");
+
+    assert!(
+        lib_source.contains("entries: Mutex<HashMap<String, BTreeMap<u64, TimelineViewEntry>>>"),
+        "projection-service timeline store must be keyed by message_seq so cursor reads can seek instead of scanning a Vec"
+    );
+    assert!(
+        !lib_source.contains("entries: Mutex<HashMap<String, Vec<TimelineViewEntry>>>"),
+        "projection-service timeline store must not keep per-conversation Vec entries"
+    );
+    assert!(
+        lib_source.contains(".range((Excluded(after_seq), Unbounded))"),
+        "projection-service timeline windows should seek by message_seq range"
+    );
+    assert!(
+        !lib_source.contains("partition_point(|entry| entry.message_seq <= after_seq)"),
+        "projection-service timeline windows should not binary-search a Vec now that message_seq is the map key"
+    );
+}
+
+#[test]
+fn test_projection_service_runtime_keys_use_segment_safe_encoding() {
+    let lib_source = include_str!("../src/lib.rs");
+    let scope_source =
+        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/scope.rs"))
+            .expect("services/projection-service/src/scope.rs should exist");
+    let contacts_source =
+        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/contacts.rs"))
+            .expect("services/projection-service/src/contacts.rs should exist");
+    let snapshot_source =
+        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/snapshot.rs"))
+            .expect("services/projection-service/src/snapshot.rs should exist");
+
+    for required_symbol in [
+        "pub(super) fn encode_projection_key_segments",
+        "encode_projection_key_segments([tenant_id, conversation_id])",
+        "pub(super) struct ContactOwnerScopeKey",
+        "pub(super) fn contact_owner_scope_key",
+    ] {
+        assert!(
+            scope_source.contains(required_symbol),
+            "projection-service scope keys should use segment-safe key encoding: {required_symbol}"
+        );
+    }
+
+    for forbidden_symbol in [
+        "format!(\"{tenant_id}:{conversation_id}\")",
+        "format!(\"{tenant_id}:{principal_id}\")",
+        "split_once(':')",
+        "parse_contact_scope(",
+        "format!(\"{tenant_id}:{conversation_id}\")",
+        "format!(\"legacy:{conversation_id}\")",
+        "format!(\"{PRINCIPAL_SNAPSHOT_SCOPE_PREFIX}:{tenant_id}:{principal_id}\")",
+        "\"{PRINCIPAL_SNAPSHOT_SCOPE_PREFIX}:typed:{}:{}:{}\"",
+        "\"{DEVICE_SYNC_SNAPSHOT_SCOPE_PREFIX}:typed:{}:{}:{}:{}\"",
+        "format!(\"{}:{}\", snapshot.scope, snapshot.key)",
+        "format!(\"{scope}:{key}\")",
+        "format!(\"{}#{}#{}\", tenant_id.len(), tenant_id, timeline_scope)",
+    ] {
+        assert!(
+            !scope_source.contains(forbidden_symbol)
+                && !contacts_source.contains(forbidden_symbol)
+                && !snapshot_source.contains(forbidden_symbol),
+            "projection-service runtime/snapshot keys must not use delimiter-composed ids: {forbidden_symbol}"
+        );
+    }
+
+    assert!(
+        lib_source.contains("HashMap<ContactOwnerScopeKey, HashMap<String, ContactView>>"),
+        "projection-service contact store should be keyed by typed owner scope, not a parseable string"
+    );
+    assert!(
+        contacts_source.contains("HashMap<ContactConversationIndexKey, String>"),
+        "projection-service direct-chat conversation index should be keyed by typed tenant/conversation tuple"
+    );
+}
+
+#[test]
+fn test_projection_service_direct_chat_binding_store_uses_conversation_index() {
+    let lib_source = include_str!("../src/lib.rs");
+    let access_source =
+        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/access.rs"))
+            .expect("services/projection-service/src/access.rs should exist");
+    let contacts_source =
+        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/contacts.rs"))
+            .expect("services/projection-service/src/contacts.rs should exist");
+
+    assert!(
+        lib_source.contains(
+            "direct_chat_bindings: Mutex<contacts::ContactDirectChatBindingRuntimeStore>"
+        ),
+        "projection-service direct-chat bindings must use a typed runtime store with secondary indexes"
+    );
+    assert!(
+        contacts_source.contains(
+            "direct_chat_id_by_conversation: HashMap<ContactConversationIndexKey, String>"
+        ),
+        "projection-service direct-chat binding runtime store must index tenant+conversation to directChatId"
+    );
+    assert!(
+        contacts_source.contains("pub(crate) fn get_by_conversation("),
+        "projection-service direct-chat binding runtime store must expose indexed conversation lookup"
+    );
+    assert!(
+        !access_source.contains(".values().find(|binding|")
+            && !access_source.contains(".values()\n        .find(|binding|"),
+        "projection-service access checks must not scan every direct-chat binding by conversation"
+    );
+}
+
+#[test]
+fn test_projection_service_member_store_uses_principal_inbox_index() {
+    let lib_source = include_str!("../src/lib.rs");
+    let member_store_source =
+        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/member_store.rs"))
+            .expect("services/projection-service/src/member_store.rs should exist");
+    let inbox_source =
+        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/inbox.rs"))
+            .expect("services/projection-service/src/inbox.rs should exist");
+    let access_source =
+        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/access.rs"))
+            .expect("services/projection-service/src/access.rs should exist");
+    let snapshot_source =
+        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/snapshot.rs"))
+            .expect("services/projection-service/src/snapshot.rs should exist");
+
+    assert!(
+        lib_source.contains("members: Mutex<ProjectionMemberRuntimeStore>"),
+        "projection-service member cache must use a typed runtime store with secondary indexes"
+    );
+    assert!(
+        member_store_source
+            .contains("conversation_members_by_typed_principal: HashMap<String, BTreeSet<String>>"),
+        "projection-service member cache must index tenant+principalKind+principalId to active conversation scopes for typed inbox reads"
+    );
+    assert!(
+        member_store_source.contains(
+            "encode_member_index_key_segments([tenant_id, principal_kind, principal_id])"
+        ),
+        "projection-service member principal index key must use segment-safe length-prefixed encoding"
+    );
+    assert!(
+        !member_store_source.contains("format!(\"{tenant_id}:{principal_kind}:{principal_id}\")"),
+        "projection-service member principal index key must not use delimiter-joined identifiers"
+    );
+    assert!(
+        member_store_source.contains("fn active_member_scopes_for_principal_kind("),
+        "projection-service member cache must expose indexed typed active scope lookup for auth-context inbox reads"
+    );
+    assert!(
+        !lib_source.contains("for (scope, scope_members) in members.iter()"),
+        "projection-service inbox must not scan every conversation membership bucket"
+    );
+    assert!(
+        inbox_source.contains("pub fn inbox_for_principal_kind("),
+        "projection-service must expose a typed inbox path so auth-context reads do not fetch same principalId across other actor kinds"
+    );
+    assert!(
+        !access_source.contains("self.inbox(auth.tenant_id.as_str(), auth.actor_id.as_str())"),
+        "projection-service auth-context inbox must not call the untyped inbox and then filter by actor kind"
+    );
+    assert!(
+        snapshot_source.contains(".insert_member("),
+        "projection-service snapshot restore must rebuild member secondary indexes through the runtime store"
     );
 }

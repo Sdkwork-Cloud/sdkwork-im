@@ -76,14 +76,19 @@ impl CommitJournal for NullCommitJournal {
 impl TimelineProjectionStore for NullProjectionStore {
     fn upsert_timeline_entry(
         &self,
-        _conversation_id: &str,
+        _tenant_id: &str,
+        _timeline_scope: &str,
         _message_seq: u64,
         _payload: &str,
     ) -> Result<(), ContractError> {
         Ok(())
     }
 
-    fn load_timeline(&self, _conversation_id: &str) -> Result<Vec<(u64, String)>, ContractError> {
+    fn load_timeline(
+        &self,
+        _tenant_id: &str,
+        _timeline_scope: &str,
+    ) -> Result<Vec<(u64, String)>, ContractError> {
         Ok(Vec::new())
     }
 }
@@ -92,13 +97,17 @@ impl RealtimeCheckpointStore for NullCheckpointStore {
     fn load_checkpoint(
         &self,
         _tenant_id: &str,
+        _principal_kind: &str,
         _principal_id: &str,
         _device_id: &str,
     ) -> Result<Option<RealtimeCheckpointRecord>, ContractError> {
         Ok(None)
     }
 
-    fn save_checkpoint(&self, _record: RealtimeCheckpointRecord) -> Result<(), ContractError> {
+    fn save_checkpoints(
+        &self,
+        _records: Vec<RealtimeCheckpointRecord>,
+    ) -> Result<(), ContractError> {
         Ok(())
     }
 }
@@ -107,6 +116,7 @@ impl RealtimeDisconnectFenceStore for NullDisconnectFenceStore {
     fn load_fence(
         &self,
         _tenant_id: &str,
+        _principal_kind: &str,
         _principal_id: &str,
         _device_id: &str,
     ) -> Result<Option<RealtimeDisconnectFenceRecord>, ContractError> {
@@ -120,8 +130,27 @@ impl RealtimeDisconnectFenceStore for NullDisconnectFenceStore {
     fn clear_fence(
         &self,
         _tenant_id: &str,
+        _principal_kind: &str,
         _principal_id: &str,
         _device_id: &str,
+    ) -> Result<bool, ContractError> {
+        Ok(false)
+    }
+
+    fn clear_fence_disconnected_at_or_before(
+        &self,
+        _tenant_id: &str,
+        _principal_kind: &str,
+        _principal_id: &str,
+        _device_id: &str,
+        _cutoff_disconnected_at: &str,
+    ) -> Result<bool, ContractError> {
+        Ok(false)
+    }
+
+    fn clear_fence_if_matches(
+        &self,
+        _expected: &RealtimeDisconnectFenceRecord,
     ) -> Result<bool, ContractError> {
         Ok(false)
     }
@@ -131,10 +160,24 @@ impl RealtimeSubscriptionStore for NullSubscriptionStore {
     fn load_subscriptions(
         &self,
         _tenant_id: &str,
+        _principal_kind: &str,
         _principal_id: &str,
         _device_id: &str,
     ) -> Result<Option<RealtimeSubscriptionRecord>, ContractError> {
         Ok(None)
+    }
+
+    fn load_matching_subscriptions(
+        &self,
+        _tenant_id: &str,
+        _principal_kind: &str,
+        _principal_id: &str,
+        _scope_type: &str,
+        _scope_id: &str,
+        _event_type: &str,
+        _candidate_device_ids: &[String],
+    ) -> Result<Vec<RealtimeSubscriptionRecord>, ContractError> {
+        Ok(Vec::new())
     }
 
     fn save_subscriptions(&self, _record: RealtimeSubscriptionRecord) -> Result<(), ContractError> {
@@ -144,8 +187,20 @@ impl RealtimeSubscriptionStore for NullSubscriptionStore {
     fn clear_subscriptions(
         &self,
         _tenant_id: &str,
+        _principal_kind: &str,
         _principal_id: &str,
         _device_id: &str,
+    ) -> Result<bool, ContractError> {
+        Ok(false)
+    }
+
+    fn clear_subscriptions_synced_at_or_before(
+        &self,
+        _tenant_id: &str,
+        _principal_kind: &str,
+        _principal_id: &str,
+        _device_id: &str,
+        _cutoff_synced_at: &str,
     ) -> Result<bool, ContractError> {
         Ok(false)
     }
@@ -155,6 +210,7 @@ impl PresenceStateStore for NullPresenceStore {
     fn load_state(
         &self,
         _tenant_id: &str,
+        _principal_kind: &str,
         _principal_id: &str,
         _device_id: &str,
     ) -> Result<Option<PresenceStateRecord>, ContractError> {
@@ -168,9 +224,30 @@ impl PresenceStateStore for NullPresenceStore {
     fn list_states_for_principal(
         &self,
         _tenant_id: &str,
+        _principal_kind: &str,
         _principal_id: &str,
     ) -> Result<Vec<PresenceStateRecord>, ContractError> {
         Ok(Vec::new())
+    }
+
+    fn list_online_states_seen_at_or_before(
+        &self,
+        _cutoff_seen_at: &str,
+        _limit: usize,
+    ) -> Result<Vec<PresenceStateRecord>, ContractError> {
+        Ok(Vec::new())
+    }
+
+    fn expire_online_state_if_seen_at_or_before(
+        &self,
+        _tenant_id: &str,
+        _principal_kind: &str,
+        _principal_id: &str,
+        _device_id: &str,
+        _cutoff_seen_at: &str,
+        _expired_at: &str,
+    ) -> Result<Option<PresenceStateRecord>, ContractError> {
+        Ok(None)
     }
 }
 
@@ -226,6 +303,7 @@ impl NotificationTaskStore for NullNotificationStore {
     fn list_tasks_for_recipient(
         &self,
         _tenant_id: &str,
+        _recipient_kind: &str,
         _recipient_id: &str,
     ) -> Result<Vec<NotificationTaskRecord>, ContractError> {
         Ok(Vec::new())
@@ -315,10 +393,10 @@ fn test_step03_contract_split_exposes_real_crates_and_keeps_compatibility_facade
         ))
         .expect("journal append should succeed");
     projection
-        .upsert_timeline_entry("c_demo", 1, "{}")
+        .upsert_timeline_entry("t_demo", "c_demo", 1, "{}")
         .expect("projection update should succeed");
     projection
-        .load_timeline("c_demo")
+        .load_timeline("t_demo", "c_demo")
         .expect("projection load should succeed");
 
     assert_eq!(descriptor.object_key, "media/demo.png");
@@ -370,16 +448,16 @@ fn test_step03_contract_split_exposes_real_crates_and_keeps_compatibility_facade
     );
 
     checkpoint_store
-        .load_checkpoint("t_demo", "u_demo", "d_demo")
+        .load_checkpoint("t_demo", "user", "u_demo", "d_demo")
         .expect("checkpoint load should succeed");
     disconnect_fence_store
-        .clear_fence("t_demo", "u_demo", "d_demo")
+        .clear_fence("t_demo", "user", "u_demo", "d_demo")
         .expect("disconnect fence clear should succeed");
     subscription_store
-        .clear_subscriptions("t_demo", "u_demo", "d_demo")
+        .clear_subscriptions("t_demo", "user", "u_demo", "d_demo")
         .expect("subscription clear should succeed");
     presence_store
-        .list_states_for_principal("t_demo", "u_demo")
+        .list_states_for_principal("t_demo", "user", "u_demo")
         .expect("presence listing should succeed");
     stream_store
         .clear_state("t_demo", "stream_demo")
@@ -388,7 +466,7 @@ fn test_step03_contract_split_exposes_real_crates_and_keeps_compatibility_facade
         .clear_state("t_demo", "rtc_demo")
         .expect("rtc clear should succeed");
     notification_store
-        .list_tasks_for_recipient("t_demo", "u_demo")
+        .list_tasks_for_recipient("t_demo", "user", "u_demo")
         .expect("notification listing should succeed");
     automation_store
         .load_execution("t_demo", "user", "u_demo", "exec_demo")

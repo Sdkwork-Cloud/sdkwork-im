@@ -1,14 +1,14 @@
 use axum::http::StatusCode;
 use im_auth_context::AuthContext;
-use im_domain_core::conversation::{
-    ConversationInboxEntry, ConversationReadCursorView, DeviceSyncFeedEntry,
-};
+use im_domain_core::conversation::{ConversationInboxEntry, ConversationReadCursorView};
 use im_domain_core::social::DirectChatStatus;
 
 use super::{
     ContactView, ConversationMemberDirectoryEntry, ConversationSummaryView,
-    MessageInteractionSummaryView, NotificationRecipientView, RealtimeFanoutTarget,
-    RegisteredDeviceView, TimelineProjectionService, TimelineViewEntry,
+    DeviceSyncFeedWindowView, MessageInteractionSummaryView, NotificationRecipientView,
+    PROJECTION_DEVICE_SYNC_FEED_DEFAULT_LIMIT, PROJECTION_DEVICE_SYNC_FEED_MAX_LIMIT,
+    PROJECTION_TIMELINE_DEFAULT_LIMIT, PROJECTION_TIMELINE_MAX_LIMIT, RealtimeFanoutTarget,
+    RegisteredDeviceView, TimelineProjectionService, TimelineWindowView,
 };
 
 const PROJECTION_MAX_DEVICE_ID_BYTES: usize = 256;
@@ -86,14 +86,7 @@ impl TimelineProjectionService {
             &self.direct_chat_bindings,
             "contact direct chat binding store",
         )
-        .values()
-        .find(|binding| {
-            binding.conversation_id == conversation_id
-                && binding
-                    .tenant_id
-                    .as_deref()
-                    .map_or(true, |binding_tenant_id| binding_tenant_id == tenant_id)
-        })
+        .get_by_conversation(tenant_id, conversation_id)
         .cloned()
     }
 
@@ -195,15 +188,6 @@ impl TimelineProjectionService {
                 auth.actor_id
             ),
         ))
-    }
-
-    pub fn active_conversation_principal_ids_from_auth_context(
-        &self,
-        auth: &AuthContext,
-        conversation_id: &str,
-    ) -> Result<Vec<String>, ProjectionAccessError> {
-        self.ensure_active_member_from_auth_context(auth, conversation_id)?;
-        Ok(self.active_conversation_principal_ids(auth.tenant_id.as_str(), conversation_id))
     }
 
     pub fn active_conversation_principal_recipients_from_auth_context(
@@ -320,14 +304,6 @@ impl TimelineProjectionService {
         })
     }
 
-    pub fn realtime_fanout_targets_from_auth_context(
-        &self,
-        auth: &AuthContext,
-        principal_ids: impl IntoIterator<Item = String>,
-    ) -> Vec<RealtimeFanoutTarget> {
-        self.realtime_fanout_targets_for_principals(auth.tenant_id.as_str(), principal_ids)
-    }
-
     pub fn realtime_fanout_targets_for_recipients_from_auth_context(
         &self,
         auth: &AuthContext,
@@ -355,40 +331,40 @@ impl TimelineProjectionService {
         ))
     }
 
-    pub fn device_sync_feed_from_auth_context(
+    pub fn device_sync_feed_window_from_auth_context(
         &self,
         auth: &AuthContext,
         device_id: &str,
         after_seq: Option<u64>,
-    ) -> Result<Vec<DeviceSyncFeedEntry>, ProjectionAccessError> {
+        limit: Option<usize>,
+    ) -> Result<DeviceSyncFeedWindowView, ProjectionAccessError> {
         validate_device_scope(auth, device_id)?;
         ensure_device_owned_by_auth_kind(self, auth, device_id)?;
-        Ok(self.device_sync_feed_for_principal_kind(
+        let limit = validate_device_sync_feed_limit(limit)?;
+        Ok(self.device_sync_feed_window_for_principal_kind(
             auth.tenant_id.as_str(),
             auth.actor_id.as_str(),
             auth.actor_kind.as_str(),
             device_id,
             after_seq,
+            limit,
         ))
     }
 
     pub fn inbox_from_auth_context(&self, auth: &AuthContext) -> Vec<ConversationInboxEntry> {
-        self.inbox(auth.tenant_id.as_str(), auth.actor_id.as_str())
-            .into_iter()
-            .filter(|entry| {
-                self.member_snapshot_for_principal_kind(
-                    auth.tenant_id.as_str(),
-                    entry.conversation_id.as_str(),
-                    auth.actor_id.as_str(),
-                    auth.actor_kind.as_str(),
-                )
-                .is_some_and(|member| member.member_id == entry.member_id)
-                    && !self.is_archived_direct_chat_conversation(
-                        auth.tenant_id.as_str(),
-                        entry.conversation_id.as_str(),
-                    )
-            })
-            .collect()
+        self.inbox_for_principal_kind(
+            auth.tenant_id.as_str(),
+            auth.actor_id.as_str(),
+            auth.actor_kind.as_str(),
+        )
+        .into_iter()
+        .filter(|entry| {
+            !self.is_archived_direct_chat_conversation(
+                auth.tenant_id.as_str(),
+                entry.conversation_id.as_str(),
+            )
+        })
+        .collect()
     }
 
     pub fn contacts_from_auth_context(
@@ -399,13 +375,16 @@ impl TimelineProjectionService {
         Ok(self.contacts(auth.tenant_id.as_str(), auth.actor_id.as_str()))
     }
 
-    pub fn timeline_from_auth_context(
+    pub fn timeline_window_from_auth_context(
         &self,
         auth: &AuthContext,
         conversation_id: &str,
-    ) -> Result<Vec<TimelineViewEntry>, ProjectionAccessError> {
+        after_seq: Option<u64>,
+        limit: Option<usize>,
+    ) -> Result<TimelineWindowView, ProjectionAccessError> {
         self.ensure_history_reader_from_auth_context(auth, conversation_id)?;
-        Ok(self.timeline(auth.tenant_id.as_str(), conversation_id))
+        let limit = validate_timeline_limit(limit)?;
+        Ok(self.timeline_window(auth.tenant_id.as_str(), conversation_id, after_seq, limit))
     }
 
     pub fn conversation_summary_from_auth_context(
@@ -518,11 +497,7 @@ fn ensure_device_registration_available(
                 scope.tenant_id == auth.tenant_id.as_str() && devices.contains_key(device_id)
             })
             .filter_map(|(_, devices)| devices.get(device_id))
-            .any(|device| {
-                device.principal_id != auth.actor_id
-                    || effective_registered_device_kind(device.principal_kind.as_deref())
-                        != auth.actor_kind
-            });
+            .any(|device| !device_registration_is_compatible_with_auth(device, auth));
 
     if has_conflict {
         return Err(ProjectionAccessError::conflict(
@@ -532,6 +507,18 @@ fn ensure_device_registration_available(
     }
 
     Ok(())
+}
+
+fn device_registration_is_compatible_with_auth(
+    device: &RegisteredDeviceView,
+    auth: &AuthContext,
+) -> bool {
+    device.principal_id == auth.actor_id
+        && (device.principal_kind == auth.actor_kind
+            || matches!(
+                (device.principal_kind.as_str(), auth.actor_kind.as_str()),
+                ("user", "device") | ("device", "user")
+            ))
 }
 
 fn ensure_device_owned_by_auth_kind(
@@ -555,10 +542,6 @@ fn ensure_device_owned_by_auth_kind(
         "device_scope_forbidden",
         format!("device scope forbidden: {device_id}"),
     ))
-}
-
-fn effective_registered_device_kind(principal_kind: Option<&str>) -> &str {
-    principal_kind.unwrap_or("user")
 }
 
 fn ensure_user_contact_owner(auth: &AuthContext) -> Result<(), ProjectionAccessError> {
@@ -609,4 +592,30 @@ fn validate_message_id(message_id: &str) -> Result<(), ProjectionAccessError> {
         ));
     }
     Ok(())
+}
+
+fn validate_timeline_limit(limit: Option<usize>) -> Result<usize, ProjectionAccessError> {
+    let limit = limit.unwrap_or(PROJECTION_TIMELINE_DEFAULT_LIMIT);
+    if limit == 0 || limit > PROJECTION_TIMELINE_MAX_LIMIT {
+        return Err(ProjectionAccessError::bad_request(
+            "limit_invalid",
+            format!(
+                "timeline limit must be between 1 and {PROJECTION_TIMELINE_MAX_LIMIT}: {limit}"
+            ),
+        ));
+    }
+    Ok(limit)
+}
+
+fn validate_device_sync_feed_limit(limit: Option<usize>) -> Result<usize, ProjectionAccessError> {
+    let limit = limit.unwrap_or(PROJECTION_DEVICE_SYNC_FEED_DEFAULT_LIMIT);
+    if limit == 0 || limit > PROJECTION_DEVICE_SYNC_FEED_MAX_LIMIT {
+        return Err(ProjectionAccessError::bad_request(
+            "limit_invalid",
+            format!(
+                "device sync feed limit must be between 1 and {PROJECTION_DEVICE_SYNC_FEED_MAX_LIMIT}: {limit}"
+            ),
+        ));
+    }
+    Ok(limit)
 }

@@ -166,11 +166,48 @@ pub(super) fn ensure_conversation_member(
     conversation_id: &str,
 ) -> Result<(), ApiError> {
     ensure_active_auth_principal(state, auth)?;
+    ensure_domain_conversation_member(state, auth, conversation_id)?;
+    ensure_conversation_not_archived(state, auth, conversation_id)?;
+    ensure_conversation_not_blocked(state, auth, conversation_id)?;
+    Ok(())
+}
+
+pub(super) fn ensure_conversation_read_access(
+    state: &AppState,
+    auth: &AuthContext,
+    conversation_id: &str,
+) -> Result<(), ApiError> {
+    ensure_active_auth_principal(state, auth)?;
+    match ensure_domain_conversation_member(state, auth, conversation_id) {
+        Ok(()) => {}
+        Err(domain_error)
+            if matches!(
+                domain_error.code,
+                "conversation_not_found"
+                    | "conversation_member_not_found"
+                    | "conversation_permission_denied"
+            ) =>
+        {
+            state
+                .projection_service
+                .ensure_history_reader_from_auth_context(auth, conversation_id)
+                .map_err(ApiError::from)?;
+        }
+        Err(domain_error) => return Err(domain_error),
+    }
+    ensure_conversation_not_archived(state, auth, conversation_id)?;
+    ensure_conversation_not_blocked(state, auth, conversation_id)?;
+    Ok(())
+}
+
+fn ensure_domain_conversation_member(
+    state: &AppState,
+    auth: &AuthContext,
+    conversation_id: &str,
+) -> Result<(), ApiError> {
     state
         .conversation_runtime
         .require_active_member_from_auth_context(auth, conversation_id)?;
-    ensure_conversation_not_archived(state, auth, conversation_id)?;
-    ensure_conversation_not_blocked(state, auth, conversation_id)?;
     Ok(())
 }
 
@@ -515,15 +552,13 @@ fn ensure_device_stream_registration(
 
     let owns_device = state
         .projection_service
-        .registered_devices(auth.tenant_id.as_str(), auth.actor_id.as_str())
+        .registered_devices_for_principal_kind(
+            auth.tenant_id.as_str(),
+            auth.actor_id.as_str(),
+            auth.actor_kind.as_str(),
+        )
         .into_iter()
-        .any(|item| {
-            item.device_id == device_id
-                && matches!(
-                    effective_registered_device_kind(item.principal_kind.as_deref()),
-                    "user" | "device"
-                )
-        });
+        .any(|item| item.device_id == device_id);
 
     if owns_device {
         return Ok(());
@@ -613,10 +648,6 @@ fn ensure_bound_device_actor(auth: &AuthContext, device_id: &str) -> Result<(), 
             "device stream access requires an auth context device id",
         )),
     }
-}
-
-fn effective_registered_device_kind(principal_kind: Option<&str>) -> &str {
-    principal_kind.unwrap_or("user")
 }
 
 fn validate_device_id(device_id: &str) -> Result<(), ApiError> {

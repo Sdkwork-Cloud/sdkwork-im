@@ -61,7 +61,7 @@ where
         principal_id: &str,
     ) -> Result<AgentHandoffStateView, RuntimeError> {
         let scope_key = conversation_scope_key(tenant_id, conversation_id);
-        let state = lock_runtime_mutex(&self.state, "conversation-runtime.state.handoff");
+        let state = read_runtime_state(&self.state, "conversation-runtime.state.handoff");
         let conversation = state
             .conversations
             .get(scope_key.as_str())
@@ -85,7 +85,7 @@ where
         principal_kind: &str,
     ) -> Result<AgentHandoffStateView, RuntimeError> {
         let scope_key = conversation_scope_key(tenant_id, conversation_id);
-        let state = lock_runtime_mutex(&self.state, "conversation-runtime.state.handoff");
+        let state = read_runtime_state(&self.state, "conversation-runtime.state.handoff");
         let conversation = state
             .conversations
             .get(scope_key.as_str())
@@ -155,7 +155,7 @@ where
         action: ConversationHandoffLifecycle,
     ) -> Result<AgentHandoffStatusTransitionOutcome, RuntimeError> {
         let scope_key = conversation_scope_key(tenant_id, conversation_id);
-        let mut state = lock_runtime_mutex(&self.state, "conversation-runtime.state.handoff");
+        let mut state = write_runtime_state(&self.state, "conversation-runtime.state.handoff");
         let conversation = state
             .conversations
             .get_mut(scope_key.as_str())

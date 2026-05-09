@@ -47,7 +47,7 @@ fn test_runtime_restores_notification_projection_on_rebuild_with_shared_store() 
                 category: "message.new".into(),
                 channel: "inapp".into(),
                 recipient_id: "u_demo".into(),
-                recipient_kind: None,
+                recipient_kind: "user".into(),
                 title: Some("hello".into()),
                 body: Some("world".into()),
                 payload: Some(r#"{"conversationId":"c_demo"}"#.into()),
@@ -64,7 +64,7 @@ fn test_runtime_restores_notification_projection_on_rebuild_with_shared_store() 
     assert_eq!(items.len(), 1);
     assert_eq!(items[0].notification_id, "ntf_rebuild");
     assert_eq!(items[0].status.as_str(), "dispatched");
-    assert_eq!(items[0].recipient_kind.as_deref(), Some("user"));
+    assert_eq!(items[0].recipient_kind, "user");
 }
 
 #[test]
@@ -125,7 +125,7 @@ fn test_runtime_restores_actor_kind_scoped_automation_notifications_after_rebuil
         user_items[0].notification_id,
         "ntf_automation_user_ae_rebuild_kind"
     );
-    assert_eq!(user_items[0].recipient_kind.as_deref(), Some("user"));
+    assert_eq!(user_items[0].recipient_kind, "user");
 
     let system_items = runtime_after
         .list_notifications(&system_auth)
@@ -135,5 +135,5 @@ fn test_runtime_restores_actor_kind_scoped_automation_notifications_after_rebuil
         system_items[0].notification_id,
         "ntf_automation_system_ae_rebuild_kind"
     );
-    assert_eq!(system_items[0].recipient_kind.as_deref(), Some("system"));
+    assert_eq!(system_items[0].recipient_kind, "system");
 }

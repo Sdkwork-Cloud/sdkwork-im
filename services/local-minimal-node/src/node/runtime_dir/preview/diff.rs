@@ -128,6 +128,9 @@ pub(super) fn summarize_disconnect_fence_restore_preview_change(
         acked_rewound_keys: None,
         trimmed_advanced_keys: None,
         trimmed_rewound_keys: None,
+        capacity_trimmed_advanced_keys: None,
+        capacity_trimmed_rewound_keys: None,
+        capacity_trimmed_timestamp_changed_keys: None,
         timestamp_only_changed_keys: None,
         added_scope_keys: None,
         removed_scope_keys: None,
@@ -263,6 +266,157 @@ pub(super) fn summarize_realtime_checkpoint_restore_preview_change(
         acked_rewound_keys: Some(acked_rewound_keys),
         trimmed_advanced_keys: Some(trimmed_advanced_keys),
         trimmed_rewound_keys: Some(trimmed_rewound_keys),
+        capacity_trimmed_advanced_keys: None,
+        capacity_trimmed_rewound_keys: None,
+        capacity_trimmed_timestamp_changed_keys: None,
+        timestamp_only_changed_keys: Some(timestamp_only_changed_keys),
+        added_scope_keys: None,
+        removed_scope_keys: None,
+        event_types_added_scope_keys: None,
+        event_types_removed_scope_keys: None,
+        subscribed_at_only_changed_scope_keys: None,
+        unchanged_scope_count: None,
+        stream_state_changed_keys: None,
+        stream_last_frame_advanced_keys: None,
+        stream_last_frame_rewound_keys: None,
+        stream_checkpoint_advanced_keys: None,
+        stream_checkpoint_rewound_keys: None,
+        stream_result_message_changed_keys: None,
+        added_frame_keys: None,
+        removed_frame_keys: None,
+        modified_frame_keys: None,
+        unchanged_frame_count: None,
+        rtc_state_changed_keys: None,
+        rtc_signaling_stream_changed_keys: None,
+        rtc_artifact_message_changed_keys: None,
+        added_signal_keys: None,
+        removed_signal_keys: None,
+        modified_signal_keys: None,
+        unchanged_signal_count: None,
+    })
+}
+
+pub(super) fn summarize_realtime_event_window_restore_preview_change(
+    file_name: &str,
+    source_payload: &[u8],
+    target_payload: &[u8],
+) -> Option<RuntimeDirRestorePreviewDomainSummaryView> {
+    if file_name != "realtime-event-windows.json" {
+        return None;
+    }
+
+    let source_map =
+        serde_json::from_slice::<BTreeMap<String, RealtimeEventWindowRecord>>(source_payload)
+            .ok()?;
+    let target_map =
+        serde_json::from_slice::<BTreeMap<String, RealtimeEventWindowRecord>>(target_payload)
+            .ok()?;
+
+    let source_keys: BTreeSet<String> = source_map.keys().cloned().collect();
+    let target_keys: BTreeSet<String> = target_map.keys().cloned().collect();
+    let added_keys = source_keys
+        .difference(&target_keys)
+        .cloned()
+        .collect::<Vec<_>>();
+    let removed_keys = target_keys
+        .difference(&source_keys)
+        .cloned()
+        .collect::<Vec<_>>();
+
+    let mut trimmed_advanced_keys = Vec::new();
+    let mut trimmed_rewound_keys = Vec::new();
+    let mut capacity_trimmed_advanced_keys = Vec::new();
+    let mut capacity_trimmed_rewound_keys = Vec::new();
+    let mut capacity_trimmed_timestamp_changed_keys = Vec::new();
+    let mut timestamp_only_changed_keys = Vec::new();
+    let mut other_modified_keys = Vec::new();
+    let mut unchanged_key_count = 0usize;
+
+    for key in source_keys.intersection(&target_keys) {
+        let source_entry = source_map
+            .get(key)
+            .expect("source realtime event window entry should exist");
+        let target_entry = target_map
+            .get(key)
+            .expect("target realtime event window entry should exist");
+        if source_entry == target_entry {
+            unchanged_key_count += 1;
+            continue;
+        }
+
+        let identity_changed = source_entry.tenant_id != target_entry.tenant_id
+            || source_entry.principal_kind != target_entry.principal_kind
+            || source_entry.principal_id != target_entry.principal_id
+            || source_entry.device_id != target_entry.device_id;
+        if identity_changed {
+            other_modified_keys.push(key.clone());
+            continue;
+        }
+
+        let trimmed_advanced = source_entry.trimmed_through_seq > target_entry.trimmed_through_seq;
+        let trimmed_rewound = source_entry.trimmed_through_seq < target_entry.trimmed_through_seq;
+        let capacity_count_advanced =
+            source_entry.capacity_trimmed_event_count > target_entry.capacity_trimmed_event_count;
+        let capacity_count_rewound =
+            source_entry.capacity_trimmed_event_count < target_entry.capacity_trimmed_event_count;
+        let capacity_seq_advanced =
+            source_entry.capacity_trimmed_through_seq > target_entry.capacity_trimmed_through_seq;
+        let capacity_seq_rewound =
+            source_entry.capacity_trimmed_through_seq < target_entry.capacity_trimmed_through_seq;
+
+        if trimmed_advanced {
+            trimmed_advanced_keys.push(key.clone());
+        }
+        if trimmed_rewound {
+            trimmed_rewound_keys.push(key.clone());
+        }
+        if capacity_count_advanced || capacity_seq_advanced {
+            capacity_trimmed_advanced_keys.push(key.clone());
+        }
+        if capacity_count_rewound || capacity_seq_rewound {
+            capacity_trimmed_rewound_keys.push(key.clone());
+        }
+
+        let sequence_changed = trimmed_advanced
+            || trimmed_rewound
+            || capacity_count_advanced
+            || capacity_count_rewound
+            || capacity_seq_advanced
+            || capacity_seq_rewound;
+        let capacity_timestamp_changed =
+            source_entry.last_capacity_trimmed_at != target_entry.last_capacity_trimmed_at;
+        let updated_at_changed = source_entry.updated_at != target_entry.updated_at;
+        let events_changed = source_entry.events != target_entry.events;
+
+        if capacity_timestamp_changed && !sequence_changed && !events_changed {
+            capacity_trimmed_timestamp_changed_keys.push(key.clone());
+        }
+        if !capacity_timestamp_changed && updated_at_changed && !sequence_changed && !events_changed
+        {
+            timestamp_only_changed_keys.push(key.clone());
+        }
+        if events_changed {
+            other_modified_keys.push(key.clone());
+        }
+    }
+
+    Some(RuntimeDirRestorePreviewDomainSummaryView {
+        summary_kind: "realtime_event_windows".into(),
+        added_keys,
+        removed_keys,
+        owner_node_changed_keys: Vec::new(),
+        session_changed_keys: Vec::new(),
+        other_modified_keys,
+        unchanged_key_count,
+        latest_advanced_keys: None,
+        latest_rewound_keys: None,
+        acked_advanced_keys: None,
+        acked_rewound_keys: None,
+        trimmed_advanced_keys: Some(trimmed_advanced_keys),
+        trimmed_rewound_keys: Some(trimmed_rewound_keys),
+        capacity_trimmed_advanced_keys: Some(capacity_trimmed_advanced_keys),
+        capacity_trimmed_rewound_keys: Some(capacity_trimmed_rewound_keys),
+        capacity_trimmed_timestamp_changed_keys: Some(capacity_trimmed_timestamp_changed_keys),
         timestamp_only_changed_keys: Some(timestamp_only_changed_keys),
         added_scope_keys: None,
         removed_scope_keys: None,
@@ -297,11 +451,11 @@ struct RealtimeSubscriptionScopeSummary {
 }
 
 fn realtime_subscription_scope_key(scope_type: &str, scope_id: &str) -> String {
-    format!("{scope_type}:{scope_id}")
+    encode_runtime_dir_preview_key_segments([scope_type, scope_id])
 }
 
 fn qualified_realtime_subscription_scope_key(record_key: &str, scope_key: &str) -> String {
-    format!("{record_key}#{scope_key}")
+    encode_runtime_dir_preview_key_segments([record_key, scope_key])
 }
 
 fn summarize_realtime_subscription_items(
@@ -483,6 +637,9 @@ pub(super) fn summarize_realtime_subscription_restore_preview_change(
         acked_rewound_keys: None,
         trimmed_advanced_keys: None,
         trimmed_rewound_keys: None,
+        capacity_trimmed_advanced_keys: None,
+        capacity_trimmed_rewound_keys: None,
+        capacity_trimmed_timestamp_changed_keys: None,
         timestamp_only_changed_keys: Some(synced_timestamp_only_changed_keys),
         added_scope_keys: Some(added_scope_keys),
         removed_scope_keys: Some(removed_scope_keys),
@@ -520,7 +677,7 @@ fn compare_optional_u64(source: Option<u64>, target: Option<u64>) -> std::cmp::O
 }
 
 fn qualified_stream_frame_key(record_key: &str, frame_seq: u64) -> String {
-    format!("{record_key}#frame:{frame_seq}")
+    encode_runtime_dir_preview_key_segments([record_key, "frame", frame_seq.to_string().as_str()])
 }
 
 fn summarize_stream_frames(
@@ -700,6 +857,9 @@ pub(super) fn summarize_stream_state_restore_preview_change(
         acked_rewound_keys: None,
         trimmed_advanced_keys: None,
         trimmed_rewound_keys: None,
+        capacity_trimmed_advanced_keys: None,
+        capacity_trimmed_rewound_keys: None,
+        capacity_trimmed_timestamp_changed_keys: None,
         timestamp_only_changed_keys: Some(timestamp_only_changed_keys),
         added_scope_keys: None,
         removed_scope_keys: None,
@@ -728,7 +888,11 @@ pub(super) fn summarize_stream_state_restore_preview_change(
 }
 
 fn qualified_rtc_signal_key(record_key: &str, signal_index: usize) -> String {
-    format!("{record_key}#signal:{signal_index}")
+    encode_runtime_dir_preview_key_segments([
+        record_key,
+        "signal",
+        signal_index.to_string().as_str(),
+    ])
 }
 
 fn summarize_rtc_signals(
@@ -876,6 +1040,9 @@ pub(super) fn summarize_rtc_state_restore_preview_change(
         acked_rewound_keys: None,
         trimmed_advanced_keys: None,
         trimmed_rewound_keys: None,
+        capacity_trimmed_advanced_keys: None,
+        capacity_trimmed_rewound_keys: None,
+        capacity_trimmed_timestamp_changed_keys: None,
         timestamp_only_changed_keys: Some(timestamp_only_changed_keys),
         added_scope_keys: None,
         removed_scope_keys: None,
@@ -901,4 +1068,16 @@ pub(super) fn summarize_rtc_state_restore_preview_change(
         modified_signal_keys: Some(modified_signal_keys),
         unchanged_signal_count: Some(unchanged_signal_count),
     })
+}
+
+fn encode_runtime_dir_preview_key_segments<'a>(
+    segments: impl IntoIterator<Item = &'a str>,
+) -> String {
+    let mut encoded = String::new();
+    for segment in segments {
+        encoded.push_str(segment.len().to_string().as_str());
+        encoded.push('#');
+        encoded.push_str(segment);
+    }
+    encoded
 }

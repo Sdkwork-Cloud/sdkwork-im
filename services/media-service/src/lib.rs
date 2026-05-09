@@ -1143,21 +1143,37 @@ fn validate_complete_upload_request_payload_size(
 }
 
 fn media_scope_key(tenant_id: &str, media_asset_id: &str) -> String {
-    format!("{tenant_id}:{media_asset_id}")
+    encode_media_key_segments([tenant_id, media_asset_id])
+}
+
+fn encode_media_key_segments<'a>(segments: impl IntoIterator<Item = &'a str>) -> String {
+    let mut encoded = String::new();
+    for segment in segments {
+        encoded.push_str(segment.len().to_string().as_str());
+        encoded.push('#');
+        encoded.push_str(segment);
+    }
+    encoded
 }
 
 pub fn media_create_upload_request_key(auth: &AuthContext, media_asset_id: &str) -> String {
-    format!(
-        "{}:{}:{}:create:{}",
-        auth.tenant_id, auth.actor_kind, auth.actor_id, media_asset_id
-    )
+    encode_media_key_segments([
+        auth.tenant_id.as_str(),
+        auth.actor_kind.as_str(),
+        auth.actor_id.as_str(),
+        "create",
+        media_asset_id,
+    ])
 }
 
 pub fn media_complete_upload_request_key(auth: &AuthContext, media_asset_id: &str) -> String {
-    format!(
-        "{}:{}:{}:complete:{}",
-        auth.tenant_id, auth.actor_kind, auth.actor_id, media_asset_id
-    )
+    encode_media_key_segments([
+        auth.tenant_id.as_str(),
+        auth.actor_kind.as_str(),
+        auth.actor_id.as_str(),
+        "complete",
+        media_asset_id,
+    ])
 }
 
 fn is_asset_owner(asset: &MediaAsset, auth: &AuthContext) -> bool {
@@ -1233,4 +1249,89 @@ fn sanitize_media_object_path_segment(value: &str) -> String {
             _ => '-',
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn auth(tenant_id: &str, actor_kind: &str, actor_id: &str) -> AuthContext {
+        AuthContext {
+            tenant_id: tenant_id.into(),
+            actor_id: actor_id.into(),
+            actor_kind: actor_kind.into(),
+            session_id: None,
+            device_id: None,
+            permissions: Default::default(),
+        }
+    }
+
+    fn upload_request(media_asset_id: &str, name: &str) -> CreateUploadRequest {
+        CreateUploadRequest {
+            media_asset_id: media_asset_id.into(),
+            bucket: Some("media-assets".into()),
+            object_key: Some(format!("tenant/test/{media_asset_id}/{name}")),
+            expires_in_seconds: None,
+            resource: MediaResource {
+                id: None,
+                uuid: Some(format!("res-{media_asset_id}")),
+                url: None,
+                bytes: None,
+                local_file: None,
+                base64: None,
+                resource_type: None,
+                mime_type: Some("image/png".into()),
+                size: Some(42),
+                name: Some(name.into()),
+                extension: Some("png".into()),
+                tags: None,
+                metadata: None,
+                prompt: None,
+            },
+        }
+    }
+
+    #[test]
+    fn test_media_scope_key_is_segment_safe() {
+        let runtime = MediaRuntime::default();
+        let first_auth = auth("tenant:a", "user", "u_demo");
+        let second_auth = auth("tenant", "user", "u_demo");
+
+        runtime
+            .create_upload(&first_auth, upload_request("b", "first.png"))
+            .expect("first media asset should be created");
+        runtime
+            .create_upload(&second_auth, upload_request("a:b", "second.png"))
+            .expect("second media asset should be created");
+
+        assert_eq!(
+            runtime
+                .get_asset(&first_auth, "b")
+                .expect("first media asset should not be overwritten")
+                .media_asset_id,
+            "b"
+        );
+        assert_eq!(
+            runtime
+                .get_asset(&second_auth, "a:b")
+                .expect("second media asset should be retrievable")
+                .media_asset_id,
+            "a:b"
+        );
+    }
+
+    #[test]
+    fn test_media_request_keys_are_segment_safe() {
+        let first = auth("tenant:a", "user", "b");
+        let second = auth("tenant", "a:user", "b");
+
+        assert_ne!(
+            media_create_upload_request_key(&first, "asset"),
+            media_create_upload_request_key(&second, "asset")
+        );
+        assert_ne!(
+            media_complete_upload_request_key(&first, "asset"),
+            media_complete_upload_request_key(&second, "asset")
+        );
+    }
 }

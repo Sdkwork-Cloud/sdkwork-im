@@ -78,6 +78,66 @@ fn test_runtime_state_uses_domain_message_locator_for_cross_conversation_lookup(
 }
 
 #[test]
+fn test_conversation_runtime_state_uses_rwlock_and_query_read_guards() {
+    let runtime_source = include_str!("../src/runtime.rs").replace("\r\n", "\n");
+    let membership_source = include_str!("../src/runtime/membership.rs").replace("\r\n", "\n");
+    let binding_source = include_str!("../src/runtime/binding.rs").replace("\r\n", "\n");
+
+    assert!(
+        !runtime_source.contains("state: Mutex<RuntimeState>,"),
+        "conversation runtime state must not use a global exclusive Mutex; query paths need shared read guards"
+    );
+    assert!(
+        runtime_source.contains("state: RwLock<RuntimeState>,"),
+        "conversation runtime state should use RwLock<RuntimeState> so independent reads can proceed concurrently"
+    );
+    assert!(
+        runtime_source.contains("fn read_runtime_state")
+            && runtime_source.contains("fn write_runtime_state"),
+        "conversation runtime should expose explicit read/write guard helpers for runtime state"
+    );
+
+    for required_symbol in [
+        "pub fn conversation_id_for_message(",
+        "pub fn require_active_member_with_kind(",
+        "pub fn require_active_member(",
+    ] {
+        let method = runtime_source
+            .split(required_symbol)
+            .nth(1)
+            .and_then(|source| source.split("\n    pub fn ").next())
+            .expect("runtime.rs should keep expected query method");
+        assert!(
+            method.contains("read_runtime_state("),
+            "conversation-runtime query method should use shared read guard: {required_symbol}"
+        );
+    }
+
+    for required_symbol in [
+        "pub fn list_members(",
+        "pub fn read_cursor_view(",
+        "pub fn read_cursor_view_with_actor_kind(",
+        "pub fn list_messages_window(",
+        "pub fn list_messages_with_actor_kind(",
+    ] {
+        let method = membership_source
+            .split(required_symbol)
+            .nth(1)
+            .and_then(|source| source.split("\n    pub fn ").next())
+            .expect("membership.rs should keep expected query method");
+        assert!(
+            method.contains("read_runtime_state("),
+            "conversation-runtime membership query should use shared read guard: {required_symbol}"
+        );
+    }
+
+    assert!(
+        binding_source.contains("read_runtime_state("),
+        "conversation business binding query should use shared read guard"
+    );
+}
+
+#[test]
 fn test_message_mutation_commands_offer_auth_context_constructors() {
     let runtime_source = include_str!("../src/runtime.rs").replace("\r\n", "\n");
 
@@ -260,13 +320,24 @@ fn test_runtime_exposes_read_query_auth_context_entrypoints() {
         "pub fn require_active_member_from_auth_context(",
         "pub fn conversation_business_binding_from_auth_context(",
         "pub fn list_members_from_auth_context(",
-        "pub fn list_messages_from_auth_context(",
+        "pub fn list_messages_window_from_auth_context(",
         "pub fn read_cursor_view_from_auth_context(",
         "pub fn get_agent_handoff_state_from_auth_context(",
     ] {
         assert!(
             combined.contains(required_symbol),
             "conversation-runtime should expose auth-context-backed read query entrypoint: {required_symbol}"
+        );
+    }
+
+    for forbidden_symbol in [
+        "pub fn list_messages_from_auth_context(",
+        "pub fn list_messages(\n",
+        "usize::MAX",
+    ] {
+        assert!(
+            !combined.contains(forbidden_symbol),
+            "conversation-runtime must not expose unbounded message history read path: {forbidden_symbol}"
         );
     }
 }
@@ -326,7 +397,7 @@ fn test_http_read_query_surface_uses_runtime_auth_context_entrypoints() {
         ".conversation_business_binding_from_auth_context(",
         ".get_agent_handoff_state_from_auth_context(",
         ".list_members_from_auth_context(",
-        ".list_messages_from_auth_context(",
+        ".list_messages_window_from_auth_context(",
         ".read_cursor_view_from_auth_context(",
     ] {
         assert!(
@@ -347,6 +418,40 @@ fn test_http_read_query_surface_uses_runtime_auth_context_entrypoints() {
             "services/conversation-runtime/src/runtime/http.rs should not keep read query authority capture outside runtime auth-context entrypoint: {forbidden_symbol}"
         );
     }
+}
+
+#[test]
+fn test_auth_context_runtime_entrypoints_keep_typed_principal_identity() {
+    let runtime_source = include_str!("../src/runtime.rs");
+    let binding_source = include_str!("../src/runtime/binding.rs");
+    let membership_source = include_str!("../src/runtime/membership.rs");
+    let handoff_source = include_str!("../src/runtime/handoff.rs");
+    let governance_source = include_str!("../src/runtime/governance.rs");
+
+    for (source_name, source) in [
+        ("runtime.rs", runtime_source),
+        ("binding.rs", binding_source),
+        ("membership.rs", membership_source),
+        ("handoff.rs", handoff_source),
+        ("governance.rs", governance_source),
+    ] {
+        assert!(
+            !source.contains("from_auth_context(\n") || source.contains("auth.actor_kind.as_str()"),
+            "services/conversation-runtime/src/runtime/{source_name} auth-context entrypoints must keep actor_kind in the runtime boundary"
+        );
+    }
+
+    assert!(
+        !binding_source
+            .contains("self.require_active_member(\n                auth.tenant_id.as_str(),"),
+        "conversation_business_binding_from_auth_context must not use untyped member lookup"
+    );
+    assert!(
+        binding_source.contains(
+            "self.require_active_member_with_kind(\n                auth.tenant_id.as_str(),"
+        ),
+        "conversation_business_binding_from_auth_context should resolve membership by tenant, conversation, actor id, and actor kind"
+    );
 }
 
 #[test]

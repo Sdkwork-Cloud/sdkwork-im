@@ -11,10 +11,11 @@ use im_domain_events::CommitEnvelope;
 use tower::ServiceExt;
 
 static NEXT_RUNTIME_DIR_ID: AtomicU64 = AtomicU64::new(0);
-const MANAGED_RUNTIME_STATE_FILES: [&str; 12] = [
+const MANAGED_RUNTIME_STATE_FILES: [&str; 13] = [
     "commit-journal.json",
     "realtime-disconnect-fences.json",
     "realtime-checkpoints.json",
+    "realtime-event-windows.json",
     "realtime-subscriptions.json",
     "presence-state.json",
     "device-twin-state.json",
@@ -44,7 +45,15 @@ fn write_runtime_state_file(runtime_dir: &Path, file_name: &str, content: &str) 
 }
 
 fn write_commit_journal(runtime_dir: &Path, events: &[CommitEnvelope]) {
-    let payload = serde_json::to_string_pretty(events).expect("commit journal should serialize");
+    let mut payload = String::new();
+    for event in events {
+        payload.push_str(
+            serde_json::to_string(event)
+                .expect("commit journal event should serialize")
+                .as_str(),
+        );
+        payload.push('\n');
+    }
     write_runtime_state_file(runtime_dir, "commit-journal.json", payload.as_str());
 }
 
@@ -91,10 +100,13 @@ fn invalid_replay_message_envelope() -> CommitEnvelope {
 }
 
 fn seed_runtime_state_file(runtime_dir: &Path, file_name: &str) {
-    let content = if file_name == "commit-journal.json" {
-        "[]"
-    } else {
-        "{}"
+    let content = match file_name {
+        "commit-journal.json" => "",
+        "presence-state.json" => {
+            "{\"by_device\":{},\"presence_by_principal\":{},\"online_by_seen_at\":{}}"
+        }
+        "notification-tasks.json" => "{\"by_notification\":{},\"tasks_by_recipient\":{}}",
+        _ => "{}",
     };
     write_runtime_state_file(runtime_dir, file_name, content);
 }
@@ -115,6 +127,7 @@ async fn test_managed_runtime_dir_inspection_reports_all_expected_files_when_par
                 .uri("/api/v1/ops/runtime-dir")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_ops_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "ops.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -133,12 +146,12 @@ async fn test_managed_runtime_dir_inspection_reports_all_expected_files_when_par
         serde_json::from_slice(&body).expect("runtime-dir inspection body should be valid json");
 
     assert_eq!(json["status"], "ok");
-    assert_eq!(json["healthyFileCount"], 12);
+    assert_eq!(json["healthyFileCount"], MANAGED_RUNTIME_STATE_FILES.len());
     assert_eq!(json["missingFileCount"], 0);
     assert_eq!(json["corruptFileCount"], 0);
 
     let files = json["files"].as_array().expect("files should be an array");
-    assert_eq!(files.len(), 12);
+    assert_eq!(files.len(), MANAGED_RUNTIME_STATE_FILES.len());
     assert!(files.iter().any(|file| {
         file["fileName"] == "presence-state.json"
             && file["status"] == "ok"
@@ -188,6 +201,7 @@ async fn test_managed_runtime_dir_inspection_reports_missing_and_corrupt_files_a
                 .uri("/api/v1/ops/runtime-dir")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_ops_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "ops.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -206,7 +220,10 @@ async fn test_managed_runtime_dir_inspection_reports_missing_and_corrupt_files_a
         serde_json::from_slice(&body).expect("runtime-dir inspection body should be valid json");
 
     assert_eq!(json["status"], "degraded");
-    assert_eq!(json["healthyFileCount"], 10);
+    assert_eq!(
+        json["healthyFileCount"],
+        MANAGED_RUNTIME_STATE_FILES.len() - 2
+    );
     assert_eq!(json["missingFileCount"], 1);
     assert_eq!(json["corruptFileCount"], 1);
 
@@ -245,6 +262,7 @@ async fn test_managed_runtime_dir_inspection_reports_typed_store_shape_violation
                 .uri("/api/v1/ops/runtime-dir")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_ops_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "ops.read")
                 .body(Body::empty())
                 .unwrap(),

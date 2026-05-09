@@ -5,6 +5,10 @@ use im_domain_core::conversation::{
 };
 use projection_service::TimelineProjectionService;
 
+fn typed_member_id(conversation_id: &str, principal_kind: &str, principal_id: &str) -> String {
+    format!("cm_{conversation_id}_{principal_kind}_{principal_id}")
+}
+
 fn message_posted_event(
     tenant_id: &str,
     conversation_id: &str,
@@ -36,6 +40,7 @@ fn message_posted_event_at(
     occurred_at: &str,
     committed_at: &str,
 ) -> im_domain_events::CommitEnvelope {
+    let sender_member_id = typed_member_id(conversation_id, "user", sender_id);
     im_domain_events::CommitEnvelope::minimal(
         &format!("evt_{tenant_id}_{conversation_id}_{message_seq}"),
         tenant_id,
@@ -52,7 +57,7 @@ fn message_posted_event_at(
                 "conversationId":"{conversation_id}",
                 "messageId":"{message_id}",
                 "messageSeq":{message_seq},
-                "sender":{{"id":"{sender_id}","kind":"user","memberId":"cm_{sender_id}","deviceId":"d_{sender_id}","sessionId":"s_{sender_id}","metadata":{{}}}},
+                "sender":{{"id":"{sender_id}","kind":"user","memberId":"{sender_member_id}","deviceId":"d_{sender_id}","sessionId":"s_{sender_id}","metadata":{{}}}},
                 "messageType":"standard",
                 "deliveryMode":"discrete",
                 "clientMsgId":"client_{message_id}",
@@ -99,7 +104,7 @@ fn member_joined_event(
     let member = build_conversation_member(
         tenant_id,
         conversation_id,
-        format!("cm_{conversation_id}_{principal_id}"),
+        typed_member_id(conversation_id, "user", principal_id),
         principal_id,
         "user",
         role,
@@ -131,7 +136,7 @@ fn read_cursor_updated_event(
     let member = build_conversation_member(
         tenant_id,
         conversation_id,
-        format!("cm_{conversation_id}_{principal_id}"),
+        typed_member_id(conversation_id, "user", principal_id),
         principal_id,
         "user",
         MembershipRole::Member,
@@ -167,7 +172,7 @@ fn member_role_changed_event(
     let previous_member = build_conversation_member(
         tenant_id,
         conversation_id,
-        format!("cm_{conversation_id}_{principal_id}"),
+        typed_member_id(conversation_id, "user", principal_id),
         principal_id,
         "user",
         previous_role,
@@ -177,7 +182,7 @@ fn member_role_changed_event(
     let updated_member = build_conversation_member(
         tenant_id,
         conversation_id,
-        format!("cm_{conversation_id}_{principal_id}"),
+        typed_member_id(conversation_id, "user", principal_id),
         principal_id,
         "user",
         updated_role,
@@ -292,7 +297,7 @@ fn message_reaction_added_event(
             "reactedBy": {
                 "id": actor_id,
                 "kind": "user",
-                "memberId": format!("cm_{actor_id}"),
+                "memberId": typed_member_id(conversation_id, "user", actor_id),
                 "deviceId": format!("d_{actor_id}"),
                 "sessionId": format!("s_{actor_id}"),
                 "metadata": {}
@@ -329,7 +334,7 @@ fn message_pinned_event(
             "pinnedBy": {
                 "id": actor_id,
                 "kind": "user",
-                "memberId": format!("cm_{actor_id}"),
+                "memberId": typed_member_id(conversation_id, "user", actor_id),
                 "deviceId": format!("d_{actor_id}"),
                 "sessionId": format!("s_{actor_id}"),
                 "metadata": {}
@@ -470,13 +475,13 @@ fn test_projection_service_restores_member_cursor_and_inbox_views_from_snapshot_
     );
 
     let member = restored
-        .member_snapshot("t_alpha", "c_restore", "u_member")
+        .member_snapshot_for_principal_kind("t_alpha", "c_restore", "u_member", "user")
         .expect("member should restore");
-    assert_eq!(member.member_id, "cm_c_restore_u_member");
+    assert_eq!(member.member_id, "cm_c_restore_user_u_member");
     assert_eq!(member.principal_id, "u_member");
 
     let read_cursor = restored
-        .read_cursor("t_alpha", "c_restore", "u_member")
+        .read_cursor_for_principal_kind("t_alpha", "c_restore", "u_member", "user")
         .expect("read cursor should restore");
     assert_eq!(read_cursor.read_seq, 1);
     assert_eq!(
@@ -485,7 +490,7 @@ fn test_projection_service_restores_member_cursor_and_inbox_views_from_snapshot_
     );
     assert_eq!(read_cursor.unread_count, 0);
 
-    let inbox = restored.inbox("t_alpha", "u_member");
+    let inbox = restored.inbox_for_principal_kind("t_alpha", "u_member", "user");
     assert_eq!(inbox.len(), 1);
     assert_eq!(inbox[0].conversation_id, "c_restore");
     assert_eq!(inbox[0].conversation_type, "group");
@@ -638,7 +643,16 @@ fn test_projection_service_restores_device_sync_state_from_projection_snapshot()
     assert_eq!(devices[0].device_id, "d_pad");
     assert_eq!(devices[1].device_id, "d_phone");
 
-    let phone_feed = restored.device_sync_feed("t_alpha", "u_member", "d_phone", Some(0));
+    let phone_feed = restored
+        .device_sync_feed_window_for_principal_kind(
+            "t_alpha",
+            "u_member",
+            "user",
+            "d_phone",
+            Some(0),
+            100,
+        )
+        .items;
     assert_eq!(phone_feed.len(), 2);
     assert_eq!(phone_feed[0].origin_event_type, "message.posted");
     assert_eq!(
@@ -651,7 +665,16 @@ fn test_projection_service_restores_device_sync_state_from_projection_snapshot()
     );
     assert_eq!(phone_feed[1].read_seq, Some(1));
 
-    let pad_feed = restored.device_sync_feed("t_alpha", "u_member", "d_pad", Some(0));
+    let pad_feed = restored
+        .device_sync_feed_window_for_principal_kind(
+            "t_alpha",
+            "u_member",
+            "user",
+            "d_pad",
+            Some(0),
+            100,
+        )
+        .items;
     assert_eq!(pad_feed.len(), 2);
     assert_eq!(pad_feed[0].origin_event_type, "message.posted");
     assert_eq!(
@@ -778,16 +801,17 @@ fn test_projection_service_restores_typed_device_sync_state_for_same_actor_and_d
     let user_devices = restored.registered_devices_from_auth_context(&user_auth);
     assert_eq!(user_devices.len(), 1);
     assert_eq!(user_devices[0].device_id, "d_shared");
-    assert_eq!(user_devices[0].principal_kind.as_deref(), Some("user"));
+    assert_eq!(user_devices[0].principal_kind, "user");
 
     let agent_devices = restored.registered_devices_from_auth_context(&agent_auth);
     assert_eq!(agent_devices.len(), 1);
     assert_eq!(agent_devices[0].device_id, "d_shared");
-    assert_eq!(agent_devices[0].principal_kind.as_deref(), Some("agent"));
+    assert_eq!(agent_devices[0].principal_kind, "agent");
 
     let user_feed = restored
-        .device_sync_feed_from_auth_context(&user_auth, "d_shared", Some(0))
-        .expect("restored user feed should remain accessible");
+        .device_sync_feed_window_from_auth_context(&user_auth, "d_shared", Some(0), Some(100))
+        .expect("restored user feed should remain accessible")
+        .items;
     assert_eq!(user_feed.len(), 1);
     assert_eq!(
         user_feed[0].message_id.as_deref(),
@@ -801,8 +825,9 @@ fn test_projection_service_restores_typed_device_sync_state_for_same_actor_and_d
     );
 
     let agent_feed = restored
-        .device_sync_feed_from_auth_context(&agent_auth, "d_shared", Some(0))
-        .expect("restored agent feed should remain accessible");
+        .device_sync_feed_window_from_auth_context(&agent_auth, "d_shared", Some(0), Some(100))
+        .expect("restored agent feed should remain accessible")
+        .items;
     assert!(agent_feed.is_empty());
     assert_eq!(
         restored
@@ -874,6 +899,10 @@ fn test_projection_service_restores_contacts_view_from_snapshot_metadata() {
     assert_eq!(contacts[0].target_user_id, "u_bob");
     assert_eq!(contacts[0].conversation_id.as_deref(), Some("c_direct_001"));
     assert_eq!(contacts[0].last_interaction_at, "2026-04-10T12:05:00Z");
+    assert_eq!(
+        restored.direct_chat_id_for_conversation("t_alpha", "c_direct_001"),
+        Some("dc_001".into())
+    );
 }
 
 #[test]
@@ -1033,7 +1062,7 @@ fn test_projection_service_records_snapshot_observability_metrics_traces_and_log
             .traces
             .iter()
             .any(|item| item.operation == "conversation_snapshot.restore"
-                && item.scope_id == "t_alpha:c_obs"
+                && item.scope_id == "7#t_alpha5#c_obs"
                 && item.outcome == "success"),
         "restore trace should be recorded"
     );
@@ -1136,7 +1165,7 @@ fn test_projection_service_tracks_live_projection_lag_per_scope() {
     assert!(
         lag_json.as_array().unwrap().iter().any(|item| {
             item["component"] == "projection_live"
-                && item["scopeId"] == "t_demo:c_projection_live_lag"
+                && item["scopeId"] == "6#t_demo21#c_projection_live_lag"
                 && item["currentOffset"] == 1
                 && item["committedOffset"] == 1
                 && item["lag"] == 0
@@ -1192,6 +1221,6 @@ fn test_projection_service_records_projection_update_delay_metrics() {
     );
     assert_eq!(
         snapshot_json["updateDelay"]["scopeId"],
-        "t_demo:c_projection_delay"
+        "6#t_demo18#c_projection_delay"
     );
 }

@@ -32,6 +32,13 @@ async fn spawn_server(app: Router) -> (String, tokio::task::JoinHandle<()>) {
     (format!("127.0.0.1:{}", address.port()), handle)
 }
 
+fn build_permissive_realtime_app() -> Router {
+    session_gateway::build_app_with_cluster_and_runtime(
+        Arc::new(session_gateway::RealtimeClusterBridge::default()),
+        Arc::new(session_gateway::RealtimeDeliveryRuntime::permissive_for_tests()),
+    )
+}
+
 async fn next_message(
     socket: &mut tokio_tungstenite::WebSocketStream<
         tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
@@ -151,7 +158,7 @@ fn assert_connection_closed_after_oversized_message(
 
 #[tokio::test]
 async fn test_realtime_websocket_binds_http_control_semantics() {
-    let app = session_gateway::build_app();
+    let app = build_permissive_realtime_app();
     let (address, handle) = spawn_server(app).await;
     let mut request = format!("ws://{address}/api/v1/realtime/ws")
         .into_client_request()
@@ -163,6 +170,10 @@ async fn test_realtime_websocket_binds_http_control_semantics() {
     request.headers_mut().insert(
         "x-user-id",
         "u_demo".parse().expect("user header should parse"),
+    );
+    request.headers_mut().insert(
+        "x-actor-kind",
+        "user".parse().expect("actor kind header should parse"),
     );
     request.headers_mut().insert(
         "x-session-id",
@@ -281,6 +292,10 @@ async fn test_realtime_websocket_rejects_oversized_request_id() {
         "u_demo".parse().expect("user header should parse"),
     );
     request.headers_mut().insert(
+        "x-actor-kind",
+        "user".parse().expect("actor kind header should parse"),
+    );
+    request.headers_mut().insert(
         "x-session-id",
         "s_pad".parse().expect("session header should parse"),
     );
@@ -342,6 +357,10 @@ async fn test_realtime_websocket_rejects_oversized_frame_type() {
         "u_demo".parse().expect("user header should parse"),
     );
     request.headers_mut().insert(
+        "x-actor-kind",
+        "user".parse().expect("actor kind header should parse"),
+    );
+    request.headers_mut().insert(
         "x-session-id",
         "s_pad".parse().expect("session header should parse"),
     );
@@ -401,6 +420,10 @@ async fn test_realtime_websocket_closes_connection_for_oversized_raw_message() {
         "u_demo".parse().expect("user header should parse"),
     );
     request.headers_mut().insert(
+        "x-actor-kind",
+        "user".parse().expect("actor kind header should parse"),
+    );
+    request.headers_mut().insert(
         "x-session-id",
         "s_pad".parse().expect("session header should parse"),
     );
@@ -431,7 +454,7 @@ async fn test_realtime_websocket_closes_connection_for_oversized_raw_message() {
 
 #[tokio::test]
 async fn test_realtime_websocket_negotiates_ccp_subprotocol_and_wraps_business_frames() {
-    let app = session_gateway::build_app();
+    let app = build_permissive_realtime_app();
     let (address, handle) = spawn_server(app).await;
     let request = ClientRequestBuilder::new(
         format!("ws://{address}/api/v1/realtime/ws")
@@ -441,6 +464,7 @@ async fn test_realtime_websocket_negotiates_ccp_subprotocol_and_wraps_business_f
     .with_sub_protocol(CCP_WS_SUBPROTOCOL)
     .with_header("x-tenant-id", "t_demo")
     .with_header("x-user-id", "u_demo")
+    .with_header("x-actor-kind", "user")
     .with_header("x-session-id", "s_pad")
     .with_header("x-device-id", "d_pad");
 
@@ -594,6 +618,7 @@ async fn test_realtime_websocket_rejects_ccp_business_frame_with_control_kind_af
     .with_sub_protocol(CCP_WS_SUBPROTOCOL)
     .with_header("x-tenant-id", "t_demo")
     .with_header("x-user-id", "u_demo")
+    .with_header("x-actor-kind", "user")
     .with_header("x-session-id", "s_pad")
     .with_header("x-device-id", "d_pad");
 
@@ -705,6 +730,7 @@ async fn test_realtime_websocket_rejects_ccp_business_frame_with_wrong_schema_af
     .with_sub_protocol(CCP_WS_SUBPROTOCOL)
     .with_header("x-tenant-id", "t_demo")
     .with_header("x-user-id", "u_demo")
+    .with_header("x-actor-kind", "user")
     .with_header("x-session-id", "s_pad")
     .with_header("x-device-id", "d_pad");
 
@@ -819,6 +845,7 @@ async fn test_realtime_websocket_accepts_ccp_heartbeat_control_frame_after_hands
     .with_sub_protocol(CCP_WS_SUBPROTOCOL)
     .with_header("x-tenant-id", "t_demo")
     .with_header("x-user-id", "u_demo")
+    .with_header("x-actor-kind", "user")
     .with_header("x-session-id", "s_pad")
     .with_header("x-device-id", "d_pad");
 
@@ -916,6 +943,7 @@ async fn test_realtime_websocket_rejects_ccp_business_frame_with_client_route_me
     .with_sub_protocol(CCP_WS_SUBPROTOCOL)
     .with_header("x-tenant-id", "t_demo")
     .with_header("x-user-id", "u_demo")
+    .with_header("x-actor-kind", "user")
     .with_header("x-session-id", "s_pad")
     .with_header("x-device-id", "d_pad");
 
@@ -1032,6 +1060,7 @@ async fn test_realtime_websocket_closes_with_policy_after_ccp_handshake_starts_w
     .with_sub_protocol(CCP_WS_SUBPROTOCOL)
     .with_header("x-tenant-id", "t_demo")
     .with_header("x-user-id", "u_demo")
+    .with_header("x-actor-kind", "user")
     .with_header("x-session-id", "s_pad")
     .with_header("x-device-id", "d_pad");
 
@@ -1073,7 +1102,7 @@ async fn test_realtime_websocket_releases_route_after_ccp_handshake_protocol_clo
     let cluster = Arc::new(session_gateway::RealtimeClusterBridge::default());
     let app = session_gateway::build_app_with_cluster_runtime_and_presence(
         cluster.clone(),
-        Arc::new(session_gateway::RealtimeDeliveryRuntime::default()),
+        Arc::new(session_gateway::RealtimeDeliveryRuntime::permissive_for_tests()),
         Arc::new(session_gateway::SessionPresenceRuntime::default()),
     );
     let (address, handle) = spawn_server(app).await;
@@ -1085,6 +1114,7 @@ async fn test_realtime_websocket_releases_route_after_ccp_handshake_protocol_clo
     .with_sub_protocol(CCP_WS_SUBPROTOCOL)
     .with_header("x-tenant-id", "t_demo")
     .with_header("x-user-id", "u_demo")
+    .with_header("x-actor-kind", "user")
     .with_header("x-session-id", "s_pad")
     .with_header("x-device-id", "d_pad");
 
@@ -1156,6 +1186,10 @@ async fn test_realtime_websocket_releases_route_after_client_close() {
     request.headers_mut().insert(
         "x-user-id",
         "u_demo".parse().expect("user header should parse"),
+    );
+    request.headers_mut().insert(
+        "x-actor-kind",
+        "user".parse().expect("actor kind header should parse"),
     );
     request.headers_mut().insert(
         "x-session-id",
@@ -1279,6 +1313,10 @@ async fn test_realtime_websocket_rejects_stale_session_frames_after_http_resume_
         "u_demo".parse().expect("user header should parse"),
     );
     request.headers_mut().insert(
+        "x-actor-kind",
+        "user".parse().expect("actor kind header should parse"),
+    );
+    request.headers_mut().insert(
         "x-session-id",
         "s_old".parse().expect("session header should parse"),
     );
@@ -1301,6 +1339,7 @@ async fn test_realtime_websocket_rejects_stale_session_frames_after_http_resume_
                 .uri("/api/v1/sessions/resume")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_new")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
@@ -1337,7 +1376,7 @@ async fn test_realtime_websocket_rejects_stale_session_frames_after_http_resume_
 
 #[tokio::test]
 async fn test_realtime_websocket_closes_stale_session_before_push_after_http_resume_takeover() {
-    let runtime = Arc::new(session_gateway::RealtimeDeliveryRuntime::default());
+    let runtime = Arc::new(session_gateway::RealtimeDeliveryRuntime::permissive_for_tests());
     let app = session_gateway::build_app_with_cluster_and_runtime(
         Arc::new(session_gateway::RealtimeClusterBridge::default()),
         runtime.clone(),
@@ -1354,6 +1393,10 @@ async fn test_realtime_websocket_closes_stale_session_before_push_after_http_res
     request.headers_mut().insert(
         "x-user-id",
         "u_demo".parse().expect("user header should parse"),
+    );
+    request.headers_mut().insert(
+        "x-actor-kind",
+        "user".parse().expect("actor kind header should parse"),
     );
     request.headers_mut().insert(
         "x-session-id",
@@ -1401,6 +1444,7 @@ async fn test_realtime_websocket_closes_stale_session_before_push_after_http_res
                 .uri("/api/v1/sessions/resume")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_new")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
@@ -1453,6 +1497,10 @@ async fn test_realtime_websocket_closes_idle_stale_session_after_http_resume_tak
         "u_demo".parse().expect("user header should parse"),
     );
     request.headers_mut().insert(
+        "x-actor-kind",
+        "user".parse().expect("actor kind header should parse"),
+    );
+    request.headers_mut().insert(
         "x-session-id",
         "s_old".parse().expect("session header should parse"),
     );
@@ -1475,6 +1523,7 @@ async fn test_realtime_websocket_closes_idle_stale_session_after_http_resume_tak
                 .uri("/api/v1/sessions/resume")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_new")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
@@ -1509,6 +1558,7 @@ async fn test_realtime_websocket_closes_stale_ccp_handshake_after_http_resume_ta
     .with_sub_protocol(CCP_WS_SUBPROTOCOL)
     .with_header("x-tenant-id", "t_demo")
     .with_header("x-user-id", "u_demo")
+    .with_header("x-actor-kind", "user")
     .with_header("x-session-id", "s_old")
     .with_header("x-device-id", "d_demo");
 
@@ -1541,6 +1591,7 @@ async fn test_realtime_websocket_closes_stale_ccp_handshake_after_http_resume_ta
                 .uri("/api/v1/sessions/resume")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_new")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
@@ -1585,6 +1636,7 @@ async fn test_realtime_websocket_closes_with_policy_after_ccp_hello_uses_wrong_s
     .with_sub_protocol(CCP_WS_SUBPROTOCOL)
     .with_header("x-tenant-id", "t_demo")
     .with_header("x-user-id", "u_demo")
+    .with_header("x-actor-kind", "user")
     .with_header("x-session-id", "s_pad")
     .with_header("x-device-id", "d_pad");
 
@@ -1640,6 +1692,7 @@ async fn test_realtime_websocket_closes_with_policy_after_ccp_handshake_receives
     .with_sub_protocol(CCP_WS_SUBPROTOCOL)
     .with_header("x-tenant-id", "t_demo")
     .with_header("x-user-id", "u_demo")
+    .with_header("x-actor-kind", "user")
     .with_header("x-session-id", "s_pad")
     .with_header("x-device-id", "d_pad");
 
@@ -1687,7 +1740,7 @@ async fn test_realtime_websocket_closes_with_policy_after_ccp_handshake_receives
 
 #[tokio::test]
 async fn test_realtime_websocket_pushes_live_business_frames_over_ccp_subprotocol() {
-    let runtime = Arc::new(session_gateway::RealtimeDeliveryRuntime::default());
+    let runtime = Arc::new(session_gateway::RealtimeDeliveryRuntime::permissive_for_tests());
     runtime
         .ensure_device_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
         .expect("device state should initialize");
@@ -1705,6 +1758,7 @@ async fn test_realtime_websocket_pushes_live_business_frames_over_ccp_subprotoco
     .with_sub_protocol(CCP_WS_SUBPROTOCOL)
     .with_header("x-tenant-id", "t_demo")
     .with_header("x-user-id", "u_demo")
+    .with_header("x-actor-kind", "user")
     .with_header("x-session-id", "s_pad")
     .with_header("x-device-id", "d_pad");
 
@@ -1834,6 +1888,7 @@ async fn test_realtime_websocket_skips_session_resume_when_capability_not_negoti
     .with_sub_protocol(CCP_WS_SUBPROTOCOL)
     .with_header("x-tenant-id", "t_demo")
     .with_header("x-user-id", "u_demo")
+    .with_header("x-actor-kind", "user")
     .with_header("x-session-id", "s_pad")
     .with_header("x-device-id", "d_pad");
 
@@ -1923,6 +1978,10 @@ async fn test_realtime_websocket_closes_when_session_disconnects() {
         "u_demo".parse().expect("user header should parse"),
     );
     request.headers_mut().insert(
+        "x-actor-kind",
+        "user".parse().expect("actor kind header should parse"),
+    );
+    request.headers_mut().insert(
         "x-session-id",
         "s_pad".parse().expect("session header should parse"),
     );
@@ -1945,6 +2004,7 @@ async fn test_realtime_websocket_closes_when_session_disconnects() {
                 .uri("/api/v1/sessions/disconnect")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_pad")
                 .header("x-device-id", "d_pad")
                 .header("content-type", "application/json")
@@ -1988,6 +2048,7 @@ async fn test_realtime_websocket_sends_ccp_goaway_before_disconnect_close() {
     .with_sub_protocol(CCP_WS_SUBPROTOCOL)
     .with_header("x-tenant-id", "t_demo")
     .with_header("x-user-id", "u_demo")
+    .with_header("x-actor-kind", "user")
     .with_header("x-session-id", "s_pad")
     .with_header("x-device-id", "d_pad");
 
@@ -2035,6 +2096,7 @@ async fn test_realtime_websocket_sends_ccp_goaway_before_disconnect_close() {
                 .uri("/api/v1/sessions/disconnect")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_pad")
                 .header("x-device-id", "d_pad")
                 .header("content-type", "application/json")
@@ -2076,7 +2138,7 @@ async fn test_realtime_websocket_sends_ccp_goaway_before_disconnect_close() {
 
 #[tokio::test]
 async fn test_realtime_websocket_uses_runtime_link_queue_owner_limits_for_catchup_and_pull() {
-    let runtime = Arc::new(session_gateway::RealtimeDeliveryRuntime::default());
+    let runtime = Arc::new(session_gateway::RealtimeDeliveryRuntime::permissive_for_tests());
     runtime
         .ensure_device_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
         .expect("device state should initialize");
@@ -2127,6 +2189,10 @@ async fn test_realtime_websocket_uses_runtime_link_queue_owner_limits_for_catchu
     request.headers_mut().insert(
         "x-user-id",
         "u_demo".parse().expect("user header should parse"),
+    );
+    request.headers_mut().insert(
+        "x-actor-kind",
+        "user".parse().expect("actor kind header should parse"),
     );
     request.headers_mut().insert(
         "x-session-id",
@@ -2181,7 +2247,7 @@ async fn test_realtime_websocket_uses_runtime_link_queue_owner_limits_for_catchu
 #[tokio::test]
 async fn test_realtime_websocket_degrades_live_push_to_pull_only_when_runtime_link_detects_overload()
  {
-    let runtime = Arc::new(session_gateway::RealtimeDeliveryRuntime::default());
+    let runtime = Arc::new(session_gateway::RealtimeDeliveryRuntime::permissive_for_tests());
     runtime
         .ensure_device_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
         .expect("device state should initialize");
@@ -2232,6 +2298,10 @@ async fn test_realtime_websocket_degrades_live_push_to_pull_only_when_runtime_li
     request.headers_mut().insert(
         "x-user-id",
         "u_demo".parse().expect("user header should parse"),
+    );
+    request.headers_mut().insert(
+        "x-actor-kind",
+        "user".parse().expect("actor kind header should parse"),
     );
     request.headers_mut().insert(
         "x-session-id",
@@ -2307,7 +2377,7 @@ async fn test_realtime_websocket_degrades_live_push_to_pull_only_when_runtime_li
 
 #[tokio::test]
 async fn test_realtime_websocket_clamps_stale_pull_replay_when_backlog_is_still_over_hard_limit() {
-    let runtime = Arc::new(session_gateway::RealtimeDeliveryRuntime::default());
+    let runtime = Arc::new(session_gateway::RealtimeDeliveryRuntime::permissive_for_tests());
     runtime
         .ensure_device_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
         .expect("device state should initialize");
@@ -2358,6 +2428,10 @@ async fn test_realtime_websocket_clamps_stale_pull_replay_when_backlog_is_still_
     request.headers_mut().insert(
         "x-user-id",
         "u_demo".parse().expect("user header should parse"),
+    );
+    request.headers_mut().insert(
+        "x-actor-kind",
+        "user".parse().expect("actor kind header should parse"),
     );
     request.headers_mut().insert(
         "x-session-id",
@@ -2413,7 +2487,7 @@ async fn test_realtime_websocket_clamps_stale_pull_replay_when_backlog_is_still_
 #[tokio::test]
 async fn test_realtime_websocket_recovers_buffered_push_after_pull_reduces_backlog_under_hard_limit()
  {
-    let runtime = Arc::new(session_gateway::RealtimeDeliveryRuntime::default());
+    let runtime = Arc::new(session_gateway::RealtimeDeliveryRuntime::permissive_for_tests());
     runtime
         .ensure_device_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
         .expect("device state should initialize");
@@ -2464,6 +2538,10 @@ async fn test_realtime_websocket_recovers_buffered_push_after_pull_reduces_backl
     request.headers_mut().insert(
         "x-user-id",
         "u_demo".parse().expect("user header should parse"),
+    );
+    request.headers_mut().insert(
+        "x-actor-kind",
+        "user".parse().expect("actor kind header should parse"),
     );
     request.headers_mut().insert(
         "x-session-id",
@@ -2525,7 +2603,7 @@ async fn test_realtime_websocket_recovers_buffered_push_after_pull_reduces_backl
 
 #[tokio::test]
 async fn test_realtime_websocket_closes_when_runtime_link_detects_extreme_overload_backlog() {
-    let runtime = Arc::new(session_gateway::RealtimeDeliveryRuntime::default());
+    let runtime = Arc::new(session_gateway::RealtimeDeliveryRuntime::permissive_for_tests());
     runtime
         .ensure_device_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
         .expect("device state should initialize");
@@ -2578,6 +2656,10 @@ async fn test_realtime_websocket_closes_when_runtime_link_detects_extreme_overlo
         "u_demo".parse().expect("user header should parse"),
     );
     request.headers_mut().insert(
+        "x-actor-kind",
+        "user".parse().expect("actor kind header should parse"),
+    );
+    request.headers_mut().insert(
         "x-session-id",
         "s_pad".parse().expect("session header should parse"),
     );
@@ -2592,29 +2674,33 @@ async fn test_realtime_websocket_closes_when_runtime_link_detects_extreme_overlo
 
     let connected = next_text_json(&mut socket).await;
     assert_eq!(connected["type"], "realtime.connected");
+    assert_eq!(connected["trimmedThroughSeq"], 200);
 
     let catchup = next_text_json(&mut socket).await;
     assert_eq!(catchup["type"], "event.window");
     assert_eq!(catchup["reason"], "catchup");
     assert_eq!(catchup["window"]["items"].as_array().unwrap().len(), 128);
-    assert_eq!(catchup["window"]["nextAfterSeq"], 128);
+    assert_eq!(catchup["window"]["items"][0]["realtimeSeq"], 201);
+    assert_eq!(catchup["window"]["nextAfterSeq"], 328);
 
-    runtime
-        .publish_scope_event_for_principal_kind(
-            "t_demo",
-            "u_demo",
-            "user",
-            "conversation",
-            "c_demo",
-            "message.posted",
-            json!({
-                "type": "message.posted",
-                "index": 1201
-            })
-            .to_string(),
-            vec!["d_pad".into()],
-        )
-        .expect("extreme overload publish should succeed");
+    for index in 1201..=1353 {
+        runtime
+            .publish_scope_event_for_principal_kind(
+                "t_demo",
+                "u_demo",
+                "user",
+                "conversation",
+                "c_demo",
+                "message.posted",
+                json!({
+                    "type": "message.posted",
+                    "index": index
+                })
+                .to_string(),
+                vec!["d_pad".into()],
+            )
+            .expect("extreme overload publish should succeed");
+    }
 
     let close = next_message(&mut socket).await;
     match close {

@@ -475,6 +475,12 @@ fn build_local_minimal_realtime_plane(
             .join("state")
             .join("realtime-subscriptions.json"),
     ));
+    let event_window_store = Arc::new(FileRealtimeEventWindowStore::new(
+        runtime_dir
+            .as_ref()
+            .join("state")
+            .join("realtime-event-windows.json"),
+    ));
     let presence_state_store = Arc::new(FilePresenceStateStore::new(
         runtime_dir
             .as_ref()
@@ -487,9 +493,10 @@ fn build_local_minimal_realtime_plane(
             disconnect_fence_store,
         )),
         Arc::new(
-            RealtimeDeliveryRuntime::with_stores_and_scope_access_policy(
+            RealtimeDeliveryRuntime::with_durable_stores_and_scope_access_policy(
                 checkpoint_store,
                 subscription_store,
+                event_window_store,
                 scope_access_policy,
             ),
         ),
@@ -608,6 +615,84 @@ pub fn build_app_with_dependencies(
     )
 }
 
+pub fn build_app_with_dependencies_and_runtime_dir(
+    node_id: impl Into<String>,
+    bind_addr: impl Into<String>,
+    runtime_dir: impl AsRef<StdPath>,
+    projection_service: Arc<TimelineProjectionService>,
+    realtime_cluster: Arc<RealtimeClusterBridge>,
+) -> Router {
+    let runtime_dir = runtime_dir.as_ref().to_path_buf();
+    let projection_snapshot_stores =
+        build_local_minimal_projection_snapshot_stores(runtime_dir.as_path());
+    let realtime_scope_policy =
+        realtime_policy::direct_chat_realtime_policy(projection_service.clone());
+    let checkpoint_store = Arc::new(FileRealtimeCheckpointStore::new(
+        runtime_dir
+            .as_path()
+            .join("state")
+            .join("realtime-checkpoints.json"),
+    ));
+    let subscription_store = Arc::new(FileRealtimeSubscriptionStore::new(
+        runtime_dir
+            .as_path()
+            .join("state")
+            .join("realtime-subscriptions.json"),
+    ));
+    let event_window_store = Arc::new(FileRealtimeEventWindowStore::new(
+        runtime_dir
+            .as_path()
+            .join("state")
+            .join("realtime-event-windows.json"),
+    ));
+    let presence_state_store = Arc::new(FilePresenceStateStore::new(
+        runtime_dir
+            .as_path()
+            .join("state")
+            .join("presence-state.json"),
+    ));
+    let realtime_plane = RealtimePlaneAssembly::new(
+        realtime_cluster,
+        Arc::new(
+            RealtimeDeliveryRuntime::with_durable_stores_and_scope_access_policy(
+                checkpoint_store,
+                subscription_store,
+                event_window_store,
+                realtime_scope_policy.clone(),
+            ),
+        ),
+        Arc::new(SessionPresenceRuntime::with_store(presence_state_store)),
+    );
+    let journal = ProjectionJournal::new_file(
+        projection_service.clone(),
+        runtime_dir
+            .as_path()
+            .join("state")
+            .join("commit-journal.json"),
+        projection_snapshot_stores,
+    );
+    build_app_with_dependencies_and_runtime_and_journal(
+        node_id,
+        bind_addr,
+        Some(runtime_dir.clone()),
+        projection_service.clone(),
+        realtime_plane,
+        journal.clone(),
+        Some(realtime_scope_policy),
+        build_local_minimal_streaming_runtime(runtime_dir.as_path()),
+        build_local_minimal_rtc_runtime(runtime_dir.as_path()),
+        build_local_minimal_notification_runtime(
+            journal.clone(),
+            runtime_dir.as_path(),
+            projection_service,
+        ),
+        build_local_minimal_automation_runtime(journal, runtime_dir.as_path()),
+        build_default_user_module_provider(),
+        build_default_device_access_provider(),
+        build_default_iot_protocol_adapter(),
+    )
+}
+
 fn build_app_with_dependencies_and_provider_ports(
     node_id: impl Into<String>,
     bind_addr: impl Into<String>,
@@ -669,6 +754,33 @@ pub fn build_app_with_dependencies_and_runtime(
             Arc::new(journal),
             projection_service,
         )),
+        Arc::new(AutomationRuntime::default()),
+        build_default_user_module_provider(),
+        build_default_device_access_provider(),
+        build_default_iot_protocol_adapter(),
+    )
+}
+
+pub fn build_app_with_dependencies_realtime_and_notification_runtime(
+    node_id: impl Into<String>,
+    bind_addr: impl Into<String>,
+    projection_service: Arc<TimelineProjectionService>,
+    realtime_cluster: Arc<RealtimeClusterBridge>,
+    realtime_runtime: Arc<RealtimeDeliveryRuntime>,
+    notification_runtime: Arc<NotificationRuntime>,
+) -> Router {
+    let journal = ProjectionJournal::new_memory(projection_service.clone());
+    build_app_with_dependencies_and_runtime_and_journal(
+        node_id,
+        bind_addr,
+        None,
+        projection_service,
+        RealtimePlaneAssembly::with_cluster_and_runtime(realtime_cluster, realtime_runtime),
+        journal.clone(),
+        None,
+        Arc::new(StreamingRuntime::default()),
+        Arc::new(RtcRuntime::default()),
+        notification_runtime,
         Arc::new(AutomationRuntime::default()),
         build_default_user_module_provider(),
         build_default_device_access_provider(),
@@ -740,6 +852,18 @@ fn build_app_with_dependencies_and_runtime_and_journal(
     ));
     ops_runtime.update_projection_replay_lag(replay_summary.lag_items);
     let audit_runtime = Arc::new(AuditRuntime::default());
+    let message_side_effect_outbox: Arc<dyn side_effect_outbox::MessageSideEffectOutboxStore> =
+        match runtime_dir.as_ref() {
+            Some(runtime_dir) => {
+                Arc::new(side_effect_outbox::FileMessageSideEffectOutboxStore::new(
+                    runtime_dir
+                        .as_path()
+                        .join("state")
+                        .join("message-side-effect-outbox.json"),
+                ))
+            }
+            None => Arc::new(side_effect_outbox::MemoryMessageSideEffectOutboxStore::default()),
+        };
     let (control_plane_app, social_query) = build_local_minimal_control_plane_app(
         realtime_cluster.clone(),
         conversation_runtime.clone(),
@@ -793,6 +917,7 @@ fn build_app_with_dependencies_and_runtime_and_journal(
         automation_runtime,
         audit_runtime,
         ops_runtime,
+        message_side_effect_outbox,
         projection_replay_state: journal.replay_state(),
         pending_friend_request_accept_repairs: Arc::new(std::sync::Mutex::new(
             pending_friend_request_accept_repairs,

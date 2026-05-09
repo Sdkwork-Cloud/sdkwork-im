@@ -39,7 +39,7 @@ pub struct RequestNotification {
     pub category: String,
     pub channel: String,
     pub recipient_id: String,
-    pub recipient_kind: Option<String>,
+    pub recipient_kind: String,
     pub title: Option<String>,
     pub body: Option<String>,
     pub payload: Option<String>,
@@ -145,11 +145,17 @@ struct HealthResponse {
 }
 
 pub struct NotificationRuntime {
-    tasks: Mutex<HashMap<String, NotificationTask>>,
+    tasks: Mutex<NotificationRuntimeTaskState>,
     restored_recipients: Mutex<HashSet<String>>,
     journal: Arc<dyn CommitJournal + Send + Sync>,
     task_store: Arc<dyn NotificationTaskStore>,
     projection_service: Arc<TimelineProjectionService>,
+}
+
+#[derive(Default)]
+struct NotificationRuntimeTaskState {
+    tasks: HashMap<String, NotificationTask>,
+    tasks_by_recipient: HashMap<String, BTreeSet<String>>,
 }
 
 const NOTIFICATION_REQUEST_DELIVERY_PROOF_VERSION: &str = "notification.request.delivery-proof.v1";
@@ -177,7 +183,7 @@ pub struct NotificationError {
 }
 
 impl NotificationError {
-    fn internal(code: &'static str, message: impl Into<String>) -> Self {
+    pub fn internal(code: &'static str, message: impl Into<String>) -> Self {
         Self {
             status: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
             code,
@@ -239,6 +245,14 @@ impl NotificationError {
                 message,
             },
         }
+    }
+
+    pub fn code(&self) -> &'static str {
+        self.code
+    }
+
+    pub fn message(&self) -> &str {
+        self.message.as_str()
     }
 }
 
@@ -333,7 +347,7 @@ impl NotificationRuntime {
         S: NotificationTaskStore + 'static,
     {
         Self {
-            tasks: Mutex::new(HashMap::new()),
+            tasks: Mutex::new(NotificationRuntimeTaskState::default()),
             restored_recipients: Mutex::new(HashSet::new()),
             journal,
             task_store,
@@ -350,6 +364,7 @@ impl NotificationRuntime {
         if self
             .tasks
             .lock_notification()
+            .tasks
             .contains_key(scope_key.as_str())
         {
             return Ok(());
@@ -360,9 +375,8 @@ impl NotificationRuntime {
             .load_task(tenant_id, notification_id)
             .map_err(NotificationError::notification_store)?;
         if let Some(record) = restored {
-            self.tasks
-                .lock_notification()
-                .insert(scope_key, record.task);
+            let mut state = self.tasks.lock_notification();
+            insert_runtime_notification_task(&mut state, scope_key, record.task);
         }
 
         Ok(())
@@ -371,9 +385,11 @@ impl NotificationRuntime {
     fn ensure_recipient_tasks(
         &self,
         tenant_id: &str,
+        recipient_kind: &str,
         recipient_id: &str,
     ) -> Result<(), NotificationError> {
-        let recipient_key = recipient_scope_key(tenant_id, recipient_id);
+        let recipient_key =
+            notification_recipient_scope_key(tenant_id, recipient_kind, recipient_id);
         if self
             .restored_recipients
             .lock_notification()
@@ -384,16 +400,17 @@ impl NotificationRuntime {
 
         let restored = self
             .task_store
-            .list_tasks_for_recipient(tenant_id, recipient_id)
+            .list_tasks_for_recipient(tenant_id, recipient_kind, recipient_id)
             .map_err(NotificationError::notification_store)?;
-        let mut tasks = self.tasks.lock_notification();
+        let mut state = self.tasks.lock_notification();
         for record in restored {
-            tasks.insert(
+            insert_runtime_notification_task(
+                &mut state,
                 notification_scope_key(record.tenant_id.as_str(), record.notification_id.as_str()),
                 record.task,
             );
         }
-        drop(tasks);
+        drop(state);
         self.restored_recipients
             .lock_notification()
             .insert(recipient_key);
@@ -420,11 +437,10 @@ impl NotificationRuntime {
             notification_request_key(auth.tenant_id.as_str(), request.notification_id.as_str());
         let notification_key =
             notification_scope_key(auth.tenant_id.as_str(), request.notification_id.as_str());
-        let recipient_kind = resolved_request_recipient_kind(auth, &request);
-        let mut tasks = self.tasks.lock_notification();
+        let mut state = self.tasks.lock_notification();
 
-        if let Some(existing) = tasks.get(notification_key.as_str()).cloned() {
-            if notification_matches_request(&existing, &request, recipient_kind.as_str()) {
+        if let Some(existing) = state.tasks.get(notification_key.as_str()).cloned() {
+            if notification_matches_request(&existing, &request) {
                 let delivery_status = delivery_status_from_notification_status(&existing.status);
                 return Ok(NotificationRequestResult {
                     task: existing,
@@ -450,7 +466,7 @@ impl NotificationRuntime {
             category: request.category.clone(),
             channel: request.channel.clone(),
             recipient_id: request.recipient_id.clone(),
-            recipient_kind: Some(recipient_kind),
+            recipient_kind: request.recipient_kind.clone(),
             status: NotificationStatus::Requested,
             title: request.title.clone(),
             body: request.body.clone(),
@@ -468,9 +484,9 @@ impl NotificationRuntime {
         };
         self.append_event(auth, &dispatched, "notification.dispatched", 2)?;
 
-        tasks.insert(notification_key.clone(), dispatched.clone());
+        insert_runtime_notification_task(&mut state, notification_key.clone(), dispatched.clone());
         if let Err(error) = self.task_store.save_task(self.task_record(&dispatched)) {
-            tasks.remove(notification_key.as_str());
+            remove_runtime_notification_task(&mut state, notification_key.as_str());
             return Err(NotificationError::notification_store(error));
         }
 
@@ -488,11 +504,10 @@ impl NotificationRuntime {
         request: RequestNotification,
         is_bearer_request: bool,
     ) -> Result<NotificationRequestResult, NotificationError> {
-        let recipient_kind = resolved_request_recipient_kind(auth, &request);
         ensure_notification_request_access(
             auth,
             request.recipient_id.as_str(),
-            recipient_kind.as_str(),
+            request.recipient_kind.as_str(),
             is_bearer_request,
         )?;
         self.request_notification_with_outcome(auth, request)
@@ -520,7 +535,7 @@ impl NotificationRuntime {
                     category: request.category.clone(),
                     channel: request.channel.clone(),
                     recipient_id: recipient.recipient_id,
-                    recipient_kind: Some(recipient.recipient_kind),
+                    recipient_kind: recipient.recipient_kind,
                     title: request.title.clone(),
                     body: request.body.clone(),
                     payload: request.payload.clone(),
@@ -606,7 +621,7 @@ impl NotificationRuntime {
                 category: "automation.result".into(),
                 channel: "inapp".into(),
                 recipient_id: auth.actor_id.clone(),
-                recipient_kind: Some(auth.actor_kind.clone()),
+                recipient_kind: auth.actor_kind.clone(),
                 title: Some("Automation completed".into()),
                 body: Some(request.target_ref),
                 payload: request.output_payload,
@@ -618,17 +633,21 @@ impl NotificationRuntime {
         &self,
         auth: &AuthContext,
     ) -> Result<Vec<NotificationTask>, NotificationError> {
-        self.ensure_recipient_tasks(auth.tenant_id.as_str(), auth.actor_id.as_str())?;
-        let prefix = format!("{}:", auth.tenant_id);
-        let mut items: Vec<_> = self
-            .tasks
-            .lock_notification()
-            .iter()
-            .filter(|(key, task)| {
-                key.starts_with(prefix.as_str()) && notification_visible_to_actor(task, auth)
-            })
-            .map(|(_, task)| task.clone())
-            .collect();
+        self.ensure_recipient_tasks(
+            auth.tenant_id.as_str(),
+            auth.actor_kind.as_str(),
+            auth.actor_id.as_str(),
+        )?;
+        let state = self.tasks.lock_notification();
+        let mut items: Vec<_> = notification_keys_for_recipient(
+            &state,
+            auth.tenant_id.as_str(),
+            auth.actor_kind.as_str(),
+            auth.actor_id.as_str(),
+        )
+        .into_iter()
+        .filter_map(|task_key| state.tasks.get(task_key.as_str()).cloned())
+        .collect();
         items.sort_by(|left, right| {
             notification_sort_key(right)
                 .cmp(&notification_sort_key(left))
@@ -645,6 +664,7 @@ impl NotificationRuntime {
         self.ensure_notification_task(auth.tenant_id.as_str(), notification_id)?;
         self.tasks
             .lock_notification()
+            .tasks
             .get(notification_scope_key(auth.tenant_id.as_str(), notification_id).as_str())
             .filter(|task| notification_visible_to_actor(task, auth))
             .cloned()
@@ -720,7 +740,13 @@ impl NotificationRuntime {
 
 #[derive(Clone, Default)]
 struct RuntimeMemoryNotificationTaskStore {
-    tasks: Arc<Mutex<HashMap<String, NotificationTaskRecord>>>,
+    state: Arc<Mutex<RuntimeMemoryNotificationTaskState>>,
+}
+
+#[derive(Default)]
+struct RuntimeMemoryNotificationTaskState {
+    tasks: HashMap<String, NotificationTaskRecord>,
+    tasks_by_recipient: HashMap<String, BTreeSet<String>>,
 }
 
 impl NotificationTaskStore for RuntimeMemoryNotificationTaskStore {
@@ -730,33 +756,56 @@ impl NotificationTaskStore for RuntimeMemoryNotificationTaskStore {
         notification_id: &str,
     ) -> Result<Option<NotificationTaskRecord>, ContractError> {
         Ok(self
-            .tasks
+            .state
             .lock_notification()
+            .tasks
             .get(notification_scope_key(tenant_id, notification_id).as_str())
             .cloned())
     }
 
     fn save_task(&self, record: NotificationTaskRecord) -> Result<(), ContractError> {
-        self.tasks.lock_notification().insert(
-            notification_scope_key(record.tenant_id.as_str(), record.notification_id.as_str()),
-            record,
+        let notification_key =
+            notification_scope_key(record.tenant_id.as_str(), record.notification_id.as_str());
+        let mut state = self.state.lock_notification();
+        if let Some(previous) = state.tasks.get(notification_key.as_str()).cloned() {
+            remove_notification_recipient_index(
+                &mut state.tasks_by_recipient,
+                notification_key.as_str(),
+                &previous,
+            );
+            let merged = previous.merge_monotonic(record);
+            insert_notification_recipient_index(
+                &mut state.tasks_by_recipient,
+                notification_key.as_str(),
+                &merged,
+            );
+            state.tasks.insert(notification_key, merged);
+            return Ok(());
+        }
+        insert_notification_recipient_index(
+            &mut state.tasks_by_recipient,
+            notification_key.as_str(),
+            &record,
         );
+        state.tasks.insert(notification_key, record);
         Ok(())
     }
 
     fn list_tasks_for_recipient(
         &self,
         tenant_id: &str,
+        recipient_kind: &str,
         recipient_id: &str,
     ) -> Result<Vec<NotificationTaskRecord>, ContractError> {
-        Ok(self
-            .tasks
-            .lock_notification()
-            .values()
-            .filter(|record| {
-                record.tenant_id == tenant_id && record.task.recipient_id == recipient_id
-            })
+        let state = self.state.lock_notification();
+        let task_keys = state
+            .tasks_by_recipient
+            .get(notification_recipient_scope_key(tenant_id, recipient_kind, recipient_id).as_str())
             .cloned()
+            .unwrap_or_default();
+        Ok(task_keys
+            .into_iter()
+            .filter_map(|task_key| state.tasks.get(task_key.as_str()).cloned())
             .collect())
     }
 }
@@ -920,15 +969,139 @@ async fn get_notification(
 }
 
 fn notification_scope_key(tenant_id: &str, notification_id: &str) -> String {
-    format!("{tenant_id}:{notification_id}")
+    scope_key_parts(&[tenant_id, notification_id])
 }
 
-fn recipient_scope_key(tenant_id: &str, recipient_id: &str) -> String {
-    format!("{tenant_id}:{recipient_id}")
+fn notification_recipient_scope_key(
+    tenant_id: &str,
+    recipient_kind: &str,
+    recipient_id: &str,
+) -> String {
+    scope_key_parts(&[tenant_id, recipient_kind, recipient_id])
+}
+
+fn scope_key_parts(parts: &[&str]) -> String {
+    parts
+        .iter()
+        .map(|part| format!("{}:{part}", part.len()))
+        .collect::<Vec<_>>()
+        .join("|")
+}
+
+fn record_notification_recipient_scope_key(record: &NotificationTaskRecord) -> String {
+    notification_recipient_scope_key(
+        record.tenant_id.as_str(),
+        record.task.recipient_kind.as_str(),
+        record.task.recipient_id.as_str(),
+    )
+}
+
+fn insert_notification_recipient_index(
+    index: &mut HashMap<String, BTreeSet<String>>,
+    notification_key: &str,
+    record: &NotificationTaskRecord,
+) {
+    index
+        .entry(record_notification_recipient_scope_key(record))
+        .or_default()
+        .insert(notification_key.to_owned());
+}
+
+fn remove_notification_recipient_index(
+    index: &mut HashMap<String, BTreeSet<String>>,
+    notification_key: &str,
+    record: &NotificationTaskRecord,
+) {
+    let recipient_key = record_notification_recipient_scope_key(record);
+    if let Some(task_keys) = index.get_mut(recipient_key.as_str()) {
+        task_keys.remove(notification_key);
+        if task_keys.is_empty() {
+            index.remove(recipient_key.as_str());
+        }
+    }
+}
+
+fn runtime_notification_recipient_scope_key(task: &NotificationTask) -> String {
+    notification_recipient_scope_key(
+        task.tenant_id.as_str(),
+        task.recipient_kind.as_str(),
+        task.recipient_id.as_str(),
+    )
+}
+
+fn insert_runtime_notification_task(
+    state: &mut NotificationRuntimeTaskState,
+    notification_key: String,
+    task: NotificationTask,
+) {
+    if let Some(previous) = state.tasks.get(notification_key.as_str()).cloned() {
+        remove_runtime_notification_recipient_index(
+            &mut state.tasks_by_recipient,
+            notification_key.as_str(),
+            &previous,
+        );
+    }
+    insert_runtime_notification_recipient_index(
+        &mut state.tasks_by_recipient,
+        notification_key.as_str(),
+        &task,
+    );
+    state.tasks.insert(notification_key, task);
+}
+
+fn remove_runtime_notification_task(
+    state: &mut NotificationRuntimeTaskState,
+    notification_key: &str,
+) -> Option<NotificationTask> {
+    let removed = state.tasks.remove(notification_key)?;
+    remove_runtime_notification_recipient_index(
+        &mut state.tasks_by_recipient,
+        notification_key,
+        &removed,
+    );
+    Some(removed)
+}
+
+fn insert_runtime_notification_recipient_index(
+    index: &mut HashMap<String, BTreeSet<String>>,
+    notification_key: &str,
+    task: &NotificationTask,
+) {
+    index
+        .entry(runtime_notification_recipient_scope_key(task))
+        .or_default()
+        .insert(notification_key.to_owned());
+}
+
+fn remove_runtime_notification_recipient_index(
+    index: &mut HashMap<String, BTreeSet<String>>,
+    notification_key: &str,
+    task: &NotificationTask,
+) {
+    let recipient_key = runtime_notification_recipient_scope_key(task);
+    if let Some(task_keys) = index.get_mut(recipient_key.as_str()) {
+        task_keys.remove(notification_key);
+        if task_keys.is_empty() {
+            index.remove(recipient_key.as_str());
+        }
+    }
+}
+
+fn notification_keys_for_recipient(
+    state: &NotificationRuntimeTaskState,
+    tenant_id: &str,
+    recipient_kind: &str,
+    recipient_id: &str,
+) -> BTreeSet<String> {
+    state
+        .tasks_by_recipient
+        .get(notification_recipient_scope_key(tenant_id, recipient_kind, recipient_id).as_str())
+        .cloned()
+        .unwrap_or_default()
 }
 
 fn notification_request_key(tenant_id: &str, notification_id: &str) -> String {
-    format!("{tenant_id}:{notification_id}")
+    notification_scope_key(tenant_id, notification_id)
 }
 
 fn notification_sort_key(task: &NotificationTask) -> (&str, &str) {
@@ -950,21 +1123,14 @@ fn delivery_status_from_notification_status(
     }
 }
 
-fn notification_matches_request(
-    task: &NotificationTask,
-    request: &RequestNotification,
-    recipient_kind: &str,
-) -> bool {
+fn notification_matches_request(task: &NotificationTask, request: &RequestNotification) -> bool {
     task.notification_id == request.notification_id.as_str()
         && task.source_event_id == request.source_event_id.as_str()
         && task.source_event_type == request.source_event_type.as_str()
         && task.category == request.category.as_str()
         && task.channel == request.channel.as_str()
         && task.recipient_id == request.recipient_id.as_str()
-        && task
-            .recipient_kind
-            .as_deref()
-            .is_none_or(|task_kind| task_kind == recipient_kind)
+        && task.recipient_kind == request.recipient_kind
         && task.title.as_ref() == request.title.as_ref()
         && task.body.as_ref() == request.body.as_ref()
         && task.payload.as_ref() == request.payload.as_ref()
@@ -1049,13 +1215,11 @@ fn validate_notification_request_payload_size(
         request.recipient_id.as_str(),
         NOTIFICATION_MAX_RECIPIENT_ID_BYTES,
     )?;
-    if let Some(recipient_kind) = request.recipient_kind.as_deref() {
-        validate_payload_size(
-            "recipientKind",
-            recipient_kind,
-            NOTIFICATION_MAX_RECIPIENT_KIND_BYTES,
-        )?;
-    }
+    validate_payload_size(
+        "recipientKind",
+        request.recipient_kind.as_str(),
+        NOTIFICATION_MAX_RECIPIENT_KIND_BYTES,
+    )?;
     if let Some(title) = request.title.as_deref() {
         validate_payload_size("title", title, NOTIFICATION_MAX_TITLE_BYTES)?;
     }
@@ -1069,21 +1233,7 @@ fn validate_notification_request_payload_size(
 }
 
 fn notification_visible_to_actor(task: &NotificationTask, auth: &AuthContext) -> bool {
-    task.recipient_id == auth.actor_id
-        && task
-            .recipient_kind
-            .as_deref()
-            .is_none_or(|recipient_kind| recipient_kind == auth.actor_kind.as_str())
-}
-
-fn resolved_request_recipient_kind(auth: &AuthContext, request: &RequestNotification) -> String {
-    request.recipient_kind.clone().unwrap_or_else(|| {
-        if request.recipient_id == auth.actor_id {
-            auth.actor_kind.clone()
-        } else {
-            "user".into()
-        }
-    })
+    task.recipient_id == auth.actor_id && task.recipient_kind == auth.actor_kind
 }
 
 fn fanout_notification_id(notification_id_seed: &str, recipient: &NotificationRecipient) -> String {
@@ -1122,6 +1272,39 @@ mod tests {
     use super::*;
     use std::panic::{self, AssertUnwindSafe};
 
+    fn notification_task_record(
+        notification_id: &str,
+        recipient_kind: &str,
+        recipient_id: &str,
+        status: NotificationStatus,
+        dispatched_at: Option<&str>,
+        failure_reason: Option<&str>,
+        updated_at: &str,
+    ) -> NotificationTaskRecord {
+        NotificationTaskRecord {
+            tenant_id: "t_demo".into(),
+            notification_id: notification_id.into(),
+            task: NotificationTask {
+                tenant_id: "t_demo".into(),
+                notification_id: notification_id.into(),
+                source_event_id: format!("evt_{notification_id}"),
+                source_event_type: "message.posted".into(),
+                category: "message.new".into(),
+                channel: "inapp".into(),
+                recipient_id: recipient_id.into(),
+                recipient_kind: recipient_kind.to_owned(),
+                status,
+                title: Some("hello".into()),
+                body: Some("world".into()),
+                payload: Some("{\"conversationId\":\"c_demo\"}".into()),
+                requested_at: "2026-05-06T00:00:00.000Z".into(),
+                dispatched_at: dispatched_at.map(str::to_owned),
+                failure_reason: failure_reason.map(str::to_owned),
+            },
+            updated_at: updated_at.into(),
+        }
+    }
+
     fn demo_auth_context() -> AuthContext {
         AuthContext {
             tenant_id: "t_demo".into(),
@@ -1138,6 +1321,24 @@ mod tests {
             let _guard = mutex.lock().expect("test poison lock should succeed");
             panic!("intentional poison for regression coverage");
         }));
+    }
+
+    #[test]
+    fn test_notification_runtime_uses_recipient_index_for_listing() {
+        let source = include_str!("lib.rs").replace("\r\n", "\n");
+
+        assert!(
+            source.contains("tasks_by_recipient: HashMap<String, BTreeSet<String>>"),
+            "notification runtime should maintain a tenant/recipient-kind/recipient-id task index"
+        );
+        assert!(
+            source.contains("notification_keys_for_recipient("),
+            "list_notifications should read notification keys from the runtime recipient index"
+        );
+        assert!(
+            !source.contains(".iter()\n            .filter(|(key, task)| {\n                key.starts_with(prefix.as_str()) && notification_visible_to_actor(task, auth)\n            })"),
+            "list_notifications must not full-scan the runtime task cache"
+        );
     }
 
     #[test]
@@ -1199,7 +1400,7 @@ mod tests {
     #[test]
     fn test_runtime_memory_task_store_load_recovers_from_poisoned_lock() {
         let store = RuntimeMemoryNotificationTaskStore::default();
-        poison_mutex(&store.tasks);
+        poison_mutex(&store.state);
 
         let result = panic::catch_unwind(AssertUnwindSafe(|| {
             store.load_task("t_demo", "ntf_poison_store")
@@ -1213,5 +1414,96 @@ mod tests {
             load_result.is_ok(),
             "notification task store load should recover from poisoned lock"
         );
+    }
+
+    #[test]
+    fn test_runtime_memory_task_store_uses_recipient_kind_index_for_listing() {
+        let source = include_str!("lib.rs").replace("\r\n", "\n");
+
+        assert!(
+            source.contains("tasks_by_recipient: HashMap<String, BTreeSet<String>>"),
+            "runtime notification task store should maintain a tenant/recipient-kind/recipient-id index"
+        );
+        assert!(
+            source.contains("notification_recipient_scope_key("),
+            "runtime notification task store should include recipient_kind in its index key"
+        );
+    }
+
+    #[test]
+    fn test_runtime_memory_task_store_lists_only_matching_recipient_kind() {
+        let store = RuntimeMemoryNotificationTaskStore::default();
+        store
+            .save_task(notification_task_record(
+                "ntf_user",
+                "user",
+                "shared_id",
+                NotificationStatus::Dispatched,
+                Some("2026-05-06T00:00:02.000Z"),
+                None,
+                "2026-05-06T00:00:02.000Z",
+            ))
+            .expect("user notification save should succeed");
+        store
+            .save_task(notification_task_record(
+                "ntf_system",
+                "system",
+                "shared_id",
+                NotificationStatus::Dispatched,
+                Some("2026-05-06T00:00:03.000Z"),
+                None,
+                "2026-05-06T00:00:03.000Z",
+            ))
+            .expect("system notification save should succeed");
+
+        let listed = store
+            .list_tasks_for_recipient("t_demo", "user", "shared_id")
+            .expect("recipient listing should succeed");
+
+        assert_eq!(
+            listed
+                .iter()
+                .map(|record| record.notification_id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["ntf_user"]
+        );
+    }
+
+    #[test]
+    fn test_runtime_memory_task_store_rejects_stale_status_regression_writes() {
+        let store = RuntimeMemoryNotificationTaskStore::default();
+        store
+            .save_task(notification_task_record(
+                "ntf_demo",
+                "user",
+                "u_demo",
+                NotificationStatus::Dispatched,
+                Some("2026-05-06T00:00:02.000Z"),
+                None,
+                "2026-05-06T00:00:02.000Z",
+            ))
+            .expect("current notification save should succeed");
+        store
+            .save_task(notification_task_record(
+                "ntf_demo",
+                "user",
+                "u_demo",
+                NotificationStatus::Requested,
+                None,
+                None,
+                "2026-05-06T00:00:01.000Z",
+            ))
+            .expect("stale notification save should not fail the caller");
+
+        let restored = store
+            .load_task("t_demo", "ntf_demo")
+            .expect("notification load should succeed")
+            .expect("notification should be present");
+        assert_eq!(restored.task.status, NotificationStatus::Dispatched);
+        assert_eq!(
+            restored.task.dispatched_at.as_deref(),
+            Some("2026-05-06T00:00:02.000Z")
+        );
+        assert_eq!(restored.updated_at, "2026-05-06T00:00:02.000Z");
     }
 }

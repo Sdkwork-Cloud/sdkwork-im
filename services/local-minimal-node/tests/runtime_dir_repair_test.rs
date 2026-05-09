@@ -4,6 +4,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 static NEXT_RUNTIME_DIR_ID: AtomicU64 = AtomicU64::new(0);
+const MANAGED_RUNTIME_STATE_FILE_COUNT: usize = 13;
 
 fn unique_runtime_dir() -> PathBuf {
     let unique = SystemTime::now()
@@ -34,11 +35,14 @@ fn test_repair_runtime_dir_recreates_missing_files_with_backup_first_flow() {
 
     assert_eq!(report.status, "repaired");
     assert_eq!(report.before.status, "degraded");
-    assert_eq!(report.before.missing_file_count, 12);
+    assert_eq!(
+        report.before.missing_file_count,
+        MANAGED_RUNTIME_STATE_FILE_COUNT
+    );
     assert_eq!(report.after.status, "ok");
     assert_eq!(report.after.missing_file_count, 0);
     assert_eq!(report.after.corrupt_file_count, 0);
-    assert_eq!(report.repaired_file_count, 12);
+    assert_eq!(report.repaired_file_count, MANAGED_RUNTIME_STATE_FILE_COUNT);
     assert_eq!(report.skipped_file_count, 0);
 
     let backup_dir = PathBuf::from(
@@ -52,14 +56,20 @@ fn test_repair_runtime_dir_recreates_missing_files_with_backup_first_flow() {
     assert_eq!(
         fs::read_to_string(state_file(runtime_dir.as_path(), "commit-journal.json"))
             .expect("commit journal should be recreated")
-            .trim(),
-        "[]"
+            .as_str(),
+        ""
     );
     assert_eq!(
         fs::read_to_string(state_file(runtime_dir.as_path(), "presence-state.json"))
             .expect("presence state should be recreated")
             .trim(),
-        "{}"
+        "{\"by_device\":{},\"presence_by_principal\":{},\"online_by_seen_at\":{}}"
+    );
+    assert_eq!(
+        fs::read_to_string(state_file(runtime_dir.as_path(), "notification-tasks.json"))
+            .expect("notification task state should be recreated")
+            .trim(),
+        "{\"by_notification\":{},\"tasks_by_recipient\":{}}"
     );
     assert_eq!(
         fs::read_to_string(state_file(
@@ -93,12 +103,18 @@ fn test_repair_runtime_dir_leaves_corrupt_files_untouched_while_fixing_missing_f
         .expect("repair should succeed");
 
     assert_eq!(report.status, "partial");
-    assert_eq!(report.before.missing_file_count, 11);
+    assert_eq!(
+        report.before.missing_file_count,
+        MANAGED_RUNTIME_STATE_FILE_COUNT - 1
+    );
     assert_eq!(report.before.corrupt_file_count, 1);
     assert_eq!(report.after.status, "degraded");
     assert_eq!(report.after.missing_file_count, 0);
     assert_eq!(report.after.corrupt_file_count, 1);
-    assert_eq!(report.repaired_file_count, 11);
+    assert_eq!(
+        report.repaired_file_count,
+        MANAGED_RUNTIME_STATE_FILE_COUNT - 1
+    );
     assert_eq!(report.skipped_file_count, 1);
     assert_eq!(
         fs::read_to_string(state_file(runtime_dir.as_path(), "rtc-state.json"))
@@ -109,7 +125,13 @@ fn test_repair_runtime_dir_leaves_corrupt_files_untouched_while_fixing_missing_f
         fs::read_to_string(state_file(runtime_dir.as_path(), "presence-state.json"))
             .expect("missing presence file should be recreated")
             .trim(),
-        "{}"
+        "{\"by_device\":{},\"presence_by_principal\":{},\"online_by_seen_at\":{}}"
+    );
+    assert_eq!(
+        fs::read_to_string(state_file(runtime_dir.as_path(), "notification-tasks.json"))
+            .expect("missing notification task file should be recreated")
+            .trim(),
+        "{\"by_notification\":{},\"tasks_by_recipient\":{}}"
     );
     assert_eq!(
         fs::read_to_string(state_file(

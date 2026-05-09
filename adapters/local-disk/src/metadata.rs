@@ -4,7 +4,9 @@ use std::sync::{Arc, Mutex};
 
 use im_platform_contracts::{ContractError, MetadataSnapshotRecord, MetadataStore};
 
-use crate::shared::{read_json_records_or_default, update_json_records};
+use crate::shared::{
+    parse_scope_key_parts, read_json_records_or_default, scope_key_parts, update_json_records,
+};
 
 #[derive(Clone, Debug)]
 pub struct FileMetadataStore {
@@ -40,13 +42,18 @@ impl FileMetadataStore {
             .io_lock
             .lock()
             .expect("metadata file store lock should lock");
-        let suffix = format!(":{key}");
         let mut scopes = self
             .read_records()
             .expect("metadata store should parse")
             .keys()
-            .filter_map(|stored_key| stored_key.strip_suffix(suffix.as_str()))
-            .map(str::to_owned)
+            .filter_map(|stored_key| {
+                let parts = parse_scope_key_parts(stored_key)?;
+                if parts.len() == 2 && parts[1] == key {
+                    Some(parts[0].clone())
+                } else {
+                    None
+                }
+            })
             .collect::<Vec<_>>();
         scopes.sort();
         scopes.dedup();
@@ -104,5 +111,5 @@ pub fn validate_metadata_store_file(file_path: impl AsRef<Path>) -> Result<(), C
 }
 
 fn snapshot_key(scope: &str, key: &str) -> String {
-    format!("{scope}:{key}")
+    scope_key_parts(&[scope, key])
 }

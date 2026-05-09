@@ -76,6 +76,43 @@ impl CommitJournal for FailAfterNJournal {
     }
 }
 
+fn list_all_messages<J: CommitJournal>(
+    runtime: &ConversationRuntime<J>,
+    tenant_id: &str,
+    conversation_id: &str,
+    principal_id: &str,
+) -> Result<conversation_runtime::MessageHistoryResult, RuntimeError> {
+    runtime.list_messages_window(tenant_id, conversation_id, principal_id, None, 100)
+}
+
+#[test]
+fn test_message_history_window_rejects_invalid_limit_at_runtime_boundary() {
+    let runtime = ConversationRuntime::new(InMemoryJournal::default());
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_history_limit_guard".into(),
+            creator_id: "u_owner".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("conversation should be created");
+
+    for invalid_limit in [0, 1001] {
+        let result = runtime.list_messages_window(
+            "t_demo",
+            "c_history_limit_guard",
+            "u_owner",
+            None,
+            invalid_limit,
+        );
+        assert!(matches!(
+            result,
+            Err(RuntimeError::InvalidInput(message))
+                if message == format!("message history limit must be between 1 and 1000: {invalid_limit}")
+        ));
+    }
+}
+
 #[derive(Clone)]
 struct FailNextBatchJournal {
     inner: InMemoryJournal,
@@ -416,7 +453,7 @@ fn test_duplicate_create_conversation_is_idempotent_and_conflicting_retry_is_rej
     );
     assert_eq!(
         first.request_key.as_deref(),
-        Some("t_demo:user:u_demo:create-conversation:c_create_retry")
+        Some("6#t_demo4#user6#u_demo19#create-conversation14#c_create_retry")
     );
 
     let duplicate = runtime
@@ -457,6 +494,50 @@ fn test_duplicate_create_conversation_is_idempotent_and_conflicting_retry_is_rej
         2,
         "duplicate create retry must not append another conversation.created/member_joined pair"
     );
+}
+
+#[test]
+fn test_conversation_scope_key_is_segment_safe_for_delimiter_bearing_ids() {
+    let runtime = ConversationRuntime::new(InMemoryJournal::default());
+
+    let first = runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "tenant:a".into(),
+            conversation_id: "b".into(),
+            creator_id: "u_first".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("first delimiter-bearing conversation should be created");
+    let second = runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "tenant".into(),
+            conversation_id: "a:b".into(),
+            creator_id: "u_second".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("second delimiter-bearing conversation should not collide with first");
+
+    assert_eq!(first.conversation_id, "b");
+    assert_eq!(second.conversation_id, "a:b");
+    assert_eq!(
+        first.request_key.as_deref(),
+        Some("8#tenant:a4#user7#u_first19#create-conversation1#b")
+    );
+    assert_eq!(
+        second.request_key.as_deref(),
+        Some("6#tenant4#user8#u_second19#create-conversation3#a:b")
+    );
+
+    let first_members = runtime
+        .list_members("tenant:a", "b")
+        .expect("first conversation members should list");
+    let second_members = runtime
+        .list_members("tenant", "a:b")
+        .expect("second conversation members should list");
+    assert_eq!(first_members.len(), 1);
+    assert_eq!(first_members[0].principal_id, "u_first");
+    assert_eq!(second_members.len(), 1);
+    assert_eq!(second_members[0].principal_id, "u_second");
 }
 
 #[test]
@@ -530,8 +611,7 @@ fn test_duplicate_post_message_is_idempotent_and_conflicting_retry_is_rejected()
         "idempotent retry should resolve to the original event id"
     );
 
-    let history = runtime
-        .list_messages("t_demo", "c_post_retry", "u_demo")
+    let history = list_all_messages(&runtime, "t_demo", "c_post_retry", "u_demo")
         .expect("history should list");
     assert_eq!(
         history.items.len(),
@@ -960,7 +1040,7 @@ fn test_duplicate_create_agent_dialog_is_idempotent_and_conflicting_retry_is_rej
     );
     assert_eq!(
         first.request_key.as_deref(),
-        Some("t_demo:user:u_demo:create-agent-dialog:c_agent_dialog_retry")
+        Some("6#t_demo4#user6#u_demo19#create-agent-dialog20#c_agent_dialog_retry")
     );
 
     let duplicate = source_runtime
@@ -1157,7 +1237,7 @@ fn test_duplicate_create_system_channel_is_idempotent_and_conflicting_retry_is_r
     );
     assert_eq!(
         first.request_key.as_deref(),
-        Some("t_demo:system:svc_ops:create-system-channel:c_system_channel_retry")
+        Some("6#t_demo6#system7#svc_ops21#create-system-channel22#c_system_channel_retry")
     );
 
     let duplicate = source_runtime
@@ -1359,7 +1439,7 @@ fn test_duplicate_create_agent_handoff_is_idempotent_and_conflicting_retry_is_re
     );
     assert_eq!(
         first.request_key.as_deref(),
-        Some("t_demo:agent:ag_source:create-agent-handoff:c_agent_handoff_retry")
+        Some("6#t_demo5#agent9#ag_source20#create-agent-handoff21#c_agent_handoff_retry")
     );
 
     let duplicate = source_runtime
@@ -1739,7 +1819,7 @@ fn test_conversation_membership_lifecycle_tracks_creator_and_member_changes() {
         .list_members("t_demo", "c_members")
         .expect("list members should succeed");
     assert_eq!(members.len(), 1);
-    assert_eq!(members[0].member_id, "cm_c_members_u_owner");
+    assert_eq!(members[0].member_id, "cm_c_members_user_u_owner");
     assert_eq!(members[0].principal_id, "u_owner");
     assert_eq!(members[0].role, MembershipRole::Owner);
     assert_eq!(members[0].state, MembershipState::Joined);
@@ -1755,7 +1835,7 @@ fn test_conversation_membership_lifecycle_tracks_creator_and_member_changes() {
         })
         .expect("add member should succeed");
 
-    assert_eq!(added_member.member_id, "cm_c_members_u_member");
+    assert_eq!(added_member.member_id, "cm_c_members_user_u_member");
     assert_eq!(added_member.principal_id, "u_member");
     assert_eq!(added_member.role, MembershipRole::Member);
     assert_eq!(added_member.state, MembershipState::Joined);
@@ -1775,7 +1855,7 @@ fn test_conversation_membership_lifecycle_tracks_creator_and_member_changes() {
         })
         .expect("remove member should succeed");
 
-    assert_eq!(removed_member.member_id, "cm_c_members_u_member");
+    assert_eq!(removed_member.member_id, "cm_c_members_user_u_member");
     assert_eq!(removed_member.state, MembershipState::Removed);
     assert!(removed_member.removed_at.is_some());
 
@@ -1783,7 +1863,10 @@ fn test_conversation_membership_lifecycle_tracks_creator_and_member_changes() {
         .list_members("t_demo", "c_members")
         .expect("list members after remove should succeed");
     assert_eq!(members_after_remove.len(), 1);
-    assert_eq!(members_after_remove[0].member_id, "cm_c_members_u_owner");
+    assert_eq!(
+        members_after_remove[0].member_id,
+        "cm_c_members_user_u_owner"
+    );
 
     let events = journal.recorded();
     assert_eq!(events.len(), 4);
@@ -1910,7 +1993,7 @@ fn test_read_cursor_advances_monotonically_for_active_member() {
         })
         .expect("read cursor update should succeed");
 
-    assert_eq!(cursor.member_id, "cm_c_cursor_u_owner");
+    assert_eq!(cursor.member_id, "cm_c_cursor_user_u_owner");
     assert_eq!(cursor.read_seq, 1);
     assert_eq!(
         cursor.last_read_message_id.as_deref(),
@@ -3478,8 +3561,7 @@ fn test_post_message_does_not_leak_message_when_journal_append_fails() {
             if message == "forced journal append failure"
     ));
 
-    let history = runtime
-        .list_messages("t_demo", "c_group_post_commit_fail", "u_owner")
+    let history = list_all_messages(&runtime, "t_demo", "c_group_post_commit_fail", "u_owner")
         .expect("history should still load");
     assert_eq!(history.high_watermark, 0);
     assert!(
@@ -3547,8 +3629,7 @@ fn test_edit_message_does_not_leak_body_change_when_journal_append_fails() {
             if message == "forced journal append failure"
     ));
 
-    let history = runtime
-        .list_messages("t_demo", "c_group_edit_commit_fail", "u_owner")
+    let history = list_all_messages(&runtime, "t_demo", "c_group_edit_commit_fail", "u_owner")
         .expect("history should still load");
     assert_eq!(history.items.len(), 1);
     assert_eq!(
@@ -3615,8 +3696,7 @@ fn test_recall_message_does_not_leak_recalled_state_when_journal_append_fails() 
             if message == "forced journal append failure"
     ));
 
-    let history = runtime
-        .list_messages("t_demo", "c_group_recall_commit_fail", "u_owner")
+    let history = list_all_messages(&runtime, "t_demo", "c_group_recall_commit_fail", "u_owner")
         .expect("history should still load");
     assert_eq!(history.items.len(), 1);
     assert!(!history.items[0].recalled);
@@ -3681,9 +3761,13 @@ fn test_add_reaction_does_not_leak_reaction_when_journal_append_fails() {
             if message == "forced journal append failure"
     ));
 
-    let history = runtime
-        .list_messages("t_demo", "c_group_reaction_add_commit_fail", "u_owner")
-        .expect("history should still load");
+    let history = list_all_messages(
+        &runtime,
+        "t_demo",
+        "c_group_reaction_add_commit_fail",
+        "u_owner",
+    )
+    .expect("history should still load");
     assert_eq!(history.items.len(), 1);
     assert!(
         history.items[0].reactions.is_empty(),
@@ -3761,9 +3845,13 @@ fn test_remove_reaction_does_not_leak_reaction_removal_when_journal_append_fails
             if message == "forced journal append failure"
     ));
 
-    let history = runtime
-        .list_messages("t_demo", "c_group_reaction_remove_commit_fail", "u_owner")
-        .expect("history should still load");
+    let history = list_all_messages(
+        &runtime,
+        "t_demo",
+        "c_group_reaction_remove_commit_fail",
+        "u_owner",
+    )
+    .expect("history should still load");
     assert_eq!(history.items.len(), 1);
     assert_eq!(
         history.items[0]
@@ -3829,8 +3917,7 @@ fn test_pin_message_does_not_leak_pin_state_when_journal_append_fails() {
             if message == "forced journal append failure"
     ));
 
-    let history = runtime
-        .list_messages("t_demo", "c_group_pin_commit_fail", "u_owner")
+    let history = list_all_messages(&runtime, "t_demo", "c_group_pin_commit_fail", "u_owner")
         .expect("history should still load");
     assert_eq!(history.items.len(), 1);
     assert!(history.items[0].pin.is_none());
@@ -3904,8 +3991,7 @@ fn test_unpin_message_does_not_leak_pin_removal_when_journal_append_fails() {
             if message == "forced journal append failure"
     ));
 
-    let history = runtime
-        .list_messages("t_demo", "c_group_unpin_commit_fail", "u_owner")
+    let history = list_all_messages(&runtime, "t_demo", "c_group_unpin_commit_fail", "u_owner")
         .expect("history should still load");
     assert_eq!(history.items.len(), 1);
     assert!(
@@ -4614,7 +4700,7 @@ fn test_group_role_change_rejects_owner_target_and_direct_conversation() {
         runtime.change_conversation_member_role(ChangeConversationMemberRoleCommand {
             tenant_id: "t_demo".into(),
             conversation_id: "c_group_role_change_owner_target".into(),
-            target_member_id: "cm_c_group_role_change_owner_target_u_owner".into(),
+            target_member_id: "cm_c_group_role_change_owner_target_user_u_owner".into(),
             new_role: MembershipRole::Admin,
             changed_by: "u_owner".into(),
         });
@@ -5982,7 +6068,7 @@ fn test_duplicate_create_thread_conversation_is_idempotent_and_conflicting_retry
     );
     assert_eq!(
         first.request_key.as_deref(),
-        Some("t_demo:user:u_owner:create-thread:c_thread_retry")
+        Some("6#t_demo4#user7#u_owner13#create-thread14#c_thread_retry")
     );
 
     let duplicate = runtime
@@ -6325,9 +6411,13 @@ fn test_sync_shared_channel_linked_member_materializes_runtime_truth_and_survive
         )
     );
 
-    let linked_history = runtime
-        .list_messages("t_demo", "c_shared_sync_runtime", "u_partner_runtime")
-        .expect("linked member should read shared history after sync");
+    let linked_history = list_all_messages(
+        &runtime,
+        "t_demo",
+        "c_shared_sync_runtime",
+        "u_partner_runtime",
+    )
+    .expect("linked member should read shared history after sync");
     assert_eq!(linked_history.items.len(), 1);
     assert_eq!(
         linked_history.items[0].message.message_id,
@@ -6354,9 +6444,13 @@ fn test_sync_shared_channel_linked_member_materializes_runtime_truth_and_survive
             .expect("replay should succeed");
     }
 
-    let replay_linked_history = replay_runtime
-        .list_messages("t_demo", "c_shared_sync_runtime", "u_partner_runtime")
-        .expect("replayed linked member should still read shared history");
+    let replay_linked_history = list_all_messages(
+        &replay_runtime,
+        "t_demo",
+        "c_shared_sync_runtime",
+        "u_partner_runtime",
+    )
+    .expect("replayed linked member should still read shared history");
     assert_eq!(replay_linked_history.items.len(), 1);
     assert_eq!(
         replay_linked_history.items[0]
@@ -6434,7 +6528,7 @@ fn test_duplicate_bind_direct_chat_conversation_is_idempotent_and_conflicting_re
     );
     assert_eq!(
         first.request_key.as_deref(),
-        Some("t_demo:system:svc_control:bind-direct-chat:c_direct_retry")
+        Some("6#t_demo6#system11#svc_control16#bind-direct-chat14#c_direct_retry")
     );
 
     let duplicate = source_runtime
@@ -6519,6 +6613,62 @@ fn test_duplicate_bind_direct_chat_conversation_is_idempotent_and_conflicting_re
         3,
         "duplicate direct chat binding retry must not append another conversation.created/member_joined pair"
     );
+}
+
+#[test]
+fn test_direct_chat_business_scope_key_is_segment_safe_for_delimiter_bearing_ids() {
+    let runtime = ConversationRuntime::new(InMemoryJournal::default());
+
+    let first = runtime
+        .bind_direct_chat_conversation_with_binder_kind(
+            BindDirectChatConversationCommand {
+                tenant_id: "tenant:a".into(),
+                conversation_id: "c_direct_first".into(),
+                direct_chat_id: "b".into(),
+                left_actor_id: "u_first".into(),
+                left_actor_kind: "user".into(),
+                right_actor_id: "u_peer_first".into(),
+                right_actor_kind: "user".into(),
+                bound_by: "svc_control".into(),
+            },
+            "system",
+        )
+        .expect("first direct chat binding should be created");
+    let second = runtime
+        .bind_direct_chat_conversation_with_binder_kind(
+            BindDirectChatConversationCommand {
+                tenant_id: "tenant".into(),
+                conversation_id: "c_direct_second".into(),
+                direct_chat_id: "a:b".into(),
+                left_actor_id: "u_second".into(),
+                left_actor_kind: "user".into(),
+                right_actor_id: "u_peer_second".into(),
+                right_actor_kind: "user".into(),
+                bound_by: "svc_control".into(),
+            },
+            "system",
+        )
+        .expect("second direct chat binding should not collide with first business key");
+
+    assert_eq!(first.conversation_id, "c_direct_first");
+    assert_eq!(second.conversation_id, "c_direct_second");
+    assert_eq!(
+        first.request_key.as_deref(),
+        Some("8#tenant:a6#system11#svc_control16#bind-direct-chat14#c_direct_first")
+    );
+    assert_eq!(
+        second.request_key.as_deref(),
+        Some("6#tenant6#system11#svc_control16#bind-direct-chat15#c_direct_second")
+    );
+
+    let first_binding = runtime
+        .conversation_business_binding("tenant:a", "c_direct_first")
+        .expect("first direct chat binding should be readable");
+    let second_binding = runtime
+        .conversation_business_binding("tenant", "c_direct_second")
+        .expect("second direct chat binding should be readable");
+    assert_eq!(first_binding.business_id, "b");
+    assert_eq!(second_binding.business_id, "a:b");
 }
 
 #[test]

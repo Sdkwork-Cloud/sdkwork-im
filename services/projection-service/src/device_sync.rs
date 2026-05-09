@@ -1,10 +1,11 @@
 use std::collections::BTreeMap;
+use std::ops::Bound::{Excluded, Unbounded};
 
 use im_domain_core::conversation::DeviceSyncFeedEntry;
 
 use crate::model::{NotificationRecipientView, RealtimeFanoutTarget, RegisteredDeviceView};
 use crate::scope::{
-    DeviceFeedScopeKey, DevicePrincipalScopeKey, device_feed_scope_key, device_principal_scope_key,
+    DevicePrincipalScopeKey, device_feed_scope_key, device_principal_scope_key,
     registered_device_at, scope_key,
 };
 use crate::{TimelineProjectionService, lock_projection_mutex};
@@ -66,35 +67,29 @@ pub(crate) fn register_device_for_principal_kind(
     principal_kind: &str,
     device_id: &str,
 ) -> RegisteredDeviceView {
-    register_device_with_optional_principal_kind(
-        service,
-        tenant_id,
-        principal_id,
-        Some(principal_kind),
-        device_id,
-    )
+    register_device_with_principal_kind(service, tenant_id, principal_id, principal_kind, device_id)
 }
 
-pub(crate) fn register_device_legacy(
+pub(crate) fn register_device_default_user(
     service: &TimelineProjectionService,
     tenant_id: &str,
     principal_id: &str,
     device_id: &str,
 ) -> RegisteredDeviceView {
-    register_device_with_optional_principal_kind(service, tenant_id, principal_id, None, device_id)
+    register_device_for_principal_kind(service, tenant_id, principal_id, "user", device_id)
 }
 
-fn register_device_with_optional_principal_kind(
+fn register_device_with_principal_kind(
     service: &TimelineProjectionService,
     tenant_id: &str,
     principal_id: &str,
-    principal_kind: Option<&str>,
+    principal_kind: &str,
     device_id: &str,
 ) -> RegisteredDeviceView {
     let device = RegisteredDeviceView {
         tenant_id: tenant_id.into(),
         principal_id: principal_id.into(),
-        principal_kind: principal_kind.map(str::to_owned),
+        principal_kind: principal_kind.into(),
         device_id: device_id.into(),
         registered_at: registered_device_at(),
     };
@@ -132,18 +127,10 @@ pub(crate) fn registered_devices_for_principal_kind(
         lock_projection_mutex(&service.registered_devices, "registered device store");
     let mut devices_by_id = BTreeMap::new();
 
-    if let Some(legacy_devices) =
-        registered_devices.get(&device_principal_scope_key(tenant_id, principal_id, None))
-    {
-        for device in legacy_devices.values() {
-            devices_by_id.insert(device.device_id.clone(), device.clone());
-        }
-    }
-
     if let Some(typed_devices) = registered_devices.get(&device_principal_scope_key(
         tenant_id,
         principal_id,
-        Some(principal_kind),
+        principal_kind,
     )) {
         for device in typed_devices.values() {
             devices_by_id.insert(device.device_id.clone(), device.clone());
@@ -155,37 +142,56 @@ pub(crate) fn registered_devices_for_principal_kind(
     devices
 }
 
-pub(crate) fn device_sync_feed_for_principal_kind(
+pub(crate) fn device_sync_feed_window_for_principal_kind(
     service: &TimelineProjectionService,
     tenant_id: &str,
     principal_id: &str,
     principal_kind: &str,
     device_id: &str,
     after_seq: Option<u64>,
-) -> Vec<DeviceSyncFeedEntry> {
+    limit: usize,
+) -> super::DeviceSyncFeedWindowView {
     let min_seq = after_seq.unwrap_or_default();
-    let scope = resolved_device_feed_scope_key(
-        service,
-        tenant_id,
-        principal_id,
-        Some(principal_kind),
-        device_id,
-    );
-    lock_projection_mutex(&service.device_sync_feeds, "device sync feed store")
-        .get(&scope)
-        .cloned()
-        .unwrap_or_default()
-        .into_iter()
-        .filter(|entry| entry.sync_seq > min_seq)
-        .filter(|entry| {
-            entry
-                .conversation_id
-                .as_deref()
-                .is_none_or(|conversation_id| {
-                    !service.is_archived_direct_chat_conversation(tenant_id, conversation_id)
-                })
-        })
-        .collect()
+    let scope = device_feed_scope_key(tenant_id, principal_id, principal_kind, device_id);
+    let feeds = lock_projection_mutex(&service.device_sync_feeds, "device sync feed store");
+    let Some(feed) = feeds.get(&scope) else {
+        return super::DeviceSyncFeedWindowView {
+            items: Vec::new(),
+            next_after_seq: None,
+            has_more: false,
+            trimmed_through_seq: 0,
+        };
+    };
+
+    let trimmed_through_seq = device_sync_feed_trimmed_through_seq(feed);
+    let mut items = Vec::with_capacity(limit.min(feed.len()));
+    let mut has_more = false;
+    let mut next_after_seq = None;
+    for (sync_seq, entry) in feed.range((Excluded(min_seq), Unbounded)) {
+        if entry
+            .conversation_id
+            .as_deref()
+            .is_some_and(|conversation_id| {
+                service.is_archived_direct_chat_conversation(tenant_id, conversation_id)
+            })
+        {
+            next_after_seq = Some(*sync_seq);
+            continue;
+        }
+        if items.len() == limit {
+            has_more = true;
+            break;
+        }
+        items.push(entry.clone());
+        next_after_seq = Some(*sync_seq);
+    }
+
+    super::DeviceSyncFeedWindowView {
+        items,
+        next_after_seq,
+        has_more,
+        trimmed_through_seq,
+    }
 }
 
 pub(crate) fn latest_device_sync_seq_for_principal_kind(
@@ -195,13 +201,7 @@ pub(crate) fn latest_device_sync_seq_for_principal_kind(
     principal_kind: &str,
     device_id: &str,
 ) -> u64 {
-    let scope = resolved_device_feed_scope_key(
-        service,
-        tenant_id,
-        principal_id,
-        Some(principal_kind),
-        device_id,
-    );
+    let scope = device_feed_scope_key(tenant_id, principal_id, principal_kind, device_id);
     lock_projection_mutex(&service.device_sync_sequences, "device sync sequence store")
         .get(&scope)
         .copied()
@@ -249,7 +249,7 @@ pub(crate) fn realtime_fanout_targets_for_recipients(
             .into_iter()
             .map(move |device| RealtimeFanoutTarget {
                 principal_id: recipient.principal_id.clone(),
-                principal_kind: Some(recipient.principal_kind.clone()),
+                principal_kind: recipient.principal_kind.clone(),
                 device_id: device.device_id,
             })
         })
@@ -286,7 +286,7 @@ impl TimelineProjectionService {
         principal_id: &str,
         device_id: &str,
     ) -> RegisteredDeviceView {
-        register_device_legacy(self, tenant_id, principal_id, device_id)
+        register_device_default_user(self, tenant_id, principal_id, device_id)
     }
 
     pub fn register_device_for_principal_kind(
@@ -305,51 +305,23 @@ impl TimelineProjectionService {
         )
     }
 
-    pub fn device_sync_feed(
-        &self,
-        tenant_id: &str,
-        principal_id: &str,
-        device_id: &str,
-        after_seq: Option<u64>,
-    ) -> Vec<DeviceSyncFeedEntry> {
-        let min_seq = after_seq.unwrap_or_default();
-        lock_projection_mutex(&self.device_sync_feeds, "device sync feed store")
-            .get(&device_feed_scope_key(
-                tenant_id,
-                principal_id,
-                None,
-                device_id,
-            ))
-            .cloned()
-            .unwrap_or_default()
-            .into_iter()
-            .filter(|entry| entry.sync_seq > min_seq)
-            .filter(|entry| {
-                entry
-                    .conversation_id
-                    .as_deref()
-                    .is_none_or(|conversation_id| {
-                        !self.is_archived_direct_chat_conversation(tenant_id, conversation_id)
-                    })
-            })
-            .collect()
-    }
-
-    pub fn device_sync_feed_for_principal_kind(
+    pub fn device_sync_feed_window_for_principal_kind(
         &self,
         tenant_id: &str,
         principal_id: &str,
         principal_kind: &str,
         device_id: &str,
         after_seq: Option<u64>,
-    ) -> Vec<DeviceSyncFeedEntry> {
-        self::device_sync_feed_for_principal_kind(
+        limit: usize,
+    ) -> super::DeviceSyncFeedWindowView {
+        self::device_sync_feed_window_for_principal_kind(
             self,
             tenant_id,
             principal_id,
             principal_kind,
             device_id,
             after_seq,
+            limit,
         )
     }
 
@@ -358,20 +330,7 @@ impl TimelineProjectionService {
         tenant_id: &str,
         principal_id: &str,
     ) -> Vec<RegisteredDeviceView> {
-        let mut devices =
-            lock_projection_mutex(&self.registered_devices, "registered device store")
-                .iter()
-                .filter(|(scope, _)| {
-                    scope.tenant_id == tenant_id && scope.principal_id == principal_id
-                })
-                .flat_map(|(_, items)| items.values().cloned())
-                .collect::<Vec<_>>();
-        devices.sort_by(|left, right| {
-            left.device_id
-                .cmp(&right.device_id)
-                .then_with(|| left.principal_kind.cmp(&right.principal_kind))
-        });
-        devices
+        self::registered_devices_for_principal_kind(self, tenant_id, principal_id, "user")
     }
 
     pub fn registered_devices_for_principal_kind(
@@ -389,15 +348,13 @@ impl TimelineProjectionService {
         principal_id: &str,
         device_id: &str,
     ) -> u64 {
-        lock_projection_mutex(&self.device_sync_sequences, "device sync sequence store")
-            .get(&device_feed_scope_key(
-                tenant_id,
-                principal_id,
-                None,
-                device_id,
-            ))
-            .copied()
-            .unwrap_or_default()
+        self::latest_device_sync_seq_for_principal_kind(
+            self,
+            tenant_id,
+            principal_id,
+            "user",
+            device_id,
+        )
     }
 
     pub fn latest_device_sync_seq_for_principal_kind(
@@ -420,7 +377,7 @@ impl TimelineProjectionService {
         &self,
         tenant_id: &str,
         principal_id: &str,
-        principal_kind: Option<&str>,
+        principal_kind: &str,
         device_id: &str,
         build: F,
     ) where
@@ -435,10 +392,12 @@ impl TimelineProjectionService {
             *entry
         };
 
-        lock_projection_mutex(&self.device_sync_feeds, "device sync feed store")
-            .entry(scope)
-            .or_default()
-            .push(build(sync_seq));
+        let mut feeds = lock_projection_mutex(&self.device_sync_feeds, "device sync feed store");
+        let feed = feeds.entry(scope).or_default();
+        feed.insert(sync_seq, build(sync_seq));
+        while feed.len() > super::PROJECTION_DEVICE_SYNC_FEED_MAX_RETAINED_EVENTS {
+            feed.pop_first();
+        }
     }
 
     pub(crate) fn append_device_sync_draft(
@@ -450,69 +409,43 @@ impl TimelineProjectionService {
             self,
             draft.tenant_id.as_str(),
             target.principal_id.as_str(),
-            target.principal_kind.as_deref(),
+            target.principal_kind.as_str(),
             target.device_id.as_str(),
         );
         self.append_device_sync_entry(
             draft.tenant_id.as_str(),
             target.principal_id.as_str(),
-            principal_kind.as_deref(),
+            principal_kind.as_str(),
             target.device_id.as_str(),
             |sync_seq| draft.build_for_target(target, sync_seq),
         );
     }
 }
 
-fn resolved_device_feed_scope_key(
-    service: &TimelineProjectionService,
-    tenant_id: &str,
-    principal_id: &str,
-    principal_kind: Option<&str>,
-    device_id: &str,
-) -> DeviceFeedScopeKey {
-    let resolved_principal_kind = resolved_device_scope_principal_kind(
-        service,
-        tenant_id,
-        principal_id,
-        principal_kind,
-        device_id,
-    );
-    device_feed_scope_key(
-        tenant_id,
-        principal_id,
-        resolved_principal_kind.as_deref(),
-        device_id,
-    )
+fn device_sync_feed_trimmed_through_seq(feed: &BTreeMap<u64, DeviceSyncFeedEntry>) -> u64 {
+    feed.first_key_value()
+        .map(|(first_retained_seq, _)| first_retained_seq.saturating_sub(1))
+        .unwrap_or_default()
 }
 
 fn resolved_device_scope_principal_kind(
     service: &TimelineProjectionService,
     tenant_id: &str,
     principal_id: &str,
-    principal_kind: Option<&str>,
+    principal_kind: &str,
     device_id: &str,
-) -> Option<String> {
+) -> String {
     let registered_devices =
         lock_projection_mutex(&service.registered_devices, "registered device store");
-    if let Some(principal_kind) = principal_kind
-        && scope_contains_device(
-            &registered_devices,
-            &device_principal_scope_key(tenant_id, principal_id, Some(principal_kind)),
-            device_id,
-        )
-    {
-        return Some(principal_kind.to_owned());
-    }
-
     if scope_contains_device(
         &registered_devices,
-        &device_principal_scope_key(tenant_id, principal_id, None),
+        &device_principal_scope_key(tenant_id, principal_id, principal_kind),
         device_id,
     ) {
-        return None;
+        return principal_kind.to_owned();
     }
 
-    principal_kind.map(str::to_owned)
+    principal_kind.to_owned()
 }
 
 fn scope_contains_device(

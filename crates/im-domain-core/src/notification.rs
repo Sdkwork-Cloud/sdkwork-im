@@ -28,7 +28,7 @@ pub struct NotificationTask {
     pub category: String,
     pub channel: String,
     pub recipient_id: String,
-    pub recipient_kind: Option<String>,
+    pub recipient_kind: String,
     pub status: NotificationStatus,
     pub title: Option<String>,
     pub body: Option<String>,

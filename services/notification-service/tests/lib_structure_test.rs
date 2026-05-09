@@ -59,3 +59,47 @@ fn test_notification_runtime_exposes_message_posted_notification_owner_seam() {
         "services/notification-service/src/lib.rs should not keep threading message-posted recipient_ids from callers once notification-service owns the projection-backed recipient seam"
     );
 }
+
+#[test]
+fn test_notification_service_requires_explicit_recipient_kind() {
+    let source = include_str!("../src/lib.rs");
+
+    assert!(
+        source.contains("pub recipient_kind: String"),
+        "notification request and task models should require recipient_kind explicitly"
+    );
+    assert!(
+        !source.contains("pub recipient_kind: Option<String>"),
+        "notification request and task models must not model recipient_kind as optional"
+    );
+    assert!(
+        !source.contains("resolved_request_recipient_kind("),
+        "notification-service must not infer recipient_kind from auth or a default user kind"
+    );
+    assert!(
+        !source.contains("unwrap_or_else(|| {\n        if request.recipient_id == auth.actor_id"),
+        "notification-service must not default missing recipient_kind to auth.actor_kind/user"
+    );
+}
+
+#[test]
+fn test_notification_service_cache_keys_are_length_prefixed() {
+    let source = include_str!("../src/lib.rs");
+
+    assert!(
+        source.contains("fn scope_key_parts(parts: &[&str]) -> String"),
+        "notification-service should use length-prefixed cache keys for internal notification indexes"
+    );
+    assert!(
+        source.contains("scope_key_parts(&[tenant_id, recipient_kind, recipient_id])"),
+        "notification recipient cache key should encode tenant_id, recipient_kind, and recipient_id as separate length-prefixed segments"
+    );
+    assert!(
+        !source.contains("format!(\"{tenant_id}:{notification_id}\")"),
+        "notification id cache keys must not be colon-concatenated"
+    );
+    assert!(
+        !source.contains("format!(\"{tenant_id}:{recipient_kind}:{recipient_id}\")"),
+        "recipient cache keys must not be colon-concatenated"
+    );
+}

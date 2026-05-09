@@ -14,8 +14,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::time::{sleep, timeout};
 use tower::ServiceExt;
 
-const DEMO_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X2RlbW8iLCJzaWQiOiJzX2RlbW8ifQ.";
-const OTHER_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X290aGVyIiwic3ViIjoidV9vdGhlciIsInNpZCI6InNfb3RoZXIifQ.";
+const DEMO_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X2RlbW8iLCJzaWQiOiJzX2RlbW8iLCJhY3Rvcl9raW5kIjoidXNlciJ9.";
+const OTHER_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X290aGVyIiwic3ViIjoidV9vdGhlciIsInNpZCI6InNfb3RoZXIiLCJhY3Rvcl9raW5kIjoidXNlciJ9.";
 static NEXT_TEST_RUNTIME_DIR_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 fn deterministic_social_id_for_test(prefix: &str, seed: &str) -> String {
@@ -139,6 +139,7 @@ async fn create_active_friendship_direct_chat_fixture(
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -174,6 +175,7 @@ async fn create_active_friendship_direct_chat_fixture(
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_bob")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -223,6 +225,7 @@ async fn remove_friendship_for_test(
                 .uri(format!("/api/v1/social/friendships/{friendship_id}/remove"))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", remover_user_id)
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -246,6 +249,7 @@ async fn block_direct_chat_for_test(
                 .uri("/api/v1/control/social/user-blocks")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -281,6 +285,7 @@ async fn post_standard_message_for_test(
                 .uri(format!("/api/v1/conversations/{conversation_id}/messages"))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", sender_user_id)
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -305,6 +310,7 @@ async fn register_device_for_test(app: &axum::Router, user_id: &str, device_id: 
                 .uri("/api/v1/devices/register")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", user_id)
+                .header("x-actor-kind", "user")
                 .header("x-device-id", device_id)
                 .header("content-type", "application/json")
                 .body(Body::from(format!(r#"{{"deviceId":"{device_id}"}}"#)))
@@ -328,6 +334,7 @@ async fn sync_conversation_realtime_subscription_for_test(
                 .uri("/api/v1/realtime/subscriptions/sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", user_id)
+                .header("x-actor-kind", "user")
                 .header("x-device-id", device_id)
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -362,6 +369,7 @@ async fn list_realtime_events_for_test(
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", user_id)
+                .header("x-actor-kind", "user")
                 .header("x-device-id", device_id)
                 .body(Body::empty())
                 .unwrap(),
@@ -963,6 +971,226 @@ async fn test_local_minimal_profile_runs_end_to_end_flow() {
 }
 
 #[tokio::test]
+async fn test_local_minimal_profile_returns_bounded_timeline_cursor_window() {
+    let app = local_minimal_node::build_default_app();
+
+    let create_conversation = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("authorization", DEMO_BEARER)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_timeline_page_local",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation should succeed");
+    assert_eq!(create_conversation.status(), StatusCode::OK);
+
+    for seq in 1..=2 {
+        let post_message = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/conversations/c_timeline_page_local/messages")
+                    .header("authorization", DEMO_BEARER)
+                    .header("content-type", "application/json")
+                    .body(Body::from(format!(
+                        r#"{{
+                            "clientMsgId":"client_timeline_page_local_{seq}",
+                            "summary":"message {seq}",
+                            "text":"message {seq}"
+                        }}"#
+                    )))
+                    .unwrap(),
+            )
+            .await
+            .expect("post message should succeed");
+        assert_eq!(post_message.status(), StatusCode::OK);
+    }
+
+    let first_page = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/conversations/c_timeline_page_local/messages?afterSeq=0&limit=1")
+                .header("authorization", DEMO_BEARER)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("first timeline page should return response");
+    assert_eq!(first_page.status(), StatusCode::OK);
+    let first_page_body = first_page
+        .into_body()
+        .collect()
+        .await
+        .expect("first timeline page body should collect")
+        .to_bytes();
+    let first_page_json: serde_json::Value =
+        serde_json::from_slice(&first_page_body).expect("first page should be valid json");
+    assert_eq!(first_page_json["items"].as_array().unwrap().len(), 1);
+    assert_eq!(first_page_json["items"][0]["messageSeq"], 1);
+    assert_eq!(first_page_json["nextAfterSeq"], 1);
+    assert_eq!(first_page_json["hasMore"], true);
+
+    let second_page = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/conversations/c_timeline_page_local/messages?afterSeq=1&limit=1")
+                .header("authorization", DEMO_BEARER)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("second timeline page should return response");
+    assert_eq!(second_page.status(), StatusCode::OK);
+    let second_page_body = second_page
+        .into_body()
+        .collect()
+        .await
+        .expect("second timeline page body should collect")
+        .to_bytes();
+    let second_page_json: serde_json::Value =
+        serde_json::from_slice(&second_page_body).expect("second page should be valid json");
+    assert_eq!(second_page_json["items"].as_array().unwrap().len(), 1);
+    assert_eq!(second_page_json["items"][0]["messageSeq"], 2);
+    assert_eq!(second_page_json["nextAfterSeq"], 2);
+    assert_eq!(second_page_json["hasMore"], false);
+
+    let invalid_limit = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/conversations/c_timeline_page_local/messages?afterSeq=0&limit=0")
+                .header("authorization", DEMO_BEARER)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("invalid limit request should return response");
+    assert_eq!(invalid_limit.status(), StatusCode::BAD_REQUEST);
+    let invalid_limit_body = invalid_limit
+        .into_body()
+        .collect()
+        .await
+        .expect("invalid limit body should collect")
+        .to_bytes();
+    let invalid_limit_json: serde_json::Value =
+        serde_json::from_slice(&invalid_limit_body).expect("invalid limit should be valid json");
+    assert_eq!(invalid_limit_json["code"], "limit_invalid");
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_returns_bounded_device_sync_feed_cursor_window() {
+    let app = local_minimal_node::build_default_app();
+
+    register_device_for_test(&app, "u_demo", "d_phone").await;
+    register_device_for_test(&app, "u_demo", "d_pad").await;
+
+    let create_conversation = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("authorization", DEMO_BEARER)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_sync_page_local",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation should succeed");
+    assert_eq!(create_conversation.status(), StatusCode::OK);
+
+    for seq in 1..=2 {
+        let post_message = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/conversations/c_sync_page_local/messages")
+                    .header("authorization", DEMO_BEARER)
+                    .header("x-device-id", "d_phone")
+                    .header("content-type", "application/json")
+                    .body(Body::from(format!(
+                        r#"{{
+                            "clientMsgId":"client_sync_page_local_{seq}",
+                            "summary":"sync page {seq}",
+                            "text":"sync page {seq}"
+                        }}"#
+                    )))
+                    .unwrap(),
+            )
+            .await
+            .expect("post message should succeed");
+        assert_eq!(post_message.status(), StatusCode::OK);
+    }
+
+    let first_page = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/devices/d_pad/sync-feed?afterSeq=0&limit=1")
+                .header("authorization", DEMO_BEARER)
+                .header("x-device-id", "d_pad")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("first sync feed page should return response");
+    assert_eq!(first_page.status(), StatusCode::OK);
+    let first_page_body = first_page
+        .into_body()
+        .collect()
+        .await
+        .expect("first sync feed page body should collect")
+        .to_bytes();
+    let first_page_json: serde_json::Value =
+        serde_json::from_slice(&first_page_body).expect("first sync feed page should be json");
+    assert_eq!(first_page_json["items"].as_array().unwrap().len(), 1);
+    assert_eq!(first_page_json["items"][0]["syncSeq"], 1);
+    assert_eq!(first_page_json["nextAfterSeq"], 1);
+    assert_eq!(first_page_json["hasMore"], true);
+    assert_eq!(first_page_json["trimmedThroughSeq"], 0);
+
+    let invalid_limit = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/devices/d_pad/sync-feed?afterSeq=0&limit=0")
+                .header("authorization", DEMO_BEARER)
+                .header("x-device-id", "d_pad")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("invalid sync feed limit should return response");
+    assert_eq!(invalid_limit.status(), StatusCode::BAD_REQUEST);
+    let invalid_limit_body = invalid_limit
+        .into_body()
+        .collect()
+        .await
+        .expect("invalid sync feed limit body should collect")
+        .to_bytes();
+    let invalid_limit_json: serde_json::Value = serde_json::from_slice(&invalid_limit_body)
+        .expect("invalid sync feed limit should be json");
+    assert_eq!(invalid_limit_json["code"], "limit_invalid");
+}
+
+#[tokio::test]
 async fn test_local_minimal_profile_treats_duplicate_create_conversation_as_idempotent() {
     let app = local_minimal_node::build_default_app();
 
@@ -1126,7 +1354,7 @@ async fn test_local_minimal_profile_treats_duplicate_agent_dialog_create_as_idem
     );
     assert_eq!(
         first_create_json["requestKey"],
-        "t_demo:user:u_demo:create-agent-dialog:c_agent_dialog_retry_local"
+        "6#t_demo4#user6#u_demo19#create-agent-dialog26#c_agent_dialog_retry_local"
     );
 
     let duplicate_create = app
@@ -1258,7 +1486,7 @@ async fn test_local_minimal_profile_treats_duplicate_system_channel_create_as_id
     );
     assert_eq!(
         first_create_json["requestKey"],
-        "t_demo:system:svc_ops:create-system-channel:c_system_channel_retry_local"
+        "6#t_demo6#system7#svc_ops21#create-system-channel28#c_system_channel_retry_local"
     );
 
     let duplicate_create = app
@@ -1391,6 +1619,7 @@ async fn test_local_minimal_profile_rejects_system_channel_publish_from_subscrib
                 .uri("/api/v1/conversations/c_system_channel_publish_guard_local/system-channel/publish")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_demo_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1459,7 +1688,7 @@ async fn test_local_minimal_profile_treats_duplicate_agent_handoff_create_as_ide
     );
     assert_eq!(
         first_create_json["requestKey"],
-        "t_demo:agent:ag_source:create-agent-handoff:c_agent_handoff_retry_local"
+        "6#t_demo5#agent9#ag_source20#create-agent-handoff27#c_agent_handoff_retry_local"
     );
 
     let duplicate_create = app
@@ -1681,7 +1910,7 @@ async fn test_local_minimal_profile_treats_duplicate_thread_create_as_idempotent
     );
     assert_eq!(
         first_create_json["requestKey"],
-        "t_demo:user:u_demo:create-thread:c_thread_retry_local"
+        "6#t_demo4#user6#u_demo13#create-thread20#c_thread_retry_local"
     );
 
     let duplicate_create = app
@@ -1821,7 +2050,7 @@ async fn test_local_minimal_profile_treats_duplicate_direct_chat_binding_as_idem
     );
     assert_eq!(
         first_bind_json["requestKey"],
-        "t_demo:system:svc_control:bind-direct-chat:c_direct_retry_local"
+        "6#t_demo6#system11#svc_control16#bind-direct-chat20#c_direct_retry_local"
     );
 
     let duplicate_bind = app
@@ -2456,7 +2685,7 @@ async fn test_local_minimal_profile_rejects_duplicate_rtc_create_from_different_
         first_create_json["requestKey"]
             .as_str()
             .expect("first rtc create requestKey should be present")
-            .contains(":user:shared_actor:create:rtc_local_kind_scope")
+            .contains("4#user12#shared_actor6#create20#rtc_local_kind_scope")
     );
 
     let conflicting_create = app
@@ -2764,7 +2993,7 @@ async fn test_local_minimal_profile_exposes_conversation_member_management() {
         .to_bytes();
     let add_member_json: serde_json::Value =
         serde_json::from_slice(&add_member_body).expect("add member response should be valid json");
-    assert_eq!(add_member_json["memberId"], "cm_c_members_ag_demo");
+    assert_eq!(add_member_json["memberId"], "cm_c_members_agent_ag_demo");
     assert_eq!(add_member_json["principalKind"], "agent");
     assert_eq!(add_member_json["state"], "joined");
 
@@ -2800,7 +3029,7 @@ async fn test_local_minimal_profile_exposes_conversation_member_management() {
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
-                        "memberId":"cm_c_members_ag_demo"
+                        "memberId":"cm_c_members_agent_ag_demo"
                     }"#,
                 ))
                 .unwrap(),
@@ -3340,6 +3569,7 @@ async fn test_local_minimal_profile_exposes_device_sync_feed_for_multi_device_re
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3363,6 +3593,7 @@ async fn test_local_minimal_profile_exposes_device_sync_feed_for_multi_device_re
                     .uri("/api/v1/devices/register")
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_demo")
+                    .header("x-actor-kind", "user")
                     .header("x-device-id", device_id)
                     .header("content-type", "application/json")
                     .body(Body::from(format!(r#"{{"deviceId":"{device_id}"}}"#)))
@@ -3381,6 +3612,7 @@ async fn test_local_minimal_profile_exposes_device_sync_feed_for_multi_device_re
                 .uri("/api/v1/conversations/c_sync_feed/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3404,6 +3636,7 @@ async fn test_local_minimal_profile_exposes_device_sync_feed_for_multi_device_re
                 .uri("/api/v1/conversations/c_sync_feed/read-cursor")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3424,6 +3657,7 @@ async fn test_local_minimal_profile_exposes_device_sync_feed_for_multi_device_re
                 .uri("/api/v1/devices/d_pad/sync-feed?afterSeq=0")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .body(Body::empty())
                 .unwrap(),
@@ -3466,6 +3700,7 @@ async fn test_local_minimal_profile_resumes_session_and_returns_presence_snapsho
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3489,6 +3724,7 @@ async fn test_local_minimal_profile_resumes_session_and_returns_presence_snapsho
                     .uri("/api/v1/devices/register")
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_demo")
+                    .header("x-actor-kind", "user")
                     .header("x-device-id", device_id)
                     .header("content-type", "application/json")
                     .body(Body::from(format!(r#"{{"deviceId":"{device_id}"}}"#)))
@@ -3507,6 +3743,7 @@ async fn test_local_minimal_profile_resumes_session_and_returns_presence_snapsho
                 .uri("/api/v1/conversations/c_resume/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_phone")
                 .header("x-device-id", "d_phone")
                 .header("content-type", "application/json")
@@ -3531,6 +3768,7 @@ async fn test_local_minimal_profile_resumes_session_and_returns_presence_snapsho
                 .uri("/api/v1/sessions/resume")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_pad")
                 .header("x-device-id", "d_pad")
                 .header("content-type", "application/json")
@@ -3571,6 +3809,7 @@ async fn test_local_minimal_profile_resumes_session_and_returns_presence_snapsho
                 .uri("/api/v1/presence/me")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_pad")
                 .header("x-device-id", "d_pad")
                 .body(Body::empty())
@@ -3603,6 +3842,7 @@ async fn test_local_minimal_profile_disconnects_presence_back_to_offline() {
                 .uri("/api/v1/devices/register")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"deviceId":"d_pad"}"#))
@@ -3620,6 +3860,7 @@ async fn test_local_minimal_profile_disconnects_presence_back_to_offline() {
                 .uri("/api/v1/sessions/resume")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_pad")
                 .header("x-device-id", "d_pad")
                 .header("content-type", "application/json")
@@ -3638,6 +3879,7 @@ async fn test_local_minimal_profile_disconnects_presence_back_to_offline() {
                 .uri("/api/v1/presence/heartbeat")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_pad")
                 .header("x-device-id", "d_pad")
                 .header("content-type", "application/json")
@@ -3656,6 +3898,7 @@ async fn test_local_minimal_profile_disconnects_presence_back_to_offline() {
                 .uri("/api/v1/sessions/disconnect")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_pad")
                 .header("x-device-id", "d_pad")
                 .header("content-type", "application/json")
@@ -3681,6 +3924,7 @@ async fn test_local_minimal_profile_disconnects_presence_back_to_offline() {
                 .uri("/api/v1/presence/me")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_pad")
                 .header("x-device-id", "d_pad")
                 .body(Body::empty())
@@ -3712,6 +3956,7 @@ async fn test_local_minimal_profile_requires_fresh_resume_after_disconnect() {
                 .uri("/api/v1/sessions/resume")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_old")
                 .header("x-device-id", "d_pad")
                 .header("content-type", "application/json")
@@ -3730,6 +3975,7 @@ async fn test_local_minimal_profile_requires_fresh_resume_after_disconnect() {
                 .uri("/api/v1/sessions/disconnect")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_old")
                 .header("x-device-id", "d_pad")
                 .header("content-type", "application/json")
@@ -3748,6 +3994,7 @@ async fn test_local_minimal_profile_requires_fresh_resume_after_disconnect() {
                 .uri("/api/v1/presence/heartbeat")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_old")
                 .header("x-device-id", "d_pad")
                 .header("content-type", "application/json")
@@ -3775,6 +4022,7 @@ async fn test_local_minimal_profile_requires_fresh_resume_after_disconnect() {
                 .uri("/api/v1/sessions/resume")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_new")
                 .header("x-device-id", "d_pad")
                 .header("content-type", "application/json")
@@ -3792,6 +4040,7 @@ async fn test_local_minimal_profile_requires_fresh_resume_after_disconnect() {
                 .uri("/api/v1/presence/heartbeat")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_new")
                 .header("x-device-id", "d_pad")
                 .header("content-type", "application/json")
@@ -3815,6 +4064,7 @@ async fn test_local_minimal_profile_treats_duplicate_disconnect_as_idempotent_fo
                 .uri("/api/v1/sessions/resume")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_demo")
                 .header("x-device-id", "d_pad")
                 .header("content-type", "application/json")
@@ -3833,6 +4083,7 @@ async fn test_local_minimal_profile_treats_duplicate_disconnect_as_idempotent_fo
                 .uri("/api/v1/sessions/disconnect")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_demo")
                 .header("x-device-id", "d_pad")
                 .header("content-type", "application/json")
@@ -3850,6 +4101,7 @@ async fn test_local_minimal_profile_treats_duplicate_disconnect_as_idempotent_fo
                 .uri("/api/v1/sessions/disconnect")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_demo")
                 .header("x-device-id", "d_pad")
                 .header("content-type", "application/json")
@@ -3894,6 +4146,7 @@ async fn test_local_minimal_profile_rebuild_preserves_reconnect_required_fence_u
                 .uri("/api/v1/sessions/resume")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_old")
                 .header("x-device-id", "d_pad")
                 .header("content-type", "application/json")
@@ -3911,6 +4164,7 @@ async fn test_local_minimal_profile_rebuild_preserves_reconnect_required_fence_u
                 .uri("/api/v1/sessions/disconnect")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_old")
                 .header("x-device-id", "d_pad")
                 .header("content-type", "application/json")
@@ -3936,6 +4190,7 @@ async fn test_local_minimal_profile_rebuild_preserves_reconnect_required_fence_u
                 .uri("/api/v1/presence/heartbeat")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_old")
                 .header("x-device-id", "d_pad")
                 .header("content-type", "application/json")
@@ -3963,6 +4218,7 @@ async fn test_local_minimal_profile_rebuild_preserves_reconnect_required_fence_u
                 .uri("/api/v1/sessions/resume")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_new")
                 .header("x-device-id", "d_pad")
                 .header("content-type", "application/json")
@@ -3980,6 +4236,7 @@ async fn test_local_minimal_profile_rebuild_preserves_reconnect_required_fence_u
                 .uri("/api/v1/presence/heartbeat")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_new")
                 .header("x-device-id", "d_pad")
                 .header("content-type", "application/json")
@@ -4003,6 +4260,7 @@ async fn test_local_minimal_profile_edits_and_recalls_message_with_sync_feed_pro
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4026,6 +4284,7 @@ async fn test_local_minimal_profile_edits_and_recalls_message_with_sync_feed_pro
                     .uri("/api/v1/devices/register")
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_demo")
+                    .header("x-actor-kind", "user")
                     .header("x-device-id", device_id)
                     .header("content-type", "application/json")
                     .body(Body::from(format!(r#"{{"deviceId":"{device_id}"}}"#)))
@@ -4044,6 +4303,7 @@ async fn test_local_minimal_profile_edits_and_recalls_message_with_sync_feed_pro
                 .uri("/api/v1/conversations/c_message_mutation/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .header("content-type", "application/json")
@@ -4068,6 +4328,7 @@ async fn test_local_minimal_profile_edits_and_recalls_message_with_sync_feed_pro
                 .uri("/api/v1/messages/msg_c_message_mutation_1/edit")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .header("content-type", "application/json")
@@ -4090,6 +4351,7 @@ async fn test_local_minimal_profile_edits_and_recalls_message_with_sync_feed_pro
                 .uri("/api/v1/conversations/c_message_mutation/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -4115,6 +4377,7 @@ async fn test_local_minimal_profile_edits_and_recalls_message_with_sync_feed_pro
                 .uri("/api/v1/messages/msg_c_message_mutation_1/recall")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .header("content-type", "application/json")
@@ -4132,6 +4395,7 @@ async fn test_local_minimal_profile_edits_and_recalls_message_with_sync_feed_pro
                 .uri("/api/v1/conversations/c_message_mutation/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -4158,6 +4422,7 @@ async fn test_local_minimal_profile_edits_and_recalls_message_with_sync_feed_pro
                 .uri("/api/v1/devices/d_pad/sync-feed?afterSeq=0")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .body(Body::empty())
                 .unwrap(),
@@ -4194,6 +4459,7 @@ async fn test_local_minimal_profile_preserves_message_post_audit_for_max_length_
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .header("content-type", "application/json")
@@ -4218,6 +4484,7 @@ async fn test_local_minimal_profile_preserves_message_post_audit_for_max_length_
                 .uri("/api/v1/devices/register")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .header("content-type", "application/json")
@@ -4236,6 +4503,7 @@ async fn test_local_minimal_profile_preserves_message_post_audit_for_max_length_
                 .uri(format!("/api/v1/conversations/{conversation_id}/messages"))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .header("content-type", "application/json")
@@ -4271,6 +4539,7 @@ async fn test_local_minimal_profile_preserves_message_post_audit_for_max_length_
                 .header("x-permissions", "audit.read")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -4317,6 +4586,7 @@ async fn test_local_minimal_profile_fanouts_message_notifications_to_other_activ
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -4340,6 +4610,7 @@ async fn test_local_minimal_profile_fanouts_message_notifications_to_other_activ
                 .uri("/api/v1/conversations/c_notification_fanout/members/add")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -4364,6 +4635,7 @@ async fn test_local_minimal_profile_fanouts_message_notifications_to_other_activ
                 .uri("/api/v1/conversations/c_notification_fanout/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -4387,6 +4659,7 @@ async fn test_local_minimal_profile_fanouts_message_notifications_to_other_activ
                 .uri("/api/v1/notifications")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -4416,6 +4689,7 @@ async fn test_local_minimal_profile_fanouts_message_notifications_to_other_activ
                 .uri("/api/v1/notifications")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_member")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -4463,6 +4737,7 @@ async fn test_local_minimal_profile_rejects_notification_queries_from_different_
                         "category":"message.new",
                         "channel":"inapp",
                         "recipientId":"u_demo",
+                        "recipientKind":"user",
                         "title":"New message",
                         "body":"hello",
                         "payload":"{\"conversationId\":\"c_demo\"}"
@@ -4577,6 +4852,7 @@ async fn test_local_minimal_profile_preserves_notification_request_audit_for_max
                         "category": "message.new",
                         "channel": "inapp",
                         "recipientId": "u_demo",
+                        "recipientKind": "user",
                         "title": "New message",
                         "body": "hello",
                         "payload": "{\"conversationId\":\"c_demo\"}",
@@ -4606,6 +4882,7 @@ async fn test_local_minimal_profile_preserves_notification_request_audit_for_max
                 .header("x-permissions", "audit.read")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_sender")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -4797,6 +5074,7 @@ async fn test_local_minimal_profile_delivers_realtime_events_to_subscribed_devic
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .header("content-type", "application/json")
@@ -4820,6 +5098,7 @@ async fn test_local_minimal_profile_delivers_realtime_events_to_subscribed_devic
                 .uri("/api/v1/devices/register")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .header("content-type", "application/json")
@@ -4838,6 +5117,7 @@ async fn test_local_minimal_profile_delivers_realtime_events_to_subscribed_devic
                 .uri("/api/v1/devices/register")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_pad")
                 .header("content-type", "application/json")
@@ -4856,6 +5136,7 @@ async fn test_local_minimal_profile_delivers_realtime_events_to_subscribed_devic
                 .uri("/api/v1/realtime/subscriptions/sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_pad")
                 .header("content-type", "application/json")
@@ -4884,6 +5165,7 @@ async fn test_local_minimal_profile_delivers_realtime_events_to_subscribed_devic
                 .uri("/api/v1/conversations/c_realtime/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .header("content-type", "application/json")
@@ -4907,6 +5189,7 @@ async fn test_local_minimal_profile_delivers_realtime_events_to_subscribed_devic
                 .uri("/api/v1/realtime/events?afterSeq=0&limit=10")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_pad")
                 .body(Body::empty())
@@ -4956,6 +5239,7 @@ async fn test_local_minimal_profile_rejects_realtime_limit_above_guardrail_over_
                 .uri("/api/v1/realtime/events?afterSeq=0&limit=5000")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_demo")
                 .header("x-session-id", "s_demo")
                 .body(Body::empty())
@@ -4989,6 +5273,7 @@ async fn test_local_minimal_profile_does_not_fan_out_conversation_realtime_to_no
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -5012,6 +5297,7 @@ async fn test_local_minimal_profile_does_not_fan_out_conversation_realtime_to_no
                 .uri("/api/v1/conversations/c_realtime_kind_guard/members/add")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -5036,6 +5322,7 @@ async fn test_local_minimal_profile_does_not_fan_out_conversation_realtime_to_no
                 .uri("/api/v1/devices/register")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_dual")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_dual_user")
                 .header("x-session-id", "s_dual_user")
                 .header("content-type", "application/json")
@@ -5073,6 +5360,7 @@ async fn test_local_minimal_profile_does_not_fan_out_conversation_realtime_to_no
                 .uri("/api/v1/realtime/subscriptions/sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_dual")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_dual_user")
                 .header("x-session-id", "s_dual_user")
                 .header("content-type", "application/json")
@@ -5130,6 +5418,7 @@ async fn test_local_minimal_profile_does_not_fan_out_conversation_realtime_to_no
                 .uri("/api/v1/conversations/c_realtime_kind_guard/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -5153,6 +5442,7 @@ async fn test_local_minimal_profile_does_not_fan_out_conversation_realtime_to_no
                 .uri("/api/v1/realtime/events?afterSeq=0&limit=10")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_dual")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_dual_user")
                 .header("x-session-id", "s_dual_user")
                 .body(Body::empty())
@@ -5216,6 +5506,7 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_message_post_ret
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .header("content-type", "application/json")
@@ -5239,6 +5530,7 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_message_post_ret
                 .uri("/api/v1/devices/register")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_pad")
                 .header("content-type", "application/json")
@@ -5257,6 +5549,7 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_message_post_ret
                 .uri("/api/v1/realtime/subscriptions/sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_pad")
                 .header("content-type", "application/json")
@@ -5285,6 +5578,7 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_message_post_ret
                 .uri("/api/v1/conversations/c_post_retry_fanout/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .header("content-type", "application/json")
@@ -5322,6 +5616,7 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_message_post_ret
                 .uri("/api/v1/conversations/c_post_retry_fanout/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .header("content-type", "application/json")
@@ -5362,6 +5657,7 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_message_post_ret
                 .uri("/api/v1/conversations/c_post_retry_fanout/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .body(Body::empty())
@@ -5386,6 +5682,7 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_message_post_ret
                 .uri("/api/v1/realtime/events?afterSeq=0&limit=10")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_pad")
                 .body(Body::empty())
@@ -5428,6 +5725,7 @@ async fn test_local_minimal_profile_disconnect_stops_new_realtime_delivery_and_p
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .header("content-type", "application/json")
@@ -5451,6 +5749,7 @@ async fn test_local_minimal_profile_disconnect_stops_new_realtime_delivery_and_p
                 .uri("/api/v1/devices/register")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_pad")
                 .header("content-type", "application/json")
@@ -5469,6 +5768,7 @@ async fn test_local_minimal_profile_disconnect_stops_new_realtime_delivery_and_p
                 .uri("/api/v1/realtime/subscriptions/sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_pad")
                 .header("content-type", "application/json")
@@ -5497,6 +5797,7 @@ async fn test_local_minimal_profile_disconnect_stops_new_realtime_delivery_and_p
                 .uri("/api/v1/sessions/disconnect")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_pad")
                 .header("content-type", "application/json")
@@ -5515,6 +5816,7 @@ async fn test_local_minimal_profile_disconnect_stops_new_realtime_delivery_and_p
                 .uri("/api/v1/conversations/c_disconnect_realtime/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .header("content-type", "application/json")
@@ -5538,6 +5840,7 @@ async fn test_local_minimal_profile_disconnect_stops_new_realtime_delivery_and_p
                 .uri("/api/v1/realtime/events?afterSeq=0&limit=10")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_pad")
                 .body(Body::empty())
@@ -5564,6 +5867,7 @@ async fn test_local_minimal_profile_disconnect_stops_new_realtime_delivery_and_p
                 .uri("/api/v1/devices/d_pad/sync-feed?afterSeq=0")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_pad")
                 .body(Body::empty())
@@ -5593,6 +5897,7 @@ async fn test_local_minimal_profile_disconnect_stops_new_realtime_delivery_and_p
                 .uri("/api/v1/sessions/resume")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_pad_new")
                 .header("content-type", "application/json")
@@ -5609,6 +5914,7 @@ async fn test_local_minimal_profile_disconnect_stops_new_realtime_delivery_and_p
                 .uri("/api/v1/realtime/events?afterSeq=0&limit=10")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_pad_new")
                 .body(Body::empty())
@@ -5647,6 +5953,7 @@ async fn test_local_minimal_profile_acks_and_trims_realtime_event_window() {
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .header("content-type", "application/json")
@@ -5670,6 +5977,7 @@ async fn test_local_minimal_profile_acks_and_trims_realtime_event_window() {
                 .uri("/api/v1/devices/register")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .header("content-type", "application/json")
@@ -5688,6 +5996,7 @@ async fn test_local_minimal_profile_acks_and_trims_realtime_event_window() {
                 .uri("/api/v1/devices/register")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_pad")
                 .header("content-type", "application/json")
@@ -5706,6 +6015,7 @@ async fn test_local_minimal_profile_acks_and_trims_realtime_event_window() {
                 .uri("/api/v1/realtime/subscriptions/sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_pad")
                 .header("content-type", "application/json")
@@ -5734,6 +6044,7 @@ async fn test_local_minimal_profile_acks_and_trims_realtime_event_window() {
                 .uri("/api/v1/conversations/c_realtime_ack/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .header("content-type", "application/json")
@@ -5757,6 +6068,7 @@ async fn test_local_minimal_profile_acks_and_trims_realtime_event_window() {
                 .uri("/api/v1/realtime/events?afterSeq=0&limit=10")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_pad")
                 .body(Body::empty())
@@ -5785,6 +6097,7 @@ async fn test_local_minimal_profile_acks_and_trims_realtime_event_window() {
                 .uri("/api/v1/realtime/events/ack")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_pad")
                 .header("content-type", "application/json")
@@ -5813,6 +6126,7 @@ async fn test_local_minimal_profile_acks_and_trims_realtime_event_window() {
                 .uri("/api/v1/realtime/events?afterSeq=0&limit=10")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_pad")
                 .body(Body::empty())
@@ -5848,6 +6162,7 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_frames_to_other_
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -5871,6 +6186,7 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_frames_to_other_
                 .uri("/api/v1/conversations/c_stream_realtime_fanout/members/add")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -5895,6 +6211,7 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_frames_to_other_
                 .uri("/api/v1/devices/register")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_other_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_other")
                 .header("x-session-id", "s_other")
                 .header("content-type", "application/json")
@@ -5913,6 +6230,7 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_frames_to_other_
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -5940,6 +6258,7 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_frames_to_other_
                 .uri("/api/v1/realtime/subscriptions/sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_other_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_other")
                 .header("x-session-id", "s_other")
                 .header("content-type", "application/json")
@@ -5968,6 +6287,7 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_frames_to_other_
                 .uri("/api/v1/streams/st_stream_realtime_fanout/frames")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -5993,6 +6313,7 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_frames_to_other_
                 .uri("/api/v1/realtime/events?afterSeq=0&limit=10")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_other_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_other")
                 .header("x-session-id", "s_other")
                 .body(Body::empty())
@@ -6205,6 +6526,7 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_frame_ret
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -6228,6 +6550,7 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_frame_ret
                 .uri("/api/v1/conversations/c_stream_retry_fanout/members/add")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -6252,6 +6575,7 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_frame_ret
                 .uri("/api/v1/devices/register")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_other_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_other")
                 .header("x-session-id", "s_other")
                 .header("content-type", "application/json")
@@ -6270,6 +6594,7 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_frame_ret
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -6297,6 +6622,7 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_frame_ret
                 .uri("/api/v1/realtime/subscriptions/sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_other_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_other")
                 .header("x-session-id", "s_other")
                 .header("content-type", "application/json")
@@ -6325,6 +6651,7 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_frame_ret
                 .uri("/api/v1/streams/st_stream_retry_fanout/frames")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -6364,6 +6691,7 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_frame_ret
                 .uri("/api/v1/streams/st_stream_retry_fanout/frames")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -6401,6 +6729,7 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_frame_ret
                 .uri("/api/v1/realtime/events?afterSeq=0&limit=10")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_other_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_other")
                 .header("x-session-id", "s_other")
                 .body(Body::empty())
@@ -6442,6 +6771,7 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_completion_to_ot
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -6465,6 +6795,7 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_completion_to_ot
                 .uri("/api/v1/conversations/c_stream_completion_fanout/members/add")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -6489,6 +6820,7 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_completion_to_ot
                 .uri("/api/v1/devices/register")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_other_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_other")
                 .header("x-session-id", "s_other")
                 .header("content-type", "application/json")
@@ -6507,6 +6839,7 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_completion_to_ot
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -6534,6 +6867,7 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_completion_to_ot
                 .uri("/api/v1/realtime/subscriptions/sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_other_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_other")
                 .header("x-session-id", "s_other")
                 .header("content-type", "application/json")
@@ -6562,6 +6896,7 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_completion_to_ot
                 .uri("/api/v1/streams/st_stream_completion_fanout/frames")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -6588,6 +6923,7 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_completion_to_ot
                 .uri("/api/v1/streams/st_stream_completion_fanout/complete")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -6610,6 +6946,7 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_completion_to_ot
                 .uri("/api/v1/realtime/events?afterSeq=0&limit=10")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_other_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_other")
                 .header("x-session-id", "s_other")
                 .body(Body::empty())
@@ -6661,6 +6998,7 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_abort_to_other_m
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -6684,6 +7022,7 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_abort_to_other_m
                 .uri("/api/v1/conversations/c_stream_abort_fanout/members/add")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -6708,6 +7047,7 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_abort_to_other_m
                 .uri("/api/v1/devices/register")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_other_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_other")
                 .header("x-session-id", "s_other")
                 .header("content-type", "application/json")
@@ -6726,6 +7066,7 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_abort_to_other_m
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -6753,6 +7094,7 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_abort_to_other_m
                 .uri("/api/v1/realtime/subscriptions/sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_other_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_other")
                 .header("x-session-id", "s_other")
                 .header("content-type", "application/json")
@@ -6781,6 +7123,7 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_abort_to_other_m
                 .uri("/api/v1/streams/st_stream_abort_fanout/frames")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -6807,6 +7150,7 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_abort_to_other_m
                 .uri("/api/v1/streams/st_stream_abort_fanout/abort")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -6828,6 +7172,7 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_abort_to_other_m
                 .uri("/api/v1/realtime/events?afterSeq=0&limit=10")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_other_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_other")
                 .header("x-session-id", "s_other")
                 .body(Body::empty())
@@ -6878,6 +7223,7 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_abort_ret
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -6901,6 +7247,7 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_abort_ret
                 .uri("/api/v1/conversations/c_stream_abort_idempotent/members/add")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -6925,6 +7272,7 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_abort_ret
                 .uri("/api/v1/devices/register")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_other_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_other")
                 .header("x-session-id", "s_other")
                 .header("content-type", "application/json")
@@ -6943,6 +7291,7 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_abort_ret
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -6970,6 +7319,7 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_abort_ret
                 .uri("/api/v1/realtime/subscriptions/sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_other_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_other")
                 .header("x-session-id", "s_other")
                 .header("content-type", "application/json")
@@ -6998,6 +7348,7 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_abort_ret
                 .uri("/api/v1/streams/st_abort_retry_fanout/frames")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -7024,6 +7375,7 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_abort_ret
                 .uri("/api/v1/streams/st_abort_retry_fanout/abort")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -7060,6 +7412,7 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_abort_ret
                 .uri("/api/v1/streams/st_abort_retry_fanout/abort")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -7094,6 +7447,7 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_abort_ret
                 .uri("/api/v1/realtime/events?afterSeq=0&limit=10")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_other_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_other")
                 .header("x-session-id", "s_other")
                 .body(Body::empty())
@@ -7273,6 +7627,7 @@ async fn test_local_minimal_profile_fanouts_realtime_message_events_to_other_con
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -7296,6 +7651,7 @@ async fn test_local_minimal_profile_fanouts_realtime_message_events_to_other_con
                 .uri("/api/v1/conversations/c_realtime_fanout/members/add")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -7320,6 +7676,7 @@ async fn test_local_minimal_profile_fanouts_realtime_message_events_to_other_con
                 .uri("/api/v1/devices/register")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_other_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_other")
                 .header("x-session-id", "s_other")
                 .header("content-type", "application/json")
@@ -7338,6 +7695,7 @@ async fn test_local_minimal_profile_fanouts_realtime_message_events_to_other_con
                 .uri("/api/v1/realtime/subscriptions/sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_other_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_other")
                 .header("x-session-id", "s_other")
                 .header("content-type", "application/json")
@@ -7366,6 +7724,7 @@ async fn test_local_minimal_profile_fanouts_realtime_message_events_to_other_con
                 .uri("/api/v1/conversations/c_realtime_fanout/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -7388,6 +7747,7 @@ async fn test_local_minimal_profile_fanouts_realtime_message_events_to_other_con
                 .uri("/api/v1/realtime/events?afterSeq=0&limit=10")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_other_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_other")
                 .header("x-session-id", "s_other")
                 .body(Body::empty())
@@ -7436,6 +7796,7 @@ async fn test_local_minimal_profile_fanouts_message_mutation_realtime_events_to_
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -7459,6 +7820,7 @@ async fn test_local_minimal_profile_fanouts_message_mutation_realtime_events_to_
                 .uri("/api/v1/conversations/c_realtime_mutation_fanout/members/add")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -7483,6 +7845,7 @@ async fn test_local_minimal_profile_fanouts_message_mutation_realtime_events_to_
                 .uri("/api/v1/devices/register")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_other_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_other")
                 .header("x-session-id", "s_other")
                 .header("content-type", "application/json")
@@ -7501,6 +7864,7 @@ async fn test_local_minimal_profile_fanouts_message_mutation_realtime_events_to_
                 .uri("/api/v1/realtime/subscriptions/sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_other_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_other")
                 .header("x-session-id", "s_other")
                 .header("content-type", "application/json")
@@ -7529,6 +7893,7 @@ async fn test_local_minimal_profile_fanouts_message_mutation_realtime_events_to_
                 .uri("/api/v1/conversations/c_realtime_mutation_fanout/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -7553,6 +7918,7 @@ async fn test_local_minimal_profile_fanouts_message_mutation_realtime_events_to_
                 .uri("/api/v1/messages/msg_c_realtime_mutation_fanout_1/edit")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -7576,6 +7942,7 @@ async fn test_local_minimal_profile_fanouts_message_mutation_realtime_events_to_
                 .uri("/api/v1/messages/msg_c_realtime_mutation_fanout_1/recall")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -7592,6 +7959,7 @@ async fn test_local_minimal_profile_fanouts_message_mutation_realtime_events_to_
                 .uri("/api/v1/realtime/events?afterSeq=0&limit=10")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_other_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_other")
                 .header("x-session-id", "s_other")
                 .body(Body::empty())
@@ -7675,6 +8043,7 @@ async fn test_local_minimal_profile_fanouts_member_governance_realtime_events_to
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -7698,6 +8067,7 @@ async fn test_local_minimal_profile_fanouts_member_governance_realtime_events_to
                 .uri("/api/v1/realtime/subscriptions/sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_pad")
                 .header("content-type", "application/json")
@@ -7731,6 +8101,7 @@ async fn test_local_minimal_profile_fanouts_member_governance_realtime_events_to
                 .uri("/api/v1/conversations/c_member_realtime/members/add")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -7755,12 +8126,13 @@ async fn test_local_minimal_profile_fanouts_member_governance_realtime_events_to
                 .uri("/api/v1/conversations/c_member_realtime/members/change-role")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
-                        "memberId":"cm_c_member_realtime_u_other_demo",
+                        "memberId":"cm_c_member_realtime_user_u_other_demo",
                         "role":"admin"
                     }"#,
                 ))
@@ -7778,12 +8150,13 @@ async fn test_local_minimal_profile_fanouts_member_governance_realtime_events_to
                 .uri("/api/v1/conversations/c_member_realtime/members/remove")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
-                        "memberId":"cm_c_member_realtime_u_other_demo"
+                        "memberId":"cm_c_member_realtime_user_u_other_demo"
                     }"#,
                 ))
                 .unwrap(),
@@ -7800,6 +8173,7 @@ async fn test_local_minimal_profile_fanouts_member_governance_realtime_events_to
                 .uri("/api/v1/conversations/c_member_realtime/members/add")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -7824,6 +8198,7 @@ async fn test_local_minimal_profile_fanouts_member_governance_realtime_events_to
                 .uri("/api/v1/conversations/c_member_realtime/members/leave")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_leave_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_leave")
                 .header("x-session-id", "s_leave")
                 .body(Body::empty())
@@ -7839,6 +8214,7 @@ async fn test_local_minimal_profile_fanouts_member_governance_realtime_events_to
                 .uri("/api/v1/realtime/events?afterSeq=0&limit=10")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_pad")
                 .body(Body::empty())
@@ -7922,6 +8298,7 @@ async fn test_local_minimal_profile_member_governance_rejects_actor_kind_mismatc
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -7945,6 +8322,7 @@ async fn test_local_minimal_profile_member_governance_rejects_actor_kind_mismatc
                 .uri("/api/v1/realtime/subscriptions/sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_pad")
                 .header("content-type", "application/json")
@@ -7978,6 +8356,7 @@ async fn test_local_minimal_profile_member_governance_rejects_actor_kind_mismatc
                 .uri("/api/v1/conversations/c_member_actor_kind_sync/members/add")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -8002,6 +8381,7 @@ async fn test_local_minimal_profile_member_governance_rejects_actor_kind_mismatc
                 .uri("/api/v1/conversations/c_member_actor_kind_sync/members/add")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -8032,7 +8412,7 @@ async fn test_local_minimal_profile_member_governance_rejects_actor_kind_mismatc
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
-                        "memberId":"cm_c_member_actor_kind_sync_u_other_demo",
+                        "memberId":"cm_c_member_actor_kind_sync_user_u_other_demo",
                         "role":"admin"
                     }"#,
                 ))
@@ -8056,7 +8436,7 @@ async fn test_local_minimal_profile_member_governance_rejects_actor_kind_mismatc
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
-                        "memberId":"cm_c_member_actor_kind_sync_u_other_demo"
+                        "memberId":"cm_c_member_actor_kind_sync_user_u_other_demo"
                     }"#,
                 ))
                 .unwrap(),
@@ -8090,6 +8470,7 @@ async fn test_local_minimal_profile_member_governance_rejects_actor_kind_mismatc
                 .uri("/api/v1/realtime/events?afterSeq=0&limit=10")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_pad")
                 .body(Body::empty())
@@ -8148,6 +8529,7 @@ async fn test_local_minimal_profile_member_governance_rejects_actor_kind_mismatc
                 .uri("/api/v1/conversations/c_member_actor_kind_sync/members")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .body(Body::empty())
@@ -8188,6 +8570,7 @@ async fn test_local_minimal_profile_member_governance_rejects_actor_kind_mismatc
                 .header("x-permissions", "audit.read")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -8238,6 +8621,7 @@ async fn test_local_minimal_profile_owner_transfer_rejects_actor_kind_mismatch_b
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -8261,6 +8645,7 @@ async fn test_local_minimal_profile_owner_transfer_rejects_actor_kind_mismatch_b
                 .uri("/api/v1/conversations/c_owner_transfer_actor_kind_sync/members/add")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -8293,7 +8678,7 @@ async fn test_local_minimal_profile_owner_transfer_rejects_actor_kind_mismatch_b
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
-                        "memberId":"cm_c_owner_transfer_actor_kind_sync_u_target_demo"
+                        "memberId":"cm_c_owner_transfer_actor_kind_sync_user_u_target_demo"
                     }"#,
                 ))
                 .unwrap(),
@@ -8310,6 +8695,7 @@ async fn test_local_minimal_profile_owner_transfer_rejects_actor_kind_mismatch_b
                 .header("x-permissions", "audit.read")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -8337,6 +8723,7 @@ async fn test_local_minimal_profile_owner_transfer_rejects_actor_kind_mismatch_b
                 .uri("/api/v1/conversations/c_owner_transfer_actor_kind_sync/members")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .body(Body::empty())
@@ -8380,6 +8767,7 @@ async fn test_local_minimal_profile_projects_member_governance_sync_feed_deltas(
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -8409,6 +8797,7 @@ async fn test_local_minimal_profile_projects_member_governance_sync_feed_deltas(
                     .uri("/api/v1/devices/register")
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", user_id)
+                    .header("x-actor-kind", "user")
                     .header("x-device-id", device_id)
                     .header("x-session-id", session_id)
                     .header("content-type", "application/json")
@@ -8428,6 +8817,7 @@ async fn test_local_minimal_profile_projects_member_governance_sync_feed_deltas(
                 .uri("/api/v1/conversations/c_member_sync/members/add")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -8452,12 +8842,13 @@ async fn test_local_minimal_profile_projects_member_governance_sync_feed_deltas(
                 .uri("/api/v1/conversations/c_member_sync/members/change-role")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
-                        "memberId":"cm_c_member_sync_u_other_demo",
+                        "memberId":"cm_c_member_sync_user_u_other_demo",
                         "role":"admin"
                     }"#,
                 ))
@@ -8475,12 +8866,13 @@ async fn test_local_minimal_profile_projects_member_governance_sync_feed_deltas(
                 .uri("/api/v1/conversations/c_member_sync/members/remove")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
-                        "memberId":"cm_c_member_sync_u_other_demo"
+                        "memberId":"cm_c_member_sync_user_u_other_demo"
                     }"#,
                 ))
                 .unwrap(),
@@ -8497,6 +8889,7 @@ async fn test_local_minimal_profile_projects_member_governance_sync_feed_deltas(
                 .uri("/api/v1/conversations/c_member_sync/members/add")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -8521,6 +8914,7 @@ async fn test_local_minimal_profile_projects_member_governance_sync_feed_deltas(
                 .uri("/api/v1/conversations/c_member_sync/members/leave")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_leave_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_leave")
                 .header("x-session-id", "s_leave")
                 .body(Body::empty())
@@ -8537,6 +8931,7 @@ async fn test_local_minimal_profile_projects_member_governance_sync_feed_deltas(
                 .uri("/api/v1/devices/d_pad/sync-feed?afterSeq=0")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_pad")
                 .body(Body::empty())
@@ -8636,6 +9031,7 @@ async fn test_local_minimal_profile_projects_member_governance_sync_feed_deltas(
                 .uri("/api/v1/devices/d_other/sync-feed?afterSeq=0")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_other_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_other")
                 .header("x-session-id", "s_other")
                 .body(Body::empty())
@@ -8711,6 +9107,7 @@ async fn test_local_minimal_profile_fanouts_agent_handoff_lifecycle_realtime_eve
                 .uri("/api/v1/devices/register")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .header("content-type", "application/json")
@@ -8729,6 +9126,7 @@ async fn test_local_minimal_profile_fanouts_agent_handoff_lifecycle_realtime_eve
                 .uri("/api/v1/devices/register")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_pad")
                 .header("content-type", "application/json")
@@ -8747,6 +9145,7 @@ async fn test_local_minimal_profile_fanouts_agent_handoff_lifecycle_realtime_eve
                 .uri("/api/v1/realtime/subscriptions/sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_pad")
                 .header("content-type", "application/json")
@@ -8775,6 +9174,7 @@ async fn test_local_minimal_profile_fanouts_agent_handoff_lifecycle_realtime_eve
                 .uri("/api/v1/conversations/c_handoff_realtime/agent-handoff/accept")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .header("content-type", "application/json")
@@ -8792,6 +9192,7 @@ async fn test_local_minimal_profile_fanouts_agent_handoff_lifecycle_realtime_eve
                 .uri("/api/v1/realtime/events?afterSeq=0&limit=10")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_pad")
                 .body(Body::empty())
@@ -8839,6 +9240,7 @@ async fn test_local_minimal_profile_fanouts_agent_handoff_lifecycle_realtime_eve
                 .uri("/api/v1/devices/d_pad/sync-feed?afterSeq=0")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_pad")
                 .body(Body::empty())
@@ -9074,6 +9476,7 @@ async fn test_local_minimal_profile_rejects_duplicate_open_stream_from_different
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -9103,7 +9506,7 @@ async fn test_local_minimal_profile_rejects_duplicate_open_stream_from_different
         first_open_json["requestKey"]
             .as_str()
             .expect("first open requestKey should be present")
-            .contains(":u_demo:open:st_local_actor_scope_open")
+            .contains("6#u_demo4#open25#st_local_actor_scope_open")
     );
 
     let conflicting_open = app
@@ -9113,6 +9516,7 @@ async fn test_local_minimal_profile_rejects_duplicate_open_stream_from_different
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_other_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -9152,6 +9556,7 @@ async fn test_local_minimal_profile_rejects_request_stream_list_from_different_a
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -9177,6 +9582,7 @@ async fn test_local_minimal_profile_rejects_request_stream_list_from_different_a
                 .uri("/api/v1/streams/st_local_request_scope_owner_only_list/frames")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -9199,6 +9605,7 @@ async fn test_local_minimal_profile_rejects_request_stream_list_from_different_a
                 .uri("/api/v1/streams/st_local_request_scope_owner_only_list/frames?afterFrameSeq=0&limit=10")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_other_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -9228,6 +9635,7 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_complete_
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -9251,6 +9659,7 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_complete_
                 .uri("/api/v1/conversations/c_stream_complete_idempotent/members/add")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -9275,6 +9684,7 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_complete_
                 .uri("/api/v1/devices/register")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_other_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_other")
                 .header("x-session-id", "s_other")
                 .header("content-type", "application/json")
@@ -9293,6 +9703,7 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_complete_
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -9320,6 +9731,7 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_complete_
                 .uri("/api/v1/realtime/subscriptions/sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_other_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_other")
                 .header("x-session-id", "s_other")
                 .header("content-type", "application/json")
@@ -9348,6 +9760,7 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_complete_
                 .uri("/api/v1/streams/st_complete_retry_fanout/frames")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -9374,6 +9787,7 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_complete_
                 .uri("/api/v1/streams/st_complete_retry_fanout/complete")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -9410,6 +9824,7 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_complete_
                 .uri("/api/v1/streams/st_complete_retry_fanout/complete")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_owner")
                 .header("x-session-id", "s_owner")
                 .header("content-type", "application/json")
@@ -9445,6 +9860,7 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_complete_
                 .uri("/api/v1/realtime/events?afterSeq=0&limit=10")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_other_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_other")
                 .header("x-session-id", "s_other")
                 .body(Body::empty())
@@ -9622,6 +10038,7 @@ async fn test_local_minimal_profile_issues_rtc_participant_credential_over_http(
                 .uri("/api/v1/rtc/sessions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -9642,6 +10059,7 @@ async fn test_local_minimal_profile_issues_rtc_participant_credential_over_http(
                 .uri("/api/v1/rtc/sessions/rtc_local_provider_http/credentials")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -9683,6 +10101,7 @@ async fn test_local_minimal_profile_gets_rtc_provider_health_over_http() {
                 .uri("/api/v1/rtc/provider-health")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -9721,6 +10140,7 @@ async fn test_local_minimal_profile_maps_rtc_provider_callback_over_http() {
                 .uri("/api/v1/rtc/sessions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -9741,6 +10161,7 @@ async fn test_local_minimal_profile_maps_rtc_provider_callback_over_http() {
                 .uri("/api/v1/rtc/provider-callbacks")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -9782,6 +10203,7 @@ async fn test_local_minimal_profile_gets_rtc_recording_artifact_over_http() {
                 .uri("/api/v1/rtc/sessions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -9801,6 +10223,7 @@ async fn test_local_minimal_profile_gets_rtc_recording_artifact_over_http() {
                 .uri("/api/v1/rtc/sessions/rtc_local_recording_http/artifacts/recording")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -9853,6 +10276,7 @@ async fn test_local_minimal_profile_rejects_oversized_audit_payload_over_http() 
                 .uri("/api/v1/audit/records")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "audit.write,audit.read")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
@@ -9891,6 +10315,7 @@ async fn test_local_minimal_profile_treats_duplicate_audit_anchor_as_idempotent(
                 .uri("/api/v1/audit/records")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "audit.write,audit.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -9929,6 +10354,7 @@ async fn test_local_minimal_profile_treats_duplicate_audit_anchor_as_idempotent(
                 .uri("/api/v1/audit/records")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "audit.write,audit.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -9966,6 +10392,7 @@ async fn test_local_minimal_profile_treats_duplicate_audit_anchor_as_idempotent(
                 .uri("/api/v1/audit/records")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "audit.write,audit.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -9996,6 +10423,7 @@ async fn test_local_minimal_profile_replays_duplicate_audit_anchor_after_session
                 .uri("/api/v1/audit/records")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_before")
                 .header("x-permissions", "audit.write,audit.read")
                 .header("content-type", "application/json")
@@ -10031,6 +10459,7 @@ async fn test_local_minimal_profile_replays_duplicate_audit_anchor_after_session
                 .uri("/api/v1/audit/records")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_after")
                 .header("x-permissions", "audit.write,audit.read")
                 .header("content-type", "application/json")
@@ -10068,6 +10497,7 @@ async fn test_local_minimal_profile_replays_duplicate_audit_anchor_after_session
                 .uri("/api/v1/audit/records")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "audit.write,audit.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -10101,6 +10531,7 @@ async fn test_local_minimal_profile_rejects_oversized_device_id_on_register_over
                 .uri("/api/v1/devices/register")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -10140,6 +10571,7 @@ async fn test_local_minimal_profile_rejects_oversized_conversation_id_on_timelin
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -10342,6 +10774,7 @@ async fn test_local_minimal_profile_exposes_projection_read_routes_for_contacts_
                 .uri("/api/v1/contacts")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -10377,6 +10810,7 @@ async fn test_local_minimal_profile_exposes_projection_read_routes_for_contacts_
                 .uri("/api/v1/conversations/c_projection_local/member-directory")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -10405,6 +10839,7 @@ async fn test_local_minimal_profile_exposes_projection_read_routes_for_contacts_
                 .uri("/api/v1/conversations/c_projection_local/messages/msg_c_projection_local_1/interaction-summary")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -10433,6 +10868,7 @@ async fn test_local_minimal_profile_exposes_projection_read_routes_for_contacts_
                 .uri("/api/v1/conversations/c_projection_local/pins")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_member")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -10522,6 +10958,7 @@ async fn test_local_minimal_profile_hides_removed_friendship_from_contacts() {
                 .uri("/api/v1/contacts")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -10557,6 +10994,7 @@ async fn test_local_minimal_profile_hides_removed_friendship_from_contacts() {
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -10570,6 +11008,7 @@ async fn test_local_minimal_profile_hides_removed_friendship_from_contacts() {
                 .uri("/api/v1/contacts")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -10605,6 +11044,7 @@ async fn test_local_minimal_profile_treats_duplicate_friend_request_submit_as_id
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -10634,6 +11074,7 @@ async fn test_local_minimal_profile_treats_duplicate_friend_request_submit_as_id
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -10675,6 +11116,7 @@ async fn test_local_minimal_profile_recovers_existing_pending_friend_request_for
                 .uri("/api/v1/control/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -10701,6 +11143,7 @@ async fn test_local_minimal_profile_recovers_existing_pending_friend_request_for
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -10745,6 +11188,7 @@ async fn test_local_minimal_profile_friend_request_acceptance_creates_direct_cha
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -10789,6 +11233,7 @@ async fn test_local_minimal_profile_friend_request_acceptance_creates_direct_cha
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_bob")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -10825,6 +11270,7 @@ async fn test_local_minimal_profile_friend_request_acceptance_creates_direct_cha
                 .uri("/api/v1/contacts")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -10854,6 +11300,7 @@ async fn test_local_minimal_profile_friend_request_acceptance_creates_direct_cha
                 .uri(format!("/api/v1/conversations/{conversation_id}/members"))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -10898,6 +11345,7 @@ async fn test_local_minimal_profile_rejects_friend_request_submit_for_blocked_pa
                 .uri("/api/v1/control/social/user-blocks")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -10923,6 +11371,7 @@ async fn test_local_minimal_profile_rejects_friend_request_submit_for_blocked_pa
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -10958,6 +11407,7 @@ async fn test_local_minimal_profile_rejects_friend_request_accept_for_blocked_pa
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -10991,6 +11441,7 @@ async fn test_local_minimal_profile_rejects_friend_request_accept_for_blocked_pa
                 .uri("/api/v1/control/social/user-blocks")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -11019,6 +11470,7 @@ async fn test_local_minimal_profile_rejects_friend_request_accept_for_blocked_pa
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_bob")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -11044,6 +11496,7 @@ async fn test_local_minimal_profile_rejects_friend_request_accept_for_blocked_pa
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -11074,6 +11527,7 @@ async fn test_local_minimal_profile_treats_duplicate_friend_request_acceptance_a
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -11108,6 +11562,7 @@ async fn test_local_minimal_profile_treats_duplicate_friend_request_acceptance_a
                 .uri(&accept_uri)
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_bob")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -11131,6 +11586,7 @@ async fn test_local_minimal_profile_treats_duplicate_friend_request_acceptance_a
                 .uri(&accept_uri)
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_bob")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -11175,6 +11631,7 @@ async fn test_local_minimal_profile_accept_converges_to_existing_external_friend
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -11208,6 +11665,7 @@ async fn test_local_minimal_profile_accept_converges_to_existing_external_friend
                 .uri("/api/v1/control/social/friendships")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -11235,6 +11693,7 @@ async fn test_local_minimal_profile_accept_converges_to_existing_external_friend
                 .uri("/api/v1/control/social/direct-chats/bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -11264,6 +11723,7 @@ async fn test_local_minimal_profile_accept_converges_to_existing_external_friend
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_bob")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -11301,6 +11761,7 @@ async fn test_local_minimal_profile_accept_converges_to_existing_external_friend
                 .uri("/api/v1/conversations/c_external_accept_001/members")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -11341,6 +11802,7 @@ async fn test_local_minimal_profile_accept_converges_when_request_was_externally
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -11380,6 +11842,7 @@ async fn test_local_minimal_profile_accept_converges_when_request_was_externally
                     ))
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_bob")
+                    .header("x-actor-kind", "user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -11400,6 +11863,7 @@ async fn test_local_minimal_profile_accept_converges_when_request_was_externally
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_bob")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -11450,6 +11914,7 @@ async fn test_local_minimal_profile_accept_converges_when_request_was_externally
                 .uri("/api/v1/contacts")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -11498,6 +11963,7 @@ async fn test_local_minimal_profile_decline_converges_when_request_was_externall
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -11537,6 +12003,7 @@ async fn test_local_minimal_profile_decline_converges_when_request_was_externall
                     ))
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_bob")
+                    .header("x-actor-kind", "user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -11557,6 +12024,7 @@ async fn test_local_minimal_profile_decline_converges_when_request_was_externall
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_bob")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -11601,6 +12069,7 @@ async fn test_local_minimal_profile_decline_converges_when_request_was_externall
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -11636,6 +12105,7 @@ async fn test_local_minimal_profile_cancel_converges_when_request_was_externally
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -11675,6 +12145,7 @@ async fn test_local_minimal_profile_cancel_converges_when_request_was_externally
                     ))
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_alice")
+                    .header("x-actor-kind", "user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -11695,6 +12166,7 @@ async fn test_local_minimal_profile_cancel_converges_when_request_was_externally
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -11739,6 +12211,7 @@ async fn test_local_minimal_profile_cancel_converges_when_request_was_externally
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -11774,6 +12247,7 @@ async fn test_local_minimal_profile_cancel_after_accept_commit_is_rejected_witho
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -11814,6 +12288,7 @@ async fn test_local_minimal_profile_cancel_after_accept_commit_is_rejected_witho
                     .uri(accept_uri)
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_bob")
+                    .header("x-actor-kind", "user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -11831,6 +12306,7 @@ async fn test_local_minimal_profile_cancel_after_accept_commit_is_rejected_witho
                     .uri(&request_snapshot_uri)
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_admin")
+                    .header("x-actor-kind", "user")
                     .header("x-permissions", "control.read")
                     .body(Body::empty())
                     .unwrap(),
@@ -11867,6 +12343,7 @@ async fn test_local_minimal_profile_cancel_after_accept_commit_is_rejected_witho
                 .uri(&friendship_snapshot_uri)
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -11887,6 +12364,7 @@ async fn test_local_minimal_profile_cancel_after_accept_commit_is_rejected_witho
                 .uri(cancel_uri)
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -11920,6 +12398,7 @@ async fn test_local_minimal_profile_cancel_after_accept_commit_is_rejected_witho
                 .uri(request_snapshot_uri)
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -11947,6 +12426,7 @@ async fn test_local_minimal_profile_cancel_after_accept_commit_is_rejected_witho
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -11967,6 +12447,7 @@ async fn test_local_minimal_profile_cancel_after_accept_commit_is_rejected_witho
                 .uri("/api/v1/contacts")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -11994,6 +12475,7 @@ async fn test_local_minimal_profile_cancel_after_accept_commit_is_rejected_witho
                 .uri("/api/v1/contacts")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_bob")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -12034,6 +12516,7 @@ async fn test_local_minimal_profile_repairs_pending_friend_request_acceptance_af
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -12073,6 +12556,7 @@ async fn test_local_minimal_profile_repairs_pending_friend_request_acceptance_af
                     .uri(accept_uri)
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_bob")
+                    .header("x-actor-kind", "user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -12090,6 +12574,7 @@ async fn test_local_minimal_profile_repairs_pending_friend_request_acceptance_af
                     .uri(&request_snapshot_uri)
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_admin")
+                    .header("x-actor-kind", "user")
                     .header("x-permissions", "control.read")
                     .body(Body::empty())
                     .unwrap(),
@@ -12126,6 +12611,7 @@ async fn test_local_minimal_profile_repairs_pending_friend_request_acceptance_af
                 .uri(&friendship_snapshot_uri)
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -12155,6 +12641,7 @@ async fn test_local_minimal_profile_repairs_pending_friend_request_acceptance_af
                     .uri("/api/v1/contacts")
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_alice")
+                    .header("x-actor-kind", "user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -12191,6 +12678,7 @@ async fn test_local_minimal_profile_repairs_pending_friend_request_acceptance_af
                 .uri(&friendship_snapshot_uri)
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -12222,6 +12710,7 @@ async fn test_local_minimal_profile_contacts_read_repairs_pending_friend_request
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -12259,6 +12748,7 @@ async fn test_local_minimal_profile_contacts_read_repairs_pending_friend_request
                     .uri(accept_uri)
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_bob")
+                    .header("x-actor-kind", "user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -12276,6 +12766,7 @@ async fn test_local_minimal_profile_contacts_read_repairs_pending_friend_request
                     .uri(&request_snapshot_uri)
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_admin")
+                    .header("x-actor-kind", "user")
                     .header("x-permissions", "control.read")
                     .body(Body::empty())
                     .unwrap(),
@@ -12318,6 +12809,7 @@ async fn test_local_minimal_profile_contacts_read_repairs_pending_friend_request
                 .uri("/api/v1/contacts")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -12366,6 +12858,7 @@ async fn test_local_minimal_profile_second_instance_contacts_read_repairs_pendin
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -12408,6 +12901,7 @@ async fn test_local_minimal_profile_second_instance_contacts_read_repairs_pendin
                     .uri(accept_uri)
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_bob")
+                    .header("x-actor-kind", "user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -12425,6 +12919,7 @@ async fn test_local_minimal_profile_second_instance_contacts_read_repairs_pendin
                     .uri(&request_snapshot_uri)
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_admin")
+                    .header("x-actor-kind", "user")
                     .header("x-permissions", "control.read")
                     .body(Body::empty())
                     .unwrap(),
@@ -12466,6 +12961,7 @@ async fn test_local_minimal_profile_second_instance_contacts_read_repairs_pendin
                 .uri(&friendship_snapshot_uri)
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -12490,6 +12986,7 @@ async fn test_local_minimal_profile_second_instance_contacts_read_repairs_pendin
                 .uri("/api/v1/contacts")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -12521,6 +13018,7 @@ async fn test_local_minimal_profile_second_instance_contacts_read_repairs_pendin
                 .uri(&friendship_snapshot_uri)
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -12554,6 +13052,7 @@ async fn test_local_minimal_profile_same_instance_concurrent_contacts_wait_for_p
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -12595,6 +13094,7 @@ async fn test_local_minimal_profile_same_instance_concurrent_contacts_wait_for_p
                     .uri(accept_uri)
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_bob")
+                    .header("x-actor-kind", "user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -12614,6 +13114,7 @@ async fn test_local_minimal_profile_same_instance_concurrent_contacts_wait_for_p
                     .uri(&request_snapshot_uri)
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_admin")
+                    .header("x-actor-kind", "user")
                     .header("x-permissions", "control.read")
                     .body(Body::empty())
                     .unwrap(),
@@ -12651,6 +13152,7 @@ async fn test_local_minimal_profile_same_instance_concurrent_contacts_wait_for_p
                 .uri(&friendship_snapshot_uri)
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -12696,6 +13198,7 @@ async fn test_local_minimal_profile_same_instance_concurrent_contacts_wait_for_p
                     .uri("/api/v1/contacts")
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_alice")
+                    .header("x-actor-kind", "user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -12718,6 +13221,7 @@ async fn test_local_minimal_profile_same_instance_concurrent_contacts_wait_for_p
                     .uri("/api/v1/contacts")
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_alice")
+                    .header("x-actor-kind", "user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -12807,6 +13311,7 @@ async fn test_local_minimal_profile_healthz_stays_responsive_while_repair_store_
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -12846,6 +13351,7 @@ async fn test_local_minimal_profile_healthz_stays_responsive_while_repair_store_
                     .uri(accept_uri)
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_bob")
+                    .header("x-actor-kind", "user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -12863,6 +13369,7 @@ async fn test_local_minimal_profile_healthz_stays_responsive_while_repair_store_
                     .uri(&request_snapshot_uri)
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_admin")
+                    .header("x-actor-kind", "user")
                     .header("x-permissions", "control.read")
                     .body(Body::empty())
                     .unwrap(),
@@ -12900,6 +13407,7 @@ async fn test_local_minimal_profile_healthz_stays_responsive_while_repair_store_
                 .uri(&friendship_snapshot_uri)
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -12925,6 +13433,7 @@ async fn test_local_minimal_profile_healthz_stays_responsive_while_repair_store_
                     .uri("/api/v1/contacts")
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_alice")
+                    .header("x-actor-kind", "user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -12995,6 +13504,7 @@ async fn test_local_minimal_profile_cross_instance_pending_accept_repairs_preser
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -13035,6 +13545,7 @@ async fn test_local_minimal_profile_cross_instance_pending_accept_repairs_preser
                     .uri(first_accept_uri)
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_bob")
+                    .header("x-actor-kind", "user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -13052,6 +13563,7 @@ async fn test_local_minimal_profile_cross_instance_pending_accept_repairs_preser
                     .uri(&first_request_snapshot_uri)
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                     .header("x-permissions", "control.read")
                     .body(Body::empty())
                     .unwrap(),
@@ -13087,6 +13599,7 @@ async fn test_local_minimal_profile_cross_instance_pending_accept_repairs_preser
                 .uri(&first_friendship_snapshot_uri)
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -13105,6 +13618,7 @@ async fn test_local_minimal_profile_cross_instance_pending_accept_repairs_preser
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_carol")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -13146,6 +13660,7 @@ async fn test_local_minimal_profile_cross_instance_pending_accept_repairs_preser
                     .uri(second_accept_uri)
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_bob")
+                    .header("x-actor-kind", "user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -13165,6 +13680,7 @@ async fn test_local_minimal_profile_cross_instance_pending_accept_repairs_preser
                     .uri(&second_request_snapshot_uri)
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                     .header("x-permissions", "control.read")
                     .body(Body::empty())
                     .unwrap(),
@@ -13200,6 +13716,7 @@ async fn test_local_minimal_profile_cross_instance_pending_accept_repairs_preser
                 .uri(&second_friendship_snapshot_uri)
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -13224,6 +13741,7 @@ async fn test_local_minimal_profile_cross_instance_pending_accept_repairs_preser
                 .uri("/api/v1/contacts")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -13258,6 +13776,7 @@ async fn test_local_minimal_profile_cross_instance_pending_accept_repairs_preser
                 .uri("/api/v1/contacts")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_carol")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -13292,6 +13811,7 @@ async fn test_local_minimal_profile_cross_instance_pending_accept_repairs_preser
                 .uri(&first_friendship_snapshot_uri)
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -13307,6 +13827,7 @@ async fn test_local_minimal_profile_cross_instance_pending_accept_repairs_preser
                 .uri(&second_friendship_snapshot_uri)
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -13334,6 +13855,7 @@ async fn test_local_minimal_profile_discards_stale_pending_friend_request_accept
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -13370,6 +13892,7 @@ async fn test_local_minimal_profile_discards_stale_pending_friend_request_accept
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_bob")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -13396,6 +13919,7 @@ async fn test_local_minimal_profile_discards_stale_pending_friend_request_accept
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -13414,6 +13938,7 @@ async fn test_local_minimal_profile_discards_stale_pending_friend_request_accept
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -13460,6 +13985,7 @@ async fn test_local_minimal_profile_discards_stale_pending_friend_request_accept
                 .uri("/api/v1/contacts")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -13508,6 +14034,7 @@ async fn test_local_minimal_profile_discards_blocked_pending_friend_request_acce
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -13545,6 +14072,7 @@ async fn test_local_minimal_profile_discards_blocked_pending_friend_request_acce
                     ))
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_bob")
+                    .header("x-actor-kind", "user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -13563,6 +14091,7 @@ async fn test_local_minimal_profile_discards_blocked_pending_friend_request_acce
                 .uri("/api/v1/control/social/user-blocks")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -13610,6 +14139,7 @@ async fn test_local_minimal_profile_discards_blocked_pending_friend_request_acce
                 .uri("/api/v1/contacts")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -13670,6 +14200,7 @@ async fn test_local_minimal_profile_discards_canceled_pending_friend_request_acc
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -13724,6 +14255,7 @@ async fn test_local_minimal_profile_discards_canceled_pending_friend_request_acc
                     .uri("/api/v1/contacts")
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_alice")
+                    .header("x-actor-kind", "user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -13744,6 +14276,7 @@ async fn test_local_minimal_profile_discards_canceled_pending_friend_request_acc
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -13797,6 +14330,7 @@ async fn test_local_minimal_profile_discards_canceled_pending_friend_request_acc
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -13833,6 +14367,7 @@ async fn test_local_minimal_profile_discards_pre_accept_blocked_pending_friend_r
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -13868,6 +14403,7 @@ async fn test_local_minimal_profile_discards_pre_accept_blocked_pending_friend_r
                 .uri("/api/v1/control/social/user-blocks")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -13897,6 +14433,7 @@ async fn test_local_minimal_profile_discards_pre_accept_blocked_pending_friend_r
                 .uri(format!("/api/v1/control/social/friend-requests/{request_id}"))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -13949,6 +14486,7 @@ async fn test_local_minimal_profile_discards_pre_accept_blocked_pending_friend_r
                 .uri("/api/v1/contacts")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -13982,6 +14520,7 @@ async fn test_local_minimal_profile_discards_pre_accept_blocked_pending_friend_r
                 .uri(format!("/api/v1/control/social/friend-requests/{request_id}"))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -14033,6 +14572,7 @@ async fn test_local_minimal_profile_concurrent_accepts_converge_idempotently_acr
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -14070,6 +14610,7 @@ async fn test_local_minimal_profile_concurrent_accepts_converge_idempotently_acr
                     .uri(accept_uri)
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_bob")
+                    .header("x-actor-kind", "user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -14088,6 +14629,7 @@ async fn test_local_minimal_profile_concurrent_accepts_converge_idempotently_acr
                     .uri(accept_uri)
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_bob")
+                    .header("x-actor-kind", "user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -14163,6 +14705,7 @@ async fn test_local_minimal_profile_friendship_removal_hides_contacts_via_app_so
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -14198,6 +14741,7 @@ async fn test_local_minimal_profile_friendship_removal_hides_contacts_via_app_so
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_bob")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -14225,6 +14769,7 @@ async fn test_local_minimal_profile_friendship_removal_hides_contacts_via_app_so
                 .uri(format!("/api/v1/social/friendships/{friendship_id}/remove"))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -14248,6 +14793,7 @@ async fn test_local_minimal_profile_friendship_removal_hides_contacts_via_app_so
                 .uri("/api/v1/contacts")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -14276,6 +14822,7 @@ async fn test_local_minimal_profile_friendship_removal_hides_contacts_via_app_so
                 .uri("/api/v1/contacts")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_bob")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -14311,6 +14858,7 @@ async fn test_local_minimal_profile_friendship_scope_block_hides_contacts() {
                 .uri("/api/v1/contacts")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -14343,6 +14891,7 @@ async fn test_local_minimal_profile_friendship_scope_block_hides_contacts() {
                 .uri("/api/v1/control/social/user-blocks")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -14369,6 +14918,7 @@ async fn test_local_minimal_profile_friendship_scope_block_hides_contacts() {
                 .uri("/api/v1/contacts")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -14398,6 +14948,7 @@ async fn test_local_minimal_profile_friendship_scope_block_hides_contacts() {
                 .uri("/api/v1/contacts")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_bob")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -14442,6 +14993,7 @@ async fn test_local_minimal_profile_friendship_remove_converges_when_friendship_
                     .uri(format!("/api/v1/social/friendships/{friendship_id}/remove"))
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_alice")
+                    .header("x-actor-kind", "user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -14463,6 +15015,7 @@ async fn test_local_minimal_profile_friendship_remove_converges_when_friendship_
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -14508,6 +15061,7 @@ async fn test_local_minimal_profile_friendship_remove_converges_when_friendship_
                 .uri("/api/v1/contacts")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -14543,6 +15097,7 @@ async fn test_local_minimal_profile_can_submit_new_friend_request_after_friendsh
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -14578,6 +15133,7 @@ async fn test_local_minimal_profile_can_submit_new_friend_request_after_friendsh
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_bob")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -14605,6 +15161,7 @@ async fn test_local_minimal_profile_can_submit_new_friend_request_after_friendsh
                 .uri(format!("/api/v1/social/friendships/{friendship_id}/remove"))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -14619,6 +15176,7 @@ async fn test_local_minimal_profile_can_submit_new_friend_request_after_friendsh
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -14664,6 +15222,7 @@ async fn test_local_minimal_profile_can_accept_resubmitted_friend_request_after_
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -14699,6 +15258,7 @@ async fn test_local_minimal_profile_can_accept_resubmitted_friend_request_after_
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_bob")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -14728,6 +15288,7 @@ async fn test_local_minimal_profile_can_accept_resubmitted_friend_request_after_
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -14743,6 +15304,7 @@ async fn test_local_minimal_profile_can_accept_resubmitted_friend_request_after_
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -14778,6 +15340,7 @@ async fn test_local_minimal_profile_can_accept_resubmitted_friend_request_after_
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_bob")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -14806,6 +15369,7 @@ async fn test_local_minimal_profile_can_accept_resubmitted_friend_request_after_
                 .uri("/api/v1/contacts")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -14850,6 +15414,7 @@ async fn test_local_minimal_profile_hides_archived_direct_chat_from_inbox_after_
                 .uri("/api/v1/inbox")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -14881,6 +15446,7 @@ async fn test_local_minimal_profile_hides_archived_direct_chat_from_inbox_after_
                 .uri("/api/v1/inbox")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -14929,6 +15495,7 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_summary_after_f
                 .uri(format!("/api/v1/conversations/{conversation_id}"))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -14959,6 +15526,7 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_edge_reads_afte
                 .uri(format!("/api/v1/conversations/{conversation_id}/members"))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -14975,6 +15543,7 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_edge_reads_afte
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -14989,6 +15558,7 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_edge_reads_afte
                 .uri(format!("/api/v1/conversations/{conversation_id}/pins"))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -15027,6 +15597,7 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_edge_reads_afte
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -15051,6 +15622,7 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_edge_reads_afte
                     .uri(uri.as_str())
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_alice")
+                    .header("x-actor-kind", "user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -15099,6 +15671,7 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_timeline_after_
                 .uri(format!("/api/v1/conversations/{conversation_id}/messages"))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -15114,6 +15687,7 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_timeline_after_
                 .uri(format!("/api/v1/conversations/{conversation_id}/messages"))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -15170,6 +15744,7 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_read_cursor_acc
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -15187,6 +15762,7 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_read_cursor_acc
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_alice_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -15213,6 +15789,7 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_read_cursor_acc
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -15238,6 +15815,7 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_read_cursor_acc
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_alice_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -15319,6 +15897,7 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_rtc_create_afte
                 .uri("/api/v1/rtc/sessions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -15343,6 +15922,7 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_rtc_create_afte
                 .uri("/api/v1/rtc/sessions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -15382,6 +15962,7 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_stream_open_aft
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -15409,6 +15990,7 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_stream_open_aft
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -15452,6 +16034,7 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_existing_stream
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -15478,6 +16061,7 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_existing_stream
                 .uri(format!("/api/v1/streams/{stream_id}/frames"))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -15504,6 +16088,7 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_existing_stream
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -15522,6 +16107,7 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_existing_stream
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -15545,6 +16131,7 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_existing_stream
                 .uri(format!("/api/v1/streams/{stream_id}/frames"))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -15587,6 +16174,7 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_existing_rtc_ca
                 .uri("/api/v1/rtc/sessions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -15610,6 +16198,7 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_existing_rtc_ca
                 .uri(format!("/api/v1/rtc/sessions/{rtc_session_id}/credentials"))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -15632,6 +16221,7 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_existing_rtc_ca
                 .uri(format!("/api/v1/rtc/sessions/{rtc_session_id}/credentials"))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -15672,6 +16262,7 @@ async fn test_local_minimal_profile_hides_archived_direct_chat_entries_from_devi
                 .uri(format!("/api/v1/conversations/{conversation_id}/messages"))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_alice_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -15694,6 +16285,7 @@ async fn test_local_minimal_profile_hides_archived_direct_chat_entries_from_devi
                 .uri("/api/v1/devices/d_alice_pad/sync-feed?afterSeq=0")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_alice_pad")
                 .body(Body::empty())
                 .unwrap(),
@@ -15726,6 +16318,7 @@ async fn test_local_minimal_profile_hides_archived_direct_chat_entries_from_devi
                 .uri("/api/v1/devices/d_alice_pad/sync-feed?afterSeq=0")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_alice_pad")
                 .body(Body::empty())
                 .unwrap(),
@@ -15879,6 +16472,7 @@ async fn test_local_minimal_profile_rejects_direct_chat_summary_when_direct_chat
                 .uri(format!("/api/v1/conversations/{}", fixture.conversation_id))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -15961,6 +16555,7 @@ async fn test_local_minimal_profile_hides_direct_chat_from_inbox_when_direct_cha
                 .uri("/api/v1/inbox")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -16005,6 +16600,7 @@ async fn test_local_minimal_profile_hides_direct_chat_from_device_sync_feed_when
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_alice_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -16035,6 +16631,7 @@ async fn test_local_minimal_profile_hides_direct_chat_from_device_sync_feed_when
                 .uri("/api/v1/devices/d_alice_pad/sync-feed?afterSeq=0")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_alice_pad")
                 .body(Body::empty())
                 .unwrap(),
@@ -16058,6 +16655,93 @@ async fn test_local_minimal_profile_hides_direct_chat_from_device_sync_feed_when
             .all(|item| item["conversationId"] != fixture.conversation_id),
         "blocked direct chat must disappear from device sync feed"
     );
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_device_sync_feed_fills_window_after_direct_chat_block_filter() {
+    let app = local_minimal_node::build_default_app();
+    let fixture = create_active_friendship_direct_chat_fixture(&app).await;
+
+    register_device_for_test(&app, "u_alice", "d_alice_phone").await;
+    register_device_for_test(&app, "u_alice", "d_alice_pad").await;
+
+    let blocked_seed_post = post_standard_message_for_test(
+        &app,
+        fixture.conversation_id.as_str(),
+        "u_bob",
+        "client_direct_chat_block_sync_feed_fill_1",
+        "hidden before block",
+    )
+    .await;
+    assert_eq!(blocked_seed_post.status(), StatusCode::OK);
+
+    block_direct_chat_for_test(
+        &app,
+        "ub_direct_chat_sync_feed_fill_blocked",
+        "u_bob",
+        "u_alice",
+        fixture.direct_chat_id.as_str(),
+    )
+    .await;
+
+    let visible_conversation_id = "c_sync_feed_fill_visible";
+    let create_visible_conversation = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
+                .header("x-device-id", "d_alice_phone")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "conversationId": visible_conversation_id,
+                        "conversationType": "group"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("visible conversation create should return response");
+    assert_eq!(create_visible_conversation.status(), StatusCode::OK);
+
+    let sync_feed_response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/devices/d_alice_pad/sync-feed?afterSeq=0&limit=1")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
+                .header("x-device-id", "d_alice_pad")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("filtered sync feed should return response");
+    assert_eq!(sync_feed_response.status(), StatusCode::OK);
+    let sync_feed_body = sync_feed_response
+        .into_body()
+        .collect()
+        .await
+        .expect("filtered sync feed body should collect")
+        .to_bytes();
+    let sync_feed_json: serde_json::Value =
+        serde_json::from_slice(&sync_feed_body).expect("filtered sync feed should be json");
+    let items = sync_feed_json["items"]
+        .as_array()
+        .expect("filtered sync feed should include items");
+    assert_eq!(
+        items.len(),
+        1,
+        "server must scan past hidden direct chat entries to fill the requested visible window"
+    );
+    assert_eq!(items[0]["conversationId"], visible_conversation_id);
+    assert_eq!(sync_feed_json["nextAfterSeq"], items[0]["syncSeq"]);
+    assert_eq!(sync_feed_json["hasMore"], false);
 }
 
 #[tokio::test]
@@ -16164,6 +16848,7 @@ async fn test_local_minimal_profile_can_resubmit_friend_request_after_decline() 
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -16199,6 +16884,7 @@ async fn test_local_minimal_profile_can_resubmit_friend_request_after_decline() 
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_bob")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -16222,6 +16908,7 @@ async fn test_local_minimal_profile_can_resubmit_friend_request_after_decline() 
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -16266,6 +16953,7 @@ async fn test_local_minimal_profile_can_resubmit_friend_request_after_cancel() {
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -16301,6 +16989,7 @@ async fn test_local_minimal_profile_can_resubmit_friend_request_after_cancel() {
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -16324,6 +17013,7 @@ async fn test_local_minimal_profile_can_resubmit_friend_request_after_cancel() {
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -16368,6 +17058,7 @@ async fn test_local_minimal_profile_lists_incoming_and_outgoing_friend_requests(
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -16401,6 +17092,7 @@ async fn test_local_minimal_profile_lists_incoming_and_outgoing_friend_requests(
                 .uri("/api/v1/social/friend-requests?direction=incoming")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_bob")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -16430,6 +17122,7 @@ async fn test_local_minimal_profile_lists_incoming_and_outgoing_friend_requests(
                 .uri("/api/v1/social/friend-requests?direction=outgoing")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -16461,6 +17154,7 @@ async fn test_local_minimal_profile_lists_incoming_and_outgoing_friend_requests(
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_bob")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -16476,6 +17170,7 @@ async fn test_local_minimal_profile_lists_incoming_and_outgoing_friend_requests(
                 .uri("/api/v1/social/friend-requests?direction=incoming")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_bob")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -16503,6 +17198,7 @@ async fn test_local_minimal_profile_lists_incoming_and_outgoing_friend_requests(
                 .uri("/api/v1/social/friend-requests?direction=outgoing&status=declined")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -16537,6 +17233,7 @@ async fn test_local_minimal_profile_friend_request_list_applies_limit_after_sort
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -16560,6 +17257,7 @@ async fn test_local_minimal_profile_friend_request_list_applies_limit_after_sort
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -16580,6 +17278,7 @@ async fn test_local_minimal_profile_friend_request_list_applies_limit_after_sort
                 .uri("/api/v1/social/friend-requests?direction=outgoing&limit=1")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -16613,6 +17312,7 @@ async fn test_local_minimal_profile_friend_request_list_preserves_plus_in_actor_
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice+plus")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -16633,6 +17333,7 @@ async fn test_local_minimal_profile_friend_request_list_preserves_plus_in_actor_
                 .uri("/api/v1/social/friend-requests?direction=outgoing")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice+plus")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -16667,6 +17368,7 @@ async fn test_local_minimal_profile_friend_request_list_uses_cursor_for_next_pag
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -16690,6 +17392,7 @@ async fn test_local_minimal_profile_friend_request_list_uses_cursor_for_next_pag
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -16711,6 +17414,7 @@ async fn test_local_minimal_profile_friend_request_list_uses_cursor_for_next_pag
                 .uri("/api/v1/social/friend-requests?direction=outgoing&limit=1")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -16743,6 +17447,7 @@ async fn test_local_minimal_profile_friend_request_list_uses_cursor_for_next_pag
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -16776,6 +17481,7 @@ async fn test_local_minimal_profile_friend_request_list_rejects_invalid_cursor()
                 .uri("/api/v1/social/friend-requests?direction=outgoing&cursor=not-valid")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -16805,6 +17511,7 @@ async fn test_local_minimal_profile_rejects_friend_request_decline_from_non_targ
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -16840,6 +17547,7 @@ async fn test_local_minimal_profile_rejects_friend_request_decline_from_non_targ
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_charlie")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -16869,6 +17577,7 @@ async fn test_local_minimal_profile_rejects_friend_request_decline_from_non_targ
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_bob")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -16898,6 +17607,7 @@ async fn test_local_minimal_profile_rejects_friend_request_cancel_from_non_reque
                 .uri("/api/v1/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -16933,6 +17643,7 @@ async fn test_local_minimal_profile_rejects_friend_request_cancel_from_non_reque
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_bob")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -16962,6 +17673,7 @@ async fn test_local_minimal_profile_rejects_friend_request_cancel_from_non_reque
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_alice")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -16991,6 +17703,7 @@ async fn test_local_minimal_profile_rejects_oversized_sender_session_id_on_post_
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -17013,6 +17726,7 @@ async fn test_local_minimal_profile_rejects_oversized_sender_session_id_on_post_
                 .uri("/api/v1/devices/register")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"deviceId":"d_phone"}"#))
@@ -17029,6 +17743,7 @@ async fn test_local_minimal_profile_rejects_oversized_sender_session_id_on_post_
                 .uri("/api/v1/conversations/c_local_oversized_sender_session/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s".repeat(257))
                 .header("content-type", "application/json")
@@ -17074,6 +17789,7 @@ async fn test_local_minimal_profile_rejects_oversized_render_hints_on_post_messa
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -17096,6 +17812,7 @@ async fn test_local_minimal_profile_rejects_oversized_render_hints_on_post_messa
                 .uri("/api/v1/devices/register")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"deviceId":"d_phone"}"#))
@@ -17112,6 +17829,7 @@ async fn test_local_minimal_profile_rejects_oversized_render_hints_on_post_messa
                 .uri("/api/v1/conversations/c_local_oversized_render_hints/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(

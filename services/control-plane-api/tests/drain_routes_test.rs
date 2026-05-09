@@ -16,9 +16,10 @@ async fn test_control_plane_can_drain_and_migrate_routes() {
     cluster.bind_node_runtime("node_a", runtime_a.clone());
     cluster.bind_node_runtime("node_b", runtime_b.clone());
 
-    let _ = runtime_a.sync_subscriptions(
+    let _ = runtime_a.sync_subscriptions_for_principal_kind(
         "t_demo",
         "u_demo",
+        "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
             scope_type: "conversation".into(),
@@ -27,7 +28,15 @@ async fn test_control_plane_can_drain_and_migrate_routes() {
         }],
     );
     cluster
-        .bind_device_route("t_demo", "u_demo", "d_pad", "node_a", None, "websocket")
+        .bind_device_route_for_principal_kind(
+            "t_demo",
+            "u_demo",
+            "user",
+            "d_pad",
+            "node_a",
+            None,
+            "websocket",
+        )
         .expect("route bind should succeed");
 
     let app = control_plane_api::build_app_with_cluster(cluster.clone());
@@ -40,6 +49,7 @@ async fn test_control_plane_can_drain_and_migrate_routes() {
                 .uri("/api/v1/control/nodes/node_a/drain")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -67,6 +77,7 @@ async fn test_control_plane_can_drain_and_migrate_routes() {
                 .uri("/api/v1/control/nodes/node_a/routes/migrate")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"targetNodeId":"node_b"}"#))
@@ -90,7 +101,7 @@ async fn test_control_plane_can_drain_and_migrate_routes() {
     assert_eq!(migrate_json["targetDrainStatus"], "active");
 
     let migrated_route = cluster
-        .resolve_device_route("t_demo", "u_demo", "d_pad")
+        .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
         .expect("route should exist after migration");
     assert_eq!(migrated_route.owner_node_id, "node_b");
 }
@@ -107,6 +118,7 @@ async fn test_control_plane_rejects_unknown_node_lifecycle_writes() {
                 .uri("/api/v1/control/nodes/node_missing/drain")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -131,6 +143,7 @@ async fn test_control_plane_rejects_unknown_node_lifecycle_writes() {
                 .uri("/api/v1/control/nodes/node_missing/activate")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -166,6 +179,7 @@ async fn test_control_plane_rejects_migrate_when_source_node_is_not_draining() {
                 .uri("/api/v1/control/nodes/node_a/routes/migrate")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"targetNodeId":"node_b"}"#))

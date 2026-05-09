@@ -13,6 +13,7 @@ async fn test_local_minimal_ops_diagnostics_exposes_runtime_provider_bindings() 
                 .uri("/api/v1/ops/diagnostics")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_ops_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "ops.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -116,6 +117,7 @@ async fn test_local_minimal_exposes_standalone_ops_provider_binding_routes() {
                 .uri("/api/v1/ops/provider-bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_ops_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "ops.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -151,6 +153,7 @@ async fn test_local_minimal_exposes_standalone_ops_provider_binding_routes() {
                 .uri("/api/v1/ops/provider-bindings/drift")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_ops_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "ops.read")
                 .body(Body::empty())
                 .unwrap(),

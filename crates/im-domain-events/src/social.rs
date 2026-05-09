@@ -129,7 +129,7 @@ pub struct ExternalMemberLinkBoundPayload {
     pub link_id: String,
     pub connection_id: String,
     pub local_actor_id: String,
-    pub local_actor_kind: Option<String>,
+    pub local_actor_kind: String,
     pub external_member_id: String,
     pub external_display_name: Option<String>,
     pub linked_at: String,

@@ -30,5 +30,22 @@ fn test_commit_envelope_builds_stable_ordering_key() {
     };
 
     assert_eq!(envelope.aggregate_type.as_wire_value(), "conversation");
-    assert_eq!(envelope.ordering_key, "t_demo:c_demo");
+    assert_eq!(envelope.ordering_key, "6#t_demo6#c_demo");
+}
+
+#[test]
+fn test_commit_envelope_ordering_key_is_segment_safe() {
+    assert_eq!(
+        CommitEnvelope::ordering_key("tenant:a", "b"),
+        "8#tenant:a1#b"
+    );
+    assert_eq!(
+        CommitEnvelope::ordering_key("tenant", "a:b"),
+        "6#tenant3#a:b"
+    );
+    assert_ne!(
+        CommitEnvelope::ordering_key("tenant:a", "b"),
+        CommitEnvelope::ordering_key("tenant", "a:b"),
+        "ordering keys must not collide when tenant or scope ids contain delimiter characters"
+    );
 }

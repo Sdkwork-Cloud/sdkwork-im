@@ -536,6 +536,79 @@ pub(super) fn refresh_node_operational_view(state: &AppState) {
         .update_projection_plane(map_projection_plane_observability(
             state.projection_service.projection_plane_observability(),
         ));
+    state
+        .ops_runtime
+        .update_side_effect_outboxes(message_side_effect_outbox_diagnostics_for_ops(state));
+    state
+        .ops_runtime
+        .update_realtime_inbox(realtime_inbox_diagnostics_for_ops(state));
+}
+
+fn message_side_effect_outbox_diagnostics_for_ops(
+    state: &AppState,
+) -> Vec<ops_service::SideEffectOutboxDiagnosticsView> {
+    match side_effect_outbox::message_side_effect_outbox_diagnostics(state) {
+        Ok(view) => view,
+        Err(_error) => vec![ops_service::SideEffectOutboxDiagnosticsView {
+            name: "message_realtime_delivery".into(),
+            status: "unavailable".into(),
+            pending_count: 0,
+            delivered_count: 0,
+            failed_attempt_count: 0,
+            oldest_pending_created_at: None,
+        }],
+    }
+}
+
+fn realtime_inbox_diagnostics_for_ops(
+    state: &AppState,
+) -> ops_service::RealtimeInboxDiagnosticsView {
+    match state.realtime_runtime.realtime_inbox_diagnostics() {
+        Ok(snapshot) => ops_service::RealtimeInboxDiagnosticsView {
+            status: snapshot.status,
+            device_window_count: snapshot.device_window_count,
+            pending_event_count: snapshot.pending_event_count,
+            max_device_window_event_count: snapshot.max_device_window_event_count,
+            device_window_capacity: snapshot.device_window_capacity,
+            max_device_window_usage_permille: snapshot.max_device_window_usage_permille,
+            max_trimmed_through_seq: snapshot.max_trimmed_through_seq,
+            capacity_trimmed_event_count: snapshot.capacity_trimmed_event_count,
+            max_capacity_trimmed_through_seq: snapshot.max_capacity_trimmed_through_seq,
+            last_capacity_trimmed_at: snapshot.last_capacity_trimmed_at,
+            oldest_pending_occurred_at: snapshot.oldest_pending_occurred_at,
+            high_risk_windows: snapshot
+                .high_risk_windows
+                .into_iter()
+                .map(|window| ops_service::RealtimeInboxHighRiskWindowView {
+                    tenant_id: window.tenant_id,
+                    principal_kind: window.principal_kind,
+                    principal_id: window.principal_id,
+                    device_id: window.device_id,
+                    pending_event_count: window.pending_event_count,
+                    trimmed_through_seq: window.trimmed_through_seq,
+                    capacity_trimmed_event_count: window.capacity_trimmed_event_count,
+                    capacity_trimmed_through_seq: window.capacity_trimmed_through_seq,
+                    last_capacity_trimmed_at: window.last_capacity_trimmed_at,
+                    usage_permille: window.usage_permille,
+                    oldest_pending_occurred_at: window.oldest_pending_occurred_at,
+                })
+                .collect(),
+        },
+        Err(_error) => ops_service::RealtimeInboxDiagnosticsView {
+            status: "unavailable".into(),
+            device_window_count: 0,
+            pending_event_count: 0,
+            max_device_window_event_count: 0,
+            device_window_capacity: 0,
+            max_device_window_usage_permille: 0,
+            max_trimmed_through_seq: 0,
+            capacity_trimmed_event_count: 0,
+            max_capacity_trimmed_through_seq: 0,
+            last_capacity_trimmed_at: None,
+            oldest_pending_occurred_at: None,
+            high_risk_windows: Vec::new(),
+        },
+    }
 }
 
 fn map_projection_plane_observability(

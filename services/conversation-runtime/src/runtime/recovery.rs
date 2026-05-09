@@ -233,7 +233,7 @@ where
         };
         let scope_key =
             conversation_scope_key(envelope.tenant_id.as_str(), envelope.scope_id.as_str());
-        let mut state = lock_runtime_mutex(&self.state, "runtime state");
+        let mut state = write_runtime_state(&self.state, "runtime state");
         let business_scope_key = business_binding.as_ref().map(|binding| {
             conversation_business_scope_key(
                 envelope.tenant_id.as_str(),
@@ -389,7 +389,7 @@ where
             })?;
         let scope_key =
             conversation_scope_key(envelope.tenant_id.as_str(), envelope.scope_id.as_str());
-        let mut state = lock_runtime_mutex(&self.state, "runtime state");
+        let mut state = write_runtime_state(&self.state, "runtime state");
         let conversation = state
             .conversations
             .get_mut(scope_key.as_str())
@@ -422,7 +422,7 @@ where
             })?;
         let scope_key =
             conversation_scope_key(envelope.tenant_id.as_str(), envelope.scope_id.as_str());
-        let mut state = lock_runtime_mutex(&self.state, "runtime state");
+        let mut state = write_runtime_state(&self.state, "runtime state");
         let conversation = state
             .conversations
             .get_mut(scope_key.as_str())
@@ -453,7 +453,7 @@ where
             })?;
         let scope_key =
             conversation_scope_key(envelope.tenant_id.as_str(), envelope.scope_id.as_str());
-        let mut state = lock_runtime_mutex(&self.state, "runtime state");
+        let mut state = write_runtime_state(&self.state, "runtime state");
         let conversation = state
             .conversations
             .get_mut(scope_key.as_str())
@@ -480,7 +480,7 @@ where
             })?;
         let scope_key =
             conversation_scope_key(envelope.tenant_id.as_str(), envelope.scope_id.as_str());
-        let mut state = lock_runtime_mutex(&self.state, "runtime state");
+        let mut state = write_runtime_state(&self.state, "runtime state");
         let conversation = state
             .conversations
             .get_mut(scope_key.as_str())
@@ -507,7 +507,7 @@ where
             })?;
         let scope_key =
             conversation_scope_key(envelope.tenant_id.as_str(), envelope.scope_id.as_str());
-        let mut state = lock_runtime_mutex(&self.state, "runtime state");
+        let mut state = write_runtime_state(&self.state, "runtime state");
         let conversation = state
             .conversations
             .get_mut(scope_key.as_str())
@@ -538,7 +538,7 @@ where
             })?;
         let scope_key =
             conversation_scope_key(envelope.tenant_id.as_str(), envelope.scope_id.as_str());
-        let mut state = lock_runtime_mutex(&self.state, "runtime state");
+        let mut state = write_runtime_state(&self.state, "runtime state");
         let conversation = state
             .conversations
             .get_mut(scope_key.as_str())
@@ -568,7 +568,7 @@ where
             })?;
         let scope_key =
             conversation_scope_key(envelope.tenant_id.as_str(), envelope.scope_id.as_str());
-        let mut state = lock_runtime_mutex(&self.state, "runtime state");
+        let mut state = write_runtime_state(&self.state, "runtime state");
         let conversation = state
             .conversations
             .get_mut(scope_key.as_str())
@@ -600,7 +600,7 @@ where
             })?;
         let scope_key =
             conversation_scope_key(envelope.tenant_id.as_str(), envelope.scope_id.as_str());
-        let mut state = lock_runtime_mutex(&self.state, "runtime state");
+        let mut state = write_runtime_state(&self.state, "runtime state");
         {
             let conversation =
                 state
@@ -654,7 +654,7 @@ where
             })?;
         let scope_key =
             conversation_scope_key(envelope.tenant_id.as_str(), envelope.scope_id.as_str());
-        let mut state = lock_runtime_mutex(&self.state, "runtime state");
+        let mut state = write_runtime_state(&self.state, "runtime state");
         let conversation = state
             .conversations
             .get_mut(scope_key.as_str())
@@ -689,7 +689,7 @@ where
             })?;
         let scope_key =
             conversation_scope_key(envelope.tenant_id.as_str(), envelope.scope_id.as_str());
-        let mut state = lock_runtime_mutex(&self.state, "runtime state");
+        let mut state = write_runtime_state(&self.state, "runtime state");
         let conversation = state
             .conversations
             .get_mut(scope_key.as_str())
@@ -724,7 +724,7 @@ where
             })?;
         let scope_key =
             conversation_scope_key(envelope.tenant_id.as_str(), envelope.scope_id.as_str());
-        let mut state = lock_runtime_mutex(&self.state, "runtime state");
+        let mut state = write_runtime_state(&self.state, "runtime state");
         let conversation = state
             .conversations
             .get_mut(scope_key.as_str())
@@ -759,7 +759,7 @@ where
             })?;
         let scope_key =
             conversation_scope_key(envelope.tenant_id.as_str(), envelope.scope_id.as_str());
-        let mut state = lock_runtime_mutex(&self.state, "runtime state");
+        let mut state = write_runtime_state(&self.state, "runtime state");
         let conversation = state
             .conversations
             .get_mut(scope_key.as_str())
@@ -794,7 +794,7 @@ where
             })?;
         let scope_key =
             conversation_scope_key(envelope.tenant_id.as_str(), envelope.scope_id.as_str());
-        let mut state = lock_runtime_mutex(&self.state, "runtime state");
+        let mut state = write_runtime_state(&self.state, "runtime state");
         let conversation = state
             .conversations
             .get_mut(scope_key.as_str())
@@ -826,7 +826,7 @@ where
             })?;
         let scope_key =
             conversation_scope_key(envelope.tenant_id.as_str(), envelope.scope_id.as_str());
-        let mut state = lock_runtime_mutex(&self.state, "runtime state");
+        let mut state = write_runtime_state(&self.state, "runtime state");
         let conversation = state
             .conversations
             .get_mut(scope_key.as_str())
@@ -854,9 +854,9 @@ mod tests {
     use super::*;
     use std::panic::{self, AssertUnwindSafe};
 
-    fn poison_mutex<T>(mutex: &Mutex<T>) {
+    fn poison_rwlock_write<T>(lock: &RwLock<T>) {
         let _ = panic::catch_unwind(AssertUnwindSafe(|| {
-            let _guard = mutex.lock().expect("test poison lock should succeed");
+            let _guard = lock.write().expect("test poison lock should succeed");
             panic!("intentional poison for regression coverage");
         }));
     }
@@ -907,7 +907,7 @@ mod tests {
     fn test_apply_recovered_conversation_created_recovers_from_poisoned_runtime_state_lock() {
         let runtime = ConversationRuntime::new(InMemoryJournal::default());
         let envelope = recovered_created_envelope();
-        poison_mutex(&runtime.state);
+        poison_rwlock_write(&runtime.state);
 
         let result = panic::catch_unwind(AssertUnwindSafe(|| {
             runtime.apply_recovered_envelope(&envelope)

@@ -54,6 +54,58 @@ fn test_local_disk_ops_store_surface_moves_out_of_lib_impl() {
 }
 
 #[test]
+fn test_local_disk_presence_state_store_uses_persisted_indexes_for_hot_paths() {
+    let source = include_str!("../src/state.rs").replace("\r\n", "\n");
+
+    assert!(
+        source.contains("struct PersistedPresenceStateRecords {"),
+        "local disk presence store should persist an indexed state object, not a flat record map"
+    );
+    assert!(
+        source.contains("by_device: BTreeMap<String, PresenceStateRecord>"),
+        "local disk presence store should keep device records by encoded device key"
+    );
+    assert!(
+        source.contains("presence_by_principal: BTreeMap<String, BTreeSet<String>>"),
+        "local disk presence store should persist a tenant/principal-kind/principal-id -> device-key index"
+    );
+    assert!(
+        source.contains("online_by_seen_at: BTreeMap<String, BTreeSet<String>>"),
+        "local disk presence store should persist a last-seen -> device-key index for expiration jobs"
+    );
+    assert!(
+        !source.contains("read_records()?\n            .into_values()\n            .filter"),
+        "local disk presence hot-path listings must not full-scan all persisted device records"
+    );
+}
+
+#[test]
+fn test_local_disk_notification_task_store_uses_persisted_recipient_index() {
+    let source = include_str!("../src/ops.rs").replace("\r\n", "\n");
+
+    assert!(
+        source.contains("struct PersistedNotificationTaskRecords {"),
+        "local disk notification task store should persist an indexed state object, not a flat record map"
+    );
+    assert!(
+        source.contains("by_notification: BTreeMap<String, NotificationTaskRecord>"),
+        "local disk notification task store should keep tasks by encoded notification key"
+    );
+    assert!(
+        source.contains("tasks_by_recipient: BTreeMap<String, BTreeSet<String>>"),
+        "local disk notification task store should persist a tenant/recipient-kind/recipient-id -> notification-key index"
+    );
+    assert!(
+        source.contains("notification_recipient_scope_key("),
+        "notification task index must include recipient_kind in its scope key"
+    );
+    assert!(
+        !source.contains("read_records()?\n            .into_values()\n            .filter"),
+        "local disk notification recipient listing must not full-scan all persisted tasks"
+    );
+}
+
+#[test]
 fn test_local_disk_metadata_and_projection_store_surface_moves_out_of_lib_impl() {
     let lib_source = include_str!("../src/lib.rs");
 

@@ -252,7 +252,10 @@ fn test_resolve_user_center_runtime_config_supports_complete_app_api_mode() {
             Some("https://app-api.sdkwork.local/craw".to_string()),
         ),
         ("SDKWORK_USER_CENTER_APP_ID", Some("craw-chat".to_string())),
-        ("SDKWORK_USER_CENTER_SECRET_ID", Some("secret-501".to_string())),
+        (
+            "SDKWORK_USER_CENTER_SECRET_ID",
+            Some("secret-501".to_string()),
+        ),
         (
             "SDKWORK_USER_CENTER_SHARED_SECRET",
             Some("shared-secret-501".to_string()),
@@ -328,7 +331,10 @@ fn test_resolve_user_center_runtime_config_rejects_incomplete_remote_mode() {
             "SDKWORK_USER_CENTER_PROVIDER_KEY",
             Some("craw-app-api".to_string()),
         ),
-        ("SDKWORK_USER_CENTER_SECRET_ID", Some("secret-501".to_string())),
+        (
+            "SDKWORK_USER_CENTER_SECRET_ID",
+            Some("secret-501".to_string()),
+        ),
         ("SDKWORK_USER_CENTER_SHARED_SECRET", None),
     ];
     let keys = values.iter().map(|(key, _)| *key).collect::<Vec<_>>();

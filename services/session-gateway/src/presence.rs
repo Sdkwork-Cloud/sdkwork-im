@@ -10,7 +10,9 @@ use im_domain_core::session::{
 };
 use im_time::utc_now_rfc3339_millis;
 
-use crate::principal_scope::{typed_principal_id, typed_principal_scope_key};
+use crate::principal_scope::{typed_device_scope_key, typed_principal_scope_key};
+
+const PRESENCE_EXPIRATION_BATCH_LIMIT: usize = 1024;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct PresenceRuntimeEntry {
@@ -27,43 +29,128 @@ pub struct SessionPresenceRuntime {
 
 #[derive(Clone, Default)]
 struct RuntimeMemoryPresenceStateStore {
-    states: Arc<Mutex<HashMap<String, PresenceStateRecord>>>,
+    state: Arc<Mutex<RuntimeMemoryPresenceState>>,
+}
+
+#[derive(Default)]
+struct RuntimeMemoryPresenceState {
+    by_device: HashMap<String, PresenceStateRecord>,
+    by_principal: HashMap<String, BTreeSet<String>>,
+    online_by_seen_at: BTreeSet<PresenceOnlineSeenAtKey>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct PresenceOnlineSeenAtKey {
+    last_seen_at: String,
+    device_key: String,
 }
 
 impl PresenceStateStore for RuntimeMemoryPresenceStateStore {
     fn load_state(
         &self,
         tenant_id: &str,
+        principal_kind: &str,
         principal_id: &str,
         device_id: &str,
     ) -> Result<Option<PresenceStateRecord>, ContractError> {
-        Ok(lock_presence_mutex(&self.states, "presence state store")
-            .get(device_scope_key(tenant_id, principal_id, device_id).as_str())
+        Ok(lock_presence_mutex(&self.state, "presence state store")
+            .by_device
+            .get(device_scope_key(tenant_id, principal_kind, principal_id, device_id).as_str())
             .cloned())
     }
 
     fn save_state(&self, record: PresenceStateRecord) -> Result<(), ContractError> {
-        lock_presence_mutex(&self.states, "presence state store").insert(
-            device_scope_key(
-                record.tenant_id.as_str(),
-                record.principal_id.as_str(),
-                record.device_id.as_str(),
-            ),
-            record,
+        let device_key = device_scope_key(
+            record.tenant_id.as_str(),
+            record.principal_kind.as_str(),
+            record.principal_id.as_str(),
+            record.device_id.as_str(),
         );
+        let principal_key = principal_scope_key(
+            record.tenant_id.as_str(),
+            record.principal_kind.as_str(),
+            record.principal_id.as_str(),
+        );
+        let mut state = lock_presence_mutex(&self.state, "presence state store");
+        if let Some(previous) = state.by_device.get(device_key.as_str()).cloned() {
+            remove_presence_online_seen_at_index(&mut state.online_by_seen_at, &previous);
+        }
+        insert_presence_online_seen_at_index(
+            &mut state.online_by_seen_at,
+            device_key.as_str(),
+            &record,
+        );
+        state.by_device.insert(device_key.clone(), record);
+        state
+            .by_principal
+            .entry(principal_key)
+            .or_default()
+            .insert(device_key);
         Ok(())
     }
 
     fn list_states_for_principal(
         &self,
         tenant_id: &str,
+        principal_kind: &str,
         principal_id: &str,
     ) -> Result<Vec<PresenceStateRecord>, ContractError> {
-        Ok(lock_presence_mutex(&self.states, "presence state store")
-            .values()
-            .filter(|record| record.tenant_id == tenant_id && record.principal_id == principal_id)
+        let state = lock_presence_mutex(&self.state, "presence state store");
+        let device_keys = state
+            .by_principal
+            .get(principal_scope_key(tenant_id, principal_kind, principal_id).as_str())
             .cloned()
+            .unwrap_or_default();
+        Ok(device_keys
+            .into_iter()
+            .filter_map(|device_key| state.by_device.get(device_key.as_str()).cloned())
             .collect())
+    }
+
+    fn list_online_states_seen_at_or_before(
+        &self,
+        cutoff_seen_at: &str,
+        limit: usize,
+    ) -> Result<Vec<PresenceStateRecord>, ContractError> {
+        if limit == 0 {
+            return Ok(Vec::new());
+        }
+        let state = lock_presence_mutex(&self.state, "presence state store");
+        Ok(state
+            .online_by_seen_at
+            .iter()
+            .take_while(|key| key.last_seen_at.as_str() <= cutoff_seen_at)
+            .take(limit)
+            .filter_map(|key| state.by_device.get(key.device_key.as_str()).cloned())
+            .collect())
+    }
+
+    fn expire_online_state_if_seen_at_or_before(
+        &self,
+        tenant_id: &str,
+        principal_kind: &str,
+        principal_id: &str,
+        device_id: &str,
+        cutoff_seen_at: &str,
+        expired_at: &str,
+    ) -> Result<Option<PresenceStateRecord>, ContractError> {
+        let device_key = device_scope_key(tenant_id, principal_kind, principal_id, device_id);
+        let mut state = lock_presence_mutex(&self.state, "presence state store");
+        let Some(current) = state.by_device.get(device_key.as_str()).cloned() else {
+            return Ok(None);
+        };
+        if !current.is_online_seen_at_or_before(cutoff_seen_at) {
+            return Ok(None);
+        }
+        remove_presence_online_seen_at_index(&mut state.online_by_seen_at, &current);
+        let expired = current.into_expired_offline(expired_at);
+        insert_presence_online_seen_at_index(
+            &mut state.online_by_seen_at,
+            device_key.as_str(),
+            &expired,
+        );
+        state.by_device.insert(device_key, expired.clone());
+        Ok(Some(expired))
     }
 }
 
@@ -175,7 +262,8 @@ impl SessionPresenceRuntime {
         self.persist_entry(
             updated_entry,
             resumed_at.clone(),
-            typed_principal_id(auth.actor_id.as_str(), auth.actor_kind.as_str()).as_str(),
+            auth.actor_kind.as_str(),
+            auth.actor_id.as_str(),
         )?;
 
         let presence = self.presence_snapshot(auth, Some(device_id.clone()), registered_devices)?;
@@ -315,9 +403,59 @@ impl SessionPresenceRuntime {
         self.presence_snapshot(auth, Some(device_id), registered_devices)
     }
 
+    pub fn expire_stale_online_devices(
+        &self,
+        cutoff_seen_at: &str,
+        expired_at: &str,
+    ) -> Result<usize, PresenceRuntimeError> {
+        let stale_records = self
+            .state_store
+            .list_online_states_seen_at_or_before(cutoff_seen_at, PRESENCE_EXPIRATION_BATCH_LIMIT)
+            .map_err(PresenceRuntimeError::presence_store)?;
+        let mut expired_count = 0usize;
+
+        for record in stale_records {
+            if !matches!(record.presence.status, DevicePresenceStatus::Online) {
+                continue;
+            }
+            let Some(last_seen_at) = record.presence.last_seen_at.as_deref() else {
+                continue;
+            };
+            if last_seen_at > cutoff_seen_at {
+                continue;
+            }
+
+            let expired_record = self
+                .state_store
+                .expire_online_state_if_seen_at_or_before(
+                    record.tenant_id.as_str(),
+                    record.principal_kind.as_str(),
+                    record.principal_id.as_str(),
+                    record.device_id.as_str(),
+                    cutoff_seen_at,
+                    expired_at,
+                )
+                .map_err(PresenceRuntimeError::presence_store)?;
+            let Some(expired_record) = expired_record else {
+                continue;
+            };
+            self.apply_expired_entry_to_runtime_cache(
+                expired_record.tenant_id.as_str(),
+                expired_record.principal_kind.as_str(),
+                expired_record.principal_id.as_str(),
+                expired_record.device_id.as_str(),
+                PresenceRuntimeEntry {
+                    view: expired_record.presence.clone(),
+                    resume_required: expired_record.resume_required,
+                },
+            );
+            expired_count += 1;
+        }
+
+        Ok(expired_count)
+    }
+
     fn ensure_principal_state(&self, auth: &AuthContext) -> Result<(), PresenceRuntimeError> {
-        let stored_principal_id =
-            typed_principal_id(auth.actor_id.as_str(), auth.actor_kind.as_str());
         let scope_key = typed_principal_scope_key(
             auth.tenant_id.as_str(),
             auth.actor_id.as_str(),
@@ -331,7 +469,11 @@ impl SessionPresenceRuntime {
 
         let restored = self
             .state_store
-            .list_states_for_principal(auth.tenant_id.as_str(), stored_principal_id.as_str())
+            .list_states_for_principal(
+                auth.tenant_id.as_str(),
+                auth.actor_kind.as_str(),
+                auth.actor_id.as_str(),
+            )
             .map_err(PresenceRuntimeError::presence_store)?;
         let mut normalized_records = Vec::new();
         let mut runtime_entries = Vec::new();
@@ -400,7 +542,8 @@ impl SessionPresenceRuntime {
         self.persist_entry(
             entry.clone(),
             session_timestamp(),
-            typed_principal_id(auth.actor_id.as_str(), auth.actor_kind.as_str()).as_str(),
+            auth.actor_kind.as_str(),
+            auth.actor_id.as_str(),
         )?;
 
         Ok(entry)
@@ -450,7 +593,8 @@ impl SessionPresenceRuntime {
         self.persist_entry(
             updated,
             observed_at,
-            typed_principal_id(auth.actor_id.as_str(), auth.actor_kind.as_str()).as_str(),
+            auth.actor_kind.as_str(),
+            auth.actor_id.as_str(),
         )
     }
 
@@ -458,18 +602,42 @@ impl SessionPresenceRuntime {
         &self,
         entry: PresenceRuntimeEntry,
         updated_at: String,
-        stored_principal_id: &str,
+        principal_kind: &str,
+        principal_id: &str,
     ) -> Result<(), PresenceRuntimeError> {
         self.state_store
             .save_state(PresenceStateRecord {
                 tenant_id: entry.view.tenant_id.clone(),
-                principal_id: stored_principal_id.into(),
+                principal_kind: principal_kind.into(),
+                principal_id: principal_id.into(),
                 device_id: entry.view.device_id.clone(),
                 presence: entry.view,
                 resume_required: entry.resume_required,
                 updated_at,
             })
             .map_err(PresenceRuntimeError::presence_store)
+    }
+
+    fn apply_expired_entry_to_runtime_cache(
+        &self,
+        tenant_id: &str,
+        principal_kind: &str,
+        principal_id: &str,
+        device_id: &str,
+        expired_entry: PresenceRuntimeEntry,
+    ) {
+        let scope_key = principal_scope_key(tenant_id, principal_kind, principal_id);
+        let restored = lock_presence_mutex(&self.restored_principals, "presence runtime")
+            .contains(scope_key.as_str());
+        if !restored {
+            return;
+        }
+
+        let mut entries = lock_presence_mutex(&self.entries, "presence runtime");
+        entries
+            .entry(scope_key)
+            .or_default()
+            .insert(device_id.to_owned(), expired_entry);
     }
 }
 
@@ -479,8 +647,52 @@ impl Default for SessionPresenceRuntime {
     }
 }
 
-pub(crate) fn device_scope_key(tenant_id: &str, principal_id: &str, device_id: &str) -> String {
-    format!("{tenant_id}:{principal_id}:{device_id}")
+pub(crate) fn device_scope_key(
+    tenant_id: &str,
+    principal_kind: &str,
+    principal_id: &str,
+    device_id: &str,
+) -> String {
+    typed_device_scope_key(tenant_id, principal_id, principal_kind, device_id)
+}
+
+fn principal_scope_key(tenant_id: &str, principal_kind: &str, principal_id: &str) -> String {
+    typed_principal_scope_key(tenant_id, principal_id, principal_kind)
+}
+
+fn presence_online_seen_at_key(
+    device_key: &str,
+    record: &PresenceStateRecord,
+) -> Option<PresenceOnlineSeenAtKey> {
+    Some(PresenceOnlineSeenAtKey {
+        last_seen_at: record.online_seen_at()?.to_owned(),
+        device_key: device_key.to_owned(),
+    })
+}
+
+fn insert_presence_online_seen_at_index(
+    index: &mut BTreeSet<PresenceOnlineSeenAtKey>,
+    device_key: &str,
+    record: &PresenceStateRecord,
+) {
+    if let Some(key) = presence_online_seen_at_key(device_key, record) {
+        index.insert(key);
+    }
+}
+
+fn remove_presence_online_seen_at_index(
+    index: &mut BTreeSet<PresenceOnlineSeenAtKey>,
+    record: &PresenceStateRecord,
+) {
+    let device_key = device_scope_key(
+        record.tenant_id.as_str(),
+        record.principal_kind.as_str(),
+        record.principal_id.as_str(),
+        record.device_id.as_str(),
+    );
+    if let Some(key) = presence_online_seen_at_key(device_key.as_str(), record) {
+        index.remove(&key);
+    }
 }
 
 fn empty_presence_view(auth: &AuthContext, device_id: &str) -> DevicePresenceView {
@@ -529,6 +741,7 @@ fn normalize_presence_record(
     let normalized_record = if normalized || resume_required != record.resume_required {
         Some(PresenceStateRecord {
             tenant_id: record.tenant_id,
+            principal_kind: record.principal_kind,
             principal_id: record.principal_id,
             device_id: record.device_id,
             presence,
@@ -564,15 +777,15 @@ mod tests {
     fn test_presence_state_store_load_recovers_from_poisoned_lock() {
         let store = RuntimeMemoryPresenceStateStore::default();
         let _ = std::panic::catch_unwind({
-            let states = store.states.clone();
+            let state = store.state.clone();
             move || {
-                let _guard = states.lock().expect("presence state store should lock");
+                let _guard = state.lock().expect("presence state store should lock");
                 panic!("poison presence state store lock");
             }
         });
 
         let restored = store
-            .load_state("t_demo", "u_demo", "d_poison")
+            .load_state("t_demo", "user", "u_demo", "d_poison")
             .expect("poisoned lock should be recovered");
         assert!(restored.is_none());
     }

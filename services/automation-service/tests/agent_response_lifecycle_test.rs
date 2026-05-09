@@ -454,6 +454,265 @@ fn test_agent_response_stream_isolation_across_principal_kind() {
 }
 
 #[test]
+fn test_agent_response_scope_key_is_segment_safe_for_delimiter_bearing_ids() {
+    let runtime = automation_service::AutomationRuntime::default();
+    let first_auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u:demo".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_first".into()),
+        device_id: None,
+        permissions: BTreeSet::from([
+            "automation.execute".to_string(),
+            "automation.read".to_string(),
+        ]),
+    };
+    let second_auth = AuthContext {
+        actor_id: "u".into(),
+        session_id: Some("s_second".into()),
+        ..first_auth.clone()
+    };
+
+    runtime
+        .request_execution(
+            &first_auth,
+            automation_service::RequestAutomationExecution {
+                execution_id: "ae:first".into(),
+                trigger_type: "agent.manual".into(),
+                target_kind: "conversation".into(),
+                target_ref: "c_demo".into(),
+                input_payload: Some(r#"{"prompt":"first"}"#.into()),
+            },
+        )
+        .expect("first execution should succeed");
+    runtime
+        .request_execution(
+            &second_auth,
+            automation_service::RequestAutomationExecution {
+                execution_id: "ae:second".into(),
+                trigger_type: "agent.manual".into(),
+                target_kind: "conversation".into(),
+                target_ref: "c_demo".into(),
+                input_payload: Some(r#"{"prompt":"second"}"#.into()),
+            },
+        )
+        .expect("second execution should succeed");
+
+    runtime
+        .start_agent_response(
+            &first_auth,
+            automation_service::StartAgentResponseRequest {
+                execution_id: "ae:first".into(),
+                stream_id: "st:demo".into(),
+                stream_type: "agent.response.delta".into(),
+                conversation_id: "c_demo".into(),
+                schema_ref: Some("schema://agent/response.delta".into()),
+                member_id: Some("cm_first".into()),
+                agent: AgentSubject {
+                    agent_id: "ag_first".into(),
+                    session_id: Some("s_agent_first".into()),
+                    metadata: BTreeMap::new(),
+                },
+            },
+        )
+        .expect("first delimiter-bearing stream should start");
+    runtime
+        .start_agent_response(
+            &second_auth,
+            automation_service::StartAgentResponseRequest {
+                execution_id: "ae:second".into(),
+                stream_id: "demo:st:demo".into(),
+                stream_type: "agent.response.delta".into(),
+                conversation_id: "c_demo".into(),
+                schema_ref: Some("schema://agent/response.delta".into()),
+                member_id: Some("cm_second".into()),
+                agent: AgentSubject {
+                    agent_id: "ag_second".into(),
+                    session_id: Some("s_agent_second".into()),
+                    metadata: BTreeMap::new(),
+                },
+            },
+        )
+        .expect("second delimiter-bearing stream should not collide with first");
+
+    let first_delta = runtime
+        .append_agent_response_delta(
+            &first_auth,
+            "st:demo",
+            automation_service::AppendAgentResponseDeltaRequest {
+                frame_seq: 1,
+                frame_type: "delta.text".into(),
+                schema_ref: None,
+                encoding: "json".into(),
+                payload: r#"{"delta":"first"}"#.into(),
+                attributes: BTreeMap::new(),
+            },
+        )
+        .expect("first stream append should use first stream state");
+    let second_delta = runtime
+        .append_agent_response_delta(
+            &second_auth,
+            "demo:st:demo",
+            automation_service::AppendAgentResponseDeltaRequest {
+                frame_seq: 1,
+                frame_type: "delta.text".into(),
+                schema_ref: None,
+                encoding: "json".into(),
+                payload: r#"{"delta":"second"}"#.into(),
+                attributes: BTreeMap::new(),
+            },
+        )
+        .expect("second stream append should use second stream state");
+
+    assert_eq!(first_delta.stream_id, "st:demo");
+    assert_eq!(first_delta.sender.id, "ag_first");
+    assert_eq!(first_delta.sender.member_id.as_deref(), Some("cm_first"));
+    assert_eq!(second_delta.stream_id, "demo:st:demo");
+    assert_eq!(second_delta.sender.id, "ag_second");
+    assert_eq!(second_delta.sender.member_id.as_deref(), Some("cm_second"));
+}
+
+#[test]
+fn test_agent_tool_call_scope_key_is_segment_safe_for_delimiter_bearing_ids() {
+    let runtime = automation_service::AutomationRuntime::default();
+    let first_auth = AuthContext {
+        tenant_id: "t_demo".into(),
+        actor_id: "u:demo".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_first".into()),
+        device_id: None,
+        permissions: BTreeSet::from([
+            "automation.execute".to_string(),
+            "automation.read".to_string(),
+        ]),
+    };
+    let second_auth = AuthContext {
+        actor_id: "u".into(),
+        session_id: Some("s_second".into()),
+        ..first_auth.clone()
+    };
+
+    runtime
+        .request_execution(
+            &first_auth,
+            automation_service::RequestAutomationExecution {
+                execution_id: "ae:first".into(),
+                trigger_type: "agent.manual".into(),
+                target_kind: "conversation".into(),
+                target_ref: "c_demo".into(),
+                input_payload: Some(r#"{"prompt":"first"}"#.into()),
+            },
+        )
+        .expect("first execution should succeed");
+    runtime
+        .start_agent_response(
+            &first_auth,
+            automation_service::StartAgentResponseRequest {
+                execution_id: "ae:first".into(),
+                stream_id: "st:first".into(),
+                stream_type: "agent.response.delta".into(),
+                conversation_id: "c_demo".into(),
+                schema_ref: Some("schema://agent/response.delta".into()),
+                member_id: Some("cm_first".into()),
+                agent: AgentSubject {
+                    agent_id: "ag_first".into(),
+                    session_id: Some("s_agent_first".into()),
+                    metadata: BTreeMap::new(),
+                },
+            },
+        )
+        .expect("first stream should start");
+    runtime
+        .request_execution(
+            &second_auth,
+            automation_service::RequestAutomationExecution {
+                execution_id: "demo:ae:first".into(),
+                trigger_type: "agent.manual".into(),
+                target_kind: "conversation".into(),
+                target_ref: "c_demo".into(),
+                input_payload: Some(r#"{"prompt":"second"}"#.into()),
+            },
+        )
+        .expect("second execution should succeed");
+    runtime
+        .start_agent_response(
+            &second_auth,
+            automation_service::StartAgentResponseRequest {
+                execution_id: "demo:ae:first".into(),
+                stream_id: "st:second".into(),
+                stream_type: "agent.response.delta".into(),
+                conversation_id: "c_demo".into(),
+                schema_ref: Some("schema://agent/response.delta".into()),
+                member_id: Some("cm_second".into()),
+                agent: AgentSubject {
+                    agent_id: "ag_second".into(),
+                    session_id: Some("s_agent_second".into()),
+                    metadata: BTreeMap::new(),
+                },
+            },
+        )
+        .expect("second stream should start");
+
+    let first_tool = runtime
+        .request_agent_tool_call(
+            &first_auth,
+            automation_service::RequestAgentToolCallRequest {
+                execution_id: "ae:first".into(),
+                tool_call_id: "tc:lookup".into(),
+                tool_name: "knowledge.search".into(),
+                arguments_payload: r#"{"query":"first"}"#.into(),
+            },
+        )
+        .expect("first delimiter-bearing tool call should succeed");
+    let second_tool = runtime
+        .request_agent_tool_call(
+            &second_auth,
+            automation_service::RequestAgentToolCallRequest {
+                execution_id: "demo:ae:first".into(),
+                tool_call_id: "tc:lookup".into(),
+                tool_name: "knowledge.search".into(),
+                arguments_payload: r#"{"query":"second"}"#.into(),
+            },
+        )
+        .expect("second delimiter-bearing tool call should not collide with first");
+
+    assert_eq!(first_tool.agent_id, "ag_first");
+    assert_eq!(first_tool.arguments_payload, r#"{"query":"first"}"#);
+    assert_eq!(second_tool.agent_id, "ag_second");
+    assert_eq!(second_tool.arguments_payload, r#"{"query":"second"}"#);
+
+    let first_completed = runtime
+        .complete_agent_tool_call(
+            &first_auth,
+            "ae:first",
+            "tc:lookup",
+            automation_service::CompleteAgentToolCallRequest {
+                result_payload: r#"{"result":"first"}"#.into(),
+            },
+        )
+        .expect("first tool call should complete independently");
+    let second_completed = runtime
+        .complete_agent_tool_call(
+            &second_auth,
+            "demo:ae:first",
+            "tc:lookup",
+            automation_service::CompleteAgentToolCallRequest {
+                result_payload: r#"{"result":"second"}"#.into(),
+            },
+        )
+        .expect("second tool call should complete independently");
+
+    assert_eq!(
+        first_completed.result_payload.as_deref(),
+        Some(r#"{"result":"first"}"#)
+    );
+    assert_eq!(
+        second_completed.result_payload.as_deref(),
+        Some(r#"{"result":"second"}"#)
+    );
+}
+
+#[test]
 fn test_start_agent_response_rejects_second_stream_for_same_execution() {
     let runtime = automation_service::AutomationRuntime::default();
     let auth = AuthContext {

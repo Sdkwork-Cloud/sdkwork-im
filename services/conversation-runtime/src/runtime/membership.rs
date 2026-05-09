@@ -114,16 +114,20 @@ where
         self.list_members(auth.tenant_id.as_str(), conversation_id)
     }
 
-    pub fn list_messages_from_auth_context(
+    pub fn list_messages_window_from_auth_context(
         &self,
         auth: &AuthContext,
         conversation_id: &str,
+        after_seq: Option<u64>,
+        limit: usize,
     ) -> Result<MessageHistoryResult, RuntimeError> {
         self.list_messages_with_actor_kind(
             auth.tenant_id.as_str(),
             conversation_id,
             auth.actor_id.as_str(),
             auth.actor_kind.as_str(),
+            after_seq,
+            limit,
         )
     }
 
@@ -345,7 +349,7 @@ where
             conversation_scope_key(command.tenant_id.as_str(), command.conversation_id.as_str());
         let member = {
             let mut state =
-                lock_runtime_mutex(&self.state, "conversation-runtime.state.membership");
+                write_runtime_state(&self.state, "conversation-runtime.state.membership");
             let conversation =
                 state
                     .conversations
@@ -392,12 +396,17 @@ where
                 )));
             }
 
-            let member_episode = next_member_episode(conversation, command.local_actor_id.as_str());
+            let member_episode = next_member_episode(
+                conversation,
+                command.local_actor_id.as_str(),
+                command.local_actor_kind.as_str(),
+            );
             let mut member = build_conversation_member_with_attributes(
                 command.tenant_id.as_str(),
                 command.conversation_id.as_str(),
                 member_episode_id(
                     command.conversation_id.as_str(),
+                    command.local_actor_kind.as_str(),
                     command.local_actor_id.as_str(),
                     member_episode,
                 ),
@@ -467,7 +476,7 @@ where
             conversation_scope_key(command.tenant_id.as_str(), command.conversation_id.as_str());
         let member = {
             let mut state =
-                lock_runtime_mutex(&self.state, "conversation-runtime.state.membership");
+                write_runtime_state(&self.state, "conversation-runtime.state.membership");
             let conversation =
                 state
                     .conversations
@@ -503,7 +512,11 @@ where
                 &invited_by_member,
                 &command.role,
             )?;
-            let member_episode = next_member_episode(conversation, command.principal_id.as_str());
+            let member_episode = next_member_episode(
+                conversation,
+                command.principal_id.as_str(),
+                command.principal_kind.as_str(),
+            );
             let shared_history_linked = resolve_shared_history_linked_member(&attributes)?;
 
             let mut member = build_conversation_member_with_attributes(
@@ -511,6 +524,7 @@ where
                 command.conversation_id.as_str(),
                 member_episode_id(
                     command.conversation_id.as_str(),
+                    command.principal_kind.as_str(),
                     command.principal_id.as_str(),
                     member_episode,
                 ),
@@ -601,7 +615,7 @@ where
             conversation_scope_key(command.tenant_id.as_str(), command.conversation_id.as_str());
         let member = {
             let mut state =
-                lock_runtime_mutex(&self.state, "conversation-runtime.state.membership");
+                write_runtime_state(&self.state, "conversation-runtime.state.membership");
             let conversation =
                 state
                     .conversations
@@ -693,7 +707,7 @@ where
             conversation_scope_key(command.tenant_id.as_str(), command.conversation_id.as_str());
         let member = {
             let mut state =
-                lock_runtime_mutex(&self.state, "conversation-runtime.state.membership");
+                write_runtime_state(&self.state, "conversation-runtime.state.membership");
             let conversation =
                 state
                     .conversations
@@ -790,7 +804,7 @@ where
             conversation_scope_key(command.tenant_id.as_str(), command.conversation_id.as_str());
         let result = {
             let mut state =
-                lock_runtime_mutex(&self.state, "conversation-runtime.state.membership");
+                write_runtime_state(&self.state, "conversation-runtime.state.membership");
             let conversation =
                 state
                     .conversations
@@ -913,7 +927,7 @@ where
             conversation_scope_key(command.tenant_id.as_str(), command.conversation_id.as_str());
         let result = {
             let mut state =
-                lock_runtime_mutex(&self.state, "conversation-runtime.state.membership");
+                write_runtime_state(&self.state, "conversation-runtime.state.membership");
             let conversation =
                 state
                     .conversations
@@ -986,7 +1000,7 @@ where
         conversation_id: &str,
     ) -> Result<Vec<ConversationMember>, RuntimeError> {
         let scope_key = conversation_scope_key(tenant_id, conversation_id);
-        let state = lock_runtime_mutex(&self.state, "conversation-runtime.state.membership");
+        let state = read_runtime_state(&self.state, "conversation-runtime.state.membership");
         let conversation = state
             .conversations
             .get(scope_key.as_str())
@@ -1058,7 +1072,7 @@ where
             conversation_scope_key(command.tenant_id.as_str(), command.conversation_id.as_str());
         let cursor = {
             let mut state =
-                lock_runtime_mutex(&self.state, "conversation-runtime.state.membership");
+                write_runtime_state(&self.state, "conversation-runtime.state.membership");
             let conversation =
                 state
                     .conversations
@@ -1092,6 +1106,7 @@ where
                     conversation_id: command.conversation_id.clone(),
                     member_id: member_id.clone(),
                     principal_id: command.principal_id.clone(),
+                    principal_kind: actor_member.principal_kind.clone(),
                     read_seq: 0,
                     last_read_message_id: None,
                     updated_at: conversation_timestamp(),
@@ -1139,7 +1154,7 @@ where
         principal_id: &str,
     ) -> Result<ConversationReadCursorView, RuntimeError> {
         let scope_key = conversation_scope_key(tenant_id, conversation_id);
-        let state = lock_runtime_mutex(&self.state, "conversation-runtime.state.membership");
+        let state = read_runtime_state(&self.state, "conversation-runtime.state.membership");
         let conversation = state
             .conversations
             .get(scope_key.as_str())
@@ -1169,7 +1184,7 @@ where
         principal_kind: &str,
     ) -> Result<ConversationReadCursorView, RuntimeError> {
         let scope_key = conversation_scope_key(tenant_id, conversation_id);
-        let state = lock_runtime_mutex(&self.state, "conversation-runtime.state.membership");
+        let state = read_runtime_state(&self.state, "conversation-runtime.state.membership");
         let conversation = state
             .conversations
             .get(scope_key.as_str())
@@ -1192,24 +1207,29 @@ where
         ))
     }
 
-    pub fn list_messages(
+    pub fn list_messages_window(
         &self,
         tenant_id: &str,
         conversation_id: &str,
         principal_id: &str,
+        after_seq: Option<u64>,
+        limit: usize,
     ) -> Result<MessageHistoryResult, RuntimeError> {
+        let limit = validate_message_history_limit(limit)?;
         let scope_key = conversation_scope_key(tenant_id, conversation_id);
-        let state = lock_runtime_mutex(&self.state, "conversation-runtime.state.membership");
+        let state = read_runtime_state(&self.state, "conversation-runtime.state.membership");
         let conversation = state
             .conversations
             .get(scope_key.as_str())
             .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.into()))?;
         policy::ensure_history_read_allowed(conversation, principal_id)?;
 
-        Ok(MessageHistoryResult {
-            items: conversation.message_log.messages_in_order(),
-            high_watermark: conversation.message_log.high_watermark(),
-        })
+        Ok(message_history_window(
+            conversation
+                .message_log
+                .message_window_after(after_seq.unwrap_or_default(), limit),
+            after_seq,
+        ))
     }
 
     pub fn list_messages_with_actor_kind(
@@ -1218,18 +1238,40 @@ where
         conversation_id: &str,
         principal_id: &str,
         principal_kind: &str,
+        after_seq: Option<u64>,
+        limit: usize,
     ) -> Result<MessageHistoryResult, RuntimeError> {
+        let limit = validate_message_history_limit(limit)?;
         let scope_key = conversation_scope_key(tenant_id, conversation_id);
-        let state = lock_runtime_mutex(&self.state, "conversation-runtime.state.membership");
+        let state = read_runtime_state(&self.state, "conversation-runtime.state.membership");
         let conversation = state
             .conversations
             .get(scope_key.as_str())
             .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.into()))?;
         policy::ensure_history_read_allowed_with_kind(conversation, principal_id, principal_kind)?;
 
-        Ok(MessageHistoryResult {
-            items: conversation.message_log.messages_in_order(),
-            high_watermark: conversation.message_log.high_watermark(),
-        })
+        Ok(message_history_window(
+            conversation
+                .message_log
+                .message_window_after(after_seq.unwrap_or_default(), limit),
+            after_seq,
+        ))
+    }
+}
+
+fn validate_message_history_limit(limit: usize) -> Result<usize, RuntimeError> {
+    normalize_message_history_limit(Some(limit)).map_err(RuntimeError::InvalidInput)
+}
+
+fn message_history_window(
+    window: im_domain_core::message::MessageHistoryWindow,
+    after_seq: Option<u64>,
+) -> MessageHistoryResult {
+    let _ = after_seq;
+    MessageHistoryResult {
+        items: window.items,
+        high_watermark: window.high_watermark,
+        next_after_seq: window.next_after_seq,
+        has_more: window.has_more,
     }
 }

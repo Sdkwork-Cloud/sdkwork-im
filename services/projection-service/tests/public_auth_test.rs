@@ -30,6 +30,7 @@ fn demo_bearer() -> String {
             &json!({
                 "tenant_id": "t_demo",
                 "sub": "u_demo",
+                "actor_kind": "user",
                 "sid": "s_demo"
             }),
             TEST_PUBLIC_SECRET,

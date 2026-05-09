@@ -34,6 +34,7 @@ fn bearer(claims: serde_json::Value) -> String {
 fn demo_bearer() -> String {
     bearer(json!({
         "tenant_id": "t_demo",
+        "actor_kind": "user",
         "sub": "u_demo",
         "sid": "s_demo"
     }))
@@ -42,6 +43,7 @@ fn demo_bearer() -> String {
 fn ops_bearer() -> String {
     bearer(json!({
         "tenant_id": "t_demo",
+        "actor_kind": "user",
         "sub": "u_ops_demo",
         "sid": "s_ops_demo",
         "permissions": ["ops.read"]

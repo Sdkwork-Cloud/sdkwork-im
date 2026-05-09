@@ -14,6 +14,7 @@ async fn test_control_plane_exposes_protocol_registry_snapshot_to_control_reader
                 .uri("/api/v1/control/protocol-registry")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),

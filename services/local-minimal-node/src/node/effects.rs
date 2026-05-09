@@ -81,6 +81,18 @@ fn finalize_post_message_with_side_effects(
 
     let conversation_scope_id = conversation_id.clone();
 
+    if let Err(error) = side_effect_outbox::drain_pending_message_side_effect_outbox(state) {
+        record_message_side_effect_store_failure(
+            state,
+            auth,
+            conversation_scope_id.as_str(),
+            result.message_id.as_str(),
+            result.message_seq,
+            "outbox_drain",
+            &error,
+        );
+    }
+
     fanout_message_notifications(
         state,
         auth,
@@ -110,22 +122,150 @@ fn finalize_post_message_with_side_effects(
         },
     );
 
-    publish_realtime_conversation_message_event(
+    let realtime_payload = serde_json::json!({
+        "conversationId": conversation_scope_id,
+        "messageId": result.message_id,
+        "messageSeq": result.message_seq,
+        "messageType": message_type_name,
+        "summary": summary,
+    })
+    .to_string();
+    let outbox_record = match side_effect_outbox::record_pending_message_realtime_side_effect(
+        state,
+        auth,
+        conversation_scope_id.as_str(),
+        result.message_id.as_str(),
+        result.message_seq,
+        "message.posted",
+        realtime_payload.clone(),
+    ) {
+        Ok(record) => Some(record),
+        Err(error) => {
+            record_message_side_effect_store_failure(
+                state,
+                auth,
+                conversation_scope_id.as_str(),
+                result.message_id.as_str(),
+                result.message_seq,
+                "outbox_persist",
+                &error,
+            );
+            None
+        }
+    };
+
+    let delivery_result = publish_realtime_conversation_message_event(
         state,
         auth,
         conversation_scope_id.as_str(),
         "message.posted",
-        serde_json::json!({
-            "conversationId": conversation_scope_id,
-            "messageId": result.message_id,
-            "messageSeq": result.message_seq,
-            "messageType": message_type_name,
-            "summary": summary,
-        })
-        .to_string(),
-    )?;
+        realtime_payload,
+    );
+    match delivery_result {
+        Ok(()) => {
+            if let Some(record) = outbox_record.as_ref()
+                && let Err(error) = side_effect_outbox::mark_message_side_effect_delivered(
+                    state,
+                    record.outbox_id.as_str(),
+                )
+            {
+                record_message_side_effect_store_failure(
+                    state,
+                    auth,
+                    conversation_scope_id.as_str(),
+                    result.message_id.as_str(),
+                    result.message_seq,
+                    "outbox_delivered",
+                    &error,
+                );
+            }
+        }
+        Err(error) => {
+            if let Some(record) = outbox_record.as_ref()
+                && let Err(store_error) = side_effect_outbox::mark_message_side_effect_failed(
+                    state,
+                    record.outbox_id.as_str(),
+                    &error,
+                )
+            {
+                record_message_side_effect_store_failure(
+                    state,
+                    auth,
+                    conversation_scope_id.as_str(),
+                    result.message_id.as_str(),
+                    result.message_seq,
+                    "outbox_failed",
+                    &store_error,
+                );
+            }
+            record_message_side_effect_failure(
+                state,
+                auth,
+                conversation_scope_id.as_str(),
+                result.message_id.as_str(),
+                result.message_seq,
+                "realtime_delivery",
+                &error,
+            );
+        }
+    }
 
     Ok(result)
+}
+
+fn record_message_side_effect_store_failure(
+    state: &AppState,
+    auth: &AuthContext,
+    conversation_id: &str,
+    message_id: &str,
+    message_seq: u64,
+    side_effect: &str,
+    error: &ContractError,
+) {
+    let api_error = ApiError::from(error.clone());
+    record_message_side_effect_failure(
+        state,
+        auth,
+        conversation_id,
+        message_id,
+        message_seq,
+        side_effect,
+        &api_error,
+    );
+}
+
+fn record_message_side_effect_failure(
+    state: &AppState,
+    auth: &AuthContext,
+    conversation_id: &str,
+    message_id: &str,
+    message_seq: u64,
+    side_effect: &str,
+    error: &ApiError,
+) {
+    let _ = state.audit_runtime.record_anchor(
+        auth,
+        RecordAuditAnchor {
+            record_id: stable_local_audit_record_id(
+                "audit_message_side_effect_failed_",
+                format!("{message_id}:{side_effect}").as_str(),
+            ),
+            aggregate_type: "conversation".into(),
+            aggregate_id: stable_local_audit_aggregate_id("conversation", conversation_id),
+            action: "message.side_effect_failed".into(),
+            payload: Some(
+                serde_json::json!({
+                    "conversationId": conversation_id,
+                    "messageId": message_id,
+                    "messageSeq": message_seq,
+                    "sideEffect": side_effect,
+                    "errorCode": error.code,
+                    "errorMessage": error.message,
+                })
+                .to_string(),
+            ),
+        },
+    );
 }
 
 // Notification fanout mirrors the message publication boundary and keeps the
@@ -141,19 +281,92 @@ fn fanout_message_notifications(
     message_type_name: &str,
     summary: Option<String>,
 ) {
-    let _ = state
-        .notification_runtime
-        .request_message_posted_notifications(
-            auth,
-            notification_service::RequestMessagePostedNotifications {
-                source_event_id: source_event_id.into(),
-                conversation_id: conversation_id.into(),
-                message_id: message_id.into(),
+    let notification_request = notification_service::RequestMessagePostedNotifications {
+        source_event_id: source_event_id.into(),
+        conversation_id: conversation_id.into(),
+        message_id: message_id.into(),
+        message_seq,
+        message_type: message_type_name.into(),
+        summary,
+    };
+    let outbox_record = match side_effect_outbox::record_pending_message_notification_side_effect(
+        state,
+        auth,
+        notification_request.clone(),
+    ) {
+        Ok(record) => Some(record),
+        Err(error) => {
+            record_message_side_effect_store_failure(
+                state,
+                auth,
+                conversation_id,
+                message_id,
                 message_seq,
-                message_type: message_type_name.into(),
-                summary,
-            },
-        );
+                "notification_outbox_persist",
+                &error,
+            );
+            None
+        }
+    };
+
+    match state
+        .notification_runtime
+        .request_message_posted_notifications(auth, notification_request)
+    {
+        Ok(_) => {
+            if let Some(record) = outbox_record.as_ref()
+                && let Err(error) = side_effect_outbox::mark_message_side_effect_delivered(
+                    state,
+                    record.outbox_id.as_str(),
+                )
+            {
+                record_message_side_effect_store_failure(
+                    state,
+                    auth,
+                    conversation_id,
+                    message_id,
+                    message_seq,
+                    "notification_outbox_delivered",
+                    &error,
+                );
+            }
+        }
+        Err(error) => {
+            if let Some(record) = outbox_record.as_ref()
+                && let Err(store_error) =
+                    side_effect_outbox::mark_message_notification_side_effect_failed(
+                        state,
+                        record.outbox_id.as_str(),
+                        &error,
+                    )
+            {
+                record_message_side_effect_store_failure(
+                    state,
+                    auth,
+                    conversation_id,
+                    message_id,
+                    message_seq,
+                    "notification_outbox_failed",
+                    &store_error,
+                );
+            }
+            record_message_side_effect_failure(
+                state,
+                auth,
+                conversation_id,
+                message_id,
+                message_seq,
+                "notification_delivery",
+                &ApiError::service_unavailable(
+                    error.code(),
+                    format!(
+                        "message notification side-effect failed: {}",
+                        error.message()
+                    ),
+                ),
+            );
+        }
+    }
 }
 
 pub(super) fn publish_realtime_conversation_message_event(
@@ -173,9 +386,28 @@ pub(super) fn publish_realtime_conversation_message_event(
         conversation_id,
         event_type,
         payload,
-    );
+    )
+}
 
-    Ok(())
+pub(super) fn publish_realtime_event_to_scope(
+    state: &AppState,
+    auth: &AuthContext,
+    scope_type: &str,
+    scope_id: &str,
+    event_type: &str,
+    payload: String,
+) -> Result<(), ApiError> {
+    let recipients = if scope_type == "conversation" {
+        conversation_member_principal_recipients_from_auth_context(state, auth, scope_id)?
+    } else {
+        BTreeSet::from([NotificationRecipientView {
+            principal_id: auth.actor_id.clone(),
+            principal_kind: auth.actor_kind.clone(),
+        }])
+    };
+    publish_realtime_event_to_recipients(
+        state, auth, recipients, scope_type, scope_id, event_type, payload,
+    )
 }
 
 pub(super) fn publish_realtime_membership_event(
@@ -197,9 +429,7 @@ pub(super) fn publish_realtime_membership_event(
         conversation_id,
         event_type,
         payload,
-    );
-
-    Ok(())
+    )
 }
 
 pub(super) fn publish_realtime_agent_handoff_status_changed_event(
@@ -236,9 +466,7 @@ pub(super) fn publish_realtime_agent_handoff_status_changed_event(
             "state": current_state,
         })
         .to_string(),
-    );
-
-    Ok(())
+    )
 }
 
 pub(super) fn publish_realtime_stream_frame_event(
@@ -269,9 +497,7 @@ pub(super) fn publish_realtime_stream_frame_event(
             "frameType": frame.frame_type,
         })
         .to_string(),
-    );
-
-    Ok(())
+    )
 }
 
 pub(super) fn publish_realtime_stream_lifecycle_event(
@@ -308,9 +534,7 @@ pub(super) fn publish_realtime_stream_lifecycle_event(
             "reason": reason,
         })
         .to_string(),
-    );
-
-    Ok(())
+    )
 }
 
 fn stream_target_principal_recipients(
@@ -349,37 +573,49 @@ fn publish_realtime_event_to_recipients(
     scope_id: &str,
     event_type: &str,
     payload: String,
-) {
+) -> Result<(), ApiError> {
+    let mut delivery_errors = Vec::new();
     for target in state
         .projection_service
         .realtime_fanout_targets_for_recipients_from_auth_context(auth, recipients)
     {
-        let _ = match target.principal_kind.as_deref() {
-            Some(principal_kind) => state
-                .realtime_cluster
-                .publish_device_event_for_principal_kind(
-                    state.node_id.as_str(),
-                    auth.tenant_id.as_str(),
-                    target.principal_id.as_str(),
-                    principal_kind,
-                    target.device_id.as_str(),
-                    scope_type,
-                    scope_id,
-                    event_type,
-                    payload.clone(),
-                ),
-            None => state.realtime_cluster.publish_device_event(
+        let delivery = state
+            .realtime_cluster
+            .publish_device_event_for_principal_kind(
                 state.node_id.as_str(),
                 auth.tenant_id.as_str(),
                 target.principal_id.as_str(),
+                target.principal_kind.as_str(),
                 target.device_id.as_str(),
                 scope_type,
                 scope_id,
                 event_type,
                 payload.clone(),
-            ),
-        };
+            );
+        if let Some(error_code) = delivery.delivery_error_code.as_deref() {
+            delivery_errors.push(format!(
+                "principal_kind={} principal_id={} device_id={} target_node_id={} route_state={} error_code={} error_message={}",
+                    target.principal_kind,
+                    target.principal_id,
+                    target.device_id,
+                    delivery.target_node_id,
+                    delivery.route_state,
+                    error_code,
+                    delivery.delivery_error_message.unwrap_or_default()
+            ));
+        }
     }
+    if !delivery_errors.is_empty() {
+        return Err(ApiError::service_unavailable(
+            "realtime_delivery_failed",
+            format!(
+                "realtime delivery failed for {} target(s): {}",
+                delivery_errors.len(),
+                delivery_errors.join("; ")
+            ),
+        ));
+    }
+    Ok(())
 }
 
 fn handoff_lifecycle_changed_at(state: &AgentHandoffStateView) -> Option<String> {

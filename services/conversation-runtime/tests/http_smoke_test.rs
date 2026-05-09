@@ -128,6 +128,7 @@ async fn test_create_conversation_and_post_message_over_http() {
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -149,6 +150,7 @@ async fn test_create_conversation_and_post_message_over_http() {
                 .uri("/api/v1/conversations/c_http/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -189,6 +191,7 @@ async fn test_duplicate_create_conversation_request_is_idempotent_and_conflictin
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -216,7 +219,7 @@ async fn test_duplicate_create_conversation_request_is_idempotent_and_conflictin
     );
     assert_eq!(
         first_create_json["requestKey"],
-        "t_demo:user:u_demo:create-conversation:c_create_retry_http"
+        "6#t_demo4#user6#u_demo19#create-conversation19#c_create_retry_http"
     );
 
     let duplicate_create = app
@@ -227,6 +230,7 @@ async fn test_duplicate_create_conversation_request_is_idempotent_and_conflictin
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -264,6 +268,7 @@ async fn test_duplicate_create_conversation_request_is_idempotent_and_conflictin
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -300,6 +305,7 @@ async fn test_duplicate_post_message_request_is_idempotent_and_conflicting_retry
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -321,6 +327,7 @@ async fn test_duplicate_post_message_request_is_idempotent_and_conflicting_retry
                 .uri("/api/v1/conversations/c_http_post_retry/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -356,6 +363,7 @@ async fn test_duplicate_post_message_request_is_idempotent_and_conflicting_retry
                 .uri("/api/v1/conversations/c_http_post_retry/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -399,6 +407,7 @@ async fn test_duplicate_post_message_request_is_idempotent_and_conflicting_retry
                 .uri("/api/v1/conversations/c_http_post_retry/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -423,6 +432,7 @@ async fn test_duplicate_post_message_request_is_idempotent_and_conflicting_retry
                 .uri("/api/v1/conversations/c_http_post_retry/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -448,6 +458,137 @@ async fn test_duplicate_post_message_request_is_idempotent_and_conflicting_retry
 }
 
 #[tokio::test]
+async fn test_list_messages_http_returns_bounded_cursor_window() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_history_page_http",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    for seq in 1..=2 {
+        let post_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/conversations/c_history_page_http/messages")
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "u_demo")
+                    .header("x-actor-kind", "user")
+                    .header("content-type", "application/json")
+                    .body(Body::from(format!(
+                        r#"{{
+                            "clientMsgId":"client_history_page_{seq}",
+                            "summary":"message {seq}",
+                            "text":"message {seq}"
+                        }}"#
+                    )))
+                    .unwrap(),
+            )
+            .await
+            .expect("post message should succeed");
+        assert_eq!(post_response.status(), StatusCode::OK);
+    }
+
+    let first_page = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/conversations/c_history_page_http/messages?afterSeq=0&limit=1")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("first page request should complete");
+    assert_eq!(first_page.status(), StatusCode::OK);
+    let first_body = first_page
+        .into_body()
+        .collect()
+        .await
+        .expect("first page body should collect")
+        .to_bytes();
+    let first_json: serde_json::Value =
+        serde_json::from_slice(&first_body).expect("first page should be valid json");
+    assert_eq!(first_json["items"].as_array().unwrap().len(), 1);
+    assert_eq!(first_json["items"][0]["message"]["messageSeq"], 1);
+    assert_eq!(first_json["highWatermark"], 2);
+    assert_eq!(first_json["nextAfterSeq"], 1);
+    assert_eq!(first_json["hasMore"], true);
+
+    let second_page = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/conversations/c_history_page_http/messages?afterSeq=1&limit=1")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("second page request should complete");
+    assert_eq!(second_page.status(), StatusCode::OK);
+    let second_body = second_page
+        .into_body()
+        .collect()
+        .await
+        .expect("second page body should collect")
+        .to_bytes();
+    let second_json: serde_json::Value =
+        serde_json::from_slice(&second_body).expect("second page should be valid json");
+    assert_eq!(second_json["items"].as_array().unwrap().len(), 1);
+    assert_eq!(second_json["items"][0]["message"]["messageSeq"], 2);
+    assert_eq!(second_json["highWatermark"], 2);
+    assert_eq!(second_json["nextAfterSeq"], 2);
+    assert_eq!(second_json["hasMore"], false);
+
+    let invalid_limit = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/conversations/c_history_page_http/messages?afterSeq=0&limit=0")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("invalid limit request should complete");
+    assert_eq!(invalid_limit.status(), StatusCode::BAD_REQUEST);
+    let invalid_body = invalid_limit
+        .into_body()
+        .collect()
+        .await
+        .expect("invalid limit body should collect")
+        .to_bytes();
+    let invalid_json: serde_json::Value =
+        serde_json::from_slice(&invalid_body).expect("invalid limit should be valid json");
+    assert_eq!(invalid_json["code"], "limit_invalid");
+}
+
+#[tokio::test]
 async fn test_create_conversation_rejects_unknown_type_over_http() {
     let app = conversation_runtime::build_default_app();
 
@@ -458,6 +599,7 @@ async fn test_create_conversation_rejects_unknown_type_over_http() {
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -495,6 +637,7 @@ async fn test_create_conversation_rejects_unknown_user_creator_over_http() {
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "actor_missing")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -535,6 +678,7 @@ async fn test_create_conversation_rejects_oversized_conversation_id_over_http() 
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -670,6 +814,7 @@ async fn test_create_agent_dialog_over_http() {
                 .uri("/api/v1/conversations/agent-dialogs")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -689,6 +834,7 @@ async fn test_create_agent_dialog_over_http() {
                 .uri("/api/v1/conversations/c_agent_dialog_http/members")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -733,6 +879,7 @@ async fn test_duplicate_create_agent_dialog_request_is_idempotent_and_conflictin
                 .uri("/api/v1/conversations/agent-dialogs")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -760,7 +907,7 @@ async fn test_duplicate_create_agent_dialog_request_is_idempotent_and_conflictin
     );
     assert_eq!(
         first_create_json["requestKey"],
-        "t_demo:user:u_demo:create-agent-dialog:c_agent_dialog_retry_http"
+        "6#t_demo4#user6#u_demo19#create-agent-dialog25#c_agent_dialog_retry_http"
     );
 
     let duplicate_create = app
@@ -771,6 +918,7 @@ async fn test_duplicate_create_agent_dialog_request_is_idempotent_and_conflictin
                 .uri("/api/v1/conversations/agent-dialogs")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -808,6 +956,7 @@ async fn test_duplicate_create_agent_dialog_request_is_idempotent_and_conflictin
                 .uri("/api/v1/conversations/agent-dialogs")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -880,6 +1029,7 @@ async fn test_create_agent_dialog_rejects_unknown_user_requester_over_http() {
                 .uri("/api/v1/conversations/agent-dialogs")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "actor_missing")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -982,6 +1132,7 @@ async fn test_create_agent_handoff_rejects_non_agent_actor_over_http() {
                 .uri("/api/v1/conversations/agent-handoffs")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1094,7 +1245,7 @@ async fn test_duplicate_create_agent_handoff_request_is_idempotent_and_conflicti
     );
     assert_eq!(
         first_create_json["requestKey"],
-        "t_demo:agent:ag_source:create-agent-handoff:c_agent_handoff_retry_http"
+        "6#t_demo5#agent9#ag_source20#create-agent-handoff26#c_agent_handoff_retry_http"
     );
 
     let duplicate_create = app
@@ -1209,6 +1360,7 @@ async fn test_agent_handoff_target_can_post_over_http() {
                 .uri("/api/v1/conversations/c_agent_handoff_post_http/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1285,6 +1437,7 @@ async fn test_agent_handoff_accept_resolve_close_over_http() {
                 .uri("/api/v1/conversations/c_agent_handoff_lifecycle_http/agent-handoff/accept")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::empty())
                 .unwrap(),
@@ -1311,6 +1464,7 @@ async fn test_agent_handoff_accept_resolve_close_over_http() {
                 .uri("/api/v1/conversations/c_agent_handoff_lifecycle_http/agent-handoff/resolve")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::empty())
                 .unwrap(),
@@ -1361,6 +1515,7 @@ async fn test_agent_handoff_accept_resolve_close_over_http() {
                 .uri("/api/v1/conversations/c_agent_handoff_lifecycle_http/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1506,6 +1661,7 @@ async fn test_create_system_channel_rejects_non_system_actor_over_http() {
                 .uri("/api/v1/conversations/system-channels")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1609,7 +1765,7 @@ async fn test_duplicate_create_system_channel_request_is_idempotent_and_conflict
     );
     assert_eq!(
         first_create_json["requestKey"],
-        "t_demo:system:svc_ops:create-system-channel:c_system_channel_retry_http"
+        "6#t_demo6#system7#svc_ops21#create-system-channel27#c_system_channel_retry_http"
     );
 
     let duplicate_create = app
@@ -1715,6 +1871,7 @@ async fn test_system_channel_subscriber_cannot_post_over_http() {
                 .uri("/api/v1/conversations/c_system_channel_post_http/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1862,6 +2019,7 @@ async fn test_system_channel_dedicated_publish_over_http() {
                 .uri("/api/v1/conversations/c_system_channel_publish_http_dedicated/system-channel/publish")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1898,6 +2056,7 @@ async fn test_post_message_accepts_structured_parts_over_http() {
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1918,6 +2077,7 @@ async fn test_post_message_accepts_structured_parts_over_http() {
                 .uri("/api/v1/conversations/c_media_http/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1974,6 +2134,7 @@ async fn test_post_message_rejects_oversized_text_over_http() {
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2001,6 +2162,7 @@ async fn test_post_message_rejects_oversized_text_over_http() {
                 .uri("/api/v1/conversations/c_http_oversized_text/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -2038,6 +2200,7 @@ async fn test_post_message_rejects_oversized_sender_session_id_over_http() {
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2058,6 +2221,7 @@ async fn test_post_message_rejects_oversized_sender_session_id_over_http() {
                 .uri("/api/v1/conversations/c_http_oversized_sender_session/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s".repeat(257))
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2102,6 +2266,7 @@ async fn test_add_member_rejects_oversized_attributes_over_http() {
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2132,6 +2297,7 @@ async fn test_add_member_rejects_oversized_attributes_over_http() {
                 .uri("/api/v1/conversations/c_member_attributes_http/members/add")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(oversized_request))
                 .unwrap(),
@@ -2171,6 +2337,7 @@ async fn test_add_member_rejects_unknown_user_principal_over_http() {
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2191,6 +2358,7 @@ async fn test_add_member_rejects_unknown_user_principal_over_http() {
                 .uri("/api/v1/conversations/c_members_unknown_principal_http/members/add")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2228,6 +2396,7 @@ async fn test_conversation_member_endpoints_manage_roster_over_http() {
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2248,6 +2417,7 @@ async fn test_conversation_member_endpoints_manage_roster_over_http() {
                 .uri("/api/v1/conversations/c_members_http/members")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2273,6 +2443,7 @@ async fn test_conversation_member_endpoints_manage_roster_over_http() {
                 .uri("/api/v1/conversations/c_members_http/members/add")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2294,7 +2465,10 @@ async fn test_conversation_member_endpoints_manage_roster_over_http() {
         .to_bytes();
     let add_member_json: serde_json::Value =
         serde_json::from_slice(&add_member_body).expect("add member response should be valid json");
-    assert_eq!(add_member_json["memberId"], "cm_c_members_http_u_member");
+    assert_eq!(
+        add_member_json["memberId"],
+        "cm_c_members_http_user_u_member"
+    );
     assert_eq!(add_member_json["state"], "joined");
 
     let list_after_add = app
@@ -2304,6 +2478,7 @@ async fn test_conversation_member_endpoints_manage_roster_over_http() {
                 .uri("/api/v1/conversations/c_members_http/members")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2328,10 +2503,11 @@ async fn test_conversation_member_endpoints_manage_roster_over_http() {
                 .uri("/api/v1/conversations/c_members_http/members/remove")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
-                        "memberId":"cm_c_members_http_u_member"
+                        "memberId":"cm_c_members_http_user_u_member"
                     }"#,
                 ))
                 .unwrap(),
@@ -2355,6 +2531,7 @@ async fn test_conversation_member_endpoints_manage_roster_over_http() {
                 .uri("/api/v1/conversations/c_members_http/members")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2385,6 +2562,7 @@ async fn test_group_member_governance_over_http_rejects_actor_kind_mismatch() {
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2443,6 +2621,7 @@ async fn test_group_member_can_leave_roster_over_http() {
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2464,6 +2643,7 @@ async fn test_group_member_can_leave_roster_over_http() {
                 .uri("/api/v1/conversations/c_members_leave_http/members/add")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2486,6 +2666,7 @@ async fn test_group_member_can_leave_roster_over_http() {
                 .uri("/api/v1/conversations/c_members_leave_http/members/leave")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_member")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2508,6 +2689,7 @@ async fn test_group_member_can_leave_roster_over_http() {
                 .uri("/api/v1/conversations/c_members_leave_http/members")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2538,6 +2720,7 @@ async fn test_group_owner_transfer_over_http() {
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2559,6 +2742,7 @@ async fn test_group_owner_transfer_over_http() {
                 .uri("/api/v1/conversations/c_members_transfer_http/members/add")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2581,10 +2765,11 @@ async fn test_group_owner_transfer_over_http() {
                 .uri("/api/v1/conversations/c_members_transfer_http/members/transfer-owner")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
-                        "memberId":"cm_c_members_transfer_http_u_member"
+                        "memberId":"cm_c_members_transfer_http_user_u_member"
                     }"#,
                 ))
                 .unwrap(),
@@ -2611,6 +2796,7 @@ async fn test_group_owner_transfer_over_http() {
                 .uri("/api/v1/conversations/c_members_transfer_http/members/leave")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2624,6 +2810,7 @@ async fn test_group_owner_transfer_over_http() {
                 .uri("/api/v1/conversations/c_members_transfer_http/members")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_member")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2655,6 +2842,7 @@ async fn test_change_member_role_over_http() {
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2676,6 +2864,7 @@ async fn test_change_member_role_over_http() {
                 .uri("/api/v1/conversations/c_members_role_http/members/add")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2698,10 +2887,11 @@ async fn test_change_member_role_over_http() {
                 .uri("/api/v1/conversations/c_members_role_http/members/change-role")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
-                        "memberId":"cm_c_members_role_http_u_member",
+                        "memberId":"cm_c_members_role_http_user_u_member",
                         "role":"admin"
                     }"#,
                 ))
@@ -2727,6 +2917,7 @@ async fn test_change_member_role_over_http() {
                 .uri("/api/v1/conversations/c_members_role_http/members")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2762,6 +2953,7 @@ async fn test_read_cursor_endpoints_expose_unread_progress_over_http() {
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2784,6 +2976,7 @@ async fn test_read_cursor_endpoints_expose_unread_progress_over_http() {
                     .uri("/api/v1/conversations/c_cursor_http/messages")
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_owner")
+                    .header("x-actor-kind", "user")
                     .header("content-type", "application/json")
                     .body(Body::from(format!(
                         r#"{{
@@ -2806,6 +2999,7 @@ async fn test_read_cursor_endpoints_expose_unread_progress_over_http() {
                 .uri("/api/v1/conversations/c_cursor_http/read-cursor")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2831,6 +3025,7 @@ async fn test_read_cursor_endpoints_expose_unread_progress_over_http() {
                 .uri("/api/v1/conversations/c_cursor_http/read-cursor")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2867,6 +3062,7 @@ async fn test_read_cursor_over_http_rejects_actor_kind_mismatch() {
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2888,6 +3084,7 @@ async fn test_read_cursor_over_http_rejects_actor_kind_mismatch() {
                 .uri("/api/v1/conversations/c_cursor_actor_kind_http/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2945,6 +3142,7 @@ async fn test_edit_and_recall_message_over_http() {
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2966,6 +3164,7 @@ async fn test_edit_and_recall_message_over_http() {
                 .uri("/api/v1/conversations/c_edit_http/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2988,6 +3187,7 @@ async fn test_edit_and_recall_message_over_http() {
                 .uri("/api/v1/messages/msg_c_edit_http_1/edit")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3018,6 +3218,7 @@ async fn test_edit_and_recall_message_over_http() {
                 .uri("/api/v1/messages/msg_c_edit_http_1/recall")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -3049,6 +3250,7 @@ async fn test_reaction_and_pin_message_over_http() {
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3070,6 +3272,7 @@ async fn test_reaction_and_pin_message_over_http() {
                 .uri("/api/v1/conversations/c_reaction_pin_http/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3092,6 +3295,7 @@ async fn test_reaction_and_pin_message_over_http() {
                 .uri("/api/v1/messages/msg_c_reaction_pin_http_1/reactions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3124,6 +3328,7 @@ async fn test_reaction_and_pin_message_over_http() {
                 .uri("/api/v1/messages/msg_c_reaction_pin_http_1/pin")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -3151,6 +3356,7 @@ async fn test_reaction_and_pin_message_over_http() {
                 .uri("/api/v1/messages/msg_c_reaction_pin_http_1/unpin")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -3166,6 +3372,7 @@ async fn test_reaction_and_pin_message_over_http() {
                 .uri("/api/v1/messages/msg_c_reaction_pin_http_1/reactions/remove")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3191,6 +3398,7 @@ async fn test_create_conversation_with_business_policy_disables_pin_over_http() 
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3216,6 +3424,7 @@ async fn test_create_conversation_with_business_policy_disables_pin_over_http() 
                 .uri("/api/v1/conversations/c_policy_http/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3238,6 +3447,7 @@ async fn test_create_conversation_with_business_policy_disables_pin_over_http() 
                 .uri("/api/v1/messages/msg_c_policy_http_1/reactions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3257,6 +3467,7 @@ async fn test_create_conversation_with_business_policy_disables_pin_over_http() 
                 .uri("/api/v1/messages/msg_c_policy_http_1/pin")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -3287,6 +3498,7 @@ async fn test_joined_history_visibility_blocks_non_member_history_reads_over_htt
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3311,6 +3523,7 @@ async fn test_joined_history_visibility_blocks_non_member_history_reads_over_htt
                 .uri("/api/v1/conversations/c_history_joined_http/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3332,6 +3545,7 @@ async fn test_joined_history_visibility_blocks_non_member_history_reads_over_htt
                 .uri("/api/v1/conversations/c_history_joined_http/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_outsider")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -3361,6 +3575,7 @@ async fn test_world_readable_history_visibility_allows_non_member_history_reads_
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3385,6 +3600,7 @@ async fn test_world_readable_history_visibility_allows_non_member_history_reads_
                 .uri("/api/v1/conversations/c_history_world_http/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3406,6 +3622,7 @@ async fn test_world_readable_history_visibility_allows_non_member_history_reads_
                 .uri("/api/v1/conversations/c_history_world_http/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_outsider")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -3502,6 +3719,7 @@ async fn test_bind_direct_chat_conversation_over_http_and_query_binding() {
                 .uri("/api/v1/conversations/c_direct_binding_http/members")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "actor_a")
+                .header("x-actor-kind", "user")
                 .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
@@ -3669,7 +3887,7 @@ async fn test_duplicate_bind_direct_chat_conversation_request_is_idempotent_and_
     );
     assert_eq!(
         first_bind_json["requestKey"],
-        "t_demo:system:svc_control:bind-direct-chat:c_direct_retry_http"
+        "6#t_demo6#system11#svc_control16#bind-direct-chat19#c_direct_retry_http"
     );
 
     let duplicate_bind = app
@@ -3759,6 +3977,7 @@ async fn test_create_thread_conversation_over_http_and_query_binding() {
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3780,6 +3999,7 @@ async fn test_create_thread_conversation_over_http_and_query_binding() {
                 .uri("/api/v1/conversations/c_parent_thread_http/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3810,6 +4030,7 @@ async fn test_create_thread_conversation_over_http_and_query_binding() {
                 .uri("/api/v1/conversations/threads")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(format!(
                     r#"{{
@@ -3842,6 +4063,7 @@ async fn test_create_thread_conversation_over_http_and_query_binding() {
                 .uri("/api/v1/conversations/c_thread_http/binding")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -3867,6 +4089,7 @@ async fn test_create_thread_conversation_over_http_and_query_binding() {
                 .uri("/api/v1/conversations/c_thread_http/members")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -3908,6 +4131,7 @@ async fn test_duplicate_create_thread_conversation_request_is_idempotent_and_con
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3929,6 +4153,7 @@ async fn test_duplicate_create_thread_conversation_request_is_idempotent_and_con
                 .uri("/api/v1/conversations/c_parent_thread_retry_http/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3959,6 +4184,7 @@ async fn test_duplicate_create_thread_conversation_request_is_idempotent_and_con
                 .uri("/api/v1/conversations/c_parent_thread_retry_http/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3989,6 +4215,7 @@ async fn test_duplicate_create_thread_conversation_request_is_idempotent_and_con
                 .uri("/api/v1/conversations/threads")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(format!(
                     r#"{{
@@ -4018,7 +4245,7 @@ async fn test_duplicate_create_thread_conversation_request_is_idempotent_and_con
     );
     assert_eq!(
         first_create_json["requestKey"],
-        "t_demo:user:u_owner:create-thread:c_thread_retry_http"
+        "6#t_demo4#user7#u_owner13#create-thread19#c_thread_retry_http"
     );
 
     let duplicate_create = app
@@ -4029,6 +4256,7 @@ async fn test_duplicate_create_thread_conversation_request_is_idempotent_and_con
                 .uri("/api/v1/conversations/threads")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(format!(
                     r#"{{
@@ -4068,6 +4296,7 @@ async fn test_duplicate_create_thread_conversation_request_is_idempotent_and_con
                 .uri("/api/v1/conversations/threads")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(format!(
                     r#"{{
@@ -4104,6 +4333,7 @@ async fn test_bind_direct_chat_conversation_rejects_non_system_actor_over_http()
                 .uri("/api/v1/conversations/direct-chats/bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4145,6 +4375,7 @@ async fn test_invited_history_visibility_allows_invited_member_history_reads_bef
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4169,6 +4400,7 @@ async fn test_invited_history_visibility_allows_invited_member_history_reads_bef
                 .uri("/api/v1/conversations/c_history_invited_http/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4191,6 +4423,7 @@ async fn test_invited_history_visibility_allows_invited_member_history_reads_bef
                 .uri("/api/v1/conversations/c_history_invited_http/members/add")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4222,6 +4455,7 @@ async fn test_invited_history_visibility_allows_invited_member_history_reads_bef
                 .uri("/api/v1/conversations/c_history_invited_http/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_invited")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -4252,6 +4486,7 @@ async fn test_invited_history_visibility_allows_invited_member_history_reads_bef
                 .uri("/api/v1/conversations/c_history_invited_http/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_outsider")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -4285,6 +4520,7 @@ async fn test_shared_history_visibility_allows_external_linked_history_reads_but
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4309,6 +4545,7 @@ async fn test_shared_history_visibility_allows_external_linked_history_reads_but
                 .uri("/api/v1/conversations/c_history_shared_http/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4331,6 +4568,7 @@ async fn test_shared_history_visibility_allows_external_linked_history_reads_but
                 .uri("/api/v1/conversations/c_history_shared_http/members/add")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4371,6 +4609,7 @@ async fn test_shared_history_visibility_allows_external_linked_history_reads_but
                 .uri("/api/v1/conversations/c_history_shared_http/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_partner_external")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -4402,6 +4641,7 @@ async fn test_shared_history_visibility_allows_external_linked_history_reads_but
                 .uri("/api/v1/conversations/c_history_shared_http/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_partner_external")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4432,6 +4672,7 @@ async fn test_shared_history_visibility_allows_external_linked_history_reads_but
                 .uri("/api/v1/conversations/c_history_shared_http/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_outsider")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -4464,6 +4705,7 @@ async fn test_sync_shared_channel_linked_member_over_http_materializes_linked_hi
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4488,6 +4730,7 @@ async fn test_sync_shared_channel_linked_member_over_http_materializes_linked_hi
                 .uri("/api/v1/conversations/c_history_shared_sync_http/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4567,6 +4810,7 @@ async fn test_sync_shared_channel_linked_member_over_http_materializes_linked_hi
                 .uri("/api/v1/conversations/c_history_shared_sync_http/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_partner_external_sync")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -4651,6 +4895,7 @@ async fn test_sync_shared_channel_linked_member_rejects_unknown_user_local_actor
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4716,6 +4961,7 @@ async fn test_shared_history_sync_rejects_oversized_local_actor_kind_over_http()
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_owner")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4773,5 +5019,31 @@ async fn test_shared_history_sync_rejects_oversized_local_actor_kind_over_http()
             .as_str()
             .expect("message should be present")
             .contains("localActorKind")
+    );
+}
+
+#[test]
+fn test_static_principal_directory_rejects_missing_principal_kind() {
+    let catalog_path = unique_principal_catalog_path();
+    fs::write(
+        &catalog_path,
+        r#"{
+            "principals":[
+                {
+                    "tenantId":"t_demo",
+                    "principalId":"actor_without_kind"
+                }
+            ]
+        }"#,
+    )
+    .expect("principal catalog should be written");
+
+    let error =
+        conversation_runtime::StaticPrincipalDirectory::from_json_file(catalog_path.as_path())
+            .expect_err("principalKind must be explicit in static principal catalogs");
+
+    assert!(
+        error.contains("principalKind"),
+        "error should point to the missing principalKind field, got: {error}"
     );
 }

@@ -31,6 +31,7 @@ async fn test_default_local_minimal_profile_persists_realtime_checkpoint_across_
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .header("content-type", "application/json")
@@ -54,6 +55,7 @@ async fn test_default_local_minimal_profile_persists_realtime_checkpoint_across_
                 .uri("/api/v1/devices/register")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_pad")
                 .header("content-type", "application/json")
@@ -72,6 +74,7 @@ async fn test_default_local_minimal_profile_persists_realtime_checkpoint_across_
                 .uri("/api/v1/realtime/subscriptions/sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_pad")
                 .header("content-type", "application/json")
@@ -100,6 +103,7 @@ async fn test_default_local_minimal_profile_persists_realtime_checkpoint_across_
                 .uri("/api/v1/conversations/c_checkpoint_restart/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .header("content-type", "application/json")
@@ -124,6 +128,7 @@ async fn test_default_local_minimal_profile_persists_realtime_checkpoint_across_
                 .uri("/api/v1/realtime/events/ack")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_pad")
                 .header("content-type", "application/json")
@@ -150,6 +155,7 @@ async fn test_default_local_minimal_profile_persists_realtime_checkpoint_across_
                 .uri("/api/v1/devices/register")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_pad_new")
                 .header("content-type", "application/json")
@@ -167,6 +173,7 @@ async fn test_default_local_minimal_profile_persists_realtime_checkpoint_across_
                 .uri("/api/v1/realtime/events?afterSeq=0&limit=10")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_pad_new")
                 .body(Body::empty())
@@ -202,6 +209,7 @@ async fn test_default_local_minimal_profile_persists_realtime_checkpoint_across_
                 .uri("/api/v1/realtime/subscriptions/sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_pad_new")
                 .header("content-type", "application/json")
@@ -230,6 +238,7 @@ async fn test_default_local_minimal_profile_persists_realtime_checkpoint_across_
                 .uri("/api/v1/conversations/c_checkpoint_restart/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone_new")
                 .header("content-type", "application/json")
@@ -252,6 +261,7 @@ async fn test_default_local_minimal_profile_persists_realtime_checkpoint_across_
                 .uri("/api/v1/realtime/events?afterSeq=0&limit=10")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_pad_new")
                 .body(Body::empty())
@@ -276,6 +286,586 @@ async fn test_default_local_minimal_profile_persists_realtime_checkpoint_across_
     assert_eq!(items[0]["realtimeSeq"], 2);
     assert_eq!(after_restart_after_publish_json["ackedThroughSeq"], 1);
     assert_eq!(after_restart_after_publish_json["trimmedThroughSeq"], 1);
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
+async fn test_default_local_minimal_profile_restores_unacked_realtime_events_after_runtime_rebuild()
+{
+    let runtime_dir = unique_runtime_dir();
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+
+    let app_before = local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
+
+    let create_conversation = app_before
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .header("x-device-id", "d_phone")
+                .header("x-session-id", "s_phone")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_realtime_inbox_restart",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation should succeed");
+    assert_eq!(create_conversation.status(), StatusCode::OK);
+
+    let register_pad = app_before
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/devices/register")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .header("x-device-id", "d_pad")
+                .header("x-session-id", "s_pad")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{}"#))
+                .unwrap(),
+        )
+        .await
+        .expect("register pad should succeed");
+    assert_eq!(register_pad.status(), StatusCode::OK);
+
+    let sync_subscriptions = app_before
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/realtime/subscriptions/sync")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .header("x-device-id", "d_pad")
+                .header("x-session-id", "s_pad")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "items":[
+                            {
+                                "scopeType":"conversation",
+                                "scopeId":"c_realtime_inbox_restart",
+                                "eventTypes":["message.posted"]
+                            }
+                        ]
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("subscription sync should succeed");
+    assert_eq!(sync_subscriptions.status(), StatusCode::OK);
+
+    let post_message = app_before
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_realtime_inbox_restart/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .header("x-device-id", "d_phone")
+                .header("x-session-id", "s_phone")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_realtime_inbox_restart_1",
+                        "summary":"durable inbox",
+                        "text":"durable inbox"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("post message should succeed");
+    assert_eq!(post_message.status(), StatusCode::OK);
+
+    let app_after = local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
+
+    let register_pad_after = app_after
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/devices/register")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .header("x-device-id", "d_pad")
+                .header("x-session-id", "s_pad_restarted")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{}"#))
+                .unwrap(),
+        )
+        .await
+        .expect("register pad after restart should succeed");
+    assert_eq!(register_pad_after.status(), StatusCode::OK);
+
+    let restored_events = app_after
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/realtime/events?afterSeq=0&limit=10")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .header("x-device-id", "d_pad")
+                .header("x-session-id", "s_pad_restarted")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("restored realtime events should succeed");
+    assert_eq!(restored_events.status(), StatusCode::OK);
+    let restored_events_body = restored_events
+        .into_body()
+        .collect()
+        .await
+        .expect("restored realtime body should collect")
+        .to_bytes();
+    let restored_events_json: serde_json::Value = serde_json::from_slice(&restored_events_body)
+        .expect("restored realtime body should be valid json");
+    let restored_items = restored_events_json["items"]
+        .as_array()
+        .expect("restored items should be an array");
+    assert_eq!(
+        restored_items.len(),
+        1,
+        "unacked device realtime event must survive runtime rebuild"
+    );
+    assert_eq!(restored_items[0]["realtimeSeq"], 1);
+    assert_eq!(restored_items[0]["scopeId"], "c_realtime_inbox_restart");
+    assert_eq!(restored_items[0]["eventType"], "message.posted");
+    assert_eq!(restored_events_json["ackedThroughSeq"], 0);
+    assert_eq!(restored_events_json["trimmedThroughSeq"], 0);
+
+    let ack_response = app_after
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/realtime/events/ack")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .header("x-device-id", "d_pad")
+                .header("x-session-id", "s_pad_restarted")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"ackedSeq":1}"#))
+                .unwrap(),
+        )
+        .await
+        .expect("ack restored event should succeed");
+    assert_eq!(ack_response.status(), StatusCode::OK);
+
+    let after_ack = app_after
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/realtime/events?afterSeq=0&limit=10")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .header("x-device-id", "d_pad")
+                .header("x-session-id", "s_pad_restarted")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("events after ack should succeed");
+    assert_eq!(after_ack.status(), StatusCode::OK);
+    let after_ack_body = after_ack
+        .into_body()
+        .collect()
+        .await
+        .expect("after ack body should collect")
+        .to_bytes();
+    let after_ack_json: serde_json::Value =
+        serde_json::from_slice(&after_ack_body).expect("after ack body should be valid json");
+    assert_eq!(after_ack_json["items"].as_array().unwrap().len(), 0);
+    assert_eq!(after_ack_json["ackedThroughSeq"], 1);
+    assert_eq!(after_ack_json["trimmedThroughSeq"], 1);
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
+async fn test_default_local_minimal_ops_diagnostics_exposes_durable_realtime_inbox_backlog() {
+    let runtime_dir = unique_runtime_dir();
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+
+    let app = local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
+
+    let create_conversation = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .header("x-device-id", "d_phone")
+                .header("x-session-id", "s_phone")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_realtime_inbox_diagnostics",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation should succeed");
+    assert_eq!(create_conversation.status(), StatusCode::OK);
+
+    let register_pad = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/devices/register")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .header("x-device-id", "d_pad")
+                .header("x-session-id", "s_pad")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{}"#))
+                .unwrap(),
+        )
+        .await
+        .expect("register pad should succeed");
+    assert_eq!(register_pad.status(), StatusCode::OK);
+
+    let sync_subscriptions = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/realtime/subscriptions/sync")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .header("x-device-id", "d_pad")
+                .header("x-session-id", "s_pad")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "items":[
+                            {
+                                "scopeType":"conversation",
+                                "scopeId":"c_realtime_inbox_diagnostics",
+                                "eventTypes":["message.posted"]
+                            }
+                        ]
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("subscription sync should succeed");
+    assert_eq!(sync_subscriptions.status(), StatusCode::OK);
+
+    let post_message = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/conversations/c_realtime_inbox_diagnostics/messages")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .header("x-device-id", "d_phone")
+                .header("x-session-id", "s_phone")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_realtime_inbox_diagnostics_1",
+                        "summary":"diagnostics",
+                        "text":"diagnostics"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("post message should succeed");
+    assert_eq!(post_message.status(), StatusCode::OK);
+
+    let diagnostics_with_backlog = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/ops/diagnostics")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .header("x-permissions", "ops.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("ops diagnostics with backlog should return response");
+    assert_eq!(diagnostics_with_backlog.status(), StatusCode::OK);
+    let diagnostics_with_backlog_body = diagnostics_with_backlog
+        .into_body()
+        .collect()
+        .await
+        .expect("diagnostics with backlog body should collect")
+        .to_bytes();
+    let diagnostics_with_backlog_json: serde_json::Value =
+        serde_json::from_slice(&diagnostics_with_backlog_body)
+            .expect("diagnostics with backlog should be valid json");
+    assert_eq!(
+        diagnostics_with_backlog_json["realtimeInbox"]["status"],
+        "degraded"
+    );
+    assert_eq!(
+        diagnostics_with_backlog_json["realtimeInbox"]["deviceWindowCount"],
+        1
+    );
+    assert_eq!(
+        diagnostics_with_backlog_json["realtimeInbox"]["pendingEventCount"],
+        1
+    );
+    assert_eq!(
+        diagnostics_with_backlog_json["realtimeInbox"]["maxDeviceWindowEventCount"],
+        1
+    );
+    assert_eq!(
+        diagnostics_with_backlog_json["realtimeInbox"]["deviceWindowCapacity"],
+        1000
+    );
+    assert_eq!(
+        diagnostics_with_backlog_json["realtimeInbox"]["maxDeviceWindowUsagePermille"],
+        1
+    );
+    assert_eq!(
+        diagnostics_with_backlog_json["realtimeInbox"]["maxTrimmedThroughSeq"],
+        0
+    );
+    assert_eq!(
+        diagnostics_with_backlog_json["realtimeInbox"]["capacityTrimmedEventCount"],
+        0
+    );
+    assert_eq!(
+        diagnostics_with_backlog_json["realtimeInbox"]["maxCapacityTrimmedThroughSeq"],
+        0
+    );
+    assert!(
+        diagnostics_with_backlog_json["realtimeInbox"]["lastCapacityTrimmedAt"].is_null(),
+        "ops diagnostics should not report capacity trimming for a normal one-event backlog"
+    );
+    assert!(
+        diagnostics_with_backlog_json["realtimeInbox"]["oldestPendingOccurredAt"].is_string(),
+        "ops diagnostics should expose the oldest unacked realtime event timestamp"
+    );
+    assert_eq!(
+        diagnostics_with_backlog_json["realtimeInbox"]["highRiskWindows"]
+            .as_array()
+            .expect("highRiskWindows should be an array")
+            .len(),
+        1
+    );
+    assert_eq!(
+        diagnostics_with_backlog_json["realtimeInbox"]["highRiskWindows"][0]["tenantId"],
+        "t_demo"
+    );
+    assert_eq!(
+        diagnostics_with_backlog_json["realtimeInbox"]["highRiskWindows"][0]["principalKind"],
+        "user"
+    );
+    assert_eq!(
+        diagnostics_with_backlog_json["realtimeInbox"]["highRiskWindows"][0]["principalId"],
+        "u_demo"
+    );
+    assert_eq!(
+        diagnostics_with_backlog_json["realtimeInbox"]["highRiskWindows"][0]["deviceId"],
+        "d_pad"
+    );
+    assert_eq!(
+        diagnostics_with_backlog_json["realtimeInbox"]["highRiskWindows"][0]["pendingEventCount"],
+        1
+    );
+    assert!(
+        diagnostics_with_backlog_json["realtimeInbox"]["highRiskWindows"][0]
+            .get("payload")
+            .is_none(),
+        "ops realtime inbox diagnostics must not expose event payloads"
+    );
+
+    let health_with_backlog = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/ops/health")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .header("x-permissions", "ops.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("ops health with backlog should return response");
+    assert_eq!(health_with_backlog.status(), StatusCode::OK);
+    let health_with_backlog_body = health_with_backlog
+        .into_body()
+        .collect()
+        .await
+        .expect("health with backlog body should collect")
+        .to_bytes();
+    let health_with_backlog_json: serde_json::Value =
+        serde_json::from_slice(&health_with_backlog_body)
+            .expect("health with backlog should be valid json");
+    assert_eq!(
+        health_with_backlog_json["realtimeInbox"]["status"],
+        "degraded"
+    );
+    assert_eq!(
+        health_with_backlog_json["realtimeInbox"]["pendingEventCount"],
+        1
+    );
+    assert_eq!(
+        health_with_backlog_json["realtimeInbox"]["maxDeviceWindowUsagePermille"],
+        1
+    );
+
+    let ack_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/realtime/events/ack")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .header("x-device-id", "d_pad")
+                .header("x-session-id", "s_pad")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"ackedSeq":1}"#))
+                .unwrap(),
+        )
+        .await
+        .expect("ack request should succeed");
+    assert_eq!(ack_response.status(), StatusCode::OK);
+
+    let diagnostics_after_ack = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/ops/diagnostics")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .header("x-permissions", "ops.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("ops diagnostics after ack should return response");
+    assert_eq!(diagnostics_after_ack.status(), StatusCode::OK);
+    let diagnostics_after_ack_body = diagnostics_after_ack
+        .into_body()
+        .collect()
+        .await
+        .expect("diagnostics after ack body should collect")
+        .to_bytes();
+    let diagnostics_after_ack_json: serde_json::Value =
+        serde_json::from_slice(&diagnostics_after_ack_body)
+            .expect("diagnostics after ack should be valid json");
+    assert_eq!(diagnostics_after_ack_json["realtimeInbox"]["status"], "ok");
+    assert_eq!(
+        diagnostics_after_ack_json["realtimeInbox"]["deviceWindowCount"],
+        1
+    );
+    assert_eq!(
+        diagnostics_after_ack_json["realtimeInbox"]["pendingEventCount"],
+        0
+    );
+    assert_eq!(
+        diagnostics_after_ack_json["realtimeInbox"]["maxDeviceWindowEventCount"],
+        0
+    );
+    assert_eq!(
+        diagnostics_after_ack_json["realtimeInbox"]["deviceWindowCapacity"],
+        1000
+    );
+    assert_eq!(
+        diagnostics_after_ack_json["realtimeInbox"]["maxDeviceWindowUsagePermille"],
+        0
+    );
+    assert_eq!(
+        diagnostics_after_ack_json["realtimeInbox"]["maxTrimmedThroughSeq"],
+        1
+    );
+    assert_eq!(
+        diagnostics_after_ack_json["realtimeInbox"]["capacityTrimmedEventCount"],
+        0
+    );
+    assert_eq!(
+        diagnostics_after_ack_json["realtimeInbox"]["maxCapacityTrimmedThroughSeq"],
+        0
+    );
+    assert!(
+        diagnostics_after_ack_json["realtimeInbox"]["lastCapacityTrimmedAt"].is_null(),
+        "ACK trimming should not be reported as capacity pressure"
+    );
+    assert!(
+        diagnostics_after_ack_json["realtimeInbox"]["oldestPendingOccurredAt"].is_null(),
+        "ops diagnostics should clear the oldest pending timestamp after ack trim"
+    );
+    assert_eq!(
+        diagnostics_after_ack_json["realtimeInbox"]["highRiskWindows"]
+            .as_array()
+            .expect("highRiskWindows after ack should be an array")
+            .len(),
+        0
+    );
+
+    let health_after_ack = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/ops/health")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .header("x-permissions", "ops.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("ops health after ack should return response");
+    assert_eq!(health_after_ack.status(), StatusCode::OK);
+    let health_after_ack_body = health_after_ack
+        .into_body()
+        .collect()
+        .await
+        .expect("health after ack body should collect")
+        .to_bytes();
+    let health_after_ack_json: serde_json::Value = serde_json::from_slice(&health_after_ack_body)
+        .expect("health after ack should be valid json");
+    assert_eq!(health_after_ack_json["realtimeInbox"]["status"], "ok");
+    assert_eq!(
+        health_after_ack_json["realtimeInbox"]["pendingEventCount"],
+        0
+    );
 
     let _ = fs::remove_dir_all(runtime_dir);
 }

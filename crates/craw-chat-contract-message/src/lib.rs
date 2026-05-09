@@ -44,28 +44,36 @@ pub struct TimelineProjectionRecord {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TimelineProjectionBatch {
-    pub conversation_id: String,
+    pub tenant_id: String,
+    pub timeline_scope: String,
     pub records: Vec<TimelineProjectionRecord>,
 }
 
 pub trait TimelineProjectionStore {
     fn upsert_timeline_entry(
         &self,
-        conversation_id: &str,
+        tenant_id: &str,
+        timeline_scope: &str,
         message_seq: u64,
         payload: &str,
     ) -> Result<(), ContractError>;
 
-    fn load_timeline(&self, conversation_id: &str) -> Result<Vec<(u64, String)>, ContractError>;
+    fn load_timeline(
+        &self,
+        tenant_id: &str,
+        timeline_scope: &str,
+    ) -> Result<Vec<(u64, String)>, ContractError>;
 
     fn upsert_timeline_entries(
         &self,
-        conversation_id: &str,
+        tenant_id: &str,
+        timeline_scope: &str,
         records: &[TimelineProjectionRecord],
     ) -> Result<(), ContractError> {
         for record in records {
             self.upsert_timeline_entry(
-                conversation_id,
+                tenant_id,
+                timeline_scope,
                 record.message_seq,
                 record.payload.as_str(),
             )?;
@@ -78,7 +86,11 @@ pub trait TimelineProjectionStore {
         batches: &[TimelineProjectionBatch],
     ) -> Result<(), ContractError> {
         for batch in batches {
-            self.upsert_timeline_entries(batch.conversation_id.as_str(), &batch.records)?;
+            self.upsert_timeline_entries(
+                batch.tenant_id.as_str(),
+                batch.timeline_scope.as_str(),
+                &batch.records,
+            )?;
         }
         Ok(())
     }

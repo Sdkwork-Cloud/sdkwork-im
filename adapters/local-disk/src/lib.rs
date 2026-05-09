@@ -17,8 +17,9 @@ pub use ops::{
 };
 pub use projection::{FileTimelineProjectionStore, validate_timeline_projection_store_file};
 pub use realtime::{
-    FileRealtimeCheckpointStore, FileRealtimeDisconnectFenceStore, FileRealtimeSubscriptionStore,
-    validate_realtime_checkpoint_store_file, validate_realtime_disconnect_fence_store_file,
+    FileRealtimeCheckpointStore, FileRealtimeDisconnectFenceStore, FileRealtimeEventWindowStore,
+    FileRealtimeSubscriptionStore, validate_realtime_checkpoint_store_file,
+    validate_realtime_disconnect_fence_store_file, validate_realtime_event_window_store_file,
     validate_realtime_subscription_store_file,
 };
 pub use state::{

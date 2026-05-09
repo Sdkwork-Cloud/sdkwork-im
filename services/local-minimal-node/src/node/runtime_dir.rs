@@ -6,10 +6,11 @@ use im_time::utc_now_rfc3339_millis;
 
 mod preview;
 
-const EXPECTED_RUNTIME_STATE_FILES: [&str; 12] = [
+const EXPECTED_RUNTIME_STATE_FILES: [&str; 13] = [
     "commit-journal.json",
     "realtime-disconnect-fences.json",
     "realtime-checkpoints.json",
+    "realtime-event-windows.json",
     "realtime-subscriptions.json",
     "presence-state.json",
     "device-twin-state.json",
@@ -250,6 +251,8 @@ fn validate_runtime_state_file(
         "realtime-checkpoints.json" => {
             validate_realtime_checkpoint_store_file(file_path).map_err(runtime_state_parse_failure)
         }
+        "realtime-event-windows.json" => validate_realtime_event_window_store_file(file_path)
+            .map_err(runtime_state_parse_failure),
         "realtime-subscriptions.json" => validate_realtime_subscription_store_file(file_path)
             .map_err(runtime_state_parse_failure),
         "presence-state.json" => {
@@ -282,7 +285,11 @@ fn validate_runtime_state_file(
 
 fn empty_runtime_state_file_content(file_name: &str) -> &'static str {
     match file_name {
-        "commit-journal.json" => "[]\n",
+        "commit-journal.json" => "",
+        "presence-state.json" => {
+            "{\"by_device\":{},\"presence_by_principal\":{},\"online_by_seen_at\":{}}\n"
+        }
+        "notification-tasks.json" => "{\"by_notification\":{},\"tasks_by_recipient\":{}}\n",
         _ => "{}\n",
     }
 }

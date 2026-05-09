@@ -13,7 +13,7 @@ impl TimelineProjectionService {
         if let Some(entries) =
             lock_projection_mutex(&self.entries, "projection store").get_mut(key.as_str())
             && let Some(entry) = entries
-                .iter_mut()
+                .values_mut()
                 .find(|item| item.message_id.as_str() == message_id)
         {
             entry.summary = summary;

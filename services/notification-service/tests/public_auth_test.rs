@@ -30,6 +30,7 @@ fn demo_bearer() -> String {
             &json!({
                 "tenant_id": "t_demo",
                 "sub": "u_demo",
+                "actor_kind": "user",
                 "sid": "s_demo"
             }),
             TEST_PUBLIC_SECRET,
@@ -105,6 +106,7 @@ async fn test_public_app_rejects_cross_recipient_notification_request_without_pe
                         "category":"message.new",
                         "channel":"inapp",
                         "recipientId":"u_target",
+                        "recipientKind":"user",
                         "title":"New message",
                         "body":"hello"
                     }"#,
@@ -145,6 +147,7 @@ async fn test_public_app_accepts_self_notification_request() {
                         "category":"message.new",
                         "channel":"inapp",
                         "recipientId":"u_demo",
+                        "recipientKind":"user",
                         "title":"New message",
                         "body":"hello"
                     }"#,

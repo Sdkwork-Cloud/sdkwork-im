@@ -69,6 +69,7 @@ async fn test_request_and_get_execution_over_http() {
                 .uri("/api/v1/automation/executions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -113,6 +114,7 @@ async fn test_request_and_get_execution_over_http() {
                 .uri("/api/v1/automation/executions/ae_http_demo")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -144,6 +146,7 @@ async fn test_duplicate_execution_id_is_idempotent_and_conflicting_retry_is_reje
                 .uri("/api/v1/automation/executions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -178,6 +181,7 @@ async fn test_duplicate_execution_id_is_idempotent_and_conflicting_retry_is_reje
                 .uri("/api/v1/automation/executions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -216,6 +220,7 @@ async fn test_duplicate_execution_id_is_idempotent_and_conflicting_retry_is_reje
                 .uri("/api/v1/automation/executions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -255,6 +260,7 @@ async fn test_execution_requests_are_isolated_by_actor_kind_over_http() {
                 .uri("/api/v1/automation/executions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -281,7 +287,7 @@ async fn test_execution_requests_are_isolated_by_actor_kind_over_http() {
         serde_json::from_slice(&user_body).expect("user body should be valid json");
     assert_eq!(
         user_json["requestKey"],
-        "t_demo:user:u_demo:ae_http_kind_isolation"
+        "6#t_demo4#user6#u_demo22#ae_http_kind_isolation"
     );
     assert_eq!(user_json["principalKind"], "user");
 
@@ -320,7 +326,7 @@ async fn test_execution_requests_are_isolated_by_actor_kind_over_http() {
         serde_json::from_slice(&system_body).expect("system body should be valid json");
     assert_eq!(
         system_json["requestKey"],
-        "t_demo:system:u_demo:ae_http_kind_isolation"
+        "6#t_demo6#system6#u_demo22#ae_http_kind_isolation"
     );
     assert_eq!(system_json["principalKind"], "system");
 
@@ -331,6 +337,7 @@ async fn test_execution_requests_are_isolated_by_actor_kind_over_http() {
                 .uri("/api/v1/automation/executions/ae_http_kind_isolation")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -385,6 +392,7 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
                 .uri("/api/v1/automation/executions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -410,6 +418,7 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
                 .uri("/api/v1/automation/agent-responses")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -454,6 +463,7 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
                 .uri("/api/v1/automation/agent-responses/st_http_agent/frames")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -490,6 +500,7 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
                 .uri("/api/v1/automation/agent-tool-calls")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -523,6 +534,7 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
                 .uri("/api/v1/automation/executions/ae_http_agent/agent-tool-calls/tc_http_lookup/complete")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -552,6 +564,7 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
                 .uri("/api/v1/automation/agent-responses/st_http_agent/complete")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -588,6 +601,7 @@ async fn test_automation_governance_surface_and_operator_override_over_http() {
                 .uri("/api/v1/automation/governance")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -619,6 +633,7 @@ async fn test_automation_governance_surface_and_operator_override_over_http() {
                 .uri("/api/v1/automation/executions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -644,6 +659,7 @@ async fn test_automation_governance_surface_and_operator_override_over_http() {
                 .uri("/api/v1/automation/agent-responses")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -678,6 +694,7 @@ async fn test_automation_governance_surface_and_operator_override_over_http() {
                 .uri("/api/v1/automation/agent-tool-calls")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -711,6 +728,7 @@ async fn test_automation_governance_surface_and_operator_override_over_http() {
                 .uri("/api/v1/automation/agent-tool-calls")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header(
                     "x-permissions",
                     "automation.execute automation.read automation.operator_override",
@@ -745,6 +763,7 @@ async fn test_automation_governance_surface_and_operator_override_over_http() {
                 .uri("/api/v1/automation/governance")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header(
                     "x-permissions",
                     "automation.read automation.operator_override",
@@ -787,6 +806,7 @@ async fn test_request_execution_rejects_oversized_input_payload_over_http() {
                 .uri("/api/v1/automation/executions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
@@ -817,6 +837,7 @@ async fn test_request_execution_rejects_oversized_execution_id_over_http() {
                 .uri("/api/v1/automation/executions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
@@ -837,6 +858,7 @@ async fn test_get_execution_rejects_oversized_execution_id_over_http() {
                 .uri(format!("/api/v1/automation/executions/{}", "e".repeat(257)))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -858,6 +880,7 @@ async fn test_start_agent_response_rejects_oversized_stream_id_over_http() {
                 .uri("/api/v1/automation/executions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -899,6 +922,7 @@ async fn test_start_agent_response_rejects_oversized_stream_id_over_http() {
                 .uri("/api/v1/automation/agent-responses")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
@@ -984,6 +1008,7 @@ async fn test_start_agent_response_rejects_oversized_stream_contract_fields_over
                     .uri("/api/v1/automation/executions")
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_demo")
+                    .header("x-actor-kind", "user")
                     .header("x-permissions", "automation.execute automation.read")
                     .header("content-type", "application/json")
                     .body(Body::from(
@@ -1010,6 +1035,7 @@ async fn test_start_agent_response_rejects_oversized_stream_contract_fields_over
                     .uri("/api/v1/automation/agent-responses")
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_demo")
+                    .header("x-actor-kind", "user")
                     .header("x-permissions", "automation.execute automation.read")
                     .header("content-type", "application/json")
                     .body(Body::from(start_request_body.to_string()))
@@ -1037,6 +1063,7 @@ async fn test_start_agent_response_rejects_oversized_member_id_over_http() {
                 .uri("/api/v1/automation/executions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1078,6 +1105,7 @@ async fn test_start_agent_response_rejects_oversized_member_id_over_http() {
                 .uri("/api/v1/automation/agent-responses")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
@@ -1116,6 +1144,7 @@ async fn test_start_agent_response_rejects_oversized_execution_id_over_http() {
                 .uri("/api/v1/automation/agent-responses")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
@@ -1140,6 +1169,7 @@ async fn test_append_agent_response_delta_rejects_oversized_stream_id_path_over_
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1172,6 +1202,7 @@ async fn test_start_agent_response_rejects_oversized_agent_metadata_over_http() 
                 .uri("/api/v1/automation/executions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1212,6 +1243,7 @@ async fn test_start_agent_response_rejects_oversized_agent_metadata_over_http() 
                 .uri("/api/v1/automation/agent-responses")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
@@ -1234,6 +1266,7 @@ async fn test_complete_agent_response_rejects_oversized_result_message_id_over_h
                 .uri("/api/v1/automation/executions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1259,6 +1292,7 @@ async fn test_complete_agent_response_rejects_oversized_result_message_id_over_h
                 .uri("/api/v1/automation/agent-responses")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1297,6 +1331,7 @@ async fn test_complete_agent_response_rejects_oversized_result_message_id_over_h
                 .uri("/api/v1/automation/agent-responses/st_http_oversized_result_message_id/complete")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
@@ -1321,6 +1356,7 @@ async fn test_complete_agent_response_rejects_oversized_stream_id_path_over_http
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1361,6 +1397,7 @@ async fn test_start_agent_response_rejects_oversized_agent_identity_fields_over_
                     .uri("/api/v1/automation/executions")
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_demo")
+                    .header("x-actor-kind", "user")
                     .header("x-permissions", "automation.execute automation.read")
                     .header("content-type", "application/json")
                     .body(Body::from(
@@ -1403,6 +1440,7 @@ async fn test_start_agent_response_rejects_oversized_agent_identity_fields_over_
                     .uri("/api/v1/automation/agent-responses")
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_demo")
+                    .header("x-actor-kind", "user")
                     .header("x-permissions", "automation.execute automation.read")
                     .header("content-type", "application/json")
                     .body(Body::from(request_body))
@@ -1430,6 +1468,7 @@ async fn test_append_agent_response_delta_rejects_oversized_payload_over_http() 
                 .uri("/api/v1/automation/executions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1455,6 +1494,7 @@ async fn test_append_agent_response_delta_rejects_oversized_payload_over_http() 
                 .uri("/api/v1/automation/agent-responses")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1498,6 +1538,7 @@ async fn test_append_agent_response_delta_rejects_oversized_payload_over_http() 
                 .uri("/api/v1/automation/agent-responses/st_http_oversized_delta/frames")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(delta_request_body))
@@ -1559,6 +1600,7 @@ async fn test_append_agent_response_delta_rejects_oversized_contract_fields_over
                     .uri("/api/v1/automation/executions")
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_demo")
+                    .header("x-actor-kind", "user")
                     .header("x-permissions", "automation.execute automation.read")
                     .header("content-type", "application/json")
                     .body(Body::from(
@@ -1585,6 +1627,7 @@ async fn test_append_agent_response_delta_rejects_oversized_contract_fields_over
                     .uri("/api/v1/automation/agent-responses")
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_demo")
+                    .header("x-actor-kind", "user")
                     .header("x-permissions", "automation.execute automation.read")
                     .header("content-type", "application/json")
                     .body(Body::from(
@@ -1619,6 +1662,7 @@ async fn test_append_agent_response_delta_rejects_oversized_contract_fields_over
                     .uri("/api/v1/automation/agent-responses/st_http_oversized_delta_contract/frames")
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_demo")
+                    .header("x-actor-kind", "user")
                     .header("x-permissions", "automation.execute automation.read")
                     .header("content-type", "application/json")
                     .body(Body::from(delta_request_body.to_string()))
@@ -1646,6 +1690,7 @@ async fn test_request_agent_tool_call_rejects_oversized_tool_call_id_over_http()
                 .uri("/api/v1/automation/executions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1671,6 +1716,7 @@ async fn test_request_agent_tool_call_rejects_oversized_tool_call_id_over_http()
                 .uri("/api/v1/automation/agent-responses")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1711,6 +1757,7 @@ async fn test_request_agent_tool_call_rejects_oversized_tool_call_id_over_http()
                 .uri("/api/v1/automation/agent-tool-calls")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
@@ -1739,6 +1786,7 @@ async fn test_request_agent_tool_call_rejects_oversized_execution_id_over_http()
                 .uri("/api/v1/automation/agent-tool-calls")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
@@ -1768,6 +1816,7 @@ async fn test_complete_agent_tool_call_rejects_oversized_path_ids_over_http() {
                     ))
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_demo")
+                    .header("x-actor-kind", "user")
                     .header("x-permissions", "automation.execute automation.read")
                     .header("content-type", "application/json")
                     .body(Body::from(
@@ -1800,6 +1849,7 @@ async fn test_request_agent_tool_call_rejects_oversized_tool_name_over_http() {
                 .uri("/api/v1/automation/executions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1825,6 +1875,7 @@ async fn test_request_agent_tool_call_rejects_oversized_tool_name_over_http() {
                 .uri("/api/v1/automation/agent-responses")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1865,6 +1916,7 @@ async fn test_request_agent_tool_call_rejects_oversized_tool_name_over_http() {
                 .uri("/api/v1/automation/agent-tool-calls")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
@@ -1887,6 +1939,7 @@ async fn test_append_agent_response_delta_rejects_oversized_attributes_over_http
                 .uri("/api/v1/automation/executions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1912,6 +1965,7 @@ async fn test_append_agent_response_delta_rejects_oversized_attributes_over_http
                 .uri("/api/v1/automation/agent-responses")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1957,6 +2011,7 @@ async fn test_append_agent_response_delta_rejects_oversized_attributes_over_http
                 .uri("/api/v1/automation/agent-responses/st_http_oversized_delta_attrs/frames")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(delta_request_body))
@@ -1982,6 +2037,7 @@ async fn test_request_agent_tool_call_rejects_after_agent_response_completed_ove
                 .uri("/api/v1/automation/executions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2007,6 +2063,7 @@ async fn test_request_agent_tool_call_rejects_after_agent_response_completed_ove
                 .uri("/api/v1/automation/agent-responses")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2041,6 +2098,7 @@ async fn test_request_agent_tool_call_rejects_after_agent_response_completed_ove
                 .uri("/api/v1/automation/agent-responses/st_http_tool_after_complete/complete")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2062,6 +2120,7 @@ async fn test_request_agent_tool_call_rejects_after_agent_response_completed_ove
                 .uri("/api/v1/automation/agent-tool-calls")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2091,6 +2150,7 @@ async fn test_complete_agent_response_rejects_when_tool_call_pending_over_http()
                 .uri("/api/v1/automation/executions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2116,6 +2176,7 @@ async fn test_complete_agent_response_rejects_when_tool_call_pending_over_http()
                 .uri("/api/v1/automation/agent-responses")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2150,6 +2211,7 @@ async fn test_complete_agent_response_rejects_when_tool_call_pending_over_http()
                 .uri("/api/v1/automation/agent-tool-calls")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2174,6 +2236,7 @@ async fn test_complete_agent_response_rejects_when_tool_call_pending_over_http()
                 .uri("/api/v1/automation/agent-responses/st_http_pending_tool_guard/complete")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2210,6 +2273,7 @@ async fn test_complete_agent_response_rejects_when_tool_call_pending_over_http()
                 )
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2230,6 +2294,7 @@ async fn test_complete_agent_response_rejects_when_tool_call_pending_over_http()
                 .uri("/api/v1/automation/agent-responses/st_http_pending_tool_guard/complete")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(

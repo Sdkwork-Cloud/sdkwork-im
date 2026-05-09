@@ -27,32 +27,43 @@ fn write_state_file(root: &Path, file_name: &str, content: &str) {
 }
 
 fn write_valid_backup_snapshot(root: &Path, owner_node_id: &str) {
-    write_state_file(root, "commit-journal.json", "[]");
+    write_state_file(root, "commit-journal.json", "");
     for file_name in [
         "realtime-checkpoints.json",
         "realtime-subscriptions.json",
-        "presence-state.json",
         "device-twin-state.json",
         "stream-state.json",
         "rtc-state.json",
-        "notification-tasks.json",
         "automation-executions.json",
         "projection-metadata.json",
         "projection-timeline.json",
+        "realtime-event-windows.json",
     ] {
         write_state_file(root, file_name, "{}");
     }
+    write_state_file(
+        root,
+        "presence-state.json",
+        "{\"by_device\":{},\"presence_by_principal\":{},\"online_by_seen_at\":{}}",
+    );
+    write_state_file(
+        root,
+        "notification-tasks.json",
+        "{\"by_notification\":{},\"tasks_by_recipient\":{}}",
+    );
     write_state_file(
         root,
         "realtime-disconnect-fences.json",
         serde_json::to_string_pretty(&json!({
             "t_demo:u_demo:d_demo": {
                 "tenant_id": "t_demo",
+                "principal_kind": "user",
                 "principal_id": "u_demo",
                 "device_id": "d_demo",
                 "session_id": "s_demo",
                 "owner_node_id": owner_node_id,
-                "disconnected_at": "2026-04-06T00:00:00.000Z"
+                "disconnected_at": "2026-04-06T00:00:00.000Z",
+                "fence_token": format!("fence:t_demo:user:u_demo:d_demo:s_demo:{owner_node_id}:2026-04-06T00:00:00.000Z")
             }
         }))
         .expect("disconnect fence snapshot should serialize")
@@ -73,11 +84,13 @@ fn test_restore_runtime_dir_restores_selected_snapshot_and_creates_pre_restore_b
         serde_json::to_string_pretty(&json!({
             "t_demo:u_demo:d_demo": {
                 "tenant_id": "t_demo",
+                "principal_kind": "user",
                 "principal_id": "u_demo",
                 "device_id": "d_demo",
                 "session_id": "s_demo",
                 "owner_node_id": "node_current",
-                "disconnected_at": "2026-04-06T00:00:00.000Z"
+                "disconnected_at": "2026-04-06T00:00:00.000Z",
+                "fence_token": "fence:t_demo:user:u_demo:d_demo:s_demo:node_current:2026-04-06T00:00:00.000Z"
             }
         }))
         .expect("current fence snapshot should serialize")
@@ -122,7 +135,7 @@ fn test_restore_runtime_dir_restores_selected_snapshot_and_creates_pre_restore_b
     assert_eq!(report.status, "restored");
     assert_eq!(report.before.status, "ok");
     assert_eq!(report.after.status, "ok");
-    assert_eq!(report.restored_file_count, 12);
+    assert_eq!(report.restored_file_count, 13);
     assert_eq!(report.skipped_file_count, 0);
     assert_eq!(report.source_backup_dir, backup_dir.display().to_string());
     assert_eq!(
@@ -206,11 +219,13 @@ fn test_restore_runtime_dir_rejects_mismatched_preview_fingerprint_without_mutat
         serde_json::to_string_pretty(&json!({
             "t_demo:u_demo:d_demo": {
                 "tenant_id": "t_demo",
+                "principal_kind": "user",
                 "principal_id": "u_demo",
                 "device_id": "d_demo",
                 "session_id": "s_demo",
                 "owner_node_id": "node_current",
-                "disconnected_at": "2026-04-06T00:00:00.000Z"
+                "disconnected_at": "2026-04-06T00:00:00.000Z",
+                "fence_token": "fence:t_demo:user:u_demo:d_demo:s_demo:node_current:2026-04-06T00:00:00.000Z"
             }
         }))
         .expect("current fence snapshot should serialize")

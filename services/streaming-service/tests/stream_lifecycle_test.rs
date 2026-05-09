@@ -19,6 +19,7 @@ async fn test_stream_checkpoint_and_complete_over_http() {
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -44,6 +45,7 @@ async fn test_stream_checkpoint_and_complete_over_http() {
                 .uri("/api/v1/streams/st_lifecycle/checkpoint")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -73,6 +75,7 @@ async fn test_stream_checkpoint_and_complete_over_http() {
                 .uri("/api/v1/streams/st_lifecycle/complete")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -110,6 +113,7 @@ async fn test_stream_abort_over_http_closes_stream_without_result_message() {
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -135,6 +139,7 @@ async fn test_stream_abort_over_http_closes_stream_without_result_message() {
                 .uri("/api/v1/streams/st_abort/abort")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -167,6 +172,7 @@ async fn test_stream_abort_over_http_closes_stream_without_result_message() {
                 .uri("/api/v1/streams/st_abort/complete")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -193,6 +199,7 @@ async fn test_stream_append_and_list_frames_over_http() {
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -219,6 +226,7 @@ async fn test_stream_append_and_list_frames_over_http() {
                 .uri("/api/v1/streams/st_frames/frames")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -259,6 +267,7 @@ async fn test_stream_append_and_list_frames_over_http() {
                 .uri("/api/v1/streams/st_frames/frames")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -282,6 +291,7 @@ async fn test_stream_append_and_list_frames_over_http() {
                 .uri("/api/v1/streams/st_frames/frames?afterFrameSeq=0&limit=10")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -315,6 +325,7 @@ async fn test_request_scoped_stream_append_rejects_different_actor_over_http() {
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -339,6 +350,7 @@ async fn test_request_scoped_stream_append_rejects_different_actor_over_http() {
                 .uri("/api/v1/streams/st_request_scope_owner_only_append/frames")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_other_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -377,6 +389,7 @@ async fn test_stream_runtime_timestamps_advance_between_distinct_mutations() {
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -416,6 +429,7 @@ async fn test_stream_runtime_timestamps_advance_between_distinct_mutations() {
                 .uri("/api/v1/streams/st_timestamps/frames")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -454,6 +468,7 @@ async fn test_stream_runtime_timestamps_advance_between_distinct_mutations() {
                 .uri("/api/v1/streams/st_timestamps/frames")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -491,6 +506,7 @@ async fn test_stream_runtime_timestamps_advance_between_distinct_mutations() {
                 .uri("/api/v1/streams/st_timestamps/complete")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -533,6 +549,7 @@ async fn test_stream_append_enforces_ordering_and_idempotent_retry_rules() {
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -558,6 +575,7 @@ async fn test_stream_append_enforces_ordering_and_idempotent_retry_rules() {
                 .uri("/api/v1/streams/st_rules/frames")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -596,6 +614,7 @@ async fn test_stream_append_enforces_ordering_and_idempotent_retry_rules() {
                 .uri("/api/v1/streams/st_rules/frames")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -638,6 +657,7 @@ async fn test_stream_append_enforces_ordering_and_idempotent_retry_rules() {
                 .uri("/api/v1/streams/st_rules/frames")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -671,6 +691,7 @@ async fn test_stream_append_enforces_ordering_and_idempotent_retry_rules() {
                 .uri("/api/v1/streams/st_rules/frames")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -709,6 +730,7 @@ async fn test_stream_append_rejects_closed_stream() {
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -734,6 +756,7 @@ async fn test_stream_append_rejects_closed_stream() {
                 .uri("/api/v1/streams/st_closed/complete")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -754,6 +777,7 @@ async fn test_stream_append_rejects_closed_stream() {
                 .uri("/api/v1/streams/st_closed/frames")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -793,6 +817,7 @@ async fn test_duplicate_open_stream_is_idempotent_and_conflicting_retry_is_rejec
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -832,6 +857,7 @@ async fn test_duplicate_open_stream_is_idempotent_and_conflicting_retry_is_rejec
                 .uri("/api/v1/streams/st_open_idempotent/frames")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -857,6 +883,7 @@ async fn test_duplicate_open_stream_is_idempotent_and_conflicting_retry_is_rejec
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -901,6 +928,7 @@ async fn test_duplicate_open_stream_is_idempotent_and_conflicting_retry_is_rejec
                 .uri("/api/v1/streams/st_open_idempotent/frames?afterFrameSeq=0&limit=10")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -925,6 +953,7 @@ async fn test_duplicate_open_stream_is_idempotent_and_conflicting_retry_is_rejec
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -964,6 +993,7 @@ async fn test_duplicate_open_stream_with_different_actor_is_conflict() {
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -989,11 +1019,9 @@ async fn test_duplicate_open_stream_with_different_actor_is_conflict() {
     let first_open_json: serde_json::Value =
         serde_json::from_slice(&first_open_body).expect("first open should be valid json");
     assert_eq!(first_open_json["deliveryStatus"], "applied");
-    assert!(
-        first_open_json["requestKey"]
-            .as_str()
-            .expect("first open requestKey should be present")
-            .contains(":u_demo:open:st_actor_scope_open")
+    assert_eq!(
+        first_open_json["requestKey"],
+        "6#t_demo4#user6#u_demo4#open19#st_actor_scope_open"
     );
 
     let conflicting_open = app
@@ -1003,6 +1031,7 @@ async fn test_duplicate_open_stream_with_different_actor_is_conflict() {
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_other_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1042,6 +1071,7 @@ async fn test_duplicate_complete_stream_request_is_idempotent_and_conflicting_re
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1067,6 +1097,7 @@ async fn test_duplicate_complete_stream_request_is_idempotent_and_conflicting_re
                 .uri("/api/v1/streams/st_complete_idempotent/frames")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1091,6 +1122,7 @@ async fn test_duplicate_complete_stream_request_is_idempotent_and_conflicting_re
                 .uri("/api/v1/streams/st_complete_idempotent/complete")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1126,6 +1158,7 @@ async fn test_duplicate_complete_stream_request_is_idempotent_and_conflicting_re
                 .uri("/api/v1/streams/st_complete_idempotent/complete")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1164,6 +1197,7 @@ async fn test_duplicate_complete_stream_request_is_idempotent_and_conflicting_re
                 .uri("/api/v1/streams/st_complete_idempotent/complete")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1200,6 +1234,7 @@ async fn test_duplicate_complete_stream_request_with_different_actor_is_not_foun
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1225,6 +1260,7 @@ async fn test_duplicate_complete_stream_request_with_different_actor_is_not_foun
                 .uri("/api/v1/streams/st_actor_scope_complete/frames")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1249,6 +1285,7 @@ async fn test_duplicate_complete_stream_request_with_different_actor_is_not_foun
                 .uri("/api/v1/streams/st_actor_scope_complete/complete")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1270,11 +1307,9 @@ async fn test_duplicate_complete_stream_request_with_different_actor_is_not_foun
     let first_complete_json: serde_json::Value =
         serde_json::from_slice(&first_complete_body).expect("first complete should be valid json");
     assert_eq!(first_complete_json["deliveryStatus"], "applied");
-    assert!(
-        first_complete_json["requestKey"]
-            .as_str()
-            .expect("first complete requestKey should be present")
-            .contains(":u_demo:complete:st_actor_scope_complete")
+    assert_eq!(
+        first_complete_json["requestKey"],
+        "6#t_demo4#user6#u_demo8#complete23#st_actor_scope_complete"
     );
 
     let hidden_complete = app
@@ -1284,6 +1319,7 @@ async fn test_duplicate_complete_stream_request_with_different_actor_is_not_foun
                 .uri("/api/v1/streams/st_actor_scope_complete/complete")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_other_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1319,6 +1355,7 @@ async fn test_duplicate_abort_stream_request_is_idempotent_and_conflicting_retry
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1344,6 +1381,7 @@ async fn test_duplicate_abort_stream_request_is_idempotent_and_conflicting_retry
                 .uri("/api/v1/streams/st_abort_idempotent/frames")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1368,6 +1406,7 @@ async fn test_duplicate_abort_stream_request_is_idempotent_and_conflicting_retry
                 .uri("/api/v1/streams/st_abort_idempotent/abort")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1405,6 +1444,7 @@ async fn test_duplicate_abort_stream_request_is_idempotent_and_conflicting_retry
                 .uri("/api/v1/streams/st_abort_idempotent/abort")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1446,6 +1486,7 @@ async fn test_duplicate_abort_stream_request_is_idempotent_and_conflicting_retry
                 .uri("/api/v1/streams/st_abort_idempotent/abort")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1481,6 +1522,7 @@ async fn test_duplicate_abort_stream_request_with_different_actor_is_not_found()
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1506,6 +1548,7 @@ async fn test_duplicate_abort_stream_request_with_different_actor_is_not_found()
                 .uri("/api/v1/streams/st_actor_scope_abort/frames")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1530,6 +1573,7 @@ async fn test_duplicate_abort_stream_request_with_different_actor_is_not_found()
                 .uri("/api/v1/streams/st_actor_scope_abort/abort")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1551,11 +1595,9 @@ async fn test_duplicate_abort_stream_request_with_different_actor_is_not_found()
     let first_abort_json: serde_json::Value =
         serde_json::from_slice(&first_abort_body).expect("first abort should be valid json");
     assert_eq!(first_abort_json["deliveryStatus"], "applied");
-    assert!(
-        first_abort_json["requestKey"]
-            .as_str()
-            .expect("first abort requestKey should be present")
-            .contains(":u_demo:abort:st_actor_scope_abort")
+    assert_eq!(
+        first_abort_json["requestKey"],
+        "6#t_demo4#user6#u_demo5#abort20#st_actor_scope_abort"
     );
 
     let hidden_abort = app
@@ -1565,6 +1607,7 @@ async fn test_duplicate_abort_stream_request_with_different_actor_is_not_found()
                 .uri("/api/v1/streams/st_actor_scope_abort/abort")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_other_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1600,6 +1643,7 @@ async fn test_duplicate_checkpoint_stream_request_replays_after_stream_completes
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1625,6 +1669,7 @@ async fn test_duplicate_checkpoint_stream_request_replays_after_stream_completes
                 .uri("/api/v1/streams/st_checkpoint_idempotent/checkpoint")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1659,6 +1704,7 @@ async fn test_duplicate_checkpoint_stream_request_replays_after_stream_completes
                 .uri("/api/v1/streams/st_checkpoint_idempotent/complete")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1680,6 +1726,7 @@ async fn test_duplicate_checkpoint_stream_request_replays_after_stream_completes
                 .uri("/api/v1/streams/st_checkpoint_idempotent/checkpoint")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1724,6 +1771,7 @@ async fn test_duplicate_checkpoint_stream_request_with_different_actor_is_not_fo
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1749,6 +1797,7 @@ async fn test_duplicate_checkpoint_stream_request_with_different_actor_is_not_fo
                 .uri("/api/v1/streams/st_actor_scope_checkpoint/checkpoint")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1769,11 +1818,9 @@ async fn test_duplicate_checkpoint_stream_request_with_different_actor_is_not_fo
     let first_checkpoint_json: serde_json::Value = serde_json::from_slice(&first_checkpoint_body)
         .expect("first checkpoint should be valid json");
     assert_eq!(first_checkpoint_json["deliveryStatus"], "applied");
-    assert!(
-        first_checkpoint_json["requestKey"]
-            .as_str()
-            .expect("first checkpoint requestKey should be present")
-            .contains(":u_demo:checkpoint:st_actor_scope_checkpoint:3")
+    assert_eq!(
+        first_checkpoint_json["requestKey"],
+        "6#t_demo4#user6#u_demo10#checkpoint25#st_actor_scope_checkpoint1#3"
     );
 
     let hidden_checkpoint = app
@@ -1783,6 +1830,7 @@ async fn test_duplicate_checkpoint_stream_request_with_different_actor_is_not_fo
                 .uri("/api/v1/streams/st_actor_scope_checkpoint/checkpoint")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_other_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1820,6 +1868,7 @@ async fn test_runtime_restores_stream_state_on_rebuild_with_shared_store() {
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1846,6 +1895,7 @@ async fn test_runtime_restores_stream_state_on_rebuild_with_shared_store() {
                 .uri("/api/v1/streams/st_rebuild/frames")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1874,6 +1924,7 @@ async fn test_runtime_restores_stream_state_on_rebuild_with_shared_store() {
                 .uri("/api/v1/streams/st_rebuild/frames?afterFrameSeq=0&limit=10")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1901,6 +1952,7 @@ async fn test_runtime_restores_stream_state_on_rebuild_with_shared_store() {
                 .uri("/api/v1/streams/st_rebuild/complete")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1926,6 +1978,7 @@ async fn test_stream_append_rejects_oversized_payload_over_http() {
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1960,6 +2013,7 @@ async fn test_stream_append_rejects_oversized_payload_over_http() {
                 .uri("/api/v1/streams/st_oversized_payload/frames")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(append_body))
@@ -1981,6 +2035,7 @@ async fn test_stream_append_rejects_oversized_attributes_over_http() {
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2017,6 +2072,7 @@ async fn test_stream_append_rejects_oversized_attributes_over_http() {
                 .uri("/api/v1/streams/st_oversized_attributes/frames")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(append_body))
@@ -2038,6 +2094,7 @@ async fn test_stream_complete_rejects_oversized_result_message_id_over_http() {
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2067,6 +2124,7 @@ async fn test_stream_complete_rejects_oversized_result_message_id_over_http() {
                 .uri("/api/v1/streams/st_oversized_result_message_id/complete")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(complete_body))
                 .unwrap(),
@@ -2103,6 +2161,7 @@ async fn test_stream_abort_rejects_oversized_reason_over_http() {
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2132,6 +2191,7 @@ async fn test_stream_abort_rejects_oversized_reason_over_http() {
                 .uri("/api/v1/streams/st_oversized_abort_reason/abort")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(abort_body))
                 .unwrap(),
@@ -2168,6 +2228,7 @@ async fn test_stream_list_rejects_limit_above_guardrail_over_http() {
                 .uri("/api/v1/streams")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2191,6 +2252,7 @@ async fn test_stream_list_rejects_limit_above_guardrail_over_http() {
                 .uri("/api/v1/streams/st_limit_guardrail/frames?afterFrameSeq=0&limit=1001")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2221,6 +2283,7 @@ async fn test_stream_list_rejects_oversized_stream_id_over_http() {
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )

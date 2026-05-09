@@ -10,6 +10,7 @@ use im_adapter_rtc_tencent::TencentRtcProvider;
 use im_adapter_rtc_volcengine::VolcengineRtcProvider;
 use im_adapters_local_memory::MemoryRtcStateStore;
 use im_auth_context::AuthContext;
+use im_domain_core::rtc::RtcSessionState;
 use im_platform_contracts::{
     ObjectStorageDownloadUrlRequest, ObjectStorageObjectDescriptor, ObjectStorageProvider,
     ObjectStoragePutRequest, ObjectStorageUploadSession, ObjectStorageUploadUrlRequest,
@@ -34,6 +35,7 @@ async fn test_runtime_restores_rtc_state_on_rebuild_with_shared_store() {
                 .uri("/api/v1/rtc/sessions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_demo")
                 .header("x-session-id", "s_demo")
                 .header("content-type", "application/json")
@@ -57,6 +59,7 @@ async fn test_runtime_restores_rtc_state_on_rebuild_with_shared_store() {
                 .uri("/api/v1/rtc/sessions/rtc_rebuild/invite")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_demo")
                 .header("x-session-id", "s_demo")
                 .header("content-type", "application/json")
@@ -79,6 +82,7 @@ async fn test_runtime_restores_rtc_state_on_rebuild_with_shared_store() {
                 .uri("/api/v1/rtc/sessions/rtc_rebuild/signals")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_demo")
                 .header("x-session-id", "s_demo")
                 .header("content-type", "application/json")
@@ -107,6 +111,7 @@ async fn test_runtime_restores_rtc_state_on_rebuild_with_shared_store() {
                 .uri("/api/v1/rtc/sessions/rtc_rebuild/accept")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_peer")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_peer")
                 .header("x-session-id", "s_peer")
                 .header("content-type", "application/json")
@@ -140,6 +145,7 @@ async fn test_runtime_restores_rtc_state_on_rebuild_with_shared_store() {
                 .uri("/api/v1/rtc/sessions/rtc_rebuild/signals")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_peer")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_peer")
                 .header("x-session-id", "s_peer")
                 .header("content-type", "application/json")
@@ -173,6 +179,7 @@ async fn test_runtime_restores_rtc_state_on_rebuild_with_shared_store() {
                 .uri("/api/v1/rtc/sessions/rtc_rebuild/end")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_demo")
                 .header("x-session-id", "s_demo_new")
                 .header("content-type", "application/json")
@@ -491,6 +498,83 @@ fn test_runtime_routes_create_credential_and_end_through_selected_rtc_provider()
         vec!["rtc_provider_demo:u_peer"]
     );
     assert_eq!(provider.closed_sessions(), vec!["rtc_provider_demo"]);
+}
+
+#[test]
+fn test_runtime_session_hot_path_indexes_follow_lifecycle_updates() {
+    let rtc_store = Arc::new(MemoryRtcStateStore::default());
+    let provider = Arc::new(TrackingRtcProvider::default());
+    let descriptor = provider.descriptor();
+    let runtime = rtc_signaling_service::RtcRuntime::with_store_and_provider_registry(
+        rtc_store,
+        Arc::new(StaticProviderRegistry::new([descriptor.clone()])),
+        [(
+            descriptor.plugin_id.clone(),
+            provider.clone() as Arc<dyn RtcProviderPort>,
+        )],
+    );
+    let auth = demo_auth_context();
+
+    runtime
+        .create_session(
+            &auth,
+            rtc_signaling_service::CreateRtcSessionRequest {
+                rtc_session_id: "rtc_hot_index".into(),
+                conversation_id: Some("c_hot_index".into()),
+                rtc_mode: "voice".into(),
+            },
+        )
+        .expect("rtc session should be created");
+
+    assert_eq!(
+        runtime
+            .sessions_for_conversation("t_demo", "c_hot_index")
+            .iter()
+            .map(|session| session.rtc_session_id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["rtc_hot_index"]
+    );
+    assert_eq!(
+        runtime
+            .sessions_for_state("t_demo", RtcSessionState::Started)
+            .iter()
+            .map(|session| session.rtc_session_id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["rtc_hot_index"]
+    );
+
+    runtime
+        .end_session(
+            &auth,
+            "rtc_hot_index",
+            rtc_signaling_service::UpdateRtcSessionRequest {
+                artifact_message_id: Some("msg_hot_index_end".into()),
+            },
+        )
+        .expect("rtc session should end");
+
+    assert_eq!(
+        runtime
+            .sessions_for_conversation("t_demo", "c_hot_index")
+            .iter()
+            .map(|session| session.state.clone())
+            .collect::<Vec<_>>(),
+        vec![RtcSessionState::Ended]
+    );
+    assert!(
+        runtime
+            .sessions_for_state("t_demo", RtcSessionState::Started)
+            .is_empty(),
+        "state index must remove the old started entry after lifecycle mutation"
+    );
+    assert_eq!(
+        runtime
+            .sessions_for_state("t_demo", RtcSessionState::Ended)
+            .iter()
+            .map(|session| session.rtc_session_id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["rtc_hot_index"]
+    );
 }
 
 #[test]

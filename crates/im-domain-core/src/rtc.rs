@@ -29,8 +29,7 @@ pub struct RtcSession {
     pub conversation_id: Option<String>,
     pub rtc_mode: String,
     pub initiator_id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub initiator_kind: Option<String>,
+    pub initiator_kind: String,
     pub provider_plugin_id: Option<String>,
     pub provider_session_id: Option<String>,
     pub access_endpoint: Option<String>,
@@ -47,6 +46,7 @@ pub struct RtcSession {
 pub struct RtcSignalEvent {
     pub tenant_id: String,
     pub rtc_session_id: String,
+    pub signal_seq: u64,
     pub conversation_id: Option<String>,
     pub rtc_mode: String,
     pub signal_type: String,

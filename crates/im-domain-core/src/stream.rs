@@ -51,10 +51,8 @@ impl StreamSessionState {
 pub struct StreamSession {
     pub tenant_id: String,
     pub stream_id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub owner_principal_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub owner_principal_kind: Option<String>,
+    pub owner_principal_id: String,
+    pub owner_principal_kind: String,
     pub stream_type: String,
     pub scope_kind: String,
     pub scope_id: String,

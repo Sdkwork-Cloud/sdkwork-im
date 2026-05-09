@@ -27,6 +27,7 @@ fn owner_actor(builder: RequestBuilder) -> RequestBuilder {
     builder
         .header("x-tenant-id", "t_demo")
         .header("x-user-id", "u_owner")
+        .header("x-actor-kind", "user")
         .header("x-device-id", "d_console")
         .header("x-session-id", "s_console")
 }

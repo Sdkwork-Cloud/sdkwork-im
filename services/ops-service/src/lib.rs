@@ -31,8 +31,10 @@ pub struct ServiceHealthView {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OpsHealthResponse {
+    pub status: String,
     pub items: Vec<ServiceHealthView>,
     pub projection_plane: ProjectionPlaneHealthView,
+    pub realtime_inbox: RealtimeInboxDiagnosticsView,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -248,6 +250,69 @@ impl From<ProjectionPlaneDiagnosticsView> for ProjectionPlaneHealthView {
     }
 }
 
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SideEffectOutboxDiagnosticsView {
+    pub name: String,
+    pub status: String,
+    pub pending_count: u64,
+    pub delivered_count: u64,
+    pub failed_attempt_count: u64,
+    pub oldest_pending_created_at: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RealtimeInboxDiagnosticsView {
+    pub status: String,
+    pub device_window_count: u64,
+    pub pending_event_count: u64,
+    pub max_device_window_event_count: u64,
+    pub device_window_capacity: u64,
+    pub max_device_window_usage_permille: u64,
+    pub max_trimmed_through_seq: u64,
+    pub capacity_trimmed_event_count: u64,
+    pub max_capacity_trimmed_through_seq: u64,
+    pub last_capacity_trimmed_at: Option<String>,
+    pub oldest_pending_occurred_at: Option<String>,
+    pub high_risk_windows: Vec<RealtimeInboxHighRiskWindowView>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RealtimeInboxHighRiskWindowView {
+    pub tenant_id: String,
+    pub principal_kind: String,
+    pub principal_id: String,
+    pub device_id: String,
+    pub pending_event_count: u64,
+    pub trimmed_through_seq: u64,
+    pub capacity_trimmed_event_count: u64,
+    pub capacity_trimmed_through_seq: u64,
+    pub last_capacity_trimmed_at: Option<String>,
+    pub usage_permille: u64,
+    pub oldest_pending_occurred_at: Option<String>,
+}
+
+impl Default for RealtimeInboxDiagnosticsView {
+    fn default() -> Self {
+        Self {
+            status: "ok".into(),
+            device_window_count: 0,
+            pending_event_count: 0,
+            max_device_window_event_count: 0,
+            device_window_capacity: 0,
+            max_device_window_usage_permille: 0,
+            max_trimmed_through_seq: 0,
+            capacity_trimmed_event_count: 0,
+            max_capacity_trimmed_through_seq: 0,
+            last_capacity_trimmed_at: None,
+            oldest_pending_occurred_at: None,
+            high_risk_windows: Vec::new(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiagnosticBundle {
@@ -264,6 +329,8 @@ pub struct DiagnosticBundle {
     pub provider_bindings: Vec<ProviderBindingSnapshotView>,
     pub provider_binding_drift: ProviderBindingDriftView,
     pub projection_plane: ProjectionPlaneDiagnosticsView,
+    pub side_effect_outboxes: Vec<SideEffectOutboxDiagnosticsView>,
+    pub realtime_inbox: RealtimeInboxDiagnosticsView,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -341,6 +408,8 @@ pub struct OpsRuntime {
     provider_bindings: Mutex<BTreeMap<String, ProviderBindingSnapshotView>>,
     runtime_dir_inspection: Mutex<RuntimeDirInspectionView>,
     projection_plane: Mutex<ProjectionPlaneDiagnosticsView>,
+    side_effect_outboxes: Mutex<Vec<SideEffectOutboxDiagnosticsView>>,
+    realtime_inbox: Mutex<RealtimeInboxDiagnosticsView>,
 }
 
 impl Default for OpsRuntime {
@@ -382,6 +451,8 @@ impl OpsRuntime {
             provider_bindings: Mutex::new(BTreeMap::new()),
             runtime_dir_inspection: Mutex::new(RuntimeDirInspectionView::unmanaged()),
             projection_plane: Mutex::new(ProjectionPlaneDiagnosticsView::default()),
+            side_effect_outboxes: Mutex::new(Vec::new()),
+            realtime_inbox: Mutex::new(RealtimeInboxDiagnosticsView::default()),
         }
     }
 
@@ -423,6 +494,19 @@ impl OpsRuntime {
         *lock_ops_mutex(&self.projection_plane, "ops projection-plane") = projection_plane;
     }
 
+    pub fn update_side_effect_outboxes(
+        &self,
+        mut side_effect_outboxes: Vec<SideEffectOutboxDiagnosticsView>,
+    ) {
+        side_effect_outboxes.sort_by(|left, right| left.name.cmp(&right.name));
+        *lock_ops_mutex(&self.side_effect_outboxes, "ops side-effect outboxes") =
+            side_effect_outboxes;
+    }
+
+    pub fn update_realtime_inbox(&self, realtime_inbox: RealtimeInboxDiagnosticsView) {
+        *lock_ops_mutex(&self.realtime_inbox, "ops realtime inbox") = realtime_inbox;
+    }
+
     pub fn update_projection_replay_lag(&self, mut projection_lag_items: Vec<LagItem>) {
         projection_lag_items.retain(|item| item.component == "projection_replay");
         if projection_lag_items.is_empty() {
@@ -461,9 +545,22 @@ impl OpsRuntime {
     pub fn health_view(&self) -> OpsHealthResponse {
         let projection_plane =
             lock_ops_mutex(&self.projection_plane, "ops projection-plane").clone();
+        let realtime_inbox = lock_ops_mutex(&self.realtime_inbox, "ops realtime inbox").clone();
+        let status = rollup_health_status(
+            self.services
+                .iter()
+                .map(|service| service.status.as_str())
+                .chain([
+                    projection_plane.status.as_str(),
+                    realtime_inbox.status.as_str(),
+                ]),
+        )
+        .into();
         OpsHealthResponse {
+            status,
             items: self.services.clone(),
             projection_plane: projection_plane.into(),
+            realtime_inbox,
         }
     }
 
@@ -573,6 +670,9 @@ impl OpsRuntime {
         let provider_binding_drift = self.provider_binding_drift_view();
         let projection_plane =
             lock_ops_mutex(&self.projection_plane, "ops projection-plane").clone();
+        let side_effect_outboxes =
+            lock_ops_mutex(&self.side_effect_outboxes, "ops side-effect outboxes").clone();
+        let realtime_inbox = lock_ops_mutex(&self.realtime_inbox, "ops realtime inbox").clone();
         let lag = lock_ops_mutex(&self.lag_items, "ops lag items").clone();
         DiagnosticBundle {
             generated_at: utc_now_rfc3339_millis(),
@@ -588,6 +688,8 @@ impl OpsRuntime {
             provider_bindings,
             provider_binding_drift,
             projection_plane,
+            side_effect_outboxes,
+            realtime_inbox,
         }
     }
 }
@@ -613,6 +715,29 @@ fn default_lag_items() -> Vec<LagItem> {
         },
         default_projection_replay_lag_item(),
     ]
+}
+
+fn rollup_health_status<'a>(statuses: impl IntoIterator<Item = &'a str>) -> &'static str {
+    let mut severity = 0_u8;
+    for status in statuses {
+        severity = severity.max(health_status_severity(status));
+    }
+    match severity {
+        4 => "critical",
+        3 => "unavailable",
+        2 => "degraded",
+        _ => "ok",
+    }
+}
+
+fn health_status_severity(status: &str) -> u8 {
+    match status {
+        "critical" => 4,
+        "unavailable" => 3,
+        "degraded" => 2,
+        "ok" | "idle" => 0,
+        _ => 2,
+    }
 }
 
 fn default_projection_replay_lag_item() -> LagItem {

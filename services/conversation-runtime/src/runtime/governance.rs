@@ -32,7 +32,7 @@ where
         conversation_id: &str,
     ) -> Result<Option<ConversationPolicy>, RuntimeError> {
         let scope_key = conversation_scope_key(tenant_id, conversation_id);
-        let state = lock_runtime_mutex(&self.state, "conversation-runtime.state.governance");
+        let state = read_runtime_state(&self.state, "conversation-runtime.state.governance");
         let conversation = state
             .conversations
             .get(scope_key.as_str())
@@ -75,7 +75,7 @@ where
             conversation_scope_key(command.tenant_id.as_str(), command.conversation_id.as_str());
         let (payload, ordering_seq, actor_kind, applied_at) = {
             let mut state =
-                lock_runtime_mutex(&self.state, "conversation-runtime.state.governance");
+                write_runtime_state(&self.state, "conversation-runtime.state.governance");
             let conversation =
                 state
                     .conversations

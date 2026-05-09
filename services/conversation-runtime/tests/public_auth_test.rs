@@ -61,6 +61,7 @@ fn demo_bearer() -> String {
     signed_bearer(json!({
         "tenant_id": "t_demo",
         "sub": "u_demo",
+        "actor_kind": "user",
         "sid": "s_demo"
     }))
 }

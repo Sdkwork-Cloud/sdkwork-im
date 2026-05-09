@@ -158,7 +158,7 @@ impl ObjectStorageProvider for S3CompatibleObjectStorageProvider {
         Ok(ObjectStorageUploadSession {
             method: "PUT".into(),
             url: format!(
-                "{}/{}/{}?provider={}&expires={}&upload=1",
+                "{}/{}/{}?provider={}&expires={}&upload=put",
                 self.config.endpoint.trim_end_matches('/'),
                 request.bucket,
                 request.object_key,

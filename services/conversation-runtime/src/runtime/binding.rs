@@ -10,7 +10,7 @@ where
         conversation_id: &str,
     ) -> Result<ConversationBusinessBinding, RuntimeError> {
         let scope_key = conversation_scope_key(tenant_id, conversation_id);
-        let state = lock_runtime_mutex(&self.state, "conversation-runtime.state.binding");
+        let state = read_runtime_state(&self.state, "conversation-runtime.state.binding");
         let conversation = state
             .conversations
             .get(scope_key.as_str())
@@ -33,10 +33,11 @@ where
         conversation_id: &str,
     ) -> Result<ConversationBusinessBinding, RuntimeError> {
         if auth.actor_kind != "system" {
-            self.require_active_member(
+            self.require_active_member_with_kind(
                 auth.tenant_id.as_str(),
                 conversation_id,
                 auth.actor_id.as_str(),
+                auth.actor_kind.as_str(),
             )?;
         }
 

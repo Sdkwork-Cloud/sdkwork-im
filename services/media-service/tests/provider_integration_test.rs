@@ -95,6 +95,7 @@ async fn test_get_media_download_url_over_http() {
                 .uri("/api/v1/media/uploads")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -123,6 +124,7 @@ async fn test_get_media_download_url_over_http() {
                 .uri("/api/v1/media/uploads/ma_provider_http/complete")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -143,6 +145,7 @@ async fn test_get_media_download_url_over_http() {
                 .uri("/api/v1/media/ma_provider_http/download-url?expiresInSeconds=900")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -181,6 +184,7 @@ async fn test_get_media_download_url_rejects_zero_ttl_over_http() {
                 .uri("/api/v1/media/uploads")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -209,6 +213,7 @@ async fn test_get_media_download_url_rejects_zero_ttl_over_http() {
                 .uri("/api/v1/media/uploads/ma_provider_zero_ttl/complete")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -229,6 +234,7 @@ async fn test_get_media_download_url_rejects_zero_ttl_over_http() {
                 .uri("/api/v1/media/ma_provider_zero_ttl/download-url?expiresInSeconds=0")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -257,6 +263,7 @@ async fn test_get_media_provider_health_over_http() {
                 .uri("/api/v1/media/provider-health")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )

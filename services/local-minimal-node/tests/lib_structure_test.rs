@@ -622,6 +622,24 @@ fn test_local_minimal_node_effects_use_projection_owned_realtime_fanout_target_s
 }
 
 #[test]
+fn test_local_minimal_node_effects_do_not_swallow_realtime_delivery_failures() {
+    let effects_source = include_str!("../src/node/effects.rs").replace("\r\n", "\n");
+
+    assert!(
+        effects_source.contains(".delivery_error_code"),
+        "services/local-minimal-node/src/node/effects.rs should inspect cluster realtime delivery failures instead of treating delivered=0 as success"
+    );
+    assert!(
+        effects_source.contains("realtime_delivery_failed"),
+        "services/local-minimal-node/src/node/effects.rs should surface realtime fanout delivery failures with a stable API error code"
+    );
+    assert!(
+        !effects_source.contains("let _ = state\n            .realtime_cluster\n            .publish_device_event_for_principal_kind("),
+        "services/local-minimal-node/src/node/effects.rs must not silently discard realtime publish results"
+    );
+}
+
+#[test]
 fn test_local_minimal_node_effects_use_notification_service_fanout_owner_seam() {
     let effects_source = include_str!("../src/node/effects.rs");
 
@@ -675,7 +693,7 @@ fn test_local_minimal_node_projection_paths_use_projection_service_auth_context_
     for required_symbol in [
         ".inbox_from_auth_context(",
         ".read_cursor_from_auth_context(",
-        ".timeline_from_auth_context(",
+        ".timeline_window_from_auth_context(",
         ".conversation_summary_from_auth_context(",
     ] {
         assert!(
@@ -698,13 +716,34 @@ fn test_local_minimal_node_projection_paths_use_projection_service_auth_context_
 }
 
 #[test]
+fn test_local_minimal_node_read_cursor_write_path_uses_strict_domain_membership_gate() {
+    let projection_source = include_str!("../src/node/projection.rs").replace("\r\n", "\n");
+    let update_read_cursor = projection_source
+        .split("pub(super) async fn update_read_cursor(")
+        .nth(1)
+        .and_then(|source| source.split("pub(super) async fn get_timeline(").next())
+        .expect("projection.rs should keep update_read_cursor before get_timeline");
+
+    assert!(
+        update_read_cursor.contains(
+            "access::ensure_conversation_member(&state, &auth, conversation_id.as_str())?"
+        ),
+        "POST /read-cursor mutates conversation-runtime state and must use the strict domain membership gate"
+    );
+    assert!(
+        !update_read_cursor.contains("access::ensure_conversation_read_access("),
+        "POST /read-cursor must not use projection snapshot fallback because that fallback is read-only recovery access"
+    );
+}
+
+#[test]
 fn test_local_minimal_node_session_projection_paths_use_projection_service_auth_context_entrypoints()
  {
     let session_source = include_str!("../src/node/session.rs");
 
     for required_symbol in [
         ".device_sync_session_state_from_auth_context(",
-        ".device_sync_feed_from_auth_context(",
+        ".device_sync_feed_window_from_auth_context(",
     ] {
         assert!(
             session_source.contains(required_symbol),
@@ -924,6 +963,38 @@ fn test_local_minimal_node_runtime_dir_preview_surface_moves_out_of_runtime_dir_
         assert!(
             !runtime_dir_source.contains(forbidden_symbol),
             "services/local-minimal-node/src/node/runtime_dir.rs should not keep runtime-dir preview symbol: {forbidden_symbol}"
+        );
+    }
+}
+
+#[test]
+fn test_local_minimal_node_runtime_dir_preview_keys_use_segment_safe_encoding() {
+    let preview_diff_source = include_str!("../src/node/runtime_dir/preview/diff.rs");
+
+    for required_symbol in [
+        "fn encode_runtime_dir_preview_key_segments",
+        "encode_runtime_dir_preview_key_segments([scope_type, scope_id])",
+        "encode_runtime_dir_preview_key_segments([record_key, scope_key])",
+        "encode_runtime_dir_preview_key_segments([record_key, \"frame\", frame_seq.to_string().as_str()])",
+        "fn qualified_rtc_signal_key(record_key: &str, signal_index: usize) -> String",
+        "\"signal\"",
+        "signal_index.to_string().as_str()",
+    ] {
+        assert!(
+            preview_diff_source.contains(required_symbol),
+            "runtime-dir restore preview keys should use segment-safe encoding: {required_symbol}"
+        );
+    }
+
+    for forbidden_symbol in [
+        "format!(\"{scope_type}:{scope_id}\")",
+        "format!(\"{record_key}#{scope_key}\")",
+        "format!(\"{record_key}#frame:{frame_seq}\")",
+        "format!(\"{record_key}#signal:{signal_index}\")",
+    ] {
+        assert!(
+            !preview_diff_source.contains(forbidden_symbol),
+            "runtime-dir restore preview keys must not use ambiguous delimiter concatenation: {forbidden_symbol}"
         );
     }
 }

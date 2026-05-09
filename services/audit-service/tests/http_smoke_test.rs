@@ -69,6 +69,7 @@ async fn test_record_list_and_export_audit_over_http() {
                 .uri("/api/v1/audit/records")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "audit.write,audit.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -93,6 +94,7 @@ async fn test_record_list_and_export_audit_over_http() {
                 .uri("/api/v1/audit/records")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "audit.write,audit.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -109,6 +111,9 @@ async fn test_record_list_and_export_audit_over_http() {
     let list_json: serde_json::Value =
         serde_json::from_slice(&list_body).expect("list body should be valid json");
     assert_eq!(list_json["items"][0]["recordId"], "audit_http_demo");
+    assert_eq!(list_json["items"][0]["auditSeq"], 1);
+    assert_eq!(list_json["nextAfterAuditSeq"], 1);
+    assert_eq!(list_json["hasMore"], false);
 
     let export_response = app
         .clone()
@@ -117,6 +122,7 @@ async fn test_record_list_and_export_audit_over_http() {
                 .uri("/api/v1/audit/export")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "audit.write,audit.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -141,6 +147,7 @@ async fn test_record_list_and_export_audit_over_http() {
                 .uri("/api/v1/audit/verify")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "audit.write,audit.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -166,6 +173,103 @@ async fn test_record_list_and_export_audit_over_http() {
 }
 
 #[tokio::test]
+async fn test_record_list_returns_bounded_audit_seq_cursor_window_over_http() {
+    let app = audit_service::build_default_app();
+
+    for (record_id, action) in [
+        ("audit_http_window_first", "notification.requested"),
+        ("audit_http_window_second", "notification.dispatched"),
+        ("audit_http_window_third", "notification.delivered"),
+    ] {
+        let record_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/audit/records")
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "u_demo")
+                    .header("x-actor-kind", "user")
+                    .header("x-permissions", "audit.write,audit.read")
+                    .header("content-type", "application/json")
+                    .body(Body::from(format!(
+                        r#"{{
+                            "recordId":"{record_id}",
+                            "aggregateType":"notification",
+                            "aggregateId":"ntf_window",
+                            "action":"{action}",
+                            "payload":"{{\"step\":\"{action}\"}}"
+                        }}"#
+                    )))
+                    .unwrap(),
+            )
+            .await
+            .expect("record audit should succeed");
+        assert_eq!(record_response.status(), StatusCode::OK);
+    }
+
+    let first_window_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/audit/records?afterAuditSeq=0&limit=2")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .header("x-permissions", "audit.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("first audit window should succeed");
+    assert_eq!(first_window_response.status(), StatusCode::OK);
+    let first_window_body = first_window_response
+        .into_body()
+        .collect()
+        .await
+        .expect("first audit window body should collect")
+        .to_bytes();
+    let first_window_json: serde_json::Value =
+        serde_json::from_slice(&first_window_body).expect("first audit window should be json");
+    assert_eq!(first_window_json["items"].as_array().unwrap().len(), 2);
+    assert_eq!(first_window_json["items"][0]["auditSeq"], 1);
+    assert_eq!(first_window_json["items"][1]["auditSeq"], 2);
+    assert_eq!(first_window_json["nextAfterAuditSeq"], 2);
+    assert_eq!(first_window_json["hasMore"], true);
+
+    let second_window_response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/audit/records?afterAuditSeq=2&limit=2")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .header("x-permissions", "audit.read")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("second audit window should succeed");
+    assert_eq!(second_window_response.status(), StatusCode::OK);
+    let second_window_body = second_window_response
+        .into_body()
+        .collect()
+        .await
+        .expect("second audit window body should collect")
+        .to_bytes();
+    let second_window_json: serde_json::Value =
+        serde_json::from_slice(&second_window_body).expect("second audit window should be json");
+    assert_eq!(second_window_json["items"].as_array().unwrap().len(), 1);
+    assert_eq!(second_window_json["items"][0]["auditSeq"], 3);
+    assert_eq!(
+        second_window_json["items"][0]["action"],
+        "notification.delivered"
+    );
+    assert_eq!(second_window_json["nextAfterAuditSeq"], 3);
+    assert_eq!(second_window_json["hasMore"], false);
+}
+
+#[tokio::test]
 async fn test_duplicate_record_anchor_request_is_idempotent_and_conflicting_retry_is_rejected() {
     let app = audit_service::build_default_app();
 
@@ -177,6 +281,7 @@ async fn test_duplicate_record_anchor_request_is_idempotent_and_conflicting_retr
                 .uri("/api/v1/audit/records")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "audit.write,audit.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -215,6 +320,7 @@ async fn test_duplicate_record_anchor_request_is_idempotent_and_conflicting_retr
                 .uri("/api/v1/audit/records")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "audit.write,audit.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -252,6 +358,7 @@ async fn test_duplicate_record_anchor_request_is_idempotent_and_conflicting_retr
                 .uri("/api/v1/audit/records")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "audit.write,audit.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -276,6 +383,7 @@ async fn test_duplicate_record_anchor_request_is_idempotent_and_conflicting_retr
                 .uri("/api/v1/audit/records")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "audit.write,audit.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -316,6 +424,7 @@ async fn test_duplicate_record_anchor_request_replays_after_session_rotation() {
                 .uri("/api/v1/audit/records")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_before")
                 .header("x-permissions", "audit.write,audit.read")
                 .header("content-type", "application/json")
@@ -351,6 +460,7 @@ async fn test_duplicate_record_anchor_request_replays_after_session_rotation() {
                 .uri("/api/v1/audit/records")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-session-id", "s_after")
                 .header("x-permissions", "audit.write,audit.read")
                 .header("content-type", "application/json")
@@ -388,6 +498,7 @@ async fn test_duplicate_record_anchor_request_replays_after_session_rotation() {
                 .uri("/api/v1/audit/records")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "audit.write,audit.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -425,6 +536,7 @@ async fn test_record_audit_rejects_oversized_payload_over_http() {
                 .uri("/api/v1/audit/records")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-permissions", "audit.write,audit.read")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))

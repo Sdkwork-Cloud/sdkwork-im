@@ -136,6 +136,7 @@ pub struct ConversationReadCursor {
     pub conversation_id: String,
     pub member_id: String,
     pub principal_id: String,
+    pub principal_kind: String,
     pub read_seq: u64,
     pub last_read_message_id: Option<String>,
     pub updated_at: String,
@@ -148,6 +149,7 @@ pub struct ConversationReadCursorView {
     pub conversation_id: String,
     pub member_id: String,
     pub principal_id: String,
+    pub principal_kind: String,
     pub read_seq: u64,
     pub last_read_message_id: Option<String>,
     pub updated_at: String,
@@ -161,6 +163,7 @@ impl ConversationReadCursorView {
             conversation_id: cursor.conversation_id.clone(),
             member_id: cursor.member_id.clone(),
             principal_id: cursor.principal_id.clone(),
+            principal_kind: cursor.principal_kind.clone(),
             read_seq: cursor.read_seq,
             last_read_message_id: cursor.last_read_message_id.clone(),
             updated_at: cursor.updated_at.clone(),
@@ -247,6 +250,7 @@ pub fn build_default_read_cursor(member: &ConversationMember) -> ConversationRea
         conversation_id: member.conversation_id.clone(),
         member_id: member.member_id.clone(),
         principal_id: member.principal_id.clone(),
+        principal_kind: member.principal_kind.clone(),
         read_seq: 0,
         last_read_message_id: None,
         updated_at: member.joined_at.clone(),
@@ -254,7 +258,7 @@ pub fn build_default_read_cursor(member: &ConversationMember) -> ConversationRea
 }
 
 pub fn principal_member_key(principal_id: &str, principal_kind: &str) -> String {
-    format!("{principal_kind}:{principal_id}")
+    encode_conversation_key_segments([principal_kind, principal_id])
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -308,10 +312,12 @@ impl ConversationRoster {
         self.members.insert(member.member_id.clone(), member);
     }
 
-    pub fn next_member_episode(&self, principal_id: &str) -> u64 {
+    pub fn next_member_episode(&self, principal_id: &str, principal_kind: &str) -> u64 {
         self.members
             .values()
-            .filter(|member| member.principal_id == principal_id)
+            .filter(|member| {
+                member.principal_id == principal_id && member.principal_kind == principal_kind
+            })
             .count() as u64
             + 1
     }
@@ -817,14 +823,29 @@ pub struct DeviceSyncFeedEntry {
     pub occurred_at: String,
 }
 
-pub fn member_id(conversation_id: &str, principal_id: &str) -> String {
-    member_episode_id(conversation_id, principal_id, 1)
+pub fn member_id(conversation_id: &str, principal_kind: &str, principal_id: &str) -> String {
+    member_episode_id(conversation_id, principal_kind, principal_id, 1)
 }
 
-pub fn member_episode_id(conversation_id: &str, principal_id: &str, episode: u64) -> String {
+pub fn member_episode_id(
+    conversation_id: &str,
+    principal_kind: &str,
+    principal_id: &str,
+    episode: u64,
+) -> String {
     if episode <= 1 {
-        return format!("cm_{conversation_id}_{principal_id}");
+        return format!("cm_{conversation_id}_{principal_kind}_{principal_id}");
     }
 
-    format!("cm_{conversation_id}_{principal_id}_e{episode}")
+    format!("cm_{conversation_id}_{principal_kind}_{principal_id}_e{episode}")
+}
+
+fn encode_conversation_key_segments<'a>(segments: impl IntoIterator<Item = &'a str>) -> String {
+    let mut encoded = String::new();
+    for segment in segments {
+        encoded.push_str(segment.len().to_string().as_str());
+        encoded.push('#');
+        encoded.push_str(segment);
+    }
+    encoded
 }

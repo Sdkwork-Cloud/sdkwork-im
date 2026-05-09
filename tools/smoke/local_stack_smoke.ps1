@@ -109,6 +109,7 @@ function Resolve-AuthorizationHeader {
     $token = New-Hs256BearerToken -Secret $secret -Claims @{
         tenant_id = "t_demo"
         sub = "u_demo"
+        actor_kind = "user"
         sid = "s_demo"
     }
 

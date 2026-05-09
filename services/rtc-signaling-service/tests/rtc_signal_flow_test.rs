@@ -17,6 +17,7 @@ async fn test_invite_accept_and_end_rtc_session_over_http() {
                 .uri("/api/v1/rtc/sessions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -38,6 +39,7 @@ async fn test_invite_accept_and_end_rtc_session_over_http() {
                 .uri("/api/v1/rtc/sessions/rtc_flow/invite")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -68,6 +70,7 @@ async fn test_invite_accept_and_end_rtc_session_over_http() {
                 .uri("/api/v1/rtc/sessions/rtc_flow/accept")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_peer")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -97,6 +100,7 @@ async fn test_invite_accept_and_end_rtc_session_over_http() {
                 .uri("/api/v1/rtc/sessions/rtc_flow/end")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -132,6 +136,7 @@ async fn test_reject_rtc_session_over_http() {
                 .uri("/api/v1/rtc/sessions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -152,6 +157,7 @@ async fn test_reject_rtc_session_over_http() {
                 .uri("/api/v1/rtc/sessions/rtc_reject/reject")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_peer")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -187,6 +193,7 @@ async fn test_post_rtc_signal_over_http() {
                 .uri("/api/v1/rtc/sessions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_demo")
                 .header("x-session-id", "s_demo")
                 .header("content-type", "application/json")
@@ -210,6 +217,7 @@ async fn test_post_rtc_signal_over_http() {
                 .uri("/api/v1/rtc/sessions/rtc_signal_http/invite")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_demo")
                 .header("x-session-id", "s_demo")
                 .header("content-type", "application/json")
@@ -231,6 +239,7 @@ async fn test_post_rtc_signal_over_http() {
                 .uri("/api/v1/rtc/sessions/rtc_signal_http/signals")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_demo")
                 .header("x-session-id", "s_demo")
                 .header("content-type", "application/json")
@@ -259,6 +268,125 @@ async fn test_post_rtc_signal_over_http() {
     assert_eq!(signal_json["schemaRef"], "webrtc.offer.v1");
     assert_eq!(signal_json["sender"]["id"], "u_demo");
     assert_eq!(signal_json["signalingStreamId"], "st_signal_http");
+    assert_eq!(signal_json["signalSeq"], 1);
+}
+
+#[tokio::test]
+async fn test_list_rtc_signals_returns_bounded_cursor_window_over_http() {
+    let app = rtc_signaling_service::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/rtc/sessions")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .header("x-device-id", "d_demo")
+                .header("x-session-id", "s_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "rtcSessionId":"rtc_signal_window",
+                        "rtcMode":"voice"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create session should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    for signal_type in ["rtc.offer", "rtc.answer", "rtc.ice-candidate"] {
+        let signal_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/rtc/sessions/rtc_signal_window/signals")
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "u_demo")
+                    .header("x-actor-kind", "user")
+                    .header("x-device-id", "d_demo")
+                    .header("x-session-id", "s_demo")
+                    .header("content-type", "application/json")
+                    .body(Body::from(format!(
+                        r#"{{
+                            "signalType":"{signal_type}",
+                            "schemaRef":"webrtc.signal.v1",
+                            "payload":"{{\"type\":\"{signal_type}\"}}"
+                        }}"#
+                    )))
+                    .unwrap(),
+            )
+            .await
+            .expect("signal request should return response");
+        assert_eq!(signal_response.status(), StatusCode::OK);
+    }
+
+    let first_window_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/rtc/sessions/rtc_signal_window/signals?afterSignalSeq=0&limit=2")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("first signal window request should succeed");
+    assert_eq!(first_window_response.status(), StatusCode::OK);
+    let first_window_body = first_window_response
+        .into_body()
+        .collect()
+        .await
+        .expect("first window body should collect")
+        .to_bytes();
+    let first_window_json: serde_json::Value =
+        serde_json::from_slice(&first_window_body).expect("first window should be valid json");
+
+    assert_eq!(first_window_json["items"].as_array().unwrap().len(), 2);
+    assert_eq!(first_window_json["items"][0]["signalSeq"], 1);
+    assert_eq!(first_window_json["items"][1]["signalSeq"], 2);
+    assert_eq!(first_window_json["nextAfterSignalSeq"], 2);
+    assert_eq!(first_window_json["hasMore"], true);
+
+    let second_window_response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/rtc/sessions/rtc_signal_window/signals?afterSignalSeq=2&limit=2")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("second signal window request should succeed");
+    assert_eq!(second_window_response.status(), StatusCode::OK);
+    let second_window_body = second_window_response
+        .into_body()
+        .collect()
+        .await
+        .expect("second window body should collect")
+        .to_bytes();
+    let second_window_json: serde_json::Value =
+        serde_json::from_slice(&second_window_body).expect("second window should be valid json");
+
+    assert_eq!(second_window_json["items"].as_array().unwrap().len(), 1);
+    assert_eq!(second_window_json["items"][0]["signalSeq"], 3);
+    assert_eq!(
+        second_window_json["items"][0]["signalType"],
+        "rtc.ice-candidate"
+    );
+    assert_eq!(second_window_json["nextAfterSignalSeq"], 3);
+    assert_eq!(second_window_json["hasMore"], false);
 }
 
 #[tokio::test]
@@ -273,6 +401,7 @@ async fn test_rtc_runtime_timestamps_advance_between_session_and_signal_mutation
                 .uri("/api/v1/rtc/sessions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_demo")
                 .header("x-session-id", "s_demo")
                 .header("content-type", "application/json")
@@ -310,6 +439,7 @@ async fn test_rtc_runtime_timestamps_advance_between_session_and_signal_mutation
                 .uri("/api/v1/rtc/sessions/rtc_timestamps/signals")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_demo")
                 .header("x-session-id", "s_demo")
                 .header("content-type", "application/json")
@@ -349,6 +479,7 @@ async fn test_rtc_runtime_timestamps_advance_between_session_and_signal_mutation
                 .uri("/api/v1/rtc/sessions/rtc_timestamps/signals")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_demo")
                 .header("x-session-id", "s_demo")
                 .header("content-type", "application/json")
@@ -386,6 +517,7 @@ async fn test_rtc_runtime_timestamps_advance_between_session_and_signal_mutation
                 .uri("/api/v1/rtc/sessions/rtc_timestamps/end")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -427,6 +559,7 @@ async fn test_post_rtc_signal_rejects_oversized_payload_over_http() {
                 .uri("/api/v1/rtc/sessions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_demo")
                 .header("x-session-id", "s_demo")
                 .header("content-type", "application/json")
@@ -456,6 +589,7 @@ async fn test_post_rtc_signal_rejects_oversized_payload_over_http() {
                 .uri("/api/v1/rtc/sessions/rtc_signal_oversized_payload/signals")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_demo")
                 .header("x-session-id", "s_demo")
                 .header("content-type", "application/json")
@@ -479,6 +613,7 @@ async fn test_post_rtc_signal_rejects_oversized_signal_type_over_http() {
                 .uri("/api/v1/rtc/sessions")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_demo")
                 .header("x-session-id", "s_demo")
                 .header("content-type", "application/json")
@@ -507,6 +642,7 @@ async fn test_post_rtc_signal_rejects_oversized_signal_type_over_http() {
                 .uri("/api/v1/rtc/sessions/rtc_signal_oversized_type/signals")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_demo")
                 .header("x-session-id", "s_demo")
                 .header("content-type", "application/json")

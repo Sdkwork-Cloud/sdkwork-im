@@ -1,5 +1,12 @@
 use super::*;
 
+#[derive(Debug, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct TimelineQuery {
+    after_seq: Option<u64>,
+    limit: Option<usize>,
+}
+
 pub(super) async fn get_contacts(
     headers: HeaderMap,
     State(state): State<AppState>,
@@ -135,7 +142,7 @@ pub(super) async fn get_read_cursor(
     State(state): State<AppState>,
 ) -> Result<Json<ConversationReadCursorView>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
-    access::ensure_conversation_member(&state, &auth, conversation_id.as_str())?;
+    access::ensure_conversation_read_access(&state, &auth, conversation_id.as_str())?;
     let cursor = state
         .projection_service
         .read_cursor_from_auth_context(&auth, conversation_id.as_str())?
@@ -197,16 +204,20 @@ pub(super) async fn update_read_cursor(
 
 pub(super) async fn get_timeline(
     Path(conversation_id): Path<String>,
+    Query(query): Query<TimelineQuery>,
     headers: HeaderMap,
     State(state): State<AppState>,
-) -> Result<Json<serde_json::Value>, ApiError> {
+) -> Result<Json<projection_service::TimelineWindowView>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
-    access::ensure_conversation_member(&state, &auth, conversation_id.as_str())?;
-    Ok(Json(serde_json::json!({
-        "items": state
-            .projection_service
-            .timeline_from_auth_context(&auth, conversation_id.as_str())?
-    })))
+    access::ensure_conversation_read_access(&state, &auth, conversation_id.as_str())?;
+    Ok(Json(
+        state.projection_service.timeline_window_from_auth_context(
+            &auth,
+            conversation_id.as_str(),
+            query.after_seq,
+            query.limit,
+        )?,
+    ))
 }
 
 pub(super) async fn get_conversation_summary(
@@ -215,7 +226,7 @@ pub(super) async fn get_conversation_summary(
     State(state): State<AppState>,
 ) -> Result<Json<projection_service::ConversationSummaryView>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
-    access::ensure_conversation_member(&state, &auth, conversation_id.as_str())?;
+    access::ensure_conversation_read_access(&state, &auth, conversation_id.as_str())?;
     let summary = state
         .projection_service
         .conversation_summary_from_auth_context(&auth, conversation_id.as_str())?
@@ -233,7 +244,7 @@ pub(super) async fn get_member_directory(
     State(state): State<AppState>,
 ) -> Result<Json<MemberDirectoryResponse>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
-    access::ensure_conversation_member(&state, &auth, conversation_id.as_str())?;
+    access::ensure_conversation_read_access(&state, &auth, conversation_id.as_str())?;
     Ok(Json(MemberDirectoryResponse {
         items: state
             .projection_service
@@ -247,7 +258,7 @@ pub(super) async fn get_pinned_messages(
     State(state): State<AppState>,
 ) -> Result<Json<PinnedMessagesResponse>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
-    access::ensure_conversation_member(&state, &auth, conversation_id.as_str())?;
+    access::ensure_conversation_read_access(&state, &auth, conversation_id.as_str())?;
     Ok(Json(PinnedMessagesResponse {
         items: state
             .projection_service
@@ -261,7 +272,7 @@ pub(super) async fn get_message_interaction_summary(
     State(state): State<AppState>,
 ) -> Result<Json<projection_service::MessageInteractionSummaryView>, ApiError> {
     let auth = resolve_auth_context(&headers)?;
-    access::ensure_conversation_member(&state, &auth, conversation_id.as_str())?;
+    access::ensure_conversation_read_access(&state, &auth, conversation_id.as_str())?;
     let summary = state
         .projection_service
         .message_interaction_summary_from_auth_context(

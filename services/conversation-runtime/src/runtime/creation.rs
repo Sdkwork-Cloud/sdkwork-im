@@ -91,7 +91,11 @@ where
         let creator_member = build_conversation_member_with_attributes(
             command.tenant_id.as_str(),
             command.conversation_id.as_str(),
-            member_id(command.conversation_id.as_str(), creator_id.as_str()),
+            member_id(
+                command.conversation_id.as_str(),
+                creator_kind,
+                creator_id.as_str(),
+            ),
             creator_id.as_str(),
             creator_kind,
             MembershipRole::Owner,
@@ -99,7 +103,7 @@ where
             created_at.clone(),
             creator_attributes,
         );
-        let mut state = lock_runtime_mutex(&self.state, "conversation-runtime.state.creation");
+        let mut state = write_runtime_state(&self.state, "conversation-runtime.state.creation");
         if let Some(existing_conversation) = state.conversations.get(scope_key.as_str()) {
             if let Some(existing) = existing_conversation.generic_create_request.as_ref() {
                 if generic_conversation_create_replay_matches(existing, &command, creator_kind) {
@@ -284,7 +288,7 @@ where
         );
         let event_id = format!("evt_{}_created", command.conversation_id);
 
-        let mut state = lock_runtime_mutex(&self.state, "conversation-runtime.state.creation");
+        let mut state = write_runtime_state(&self.state, "conversation-runtime.state.creation");
         if let Some(existing_conversation) = state.conversations.get(scope_key.as_str()) {
             if let Some(existing) = existing_conversation.thread_create_request.as_ref() {
                 if thread_conversation_create_replay_matches(existing, &command, creator_kind) {
@@ -375,6 +379,7 @@ where
             command.conversation_id.as_str(),
             member_id(
                 command.conversation_id.as_str(),
+                creator_kind,
                 command.creator_id.as_str(),
             ),
             command.creator_id.as_str(),
@@ -426,6 +431,7 @@ where
                 command.conversation_id.as_str(),
                 member_id(
                     command.conversation_id.as_str(),
+                    root_author.principal_kind.as_str(),
                     root_author.principal_id.as_str(),
                 ),
                 root_author.principal_id.as_str(),
@@ -640,6 +646,7 @@ where
             command.conversation_id.as_str(),
             member_id(
                 command.conversation_id.as_str(),
+                command.left_actor_kind.as_str(),
                 pair.left_actor_id.as_str(),
             ),
             pair.left_actor_id.as_str(),
@@ -667,6 +674,7 @@ where
             command.conversation_id.as_str(),
             member_id(
                 command.conversation_id.as_str(),
+                command.right_actor_kind.as_str(),
                 pair.right_actor_id.as_str(),
             ),
             pair.right_actor_id.as_str(),
@@ -677,7 +685,7 @@ where
             peer_attributes,
         );
 
-        let mut state = lock_runtime_mutex(&self.state, "conversation-runtime.state.creation");
+        let mut state = write_runtime_state(&self.state, "conversation-runtime.state.creation");
         if let Some(existing_conversation) = state.conversations.get(scope_key.as_str()) {
             if let Some(existing) = existing_conversation.direct_chat_binding_request.as_ref() {
                 if direct_chat_binding_replay_matches(existing, &command, binder_kind, &pair) {
@@ -895,6 +903,7 @@ where
             command.conversation_id.as_str(),
             member_id(
                 command.conversation_id.as_str(),
+                requester_kind,
                 command.requester_id.as_str(),
             ),
             command.requester_id.as_str(),
@@ -912,7 +921,11 @@ where
         let agent_member = build_conversation_member_with_attributes(
             command.tenant_id.as_str(),
             command.conversation_id.as_str(),
-            member_id(command.conversation_id.as_str(), command.agent_id.as_str()),
+            member_id(
+                command.conversation_id.as_str(),
+                "agent",
+                command.agent_id.as_str(),
+            ),
             command.agent_id.as_str(),
             "agent",
             MembershipRole::Member,
@@ -921,7 +934,7 @@ where
             agent_member_attributes,
         );
 
-        let mut state = lock_runtime_mutex(&self.state, "conversation-runtime.state.creation");
+        let mut state = write_runtime_state(&self.state, "conversation-runtime.state.creation");
         if let Some(existing_conversation) = state.conversations.get(scope_key.as_str()) {
             if let Some(existing) = existing_conversation.agent_dialog_create_request.as_ref() {
                 if agent_dialog_create_replay_matches(existing, &command, requester_kind) {
@@ -1122,6 +1135,7 @@ where
             command.conversation_id.as_str(),
             member_id(
                 command.conversation_id.as_str(),
+                requester_kind,
                 command.requester_id.as_str(),
             ),
             command.requester_id.as_str(),
@@ -1143,6 +1157,7 @@ where
             command.conversation_id.as_str(),
             member_id(
                 command.conversation_id.as_str(),
+                "user",
                 command.subscriber_id.as_str(),
             ),
             command.subscriber_id.as_str(),
@@ -1153,7 +1168,7 @@ where
             subscriber_member_attributes,
         );
 
-        let mut state = lock_runtime_mutex(&self.state, "conversation-runtime.state.creation");
+        let mut state = write_runtime_state(&self.state, "conversation-runtime.state.creation");
         if let Some(existing_conversation) = state.conversations.get(scope_key.as_str()) {
             if let Some(existing) = existing_conversation.system_channel_create_request.as_ref() {
                 if system_channel_create_replay_matches(existing, &command, requester_kind) {
@@ -1396,7 +1411,11 @@ where
         let source_member = build_conversation_member_with_attributes(
             command.tenant_id.as_str(),
             command.conversation_id.as_str(),
-            member_id(command.conversation_id.as_str(), command.source_id.as_str()),
+            member_id(
+                command.conversation_id.as_str(),
+                source_kind,
+                command.source_id.as_str(),
+            ),
             command.source_id.as_str(),
             source_kind,
             MembershipRole::Owner,
@@ -1421,7 +1440,11 @@ where
         let target_member = build_conversation_member_with_attributes(
             command.tenant_id.as_str(),
             command.conversation_id.as_str(),
-            member_id(command.conversation_id.as_str(), command.target_id.as_str()),
+            member_id(
+                command.conversation_id.as_str(),
+                command.target_kind.as_str(),
+                command.target_id.as_str(),
+            ),
             command.target_id.as_str(),
             command.target_kind.as_str(),
             MembershipRole::Member,
@@ -1430,7 +1453,7 @@ where
             target_member_attributes,
         );
 
-        let mut state = lock_runtime_mutex(&self.state, "conversation-runtime.state.creation");
+        let mut state = write_runtime_state(&self.state, "conversation-runtime.state.creation");
         if let Some(existing_conversation) = state.conversations.get(scope_key.as_str()) {
             if let Some(existing) = existing_conversation.agent_handoff_create_request.as_ref() {
                 if agent_handoff_create_replay_matches(existing, &command, source_kind) {

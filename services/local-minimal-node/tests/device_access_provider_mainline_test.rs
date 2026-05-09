@@ -118,6 +118,7 @@ async fn test_device_register_route_calls_injected_device_access_provider() {
                 .uri("/api/v1/devices/register")
                 .header("x-tenant-id", "t_device_provider")
                 .header("x-user-id", "u_device_provider")
+                .header("x-actor-kind", "device")
                 .header("x-device-id", "d_device_provider")
                 .header("x-session-id", "s_device_provider")
                 .header("content-type", "application/json")

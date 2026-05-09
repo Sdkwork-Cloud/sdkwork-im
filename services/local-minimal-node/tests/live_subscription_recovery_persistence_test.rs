@@ -7,7 +7,7 @@ use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
 use tower::ServiceExt;
 
-const DEMO_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X2RlbW8iLCJzaWQiOiJzX2RlbW8ifQ.";
+const DEMO_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X2RlbW8iLCJzaWQiOiJzX2RlbW8iLCJhY3Rvcl9raW5kIjoidXNlciJ9.";
 
 fn unique_runtime_dir() -> PathBuf {
     let unique = SystemTime::now()
@@ -35,6 +35,7 @@ async fn test_default_local_minimal_profile_restores_live_subscriptions_after_re
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone")
                 .header("content-type", "application/json")
@@ -73,6 +74,7 @@ async fn test_default_local_minimal_profile_restores_live_subscriptions_after_re
                 .uri("/api/v1/realtime/subscriptions/sync")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_demo")
                 .header("content-type", "application/json")
@@ -118,6 +120,7 @@ async fn test_default_local_minimal_profile_restores_live_subscriptions_after_re
                 .uri("/api/v1/conversations/c_live_sub_restart/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_phone")
                 .header("x-session-id", "s_phone_new")
                 .header("content-type", "application/json")
@@ -140,6 +143,7 @@ async fn test_default_local_minimal_profile_restores_live_subscriptions_after_re
                 .uri("/api/v1/realtime/events?afterSeq=0&limit=10")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_pad")
                 .header("x-session-id", "s_demo")
                 .body(Body::empty())

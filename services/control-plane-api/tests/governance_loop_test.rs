@@ -21,9 +21,10 @@ async fn test_control_plane_governance_writes_feed_ops_and_audit_runtimes() {
     cluster.bind_node_runtime("node_a", runtime_a.clone());
     cluster.bind_node_runtime("node_b", runtime_b.clone());
 
-    let _ = runtime_a.sync_subscriptions(
+    let _ = runtime_a.sync_subscriptions_for_principal_kind(
         "t_demo",
         "u_demo",
+        "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
             scope_type: "conversation".into(),
@@ -32,7 +33,15 @@ async fn test_control_plane_governance_writes_feed_ops_and_audit_runtimes() {
         }],
     );
     cluster
-        .bind_device_route("t_demo", "u_demo", "d_pad", "node_a", None, "websocket")
+        .bind_device_route_for_principal_kind(
+            "t_demo",
+            "u_demo",
+            "user",
+            "d_pad",
+            "node_a",
+            None,
+            "websocket",
+        )
         .expect("route bind should succeed");
 
     let ops_runtime = Arc::new(OpsRuntime::new(
@@ -58,6 +67,7 @@ async fn test_control_plane_governance_writes_feed_ops_and_audit_runtimes() {
                 .uri("/api/v1/control/nodes/node_a/drain")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -79,6 +89,7 @@ async fn test_control_plane_governance_writes_feed_ops_and_audit_runtimes() {
                 .uri("/api/v1/control/nodes/node_a/routes/migrate")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"targetNodeId":"node_b"}"#))
@@ -167,6 +178,7 @@ async fn test_control_plane_provider_bindings_feed_ops_runtime() {
                 .uri("/api/v1/control/provider-bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -182,6 +194,7 @@ async fn test_control_plane_provider_bindings_feed_ops_runtime() {
                 .uri("/api/v1/control/provider-bindings?tenantId=t_provider_combo")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -257,6 +270,7 @@ async fn test_control_plane_provider_policy_writes_feed_ops_and_audit_runtimes()
                 .uri("/api/v1/control/provider-bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -275,6 +289,7 @@ async fn test_control_plane_provider_policy_writes_feed_ops_and_audit_runtimes()
                 .uri("/api/v1/control/provider-bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -368,6 +383,7 @@ async fn test_control_plane_provider_policy_rollback_refreshes_ops_runtime_and_a
                 .uri("/api/v1/control/provider-bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -387,6 +403,7 @@ async fn test_control_plane_provider_policy_rollback_refreshes_ops_runtime_and_a
                 .uri("/api/v1/control/provider-bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -405,6 +422,7 @@ async fn test_control_plane_provider_policy_rollback_refreshes_ops_runtime_and_a
                 .uri("/api/v1/control/provider-policies/rollback")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"targetVersion":1}"#))
@@ -491,6 +509,7 @@ async fn test_control_plane_repeated_provider_policy_updates_append_distinct_aud
                 .uri("/api/v1/control/provider-bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -509,6 +528,7 @@ async fn test_control_plane_repeated_provider_policy_updates_append_distinct_aud
                 .uri("/api/v1/control/provider-bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -594,6 +614,7 @@ async fn test_control_plane_noop_provider_policy_write_does_not_append_audit() {
                 .uri("/api/v1/control/provider-bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -612,6 +633,7 @@ async fn test_control_plane_noop_provider_policy_write_does_not_append_audit() {
                 .uri("/api/v1/control/provider-bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -688,6 +710,7 @@ async fn test_control_plane_provider_policy_preview_does_not_touch_ops_or_audit(
                 .uri("/api/v1/control/provider-policies/preview")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -758,6 +781,7 @@ async fn test_control_plane_stale_provider_policy_confirm_write_does_not_touch_o
                 .uri("/api/v1/control/provider-policies/preview")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -786,6 +810,7 @@ async fn test_control_plane_stale_provider_policy_confirm_write_does_not_touch_o
                 .uri("/api/v1/control/provider-bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -804,6 +829,7 @@ async fn test_control_plane_stale_provider_policy_confirm_write_does_not_touch_o
                 .uri("/api/v1/control/provider-bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -879,6 +905,7 @@ async fn test_control_plane_rejects_empty_tenant_provider_bindings_query_without
                 .uri("/api/v1/control/provider-bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -894,6 +921,7 @@ async fn test_control_plane_rejects_empty_tenant_provider_bindings_query_without
                 .uri("/api/v1/control/provider-bindings?tenantId=")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -954,6 +982,7 @@ async fn test_control_plane_rejects_empty_tenant_provider_policy_write_without_m
                 .uri("/api/v1/control/provider-bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1033,6 +1062,7 @@ async fn test_control_plane_rejects_oversized_tenant_provider_bindings_query_wit
                 .uri("/api/v1/control/provider-bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -1050,6 +1080,7 @@ async fn test_control_plane_rejects_oversized_tenant_provider_bindings_query_wit
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -1111,6 +1142,7 @@ async fn test_control_plane_rejects_oversized_tenant_provider_policy_write_witho
                 .uri("/api/v1/control/provider-bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(format!(

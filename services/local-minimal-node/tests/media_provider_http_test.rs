@@ -13,6 +13,7 @@ async fn test_local_minimal_profile_gets_media_provider_health_over_http() {
                 .uri("/api/v1/media/provider-health")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -46,6 +47,7 @@ async fn test_local_minimal_profile_gets_media_download_url_over_http() {
                 .uri("/api/v1/media/uploads")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -75,22 +77,25 @@ async fn test_local_minimal_profile_gets_media_download_url_over_http() {
     let create_json: serde_json::Value =
         serde_json::from_slice(&create_body).expect("create upload response should be valid json");
     assert_eq!(create_json["mediaAssetId"], "ma_local_provider_http");
-    assert_eq!(
-        create_json["mediaAsset"]["processingState"],
-        "pendingUpload"
-    );
+    assert_eq!(create_json["processingState"], "pendingUpload");
+    assert_eq!(create_json["principalId"], "u_demo");
+    assert_eq!(create_json["principalKind"], "user");
     assert_eq!(create_json["bucket"], "media-demo");
     assert_eq!(
         create_json["objectKey"],
         "tenant/t_demo/ma_local_provider_http/demo.mp4"
     );
-    assert_eq!(create_json["storageProvider"], "object-storage-volcengine");
+    assert_eq!(
+        create_json["upload"]["storageProvider"],
+        "object-storage-volcengine"
+    );
     assert_eq!(create_json["deliveryStatus"], "applied");
-    let upload_url = create_json["uploadUrl"]
+    let upload_url = create_json["upload"]["url"]
         .as_str()
         .expect("uploadUrl should be present");
-    assert!(upload_url.contains("media-demo"));
-    assert!(upload_url.contains("ma_local_provider_http"));
+    assert!(upload_url.contains("object-storage-volcengine"));
+    assert!(upload_url.contains("expires=3600"));
+    assert_eq!(create_json["upload"]["assetId"], "ma_local_provider_http");
 
     let complete_response = app
         .clone()
@@ -100,6 +105,7 @@ async fn test_local_minimal_profile_gets_media_download_url_over_http() {
                 .uri("/api/v1/media/uploads/ma_local_provider_http/complete")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -121,6 +127,7 @@ async fn test_local_minimal_profile_gets_media_download_url_over_http() {
                 .uri("/api/v1/media/ma_local_provider_http/download-url?expiresInSeconds=1200")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )

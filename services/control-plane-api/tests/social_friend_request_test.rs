@@ -110,6 +110,13 @@ fn state_file(runtime_dir: &Path, file_name: &str) -> PathBuf {
     runtime_dir.join("state").join(file_name)
 }
 
+fn read_json_lines(path: &Path) -> Vec<serde_json::Value> {
+    let body = fs::read_to_string(path).expect("JSON Lines file should be readable");
+    body.lines()
+        .map(|line| serde_json::from_str(line).expect("JSON Lines record should be valid json"))
+        .collect()
+}
+
 fn social_failpoint_file(runtime_dir: &Path) -> PathBuf {
     state_file(runtime_dir, "social-failpoints.json")
 }
@@ -183,6 +190,7 @@ async fn test_control_plane_social_friend_request_write_persists_snapshot_commit
                 .uri("/api/v1/control/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -235,6 +243,7 @@ async fn test_control_plane_social_friend_request_write_persists_snapshot_commit
                 .uri("/api/v1/control/social/friend-requests/fr_001")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -308,6 +317,7 @@ async fn test_control_plane_social_file_runtime_second_instance_accepts_request_
                 .uri("/api/v1/control/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -333,6 +343,7 @@ async fn test_control_plane_social_file_runtime_second_instance_accepts_request_
                 .uri("/api/v1/control/social/friend-requests/fr_cross_instance_accept_001/accept")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -364,6 +375,7 @@ async fn test_control_plane_social_file_runtime_second_instance_accepts_request_
                 .uri("/api/v1/control/social/friend-requests/fr_cross_instance_accept_001")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -406,6 +418,7 @@ async fn test_control_plane_social_file_runtime_concurrent_submit_same_pair_acro
         .uri("/api/v1/control/social/friend-requests")
         .header("x-tenant-id", "t_demo")
         .header("x-user-id", "u_admin")
+        .header("x-actor-kind", "admin")
         .header("x-permissions", "control.write")
         .header("content-type", "application/json")
         .body(Body::from(
@@ -423,6 +436,7 @@ async fn test_control_plane_social_file_runtime_concurrent_submit_same_pair_acro
         .uri("/api/v1/control/social/friend-requests")
         .header("x-tenant-id", "t_demo")
         .header("x-user-id", "u_admin")
+        .header("x-actor-kind", "admin")
         .header("x-permissions", "control.write")
         .header("content-type", "application/json")
         .body(Body::from(
@@ -498,6 +512,7 @@ async fn test_control_plane_social_file_runtime_concurrent_submit_same_pair_acro
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -520,6 +535,7 @@ async fn test_control_plane_social_file_runtime_concurrent_submit_same_pair_acro
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -556,6 +572,7 @@ async fn test_control_plane_social_file_runtime_concurrent_accept_and_cancel_acr
                 .uri("/api/v1/control/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -578,6 +595,7 @@ async fn test_control_plane_social_file_runtime_concurrent_accept_and_cancel_acr
         .uri("/api/v1/control/social/friend-requests/fr_cross_accept_cancel_race_001/accept")
         .header("x-tenant-id", "t_demo")
         .header("x-user-id", "u_admin")
+        .header("x-actor-kind", "admin")
         .header("x-permissions", "control.write")
         .header("content-type", "application/json")
         .body(Body::from(
@@ -593,6 +611,7 @@ async fn test_control_plane_social_file_runtime_concurrent_accept_and_cancel_acr
         .uri("/api/v1/control/social/friend-requests/fr_cross_accept_cancel_race_001/cancel")
         .header("x-tenant-id", "t_demo")
         .header("x-user-id", "u_admin")
+        .header("x-actor-kind", "admin")
         .header("x-permissions", "control.write")
         .header("content-type", "application/json")
         .body(Body::from(
@@ -668,6 +687,8 @@ async fn test_control_plane_social_file_runtime_concurrent_accept_and_cancel_acr
                 .uri("/api/v1/control/social/friend-requests/fr_cross_accept_cancel_race_001")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
+
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -719,6 +740,7 @@ async fn test_control_plane_social_file_runtime_concurrent_remove_and_submit_acr
                 .uri("/api/v1/control/social/friendships")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -743,6 +765,7 @@ async fn test_control_plane_social_file_runtime_concurrent_remove_and_submit_acr
         .uri("/api/v1/control/social/friendships/fs_cross_remove_submit_race_001/remove")
         .header("x-tenant-id", "t_demo")
         .header("x-user-id", "u_admin")
+        .header("x-actor-kind", "admin")
         .header("x-permissions", "control.write")
         .header("content-type", "application/json")
         .body(Body::from(
@@ -758,6 +781,7 @@ async fn test_control_plane_social_file_runtime_concurrent_remove_and_submit_acr
         .uri("/api/v1/control/social/friend-requests")
         .header("x-tenant-id", "t_demo")
         .header("x-user-id", "u_admin")
+        .header("x-actor-kind", "admin")
         .header("x-permissions", "control.write")
         .header("content-type", "application/json")
         .body(Body::from(
@@ -816,6 +840,7 @@ async fn test_control_plane_social_file_runtime_concurrent_remove_and_submit_acr
                 .uri("/api/v1/control/social/friendships/fs_cross_remove_submit_race_001")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -844,6 +869,8 @@ async fn test_control_plane_social_file_runtime_concurrent_remove_and_submit_acr
                 .uri("/api/v1/control/social/friend-requests/fr_cross_remove_submit_race_001")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
+
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -888,6 +915,7 @@ async fn test_control_plane_social_friend_request_rejects_identical_user_pair() 
                 .uri("/api/v1/control/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -930,6 +958,7 @@ async fn test_control_plane_social_friend_request_rejects_duplicate_open_pair_an
                 .uri("/api/v1/control/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -954,6 +983,7 @@ async fn test_control_plane_social_friend_request_rejects_duplicate_open_pair_an
                 .uri("/api/v1/control/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -998,6 +1028,7 @@ async fn test_control_plane_social_friend_request_concurrent_submit_same_pair_co
         .uri("/api/v1/control/social/friend-requests")
         .header("x-tenant-id", "t_demo")
         .header("x-user-id", "u_admin")
+        .header("x-actor-kind", "admin")
         .header("x-permissions", "control.write")
         .header("content-type", "application/json")
         .body(Body::from(
@@ -1015,6 +1046,7 @@ async fn test_control_plane_social_friend_request_concurrent_submit_same_pair_co
         .uri("/api/v1/control/social/friend-requests")
         .header("x-tenant-id", "t_demo")
         .header("x-user-id", "u_admin")
+        .header("x-actor-kind", "admin")
         .header("x-permissions", "control.write")
         .header("content-type", "application/json")
         .body(Body::from(
@@ -1099,6 +1131,7 @@ async fn test_control_plane_social_friend_request_concurrent_submit_same_pair_co
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -1130,6 +1163,7 @@ async fn test_control_plane_social_friend_request_concurrent_submit_same_pair_co
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -1152,6 +1186,7 @@ async fn test_control_plane_social_friend_request_concurrent_accept_and_cancel_c
                 .uri("/api/v1/control/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1174,6 +1209,7 @@ async fn test_control_plane_social_friend_request_concurrent_accept_and_cancel_c
         .uri("/api/v1/control/social/friend-requests/fr_accept_cancel_race_001/accept")
         .header("x-tenant-id", "t_demo")
         .header("x-user-id", "u_admin")
+        .header("x-actor-kind", "admin")
         .header("x-permissions", "control.write")
         .header("content-type", "application/json")
         .body(Body::from(
@@ -1189,6 +1225,7 @@ async fn test_control_plane_social_friend_request_concurrent_accept_and_cancel_c
         .uri("/api/v1/control/social/friend-requests/fr_accept_cancel_race_001/cancel")
         .header("x-tenant-id", "t_demo")
         .header("x-user-id", "u_admin")
+        .header("x-actor-kind", "admin")
         .header("x-permissions", "control.write")
         .header("content-type", "application/json")
         .body(Body::from(
@@ -1263,6 +1300,7 @@ async fn test_control_plane_social_friend_request_concurrent_accept_and_cancel_c
                 .uri("/api/v1/control/social/friend-requests/fr_accept_cancel_race_001")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -1304,6 +1342,7 @@ async fn test_control_plane_social_friendship_concurrent_remove_and_submit_never
                 .uri("/api/v1/control/social/friendships")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1326,6 +1365,7 @@ async fn test_control_plane_social_friendship_concurrent_remove_and_submit_never
         .uri("/api/v1/control/social/friendships/fs_remove_submit_race_001/remove")
         .header("x-tenant-id", "t_demo")
         .header("x-user-id", "u_admin")
+        .header("x-actor-kind", "admin")
         .header("x-permissions", "control.write")
         .header("content-type", "application/json")
         .body(Body::from(
@@ -1341,6 +1381,7 @@ async fn test_control_plane_social_friendship_concurrent_remove_and_submit_never
         .uri("/api/v1/control/social/friend-requests")
         .header("x-tenant-id", "t_demo")
         .header("x-user-id", "u_admin")
+        .header("x-actor-kind", "admin")
         .header("x-permissions", "control.write")
         .header("content-type", "application/json")
         .body(Body::from(
@@ -1397,6 +1438,7 @@ async fn test_control_plane_social_friendship_concurrent_remove_and_submit_never
                 .uri("/api/v1/control/social/friendships/fs_remove_submit_race_001")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -1422,6 +1464,7 @@ async fn test_control_plane_social_friendship_concurrent_remove_and_submit_never
                 .uri("/api/v1/control/social/friend-requests/fr_remove_submit_race_001")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -1461,6 +1504,7 @@ async fn test_control_plane_social_friend_request_rejects_submit_for_active_frie
                 .uri("/api/v1/control/social/friendships")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1485,6 +1529,7 @@ async fn test_control_plane_social_friend_request_rejects_submit_for_active_frie
                 .uri("/api/v1/control/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1531,6 +1576,7 @@ async fn test_control_plane_social_friend_request_rejects_submit_for_pair_with_a
                 .uri("/api/v1/control/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1556,6 +1602,8 @@ async fn test_control_plane_social_friend_request_rejects_submit_for_pair_with_a
                 .uri("/api/v1/control/social/friend-requests/fr_submit_guard_accepted_existing/accept")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
+
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1579,6 +1627,7 @@ async fn test_control_plane_social_friend_request_rejects_submit_for_pair_with_a
                 .uri("/api/v1/control/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1621,6 +1670,7 @@ async fn test_control_plane_social_friend_request_rejects_submit_for_pair_with_a
                 .uri("/api/v1/control/social/friend-requests/fr_submit_guard_accepted_duplicate")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -1642,6 +1692,7 @@ async fn test_control_plane_social_friend_request_list_filters_by_direction_and_
                 .uri("/api/v1/control/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1667,6 +1718,7 @@ async fn test_control_plane_social_friend_request_list_filters_by_direction_and_
                 .uri("/api/v1/control/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1692,6 +1744,7 @@ async fn test_control_plane_social_friend_request_list_filters_by_direction_and_
                 .uri("/api/v1/control/social/friend-requests/fr_list_canceled_001/cancel")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1715,6 +1768,7 @@ async fn test_control_plane_social_friend_request_list_filters_by_direction_and_
                 .uri("/api/v1/control/social/friend-requests?userId=u_bob&direction=incoming")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -1746,6 +1800,7 @@ async fn test_control_plane_social_friend_request_list_filters_by_direction_and_
                 .uri("/api/v1/control/social/friend-requests?userId=u_bob&direction=outgoing")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -1775,6 +1830,8 @@ async fn test_control_plane_social_friend_request_list_filters_by_direction_and_
                 )
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
+
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -1813,6 +1870,7 @@ async fn test_control_plane_social_friend_request_list_applies_limit_after_sorti
                 .uri("/api/v1/control/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1838,6 +1896,7 @@ async fn test_control_plane_social_friend_request_list_applies_limit_after_sorti
                 .uri("/api/v1/control/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1862,6 +1921,8 @@ async fn test_control_plane_social_friend_request_list_applies_limit_after_sorti
                 .uri("/api/v1/control/social/friend-requests?userId=u_alice&direction=outgoing&limit=1")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
+
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -1915,6 +1976,7 @@ async fn test_control_plane_social_friend_request_list_uses_cursor_for_next_page
                     .uri("/api/v1/control/social/friend-requests")
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_admin")
+                    .header("x-actor-kind", "admin")
                     .header("x-permissions", "control.write")
                     .header("content-type", "application/json")
                     .body(Body::from(format!(
@@ -1943,6 +2005,8 @@ async fn test_control_plane_social_friend_request_list_uses_cursor_for_next_page
                 )
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
+
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -1976,6 +2040,8 @@ async fn test_control_plane_social_friend_request_list_uses_cursor_for_next_page
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
+
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -2012,6 +2078,8 @@ async fn test_control_plane_social_friend_request_list_rejects_invalid_cursor() 
                 )
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
+
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -2055,6 +2123,7 @@ async fn test_control_plane_social_friend_request_list_emits_signed_versioned_cu
                     .uri("/api/v1/control/social/friend-requests")
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_admin")
+                    .header("x-actor-kind", "admin")
                     .header("x-permissions", "control.write")
                     .header("content-type", "application/json")
                     .body(Body::from(
@@ -2082,6 +2151,8 @@ async fn test_control_plane_social_friend_request_list_emits_signed_versioned_cu
                 .uri("/api/v1/control/social/friend-requests?userId=u_alice&direction=outgoing&limit=1")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
+
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -2133,6 +2204,7 @@ async fn test_control_plane_social_friend_request_list_rejects_tampered_cursor_s
                     .uri("/api/v1/control/social/friend-requests")
                     .header("x-tenant-id", "t_demo")
                     .header("x-user-id", "u_admin")
+                    .header("x-actor-kind", "admin")
                     .header("x-permissions", "control.write")
                     .header("content-type", "application/json")
                     .body(Body::from(
@@ -2161,6 +2233,8 @@ async fn test_control_plane_social_friend_request_list_rejects_tampered_cursor_s
                 .uri("/api/v1/control/social/friend-requests?userId=u_alice&direction=outgoing&limit=1")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
+
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -2192,6 +2266,8 @@ async fn test_control_plane_social_friend_request_list_rejects_tampered_cursor_s
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
+
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -2235,6 +2311,8 @@ async fn test_control_plane_social_friend_request_list_rejects_unsupported_curso
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
+
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -2278,6 +2356,7 @@ async fn test_control_plane_social_friend_request_accept_updates_snapshot_and_au
                 .uri("/api/v1/control/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2304,6 +2383,7 @@ async fn test_control_plane_social_friend_request_accept_updates_snapshot_and_au
                 .uri("/api/v1/control/social/friend-requests/fr_accept_001/accept")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2363,6 +2443,7 @@ async fn test_control_plane_social_friend_request_accept_updates_snapshot_and_au
                 .uri("/api/v1/control/social/friend-requests/fr_accept_001")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -2397,6 +2478,7 @@ async fn test_control_plane_social_friend_request_accept_updates_snapshot_and_au
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -2424,6 +2506,7 @@ async fn test_control_plane_social_friend_request_accept_updates_snapshot_and_au
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -2532,6 +2615,7 @@ async fn test_control_plane_social_file_runtime_restart_repairs_atomic_friend_re
                 .uri("/api/v1/control/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2563,6 +2647,7 @@ async fn test_control_plane_social_file_runtime_restart_repairs_atomic_friend_re
                 .uri("/api/v1/control/social/friend-requests/fr_accept_failpoint_001/accept")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2641,6 +2726,7 @@ async fn test_control_plane_social_file_runtime_restart_repairs_atomic_friend_re
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -2659,6 +2745,7 @@ async fn test_control_plane_social_file_runtime_restart_repairs_atomic_friend_re
                 ))
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -2687,6 +2774,7 @@ async fn test_control_plane_social_file_runtime_restart_repairs_atomic_friend_re
                 .uri("/api/v1/control/social/friend-requests/fr_accept_failpoint_001")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -2710,6 +2798,7 @@ async fn test_control_plane_social_friend_request_submit_rejects_active_friendsh
                 .uri("/api/v1/control/social/user-blocks")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2735,6 +2824,7 @@ async fn test_control_plane_social_friend_request_submit_rejects_active_friendsh
                 .uri("/api/v1/control/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2781,6 +2871,7 @@ async fn test_control_plane_social_friend_request_accept_rejects_active_friendsh
                 .uri("/api/v1/control/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2806,6 +2897,7 @@ async fn test_control_plane_social_friend_request_accept_rejects_active_friendsh
                 .uri("/api/v1/control/social/user-blocks")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2832,6 +2924,7 @@ async fn test_control_plane_social_friend_request_accept_rejects_active_friendsh
                 .uri("/api/v1/control/social/friend-requests/fr_accept_blocked_001/accept")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2870,6 +2963,7 @@ async fn test_control_plane_social_friend_request_accept_rejects_active_friendsh
                 .uri("/api/v1/control/social/friend-requests/fr_accept_blocked_001")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -2913,6 +3007,7 @@ async fn test_control_plane_social_friend_request_decline_updates_snapshot_and_a
                 .uri("/api/v1/control/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2939,6 +3034,7 @@ async fn test_control_plane_social_friend_request_decline_updates_snapshot_and_a
                 .uri("/api/v1/control/social/friend-requests/fr_decline_001/decline")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2983,6 +3079,7 @@ async fn test_control_plane_social_friend_request_decline_updates_snapshot_and_a
                 .uri("/api/v1/control/social/friend-requests/fr_decline_001")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -3055,6 +3152,7 @@ async fn test_control_plane_social_friend_request_cancel_updates_snapshot_and_au
                 .uri("/api/v1/control/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3081,6 +3179,7 @@ async fn test_control_plane_social_friend_request_cancel_updates_snapshot_and_au
                 .uri("/api/v1/control/social/friend-requests/fr_cancel_001/cancel")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3125,6 +3224,7 @@ async fn test_control_plane_social_friend_request_cancel_updates_snapshot_and_au
                 .uri("/api/v1/control/social/friend-requests/fr_cancel_001")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -3197,6 +3297,7 @@ async fn test_control_plane_social_friendship_activation_persists_snapshot_commi
                 .uri("/api/v1/control/social/friendships")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3255,6 +3356,7 @@ async fn test_control_plane_social_friendship_activation_persists_snapshot_commi
                 .uri("/api/v1/control/social/friendships/fs_001")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -3312,6 +3414,7 @@ async fn test_control_plane_social_friendship_activation_rejects_active_friendsh
                 .uri("/api/v1/control/social/user-blocks")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3337,6 +3440,7 @@ async fn test_control_plane_social_friendship_activation_rejects_active_friendsh
                 .uri("/api/v1/control/social/friendships")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3384,6 +3488,7 @@ async fn test_control_plane_social_friend_request_accept_replays_duplicate_event
                 .uri("/api/v1/control/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3415,6 +3520,7 @@ async fn test_control_plane_social_friend_request_accept_replays_duplicate_event
                 .uri("/api/v1/control/social/friend-requests/fr_accept_replay_001/accept")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(accept_body))
@@ -3439,6 +3545,7 @@ async fn test_control_plane_social_friend_request_accept_replays_duplicate_event
                 .uri("/api/v1/control/social/friend-requests/fr_accept_replay_001/accept")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(accept_body))
@@ -3480,6 +3587,7 @@ async fn test_control_plane_social_friend_request_accept_rejects_new_event_after
                 .uri("/api/v1/control/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3505,6 +3613,7 @@ async fn test_control_plane_social_friend_request_accept_rejects_new_event_after
                 .uri("/api/v1/control/social/friend-requests/fr_accept_reject_new_event_001/accept")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3528,6 +3637,7 @@ async fn test_control_plane_social_friend_request_accept_rejects_new_event_after
                 .uri("/api/v1/control/social/friend-requests/fr_accept_reject_new_event_001/accept")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3560,6 +3670,7 @@ async fn test_control_plane_social_friend_request_accept_rejects_new_event_after
                 .uri("/api/v1/control/social/friend-requests/fr_accept_reject_new_event_001")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -3591,6 +3702,7 @@ async fn test_control_plane_social_friend_request_decline_replays_duplicate_even
                 .uri("/api/v1/control/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3622,6 +3734,7 @@ async fn test_control_plane_social_friend_request_decline_replays_duplicate_even
                 .uri("/api/v1/control/social/friend-requests/fr_decline_replay_001/decline")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(decline_body))
@@ -3647,6 +3760,7 @@ async fn test_control_plane_social_friend_request_decline_replays_duplicate_even
                 .uri("/api/v1/control/social/friend-requests/fr_decline_replay_001/decline")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(decline_body))
@@ -3687,6 +3801,7 @@ async fn test_control_plane_social_friend_request_cancel_replays_duplicate_event
                 .uri("/api/v1/control/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3718,6 +3833,7 @@ async fn test_control_plane_social_friend_request_cancel_replays_duplicate_event
                 .uri("/api/v1/control/social/friend-requests/fr_cancel_replay_001/cancel")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(cancel_body))
@@ -3743,6 +3859,7 @@ async fn test_control_plane_social_friend_request_cancel_replays_duplicate_event
                 .uri("/api/v1/control/social/friend-requests/fr_cancel_replay_001/cancel")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(cancel_body))
@@ -3796,6 +3913,7 @@ async fn test_control_plane_social_friendship_removal_updates_snapshot_and_audit
                 .uri("/api/v1/control/social/friendships")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3822,6 +3940,7 @@ async fn test_control_plane_social_friendship_removal_updates_snapshot_and_audit
                 .uri("/api/v1/control/social/friendships/fs_remove_001/remove")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3866,6 +3985,7 @@ async fn test_control_plane_social_friendship_removal_updates_snapshot_and_audit
                 .uri("/api/v1/control/social/friendships/fs_remove_001")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -3926,6 +4046,7 @@ async fn test_control_plane_social_friendship_removal_archives_direct_chat_pair_
                 .uri("/api/v1/control/social/friendships")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3952,6 +4073,7 @@ async fn test_control_plane_social_friendship_removal_archives_direct_chat_pair_
                 .uri("/api/v1/control/social/direct-chats/bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3978,6 +4100,7 @@ async fn test_control_plane_social_friendship_removal_archives_direct_chat_pair_
                 .uri("/api/v1/control/social/friendships/fs_remove_archives_dc_001/remove")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4001,6 +4124,7 @@ async fn test_control_plane_social_friendship_removal_archives_direct_chat_pair_
                 .uri("/api/v1/control/social/direct-chats/dc_remove_archives_dc_001")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -4029,6 +4153,7 @@ async fn test_control_plane_social_friendship_removal_archives_direct_chat_pair_
                 .uri("/api/v1/control/social/direct-chats/bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4060,6 +4185,7 @@ async fn test_control_plane_social_friendship_remove_replays_duplicate_event_ide
                 .uri("/api/v1/control/social/friendships")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4091,6 +4217,7 @@ async fn test_control_plane_social_friendship_remove_replays_duplicate_event_ide
                 .uri("/api/v1/control/social/friendships/fs_remove_replay_001/remove")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(remove_body))
@@ -4115,6 +4242,7 @@ async fn test_control_plane_social_friendship_remove_replays_duplicate_event_ide
                 .uri("/api/v1/control/social/friendships/fs_remove_replay_001/remove")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(remove_body))
@@ -4155,6 +4283,7 @@ async fn test_control_plane_social_friendship_rejects_duplicate_active_pair() {
                 .uri("/api/v1/control/social/friendships")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4179,6 +4308,7 @@ async fn test_control_plane_social_friendship_rejects_duplicate_active_pair() {
                 .uri("/api/v1/control/social/friendships")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4233,6 +4363,7 @@ async fn test_control_plane_social_direct_chat_binding_persists_snapshot_commit_
                 .uri("/api/v1/control/social/direct-chats/bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4289,6 +4420,7 @@ async fn test_control_plane_social_direct_chat_binding_persists_snapshot_commit_
                 .uri("/api/v1/control/social/direct-chats/dc_001")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -4346,6 +4478,7 @@ async fn test_control_plane_social_direct_chat_rejects_duplicate_active_pair() {
                 .uri("/api/v1/control/social/direct-chats/bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4371,6 +4504,7 @@ async fn test_control_plane_social_direct_chat_rejects_duplicate_active_pair() {
                 .uri("/api/v1/control/social/direct-chats/bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4418,6 +4552,33 @@ async fn test_control_plane_social_user_block_persists_snapshot_commit_and_audit
         audit_runtime.clone(),
     );
 
+    let direct_chat_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/control/social/direct-chats/bindings")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "directChatId":"dc_001",
+                        "eventId":"evt_dc_before_ub_001",
+                        "leftActorId":"u_alice",
+                        "rightActorId":"u_bob",
+                        "conversationId":"c_direct_before_ub_001",
+                        "boundAt":"2026-04-10T12:09:00Z"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("direct chat before scoped user block should return response");
+    assert_eq!(direct_chat_response.status(), StatusCode::OK);
+
     let block_response = app
         .clone()
         .oneshot(
@@ -4426,6 +4587,7 @@ async fn test_control_plane_social_user_block_persists_snapshot_commit_and_audit
                 .uri("/api/v1/control/social/user-blocks")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4486,6 +4648,7 @@ async fn test_control_plane_social_user_block_persists_snapshot_commit_and_audit
                 .uri("/api/v1/control/social/user-blocks/ub_001")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -4520,14 +4683,17 @@ async fn test_control_plane_social_user_block_persists_snapshot_commit_and_audit
         permissions: BTreeSet::new(),
     };
     let audit_export = audit_runtime.export_bundle(&audit_auth);
-    assert_eq!(audit_export.total, 1);
-    assert_eq!(audit_export.items[0].action, "control.user_block_blocked");
+    assert_eq!(audit_export.total, 2);
     assert!(
-        audit_export.items[0]
-            .payload
-            .as_deref()
-            .expect("user block audit should include payload")
-            .contains("\"blockId\":\"ub_001\"")
+        audit_export
+            .items
+            .iter()
+            .any(|item| item.action == "control.user_block_blocked"
+                && item
+                    .payload
+                    .as_deref()
+                    .is_some_and(|payload| payload.contains("\"blockId\":\"ub_001\""))),
+        "user block audit record should be persisted"
     );
 }
 
@@ -4543,6 +4709,7 @@ async fn test_control_plane_social_user_block_rejects_duplicate_active_scope() {
                 .uri("/api/v1/control/social/user-blocks")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4568,6 +4735,7 @@ async fn test_control_plane_social_user_block_rejects_duplicate_active_scope() {
                 .uri("/api/v1/control/social/user-blocks")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4599,6 +4767,49 @@ async fn test_control_plane_social_user_block_rejects_duplicate_active_scope() {
 }
 
 #[tokio::test]
+async fn test_control_plane_social_user_block_rejects_direct_chat_scope_for_unknown_chat() {
+    let app = control_plane_api::build_app();
+
+    let block_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/control/social/user-blocks")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "blockId":"ub_unknown_direct_chat_001",
+                        "eventId":"evt_ub_unknown_direct_chat_001",
+                        "blockerUserId":"u_alice",
+                        "blockedUserId":"u_bob",
+                        "scope":"direct_chat",
+                        "directChatId":"dc_missing_001",
+                        "effectiveAt":"2026-04-10T12:20:00Z"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("direct-chat scoped user block for unknown chat should return response");
+
+    assert_eq!(block_response.status(), StatusCode::BAD_REQUEST);
+    let block_body = block_response
+        .into_body()
+        .collect()
+        .await
+        .expect("unknown direct-chat scoped block body should collect")
+        .to_bytes();
+    let block_json: serde_json::Value = serde_json::from_slice(&block_body)
+        .expect("unknown direct-chat scoped block body should be valid json");
+    assert_eq!(block_json["status"], "invalid");
+    assert_eq!(block_json["code"], "invalid_user_block");
+}
+
+#[tokio::test]
 async fn test_control_plane_social_file_runtime_restores_friend_request_snapshot_and_outbox() {
     let runtime_dir = unique_runtime_dir();
     fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
@@ -4627,6 +4838,7 @@ async fn test_control_plane_social_file_runtime_restores_friend_request_snapshot
                 .uri("/api/v1/control/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4653,16 +4865,8 @@ async fn test_control_plane_social_file_runtime_restores_friend_request_snapshot
         "durable social commit journal should be materialized"
     );
 
-    let journal_body = fs::read_to_string(state_file(
-        runtime_dir.as_path(),
-        "social-commit-journal.json",
-    ))
-    .expect("social journal should be readable");
-    let journal_json: serde_json::Value =
-        serde_json::from_str(&journal_body).expect("social journal should be valid json");
-    let journal_items = journal_json
-        .as_array()
-        .expect("social journal should serialize as an array");
+    let journal_path = state_file(runtime_dir.as_path(), "social-commit-journal.json");
+    let journal_items = read_json_lines(journal_path.as_path());
     assert_eq!(journal_items.len(), 1);
     assert_eq!(journal_items[0]["event_type"], "friend_request.submitted");
     assert_eq!(journal_items[0]["scope_type"], "friend_request");
@@ -4675,12 +4879,14 @@ async fn test_control_plane_social_file_runtime_restores_friend_request_snapshot
     );
 
     let snapshot_response = app_after
+        .clone()
         .oneshot(
             Request::builder()
                 .method("GET")
                 .uri("/api/v1/control/social/friend-requests/fr_persist_001")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -4734,6 +4940,7 @@ async fn test_control_plane_social_file_runtime_restores_direct_chat_pair_unique
                 .uri("/api/v1/control/social/direct-chats/bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4766,6 +4973,7 @@ async fn test_control_plane_social_file_runtime_restores_direct_chat_pair_unique
                 .uri("/api/v1/control/social/direct-chats/bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4824,6 +5032,7 @@ async fn test_control_plane_social_file_runtime_replays_friend_request_when_snap
                 .uri("/api/v1/control/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4852,12 +5061,14 @@ async fn test_control_plane_social_file_runtime_replays_friend_request_when_snap
     );
 
     let snapshot_response = app_after
+        .clone()
         .oneshot(
             Request::builder()
                 .method("GET")
                 .uri("/api/v1/control/social/friend-requests/fr_replay_001")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -4881,7 +5092,7 @@ async fn test_control_plane_social_file_runtime_replays_friend_request_when_snap
 }
 
 #[tokio::test]
-async fn test_control_plane_social_file_runtime_falls_back_to_snapshot_when_journal_replay_fails() {
+async fn test_control_plane_social_file_runtime_fails_closed_when_journal_replay_fails() {
     let runtime_dir = unique_runtime_dir();
     fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
 
@@ -4908,6 +5119,7 @@ async fn test_control_plane_social_file_runtime_falls_back_to_snapshot_when_jour
                 .uri("/api/v1/control/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4939,38 +5151,73 @@ async fn test_control_plane_social_file_runtime_falls_back_to_snapshot_when_jour
     );
 
     let snapshot_response = app_after
+        .clone()
         .oneshot(
             Request::builder()
                 .method("GET")
                 .uri("/api/v1/control/social/friend-requests/fr_corrupt_journal_001")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
         .await
-        .expect("friend request snapshot after journal corruption should return response");
-    assert_eq!(snapshot_response.status(), StatusCode::OK);
+        .expect(
+            "friend request snapshot after journal corruption should return unavailable response",
+        );
+    assert_eq!(snapshot_response.status(), StatusCode::SERVICE_UNAVAILABLE);
 
     let snapshot_body = snapshot_response
         .into_body()
         .collect()
         .await
-        .expect("friend request snapshot after journal corruption should collect")
+        .expect("friend request unavailable body after journal corruption should collect")
         .to_bytes();
     let snapshot_json: serde_json::Value = serde_json::from_slice(&snapshot_body)
-        .expect("friend request snapshot after journal corruption should be json");
-    assert_eq!(
-        snapshot_json["friendRequest"]["requestId"],
-        "fr_corrupt_journal_001"
-    );
+        .expect("friend request unavailable body after journal corruption should be json");
+    assert_eq!(snapshot_json["code"], "social_commit_journal_unavailable");
+
+    let write_response = app_after
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/control/social/friend-requests")
+                .header("x-tenant-id", "t_demo")
+                .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
+                .header("x-permissions", "control.write")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "requestId":"fr_corrupt_journal_002",
+                        "eventId":"evt_corrupt_journal_002",
+                        "requesterUserId":"u_alice",
+                        "targetUserId":"u_charlie",
+                        "requestedAt":"2026-04-10T14:06:00Z"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("friend request write after journal corruption should return unavailable response");
+    assert_eq!(write_response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    let write_body = write_response
+        .into_body()
+        .collect()
+        .await
+        .expect("friend request write unavailable body after journal corruption should collect")
+        .to_bytes();
+    let write_json: serde_json::Value = serde_json::from_slice(&write_body)
+        .expect("friend request write unavailable body after journal corruption should be json");
+    assert_eq!(write_json["code"], "social_commit_journal_unavailable");
 
     let _ = fs::remove_dir_all(runtime_dir);
 }
 
 #[tokio::test]
-async fn test_control_plane_social_file_runtime_starts_with_default_when_snapshot_is_invalid_and_journal_missing()
+async fn test_control_plane_social_file_runtime_fails_closed_when_snapshot_is_invalid_and_journal_missing()
  {
     let runtime_dir = unique_runtime_dir();
     fs::create_dir_all(runtime_dir.join("state")).expect("runtime state dir should be created");
@@ -5002,23 +5249,111 @@ async fn test_control_plane_social_file_runtime_starts_with_default_when_snapsho
                 .uri("/api/v1/control/social/friend-requests/fr_missing_invalid_snapshot")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
         .await
         .expect("snapshot read on invalid startup snapshot should return response");
-    assert_eq!(snapshot_response.status(), StatusCode::NOT_FOUND);
+    assert_eq!(snapshot_response.status(), StatusCode::SERVICE_UNAVAILABLE);
 
     let snapshot_body = snapshot_response
         .into_body()
         .collect()
         .await
-        .expect("snapshot read on invalid startup snapshot should collect")
+        .expect("snapshot unavailable body on invalid startup snapshot should collect")
         .to_bytes();
     let snapshot_json: serde_json::Value = serde_json::from_slice(&snapshot_body)
-        .expect("snapshot read on invalid startup snapshot should be json");
-    assert_eq!(snapshot_json["code"], "friend_request_not_found");
+        .expect("snapshot unavailable body on invalid startup snapshot should be json");
+    assert_eq!(snapshot_json["code"], "social_state_unavailable");
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
+async fn test_control_plane_social_file_runtime_replaces_existing_snapshot_atomically() {
+    let runtime_dir = unique_runtime_dir();
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+
+    let cluster = Arc::new(RealtimeClusterBridge::default());
+    let ops_runtime = Arc::new(OpsRuntime::new(
+        "node_a",
+        "local-minimal",
+        "127.0.0.1:18090",
+        vec!["session-gateway".into(), "control-plane-api".into()],
+        vec![],
+    ));
+    let app = control_plane_api::build_app_with_cluster_and_governance_sinks_and_runtime_dir(
+        cluster,
+        ops_runtime,
+        Arc::new(AuditRuntime::default()),
+        runtime_dir.as_path(),
+    );
+
+    for (request_id, event_id, target_user_id) in [
+        ("fr_atomic_snapshot_001", "evt_atomic_snapshot_001", "u_bob"),
+        (
+            "fr_atomic_snapshot_002",
+            "evt_atomic_snapshot_002",
+            "u_charlie",
+        ),
+    ] {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/control/social/friend-requests")
+                    .header("x-tenant-id", "t_demo")
+                    .header("x-user-id", "u_admin")
+                    .header("x-actor-kind", "admin")
+                    .header("x-permissions", "control.write")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({
+                            "requestId": request_id,
+                            "eventId": event_id,
+                            "requesterUserId": "u_alice",
+                            "targetUserId": target_user_id,
+                            "requestedAt": "2026-04-10T14:07:00Z"
+                        })
+                        .to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .expect("friend request write should return response");
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    let snapshot_path = state_file(runtime_dir.as_path(), "social-state.json");
+    let snapshot_body =
+        fs::read_to_string(snapshot_path.as_path()).expect("social snapshot should be readable");
+    let snapshot_json: serde_json::Value =
+        serde_json::from_str(&snapshot_body).expect("social snapshot should be valid json");
+    assert!(
+        snapshot_json["friend_requests"]["fr_atomic_snapshot_001"].is_object(),
+        "first request should remain after atomic replacement"
+    );
+    assert!(
+        snapshot_json["friend_requests"]["fr_atomic_snapshot_002"].is_object(),
+        "second request should be present after atomic replacement"
+    );
+
+    let temp_files = fs::read_dir(snapshot_path.parent().expect("snapshot should have parent"))
+        .expect("social state dir should be readable")
+        .filter_map(Result::ok)
+        .filter(|entry| {
+            entry.file_name().to_str().is_some_and(|name| {
+                name.starts_with(".social-state.json.") && name.ends_with(".tmp")
+            })
+        })
+        .collect::<Vec<_>>();
+    assert!(
+        temp_files.is_empty(),
+        "successful atomic snapshot replacement must not leave temp files"
+    );
 
     let _ = fs::remove_dir_all(runtime_dir);
 }
@@ -5052,6 +5387,7 @@ async fn test_control_plane_social_file_runtime_replays_direct_chat_pair_guard_w
                 .uri("/api/v1/control/social/direct-chats/bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -5087,6 +5423,7 @@ async fn test_control_plane_social_file_runtime_replays_direct_chat_pair_guard_w
                 .uri("/api/v1/control/social/direct-chats/bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -5146,6 +5483,7 @@ async fn test_control_plane_social_file_runtime_discards_friend_request_snapshot
                 .uri("/api/v1/control/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -5177,6 +5515,7 @@ async fn test_control_plane_social_file_runtime_discards_friend_request_snapshot
                 .uri("/api/v1/control/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -5214,6 +5553,7 @@ async fn test_control_plane_social_file_runtime_discards_friend_request_snapshot
                 .uri("/api/v1/control/social/friend-requests/fr_phantom_001")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -5253,6 +5593,7 @@ async fn test_control_plane_social_file_runtime_discards_direct_chat_snapshot_ah
                 .uri("/api/v1/control/social/direct-chats/bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -5285,6 +5626,7 @@ async fn test_control_plane_social_file_runtime_discards_direct_chat_snapshot_ah
                 .uri("/api/v1/control/social/direct-chats/bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -5323,6 +5665,7 @@ async fn test_control_plane_social_file_runtime_discards_direct_chat_snapshot_ah
                 .uri("/api/v1/control/social/direct-chats/bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -5373,6 +5716,7 @@ async fn test_control_plane_social_file_runtime_keeps_direct_chat_pair_guard_aft
                 .uri("/api/v1/control/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -5406,6 +5750,7 @@ async fn test_control_plane_social_file_runtime_keeps_direct_chat_pair_guard_aft
                 .uri("/api/v1/control/social/direct-chats/bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -5456,6 +5801,7 @@ async fn test_control_plane_social_file_runtime_keeps_direct_chat_pair_guard_aft
                 .uri("/api/v1/control/social/direct-chats/bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -5516,6 +5862,7 @@ async fn test_control_plane_social_file_runtime_replays_same_event_id_after_snap
                 .uri("/api/v1/control/social/friend-requests")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -5549,6 +5896,7 @@ async fn test_control_plane_social_file_runtime_replays_same_event_id_after_snap
                 .uri("/api/v1/control/social/direct-chats/bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -5590,6 +5938,7 @@ async fn test_control_plane_social_file_runtime_replays_same_event_id_after_snap
                 .uri("/api/v1/control/social/direct-chats/bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -5628,16 +5977,8 @@ async fn test_control_plane_social_file_runtime_replays_same_event_id_after_snap
     assert_eq!(retry_json["persistence"]["journalAuthority"], true);
     assert_eq!(retry_json["persistence"]["snapshotStatus"], "current");
 
-    let journal_body = fs::read_to_string(state_file(
-        runtime_dir.as_path(),
-        "social-commit-journal.json",
-    ))
-    .expect("social journal should be readable");
-    let journal_json: serde_json::Value =
-        serde_json::from_str(&journal_body).expect("social journal should be valid json");
-    let journal_items = journal_json
-        .as_array()
-        .expect("social journal should serialize as an array");
+    let journal_path = state_file(runtime_dir.as_path(), "social-commit-journal.json");
+    let journal_items = read_json_lines(journal_path.as_path());
     assert_eq!(journal_items.len(), 2);
     assert_eq!(
         journal_items
@@ -5684,6 +6025,7 @@ async fn test_control_plane_social_file_runtime_failpoint_forces_next_snapshot_s
                 .uri("/api/v1/control/social/direct-chats/bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -5741,6 +6083,7 @@ async fn test_control_plane_social_file_runtime_failpoint_forces_next_snapshot_s
                 .uri("/api/v1/control/social/direct-chats/bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -5813,6 +6156,7 @@ async fn test_control_plane_social_file_runtime_operator_repair_rebuilds_snapsho
                 .uri("/api/v1/control/social/direct-chats/bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -5853,6 +6197,7 @@ async fn test_control_plane_social_file_runtime_operator_repair_rebuilds_snapsho
                 .uri("/api/v1/control/social/runtime/repair-derived-snapshot")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -5897,6 +6242,7 @@ async fn test_control_plane_social_file_runtime_operator_repair_rebuilds_snapsho
                 .uri("/api/v1/control/social/direct-chats/dc_operator_repair_001")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -5943,6 +6289,7 @@ async fn test_control_plane_social_file_runtime_leaves_pending_tx_marker_after_s
                 .uri("/api/v1/control/social/direct-chats/bindings")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -6014,6 +6361,7 @@ async fn test_control_plane_social_file_runtime_leaves_pending_tx_marker_after_s
                 .uri("/api/v1/control/social/direct-chats/dc_tx_marker_001")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),
@@ -6084,6 +6432,7 @@ async fn test_control_plane_social_file_runtime_operator_repair_replays_external
                 .uri("/api/v1/control/social/runtime/repair-derived-snapshot")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.write")
                 .body(Body::empty())
                 .unwrap(),
@@ -6113,6 +6462,7 @@ async fn test_control_plane_social_file_runtime_operator_repair_replays_external
                 .uri("/api/v1/control/social/direct-chats/dc_operator_repair_journal_001")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_admin")
+                .header("x-actor-kind", "admin")
                 .header("x-permissions", "control.read")
                 .body(Body::empty())
                 .unwrap(),

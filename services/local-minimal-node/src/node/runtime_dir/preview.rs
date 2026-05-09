@@ -7,6 +7,7 @@ use diff::{
     stable_runtime_dir_restore_preview_fingerprint,
     summarize_disconnect_fence_restore_preview_change,
     summarize_realtime_checkpoint_restore_preview_change,
+    summarize_realtime_event_window_restore_preview_change,
     summarize_realtime_subscription_restore_preview_change,
     summarize_rtc_state_restore_preview_change, summarize_runtime_restore_preview_change,
     summarize_stream_state_restore_preview_change,
@@ -41,6 +42,9 @@ pub struct RuntimeDirRestorePreviewDomainSummaryView {
     pub acked_rewound_keys: Option<Vec<String>>,
     pub trimmed_advanced_keys: Option<Vec<String>>,
     pub trimmed_rewound_keys: Option<Vec<String>>,
+    pub capacity_trimmed_advanced_keys: Option<Vec<String>>,
+    pub capacity_trimmed_rewound_keys: Option<Vec<String>>,
+    pub capacity_trimmed_timestamp_changed_keys: Option<Vec<String>>,
     pub timestamp_only_changed_keys: Option<Vec<String>>,
     pub added_scope_keys: Option<Vec<String>>,
     pub removed_scope_keys: Option<Vec<String>>,
@@ -171,6 +175,13 @@ pub fn preview_restore_runtime_dir(
                 )
                 .or_else(|| {
                     summarize_realtime_checkpoint_restore_preview_change(
+                        file_name,
+                        &source_payload,
+                        &target_payload,
+                    )
+                })
+                .or_else(|| {
+                    summarize_realtime_event_window_restore_preview_change(
                         file_name,
                         &source_payload,
                         &target_payload,

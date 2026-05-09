@@ -100,6 +100,7 @@ async fn test_default_app_uses_configured_external_user_module_provider() {
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_runtime_external_owner")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_runtime_external_owner")
                 .header("x-session-id", "s_runtime_external_owner")
                 .header("content-type", "application/json")
@@ -123,6 +124,7 @@ async fn test_default_app_uses_configured_external_user_module_provider() {
                 .uri("/api/v1/conversations/c_runtime_external_default/members/add")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_runtime_external_owner")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_runtime_external_owner")
                 .header("x-session-id", "s_runtime_external_owner")
                 .header("content-type", "application/json")
@@ -168,6 +170,7 @@ async fn test_default_app_uses_configured_external_user_module_provider() {
                 .uri("/api/v1/conversations/c_runtime_external_default/messages")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_runtime_external_owner")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_runtime_external_owner")
                 .header("x-session-id", "s_runtime_external_owner")
                 .header("content-type", "application/json")
@@ -187,11 +190,14 @@ async fn test_default_app_uses_configured_external_user_module_provider() {
     let journal_content =
         fs::read_to_string(state_file(runtime_dir.as_path(), "commit-journal.json"))
             .expect("commit journal should be readable");
-    let journal_json: serde_json::Value =
-        serde_json::from_str(&journal_content).expect("commit journal should be valid json");
-    let message_posted = journal_json
-        .as_array()
-        .expect("journal should be an array")
+    let journal_events = journal_content
+        .lines()
+        .map(|line| {
+            serde_json::from_str::<serde_json::Value>(line)
+                .expect("commit journal line should be valid json")
+        })
+        .collect::<Vec<_>>();
+    let message_posted = journal_events
         .iter()
         .find(|item| item["event_type"] == "message.posted")
         .expect("message.posted event should exist");
@@ -255,6 +261,7 @@ async fn test_default_app_boots_with_external_user_module_provider_missing_catal
                 .uri("/api/v1/conversations")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_runtime_external_owner")
+                .header("x-actor-kind", "user")
                 .header("x-device-id", "d_runtime_external_owner")
                 .header("x-session-id", "s_runtime_external_owner")
                 .header("content-type", "application/json")
@@ -327,6 +334,7 @@ async fn test_default_app_boots_with_invalid_user_module_provider_mode_and_surfa
                 .uri("/api/v1/user-module/provider-health")
                 .header("x-tenant-id", "t_demo")
                 .header("x-user-id", "u_demo")
+                .header("x-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
