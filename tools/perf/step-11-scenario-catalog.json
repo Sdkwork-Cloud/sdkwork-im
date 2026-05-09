@@ -21,6 +21,7 @@
   "executionOrder": [
     "Freeze scenario inventory and execution tiers.",
     "Run connection, message, and stream quantitative drills.",
+    "Run IM realtime core quantitative drill for fanout, checkpoint, trimming, compensation, and route handoff.",
     "Run drain, rebalance, restore, failover, and upgrade rollback drills.",
     "Write quantitative results and conclusions back into docs/review."
   ],
@@ -134,6 +135,36 @@
       ],
       "nextCheckpoints": [
         "CP11-2"
+      ],
+      "status": "measured-local-baseline"
+    },
+    {
+      "id": "im-realtime-core-baseline",
+      "family": "im-realtime-core",
+      "goal": "Freeze the IM realtime core commercial gate for fanout, bounded windows, checkpoints, compensation rollback, and cluster handoff.",
+      "tierIds": [
+        "ci-smoke",
+        "pre-release",
+        "capacity"
+      ],
+      "metrics": [
+        "fanout_success_permille",
+        "publish_p95_ms",
+        "publish_p99_ms",
+        "publish_tps",
+        "ack_p95_ms",
+        "restore_duration_ms",
+        "compensation_rollback_ms",
+        "cluster_handoff_ms",
+        "capacity_trimmed_event_count"
+      ],
+      "repoAssets": [
+        "services/session-gateway/tests/performance_realtime_core_baseline_test.rs",
+        "services/session-gateway/tests/commercial_realtime_acceptance_test.rs",
+        "tools/perf/step-11-cp11-4-im-realtime-core-baseline.json"
+      ],
+      "nextCheckpoints": [
+        "CP11-4"
       ],
       "status": "measured-local-baseline"
     },
