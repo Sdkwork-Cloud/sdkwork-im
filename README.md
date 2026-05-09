@@ -320,4 +320,9 @@ cargo test --workspace
 
 ## 许可证
 
-当前仓库代码默认沿用工作区中的 `MIT` 声明，具体以各 crate 与后续仓库配置为准。
+当前仓库采用 `AGPL-3.0-or-later` + 商业授权策略：
+
+- 非商业使用、评估、研究、教育和源码协作可在 `AGPL-3.0-or-later` 下进行。
+- Commercial use requires a separate commercial license；包括生产部署、paid SaaS、托管服务、商业分发、OEM/白标、专有产品集成、转售或其他商业化使用。
+- 商业用途必须先购买或取得单独的 commercial authorization，具体以 [COMMERCIAL-LICENSE.md](./COMMERCIAL-LICENSE.md) 为准。
+- AGPL-3.0-or-later 正文入口见 [LICENSE](./LICENSE)。

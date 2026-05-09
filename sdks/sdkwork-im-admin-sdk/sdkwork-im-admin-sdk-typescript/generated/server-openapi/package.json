@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Generated TypeScript transport package for the IM admin backend",
   "author": "SDKWork Team",
-  "license": "MIT",
+  "license": "AGPL-3.0-or-later",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

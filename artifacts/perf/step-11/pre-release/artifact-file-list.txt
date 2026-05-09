@@ -10,3 +10,4 @@ drain-rebalance/drill.json
 failover/drill.json
 restore-recovery/drill.json
 upgrade-rollback/drill.json
+im-websocket-e2e/metrics.json

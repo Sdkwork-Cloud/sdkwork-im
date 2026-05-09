@@ -9592,12 +9592,18 @@ impl SocialControlRuntime {
             .friend_requests
             .contains_key(friend_request.request_id.as_str())
         {
-            return Err(ControlPlaneError::conflict(
+            return Err(ControlPlaneError::conflict_with_details(
                 "friend_request_conflict",
                 format!(
                     "friend request {} already exists",
                     friend_request.request_id
                 ),
+                serde_json::json!({
+                    "existingRequestId": friend_request.request_id,
+                    "existingStatus": FriendRequestStatus::Pending,
+                    "existingRequesterUserId": friend_request.requester_user_id,
+                    "existingTargetUserId": friend_request.target_user_id
+                }),
             ));
         }
         let requested_pair = friend_request

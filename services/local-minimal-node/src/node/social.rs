@@ -2,7 +2,7 @@ use super::*;
 use axum::body::Body;
 use fs4::fs_std::FileExt;
 use http_body_util::BodyExt;
-use im_domain_core::social::{FriendRequestStatus, FriendshipStatus};
+use im_domain_core::social::{FriendRequestStatus, FriendshipStatus, normalize_user_pair};
 use im_time::format_unix_timestamp_millis;
 use std::fs;
 use std::io::Write;
@@ -90,13 +90,32 @@ pub(super) async fn submit_friend_request(
     )?;
 
     let requested_at = current_social_timestamp();
-    let request_id = unique_social_id(
-        "fr_",
-        auth.tenant_id.as_str(),
+    let request_id = if let Some(existing_request_id) = existing_pending_friend_request_id_for_pair(
+        &state,
+        &auth,
         auth.actor_id.as_str(),
         request.target_user_id.as_str(),
+    )
+    .await?
+    {
+        existing_request_id
+    } else {
+        unique_friend_request_id_for_pair(
+            auth.tenant_id.as_str(),
+            auth.actor_id.as_str(),
+            request.target_user_id.as_str(),
+        )?
+    };
+    let event_id = deterministic_social_id(
+        "evt_fr_submit_",
+        format!(
+            "{}:{}:{}",
+            request_id,
+            auth.actor_id,
+            current_unix_epoch_nanos()
+        )
+        .as_str(),
     );
-    let event_id = deterministic_social_id("evt_fr_submit_", request_id.as_str());
     let (response_status, response_value) = dispatch_control_plane_json_response(
         &state,
         &auth,
@@ -1634,6 +1653,67 @@ async fn maybe_pause_friend_request_accept_before_request_commit() {
 #[cfg(not(debug_assertions))]
 async fn maybe_pause_friend_request_accept_before_request_commit() {}
 
+async fn existing_pending_friend_request_id_for_pair(
+    state: &AppState,
+    auth: &AuthContext,
+    requester_user_id: &str,
+    target_user_id: &str,
+) -> Result<Option<String>, ApiError> {
+    for (user_id, direction) in [
+        (
+            requester_user_id,
+            SocialFriendRequestListDirectionQuery::Outgoing,
+        ),
+        (
+            requester_user_id,
+            SocialFriendRequestListDirectionQuery::Incoming,
+        ),
+        (
+            target_user_id,
+            SocialFriendRequestListDirectionQuery::Outgoing,
+        ),
+        (
+            target_user_id,
+            SocialFriendRequestListDirectionQuery::Incoming,
+        ),
+    ] {
+        let response = dispatch_control_plane_json(
+            state,
+            auth,
+            "GET",
+            build_friend_request_inventory_control_plane_uri(
+                user_id,
+                direction,
+                SocialFriendRequestListStatusQuery::Pending,
+                SOCIAL_FRIEND_REQUEST_LIST_MAX_LIMIT,
+                None,
+            ),
+            "control.read",
+            None,
+        )
+        .await?;
+        let items: Vec<FriendRequest> = parse_json_field(&response, "items")?;
+        if let Some(existing) = items.into_iter().find(|friend_request| {
+            same_friend_request_pair(friend_request, requester_user_id, target_user_id)
+        }) {
+            return Ok(Some(existing.request_id));
+        }
+    }
+
+    Ok(None)
+}
+
+fn same_friend_request_pair(
+    friend_request: &FriendRequest,
+    requester_user_id: &str,
+    target_user_id: &str,
+) -> bool {
+    (friend_request.requester_user_id == requester_user_id
+        && friend_request.target_user_id == target_user_id)
+        || (friend_request.requester_user_id == target_user_id
+            && friend_request.target_user_id == requester_user_id)
+}
+
 #[cfg(debug_assertions)]
 async fn maybe_pause_friend_request_decline_before_request_commit() {
     const SOCIAL_DECLINE_TEST_PRE_COMMIT_DELAY_ENV: &str =
@@ -2248,20 +2328,29 @@ fn current_unix_epoch_nanos() -> u128 {
         .as_nanos()
 }
 
-fn unique_social_id(prefix: &str, tenant_id: &str, left: &str, right: &str) -> String {
-    let sequence = NEXT_SOCIAL_ID_SEQUENCE.fetch_add(1, Ordering::Relaxed);
-    deterministic_social_id(
-        prefix,
+fn unique_friend_request_id_for_pair(
+    tenant_id: &str,
+    requester_user_id: &str,
+    target_user_id: &str,
+) -> Result<String, ApiError> {
+    let pair =
+        normalize_user_pair(requester_user_id, target_user_id).map_err(|error| ApiError {
+            status: axum::http::StatusCode::BAD_REQUEST,
+            code: "invalid_friend_request_pair",
+            message: format!("invalid friend request pair: {error:?}"),
+        })?;
+    Ok(deterministic_social_id(
+        "fr_",
         format!(
             "{}:{}:{}:{}:{}",
             tenant_id,
-            left,
-            right,
+            pair.user_low_id,
+            pair.user_high_id,
             current_unix_epoch_nanos(),
-            sequence
+            NEXT_SOCIAL_ID_SEQUENCE.fetch_add(1, Ordering::Relaxed)
         )
         .as_str(),
-    )
+    ))
 }
 
 fn deterministic_social_id(prefix: &str, seed: &str) -> String {
@@ -2454,5 +2543,18 @@ mod tests {
             code: "friendship_blocked",
             message: "friendship is blocked".into(),
         }));
+    }
+
+    #[test]
+    fn test_unique_friend_request_id_allows_new_lifecycle_after_terminal_request() {
+        let first = unique_friend_request_id_for_pair("t_demo", "u_alice", "u_bob")
+            .expect("pair should generate first unique request id");
+        let second = unique_friend_request_id_for_pair("t_demo", "u_bob", "u_alice")
+            .expect("reversed pair should generate second unique request id");
+
+        assert_ne!(
+            first, second,
+            "new lifecycle request after accepted/removed terminal state must not reuse pending id"
+        );
     }
 }

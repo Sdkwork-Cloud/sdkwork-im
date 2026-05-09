@@ -146,7 +146,7 @@ export default defineConfig({
     footer: {
       message:
         "This site documents only behavior that is implemented and verified in the current repository state.",
-      copyright: "MIT",
+      copyright: "AGPL-3.0-or-later; commercial use requires a separate commercial license",
     },
   },
 });

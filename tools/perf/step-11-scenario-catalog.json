@@ -174,7 +174,8 @@
       "family": "im-websocket-e2e",
       "goal": "Freeze the IM websocket E2E commercial gate for real TCP websocket sessions, live fanout, reconnect recovery, backlog restore, capacity trimming, ack checkpointing, and cluster handoff.",
       "tierIds": [
-        "ci-smoke"
+        "ci-smoke",
+        "pre-release"
       ],
       "metrics": [
         "connect_success_permille",
@@ -191,12 +192,14 @@
       "repoAssets": [
         "services/session-gateway/tests/performance_websocket_e2e_baseline_test.rs",
         "services/session-gateway/tests/websocket_smoke_test.rs",
-        "tools/perf/step-11-cp11-5-websocket-e2e-baseline.json"
+        "tools/perf/step-11-cp11-5-websocket-e2e-baseline.json",
+        "artifacts/perf/step-11/pre-release/im-websocket-e2e/metrics.json"
       ],
       "nextCheckpoints": [
-        "CP11-5"
+        "CP11-5",
+        "CP11-6"
       ],
-      "status": "measured-local-baseline"
+      "status": "supplement_collected_gate_blocked_pending_real_pre_release_run"
     },
     {
       "id": "drain-rebalance-drill",
