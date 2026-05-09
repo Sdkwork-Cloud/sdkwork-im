@@ -22,6 +22,7 @@
     "Freeze scenario inventory and execution tiers.",
     "Run connection, message, and stream quantitative drills.",
     "Run IM realtime core quantitative drill for fanout, checkpoint, trimming, compensation, and route handoff.",
+    "Run IM websocket E2E quantitative drill for long connections, live push, reconnect recovery, backlog restore, and route handoff.",
     "Run drain, rebalance, restore, failover, and upgrade rollback drills.",
     "Write quantitative results and conclusions back into docs/review."
   ],
@@ -165,6 +166,35 @@
       ],
       "nextCheckpoints": [
         "CP11-4"
+      ],
+      "status": "measured-local-baseline"
+    },
+    {
+      "id": "im-websocket-e2e-baseline",
+      "family": "im-websocket-e2e",
+      "goal": "Freeze the IM websocket E2E commercial gate for real TCP websocket sessions, live fanout, reconnect recovery, backlog restore, capacity trimming, ack checkpointing, and cluster handoff.",
+      "tierIds": [
+        "ci-smoke"
+      ],
+      "metrics": [
+        "connect_success_permille",
+        "live_fanout_success_permille",
+        "connect_p95_ms",
+        "subscribe_p95_ms",
+        "live_push_p95_ms",
+        "ack_p95_ms",
+        "disconnect_recovery_ms",
+        "backlog_restore_ms",
+        "cluster_handoff_ms",
+        "capacity_trimmed_event_count"
+      ],
+      "repoAssets": [
+        "services/session-gateway/tests/performance_websocket_e2e_baseline_test.rs",
+        "services/session-gateway/tests/websocket_smoke_test.rs",
+        "tools/perf/step-11-cp11-5-websocket-e2e-baseline.json"
+      ],
+      "nextCheckpoints": [
+        "CP11-5"
       ],
       "status": "measured-local-baseline"
     },
