@@ -1923,6 +1923,7 @@ fn passthrough_social_control_plane_error_code(code: &str) -> Option<&'static st
         "friend_request_pair_conflict" => Some("friend_request_pair_conflict"),
         "friend_request_conflict" => Some("friend_request_conflict"),
         "friend_request_blocked" => Some("friend_request_blocked"),
+        "social_event_id_conflict" => Some("social_event_id_conflict"),
         "invalid_friendship" => Some("invalid_friendship"),
         "friendship_not_found" => Some("friendship_not_found"),
         "friendship_not_active" => Some("friendship_not_active"),

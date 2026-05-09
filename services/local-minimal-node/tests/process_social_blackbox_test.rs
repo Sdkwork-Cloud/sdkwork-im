@@ -215,6 +215,85 @@ fn signed_bearer_for_user(user_id: &str, permissions: &[&str]) -> String {
     format!("Bearer {token}")
 }
 
+fn send_admin_control_request(
+    base_url: &str,
+    path: &str,
+) -> Result<(u16, serde_json::Value), String> {
+    let admin_bearer = signed_bearer_for_user("u_admin", &["control.read"]);
+    let response = send_http_request(
+        base_url,
+        "GET",
+        path,
+        &[
+            ("authorization", admin_bearer.as_str()),
+            ("x-tenant-id", "t_demo"),
+            ("x-user-id", "u_admin"),
+        ],
+        None,
+    )?;
+    let json = serde_json::from_slice::<serde_json::Value>(&response.body)
+        .map_err(|error| format!("admin control response body should be valid json: {error}"))?;
+    Ok((response.status_code, json))
+}
+
+fn wait_for_friend_request_status(
+    base_url: &str,
+    request_id: &str,
+    expected_status: &str,
+    timeout: Duration,
+) -> serde_json::Value {
+    let deadline = Instant::now() + timeout;
+    let path = format!("/api/v1/control/social/friend-requests/{request_id}");
+    let mut last_status = None;
+    let mut last_body = serde_json::Value::Null;
+
+    while Instant::now() < deadline {
+        if let Ok((status, json)) = send_admin_control_request(base_url, path.as_str()) {
+            last_status = Some(status);
+            last_body = json.clone();
+            if status == 200 && json["friendRequest"]["status"] == expected_status {
+                return json;
+            }
+        }
+        thread::sleep(Duration::from_millis(50));
+    }
+
+    panic!(
+        "friend request {request_id} did not reach status {expected_status} within {:?}; last_status={last_status:?}, last_body={last_body}",
+        timeout
+    );
+}
+
+fn wait_for_file_exists(path: &Path, label: &str, timeout: Duration) {
+    let deadline = Instant::now() + timeout;
+    while Instant::now() < deadline {
+        if path.exists() {
+            return;
+        }
+        thread::sleep(Duration::from_millis(25));
+    }
+    panic!(
+        "{label} did not appear within {:?}: {}",
+        timeout,
+        path.display()
+    );
+}
+
+fn wait_for_file_absent(path: &Path, label: &str, timeout: Duration) {
+    let deadline = Instant::now() + timeout;
+    while Instant::now() < deadline {
+        if !path.exists() {
+            return;
+        }
+        thread::sleep(Duration::from_millis(25));
+    }
+    panic!(
+        "{label} was not cleared within {:?}: {}",
+        timeout,
+        path.display()
+    );
+}
+
 #[test]
 fn test_local_minimal_process_blackbox_concurrent_accept_and_cancel_across_instances_converge() {
     let runtime_dir = unique_runtime_dir("process_social_accept_cancel");
@@ -668,6 +747,168 @@ fn test_local_minimal_process_blackbox_cross_instance_submit_same_pair_converges
         (requester == "u_alice" && target == "u_bob")
             || (requester == "u_bob" && target == "u_alice"),
         "snapshot pair should remain within the competing user pair"
+    );
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[test]
+fn test_local_minimal_process_blackbox_restart_repairs_pending_acceptance_after_crash_window() {
+    let runtime_dir = unique_runtime_dir("process_social_accept_restart_repair");
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+
+    let port_a = reserve_local_port();
+    let mut server_a = spawn_local_minimal_server_with_env(
+        runtime_dir.as_path(),
+        port_a,
+        &[("CRAW_CHAT_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "15000")],
+    );
+
+    let (submit_status, submit_json) = send_json_request(
+        server_a.base_url.as_str(),
+        "POST",
+        "/api/v1/social/friend-requests",
+        "u_alice",
+        Some(
+            r#"{
+                "targetUserId":"u_bob",
+                "requestMessage":"process blackbox restart repair"
+            }"#,
+        ),
+    )
+    .expect("submit request before restart repair drill should succeed");
+    assert_eq!(submit_status, 200);
+    let request_id = submit_json["friendRequest"]["requestId"]
+        .as_str()
+        .expect("submitted request should expose request id")
+        .to_owned();
+
+    let accept_base_url = server_a.base_url.clone();
+    let accept_path = format!("/api/v1/social/friend-requests/{request_id}/accept");
+    let accept_handle = thread::spawn(move || {
+        send_json_request(
+            accept_base_url.as_str(),
+            "POST",
+            accept_path.as_str(),
+            "u_bob",
+            None,
+        )
+    });
+
+    let repair_store_path = runtime_dir
+        .join("state")
+        .join("social-friend-request-accept-repairs.json");
+    wait_for_file_exists(
+        repair_store_path.as_path(),
+        "pending friend request acceptance repair store",
+        Duration::from_secs(5),
+    );
+    let accepted_snapshot = wait_for_friend_request_status(
+        server_a.base_url.as_str(),
+        request_id.as_str(),
+        "accepted",
+        Duration::from_secs(5),
+    );
+    assert_eq!(accepted_snapshot["friendRequest"]["status"], "accepted");
+
+    server_a
+        .child
+        .kill()
+        .expect("server should be killable during delayed acceptance finalization");
+    let _ = server_a.child.wait();
+    let _ = accept_handle.join();
+
+    let port_b = reserve_local_port();
+    let server_b = spawn_local_minimal_server(runtime_dir.as_path(), port_b);
+    wait_for_file_absent(
+        repair_store_path.as_path(),
+        "pending friend request acceptance repair store",
+        Duration::from_secs(10),
+    );
+
+    let (alice_contacts_status, alice_contacts_json) = send_json_request(
+        server_b.base_url.as_str(),
+        "GET",
+        "/api/v1/contacts",
+        "u_alice",
+        None,
+    )
+    .expect("alice contacts after restart repair should return response");
+    assert_eq!(alice_contacts_status, 200);
+    let alice_items = alice_contacts_json["items"]
+        .as_array()
+        .expect("alice contacts after restart repair should expose items");
+    assert_eq!(
+        alice_items.len(),
+        1,
+        "restart repair should materialize exactly one alice contact: {alice_contacts_json}"
+    );
+    assert_eq!(alice_items[0]["targetUserId"], "u_bob");
+    let friendship_id = alice_items[0]["friendshipId"]
+        .as_str()
+        .expect("repaired contact should expose friendship id")
+        .to_owned();
+    let direct_chat_id = alice_items[0]["directChatId"]
+        .as_str()
+        .expect("repaired contact should expose direct chat id")
+        .to_owned();
+    let conversation_id = alice_items[0]["conversationId"]
+        .as_str()
+        .expect("repaired contact should expose conversation id")
+        .to_owned();
+
+    let (bob_contacts_status, bob_contacts_json) = send_json_request(
+        server_b.base_url.as_str(),
+        "GET",
+        "/api/v1/contacts",
+        "u_bob",
+        None,
+    )
+    .expect("bob contacts after restart repair should return response");
+    assert_eq!(bob_contacts_status, 200);
+    let bob_items = bob_contacts_json["items"]
+        .as_array()
+        .expect("bob contacts after restart repair should expose items");
+    assert_eq!(
+        bob_items.len(),
+        1,
+        "restart repair should materialize exactly one bob contact: {bob_contacts_json}"
+    );
+    assert_eq!(bob_items[0]["targetUserId"], "u_alice");
+    assert_eq!(bob_items[0]["friendshipId"], friendship_id);
+    assert_eq!(bob_items[0]["directChatId"], direct_chat_id);
+    assert_eq!(bob_items[0]["conversationId"], conversation_id);
+
+    let friendship_path = format!("/api/v1/control/social/friendships/{friendship_id}");
+    let (friendship_status, friendship_json) =
+        send_admin_control_request(server_b.base_url.as_str(), friendship_path.as_str())
+            .expect("friendship snapshot after restart repair should return response");
+    assert_eq!(friendship_status, 200);
+    assert_eq!(friendship_json["friendship"]["status"], "active");
+
+    let direct_chat_path = format!("/api/v1/control/social/direct-chats/{direct_chat_id}");
+    let (direct_chat_status, direct_chat_json) =
+        send_admin_control_request(server_b.base_url.as_str(), direct_chat_path.as_str())
+            .expect("direct chat snapshot after restart repair should return response");
+    assert_eq!(direct_chat_status, 200);
+    assert_eq!(direct_chat_json["directChat"]["status"], "active");
+    assert_eq!(
+        direct_chat_json["directChat"]["conversationId"],
+        conversation_id
+    );
+
+    let conversation_path = format!("/api/v1/conversations/{conversation_id}");
+    let (conversation_status, conversation_json) = send_json_request(
+        server_b.base_url.as_str(),
+        "GET",
+        conversation_path.as_str(),
+        "u_alice",
+        None,
+    )
+    .expect("direct chat conversation after restart repair should return response");
+    assert_eq!(
+        conversation_status, 200,
+        "repaired direct chat conversation should be readable by alice: {conversation_json}"
     );
 
     let _ = fs::remove_dir_all(runtime_dir);
