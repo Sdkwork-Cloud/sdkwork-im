@@ -75,6 +75,11 @@ family has a semantic SDK layer. `sdkwork-im-app-sdk` and `sdkwork-im-backend-sd
 generated transport packages directly and verify the generated primary clients `SdkworkAppClient`
 and `SdkworkBackendClient`.
 
+The IM TypeScript line publishes the consumer package `@sdkwork/im-sdk`; its generated TypeScript
+transport package uses `@sdkwork-internal/im-sdk-generated` as a workspace-internal identity only.
+The IM Flutter line publishes `im_sdk` for consumers and keeps `im_sdk_generated` as the generated
+transport package.
+
 ## Workspace Matrix
 
 | Workspace | Audience | Languages | Primary package boundary |
@@ -88,9 +93,10 @@ All current package lines remain `not_published` until a release freeze assigns 
 versions. The release snapshot is recorded in
 `artifacts/releases/wave-d-2026-04-08/sdk-release-catalog.json`.
 
-- `state = template_only_pending_generation`
-- IM, App API, and Backend API HTTP SDK artifacts use `generationStatus = generated`.
-- RTC provider-runtime SDK artifacts use `generationStatus = template_only_pending_generation`.
+- IM, App API, and Backend API HTTP SDK artifacts use `state = generated_pending_publication` and
+  `generationStatus = generated`.
+- RTC provider-runtime SDK artifacts use `state = template_only_pending_generation` and
+  `generationStatus = template_only_pending_generation`.
 - `releaseStatus = not_published`
 - `plannedVersion = null`
 - `versionStatus = version_unassigned_pending_freeze`
